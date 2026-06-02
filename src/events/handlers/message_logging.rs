@@ -35,7 +35,7 @@ pub async fn message_log_delete(
     };
 
     // 1. Load configuration from dynamic settings (JSONB)
-    let settings = get_settings(&_data.db, g_id).await?;
+    let settings = get_settings(&_data.db, &_data.redis, g_id).await?;
     let Some(raw_id) = settings.message_log_channel_id else {
         return Ok(());
     };
@@ -98,7 +98,7 @@ pub async fn message_log_update(
     };
 
     // 1. Fetch settings (JSONB)
-    let settings = get_settings(&_data.db, g_id).await?;
+    let settings = get_settings(&_data.db, &_data.redis, g_id).await?;
     let Some(raw_id) = settings.message_log_channel_id else {
         return Ok(());
     };

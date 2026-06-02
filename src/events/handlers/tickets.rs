@@ -1,15 +1,12 @@
 use crate::core::config::get_settings;
-use crate::types::{Data, Error, TicketInfo};
+use crate::types::{Data, Error};
+use poise::serenity_prelude as serenity;
 use serenity::all::{
     ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel,
     CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, Message,
     PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId,
 };
-use sqlx::PgPool;
-use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
 pub async fn on_open_ticket(
     ctx: &Context,
@@ -20,7 +17,9 @@ pub async fn on_open_ticket(
         return Ok(());
     };
     let user_interact = &component.user;
-    let settings = get_settings(&data.db, guild_id.get() as i64).await?;
+
+    // 1. Get guild settings and check staff role configuration
+    let settings = get_settings(&data.db, &data.redis, guild_id.get() as i64).await?;
     let role_id_config = match settings.ticket_role_id {
         Some(r) => r,
         None => {
@@ -36,6 +35,8 @@ pub async fn on_open_ticket(
         }
     };
     let role_id = RoleId::new(role_id_config as u64);
+
+    // Defer response to allow time for channel creation
     component
         .create_response(
             &ctx.http,
@@ -45,6 +46,7 @@ pub async fn on_open_ticket(
         )
         .await?;
 
+    // 2. Set up permission overwrites
     let overwrites = vec![
         // Hide the channel from @everyone
         PermissionOverwrite {
@@ -79,19 +81,10 @@ pub async fn on_open_ticket(
         channel_builder = channel_builder.category(ChannelId::new(category_id as u64));
     }
 
-    // Create the channel
+    // 3. Create the channel in Discord
     let ticket_channel = guild_id.create_channel(&ctx.http, channel_builder).await?;
 
-    sqlx::query!(
-        "INSERT INTO tickets (guild_id, channel_id, opener_id) VALUES ($1, $2, $3)",
-        guild_id.get() as i64,
-        ticket_channel.id.get() as i64,
-        user_interact.id.get() as i64
-    )
-    .execute(&data.db)
-    .await?;
-
-    // Send a welcome message in the new channel with a "Close" button
+    // 4. Send a welcome message in the new channel with a "Close" button
     let welcome_embed = serenity::all::CreateEmbed::default()
         .title("Ticket Opened")
         .description(format!(
@@ -116,33 +109,25 @@ pub async fn on_open_ticket(
         )
         .await?;
 
-    {
-        let mut active = data.active_tickets.lock().await;
-        active.insert(
-            ticket_channel.id,
-            TicketInfo {
-                message_count: 0,
-                last_activity: tokio::time::Instant::now(),
-                warned: false,
-                last_button_message_id: Some(welcome_msg.id),
-            },
-        );
-    }
+    // 5. Insert the ticket into the database.
+    // By saving the `welcome_msg.id` directly upon creation, we keep the DB state completely synchronized.
+    let welcome_msg_id_i64 = welcome_msg.id.get() as i64;
+    sqlx::query!(
+        r#"
+        INSERT INTO tickets (guild_id, channel_id, opener_id, last_button_message_id)
+        VALUES ($1, $2, $3, $4)
+        "#,
+        guild_id.get() as i64,
+        ticket_channel.id.get() as i64,
+        user_interact.id.get() as i64,
+        welcome_msg_id_i64
+    )
+    .execute(&data.db)
+    .await?;
 
-    // Spawn background monitoring task
-    let ctx_clone = ctx.clone();
-    let data_clone = data.active_tickets.clone();
-    let channel_id = ticket_channel.id;
-    let db = data.db.clone();
-    tokio::spawn(async move {
-        if let Err(e) = monitor_ticket_inactivity(ctx_clone, data_clone, channel_id, db).await {
-            eprintln!(
-                "Error in inactivity monitor for channel {}: {:?}",
-                channel_id, e
-            );
-        }
-    });
+    // (Note: The in-memory map write and monitor loop `tokio::spawn` have been removed here)
 
+    // 6. Confirm the channel link to the user who clicked the button
     component
         .edit_response(
             &ctx.http,
@@ -191,110 +176,54 @@ pub async fn on_close_ticket(
     channel_id.delete(&ctx.http).await?;
     Ok(())
 }
-pub async fn monitor_ticket_inactivity(
-    ctx: Context,
-    active_tickets: Arc<Mutex<HashMap<ChannelId, TicketInfo>>>,
-    channel_id: ChannelId,
-    db: PgPool,
-) -> Result<(), Error> {
-    let check_interval = Duration::from_secs(30);
-    let warning_timeout = Duration::from_secs(30 * 60);
-    let close_timeout = Duration::from_secs(35 * 60);
-
-    loop {
-        tokio::time::sleep(check_interval).await;
-
-        let mut tickets = active_tickets.lock().await;
-
-        // If the ticket is no longer tracked (e.g., closed manually), stop this loop
-        let ticket = match tickets.get_mut(&channel_id) {
-            Some(t) => t,
-            None => return Ok(()),
-        };
-
-        let elapsed = ticket.last_activity.elapsed();
-
-        if elapsed >= close_timeout {
-            // Drop the lock before executing network requests to avoid deadlock issues
-            drop(tickets);
-
-            let _ = channel_id
-                .send_message(
-                    &ctx.http,
-                    CreateMessage::default()
-                        .content("Ticket closed due to inactivity. Deleting channel..."),
-                )
-                .await;
-
-            sqlx::query!(
-                "UPDATE tickets SET status = 'CLOSE', closed_at = NOW() WHERE channel_id = $1",
-                channel_id.get() as i64
-            )
-            .execute(&db)
-            .await?;
-
-            tokio::time::sleep(Duration::from_secs(5)).await;
-            let _ = channel_id.delete(&ctx.http).await;
-
-            // Cleanup tracking map
-            let mut tickets = active_tickets.lock().await;
-            tickets.remove(&channel_id);
-            return Ok(());
-        } else if elapsed >= warning_timeout && !ticket.warned {
-            ticket.warned = true;
-            drop(tickets); // Drop the lock before await
-
-            let _ = channel_id
-                .send_message(
-                    &ctx.http,
-                    CreateMessage::default().content(
-                        "⚠️ This ticket has been inactive for 30 minutes. It will close in 5 minutes if there is no activity."
-                    ),
-                )
-                .await;
-        }
-    }
-}
 
 pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
     let channel_id = message.channel_id;
-    let mut active = data.active_tickets.lock().await;
-
-    let db_pool = data.db.clone();
-    let channel_id_i64 = message.channel_id.get() as i64;
+    let channel_id_i64 = channel_id.get() as i64;
     let message_id_i64 = message.id.get() as i64;
     let author_id_i64 = message.author.id.get() as i64;
     let content = message.content.clone();
 
-    tokio::spawn(async move {
-        let result = sqlx::query!(
-            "INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content)
-             VALUES ($1, $2, $3, $4)",
-            channel_id_i64,
-            message_id_i64,
-            author_id_i64,
-            content
-        )
-        .execute(&db_pool)
-        .await;
+    let ticket_update = sqlx::query!(
+        r#"
+        UPDATE tickets
+        SET last_activity = CURRENT_TIMESTAMP,
+            warned = FALSE,
+            message_count = message_count + 1
+        WHERE channel_id = $1 AND status = 'OPEN'
+        RETURNING message_count, last_button_message_id
+        "#,
+        channel_id_i64
+    )
+    .fetch_optional(&data.db)
+    .await?;
 
-        if let Err(e) = result {
-            eprintln!("Failed to log ticket message to DB: {}", e);
-        }
-    });
+    // If the query returned a row, this IS an open ticket channel
+    if let Some(ticket) = ticket_update {
+        // A. Log the message asynchronously to ticket_messages to keep the message loop fast
+        let db_pool = data.db.clone();
+        tokio::spawn(async move {
+            let result = sqlx::query!(
+                "INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content)
+                 VALUES ($1, $2, $3, $4)",
+                channel_id_i64,
+                message_id_i64,
+                author_id_i64,
+                content
+            )
+            .execute(&db_pool)
+            .await;
 
-    if let Some(ticket) = active.get_mut(&channel_id) {
-        // Reset activity status since someone typed
-        ticket.last_activity = tokio::time::Instant::now();
-        ticket.warned = false;
+            if let Err(e) = result {
+                eprintln!("Failed to log ticket message to DB: {}", e);
+            }
+        });
 
-        ticket.message_count += 1;
-
-        if ticket.message_count >= 20 {
-            ticket.message_count = 0;
-
+        // B. Handle rotating the close button if 20 messages have been sent
+        if ticket.message_count.unwrap_or(0) >= 20 {
             // Delete previous close button message to avoid multiple active buttons
-            if let Some(old_msg_id) = ticket.last_button_message_id {
+            if let Some(old_msg_id_i64) = ticket.last_button_message_id {
+                let old_msg_id = serenity::all::MessageId::new(old_msg_id_i64 as u64);
                 let _ = channel_id.delete_message(&ctx.http, old_msg_id).await;
             }
 
@@ -316,9 +245,24 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Re
                 )
                 .await
             {
-                ticket.last_button_message_id = Some(new_msg.id);
+                let new_msg_id_i64 = new_msg.id.get() as i64;
+
+                // Reset message count and save the new button message ID
+                sqlx::query!(
+                    r#"
+                    UPDATE tickets
+                    SET message_count = 0,
+                        last_button_message_id = $1
+                    WHERE channel_id = $2
+                    "#,
+                    new_msg_id_i64,
+                    channel_id_i64
+                )
+                .execute(&data.db)
+                .await?;
             }
         }
     }
+
     Ok(())
 }

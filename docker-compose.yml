@@ -11,16 +11,48 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
-  bot:
+  bot_shard_0:
     build: .
     restart: always
     depends_on:
       - db
+      - redis
     env_file:
       - .env
     environment:
       - DATABASE_URL=postgres://postgres:55f5853f9dbb7e181d098ac4e49430d7@db:5432/discordbot
-    command: ["./mod-oud"]
+      - REDIS_URL=redis://redis:6379
+      - SAFE_BROWSING_KEY=AIzaSyDBBn9yWOwDiu1sP-Pbgk8u8o0xTHZVvp4
+      - SHARD_INDEX=0
+      - TOTAL_SHARDS=2
+    command: [ "./mod-oud" ]
+
+  bot_shard_1:
+    build: .
+    restart: always
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://postgres:55f5853f9dbb7e181d098ac4e49430d7@db:5432/discordbot
+      - REDIS_URL=redis://redis:6379
+      - SAFE_BROWSING_KEY=AIzaSyDBBn9yWOwDiu1sP-Pbgk8u8o0xTHZVvp4
+      - SHARD_INDEX=1
+      - TOTAL_SHARDS=2
+    command: [ "./mod-oud" ]
+
+  redis:
+    image: redis:8.8-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    environment:
+      - REDIS_ARGS=--requirepass 55f5853f9dbb7e181d098ac4e49430d7 --appendonly yes
 
 volumes:
   postgres_data:
+  redis-data:

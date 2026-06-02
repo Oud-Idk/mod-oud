@@ -1,6 +1,8 @@
 FROM rust:1.95-slim AS builder
 WORKDIR /usr/src/app
 
+ENV SQLX_OFFLINE=true
+
 # Install system dependencies required for building some Rust crates
 RUN apt-get update && apt-get install -y \
     pkg-config \
@@ -14,7 +16,7 @@ COPY . .
 RUN cargo build --release
 
 # Stage 2: Create the runtime image
-FROM debian:bookworm-slim
+FROM debian:testing-slim AS runtime
 WORKDIR /usr/local/bin
 
 # Install CA certificates (required for HTTPS connections to Discord API)

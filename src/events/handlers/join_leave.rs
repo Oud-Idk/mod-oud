@@ -11,7 +11,7 @@ pub async fn on_member_join(
     let guild_id = member.guild_id.get() as i64;
 
     // Load dynamic settings (JSONB)
-    let settings = get_settings(&data.db, guild_id).await?;
+    let settings = get_settings(&data.db, &data.redis, guild_id).await?;
 
     // 1. Assign auto-role if configured
     if let Some(role_id_i64) = settings.join_role_id {
@@ -67,7 +67,7 @@ pub async fn on_member_leave(
     let guild_id = _guild_id.get() as i64;
 
     // Load settings (JSONB)
-    let settings = get_settings(&data.db, guild_id).await?;
+    let settings = get_settings(&data.db, &data.redis, guild_id).await?;
 
     // 1. Send departure message to logs if channel is configured
     if let Some(log_channel_i64) = settings.leave_channel_id {

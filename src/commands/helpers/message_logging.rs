@@ -1,4 +1,4 @@
-use crate::event_handlers::handlers::message_logging::{EditDetails, MessageDetails};
+use crate::events::handlers::message_logging::{EditDetails, MessageDetails};
 
 /// Extracts message details from the cache if the message was not authored by a bot.
 pub fn fetch_cached_message(

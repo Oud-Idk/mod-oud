@@ -1,6 +1,6 @@
-use crate::event_handlers::handlers::join_leave::{on_member_join, on_member_leave};
-use crate::event_handlers::interact::on_interact;
-use crate::event_handlers::message::{on_message, on_message_delete, on_message_update};
+use crate::events::handlers::join_leave::{on_member_join, on_member_leave};
+use crate::events::interact::on_interact;
+use crate::events::message::{on_message, on_message_delete, on_message_update};
 use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::FullEvent;
@@ -26,6 +26,9 @@ pub async fn event_handler(
         } => {
             on_message_update(ctx, old_if_available.as_ref(), new.as_ref(), event, data).await?;
         }
+        FullEvent::Message { new_message } => {
+            on_message(ctx, new_message, data).await?;
+        }
         FullEvent::GuildMemberAddition { new_member } => {
             on_member_join(ctx, new_member, data).await?;
         }
@@ -35,9 +38,6 @@ pub async fn event_handler(
             member_data_if_available,
         } => {
             on_member_leave(ctx, guild_id, user, member_data_if_available, data).await?;
-        }
-        FullEvent::Message { new_message } => {
-            on_message(ctx, new_message, data).await?;
         }
         FullEvent::InteractionCreate { interaction } => {
             on_interact(ctx, interaction, data).await?;

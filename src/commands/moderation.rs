@@ -6,6 +6,7 @@ use serenity::{
     model::{guild::Member, id::MessageId, user::User},
 };
 
+use crate::commands::helpers::permissions::check_hierarchy;
 use crate::types::{Context, Error};
 use crate::{
     commands::helpers::dm::{
@@ -71,6 +72,11 @@ pub async fn kick(
         return Ok(());
     }
 
+    if let Err(err_msg) = check_hierarchy(ctx, user.id).await {
+        ctx.say(format!("❌ Action Denied: {}", err_msg)).await?;
+        return Ok(());
+    }
+
     let meta = GuildMetadata::extract(&ctx)?;
     let reason_str = reason.as_deref().unwrap_or("No reason provided");
 
@@ -126,6 +132,11 @@ pub async fn ban(
     dmd: Option<u8>,
 ) -> Result<(), Error> {
     if check_self_moderation(&ctx, user.id, "ban").await? {
+        return Ok(());
+    }
+
+    if let Err(err_msg) = check_hierarchy(ctx, user.id).await {
+        ctx.say(format!("❌ Action Denied: {}", err_msg)).await?;
         return Ok(());
     }
 
@@ -235,6 +246,11 @@ pub async fn mute(
         return Ok(());
     }
 
+    if let Err(err_msg) = check_hierarchy(ctx, member.user.id).await {
+        ctx.say(format!("❌ Action Denied: {}", err_msg)).await?;
+        return Ok(());
+    }
+
     let meta = GuildMetadata::extract(&ctx)?;
     let reason_str = reason.as_deref().unwrap_or("No reason specified");
 
@@ -318,6 +334,11 @@ pub async fn unmute(
         return Ok(());
     }
 
+    if let Err(err_msg) = check_hierarchy(ctx, member.user.id).await {
+        ctx.say(format!("❌ Action Denied: {}", err_msg)).await?;
+        return Ok(());
+    }
+
     let meta = GuildMetadata::extract(&ctx)?;
 
     if member.communication_disabled_until.is_none() {
@@ -379,6 +400,11 @@ pub async fn softban(
         return Ok(());
     }
 
+    if let Err(err_msg) = check_hierarchy(ctx, member.user.id).await {
+        ctx.say(format!("❌ Action Denied: {}", err_msg)).await?;
+        return Ok(());
+    }
+
     let meta = GuildMetadata::extract(&ctx)?;
     let reason_str = reason.as_deref().unwrap_or("No reason specified");
 
@@ -432,7 +458,6 @@ pub async fn unban(
 ) -> Result<(), Error> {
     let meta = GuildMetadata::extract(&ctx)?;
     let reason_str = reason.unwrap_or_else(|| "No reason specified".to_string());
-
     let unban_result = meta.id.unban(ctx.http(), user.id).await;
 
     try_dm_moderation_action(

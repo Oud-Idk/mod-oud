@@ -1,4 +1,4 @@
-use crate::event_handlers::handlers::{message_filter, message_logging, tickets};
+use crate::events::handlers::{message_filter, message_logging, tickets};
 use crate::types::{Data, Error};
 use serenity::all::{ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent};
 
@@ -22,6 +22,7 @@ pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result
 
     message_filter::process_moderation_filters(ctx, message, data, guild_id).await?;
     tickets::handle_tickets(ctx, message, data).await?;
+    message_filter::process_scam_filters(ctx, message, data, guild_id).await?;
 
     Ok(())
 }

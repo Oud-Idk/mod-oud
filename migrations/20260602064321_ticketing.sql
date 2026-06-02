@@ -2,13 +2,17 @@ CREATE TYPE ticket_status AS ENUM ('OPEN', 'CLOSE');
 
 CREATE TABLE tickets
 (
-    id         SERIAL PRIMARY KEY,
-    guild_id   BIGINT        NOT NULL,
-    channel_id BIGINT        NOT NULL UNIQUE,
-    opener_id  BIGINT        NOT NULL,
-    status     ticket_status NOT NULL DEFAULT 'OPEN',
-    created_at TIMESTAMPTZ            DEFAULT NOW(),
-    closed_at  TIMESTAMPTZ
+    id                     SERIAL PRIMARY KEY,
+    guild_id               BIGINT        NOT NULL,
+    channel_id             BIGINT        NOT NULL UNIQUE,
+    opener_id              BIGINT        NOT NULL,
+    status                 ticket_status NOT NULL DEFAULT 'OPEN',
+    created_at             TIMESTAMPTZ            DEFAULT NOW(),
+    closed_at              TIMESTAMPTZ,
+    last_activity          TIMESTAMPTZ            DEFAULT NOW(),
+    message_count          INT                    DEFAULT 0,
+    warned                 BOOLEAN                DEFAULT FALSE,
+    last_button_message_id BIGINT
 );
 
 CREATE TABLE ticket_messages

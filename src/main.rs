@@ -1,21 +1,16 @@
 use crate::commands::{emergency, ticket};
+use crate::models::spam_tracker::SpamTracker;
 use commands::{config, messages, moderation, ping, warn};
-use core::setup::restore_active_tickets;
-use models::spam_tracker::SpamTracker;
 use poise::serenity_prelude as serenity;
-use serenity::all::ChannelId;
 use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
-use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::time::Instant;
-use types::{Data, Error, TicketInfo};
+use types::{Data, Error};
 
 mod commands;
 mod core;
-mod event_handlers;
+mod events;
 mod jobs;
 mod models;
 mod types;
@@ -34,12 +29,17 @@ async fn main() -> Result<(), Error> {
         .expect("Expected a token in the environment table, `DISCORD_TOKEN`");
     let database_url = env::var("DATABASE_URL")
         .expect("Expected a database URL in the environment table, `DATABASE_URL`");
+    let redis_url =
+        env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
+
+    let _ = env::var("SAFE_BROWSING_KEY").unwrap_or_else(|_| {
+        eprintln!("Safe browsing API key not found. Scam detection will not work");
+        "".to_owned()
+    });
 
     // Initialize the database connection pool
     let pool = sqlx::PgPool::connect(&database_url).await?;
-
-    // Run pending migrations automatically
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    let redis_client = redis::Client::open(redis_url)?;
 
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
@@ -52,6 +52,13 @@ async fn main() -> Result<(), Error> {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("!".into()),
+                edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
+                    std::time::Duration::from_secs(3600),
+                ))),
+                ..Default::default()
+            },
             commands: vec![
                 ping::ping(),
                 moderation::purge(),
@@ -75,6 +82,7 @@ async fn main() -> Result<(), Error> {
                 emergency::global_unlock(),
                 ticket::setup_tickets(),
                 config::config(),
+                register(),
             ],
             on_error: |error| Box::pin(utils::error::on_error(error)),
             event_handler: |ctx, event, framework, data| {
@@ -82,24 +90,26 @@ async fn main() -> Result<(), Error> {
             },
             ..Default::default()
         })
-        .setup(|ctx, _ready, framework| {
+        .setup(move |ctx, _ready, _framework| {
             Box::pin(async move {
                 println!("Logged in as {}", _ready.user.name);
 
-                // 1. Register application commands
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-
-                // 2. Start background worker threads
+                // Start background worker threads
                 jobs::temp_ban::start_temp_ban_worker(pool.clone(), ctx.http.clone());
 
-                // 3. Restore database states
-                let active_tickets = restore_active_tickets(ctx, &pool).await?;
+                // Start our new centralized ticket monitor worker!
+                jobs::ticket_inactivity::start_ticket_inactivity_worker(
+                    pool.clone(),
+                    ctx.http.clone(),
+                );
 
-                // 4. Return initialized state data
+                let spam_tracker = SpamTracker::new(redis_client.clone());
+
+                // Return initialized state data (Clean and Stateless!)
                 Ok(Data {
                     db: pool,
-                    spam_tracker: SpamTracker::new(),
-                    active_tickets,
+                    redis: redis_client,
+                    spam_tracker,
                 })
             })
         })
@@ -115,7 +125,26 @@ async fn main() -> Result<(), Error> {
         data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
     }
 
-    client.start().await?;
+    let shard_index: u32 = env::var("SHARD_INDEX")
+        .unwrap_or_else(|_| "0".to_string())
+        .parse()
+        .expect("SHARD_INDEX must be a valid u32");
 
+    let total_shards: u32 = env::var("TOTAL_SHARDS")
+        .unwrap_or_else(|_| "1".to_string())
+        .parse()
+        .expect("TOTAL_SHARDS must be a valid u32");
+
+    println!("Starting Shard {} of {}...", shard_index, total_shards);
+
+    // 3. Instead of client.start().await?, boot only the assigned shard
+    client.start_shard(shard_index, total_shards).await?;
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, owners_only, hide_in_help)]
+async fn register(ctx: poise::Context<'_, Data, Error>) -> Result<(), Error> {
+    poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }

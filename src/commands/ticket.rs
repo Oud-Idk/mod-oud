@@ -39,7 +39,7 @@ pub async fn setup_tickets(
     #[description = "The role for viewing the tickets."] role: Option<Role>,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap().get() as i64;
-    let settings = get_settings(&ctx.data().db, guild_id).await?;
+    let settings = get_settings(&ctx.data().db, &ctx.data().redis, guild_id).await?;
     let ticket_category_id_config = settings.ticket_category_id;
     let ticket_category_id = get_or_error!(
         ticket_category_id_config,
