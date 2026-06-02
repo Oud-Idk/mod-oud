@@ -1,7 +1,7 @@
 use serenity::model::user::User;
 
 use crate::commands::helpers::show_history;
-use crate::{Context, Error};
+use crate::types::{Context, Error};
 
 /// Get the history of deleted messages by a user
 #[poise::command(slash_command, default_member_permissions = "BAN_MEMBERS", guild_only)]

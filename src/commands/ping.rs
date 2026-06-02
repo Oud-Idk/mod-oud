@@ -1,4 +1,5 @@
-use crate::{Context, Error, ShardManagerContainer};
+use crate::ShardManagerContainer;
+use crate::types::{Context, Error};
 
 /// Pong!
 #[poise::command(slash_command)]

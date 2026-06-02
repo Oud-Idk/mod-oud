@@ -1,9 +1,7 @@
+use crate::event_handlers::handlers::join_leave::{on_member_join, on_member_leave};
 use crate::event_handlers::interact::on_interact;
 use crate::event_handlers::message::{on_message, on_message_delete, on_message_update};
-use crate::{
-    Data, Error,
-    event_handlers::handlers::join_leave::{on_member_join, on_member_leave},
-};
+use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::FullEvent;
 

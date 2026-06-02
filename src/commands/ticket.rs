@@ -1,5 +1,5 @@
-use crate::utils::config::get_settings;
-use crate::{Context, Error};
+use crate::core::config::get_settings;
+use crate::types::{Context, Error};
 use poise::{CreateReply, serenity_prelude as serenity};
 use serenity::all::{GuildChannel, Role};
 

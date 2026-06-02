@@ -9,14 +9,10 @@ use serenity::model::channel::Message;
 use serenity::model::id::{ChannelId, GuildId};
 
 use crate::commands::helpers::dm::try_dm_message_action;
+use crate::core::config::get_settings;
+use crate::types::{Data, Error};
 use crate::utils::logger::log_spam_message;
-use crate::{
-    Data, Error,
-    utils::{
-        config::get_settings,
-        logger::{FlagSeverity, log_flagged_message},
-    },
-};
+use crate::utils::logger::{FlagSeverity, log_flagged_message};
 
 // Matches Discord mentions (<@id>, <@&id>), channels (<#id>), and custom emojis (<:name:id> or <a:name:id>)
 static DISCORD_FORMAT_REGEX: Lazy<Regex> =

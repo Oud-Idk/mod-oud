@@ -3,10 +3,8 @@ use poise::serenity_prelude as serenity;
 use serenity::model::guild::Member;
 use serenity::model::user::User;
 
-use crate::{
-    Context, Error,
-    utils::logger::{ActionType, log_moderation_action},
-};
+use crate::types::{Context, Error};
+use crate::utils::logger::{ActionType, log_moderation_action};
 
 /// Intermediate representation of warning data used for unified display.
 struct WarningInfo {

@@ -1,9 +1,11 @@
 use std::fmt;
 
 // Updated the import here from get_guild_config to get_settings
-use crate::{Context, Data, Error, utils::config::get_settings};
+use crate::core::config::get_settings;
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
+// Updated the import here from get_guild_config to get_settings
+use crate::types::{Context, Data, Error};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "varchar", rename_all = "snake_case")] // Adjust based on your DB setup

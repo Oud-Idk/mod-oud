@@ -1,6 +1,7 @@
 use crate::commands::helpers::dm::GuildMetadata;
+use crate::types::{Context, Error};
 use crate::utils::logger::ActionType;
-use crate::{Context, Error, utils::logger::log_moderation_action};
+use crate::utils::logger::log_moderation_action;
 use poise::serenity_prelude as serenity;
 use serenity::model::channel::GuildChannel;
 use serenity::{PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId};

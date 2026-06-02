@@ -1,9 +1,8 @@
 use crate::commands::config::ConfigField;
+use crate::types::{Context, Error};
 use crate::utils::logger::FlagSeverity;
-use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
-
 // ============================================================================
 //  HOW TO ADD A NEW CONFIGURATION FIELD (JSONB MODEL)
 // ============================================================================

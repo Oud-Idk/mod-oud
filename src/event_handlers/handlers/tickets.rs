@@ -1,5 +1,5 @@
-use crate::utils::config::get_settings;
-use crate::{Data, Error, TicketInfo};
+use crate::core::config::get_settings;
+use crate::types::{Data, Error, TicketInfo};
 use serenity::all::{
     ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel,
     CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, Message,
@@ -143,7 +143,6 @@ pub async fn on_open_ticket(
         }
     });
 
-    // Notify the user privately that their ticket is ready
     component
         .edit_response(
             &ctx.http,

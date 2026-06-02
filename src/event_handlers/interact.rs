@@ -1,7 +1,8 @@
 use crate::event_handlers::handlers::tickets;
-use crate::{Data, Error};
+use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 use serenity::all::Interaction;
+
 pub async fn on_interact(
     ctx: &serenity::Context,
     interaction: &Interaction,

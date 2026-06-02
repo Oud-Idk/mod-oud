@@ -1,4 +1,4 @@
-use crate::{Data, Error};
+use crate::types::{Data, Error};
 
 pub async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     match error {

@@ -1,7 +1,6 @@
-use crate::{
-    Context, Error,
-    utils::{config::get_settings, logger::FlagSeverity},
-};
+use crate::core::config::get_settings;
+use crate::types::{Context, Error};
+use crate::utils::logger::FlagSeverity;
 use poise::serenity_prelude as serenity;
 use serenity::all::{GuildChannel, Role};
 

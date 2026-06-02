@@ -1,5 +1,6 @@
 use crate::commands::helpers::message_logging;
-use crate::{Data, Error, utils::config::get_settings};
+use crate::core::config::get_settings;
+use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 
 pub struct MessageDetails {

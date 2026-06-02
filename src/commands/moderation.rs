@@ -6,8 +6,8 @@ use serenity::{
     model::{guild::Member, id::MessageId, user::User},
 };
 
+use crate::types::{Context, Error};
 use crate::{
-    Context, Error,
     commands::helpers::dm::{
         GuildMetadata, check_self_moderation, send_ephemeral, try_dm_moderation_action,
     },

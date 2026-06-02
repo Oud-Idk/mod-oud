@@ -1,8 +1,9 @@
 use crate::commands::{emergency, ticket};
-use crate::utils::spam_tracker::SpamTracker;
 use commands::{config, messages, moderation, ping, warn};
+use core::setup::restore_active_tickets;
+use models::spam_tracker::SpamTracker;
 use poise::serenity_prelude as serenity;
-use serenity::all::{ChannelId, MessageId};
+use serenity::all::ChannelId;
 use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
 use std::collections::HashMap;
@@ -10,25 +11,15 @@ use std::env;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
+use types::{Data, Error, TicketInfo};
 
 mod commands;
+mod core;
 mod event_handlers;
+mod jobs;
+mod models;
+mod types;
 mod utils;
-
-pub struct TicketInfo {
-    pub message_count: u32,
-    pub last_activity: Instant,
-    pub warned: bool,
-    pub last_button_message_id: Option<MessageId>,
-}
-
-pub struct Data {
-    pub db: sqlx::PgPool,
-    pub spam_tracker: SpamTracker,
-    pub active_tickets: Arc<Mutex<HashMap<ChannelId, TicketInfo>>>,
-}
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 pub struct ShardManagerContainer;
 impl serenity::prelude::TypeMapKey for ShardManagerContainer {
@@ -87,23 +78,28 @@ async fn main() -> Result<(), Error> {
             ],
             on_error: |error| Box::pin(utils::error::on_error(error)),
             event_handler: |ctx, event, framework, data| {
-                Box::pin(utils::event_handler::event_handler(
-                    ctx, event, framework, data,
-                ))
+                Box::pin(utils::events::event_handler(ctx, event, framework, data))
             },
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 println!("Logged in as {}", _ready.user.name);
+
+                // 1. Register application commands
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
-                utils::worker::start_temp_ban_worker(pool.clone(), ctx.http.clone());
+                // 2. Start background worker threads
+                jobs::temp_ban::start_temp_ban_worker(pool.clone(), ctx.http.clone());
 
+                // 3. Restore database states
+                let active_tickets = restore_active_tickets(ctx, &pool).await?;
+
+                // 4. Return initialized state data
                 Ok(Data {
                     db: pool,
                     spam_tracker: SpamTracker::new(),
-                    active_tickets: Arc::new(Mutex::new(HashMap::new())),
+                    active_tickets,
                 })
             })
         })

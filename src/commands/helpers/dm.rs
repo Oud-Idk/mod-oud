@@ -1,5 +1,4 @@
-use crate::{Context, Error};
-
+use crate::types::{Context, Error};
 use ::serenity::model::channel::Message;
 use poise::serenity_prelude as serenity;
 
