@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT old_content, new_content, edited_at, channel_id \n        FROM modified_messages \n        WHERE author_id = $1 ORDER BY edited_at DESC LIMIT $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "old_content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "modified_messages",
+            "name": "old_content"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "new_content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "modified_messages",
+            "name": "new_content"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "edited_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "modified_messages",
+            "name": "edited_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "modified_messages",
+            "name": "channel_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "d9a57ad85c51706251880b3645f5a8ded88fe794e167ef7f18ffb0d9972f3a09"
+}

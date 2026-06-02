@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT channel_id FROM tickets\n        WHERE status = 'OPEN' AND last_activity < $1 AND warned = FALSE\n        FOR UPDATE SKIP LOCKED\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tickets",
+            "name": "channel_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "725c8f05fa02bccb634191d7b08b9aa2cdd258e2f553a2b50b3deb5584147daa"
+}

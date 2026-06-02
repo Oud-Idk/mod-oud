@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, user_id, moderator_id, reason, created_at, is_active\n        FROM warns\n        WHERE guild_id = ($1)\n        AND user_id = ($2)\n        AND is_active = TRUE\n        ORDER BY created_at DESC;\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "warns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "warns",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "moderator_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "warns",
+            "name": "moderator_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "reason",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "warns",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "warns",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "is_active",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "warns",
+            "name": "is_active"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "13b96d0f6138a161391db66768ce62489cb7edaf1f0106ace3d4c555298e8aec"
+}

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE tickets\n        SET last_activity = CURRENT_TIMESTAMP,\n            warned = FALSE,\n            message_count = message_count + 1\n        WHERE channel_id = $1 AND status = 'OPEN'\n        RETURNING message_count, last_button_message_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tickets",
+            "name": "message_count"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_button_message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tickets",
+            "name": "last_button_message_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "31fc242f369a03f57a210910bacc24f59145fceb5d89be9c4dfbc777c752ee92"
+}

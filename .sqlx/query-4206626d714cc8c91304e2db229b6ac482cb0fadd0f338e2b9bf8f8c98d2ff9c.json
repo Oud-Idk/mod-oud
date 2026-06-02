@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    UPDATE tickets\n                    SET message_count = 0,\n                        last_button_message_id = $1\n                    WHERE channel_id = $2\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4206626d714cc8c91304e2db229b6ac482cb0fadd0f338e2b9bf8f8c98d2ff9c"
+}

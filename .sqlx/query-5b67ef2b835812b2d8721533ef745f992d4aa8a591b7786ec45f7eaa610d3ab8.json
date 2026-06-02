@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE tickets SET status = 'CLOSE', closed_at = NOW() WHERE channel_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b67ef2b835812b2d8721533ef745f992d4aa8a591b7786ec45f7eaa610d3ab8"
+}
