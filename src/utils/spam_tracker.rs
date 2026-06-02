@@ -37,7 +37,10 @@ impl SpamTracker {
 
         self.maybe_cleanup(now, window);
 
-        let mut records = self.records.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut records = self
+            .records
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let timestamps = records.entry((guild_id, user_id)).or_insert_with(Vec::new);
 
         timestamps.retain(|&t| now.saturating_duration_since(t) < window);
@@ -48,14 +51,12 @@ impl SpamTracker {
     /// Checks if a warning should be sent, enforcing a cooldown.
     /// Returns `true` if the cooldown has elapsed (or if no warning has been sent yet),
     /// and updates the warning timestamp.
-    pub fn check_warning_cooldown(
-        &self,
-        guild_id: u64,
-        user_id: u64,
-        cooldown: Duration,
-    ) -> bool {
+    pub fn check_warning_cooldown(&self, guild_id: u64, user_id: u64, cooldown: Duration) -> bool {
         let now = Instant::now();
-        let mut last_warned = self.last_warned.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut last_warned = self
+            .last_warned
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         if let Some(&last) = last_warned.get(&(guild_id, user_id)) {
             if now.saturating_duration_since(last) < cooldown {
@@ -69,7 +70,10 @@ impl SpamTracker {
 
     /// Periodically removes empty or expired entries from the maps to free memory
     fn maybe_cleanup(&self, now: Instant, window: Duration) {
-        let mut counter = self.cleanup_counter.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut counter = self
+            .cleanup_counter
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         *counter += 1;
         // Run cleanup every 100 checks

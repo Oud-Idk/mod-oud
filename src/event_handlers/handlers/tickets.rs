@@ -1,10 +1,15 @@
+use crate::utils::config::get_settings;
+use crate::{Data, Error, TicketInfo};
+use serenity::all::{
+    ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel,
+    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, Message,
+    PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId,
+};
+use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::time::Duration;
-use serenity::all::{ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildId, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, User};
-use crate::{Data, Error, TicketInfo};
-use crate::utils::config::get_settings;
+use tokio::sync::Mutex;
 
 pub async fn on_open_ticket(
     ctx: &Context,
@@ -49,13 +54,17 @@ pub async fn on_open_ticket(
         },
         // Allow the user who opened the ticket to view and write
         PermissionOverwrite {
-            allow: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::READ_MESSAGE_HISTORY,
+            allow: Permissions::VIEW_CHANNEL
+                | Permissions::SEND_MESSAGES
+                | Permissions::READ_MESSAGE_HISTORY,
             deny: Permissions::empty(),
             kind: PermissionOverwriteType::Member(user_interact.id),
         },
         // Allow staff members to view and write
         PermissionOverwrite {
-            allow: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::READ_MESSAGE_HISTORY,
+            allow: Permissions::VIEW_CHANNEL
+                | Permissions::SEND_MESSAGES
+                | Permissions::READ_MESSAGE_HISTORY,
             deny: Permissions::empty(),
             kind: PermissionOverwriteType::Role(role_id),
         },
@@ -72,6 +81,15 @@ pub async fn on_open_ticket(
 
     // Create the channel
     let ticket_channel = guild_id.create_channel(&ctx.http, channel_builder).await?;
+
+    sqlx::query!(
+        "INSERT INTO tickets (guild_id, channel_id, opener_id) VALUES ($1, $2, $3)",
+        guild_id.get() as i64,
+        ticket_channel.id.get() as i64,
+        user_interact.id.get() as i64
+    )
+    .execute(&data.db)
+    .await?;
 
     // Send a welcome message in the new channel with a "Close" button
     let welcome_embed = serenity::all::CreateEmbed::default()
@@ -115,16 +133,24 @@ pub async fn on_open_ticket(
     let ctx_clone = ctx.clone();
     let data_clone = data.active_tickets.clone();
     let channel_id = ticket_channel.id;
+    let db = data.db.clone();
     tokio::spawn(async move {
-        monitor_ticket_inactivity(ctx_clone, data_clone, channel_id).await;
+        if let Err(e) = monitor_ticket_inactivity(ctx_clone, data_clone, channel_id, db).await {
+            eprintln!(
+                "Error in inactivity monitor for channel {}: {:?}",
+                channel_id, e
+            );
+        }
     });
 
     // Notify the user privately that their ticket is ready
     component
         .edit_response(
             &ctx.http,
-            serenity::all::EditInteractionResponse::new()
-                .content(format!("Your ticket has been created: <#{}>", ticket_channel.id)),
+            serenity::all::EditInteractionResponse::new().content(format!(
+                "Your ticket has been created: <#{}>",
+                ticket_channel.id
+            )),
         )
         .await?;
 
@@ -134,17 +160,23 @@ pub async fn on_open_ticket(
 pub async fn on_close_ticket(
     ctx: &Context,
     component: &ComponentInteraction,
+    data: &Data,
 ) -> Result<(), Error> {
     component
         .create_response(
             &ctx.http,
-            CreateInteractionResponse::Defer(
-                CreateInteractionResponseMessage::default(),
-            ),
+            CreateInteractionResponse::Defer(CreateInteractionResponseMessage::default()),
         )
         .await?;
 
     let channel_id = component.channel_id;
+
+    sqlx::query!(
+        "UPDATE tickets SET status = 'CLOSE', closed_at = NOW() WHERE channel_id = $1",
+        channel_id.get() as i64
+    )
+    .execute(&data.db)
+    .await?;
 
     // Send a warning that the ticket is closing, then delete the channel
     channel_id
@@ -155,7 +187,7 @@ pub async fn on_close_ticket(
         .await?;
 
     // Sleep briefly so users can see the deletion warning
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
 
     channel_id.delete(&ctx.http).await?;
     Ok(())
@@ -164,10 +196,11 @@ pub async fn monitor_ticket_inactivity(
     ctx: Context,
     active_tickets: Arc<Mutex<HashMap<ChannelId, TicketInfo>>>,
     channel_id: ChannelId,
-) {
+    db: PgPool,
+) -> Result<(), Error> {
     let check_interval = Duration::from_secs(30);
-    let warning_timeout = Duration::from_secs(30 * 60); // 30 minutes
-    let close_timeout = Duration::from_secs(35 * 60);   // 35 minutes total (30m + 5m warning)
+    let warning_timeout = Duration::from_secs(30 * 60);
+    let close_timeout = Duration::from_secs(35 * 60);
 
     loop {
         tokio::time::sleep(check_interval).await;
@@ -177,7 +210,7 @@ pub async fn monitor_ticket_inactivity(
         // If the ticket is no longer tracked (e.g., closed manually), stop this loop
         let ticket = match tickets.get_mut(&channel_id) {
             Some(t) => t,
-            None => break,
+            None => return Ok(()),
         };
 
         let elapsed = ticket.last_activity.elapsed();
@@ -189,9 +222,17 @@ pub async fn monitor_ticket_inactivity(
             let _ = channel_id
                 .send_message(
                     &ctx.http,
-                    CreateMessage::default().content("Ticket closed due to inactivity. Deleting channel..."),
+                    CreateMessage::default()
+                        .content("Ticket closed due to inactivity. Deleting channel..."),
                 )
                 .await;
+
+            sqlx::query!(
+                "UPDATE tickets SET status = 'CLOSE', closed_at = NOW() WHERE channel_id = $1",
+                channel_id.get() as i64
+            )
+            .execute(&db)
+            .await?;
 
             tokio::time::sleep(Duration::from_secs(5)).await;
             let _ = channel_id.delete(&ctx.http).await;
@@ -199,8 +240,7 @@ pub async fn monitor_ticket_inactivity(
             // Cleanup tracking map
             let mut tickets = active_tickets.lock().await;
             tickets.remove(&channel_id);
-            break;
-
+            return Ok(());
         } else if elapsed >= warning_timeout && !ticket.warned {
             ticket.warned = true;
             drop(tickets); // Drop the lock before await
@@ -217,13 +257,32 @@ pub async fn monitor_ticket_inactivity(
     }
 }
 
-pub async fn handle_tickets(
-    ctx: &Context,
-    message: &Message,
-    data: &Data,
-) -> Result<(), Error> {
+pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
     let channel_id = message.channel_id;
     let mut active = data.active_tickets.lock().await;
+
+    let db_pool = data.db.clone();
+    let channel_id_i64 = message.channel_id.get() as i64;
+    let message_id_i64 = message.id.get() as i64;
+    let author_id_i64 = message.author.id.get() as i64;
+    let content = message.content.clone();
+
+    tokio::spawn(async move {
+        let result = sqlx::query!(
+            "INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content)
+             VALUES ($1, $2, $3, $4)",
+            channel_id_i64,
+            message_id_i64,
+            author_id_i64,
+            content
+        )
+        .execute(&db_pool)
+        .await;
+
+        if let Err(e) = result {
+            eprintln!("Failed to log ticket message to DB: {}", e);
+        }
+    });
 
     if let Some(ticket) = active.get_mut(&channel_id) {
         // Reset activity status since someone typed
@@ -251,7 +310,9 @@ pub async fn handle_tickets(
                 .send_message(
                     &ctx.http,
                     CreateMessage::default()
-                        .content("Still need help? You can close this ticket if your issue is resolved.")
+                        .content(
+                            "Still need help? You can close this ticket if your issue is resolved.",
+                        )
                         .components(close_button),
                 )
                 .await

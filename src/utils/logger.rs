@@ -24,7 +24,9 @@ pub enum ActionType {
     GlobalUnlock,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, poise::ChoiceParameter, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, poise::ChoiceParameter, Serialize, Deserialize,
+)]
 #[sqlx(type_name = "flag_severity", rename_all = "UPPERCASE")]
 pub enum FlagSeverity {
     #[name = "Mild"]
@@ -199,8 +201,8 @@ pub async fn log_spam_message(
         author_id as i64,
         content,
     )
-        .execute(&data.db)
-        .await?;
+    .execute(&data.db)
+    .await?;
 
     // 2. Fetch guild settings
     let settings = get_settings(&data.db, guild_id as i64).await?;

@@ -1,4 +1,4 @@
-/// Helper to format a single deleted message record into a markdown string.
+/// Helper to format a single deleted message record into a Markdown string.
 pub fn format_record(
     content: &str,
     timestamp: Option<i64>,
@@ -16,7 +16,10 @@ pub fn format_record(
     let channel_mention = format!("<#{}>", channel_id as u64);
 
     // Build the header line
-    entry.push_str(&format!("**Channel:** {} • **Time:** {}\n", channel_mention, formatted_time));
+    entry.push_str(&format!(
+        "**Channel:** {} • **Time:** {}\n",
+        channel_mention, formatted_time
+    ));
 
     // Format the content
     if content.is_empty() {

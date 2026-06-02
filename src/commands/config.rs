@@ -1,11 +1,8 @@
 use crate::{
     Context, Error,
-    utils::{
-        config::get_settings,
-        logger::FlagSeverity,
-    },
+    utils::{config::get_settings, logger::FlagSeverity},
 };
-use poise::{serenity_prelude as serenity};
+use poise::serenity_prelude as serenity;
 use serenity::all::{GuildChannel, Role};
 
 #[derive(poise::ChoiceParameter, Clone, Copy, Debug, Eq, PartialEq)]
@@ -43,18 +40,24 @@ pub async fn config(_ctx: Context<'_>) -> Result<(), Error> {
 async fn set(
     ctx: Context<'_>,
     #[description = "The target channel for welcomes"] welcome_channel: Option<serenity::Channel>,
-    #[description = "The target channel for message logs (deletes/edits)"] log_channel: Option<serenity::Channel>,
+    #[description = "The target channel for message logs (deletes/edits)"] log_channel: Option<
+        serenity::Channel,
+    >,
     #[description = "The role assigned to new members"] join_role: Option<Role>,
     #[description = "The target channel for leave logs"] leave_channel: Option<serenity::Channel>,
-    #[description = "The target channel for general bot and mod logs"] bot_log_channel: Option<serenity::Channel>,
+    #[description = "The target channel for general bot and mod logs"] bot_log_channel: Option<
+        serenity::Channel,
+    >,
     #[description = "The severity (and higher) to delete"] filter_above: Option<FlagSeverity>,
     #[description = "The category for ticket creation"]
     #[channel_types("Category")]
     ticket_category: Option<GuildChannel>,
-    #[description = "The role for ticket access"]
-    ticket_role: Option<Role>,
+    #[description = "The role for ticket access"] ticket_role: Option<Role>,
 ) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command must be executed within a server.")?.get() as i64;
+    let guild_id = ctx
+        .guild_id()
+        .ok_or("This command must be executed within a server.")?
+        .get() as i64;
     let db = &ctx.data().db;
 
     // 1. Process optional inputs to retrieve database patches and confirmation messages
@@ -67,12 +70,13 @@ async fn set(
         &filter_above,
         &ticket_category,
         &ticket_role,
-    )? else {
-        ctx.say("Please specify at least one setting to configure.").await?;
+    )?
+    else {
+        ctx.say("Please specify at least one setting to configure.")
+            .await?;
         return Ok(());
     };
 
-    // 2. Perform dynamic JSONB merge-patch operation
     sqlx::query!(
         r#"
         INSERT INTO guild_configs (guild_id, settings)
@@ -83,10 +87,11 @@ async fn set(
         guild_id,
         patch
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
-    ctx.say(format!("Updated server configuration:\n{}", changes_text)).await?;
+    ctx.say(format!("Updated server configuration:\n{}", changes_text))
+        .await?;
     Ok(())
 }
 
@@ -96,7 +101,10 @@ async fn unset(
     ctx: Context<'_>,
     #[description = "The configuration option to clear"] option: ConfigField,
 ) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command must be executed within a server.")?.get() as i64;
+    let guild_id = ctx
+        .guild_id()
+        .ok_or("This command must be executed within a server.")?
+        .get() as i64;
     let db = &ctx.data().db;
 
     let (json_key, label) = match option {
@@ -115,8 +123,8 @@ async fn unset(
         guild_id,
         json_key
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     ctx.say(format!("Successfully cleared/disabled **{}**.", label))
         .await?;
@@ -130,11 +138,13 @@ where
     opt.map_or_else(|| "*Not configured*".to_string(), formatter)
 }
 
-
 /// Displays the current active configuration for this server
 #[poise::command(slash_command)]
 async fn show(ctx: Context<'_>) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command must be executed within a server.")?.get() as i64;
+    let guild_id = ctx
+        .guild_id()
+        .ok_or("This command must be executed within a server.")?
+        .get() as i64;
     let db = &ctx.data().db;
 
     let config = get_settings(db, guild_id).await?;
@@ -159,15 +169,14 @@ async fn show(ctx: Context<'_>) -> Result<(), Error> {
     );
 
     ctx.send(
-        poise::CreateReply::default()
-            .embed(
-                serenity::CreateEmbed::default()
-                    .title("Server Configuration")
-                    .description(embed_content)
-                    .color(0x5865F2),
-            )
+        poise::CreateReply::default().embed(
+            serenity::CreateEmbed::default()
+                .title("Server Configuration")
+                .description(embed_content)
+                .color(0x5865F2),
+        ),
     )
-        .await?;
+    .await?;
 
     Ok(())
 }

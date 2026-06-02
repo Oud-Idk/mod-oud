@@ -8,14 +8,10 @@ use serenity::{
 
 use crate::{
     Context, Error,
-    utils::{
-        logger::{ActionType, log_moderation_action},
+    commands::helpers::dm::{
+        GuildMetadata, check_self_moderation, send_ephemeral, try_dm_moderation_action,
     },
-    commands::helpers::{
-        dm::{
-            GuildMetadata, check_self_moderation, send_ephemeral, try_dm_moderation_action,
-        },
-    }
+    utils::logger::{ActionType, log_moderation_action},
 };
 
 /// Bulk deletes messages. Messages mustn't be older than 14 days.

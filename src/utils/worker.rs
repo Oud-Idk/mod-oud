@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use poise::serenity_prelude as serenity;
+use std::sync::Arc;
 
 fn is_unknown_ban_error(err: &serenity::Error) -> bool {
     if let serenity::Error::Http(http_err) = err {
@@ -25,7 +25,7 @@ pub fn start_temp_ban_worker(db_pool: sqlx::PgPool, http: Arc<serenity::Http>) {
                 now
             )
             .fetch_all(&db_pool)
-            .await 
+            .await
             {
                 Ok(rows) => rows,
                 Err(e) => {
@@ -55,7 +55,7 @@ pub fn start_temp_ban_worker(db_pool: sqlx::PgPool, http: Arc<serenity::Http>) {
                         } else {
                             // Log other errors (e.g., Missing Permissions) so they can be addressed
                             eprintln!(
-                                "Failed to unban user {} in guild {}: {:?}", 
+                                "Failed to unban user {} in guild {}: {:?}",
                                 record.user_id, record.guild_id, e
                             );
                         }

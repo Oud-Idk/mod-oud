@@ -1,9 +1,12 @@
-use serenity::model::guild::Member;
-use poise::serenity_prelude as serenity;
-use serenity::model::user::User;
 use futures::StreamExt;
+use poise::serenity_prelude as serenity;
+use serenity::model::guild::Member;
+use serenity::model::user::User;
 
-use crate::{Context, Error, utils::logger::{ActionType, log_moderation_action}};
+use crate::{
+    Context, Error,
+    utils::logger::{ActionType, log_moderation_action},
+};
 
 /// Intermediate representation of warning data used for unified display.
 struct WarningInfo {
@@ -16,19 +19,17 @@ struct WarningInfo {
 }
 
 /// Warns a user.
-#[poise::command (
+#[poise::command(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
-    guild_only,
+    guild_only
 )]
 pub async fn warn(
     ctx: Context<'_>,
 
-    #[description = "The member to warn"]
-    member: Member,
+    #[description = "The member to warn"] member: Member,
 
-    #[description = "The reason"]
-    reason: Option<String>,
+    #[description = "The reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap().get() as i64;
     let user_id = member.user.id.get() as i64;
@@ -41,8 +42,9 @@ pub async fn warn(
         ctx.send(
             poise::CreateReply::default()
                 .content("You cannot warn yourself!")
-                .ephemeral(true)
-        ).await?;
+                .ephemeral(true),
+        )
+        .await?;
         return Ok(());
     }
 
@@ -52,11 +54,13 @@ pub async fn warn(
         VALUES ($1, $2, $3, $4)
         RETURNING id
         "#,
-        guild_id, user_id,
-        author_id, reason_str,
+        guild_id,
+        user_id,
+        author_id,
+        reason_str,
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     let embed = poise::serenity_prelude::CreateEmbed::new()
         .title(format!("You have been formally warned from {}", guild_name))
@@ -64,16 +68,22 @@ pub async fn warn(
         .field("Reason", &reason_str, false)
         .field("ID", format!("{}", res.unwrap().id), false)
         .thumbnail(ctx.guild().and_then(|g| g.icon_url()).unwrap_or_default())
-        .footer(poise::serenity_prelude::CreateEmbedFooter::new("This is an automated moderation action. Moderator name is hidden for privacy."));
+        .footer(poise::serenity_prelude::CreateEmbedFooter::new(
+            "This is an automated moderation action. Moderator name is hidden for privacy.",
+        ));
 
     let message = poise::serenity_prelude::CreateMessage::new().embed(embed);
     let _ = member.user.dm(&ctx.serenity_context().http, message).await;
 
     ctx.send(
         poise::CreateReply::default()
-            .content(format!("Successfully warned {} for: {}", member.user.name, &reason_str))
-            .ephemeral(true)
-    ).await?;
+            .content(format!(
+                "Successfully warned {} for: {}",
+                member.user.name, &reason_str
+            ))
+            .ephemeral(true),
+    )
+    .await?;
 
     // Log the moderation action
     log_moderation_action(
@@ -84,16 +94,13 @@ pub async fn warn(
         ActionType::Warn,
         Some(&reason_str),
         None,
-    ).await?;
+    )
+    .await?;
     Ok(())
 }
 
 /// Helper to handle paginated embeds with interactive button controls.
-async fn paginate<F>(
-    ctx: Context<'_>,
-    total_pages: usize,
-    make_embed: F,
-) -> Result<(), Error>
+async fn paginate<F>(ctx: Context<'_>, total_pages: usize, make_embed: F) -> Result<(), Error>
 where
     F: Fn(usize) -> poise::serenity_prelude::CreateEmbed + Send + Sync,
 {
@@ -117,7 +124,9 @@ where
             .style(poise::serenity_prelude::ButtonStyle::Primary)
             .disabled(page_idx == total_pages - 1);
 
-        vec![poise::serenity_prelude::CreateActionRow::Buttons(vec![prev_btn, next_btn])]
+        vec![poise::serenity_prelude::CreateActionRow::Buttons(vec![
+            prev_btn, next_btn,
+        ])]
     };
 
     let mut current_page = 0;
@@ -130,7 +139,7 @@ where
                 .components(make_components(current_page))
                 .ephemeral(true),
         )
-            .await?
+        .await?
     } else {
         // If there's only one page, send without buttons
         ctx.send(
@@ -138,15 +147,16 @@ where
                 .embed(make_embed(current_page))
                 .ephemeral(true),
         )
-            .await?;
+        .await?;
         return Ok(());
     };
 
     // Listen for button interactions for 2 minutes
-    let mut collector = poise::serenity_prelude::ComponentInteractionCollector::new(ctx.serenity_context())
-        .author_id(ctx.author().id)
-        .timeout(std::time::Duration::from_secs(120))
-        .stream();
+    let mut collector =
+        poise::serenity_prelude::ComponentInteractionCollector::new(ctx.serenity_context())
+            .author_id(ctx.author().id)
+            .timeout(std::time::Duration::from_secs(120))
+            .stream();
 
     while let Some(press) = collector.next().await {
         if press.data.custom_id == prev_id && current_page > 0 {
@@ -158,24 +168,36 @@ where
         }
 
         // Update the embed and button states
-        press.create_response(&ctx.serenity_context().http,
-                              poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(
-                                  poise::serenity_prelude::CreateInteractionResponseMessage::new()
-                                      .embed(make_embed(current_page))
-                                      .components(make_components(current_page))
-                              )
-        ).await?;
+        press
+            .create_response(
+                &ctx.serenity_context().http,
+                poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(
+                    poise::serenity_prelude::CreateInteractionResponseMessage::new()
+                        .embed(make_embed(current_page))
+                        .components(make_components(current_page)),
+                ),
+            )
+            .await?;
     }
 
     // Disable the buttons after timeout to indicate they are no longer active
     let disabled_components = vec![poise::serenity_prelude::CreateActionRow::Buttons(vec![
-        poise::serenity_prelude::CreateButton::new(&prev_id).label("◀").style(poise::serenity_prelude::ButtonStyle::Primary).disabled(true),
-        poise::serenity_prelude::CreateButton::new(&next_id).label("▶").style(poise::serenity_prelude::ButtonStyle::Primary).disabled(true),
+        poise::serenity_prelude::CreateButton::new(&prev_id)
+            .label("◀")
+            .style(poise::serenity_prelude::ButtonStyle::Primary)
+            .disabled(true),
+        poise::serenity_prelude::CreateButton::new(&next_id)
+            .label("▶")
+            .style(poise::serenity_prelude::ButtonStyle::Primary)
+            .disabled(true),
     ])];
 
-    let _ = reply.edit(ctx, poise::CreateReply::default()
-        .components(disabled_components)
-    ).await;
+    let _ = reply
+        .edit(
+            ctx,
+            poise::CreateReply::default().components(disabled_components),
+        )
+        .await;
 
     Ok(())
 }
@@ -227,16 +249,15 @@ async fn paginate_warnings(
 }
 
 /// Shows the history of warns of a user.
-#[poise::command (
+#[poise::command(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
-    guild_only,
+    guild_only
 )]
 pub async fn warn_history(
     ctx: Context<'_>,
 
-    #[description = "The member to check"]
-    member: Member,
+    #[description = "The member to check"] member: Member,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap().get() as i64;
     let user_id = member.user.id.get() as i64;
@@ -251,10 +272,11 @@ pub async fn warn_history(
         AND is_active = TRUE
         ORDER BY created_at DESC;
         "#,
-        guild_id, user_id,
+        guild_id,
+        user_id,
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     if records.is_empty() {
         ctx.send(
@@ -262,7 +284,7 @@ pub async fn warn_history(
                 .content(format!("<@{}> has no active warnings.", member.user.id))
                 .ephemeral(true),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
@@ -306,16 +328,20 @@ async fn set_warning_active_status(
         WHERE id = $2 AND guild_id = $3 AND is_active = $4
         RETURNING user_id, reason
         "#,
-        set_active, id,
-        guild_id, expected_current_state,
+        set_active,
+        id,
+        guild_id,
+        expected_current_state,
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     match res {
         Some(row) => {
             let target_user_id = row.user_id as u64;
-            let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
+            let reason = row
+                .reason
+                .unwrap_or_else(|| "No reason specified.".to_string());
             let user_id = serenity::UserId::new(target_user_id);
             let user = user_id.to_user(&ctx).await?;
 
@@ -327,7 +353,10 @@ async fn set_warning_active_status(
             };
 
             let embed = poise::serenity_prelude::CreateEmbed::new()
-                .title(format!("Your warning at {} has been {}.", guild_name, action_past_tense))
+                .title(format!(
+                    "Your warning at {} has been {}.",
+                    guild_name, action_past_tense
+                ))
                 .field("Warning Reason", &reason, false)
                 .color(color)
                 .thumbnail(ctx.guild().and_then(|g| g.icon_url()).unwrap_or_default());
@@ -335,13 +364,15 @@ async fn set_warning_active_status(
             let message = poise::serenity_prelude::CreateMessage::new().embed(embed);
             let _ = user.dm(&ctx.serenity_context().http, message).await;
 
-            ctx.send(poise::CreateReply::default()
-                .content(format!(
-                    "Successfully {} warning **#{}** for <@{}>.",
-                    action_past_tense, id, target_user_id
-                ))
-                .ephemeral(true)
-            ).await?;
+            ctx.send(
+                poise::CreateReply::default()
+                    .content(format!(
+                        "Successfully {} warning **#{}** for <@{}>.",
+                        action_past_tense, id, target_user_id
+                    ))
+                    .ephemeral(true),
+            )
+            .await?;
 
             // Log the moderation action
             log_moderation_action(
@@ -352,17 +383,20 @@ async fn set_warning_active_status(
                 action_type,
                 Some(&reason),
                 None,
-            ).await?;
-        },
+            )
+            .await?;
+        }
         None => {
             let status_description = if set_active { "inactive" } else { "active" };
-            ctx.send(poise::CreateReply::default()
-                .content(format!(
-                    "Could not find an {} warning with ID **#{}** in this server.",
-                    status_description, id
-                ))
-                .ephemeral(true)
-            ).await?;
+            ctx.send(
+                poise::CreateReply::default()
+                    .content(format!(
+                        "Could not find an {} warning with ID **#{}** in this server.",
+                        status_description, id
+                    ))
+                    .ephemeral(true),
+            )
+            .await?;
         }
     }
 
@@ -370,10 +404,10 @@ async fn set_warning_active_status(
 }
 
 /// Pardons a warning.
-#[poise::command (
+#[poise::command(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
-    guild_only,
+    guild_only
 )]
 pub async fn pardon_warning(
     ctx: Context<'_>,
@@ -383,10 +417,10 @@ pub async fn pardon_warning(
 }
 
 /// Unpardons a warning.
-#[poise::command (
+#[poise::command(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
-    guild_only,
+    guild_only
 )]
 pub async fn unpardon_warning(
     ctx: Context<'_>,
@@ -399,16 +433,14 @@ pub async fn unpardon_warning(
 #[poise::command(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
-    guild_only,
+    guild_only
 )]
 pub async fn search_warnings(
     ctx: Context<'_>,
 
-    #[description = "The text to search for in warning reasons"]
-    query: String,
+    #[description = "The text to search for in warning reasons"] query: String,
 
-    #[description = "Filter results to a specific user"]
-    user: Option<User>,
+    #[description = "Filter results to a specific user"] user: Option<User>,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().ok_or("Not in a guild")?.get() as i64;
     let db = &ctx.data().db;
@@ -430,18 +462,23 @@ pub async fn search_warnings(
         search_pattern,
         target_user_id,
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     if matches.is_empty() {
         let filter_message = match user {
             Some(u) => format!("issued to <@{}> ", u.id),
             None => String::new(),
         };
-        ctx.send(poise::CreateReply::default()
-            .content(format!("No warnings {}found matching `{}`.", filter_message, query))
-            .ephemeral(true)
-        ).await?;
+        ctx.send(
+            poise::CreateReply::default()
+                .content(format!(
+                    "No warnings {}found matching `{}`.",
+                    filter_message, query
+                ))
+                .ephemeral(true),
+        )
+        .await?;
         return Ok(());
     }
 
@@ -469,13 +506,12 @@ pub async fn search_warnings(
 #[poise::command(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
-    guild_only,
+    guild_only
 )]
 pub async fn search_warning_by_id(
     ctx: Context<'_>,
 
-    #[description = "The ID of the warning to look up"]
-    id: i32,
+    #[description = "The ID of the warning to look up"] id: i32,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().ok_or("Not in a guild")?.get() as i64;
     let db = &ctx.data().db;
@@ -489,12 +525,16 @@ pub async fn search_warning_by_id(
         id,
         guild_id,
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     match record {
         Some(warn) => {
-            let status = if warn.is_active.unwrap_or(true) { "Active" } else { "Pardoned" };
+            let status = if warn.is_active.unwrap_or(true) {
+                "Active"
+            } else {
+                "Pardoned"
+            };
             let time_str = match warn.created_at {
                 Some(dt) => format!("<t:{0}:f> (<t:{0}:R>)", dt.timestamp()),
                 None => "*Unknown date*".to_string(),
@@ -510,16 +550,19 @@ pub async fn search_warning_by_id(
                 .field("Date", time_str, false)
                 .field("Reason", reason, false);
 
-            ctx.send(poise::CreateReply::default()
-                .embed(embed)
-                .ephemeral(true)
-            ).await?;
+            ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
+                .await?;
         }
         None => {
-            ctx.send(poise::CreateReply::default()
-                .content(format!("Could not find warning with ID **#{}** in this server.", id))
-                .ephemeral(true)
-            ).await?;
+            ctx.send(
+                poise::CreateReply::default()
+                    .content(format!(
+                        "Could not find warning with ID **#{}** in this server.",
+                        id
+                    ))
+                    .ephemeral(true),
+            )
+            .await?;
         }
     }
 
@@ -530,13 +573,12 @@ pub async fn search_warning_by_id(
 #[poise::command(
     slash_command,
     default_member_permissions = "ADMINISTRATOR",
-    guild_only,
+    guild_only
 )]
 pub async fn delete_warning(
     ctx: Context<'_>,
 
-    #[description = "The warning ID"]
-    id: i32,
+    #[description = "The warning ID"] id: i32,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap().get() as i64;
     let guild_name = ctx.guild().unwrap().name.clone();
@@ -548,17 +590,20 @@ pub async fn delete_warning(
         WHERE id = $1 AND guild_id = $2
         RETURNING user_id, reason
         "#,
-        id, guild_id
+        id,
+        guild_id
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     match res {
         Some(row) => {
             let target_user_id = row.user_id as u64;
             let user_id = serenity::UserId::new(target_user_id);
             let user = user_id.to_user(&ctx).await?;
-            let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
+            let reason = row
+                .reason
+                .unwrap_or_else(|| "No reason specified.".to_string());
 
             ctx.send(poise::CreateReply::default()
                 .content(format!(
@@ -569,7 +614,10 @@ pub async fn delete_warning(
             ).await?;
 
             let embed = poise::serenity_prelude::CreateEmbed::new()
-                .title(format!("Your warning at {} has been permanently deleted!.", guild_name))
+                .title(format!(
+                    "Your warning at {} has been permanently deleted!.",
+                    guild_name
+                ))
                 .field("Warning Reason", &reason, false)
                 .color(0x48F767)
                 .thumbnail(ctx.guild().and_then(|g| g.icon_url()).unwrap_or_default());
@@ -586,16 +634,19 @@ pub async fn delete_warning(
                 ActionType::DeleteWarning,
                 Some(&reason),
                 None,
-            ).await?;
-        },
+            )
+            .await?;
+        }
         None => {
-            ctx.send(poise::CreateReply::default()
-                .content(format!(
-                    "Could not find a warning with ID **#{}** in this server.",
-                    id
-                ))
-                .ephemeral(true)
-            ).await?;
+            ctx.send(
+                poise::CreateReply::default()
+                    .content(format!(
+                        "Could not find a warning with ID **#{}** in this server.",
+                        id
+                    ))
+                    .ephemeral(true),
+            )
+            .await?;
         }
     }
 

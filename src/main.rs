@@ -1,15 +1,15 @@
-use std::collections::HashMap;
+use crate::commands::{emergency, ticket};
+use crate::utils::spam_tracker::SpamTracker;
 use commands::{config, messages, moderation, ping, warn};
 use poise::serenity_prelude as serenity;
+use serenity::all::{ChannelId, MessageId};
 use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
+use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use serenity::all::{ChannelId, MessageId};
 use tokio::time::Instant;
-use crate::commands::{emergency, ticket};
-use crate::utils::spam_tracker::SpamTracker;
 
 mod commands;
 mod event_handlers;
@@ -25,7 +25,7 @@ pub struct TicketInfo {
 pub struct Data {
     pub db: sqlx::PgPool,
     pub spam_tracker: SpamTracker,
-    pub active_tickets: Arc<Mutex<HashMap<ChannelId, TicketInfo>>>
+    pub active_tickets: Arc<Mutex<HashMap<ChannelId, TicketInfo>>>,
 }
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;

@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use poise::serenity_prelude as serenity;
 use crate::commands::config::ConfigField;
-use crate::{Context, Error};
 use crate::utils::logger::FlagSeverity;
+use crate::{Context, Error};
+use poise::serenity_prelude as serenity;
+use serde::{Deserialize, Serialize};
 
 // ============================================================================
 //  HOW TO ADD A NEW CONFIGURATION FIELD (JSONB MODEL)
@@ -82,10 +82,12 @@ pub async fn get_settings(db: &sqlx::PgPool, guild_id: i64) -> Result<GuildSetti
         "SELECT settings FROM guild_configs WHERE guild_id = $1",
         guild_id
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
-    Ok(row.map(|r| serde_json::from_value(r.settings).unwrap_or_default()).unwrap_or_default())
+    Ok(row
+        .map(|r| serde_json::from_value(r.settings).unwrap_or_default())
+        .unwrap_or_default())
 }
 
 #[poise::command(slash_command)]
@@ -101,9 +103,15 @@ async fn set(
 
     // 1. Build a dynamic JSON patch of only the values the user specified
     let mut patch = serde_json::Map::new();
-    if let Some(c) = &welcome_channel { patch.insert("welcome_channel_id".into(), c.id().get().into()); }
-    if let Some(c) = &log_channel { patch.insert("message_log_channel_id".into(), c.id().get().into()); }
-    if let Some(r) = &join_role { patch.insert("join_role_id".into(), r.id.get().into()); }
+    if let Some(c) = &welcome_channel {
+        patch.insert("welcome_channel_id".into(), c.id().get().into());
+    }
+    if let Some(c) = &log_channel {
+        patch.insert("message_log_channel_id".into(), c.id().get().into());
+    }
+    if let Some(r) = &join_role {
+        patch.insert("join_role_id".into(), r.id.get().into());
+    }
 
     if patch.is_empty() {
         ctx.say("Specify at least one option.").await?;
@@ -121,8 +129,8 @@ async fn set(
         guild_id,
         serde_json::Value::Object(patch)
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     ctx.say("Configuration updated!").await?;
     Ok(())
@@ -150,8 +158,8 @@ async fn unset(ctx: Context<'_>, option: ConfigField) -> Result<(), Error> {
         guild_id,
         json_key
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     ctx.say("Cleared configuration field.".to_string()).await?;
     Ok(())

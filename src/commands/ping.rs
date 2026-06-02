@@ -1,7 +1,7 @@
 use crate::{Context, Error, ShardManagerContainer};
 
 /// Pong!
-#[poise::command(slash_command)] 
+#[poise::command(slash_command)]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     let pool = &ctx.data().db;
     let data = ctx.serenity_context().data.read().await;
@@ -11,8 +11,9 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
             ctx.send(
                 poise::CreateReply::default()
                     .content("Failed to retrieve shard manager")
-                    .ephemeral(true)
-            ).await?;
+                    .ephemeral(true),
+            )
+            .await?;
             return Ok(());
         }
     };
@@ -30,17 +31,21 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
                 ctx.say(format!("Pong!\n{}\nGateway Latency: {}ms\nWritten in Rust <:OwoFerris:1463892004885758014>", db_status, latency.as_millis())).await?;
             }
             None => {
-                ctx.say(format!("Pong!\n{}\nWritten in Rust <:OwoFerris:1463892004885758014>", db_status)).await?;
+                ctx.say(format!(
+                    "Pong!\n{}\nWritten in Rust <:OwoFerris:1463892004885758014>",
+                    db_status
+                ))
+                .await?;
             }
         }
     } else {
         ctx.send(
             poise::CreateReply::default()
                 .content("Could not find shard runner.")
-                .ephemeral(true)
-        ).await?;
+                .ephemeral(true),
+        )
+        .await?;
     }
-
 
     Ok(())
 }

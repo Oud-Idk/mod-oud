@@ -1,7 +1,4 @@
-use crate::{
-    Data, Error,
-    utils::config::get_settings,
-};
+use crate::{Data, Error, utils::config::get_settings};
 use poise::serenity_prelude as serenity;
 use serenity::{ChannelId, CreateEmbed, CreateMessage, Mentionable};
 
@@ -53,8 +50,8 @@ pub async fn on_member_join(
         user_id,
         guild_id
     )
-        .execute(&data.db)
-        .await?;
+    .execute(&data.db)
+    .await?;
 
     Ok(())
 }
@@ -98,8 +95,8 @@ pub async fn on_member_leave(
         user_id,
         guild_id
     )
-        .execute(&data.db)
-        .await?;
+    .execute(&data.db)
+    .await?;
 
     Ok(())
 }

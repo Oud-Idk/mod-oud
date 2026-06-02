@@ -1,12 +1,8 @@
-use serenity::all::{ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent};
-use crate::{Data, Error};
 use crate::event_handlers::handlers::{message_filter, message_logging, tickets};
+use crate::{Data, Error};
+use serenity::all::{ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent};
 
-pub async fn on_message(
-    ctx: &Context,
-    message: &Message,
-    data: &Data,
-) -> Result<(), Error> {
+pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
     if message.author.bot {
         return Ok(());
     }
@@ -18,7 +14,8 @@ pub async fn on_message(
     let author_id = message.author.id.get();
     let guild_id_u64 = guild_id.get();
 
-    let was_spam = message_filter::handle_spam_prevention(ctx, message, data, guild_id_u64, author_id).await?;
+    let was_spam =
+        message_filter::handle_spam_prevention(ctx, message, data, guild_id_u64, author_id).await?;
     if was_spam {
         return Ok(());
     }
@@ -36,13 +33,8 @@ pub async fn on_message_delete(
     guild_id: &Option<GuildId>,
     _data: &Data,
 ) -> Result<(), Error> {
-    message_logging::message_log_delete(
-        ctx,
-        channel_id,
-        deleted_message_id,
-        guild_id,
-        _data,
-    ).await?;
+    message_logging::message_log_delete(ctx, channel_id, deleted_message_id, guild_id, _data)
+        .await?;
     Ok(())
 }
 
@@ -53,13 +45,7 @@ pub async fn on_message_update(
     event: &MessageUpdateEvent,
     _data: &Data,
 ) -> Result<(), Error> {
-    message_logging::message_log_update(
-        ctx,
-        old_if_available,
-        new,
-        event,
-        _data,
-    ).await?;
+    message_logging::message_log_update(ctx, old_if_available, new, event, _data).await?;
 
     Ok(())
 }

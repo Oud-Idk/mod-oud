@@ -1,7 +1,7 @@
-use serenity::all::{GuildChannel, Role};
-use poise::{serenity_prelude as serenity, CreateReply};
-use crate::{Context, Error};
 use crate::utils::config::get_settings;
+use crate::{Context, Error};
+use poise::{CreateReply, serenity_prelude as serenity};
+use serenity::all::{GuildChannel, Role};
 
 macro_rules! get_or_error {
     ($config:expr, $fallback:expr, $ctx:expr, $msg:expr) => {
@@ -10,7 +10,8 @@ macro_rules! get_or_error {
             None => match $fallback {
                 Some(obj) => obj.id.get() as i64,
                 None => {
-                    $ctx.send(CreateReply::default().content($msg).ephemeral(true)).await?;
+                    $ctx.send(CreateReply::default().content($msg).ephemeral(true))
+                        .await?;
                     return Ok(());
                 }
             },
@@ -22,7 +23,7 @@ macro_rules! get_or_error {
 #[poise::command(
     slash_command,
     guild_only,
-    default_member_permissions = "MANAGE_CHANNELS | MODERATE_MEMBERS",
+    default_member_permissions = "MANAGE_CHANNELS | MODERATE_MEMBERS"
 )]
 pub async fn setup_tickets(
     ctx: Context<'_>,
@@ -35,8 +36,7 @@ pub async fn setup_tickets(
     #[channel_types("Text")]
     channel: Option<GuildChannel>,
 
-    #[description = "The role for viewing the tickets."]
-    role: Option<Role>,
+    #[description = "The role for viewing the tickets."] role: Option<Role>,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap().get() as i64;
     let settings = get_settings(&ctx.data().db, guild_id).await?;
@@ -63,10 +63,13 @@ pub async fn setup_tickets(
         DO UPDATE SET settings = guild_configs.settings || EXCLUDED.settings
         "#,
         guild_id,
-        serde_json::json!({"ticket_category_id": ticket_category_id, "ticket_role_id": ticket_role_id}),
+        serde_json::json!({
+            "ticket_category_id": ticket_category_id,
+            "ticket_role_id": ticket_role_id,
+        }),
     )
-        .execute(&ctx.data().db)
-        .await?;
+    .execute(&ctx.data().db)
+    .await?;
 
     let embed = serenity::CreateEmbed::default()
         .title("Support Tickets")
@@ -87,15 +90,22 @@ pub async fn setup_tickets(
         .components(components);
 
     match channel {
-        Some(c) => {c.send_message(&ctx.http(), message_builder).await?;},
-        None => {ctx.channel_id().send_message(&ctx.http(), message_builder).await?;},
+        Some(c) => {
+            c.send_message(&ctx.http(), message_builder).await?;
+        }
+        None => {
+            ctx.channel_id()
+                .send_message(&ctx.http(), message_builder)
+                .await?;
+        }
     };
 
     ctx.send(
         CreateReply::default()
             .content("Ticket system has been set up successfully!")
-            .ephemeral(true)
-    ).await?;
+            .ephemeral(true),
+    )
+    .await?;
 
     Ok(())
 }

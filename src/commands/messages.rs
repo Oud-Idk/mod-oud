@@ -1,28 +1,20 @@
 use serenity::model::user::User;
 
-use crate::{Context, Error};
 use crate::commands::helpers::show_history;
+use crate::{Context, Error};
 
 /// Get the history of deleted messages by a user
-#[poise::command(
-    slash_command,
-    default_member_permissions = "BAN_MEMBERS",
-    guild_only,
-)]
+#[poise::command(slash_command, default_member_permissions = "BAN_MEMBERS", guild_only)]
 pub async fn deleted_history(
     ctx: Context<'_>,
 
-    #[description = "The user to fetch deleted messages of"]
-    user: User,
+    #[description = "The user to fetch deleted messages of"] user: User,
 
-    #[description = "The number of messages (default 10)"]
-    messages: Option<i64>,
+    #[description = "The number of messages (default 10)"] messages: Option<i64>,
 
-    #[description = "Show attachment URLs"]
-    show_attachment_urls: Option<bool>,
+    #[description = "Show attachment URLs"] show_attachment_urls: Option<bool>,
 
-    #[description = "Whether to show this as ephemeral. Normally true."]
-    ephemeral: Option<bool>,
+    #[description = "Whether to show this as ephemeral. Normally true."] ephemeral: Option<bool>,
 ) -> Result<(), Error> {
     let db_pool = &ctx.data().db;
     let target_uid = user.id.get() as i64;
@@ -35,17 +27,19 @@ pub async fn deleted_history(
         SELECT content, deleted_at, channel_id, attachment_url FROM deleted_messages
         WHERE author_id = $1 ORDER BY deleted_at DESC LIMIT $2
         "#,
-        target_uid, limit,
+        target_uid,
+        limit,
     )
-        .fetch_all(db_pool)
-        .await?;
+    .fetch_all(db_pool)
+    .await?;
 
     if records.is_empty() {
         ctx.send(
             poise::CreateReply::default()
                 .content(format!("No deleted messages found for {}.", user.name))
-                .ephemeral(is_ephemeral)
-        ).await?;
+                .ephemeral(is_ephemeral),
+        )
+        .await?;
         return Ok(());
     }
 
@@ -74,29 +68,23 @@ pub async fn deleted_history(
     ctx.send(
         poise::CreateReply::default()
             .content(response)
-            .ephemeral(is_ephemeral)
-    ).await?;
+            .ephemeral(is_ephemeral),
+    )
+    .await?;
 
     Ok(())
 }
 
 /// Get the history of edited messages by a user
-#[poise::command(
-    slash_command,
-    default_member_permissions = "BAN_MEMBERS",
-    guild_only,
-)]
+#[poise::command(slash_command, default_member_permissions = "BAN_MEMBERS", guild_only)]
 pub async fn edit_history(
     ctx: Context<'_>,
 
-    #[description = "The user to fetch edited messages of"]
-    user: User,
+    #[description = "The user to fetch edited messages of"] user: User,
 
-    #[description = "The number of messages (default 10)"]
-    messages: Option<i64>,
+    #[description = "The number of messages (default 10)"] messages: Option<i64>,
 
-    #[description = "Whether to show this as ephemeral. Normally true."]
-    ephemeral: Option<bool>,
+    #[description = "Whether to show this as ephemeral. Normally true."] ephemeral: Option<bool>,
 ) -> Result<(), Error> {
     let db_pool = &ctx.data().db;
     let target_uid = user.id.get() as i64;
@@ -108,25 +96,28 @@ pub async fn edit_history(
         FROM modified_messages 
         WHERE author_id = $1 ORDER BY edited_at DESC LIMIT $2
         "#,
-        target_uid, limit,
+        target_uid,
+        limit,
     )
-        .fetch_all(db_pool)
-        .await?;
+    .fetch_all(db_pool)
+    .await?;
 
     if records.is_empty() {
         ctx.send(
             poise::CreateReply::default()
                 .content(format!("No edited messages found for {}.", user.name))
-                .ephemeral(ephemeral.unwrap_or(true))
-        ).await?;
+                .ephemeral(ephemeral.unwrap_or(true)),
+        )
+        .await?;
         return Ok(());
     }
 
     let mut response = format!("# Edited Message History for {}\n\n", user.name);
-    
+
     for record in records {
         // Format the timestamp using Discord's relative/absolute time markdown
-        let formatted_time = record.edited_at
+        let formatted_time = record
+            .edited_at
             .map(|t| {
                 let ts = t.timestamp();
                 format!("<t:{0}:f> (<t:{0}:R>)", ts)
@@ -136,7 +127,10 @@ pub async fn edit_history(
         let channel_mention = format!("<#{}>", record.channel_id as u64);
 
         // Build the header line for this record
-        response.push_str(&format!("**Channel:** {} • **Time:** {}\n", channel_mention, formatted_time));
+        response.push_str(&format!(
+            "**Channel:** {} • **Time:** {}\n",
+            channel_mention, formatted_time
+        ));
 
         // Format old content (Before)
         match &record.old_content {
@@ -159,7 +153,7 @@ pub async fn edit_history(
                 response.push_str("> **After:** *No text content*\n");
             }
         }
-        
+
         // Add a blank line between messages
         response.push('\n');
     }
@@ -173,8 +167,9 @@ pub async fn edit_history(
     ctx.send(
         poise::CreateReply::default()
             .content(response)
-            .ephemeral(ephemeral.unwrap_or(true))
-    ).await?;
+            .ephemeral(ephemeral.unwrap_or(true)),
+    )
+    .await?;
 
     Ok(())
 }

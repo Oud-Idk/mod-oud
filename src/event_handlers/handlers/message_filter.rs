@@ -8,15 +8,15 @@ use rustrict::{Censor, Type};
 use serenity::model::channel::Message;
 use serenity::model::id::{ChannelId, GuildId};
 
-use crate::{
-    utils::{
-        config::get_settings,
-        logger::{log_flagged_message, FlagSeverity},
-    }, Data,
-    Error,
-};
 use crate::commands::helpers::dm::try_dm_message_action;
 use crate::utils::logger::log_spam_message;
+use crate::{
+    Data, Error,
+    utils::{
+        config::get_settings,
+        logger::{FlagSeverity, log_flagged_message},
+    },
+};
 
 // Matches Discord mentions (<@id>, <@&id>), channels (<#id>), and custom emojis (<:name:id> or <a:name:id>)
 static DISCORD_FORMAT_REGEX: Lazy<Regex> =
@@ -56,7 +56,9 @@ async fn send_temp_warning(
 /// Cleans raw text of URLs and specific Discord formatting elements.
 fn clean_message_content(content: &str) -> String {
     let cleaned_urls = remove_urls(content);
-    DISCORD_FORMAT_REGEX.replace_all(&cleaned_urls, "").into_owned()
+    DISCORD_FORMAT_REGEX
+        .replace_all(&cleaned_urls, "")
+        .into_owned()
 }
 
 /// Checks the spam tracker and handles deletions/warnings if the limit is exceeded.
@@ -86,7 +88,7 @@ pub async fn handle_spam_prevention(
             author_id,
             &message.content,
         )
-            .await?;
+        .await?;
 
         // Always delete the spam message immediately
         let _ = message.delete(&ctx.http).await;
@@ -105,7 +107,7 @@ pub async fn handle_spam_prevention(
                 ),
                 Duration::from_secs(5),
             )
-                .await;
+            .await;
         }
 
         return Ok(true); // Stop further processing for this message
@@ -144,7 +146,7 @@ pub async fn process_moderation_filters(
         &message.content,
         severity,
     )
-        .await?;
+    .await?;
 
     let Some(filter_above) = config.message_filter_above else {
         return Ok(());
@@ -171,7 +173,7 @@ pub async fn process_moderation_filters(
                 ("Message", &message.content),
             ],
         )
-            .await;
+        .await;
 
         if dm_result.is_err() {
             send_temp_warning(
@@ -183,10 +185,9 @@ pub async fn process_moderation_filters(
                 ),
                 Duration::from_secs(5),
             )
-                .await;
+            .await;
         }
     }
 
     Ok(())
 }
-

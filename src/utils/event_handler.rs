@@ -1,11 +1,11 @@
+use crate::event_handlers::interact::on_interact;
+use crate::event_handlers::message::{on_message, on_message_delete, on_message_update};
 use crate::{
-    event_handlers::handlers::join_leave::{on_member_join, on_member_leave}, Data,
-    Error,
+    Data, Error,
+    event_handlers::handlers::join_leave::{on_member_join, on_member_leave},
 };
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::FullEvent;
-use crate::event_handlers::interact::on_interact;
-use crate::event_handlers::message::{on_message, on_message_delete, on_message_update};
 
 pub async fn event_handler(
     ctx: &serenity::Context,

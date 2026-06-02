@@ -156,12 +156,18 @@ pub fn build_edit_embed(details: &EditDetails) -> serenity::all::CreateEmbed {
         .field("Channel", format!("<#{}>", details.chan_id), true)
         .field(
             "Original Content",
-            details.old_content.as_deref().unwrap_or("*Unknown (not in cache)*"),
+            details
+                .old_content
+                .as_deref()
+                .unwrap_or("*Unknown (not in cache)*"),
             false,
         )
         .field(
             "New Content",
-            details.new_content.as_deref().unwrap_or("*No text content*"),
+            details
+                .new_content
+                .as_deref()
+                .unwrap_or("*No text content*"),
             false,
         );
 

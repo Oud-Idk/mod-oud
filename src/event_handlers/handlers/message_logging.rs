@@ -1,6 +1,6 @@
-use crate::{utils::config::get_settings, Data, Error};
-use poise::serenity_prelude as serenity;
 use crate::commands::helpers::message_logging;
+use crate::{Data, Error, utils::config::get_settings};
+use poise::serenity_prelude as serenity;
 
 pub struct MessageDetails {
     pub(crate) msg_id: i64,
@@ -28,7 +28,7 @@ pub async fn message_log_delete(
     deleted_message_id: &serenity::MessageId,
     guild_id: &Option<serenity::GuildId>,
     _data: &Data,
-) -> Result<(), Error>  {
+) -> Result<(), Error> {
     let Some(g_id) = guild_id.map(|id| id.get() as i64) else {
         return Ok(());
     };
@@ -41,7 +41,9 @@ pub async fn message_log_delete(
     let del_channel_id = serenity::ChannelId::new(raw_id as u64);
 
     // 2. Extract message information from the local cache
-    let Some(msg) = message_logging::fetch_cached_message(&ctx.cache, channel_id, deleted_message_id) else {
+    let Some(msg) =
+        message_logging::fetch_cached_message(&ctx.cache, channel_id, deleted_message_id)
+    else {
         return Ok(());
     };
 
@@ -131,9 +133,9 @@ pub async fn message_log_update(
     // 4. Generate visual embed and send
     let embed = message_logging::build_edit_embed(&details);
     let builder = serenity::CreateMessage::new().embed(embed);
-    let _ = message_log_channel_id.send_message(&ctx.http, builder).await;
+    let _ = message_log_channel_id
+        .send_message(&ctx.http, builder)
+        .await;
 
     Ok(())
 }
-
-
