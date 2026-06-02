@@ -1,0 +1,19 @@
+# Rust compilation output
+/target/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Environment variables (where you might store your bot token)
+.env
+.env*.local
+
+# OS generated files
+.DS_Store
+Thumbs.db

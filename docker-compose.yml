@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:18.4
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 55f5853f9dbb7e181d098ac4e49430d7
+      POSTGRES_DB: discordbot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  bot:
+    build: .
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://postgres:55f5853f9dbb7e181d098ac4e49430d7@db:5432/discordbot
+    command: ["./mod-oud"]
+
+volumes:
+  postgres_data:
