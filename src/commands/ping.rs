@@ -1,5 +1,5 @@
+use crate::types::types::{Context, Error};
 use crate::ShardManagerContainer;
-use crate::types::{Context, Error};
 
 /// Pong!
 #[poise::command(slash_command)]
@@ -14,10 +14,18 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
                     .content("Failed to retrieve shard manager")
                     .ephemeral(true),
             )
-            .await?;
+                .await?;
             return Ok(());
         }
     };
+
+    let member_count_text: String;
+
+    if let Some(guild) = ctx.guild() {
+        member_count_text = format!("Currently, this guild has {} members", guild.member_count);
+    } else {
+        member_count_text = String::from("This is ran in a DM, so member count won't work.");
+    }
 
     let runners = shard_manager.runners.lock().await;
 
@@ -29,14 +37,14 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(runner) = runners.get(&ctx.serenity_context().shard_id) {
         match runner.latency {
             Some(latency) => {
-                ctx.say(format!("Pong!\n{}\nGateway Latency: {}ms\nWritten in Rust <:OwoFerris:1463892004885758014>", db_status, latency.as_millis())).await?;
+                ctx.say(format!("Pong!\n{}\n{}\nGateway Latency: {}ms\nWritten in Rust <:OwoFerris:1463892004885758014>", db_status, member_count_text, latency.as_millis())).await?;
             }
             None => {
                 ctx.say(format!(
-                    "Pong!\n{}\nWritten in Rust <:OwoFerris:1463892004885758014>",
-                    db_status
+                    "Pong!\n{}\n{}\nWritten in Rust <:OwoFerris:1463892004885758014>",
+                    db_status, member_count_text,
                 ))
-                .await?;
+                    .await?;
             }
         }
     } else {
@@ -45,7 +53,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
                 .content("Could not find shard runner.")
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
     }
 
     Ok(())

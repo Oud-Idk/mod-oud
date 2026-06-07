@@ -1,6 +1,6 @@
 use crate::core::config::get_settings;
-use crate::types::{Context, Error};
-use poise::{CreateReply, serenity_prelude as serenity};
+use crate::types::types::{Context, Error};
+use poise::{serenity_prelude as serenity, CreateReply};
 use serenity::all::{GuildChannel, Role};
 
 macro_rules! get_or_error {
@@ -14,7 +14,8 @@ macro_rules! get_or_error {
                         .await?;
                     return Ok(());
                 }
-            },
+            }
+            .to_string(),
         }
     };
 }
@@ -68,8 +69,8 @@ pub async fn setup_tickets(
             "ticket_role_id": ticket_role_id,
         }),
     )
-    .execute(&ctx.data().db)
-    .await?;
+        .execute(&ctx.data().db)
+        .await?;
 
     let embed = serenity::CreateEmbed::default()
         .title("Support Tickets")
@@ -105,7 +106,7 @@ pub async fn setup_tickets(
             .content("Ticket system has been set up successfully!")
             .ephemeral(true),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }

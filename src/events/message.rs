@@ -1,5 +1,5 @@
 use crate::events::handlers::{message_filter, message_logging, tickets};
-use crate::types::{Data, Error};
+use crate::types::types::{Data, Error};
 use serenity::all::{ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent};
 
 pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {

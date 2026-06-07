@@ -1,12 +1,14 @@
-use crate::commands::{emergency, ticket};
+use crate::commands::{emergency, test, ticket};
 use crate::models::spam_tracker::SpamTracker;
-use commands::{config, messages, moderation, ping, warn};
+use axum::{routing::get, Router};
+use commands::{messages, moderation, ping, warn};
 use poise::serenity_prelude as serenity;
 use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
 use std::env;
+use std::net::SocketAddr;
 use std::sync::Arc;
-use types::{Data, Error};
+use types::types::{Data, Error};
 
 mod commands;
 mod core;
@@ -21,9 +23,32 @@ impl serenity::prelude::TypeMapKey for ShardManagerContainer {
     type Value = Arc<ShardManager>;
 }
 
+async fn health_check() -> &'static str {
+    "OK"
+}
+
+async fn start_web_server() -> Result<(), Error> {
+    let app = Router::new().route("/health", get(health_check));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+
+    println!("Starting health check server on http://{}", addr);
+
+    // Spawn the server in the background so it doesn't block the Discord client
+    tokio::spawn(async move {
+        if let Err(e) = axum::serve(listener, app).await {
+            eprintln!("Health check server error: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     dotenvy::dotenv().ok();
+
+    start_web_server().await?;
 
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment table, `DISCORD_TOKEN`");
@@ -81,7 +106,7 @@ async fn main() -> Result<(), Error> {
                 emergency::global_lock(),
                 emergency::global_unlock(),
                 ticket::setup_tickets(),
-                config::config(),
+                test::preview_welcome(),
                 register(),
             ],
             on_error: |error| Box::pin(utils::error::on_error(error)),
@@ -94,21 +119,19 @@ async fn main() -> Result<(), Error> {
             Box::pin(async move {
                 println!("Logged in as {}", _ready.user.name);
 
-                // Start background worker threads
                 jobs::temp_ban::start_temp_ban_worker(pool.clone(), ctx.http.clone());
 
-                // Start our new centralized ticket monitor worker!
                 jobs::ticket_inactivity::start_ticket_inactivity_worker(
                     pool.clone(),
                     ctx.http.clone(),
                 );
 
                 let spam_tracker = SpamTracker::new(redis_client.clone());
+                let redis_conn = redis_client.get_multiplexed_async_connection().await?;
 
-                // Return initialized state data (Clean and Stateless!)
                 Ok(Data {
                     db: pool,
-                    redis: redis_client,
+                    redis: redis_conn,
                     spam_tracker,
                 })
             })
@@ -135,9 +158,8 @@ async fn main() -> Result<(), Error> {
         .parse()
         .expect("TOTAL_SHARDS must be a valid u32");
 
-    println!("Starting Shard {} of {}...", shard_index, total_shards);
+    println!("Starting Shard {} of {}...", shard_index + 1, total_shards);
 
-    // 3. Instead of client.start().await?, boot only the assigned shard
     client.start_shard(shard_index, total_shards).await?;
 
     Ok(())

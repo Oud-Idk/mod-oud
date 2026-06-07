@@ -1,7 +1,7 @@
 use serenity::model::user::User;
 
 use crate::commands::helpers::show_history;
-use crate::types::{Context, Error};
+use crate::types::types::{Context, Error};
 
 /// Get the history of deleted messages by a user
 #[poise::command(slash_command, default_member_permissions = "BAN_MEMBERS", guild_only)]
@@ -30,8 +30,8 @@ pub async fn deleted_history(
         target_uid,
         limit,
     )
-    .fetch_all(db_pool)
-    .await?;
+        .fetch_all(db_pool)
+        .await?;
 
     if records.is_empty() {
         ctx.send(
@@ -39,7 +39,7 @@ pub async fn deleted_history(
                 .content(format!("No deleted messages found for {}.", user.name))
                 .ephemeral(is_ephemeral),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -70,7 +70,7 @@ pub async fn deleted_history(
             .content(response)
             .ephemeral(is_ephemeral),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -99,8 +99,8 @@ pub async fn edit_history(
         target_uid,
         limit,
     )
-    .fetch_all(db_pool)
-    .await?;
+        .fetch_all(db_pool)
+        .await?;
 
     if records.is_empty() {
         ctx.send(
@@ -108,7 +108,7 @@ pub async fn edit_history(
                 .content(format!("No edited messages found for {}.", user.name))
                 .ephemeral(ephemeral.unwrap_or(true)),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -169,7 +169,7 @@ pub async fn edit_history(
             .content(response)
             .ephemeral(ephemeral.unwrap_or(true)),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }

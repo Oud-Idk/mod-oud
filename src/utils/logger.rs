@@ -1,5 +1,6 @@
 use crate::core::config::get_settings;
-use crate::types::{Context, Data, Error, FlagSeverity, LogConfig, ThreatType};
+use crate::types::flag::{FlagSeverity, ThreatType};
+use crate::types::types::{Context, Data, Error, LogConfig};
 use poise::serenity_prelude as serenity;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
@@ -49,7 +50,7 @@ pub async fn log_moderation_action(
 
     // 3. Dispatch the log message to the Discord logging channel if configured
     if let Some(log_channel_raw) = settings.general_bot_logs_id {
-        let log_channel = serenity::ChannelId::new(log_channel_raw as u64);
+        let log_channel = serenity::ChannelId::new(log_channel_raw.parse::<u64>()?);
 
         let title = "Moderation Action Logged";
         let color = 0x7289DA;
@@ -96,7 +97,7 @@ async fn send_discord_log(
     let settings = get_settings(&data.db, &data.redis, guild_id as i64).await?;
 
     if let Some(log_channel_raw) = settings.message_log_channel_id {
-        let log_channel = serenity::ChannelId::new(log_channel_raw as u64);
+        let log_channel = serenity::ChannelId::new(log_channel_raw.parse::<u64>()?);
 
         let log_embed = serenity::CreateEmbed::new()
             .title(config.title)
@@ -151,7 +152,7 @@ pub async fn log_offensive_message(
             reason_value: flag_type.to_string(),
         },
     )
-    .await
+        .await
 }
 
 pub async fn log_scam_message(
@@ -174,8 +175,8 @@ pub async fn log_scam_message(
         content,
         flag_type,
     )
-    .execute(&data.db)
-    .await?;
+        .execute(&data.db)
+        .await?;
 
     let reasons = flag_type
         .iter()
@@ -196,7 +197,7 @@ pub async fn log_scam_message(
             reason_value: reasons.join(", "),
         },
     )
-    .await
+        .await
 }
 
 pub async fn log_spam_message(
@@ -217,8 +218,8 @@ pub async fn log_spam_message(
         author_id as i64,
         content,
     )
-    .execute(&data.db)
-    .await?;
+        .execute(&data.db)
+        .await?;
 
     send_discord_log(
         ctx,
@@ -234,5 +235,5 @@ pub async fn log_spam_message(
             reason_value: "Rate limit exceeded".to_string(),
         },
     )
-    .await
+        .await
 }

@@ -1,11 +1,11 @@
-use crate::core::config::get_settings;
-use crate::types::{Data, Error};
+use crate::core::config::{get_guild_ctx, get_settings, replace_placeholders};
+use crate::types::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 use serenity::{ChannelId, CreateEmbed, CreateMessage, Mentionable};
 
 pub async fn on_member_join(
     ctx: &serenity::Context,
-    member: &serenity::Member,
+    member: &serenity::all::Member,
     data: &Data,
 ) -> Result<(), Error> {
     let guild_id = member.guild_id.get() as i64;
@@ -15,33 +15,83 @@ pub async fn on_member_join(
 
     // 1. Assign auto-role if configured
     if let Some(role_id_i64) = settings.join_role_id {
-        let role_id = serenity::RoleId::new(role_id_i64 as u64);
+        let role_id = serenity::RoleId::new(role_id_i64.parse::<u64>()?);
         if let Err(e) = member.add_role(&ctx.http, role_id).await {
             eprintln!("Failed to add join role to {}: {}", member.user.name, e);
         }
     }
 
     // 2. Send Welcome Message with integrated alt warning
-    if let Some(channel_id_i64) = settings.welcome_channel_id {
-        let channel_id = ChannelId::new(channel_id_i64 as u64);
-        let warning_text = check_alt_status(&member.user);
+    if let Some(welcome_settings) = settings.welcome {
+        // ── RESPECT THE TOGGLE: Check if the feature is explicitly enabled ──
+        if welcome_settings.enabled.unwrap_or(false) {
+            if let Some(channel_id_i64) = welcome_settings.channel_id {
+                let channel_id = serenity::all::ChannelId::new(channel_id_i64.parse::<u64>()?);
+                let warning_text = check_alt_status(&member.user);
 
-        let embed = CreateEmbed::new()
-            .title("New Member Joined!")
-            .description(format!(
-                "Welcome to the server, {}! We are glad to have you here.{}",
-                member.user.mention(),
-                warning_text
-            ))
-            .thumbnail(member.user.face())
-            .color(serenity::Color::from_rgb(0, 255, 0))
-            .footer(serenity::CreateEmbedFooter::new(format!(
-                "User ID: {}",
-                member.user.id
-            )));
+                // Fetch the GuildChannel object to fulfill the template context
+                let channel = channel_id
+                    .to_channel(ctx)
+                    .await?
+                    .guild()
+                    .ok_or_else(|| {
+                        std::io::Error::new(std::io::ErrorKind::Other, "Target channel is not a guild text channel")
+                    })?;
 
-        let builder = CreateMessage::new().embed(embed);
-        let _ = channel_id.send_message(&ctx.http, builder).await;
+                // Fetch GuildCtx ONCE to share between plain-text & embed builders
+                let gctx = get_guild_ctx(member, ctx).await?;
+
+                let mut builder = serenity::all::CreateMessage::new();
+                let mut has_payload = false;
+
+                let format = welcome_settings.format.as_deref().unwrap_or("embed");
+
+                // Handle plain-text content mode
+                if format == "text" {
+                    if let Some(ref text_template) = welcome_settings.content {
+                        let parsed_content = replace_placeholders(
+                            text_template,
+                            &gctx,
+                            member,
+                            &channel,
+                            None,
+                            Some(&warning_text),
+                        );
+                        builder = builder.content(parsed_content);
+                        has_payload = true;
+                    }
+                }
+
+                // Handle rich embed mode (only if the active format is "embed" and the embed is populated)
+                if format == "embed" {
+                    if let Some(ref custom_embed_template) = welcome_settings.embed {
+                        if !custom_embed_template.is_empty() {
+                            let embed = custom_embed_template
+                                .to_create_embed_with_ctx(
+                                    member,
+                                    &channel,
+                                    &gctx,
+                                    None,
+                                    Some(&warning_text),
+                                )?;
+                            builder = builder.embed(embed);
+                            has_payload = true;
+                        }
+                    }
+                }
+
+                // Fallback to default layouts if both fields are entirely omitted in DB
+                if !has_payload {
+                    builder = builder.content(format!(
+                        "Welcome to the server, {}! We are glad to have you here.{}",
+                        member.user.mention(),
+                        warning_text
+                    ));
+                }
+
+                let _ = channel_id.send_message(&ctx.http, builder).await;
+            }
+        }
     }
 
     // 3. Log join event in database
@@ -51,8 +101,8 @@ pub async fn on_member_join(
         user_id,
         guild_id
     )
-    .execute(&data.db)
-    .await?;
+        .execute(&data.db)
+        .await?;
 
     Ok(())
 }
@@ -71,7 +121,7 @@ pub async fn on_member_leave(
 
     // 1. Send departure message to logs if channel is configured
     if let Some(log_channel_i64) = settings.leave_channel_id {
-        let channel_id = ChannelId::new(log_channel_i64 as u64);
+        let channel_id = ChannelId::new(log_channel_i64.parse::<u64>()?);
         let roles_text = format_member_roles(member_data_if_available);
 
         let embed = CreateEmbed::new()
@@ -96,8 +146,8 @@ pub async fn on_member_leave(
         user_id,
         guild_id
     )
-    .execute(&data.db)
-    .await?;
+        .execute(&data.db)
+        .await?;
 
     Ok(())
 }

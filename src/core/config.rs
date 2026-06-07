@@ -1,188 +1,157 @@
-use crate::commands::config::ConfigField;
-use crate::types::FlagSeverity;
-use crate::types::{Context, Error};
+use crate::types::config::GuildSettings;
+use crate::types::types::Error;
 use poise::serenity_prelude as serenity;
+use rand::RngExt;
+use redis::aio::MultiplexedConnection;
 use redis::AsyncCommands;
-use serde::{Deserialize, Serialize};
-// ============================================================================
-//  HOW TO ADD A NEW CONFIGURATION FIELD (JSONB MODEL)
-// ============================================================================
-//  Because we use a JSONB database model, adding a configuration setting
-//  requires ZERO database migrations. You only need to touch three places:
-//
-//  1. UPDATE THE STORAGE STRUCT:
-//     - Add the optional field to the `GuildSettings` struct.
-//     - Add `#[serde(skip_serializing_if = "Option::is_none")]` above it.
-//     - Add a display helper method inside `impl GuildSettings`.
-//     - Example:
-//       ```rust
-//       #[serde(skip_serializing_if = "Option::is_none")]
-//       pub mute_log_channel_id: Option<i64>,
-//
-//       impl GuildSettings {
-//           pub fn mute_log_channel_mention(&self) -> String {
-//               self.mute_log_channel_id.map_or_else(|| "*Not configured*".into(), |id| format!("<#{id}>"))
-//           }
-//       }
-//       ```
-//     - Display this setting inside `/config show` (in `commands/config.rs`) by calling the helper inline:
-//       ```rust
-//       **Mute Log Channel**: {}
-//       config.mute_log_channel_mention()
-//       ```
-//
-//  2. ADD TO THE '/config set' ARGUMENTS (in `commands/config.rs`):
-//     - Add the field as an `Option<T>` to the `set` slash command parameter list.
-//     - Example:
-//       ```rust
-//       #[description = "The channel for mute logs"] mute_log_channel: Option<serenity::Channel>,
-//       ```
-//     - Pass this new variable into the `process_set_params` helper call inside `set`.
-//     - Update the `process_set_params` signature and handle the field in 1 line using the `patch_id!` macro:
-//       ```rust
-//       patch_id!(patch, changes, mute_log_channel, |c: &serenity::Channel| c.id().get(), "mute_log_channel_id", "Mute Log Channel", "<#{}>");
-//       ```
-//
-//  3. ADD TO THE 'ConfigField' ENUM (in `commands/config.rs`):
-//     - Add a variant to the `ConfigField` enum for your setting.
-//     - Annotate the variant with `serialize` (the JSON database key) and `message` (the user-facing display label).
-//     - Example:
-//       ```rust
-//       #[strum(serialize = "mute_log_channel_id", message = "Mute Log Channel")]
-//       MuteLogChannel,
-//       ```
-//     - *Note: No changes are needed inside the `/config unset` command itself; it dynamically reads this metadata.*
-// ============================================================================
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct GuildSettings {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub welcome_channel_id: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message_log_channel_id: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub join_role_id: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub leave_channel_id: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub general_bot_logs_id: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message_filter_above: Option<FlagSeverity>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ticket_category_id: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ticket_role_id: Option<i64>,
+use regex::{Captures, Regex};
+use std::sync::OnceLock;
+
+pub struct GuildCtx {
+    name: String,
+    id: String,
+    icon_url: String,
+    icon_hash: String,
+    owner_id: String,
+    member_count: String,
+    verification_level: String,
+    joined_at: String,
+}
+
+pub async fn get_guild_ctx(
+    member: &serenity::all::Member,
+    ctx: &serenity::Context,
+) -> Result<GuildCtx, Error> {
+    if let Some(g) = member.guild_id.to_guild_cached(&ctx.cache) {
+        Ok(GuildCtx {
+            name: g.name.clone(),
+            id: g.id.to_string(),
+            icon_url: g.icon_url().unwrap_or_default(),
+            icon_hash: g.icon.map(|h| h.to_string()).unwrap_or_default(),
+            owner_id: g.owner_id.to_string(),
+            member_count: g.member_count.to_string(),
+            verification_level: u8::from(g.verification_level).to_string(),
+            joined_at: g.joined_at.to_string(),
+        })
+    } else {
+        let g = ctx.http.get_guild_with_counts(member.guild_id).await?;
+        Ok(GuildCtx {
+            name: g.name.clone(),
+            id: g.id.to_string(),
+            icon_url: g.icon_url().unwrap_or_default(),
+            icon_hash: g.icon.map(|h| h.to_string()).unwrap_or_default(),
+            owner_id: g.owner_id.to_string(),
+            member_count: g.approximate_member_count.unwrap_or(0).to_string(),
+            verification_level: u8::from(g.verification_level).to_string(),
+            joined_at: String::new(), // Not available on PartialGuild
+        })
+    }
+}
+
+pub fn replace_placeholders(
+    text: &str,
+    gctx: &GuildCtx,
+    member: &serenity::all::Member,
+    channel: &serenity::GuildChannel,
+    plan_name: Option<&str>,
+    achievement: Option<&str>,
+) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap());
+
+    re.replace_all(text, |caps: &Captures| {
+        match &caps["key"] {
+            "server" | "server.name" => gctx.name.clone(),
+            "server.id" => gctx.id.clone(),
+            "server.icon_url" => gctx.icon_url.clone(),
+            "server.icon" => gctx.icon_hash.clone(),
+            "server.owner" => format!("<@{}>", gctx.owner_id),
+            "server.owner_id" => gctx.owner_id.clone(),
+            "server.member_count" => gctx.member_count.clone(),
+            "server.verification_level" => gctx.verification_level.clone(),
+            "server.joined_at" => gctx.joined_at.clone(),
+
+            "user" | "user.mention" | "member" | "member.mention" | "player" => {
+                format!("<@{}>", member.user.id)
+            }
+            "user.name" | "member.username" => member.user.name.clone(),
+            "user.id" | "member.id" => member.user.id.to_string(),
+            "user.avatar" | "member.avatar" => {
+                member.user.avatar.map(|h| h.to_string()).unwrap_or_default()
+            }
+            "user.avatar_url" | "member.avatar_url" | "member.profile_picture" => {
+                member.user.face()
+            }
+            "user.bot" | "member.bot" => member.user.bot.to_string(),
+            "member.count" => gctx.member_count.clone(),
+
+            "channel" | "channel.mention" => format!("<#{}>", channel.id),
+            "channel.name" => channel.name.clone(),
+            "channel.id" => channel.id.to_string(),
+            "channel.type" => u8::from(channel.kind).to_string(),
+
+            "random" => rand::rng().random_range(0..=10).to_string(),
+            key if key.starts_with("random:") => {
+                let mut parts = key.splitn(3, ':').skip(1);
+                let min: i64 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+                let max: i64 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(10);
+
+                let (lower, upper) = if min <= max { (min, max) } else { (max, min) };
+                rand::rng().random_range(lower..=upper).to_string()
+            }
+
+            // ── Custom Context (Plans / Achievements) ─────────────────────────
+            "plan.name" => plan_name.unwrap_or_default().to_string(),
+            "achievement" => achievement.unwrap_or_default().to_string(),
+
+            // ── Unknown: echo back verbatim ──────────────────────────────────
+            _ => caps[0].to_string(),
+        }
+    })
+        .into_owned()
 }
 
 /// Retrieves settings. Returns a default struct if none exists in the DB.
 pub async fn get_settings(
     db: &sqlx::PgPool,
-    redis: &redis::Client,
+    redis: &MultiplexedConnection, // 1. Passed as an immutable reference
     guild_id: i64,
 ) -> Result<GuildSettings, sqlx::Error> {
+    let mut redis = redis.clone();
+
     let cache_key = format!("config:guild:{}", guild_id);
 
-    if let Ok(mut conn) = redis.get_multiplexed_async_connection().await {
-        if let Ok(Some(cached_string)) = conn.get::<_, Option<String>>(&cache_key).await {
-            if let Ok(settings) = serde_json::from_str::<GuildSettings>(&cached_string) {
+    if let Ok(Some(cached_string)) = redis.get::<_, Option<String>>(&cache_key).await {
+        match serde_json::from_str::<GuildSettings>(&cached_string) {
+            Ok(settings) => {
                 return Ok(settings);
             }
+            Err(e) => println!("Redis parse failed: {}", e),
         }
     }
-
-    // 2. Fallback to PostgreSQL on cache miss (or if Redis is down)
     let row = sqlx::query!(
         "SELECT settings FROM guild_configs WHERE guild_id = $1",
         guild_id
     )
-    .fetch_optional(db)
-    .await?;
+        .fetch_optional(db)
+        .await?;
 
-    let settings: GuildSettings = row
-        .map(|r| serde_json::from_value(r.settings).unwrap_or_default())
-        .unwrap_or_default();
+    let settings: GuildSettings = match row {
+        Some(r) => match serde_json::from_value::<GuildSettings>(r.settings.clone()) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("DESERIALIZATION ERROR: {}. Raw JSON: {:?}", e, r.settings);
+                GuildSettings::default()
+            }
+        },
+        None => GuildSettings::default(),
+    };
 
-    // 3. Populate the Redis cache with the retrieved data (TTL: 1 hour)
+    // Populate the Redis cache with the retrieved data (TTL: 1 hour)
     if let Ok(serialized) = serde_json::to_string(&settings) {
-        if let Ok(mut conn) = redis.get_multiplexed_async_connection().await {
-            // Store the JSON string for 3600 seconds (1 hour)
-            let _: Result<(), _> = conn.set_ex(&cache_key, serialized, 3600).await;
-        }
+        // Store the JSON string for 3600 seconds (1 hour)
+        let _: Result<(), _> = redis.set_ex(&cache_key, serialized, 3600).await;
     }
 
     Ok(settings)
-}
-
-#[poise::command(slash_command)]
-async fn set(
-    ctx: Context<'_>,
-    welcome_channel: Option<serenity::Channel>,
-    log_channel: Option<serenity::Channel>,
-    join_role: Option<serenity::Role>,
-    // To add a new setting parameter, just add it here as an Option
-) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("Not in a guild")?.get() as i64;
-    let db = &ctx.data().db;
-
-    // 1. Build a dynamic JSON patch of only the values the user specified
-    let mut patch = serde_json::Map::new();
-    if let Some(c) = &welcome_channel {
-        patch.insert("welcome_channel_id".into(), c.id().get().into());
-    }
-    if let Some(c) = &log_channel {
-        patch.insert("message_log_channel_id".into(), c.id().get().into());
-    }
-    if let Some(r) = &join_role {
-        patch.insert("join_role_id".into(), r.id.get().into());
-    }
-
-    if patch.is_empty() {
-        ctx.say("Specify at least one option.").await?;
-        return Ok(());
-    }
-
-    // 2. Perform a JSON merge-patch in Postgres
-    sqlx::query!(
-        r#"
-        INSERT INTO guild_configs (guild_id, settings)
-        VALUES ($1, $2)
-        ON CONFLICT (guild_id)
-        DO UPDATE SET settings = guild_configs.settings || EXCLUDED.settings
-        "#,
-        guild_id,
-        serde_json::Value::Object(patch)
-    )
-    .execute(db)
-    .await?;
-
-    ctx.say("Configuration updated!").await?;
-    Ok(())
-}
-
-#[poise::command(slash_command)]
-async fn unset(ctx: Context<'_>, option: ConfigField) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("Not in a guild")?.get() as i64;
-    let db = &ctx.data().db;
-
-    let json_key = match option {
-        ConfigField::WelcomeChannel => "welcome_channel_id",
-        ConfigField::MessageLogChannel => "message_log_channel_id",
-        ConfigField::JoinRole => "join_role_id",
-        ConfigField::LeaveChannel => "leave_channel_id",
-        ConfigField::GeneralBotLogs => "general_bot_logs_id",
-        ConfigField::MessageFilterAbove => "message_filter_above",
-        ConfigField::TicketCategory => "ticket_category_id",
-        ConfigField::TicketRole => "ticket_role_id",
-    };
-
-    // Use SQL to drop the key from the JSONB document
-    sqlx::query!(
-        "UPDATE guild_configs SET settings = settings - $2 WHERE guild_id = $1",
-        guild_id,
-        json_key
-    )
-    .execute(db)
-    .await?;
-
-    ctx.say("Cleared configuration field.".to_string()).await?;
-    Ok(())
 }

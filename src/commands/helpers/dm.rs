@@ -1,6 +1,6 @@
-use crate::types::{Context, Error};
-use ::serenity::model::channel::Message;
+use crate::types::types::{Context, Error};
 use poise::serenity_prelude as serenity;
+use ::serenity::model::channel::Message;
 
 /// Common metadata extracted from a guild-only command context.
 pub struct GuildMetadata {
@@ -36,7 +36,7 @@ pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Re
             .content(message)
             .ephemeral(true),
     )
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -51,7 +51,7 @@ pub async fn check_self_moderation(
                 .content(format!("You cannot {} yourself!", action))
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
         return Ok(true);
     }
     Ok(false)
@@ -107,7 +107,7 @@ pub async fn try_dm_moderation_action(
         reason,
         extra_fields,
     )
-    .await;
+        .await;
 }
 
 /// Attempts to DM a user about a moderation action during event handling.
@@ -137,5 +137,5 @@ pub async fn try_dm_message_action(
         reason,
         extra_fields,
     )
-    .await;
+        .await;
 }

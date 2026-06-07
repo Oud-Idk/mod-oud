@@ -1,0 +1,79 @@
+"use client";
+
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
+import { Check, ChevronsUpDown } from "lucide-react";
+
+export interface DropdownOption {
+    value: string;
+    label: string;
+}
+
+interface DropdownProps {
+    options: DropdownOption[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    disabled?: boolean;
+    className?: string;
+}
+
+export function Dropdown({
+    options,
+    value,
+    onChange,
+    placeholder = "Select an option",
+    disabled,
+    className = "",
+}: DropdownProps) {
+    const selectedOption = options.find((opt) => opt.value === value);
+
+    return (
+        <div className={`w-full ${className}`}>
+            <Listbox value={value} disabled={disabled} onChange={onChange}>
+                <div className="relative">
+                    <ListboxButton
+                        className="relative w-full cursor-pointer rounded-md border border-neutral-500 bg-neutral-300/10 py-2 pl-3 pr-10 text-left text-sm focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <span className="block truncate font-medium">
+                            {selectedOption ? selectedOption.label : placeholder}
+                        </span>
+                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                            <ChevronsUpDown className="h-4 w-4 text-neutral-400" aria-hidden="true"/>
+                        </span>
+                    </ListboxButton>
+
+                    <ListboxOptions
+                        className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-sm shadow-[0px_0px_10px_-2px_rgba(0,0,0,0.5)] dark:bg-neutral-900 focus:outline-none"
+                    >
+                        {options.map((option) => (
+                            <ListboxOption
+                                key={option.value} value={option.value} className={({ focus }) =>
+                                `relative cursor-pointer select-none py-2 pl-10 pr-4 transition-colors focus:outline-none ${
+                                    focus
+                                        ? "bg-neutral-300/10 dark:text-white text-black"
+                                        : "text-neutral-900 dark:text-neutral-200"
+                                }`
+                            }
+                            >
+                                {({ selected: isSelected }) => (
+                                    <>
+                                        <span
+                                            className={`block truncate ${isSelected ? "font-semibold" : "font-normal"}`}
+                                        >
+                                            {option.label}
+                                        </span>
+                                        {isSelected && (
+                                            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                                <Check className="h-4 w-4" aria-hidden="true"/>
+                                            </span>
+                                        )}
+                                    </>
+                                )}
+                            </ListboxOption>
+                        ))}
+                    </ListboxOptions>
+                </div>
+            </Listbox>
+        </div>
+    );
+}

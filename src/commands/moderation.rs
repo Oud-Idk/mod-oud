@@ -7,12 +7,12 @@ use serenity::{
 };
 
 use crate::commands::helpers::permissions::check_hierarchy;
-use crate::types::{Context, Error};
+use crate::types::types::{Context, Error};
 use crate::{
     commands::helpers::dm::{
-        GuildMetadata, check_self_moderation, send_ephemeral, try_dm_moderation_action,
+        check_self_moderation, send_ephemeral, try_dm_moderation_action, GuildMetadata,
     },
-    utils::logger::{ActionType, log_moderation_action},
+    utils::logger::{log_moderation_action, ActionType},
 };
 
 /// Bulk deletes messages. Messages mustn't be older than 14 days.
@@ -88,7 +88,7 @@ pub async fn kick(
         reason_str,
         &[],
     )
-    .await;
+        .await;
 
     meta.id
         .kick_with_reason(&ctx.serenity_context().http, user.id, reason_str)
@@ -98,7 +98,7 @@ pub async fn kick(
         &ctx,
         format!("{} is kicked for reason: \"{}\"", user.name, reason_str),
     )
-    .await?;
+        .await?;
 
     log_moderation_action(
         &ctx,
@@ -109,7 +109,7 @@ pub async fn kick(
         Some(reason_str),
         None,
     )
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -157,7 +157,7 @@ pub async fn ban(
                     &ctx,
                     "Invalid duration format. Please use formats like '30m', '2h', or '1d'.",
                 )
-                .await?;
+                    .await?;
                 return Ok(());
             }
         },
@@ -173,7 +173,7 @@ pub async fn ban(
         reason_str,
         &[("Duration", duration_label)],
     )
-    .await;
+        .await;
 
     meta.id
         .ban_with_reason(&ctx.serenity_context().http, user.id, dmd_time, reason_str)
@@ -204,7 +204,7 @@ pub async fn ban(
         Some(reason_str),
         duration.as_deref(),
     )
-    .await?;
+        .await?;
 
     if let Some(dur) = duration_parsed {
         let db = &ctx.data().db;
@@ -219,8 +219,8 @@ pub async fn ban(
             user.id.get() as i64,
             unban_at
         )
-        .execute(db)
-        .await?;
+            .execute(db)
+            .await?;
     }
 
     Ok(())
@@ -261,7 +261,7 @@ pub async fn mute(
                 &ctx,
                 "Invalid duration format. Please use formats like '30m', '2h', or '1d'.",
             )
-            .await?;
+                .await?;
             return Ok(());
         }
     };
@@ -274,7 +274,7 @@ pub async fn mute(
             &ctx,
             "Discord timeouts cannot exceed 28 days or short of 60 seconds.",
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -291,7 +291,7 @@ pub async fn mute(
         reason_str,
         &[("Duration", &duration)],
     )
-    .await;
+        .await;
 
     member
         .disable_communication_until_datetime(&ctx.serenity_context().http, timestamp)
@@ -304,7 +304,7 @@ pub async fn mute(
             member.user.name, &duration, reason_str
         ),
     )
-    .await?;
+        .await?;
 
     log_moderation_action(
         &ctx,
@@ -315,7 +315,7 @@ pub async fn mute(
         Some(reason_str),
         Some(&duration),
     )
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -349,7 +349,7 @@ pub async fn unmute(
                 member.user.name
             ),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -365,7 +365,7 @@ pub async fn unmute(
         "No reason specified",
         &[],
     )
-    .await;
+        .await;
 
     send_ephemeral(&ctx, format!("Successfully unmuted {}.", member.user.name)).await?;
 
@@ -378,7 +378,7 @@ pub async fn unmute(
         None,
         None,
     )
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -424,7 +424,7 @@ pub async fn softban(
             "You have been banned and immediately unbanned to purge your messages.",
         )],
     )
-    .await;
+        .await;
 
     member.ban(&ctx.serenity_context().http, dmd).await?;
     member.unban(&ctx.serenity_context().http).await?;
@@ -433,7 +433,7 @@ pub async fn softban(
         &ctx,
         format!("Successfully softbanned {}", member.user.name),
     )
-    .await?;
+        .await?;
 
     log_moderation_action(
         &ctx,
@@ -444,7 +444,7 @@ pub async fn softban(
         Some(reason_str),
         None,
     )
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -468,7 +468,7 @@ pub async fn unban(
         &reason_str,
         &[],
     )
-    .await;
+        .await;
 
     match unban_result {
         Ok(_) => {
@@ -481,14 +481,14 @@ pub async fn unban(
                 Some(&reason_str),
                 None,
             )
-            .await?;
+                .await?;
 
             ctx.say(format!(
                 "Successfully unbanned **{}** (ID: `{}`).",
                 user.tag(),
                 user.id
             ))
-            .await?;
+                .await?;
         }
         Err(err) => {
             ctx.say(format!("Failed to unban user: {}", err)).await?;

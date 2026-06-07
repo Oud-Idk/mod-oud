@@ -3,8 +3,8 @@ use poise::serenity_prelude as serenity;
 use serenity::model::guild::Member;
 use serenity::model::user::User;
 
-use crate::types::{Context, Error};
-use crate::utils::logger::{ActionType, log_moderation_action};
+use crate::types::types::{Context, Error};
+use crate::utils::logger::{log_moderation_action, ActionType};
 
 /// Intermediate representation of warning data used for unified display.
 struct WarningInfo {
@@ -42,7 +42,7 @@ pub async fn warn(
                 .content("You cannot warn yourself!")
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -57,8 +57,8 @@ pub async fn warn(
         author_id,
         reason_str,
     )
-    .fetch_optional(db)
-    .await?;
+        .fetch_optional(db)
+        .await?;
 
     let embed = poise::serenity_prelude::CreateEmbed::new()
         .title(format!("You have been formally warned from {}", guild_name))
@@ -81,7 +81,7 @@ pub async fn warn(
             ))
             .ephemeral(true),
     )
-    .await?;
+        .await?;
 
     // Log the moderation action
     log_moderation_action(
@@ -93,7 +93,7 @@ pub async fn warn(
         Some(&reason_str),
         None,
     )
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -137,7 +137,7 @@ where
                 .components(make_components(current_page))
                 .ephemeral(true),
         )
-        .await?
+            .await?
     } else {
         // If there's only one page, send without buttons
         ctx.send(
@@ -145,7 +145,7 @@ where
                 .embed(make_embed(current_page))
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
         return Ok(());
     };
 
@@ -273,8 +273,8 @@ pub async fn warn_history(
         guild_id,
         user_id,
     )
-    .fetch_all(db)
-    .await?;
+        .fetch_all(db)
+        .await?;
 
     if records.is_empty() {
         ctx.send(
@@ -282,7 +282,7 @@ pub async fn warn_history(
                 .content(format!("<@{}> has no active warnings.", member.user.id))
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -331,8 +331,8 @@ async fn set_warning_active_status(
         guild_id,
         expected_current_state,
     )
-    .fetch_optional(db)
-    .await?;
+        .fetch_optional(db)
+        .await?;
 
     match res {
         Some(row) => {
@@ -370,7 +370,7 @@ async fn set_warning_active_status(
                     ))
                     .ephemeral(true),
             )
-            .await?;
+                .await?;
 
             // Log the moderation action
             log_moderation_action(
@@ -382,7 +382,7 @@ async fn set_warning_active_status(
                 Some(&reason),
                 None,
             )
-            .await?;
+                .await?;
         }
         None => {
             let status_description = if set_active { "inactive" } else { "active" };
@@ -394,7 +394,7 @@ async fn set_warning_active_status(
                     ))
                     .ephemeral(true),
             )
-            .await?;
+                .await?;
         }
     }
 
@@ -460,8 +460,8 @@ pub async fn search_warnings(
         search_pattern,
         target_user_id,
     )
-    .fetch_all(db)
-    .await?;
+        .fetch_all(db)
+        .await?;
 
     if matches.is_empty() {
         let filter_message = match user {
@@ -476,7 +476,7 @@ pub async fn search_warnings(
                 ))
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -523,8 +523,8 @@ pub async fn search_warning_by_id(
         id,
         guild_id,
     )
-    .fetch_optional(db)
-    .await?;
+        .fetch_optional(db)
+        .await?;
 
     match record {
         Some(warn) => {
@@ -560,7 +560,7 @@ pub async fn search_warning_by_id(
                     ))
                     .ephemeral(true),
             )
-            .await?;
+                .await?;
         }
     }
 
@@ -591,8 +591,8 @@ pub async fn delete_warning(
         id,
         guild_id
     )
-    .fetch_optional(db)
-    .await?;
+        .fetch_optional(db)
+        .await?;
 
     match res {
         Some(row) => {
@@ -633,7 +633,7 @@ pub async fn delete_warning(
                 Some(&reason),
                 None,
             )
-            .await?;
+                .await?;
         }
         None => {
             ctx.send(
@@ -644,7 +644,7 @@ pub async fn delete_warning(
                     ))
                     .ephemeral(true),
             )
-            .await?;
+                .await?;
         }
     }
 

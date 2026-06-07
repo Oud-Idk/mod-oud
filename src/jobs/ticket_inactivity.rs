@@ -6,12 +6,11 @@ use std::time::Duration;
 pub fn start_ticket_inactivity_worker(pool: sqlx::PgPool, http: Arc<serenity::Http>) {
     tokio::spawn(async move {
         loop {
-            // Check for inactive tickets every 5 minutes
-            tokio::time::sleep(Duration::from_secs(300)).await;
+            tokio::time::sleep(Duration::from_secs(5)).await;
 
             let now = Utc::now();
-            let warn_threshold = now - Duration::from_secs(12 * 3600); // 12 hours
-            let close_threshold = now - Duration::from_secs(24 * 3600); // 24 hours
+            let warn_threshold = now - Duration::from_secs(60 * 30); // 30 minutes
+            let close_threshold = now - Duration::from_secs(60 * 45); // 45 minutes
 
             // Run the distinct jobs, logging errors individually
             if let Err(e) = warn_inactive_tickets(&pool, &http, warn_threshold).await {
@@ -67,7 +66,7 @@ async fn warn_inactive_tickets(
         let _ = channel_id
             .say(
                 http,
-                "This ticket has been inactive. It will close in 12 hours if there is no activity.",
+                "This ticket has been inactive. It will close in 15 minutes if there is no activity.",
             )
             .await;
     }

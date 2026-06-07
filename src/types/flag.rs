@@ -1,40 +1,5 @@
-use crate::models::spam_tracker::SpamTracker;
-use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-pub struct Data {
-    pub db: sqlx::PgPool,
-    pub redis: redis::Client,
-    pub spam_tracker: SpamTracker,
-}
-
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, Data, Error>;
-
-#[derive(Clone, PartialEq, Message)]
-pub struct Duration {
-    #[prost(int64, tag = "1")]
-    pub seconds: i64,
-    #[prost(int32, tag = "2")]
-    pub nanos: i32,
-}
-
-#[derive(Clone, PartialEq, Message)]
-pub struct SearchUrlsResponse {
-    #[prost(message, repeated, tag = "1")]
-    pub threats: Vec<ThreatUrl>,
-    #[prost(message, optional, tag = "2")]
-    pub cache_duration: Option<Duration>,
-}
-
-#[derive(Clone, PartialEq, Message)]
-pub struct ThreatUrl {
-    #[prost(string, tag = "1")]
-    pub url: String,
-    // Google packs repeated enum fields into wire-level i32 sequences
-    #[prost(int32, repeated, tag = "2")]
-    pub threat_types: Vec<i32>,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThreatType {
@@ -99,15 +64,6 @@ impl FlagSeverity {
             None
         }
     }
-
-    /// Explicitly provide the string name
-    pub fn name(&self) -> &'static str {
-        match self {
-            FlagSeverity::Mild => "Mild",
-            FlagSeverity::Moderate => "Moderate",
-            FlagSeverity::Severe => "Severe",
-        }
-    }
 }
 
 impl fmt::Display for FlagSeverity {
@@ -119,11 +75,4 @@ impl fmt::Display for FlagSeverity {
         };
         write!(f, "{}", label)
     }
-}
-
-pub struct LogConfig {
-    pub title: &'static str,
-    pub color: u32,
-    pub reason_label: &'static str,
-    pub reason_value: String,
 }

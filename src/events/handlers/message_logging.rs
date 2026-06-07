@@ -1,6 +1,6 @@
 use crate::commands::helpers::message_logging;
 use crate::core::config::get_settings;
-use crate::types::{Data, Error};
+use crate::types::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 
 pub struct MessageDetails {
@@ -39,7 +39,7 @@ pub async fn message_log_delete(
     let Some(raw_id) = settings.message_log_channel_id else {
         return Ok(());
     };
-    let del_channel_id = serenity::ChannelId::new(raw_id as u64);
+    let del_channel_id = serenity::ChannelId::new(raw_id.parse::<u64>()?);
 
     // 2. Extract message information from the local cache
     let Some(msg) =
@@ -102,7 +102,7 @@ pub async fn message_log_update(
     let Some(raw_id) = settings.message_log_channel_id else {
         return Ok(());
     };
-    let message_log_channel_id = serenity::ChannelId::new(raw_id as u64);
+    let message_log_channel_id = serenity::ChannelId::new(raw_id.parse::<u64>()?);
 
     // 2. Extract and validate message update details
     let Some(details) = message_logging::extract_edit_details(old_if_available, new, event) else {

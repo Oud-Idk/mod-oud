@@ -13,7 +13,8 @@ use serenity::model::id::{ChannelId, GuildId};
 
 use crate::commands::helpers::dm::try_dm_message_action;
 use crate::core::config::get_settings;
-use crate::types::{Data, Error, FlagSeverity, SearchUrlsResponse, ThreatType};
+use crate::types::flag::{FlagSeverity, ThreatType};
+use crate::types::types::{Data, Error, SearchUrlsResponse};
 use crate::utils::logger::{log_offensive_message, log_scam_message, log_spam_message};
 
 // Matches Discord mentions (<@id>, <@&id>), channels (<#id>), and custom emojis (<:name:id> or <a:name:id>)
@@ -89,7 +90,7 @@ pub async fn handle_spam_prevention(
             author_id,
             &message.content,
         )
-        .await?;
+            .await?;
 
         // Always delete the spam message immediately
         let _ = message.delete(&ctx.http).await;
@@ -111,7 +112,7 @@ pub async fn handle_spam_prevention(
                 ),
                 Duration::from_secs(5),
             )
-            .await;
+                .await;
         }
 
         return Ok(true); // Stop further processing for this message
@@ -177,7 +178,7 @@ pub async fn process_scam_filters(
             &message.content,
             threats_int.as_slice(),
         )
-        .await?;
+            .await?;
         let threats_str = threats_int
             .into_iter()
             .map(|threat_type| format!("{}", ThreatType::from(threat_type)))
@@ -193,7 +194,7 @@ pub async fn process_scam_filters(
             "containing scam URls",
             Some(&[("Flags", &threats_str.join(", "))]),
         )
-        .await?;
+            .await?;
     }
 
     Ok(())
@@ -229,7 +230,7 @@ pub async fn process_moderation_filters(
         &message.content,
         severity,
     )
-    .await?;
+        .await?;
 
     let Some(filter_above) = config.message_filter_above else {
         return Ok(());
@@ -252,7 +253,7 @@ pub async fn process_moderation_filters(
             "violating automated content policies",
             None,
         )
-        .await?;
+            .await?;
     }
 
     Ok(())
@@ -284,16 +285,16 @@ async fn alert_user(
         format!("Your message was automatically removed for {}.", reason).as_str(),
         fields.as_slice(),
     )
-    .await;
+        .await;
 
     if dm_result.is_err() {
         send_temp_warning(
             ctx,
             message.channel_id,
-            format!("<@{}>, your message was removed for {}.", author_id, reason,),
+            format!("<@{}>, your message was removed for {}.", author_id, reason, ),
             Duration::from_secs(5),
         )
-        .await;
+            .await;
     }
 
     Ok(())

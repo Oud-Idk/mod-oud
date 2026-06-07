@@ -1,5 +1,5 @@
 use crate::core::config::get_settings;
-use crate::types::{Data, Error};
+use crate::types::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 use serenity::all::{
     ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel,
@@ -34,7 +34,7 @@ pub async fn on_open_ticket(
             return Ok(());
         }
     };
-    let role_id = RoleId::new(role_id_config as u64);
+    let role_id = RoleId::new(role_id_config.parse::<u64>()?);
 
     // Defer response to allow time for channel creation
     component
@@ -78,13 +78,12 @@ pub async fn on_open_ticket(
 
     // Set parent category if configured
     if let Some(category_id) = settings.ticket_category_id {
-        channel_builder = channel_builder.category(ChannelId::new(category_id as u64));
+        channel_builder = channel_builder.category(ChannelId::new(category_id.parse::<u64>()?));
     }
 
     // 3. Create the channel in Discord
     let ticket_channel = guild_id.create_channel(&ctx.http, channel_builder).await?;
 
-    // 4. Send a welcome message in the new channel with a "Close" button
     let welcome_embed = serenity::all::CreateEmbed::default()
         .title("Ticket Opened")
         .description(format!(
@@ -109,8 +108,6 @@ pub async fn on_open_ticket(
         )
         .await?;
 
-    // 5. Insert the ticket into the database.
-    // By saving the `welcome_msg.id` directly upon creation, we keep the DB state completely synchronized.
     let welcome_msg_id_i64 = welcome_msg.id.get() as i64;
     sqlx::query!(
         r#"
@@ -122,12 +119,38 @@ pub async fn on_open_ticket(
         user_interact.id.get() as i64,
         welcome_msg_id_i64
     )
-    .execute(&data.db)
-    .await?;
+        .execute(&data.db)
+        .await?;
 
-    // (Note: The in-memory map write and monitor loop `tokio::spawn` have been removed here)
+    let channel_id_str = ticket_channel.id.get().to_string();
+    let ticket_key = format!("ticket:{}", channel_id_str);
+    let now_ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .to_string();
 
-    // 6. Confirm the channel link to the user who clicked the button
+    // Acquire a connection to Redis (adjust this line to match your exact Redis client wrapper)
+    let mut redis_conn = data.redis.clone();
+
+    // Add to the active tickets set
+    let _: () = redis::cmd("SADD")
+        .arg("active_tickets")
+        .arg(&channel_id_str)
+        .query_async(&mut redis_conn)
+        .await?;
+
+    // Initialize the hash with count, activity timestamp, and last button message ID
+    let _: () = redis::cmd("HSET")
+        .arg(&ticket_key)
+        .arg(&[
+            ("message_count", "0"),
+            ("last_activity", &now_ts),
+            ("last_button_message_id", &welcome_msg_id_i64.to_string()),
+        ])
+        .query_async(&mut redis_conn)
+        .await?;
+
     component
         .edit_response(
             &ctx.http,
@@ -154,13 +177,29 @@ pub async fn on_close_ticket(
         .await?;
 
     let channel_id = component.channel_id;
+    let channel_id_str = channel_id.get().to_string();
 
     sqlx::query!(
         "UPDATE tickets SET status = 'CLOSE', closed_at = NOW() WHERE channel_id = $1",
         channel_id.get() as i64
     )
-    .execute(&data.db)
-    .await?;
+        .execute(&data.db)
+        .await?;
+
+    let mut redis_conn = data.redis.clone();
+
+    // Remove from the active tickets list
+    let _: () = redis::cmd("SREM")
+        .arg("active_tickets")
+        .arg(&channel_id_str)
+        .query_async(&mut redis_conn)
+        .await?;
+
+    // Delete the metadata hash
+    let _: () = redis::cmd("DEL")
+        .arg(format!("ticket:{}", channel_id_str))
+        .query_async(&mut redis_conn)
+        .await?;
 
     // Send a warning that the ticket is closing, then delete the channel
     channel_id
@@ -179,88 +218,128 @@ pub async fn on_close_ticket(
 
 pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
     let channel_id = message.channel_id;
+    let channel_id_str = channel_id.get().to_string();
+    let mut redis_conn = data.redis.clone();
+
+    // 1. FAST PATH CHECK: Is this channel an active ticket?
+    let is_active: bool = redis::cmd("SISMEMBER")
+        .arg("active_tickets")
+        .arg(&channel_id_str)
+        .query_async(&mut redis_conn)
+        .await
+        .unwrap_or(false);
+
+    if !is_active {
+        return Ok(());
+    }
+
     let channel_id_i64 = channel_id.get() as i64;
     let message_id_i64 = message.id.get() as i64;
     let author_id_i64 = message.author.id.get() as i64;
     let content = message.content.clone();
 
-    let ticket_update = sqlx::query!(
-        r#"
-        UPDATE tickets
-        SET last_activity = CURRENT_TIMESTAMP,
-            warned = FALSE,
-            message_count = message_count + 1
-        WHERE channel_id = $1 AND status = 'OPEN'
-        RETURNING message_count, last_button_message_id
-        "#,
-        channel_id_i64
-    )
-    .fetch_optional(&data.db)
-    .await?;
-
-    // If the query returned a row, this IS an open ticket channel
-    if let Some(ticket) = ticket_update {
-        // A. Log the message asynchronously to ticket_messages to keep the message loop fast
-        let db_pool = data.db.clone();
-        tokio::spawn(async move {
-            let result = sqlx::query!(
-                "INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content)
-                 VALUES ($1, $2, $3, $4)",
-                channel_id_i64,
-                message_id_i64,
-                author_id_i64,
-                content
-            )
+    // A. Log the message asynchronously to PostgreSQL (as before)
+    let db_pool = data.db.clone();
+    tokio::spawn(async move {
+        let result = sqlx::query!(
+            "INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content)
+             VALUES ($1, $2, $3, $4)",
+            channel_id_i64,
+            message_id_i64,
+            author_id_i64,
+            content
+        )
             .execute(&db_pool)
             .await;
 
-            if let Err(e) = result {
-                eprintln!("Failed to log ticket message to DB: {}", e);
-            }
-        });
+        if let Err(e) = result {
+            eprintln!("Failed to log ticket message to DB: {}", e);
+        }
+    });
 
-        // B. Handle rotating the close button if 20 messages have been sent
-        if ticket.message_count.unwrap_or(0) >= 20 {
-            // Delete previous close button message to avoid multiple active buttons
-            if let Some(old_msg_id_i64) = ticket.last_button_message_id {
-                let old_msg_id = serenity::all::MessageId::new(old_msg_id_i64 as u64);
+    // B. Increment message count and update last activity in Redis
+    let ticket_key = format!("ticket:{}", channel_id_str);
+    let now_ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .to_string();
+
+    let new_count: i32 = redis::cmd("HINCRBY")
+        .arg(&ticket_key)
+        .arg("message_count")
+        .arg(1)
+        .query_async(&mut redis_conn)
+        .await?;
+
+    let _: () = redis::cmd("HSET")
+        .arg(&ticket_key)
+        .arg("last_activity")
+        .arg(&now_ts)
+        .query_async(&mut redis_conn)
+        .await?;
+
+    // C. Handle rotating the close button if 20 messages have been sent
+    if new_count >= 20 {
+        // Retrieve the old button message ID stored in the Redis hash
+        let old_msg_id_str: Option<String> = redis::cmd("HGET")
+            .arg(&ticket_key)
+            .arg("last_button_message_id")
+            .query_async(&mut redis_conn)
+            .await?;
+
+        if let Some(old_id_str) = old_msg_id_str {
+            if let Ok(old_id_u64) = old_id_str.parse::<u64>() {
+                let old_msg_id = serenity::all::MessageId::new(old_id_u64);
                 let _ = channel_id.delete_message(&ctx.http, old_msg_id).await;
             }
+        }
 
-            let close_button = vec![serenity::all::CreateActionRow::Buttons(vec![
-                serenity::all::CreateButton::new("close_ticket")
-                    .label("Close Ticket")
-                    .style(serenity::all::ButtonStyle::Danger)
-                    .emoji('🔒'),
-            ])];
+        let close_button = vec![serenity::all::CreateActionRow::Buttons(vec![
+            serenity::all::CreateButton::new("close_ticket")
+                .label("Close Ticket")
+                .style(serenity::all::ButtonStyle::Danger)
+                .emoji('🔒'),
+        ])];
 
-            if let Ok(new_msg) = channel_id
-                .send_message(
-                    &ctx.http,
-                    CreateMessage::default()
-                        .content(
-                            "Still need help? You can close this ticket if your issue is resolved.",
-                        )
-                        .components(close_button),
-                )
-                .await
-            {
-                let new_msg_id_i64 = new_msg.id.get() as i64;
+        if let Ok(new_msg) = channel_id
+            .send_message(
+                &ctx.http,
+                CreateMessage::default()
+                    .content(
+                        "Still need help? You can close this ticket if your issue is resolved.",
+                    )
+                    .components(close_button),
+            )
+            .await
+        {
+            let new_msg_id_i64 = new_msg.id.get() as i64;
 
-                // Reset message count and save the new button message ID
-                sqlx::query!(
-                    r#"
-                    UPDATE tickets
-                    SET message_count = 0,
-                        last_button_message_id = $1
-                    WHERE channel_id = $2
-                    "#,
-                    new_msg_id_i64,
-                    channel_id_i64
-                )
+            // Sync the cached state back to PostgreSQL at this milestone
+            sqlx::query!(
+                r#"
+                UPDATE tickets
+                SET message_count = 0,
+                    last_button_message_id = $1,
+                    last_activity = CURRENT_TIMESTAMP,
+                    warned = FALSE
+                WHERE channel_id = $2
+                "#,
+                new_msg_id_i64,
+                channel_id_i64
+            )
                 .execute(&data.db)
                 .await?;
-            }
+
+            // Reset Redis counter and save the new button message ID
+            let _: () = redis::cmd("HSET")
+                .arg(&ticket_key)
+                .arg(&[
+                    ("message_count", "0"),
+                    ("last_button_message_id", &new_msg_id_i64.to_string()),
+                ])
+                .query_async(&mut redis_conn)
+                .await?;
         }
     }
 

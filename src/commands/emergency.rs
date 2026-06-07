@@ -1,7 +1,7 @@
 use crate::commands::helpers::dm::GuildMetadata;
-use crate::types::{Context, Error};
-use crate::utils::logger::ActionType;
+use crate::types::types::{Context, Error};
 use crate::utils::logger::log_moderation_action;
+use crate::utils::logger::ActionType;
 use poise::serenity_prelude as serenity;
 use serenity::model::channel::GuildChannel;
 use serenity::{PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId};
@@ -64,7 +64,7 @@ async fn log_action(
         reason,
         None,
     )
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -93,7 +93,7 @@ pub async fn lock(
         "🔒 <#{}> has been locked down. \n**Reason:** {}",
         target_channel.id, reason_str
     ))
-    .await?;
+        .await?;
 
     log_action(
         &ctx,
@@ -102,7 +102,7 @@ pub async fn lock(
         ActionType::Lock,
         Some(reason_str),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -134,7 +134,7 @@ pub async fn unlock(
         ActionType::Unlock,
         None,
     )
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -174,7 +174,7 @@ pub async fn global_lock(
         "🛑 **Global lockdown complete.** Locked {} text channels. \n**Reason:** {}",
         locked_count, reason_str
     ))
-    .await?;
+        .await?;
 
     let detailed_reason = format!("{} (Channels affected: {})", reason_str, locked_count);
     log_action(
@@ -184,7 +184,7 @@ pub async fn global_lock(
         ActionType::GlobalLock,
         Some(&detailed_reason),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -219,7 +219,7 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
         "🔓 **Global unlock complete.** Unlocked {} text channels.",
         unlocked_count
     ))
-    .await?;
+        .await?;
 
     let detailed_reason = format!("Channels affected: {}", unlocked_count);
     log_action(
@@ -229,7 +229,7 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
         ActionType::GlobalUnlock,
         Some(&detailed_reason),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }

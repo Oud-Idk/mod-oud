@@ -1,65 +1,55 @@
-import Image from "next/image";
+import { auth, signIn, signOut } from "@/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { InviteableServers } from "@/components/HomeDasboard/InviteableServers";
+import { MutualServers } from "@/components/HomeDasboard/MutualServers";
+import { getGuildLists } from "@/lib/servers";
+import { ProfileDropdown } from "@/components/ProfileDropdown"; // Import the new component
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+export default async function Home() {
+    const session = await auth();
+
+    const { mutualGuilds, inviteableGuilds } = session?.accessToken
+        ? await getGuildLists(session.accessToken)
+        : { mutualGuilds: [], inviteableGuilds: [] };
+
+    return (
+        <main
+            className="mx-auto p-2 md:p-4 font-sans min-h-screen">
+            <div className="flex justify-between items-center border-b pb-2">
+                <h1 className="text-2xl font-extrabold tracking-tight">
+                    Mod Oud Dashboard
+                </h1>
+                <div className="flex gap-4 items-center">
+                    {session?.user && (
+                        <ProfileDropdown session={session}/>
+                    )}
+                    <ThemeToggle/>
+                </div>
+            </div>
+
+            {session ? (
+                <div className={`${mutualGuilds.length === 0 ? 'block max-w-3/4 mx-auto' : 'grid grid-cols-2 gap-4'}`}>
+                    {mutualGuilds.length > 0 && (<MutualServers mutualGuilds={mutualGuilds}/>)}
+                    {inviteableGuilds.length > 0 && (<InviteableServers inviteableGuilds={inviteableGuilds}/>)}
+                </div>
+            ) : (
+                <div className="mt-10 max-w-sm">
+                    <p className="text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+                        Please sign in with Discord to view and configure your server settings.
+                    </p>
+                    <form action={async () => {
+                        "use server";
+                        await signIn("discord");
+                    }}>
+                        <button
+                            type="submit"
+                            className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3 px-6 rounded-lg font-bold transition-colors cursor-pointer shadow-sm text-center"
+                        >
+                            Sign in with Discord
+                        </button>
+                    </form>
+                </div>
+            )}
+        </main>
+    );
 }
