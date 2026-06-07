@@ -1,4 +1,4 @@
-use crate::commands::{emergency, test, ticket};
+use crate::commands::{emergency, ticket};
 use crate::models::spam_tracker::SpamTracker;
 use axum::{routing::get, Router};
 use commands::{messages, moderation, ping, warn};
@@ -106,7 +106,6 @@ async fn main() -> Result<(), Error> {
                 emergency::global_lock(),
                 emergency::global_unlock(),
                 ticket::setup_tickets(),
-                test::preview_welcome(),
                 register(),
             ],
             on_error: |error| Box::pin(utils::error::on_error(error)),

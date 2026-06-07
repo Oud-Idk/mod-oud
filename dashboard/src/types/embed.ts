@@ -15,8 +15,9 @@ export interface EmbedFooter {
 export interface DiscordEmbed {
     title?: string;
     description?: string;
-    color?: number; // Represented as a decimal number (result of hexToDecimal)
+    color?: number;
     thumbnail?: EmbedThumbnail;
     author?: EmbedAuthor;
     footer?: EmbedFooter;
+    image?: EmbedThumbnail;
 }

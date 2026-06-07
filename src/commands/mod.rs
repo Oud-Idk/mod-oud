@@ -5,4 +5,3 @@ pub mod moderation;
 pub mod ping;
 pub mod ticket;
 pub mod warn;
-pub mod test;

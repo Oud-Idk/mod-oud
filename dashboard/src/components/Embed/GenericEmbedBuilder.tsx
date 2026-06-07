@@ -3,10 +3,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { BuilderConfig, EmbedState } from "@/types/builder";
 import { DiscordEmbed } from "@/types/embed";
-import { hexToDecimal, parseSavedEmbed } from "@/lib/embedTemplates";
 import { Embed } from "@/components/Embed/Embed";
 import { EmbedBuilderForm } from "@/components/Embed/EmbedBuilderForm";
 import { PlaceholderList } from "@/components/Embed/PlaceholderList";
+import { hexToDecimal, parseSavedEmbed } from "@/lib/embed";
 
 interface Props {
     config: BuilderConfig;
@@ -19,6 +19,7 @@ const emptyState: EmbedState = {
     description: "",
     color: "#2ecc71",
     thumbnailUrl: "",
+    imageUrl: "",
     authorName: "",
     authorIcon: "",
     footerText: "",
@@ -85,6 +86,9 @@ export default function GenericEmbedBuilder({
                 value: f.value || "\u200B",
                 inline: f.inline || false
             })) : undefined,
+            image: embed.imageUrl ? {
+                url: embed.imageUrl
+            } : undefined,
         };
     }, [embed]);
 

@@ -6,11 +6,12 @@ interface EnableSwitchProps {
     enabled: boolean;
     onChange: (value: boolean) => void;
     disabled: boolean;
+    text?: string;
 }
 
-export function EnableSwitch({ enabled, onChange: setEnabled, disabled }: EnableSwitchProps) {
+export function ToggleSwitch({ enabled, onChange: setEnabled, disabled, text }: EnableSwitchProps) {
     return <div className="text-xl flex flex-row gap-4 items-center">
-        <p>Enabled</p>
+        {text && (<p>{text}</p>)}
         <Switch
             checked={enabled}
             onChange={setEnabled}

@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
-pub struct WelcomeSettings {
+pub struct WelcomeMessageSettings {
     pub enabled: Option<bool>,
-    pub channel_id: Option<String>,
+    pub channel_id: Option<String>, // Used for public; ignored or None for private (DM)
     pub format: Option<String>,
     pub embed: Option<DiscordEmbed>,
     pub content: Option<String>,
@@ -14,8 +14,15 @@ pub struct WelcomeSettings {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
+pub struct WelcomeConfig {
+    pub public: Option<WelcomeMessageSettings>,
+    pub private: Option<WelcomeMessageSettings>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(default)]
 pub struct GuildSettings {
-    pub welcome: Option<WelcomeSettings>,
+    pub welcome: Option<WelcomeConfig>,
     pub join_role_id: Option<String>,
     pub message_log_channel_id: Option<String>,
     pub leave_channel_id: Option<String>,

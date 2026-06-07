@@ -18,12 +18,24 @@ export interface DiscordGuildDetails {
     approximate_presence_count?: number; // Online/Active Member Count
 }
 
-export interface WelcomeConfig {
+export interface PublicWelcomeConfig {
     enabled: boolean;
     channel_id: string;
-    content: string;
-    embed: string;
+    content: string; // Public message text (e.g., "Welcome to the server, {user}!")
+    embed: string;   // Public embed JSON
     format: string;
+}
+
+export interface PrivateWelcomeConfig {
+    enabled: boolean;
+    content: string; // Private message text (e.g., "Thanks for joining! Here are the rules...")
+    embed: string;   // Private embed JSON
+    format: string;
+}
+
+export interface WelcomeConfig {
+    public: PublicWelcomeConfig;
+    private: PrivateWelcomeConfig;
 }
 
 export interface Config {

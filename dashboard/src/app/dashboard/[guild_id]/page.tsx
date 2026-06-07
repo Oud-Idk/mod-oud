@@ -1,7 +1,7 @@
 import { Gavel, Ticket, TicketX, Users } from "lucide-react";
 import { BotNotSetup } from "@/components/Dashboard/BotNotSetup";
 import Image from "next/image";
-import { db } from "@/lib/db";
+import { db } from "@/lib/init/db";
 import { DiscordGuildDetails } from "@/types";
 import { Card } from "@/components/Overview/Card";
 
@@ -57,11 +57,11 @@ async function getGuildStats(guildId: string): Promise<GuildStats> {
                    (SELECT COUNT(*)
                     FROM tickets
                     WHERE guild_id = $1
-                      AND status = 'CLOSE'::ticket_status) AS weekly_resolved,
+                      AND status = 'CLOSE'::TICKET_STATUS) AS weekly_resolved,
                    (SELECT COUNT(*)
                     FROM tickets
                     WHERE guild_id = $1
-                      AND status = 'OPEN'::ticket_status)  AS open_tickets;
+                      AND status = 'OPEN'::TICKET_STATUS)  AS open_tickets;
         `;
 
         const result = await db.query(query, [guildId]);
@@ -114,7 +114,8 @@ export default async function DashboardOverview({ params }: PageProps) {
             className="space-y-8"
         >
             <div
-                className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+                className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4"
+            >
                 <div>
                     <div className="flex flex-row items-center gap-4">
                         {iconUrl &&
@@ -123,7 +124,8 @@ export default async function DashboardOverview({ params }: PageProps) {
                     </div>
                     <p className="text-neutral-500 dark:text-neutral-400 mt-1">
                         Managing server ID: <code
-                        className="bg-neutral-200 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono">{guild_id}</code>
+                        className="bg-neutral-200 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono"
+                    >{guild_id}</code>
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -144,18 +146,27 @@ export default async function DashboardOverview({ params }: PageProps) {
                 </div>
             </div>
             <div className="grid gap-4 md:grid-cols-4">
-                <Card icon={<Users/>} title="Total Members"
-                      main={guildDetails.approximate_member_count?.toString() || "X"}
-                      footer={`Online: ${guildDetails.approximate_presence_count}`}/>
-                <Card icon={<Gavel/>} title="Moderation Actions Count"
-                      main={weeklyModerationCount?.toString() || "X"}
-                      footer="This Week"/>
-                <Card icon={<TicketX/>} title="Resolved Tickets Count"
-                      main={weeklyResolvedTicketCount?.toString() || "X"}
-                      footer="Lifetime"/>
-                <Card icon={<Ticket/>} title="Open Tickets Count"
-                      main={openTicketsCount?.toString() || "X"}
-                      footer="Now"/>
+                <Card
+                    icon={<Users/>}
+                    title="Total Members"
+                    main={guildDetails.approximate_member_count?.toString() || "X"}
+                    footer={`Online: ${guildDetails.approximate_presence_count}`}
+                />
+                <Card
+                    icon={<Gavel/>}
+                    title="Moderation Actions Count"
+                    main={weeklyModerationCount?.toString() || "X"}
+                    footer="This Week"
+                />
+                <Card
+                    icon={<TicketX/>}
+                    title="Resolved Tickets Count"
+                    main={weeklyResolvedTicketCount?.toString() || "X"}
+                    footer="Lifetime"
+                />
+                <Card
+                    icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount?.toString() || "X"} footer="Now"
+                />
             </div>
         </div>
     );

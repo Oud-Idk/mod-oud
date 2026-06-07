@@ -1,10 +1,10 @@
 import { WelcomeBody } from "@/components/Welcome/WelcomeBody";
-import { db } from "@/lib/db";
+import { db } from "@/lib/init/db";
 import { QueryResult } from "pg";
-import { Config, DiscordChannel, WelcomeConfig } from "@/types";
+import { DiscordChannel, WelcomeConfig } from "@/types";
 import { DashboardHeader } from "@/components/Dashboard/DashboardHeader";
 import { revalidatePath } from "next/cache";
-import redis from "@/lib/redis";
+import redis from "@/lib/init/redis";
 import { auth } from "@/auth";
 
 export interface PageProps {
@@ -13,26 +13,62 @@ export interface PageProps {
 
 async function getWelcomeConfig(guild_id: string): Promise<WelcomeConfig> {
     const default_config: WelcomeConfig = {
-        enabled: false,
-        channel_id: "",
-        format: "embed",
-        content: "",
-        embed: "",
-    }
+        public: {
+            enabled: false,
+            channel_id: "",
+            format: "embed",
+            content: "",
+            embed: "",
+        },
+        private: {
+            enabled: false,
+            format: "embed",
+            content: "",
+            embed: "",
+        }
+    };
 
     const query = `SELECT settings -> 'welcome' AS welcome
                    FROM guild_configs
                    WHERE guild_id = $1`;
-    const res: QueryResult<Config> = await db.query(query, [guild_id]);
+    const res: QueryResult<any> = await db.query(query, [guild_id]);
     const row = res.rows[0];
 
     if (!row || !row.welcome) {
         return default_config;
     }
 
+    const dbWelcome = row.welcome;
+
+    // Legacy fallback: Map old database schema to the new nested format
+    if ("send_public_message" in dbWelcome || "channel_id" in dbWelcome) {
+        return {
+            public: {
+                enabled: !!dbWelcome.send_public_message,
+                channel_id: dbWelcome.channel_id || "",
+                format: dbWelcome.format || "embed",
+                content: dbWelcome.content || "",
+                embed: dbWelcome.embed || "",
+            },
+            private: {
+                enabled: false,
+                format: "embed",
+                content: "",
+                embed: "",
+            }
+        };
+    }
+
+    // Standard merge for the new nested schema
     return {
-        ...default_config,
-        ...row.welcome
+        public: {
+            ...default_config.public,
+            ...(dbWelcome.public || {})
+        },
+        private: {
+            ...default_config.private,
+            ...(dbWelcome.private || {})
+        }
     };
 }
 
@@ -98,7 +134,6 @@ export default async function WelcomePage({ params }: PageProps) {
 
     const profilePictureUrl = session?.user?.image || undefined;
 
-
     const onSave = async (data: WelcomeConfig) => {
         "use server";
         try {
@@ -108,7 +143,7 @@ export default async function WelcomePage({ params }: PageProps) {
             console.error("Failed to save welcome config:", error);
             throw new Error("Could not save configuration.");
         }
-    }
+    };
 
     return (
         <div>
@@ -122,5 +157,5 @@ export default async function WelcomePage({ params }: PageProps) {
                 />
             </div>
         </div>
-    )
+    );
 }

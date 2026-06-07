@@ -2,12 +2,13 @@
 
 import { DiscordChannel, WelcomeConfig } from "@/types";
 import { JSX, useCallback, useMemo, useState, useTransition } from "react";
-import { EnableSwitch } from "@/components/Dashboard/EnableSwitch";
+import { ToggleSwitch } from "@/components/Dashboard/ToggleSwitch";
 import { SavePopup } from "@/components/Dashboard/SavePopup";
 import GenericEmbedBuilder from "../Embed/GenericEmbedBuilder";
 import { WELCOME_CONFIG } from "@/lib/embedTemplates";
 import { Pad } from "../Pad";
 import { ChannelSelector } from "@/components/Dashboard/ChannelSelector";
+import { PlaceholderList } from "@/components/Embed/PlaceholderList";
 
 interface WelcomeBodyProps {
     welcomeConfig: WelcomeConfig;
@@ -18,7 +19,6 @@ interface WelcomeBodyProps {
     profilePictureUrl?: string;
 }
 
-// Helper to safely parse embed configs which might be strings or objects
 const safeParseEmbed = (embedValue: unknown) => {
     if (!embedValue) return {};
     if (typeof embedValue === "string") {
@@ -34,7 +34,6 @@ const safeParseEmbed = (embedValue: unknown) => {
     return {};
 };
 
-// Deep equal comparison to safely check if the configuration has changed
 const isDeepEqual = (obj1: any, obj2: any): boolean => {
     if (obj1 === obj2) return true;
 
@@ -77,29 +76,55 @@ export function WelcomeBody({
     channels,
     onSave
 }: WelcomeBodyProps): JSX.Element {
-    // Normalize initial state to ensure 'embed' is an object and consistent
-    const normalizedWelcomeConfig = useMemo(() => {
+    // Normalizes input values for safety
+    const normalizedWelcomeConfig = useMemo((): WelcomeConfig => {
         return {
-            ...welcomeConfig,
-            format: welcomeConfig.format || "embed", // Preserves format state
-            content: welcomeConfig.content || "",
-            embed: safeParseEmbed(welcomeConfig.embed),
+            public: {
+                enabled: welcomeConfig.public?.enabled ?? false,
+                channel_id: welcomeConfig.public?.channel_id || "",
+                content: welcomeConfig.public?.content || "",
+                embed: safeParseEmbed(welcomeConfig.public?.embed),
+                format: welcomeConfig.public?.format || "embed",
+            },
+            private: {
+                enabled: welcomeConfig.private?.enabled ?? false,
+                content: welcomeConfig.private?.content || "",
+                embed: safeParseEmbed(welcomeConfig.private?.embed),
+                format: welcomeConfig.private?.format || "embed",
+            }
         };
     }, [welcomeConfig]);
 
-    const [config, setConfig] = useState(normalizedWelcomeConfig);
+    const [config, setConfig] = useState<WelcomeConfig>(normalizedWelcomeConfig);
+    const [activeTab, setActiveTab] = useState<"public" | "private">("public");
     const [isPending, startTransition] = useTransition();
     const [resetKey, setResetKey] = useState(0);
 
-    // Using useCallback prevents GenericEmbedBuilder from unnecessarily re-triggering its internal lifecycle
-    const handleEmbedState = useCallback((embedState: any) => {
-        setConfig((prev) => ({ ...prev, embed: embedState }));
+    const activeSettings = config[activeTab];
+    const initialEmbedState = normalizedWelcomeConfig[activeTab].embed;
+
+    // Stable handler for public embed updates
+    const handleEmbedStatePublic = useCallback((embedState: any) => {
+        setConfig((prev) => ({
+            ...prev,
+            public: {
+                ...prev.public,
+                embed: embedState
+            }
+        }));
     }, []);
 
-    // Directly derive active layout mode from configuration properties
-    const mode = config.format || "embed";
+    // Stable handler for private embed updates
+    const handleEmbedStatePrivate = useCallback((embedState: any) => {
+        setConfig((prev) => ({
+            ...prev,
+            private: {
+                ...prev.private,
+                embed: embedState
+            }
+        }));
+    }, []);
 
-    // Standard dirty checking handles raw objects without nuking any underlying configurations
     const isDirty = !isDeepEqual(config, normalizedWelcomeConfig);
 
     const handleSave = () => {
@@ -109,56 +134,104 @@ export function WelcomeBody({
     };
 
     const handleCancel = () => {
-        setConfig(normalizedWelcomeConfig); // Reset config to database state
-        setResetKey((prev) => prev + 1);    // Force remount of the Embed builder
+        setConfig(normalizedWelcomeConfig);
+        setResetKey((prev) => prev + 1);
     };
 
     return (
         <div>
-            <EnableSwitch
-                enabled={config.enabled} disabled={isPending} onChange={(checked) =>
-                setConfig((prev) => ({ ...prev, enabled: checked }))
+            {/* Tab Selector */}
+            <div className="flex space-x-4 border-b border-neutral-800 mb-6">
+                <button
+                    type="button"
+                    onClick={() => setActiveTab("public")}
+                    className={`pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition select-none ${
+                        activeTab === "public"
+                            ? "border-neutral-200 text-white"
+                            : "border-transparent text-neutral-500 hover:text-neutral-300"
+                    }`}
+                >
+                    Public Message
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab("private")}
+                    className={`pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition select-none ${
+                        activeTab === "private"
+                            ? "border-neutral-200 text-white"
+                            : "border-transparent text-neutral-500 hover:text-neutral-300"
+                    }`}
+                >
+                    Private Message (DM)
+                </button>
+            </div>
+
+            {/* Config Enable Toggle */}
+            <ToggleSwitch
+                enabled={activeSettings.enabled} disabled={isPending} onChange={(checked) =>
+                setConfig((prev) => ({
+                    ...prev,
+                    [activeTab]: { ...prev[activeTab], enabled: checked }
+                }))
+            } text={
+                activeTab === "public"
+                    ? "Send Public Message when New User Joins"
+                    : "Send Direct Message (DM) when New User Joins"
             }
             />
             <Pad/>
 
-            {config.enabled && (
+            {activeSettings.enabled && (
                 <>
-                    <ChannelSelector
-                        channels={channels}
-                        value={config.channel_id || ""}
-                        disabled={isPending}
-                        onChange={(value) => setConfig((prev) => ({ ...prev, channel_id: value }))}
-                    />
-                    <Pad/>
+                    {/* Channel selection applies only to the public messages */}
+                    {activeTab === "public" && (
+                        <>
+                            <ChannelSelector
+                                channels={channels}
+                                value={config.public.channel_id || ""}
+                                disabled={isPending}
+                                onChange={(value) =>
+                                    setConfig((prev) => ({
+                                        ...prev,
+                                        public: { ...prev.public, channel_id: value }
+                                    }))
+                                }
+                            />
+                            <Pad/>
+                        </>
+                    )}
 
-                    {/* ── Mode Switcher (Plaintext vs Embed) ── */}
+                    {/* Mode Selector */}
                     <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider block text-neutral-400">
-                            Welcome Message Mode
+                            Message Mode ({activeTab === "public" ? "Public" : "Private"})
                         </label>
                         <div className="flex space-x-2 bg-neutral-300/5 p-1 rounded border border-neutral-700 w-fit">
                             <button
-                                type="button"
-                                disabled={isPending}
-                                onClick={() => setConfig((prev) => ({ ...prev, format: "text" }))}
-                                className={`px-3 py-1.5 rounded text-xs font-semibold transition select-none ${
-                                    mode === "text"
-                                        ? "bg-neutral-800 text-white"
-                                        : "text-neutral-400 hover:text-white"
-                                }`}
+                                type="button" disabled={isPending} onClick={() =>
+                                setConfig((prev) => ({
+                                    ...prev,
+                                    [activeTab]: { ...prev[activeTab], format: "text" }
+                                }))
+                            } className={`px-3 py-1.5 rounded text-xs font-semibold transition select-none ${
+                                activeSettings.format === "text"
+                                    ? "bg-neutral-800 text-white"
+                                    : "text-neutral-400 hover:text-white"
+                            }`}
                             >
                                 Plaintext Message
                             </button>
                             <button
-                                type="button"
-                                disabled={isPending}
-                                onClick={() => setConfig((prev) => ({ ...prev, format: "embed" }))}
-                                className={`px-3 py-1.5 rounded text-xs font-semibold transition select-none ${
-                                    mode === "embed"
-                                        ? "bg-neutral-800 text-white"
-                                        : "text-neutral-400 hover:text-white"
-                                }`}
+                                type="button" disabled={isPending} onClick={() =>
+                                setConfig((prev) => ({
+                                    ...prev,
+                                    [activeTab]: { ...prev[activeTab], format: "embed" }
+                                }))
+                            } className={`px-3 py-1.5 rounded text-xs font-semibold transition select-none ${
+                                activeSettings.format === "embed"
+                                    ? "bg-neutral-800 text-white"
+                                    : "text-neutral-400 hover:text-white"
+                            }`}
                             >
                                 Rich Embed
                             </button>
@@ -166,30 +239,40 @@ export function WelcomeBody({
                     </div>
                     <Pad/>
 
-                    {/* ── Mode Contents ── */}
-                    {mode === "text" ? (
+                    {/* Content Editors */}
+                    {activeSettings.format === "text" ? (
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-wider block text-neutral-400">
-                                Message Content (Plain Text / Pings)
+                                Message Content
                             </label>
+                            <PlaceholderList config={WELCOME_CONFIG}/>
                             <textarea
-                                value={config.content || ""}
+                                value={activeSettings.content || ""}
                                 disabled={isPending}
-                                onChange={(e) => setConfig((prev) => ({ ...prev, content: e.target.value }))}
+                                onChange={(e) =>
+                                    setConfig((prev) => ({
+                                        ...prev,
+                                        [activeTab]: { ...prev[activeTab], content: e.target.value }
+                                    }))
+                                }
                                 rows={4}
-                                placeholder="Welcome to the server, {user.mention}! We are glad to have you here."
+                                placeholder={
+                                    activeTab === "public"
+                                        ? "Welcome to the server, {user.mention}!"
+                                        : "Thanks for joining our server, {user.mention}! Here are some links to get started..."
+                                }
                                 className="w-full p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500 resize-none font-mono text-white placeholder-neutral-600"
                             />
                             <p className="text-xs text-neutral-500">
-                                A standard text message sent as a direct chat. Supports all dynamic placeholders and
-                                user mentions. </p>
+                                Supports dynamic placeholders and mentions. </p>
                         </div>
                     ) : (
                         <GenericEmbedBuilder
-                            key={resetKey}
-                            setEmbedState={handleEmbedState}
-                            config={WELCOME_CONFIG}
-                            initialEmbedState={normalizedWelcomeConfig.embed}
+                            key={`${resetKey}_${activeTab}`} setEmbedState={
+                            activeTab === "public"
+                                ? handleEmbedStatePublic
+                                : handleEmbedStatePrivate
+                        } config={WELCOME_CONFIG} initialEmbedState={initialEmbedState}
                         />
                     )}
                 </>
