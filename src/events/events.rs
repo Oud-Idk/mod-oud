@@ -1,4 +1,4 @@
-use crate::events::handlers::join_leave::{on_member_join, on_member_leave};
+use crate::events::handlers::join_leave::join_leave::{on_member_join, on_member_leave};
 use crate::events::interact::on_interact;
 use crate::events::message::{on_message, on_message_delete, on_message_update, on_reaction_add, on_reaction_remove};
 use crate::types::types::{Data, Error};
