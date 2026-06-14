@@ -2,7 +2,7 @@ use crate::core::config::get_settings;
 use crate::events::handlers::message_filter::rules::{self};
 use crate::events::handlers::message_filter::verdict::FilterVerdict;
 use crate::events::handlers::message_filter::{spam, verdict};
-use crate::events::handlers::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
+use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
 use crate::events::handlers::{message_logging, tickets};
 use crate::types::config::message_filter::{RuleScope, ScopeMode};
 use crate::types::types::{Data, Error};
