@@ -41,13 +41,14 @@ impl fmt::Display for ThreatType {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, poise::ChoiceParameter, Serialize, Deserialize,
 )]
+#[serde(rename_all = "UPPERCASE")]
 #[sqlx(type_name = "flag_severity", rename_all = "UPPERCASE")]
 pub enum FlagSeverity {
-    #[name = "Mild"]
+    #[name = "MILD"]
     Mild,
-    #[name = "Moderate"]
+    #[name = "MODERATE"]
     Moderate,
-    #[name = "Severe"]
+    #[name = "SEVERE"]
     Severe,
 }
 
@@ -62,6 +63,14 @@ impl FlagSeverity {
             Some(FlagSeverity::Mild)
         } else {
             None
+        }
+    }
+
+    pub fn to_type(self) -> rustrict::Type {
+        match self {
+            FlagSeverity::Severe => rustrict::Type::SEVERE,
+            FlagSeverity::Moderate => rustrict::Type::MODERATE,
+            FlagSeverity::Mild => rustrict::Type::MILD,
         }
     }
 }

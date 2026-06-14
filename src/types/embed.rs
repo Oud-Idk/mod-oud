@@ -1,5 +1,3 @@
-use crate::core::config;
-use crate::core::config::GuildCtx;
 use crate::types::types::Error;
 use serde::{Deserialize, Serialize};
 use serenity::all::CreateEmbed;
@@ -57,46 +55,41 @@ impl DiscordEmbed {
             && self.footer.is_none()
     }
 
-    pub fn to_create_embed_with_ctx(
-        &self,
-        member: &serenity::all::Member,
-        channel: &serenity::all::GuildChannel,
-        gctx: &GuildCtx,
-        plan_name: Option<&str>,
-        achievement: Option<&str>,
-    ) -> Result<CreateEmbed, Error> {
+    /// Builds a serenity CreateEmbed using a custom placeholder replacement function.
+    pub fn to_embed<F>(&self, mut replace: F) -> Result<CreateEmbed, Error>
+    where
+        F: FnMut(&str) -> String,
+    {
         let mut embed = CreateEmbed::new();
 
         if let Some(ref title) = self.title {
-            embed = embed.title(config::replace_placeholders(title, gctx, member, channel, plan_name, achievement));
+            embed = embed.title(replace(title));
         }
         if let Some(ref description) = self.description {
-            embed = embed.description(config::replace_placeholders(description, gctx, member, channel, plan_name, achievement));
+            embed = embed.description(replace(description));
         }
         if let Some(color) = self.color {
             embed = embed.color(serenity::all::Color::new(color));
         }
         if let Some(ref thumbnail) = self.thumbnail {
-            embed = embed.thumbnail(config::replace_placeholders(&thumbnail.url, gctx, member, channel, plan_name, achievement));
+            embed = embed.thumbnail(replace(&thumbnail.url));
         }
         if let Some(ref image) = self.image {
-            embed = embed.image(config::replace_placeholders(&image.url, gctx, member, channel, plan_name, achievement));
+            embed = embed.image(replace(&image.url));
         }
         if let Some(ref author) = self.author {
-            let mut a = serenity::all::CreateEmbedAuthor::new(
-                config::replace_placeholders(author.name.as_deref().unwrap_or(""), gctx, member, channel, plan_name, achievement),
-            );
+            let author_name = replace(author.name.as_deref().unwrap_or(""));
+            let mut a = serenity::all::CreateEmbedAuthor::new(author_name);
             if let Some(ref url) = author.icon_url {
-                a = a.icon_url(config::replace_placeholders(url, gctx, member, channel, plan_name, achievement));
+                a = a.icon_url(replace(url));
             }
             embed = embed.author(a);
         }
         if let Some(ref footer) = self.footer {
-            let mut f = serenity::all::CreateEmbedFooter::new(
-                config::replace_placeholders(footer.text.as_deref().unwrap_or(""), gctx, member, channel, plan_name, achievement),
-            );
+            let footer_text = replace(footer.text.as_deref().unwrap_or(""));
+            let mut f = serenity::all::CreateEmbedFooter::new(footer_text);
             if let Some(ref url) = footer.icon_url {
-                f = f.icon_url(config::replace_placeholders(url, gctx, member, channel, plan_name, achievement));
+                f = f.icon_url(replace(url));
             }
             embed = embed.footer(f);
         }

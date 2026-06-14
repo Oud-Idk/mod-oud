@@ -1,6 +1,6 @@
 use crate::commands::helpers::message_logging;
 use crate::core::config::get_settings;
-use crate::types::types::{Data, Error};
+use crate::types::types::{Data, DeletedMessagePayload, Error, ModifiedMessagePayload};
 use poise::serenity_prelude as serenity;
 
 pub struct MessageDetails {
@@ -34,21 +34,42 @@ pub async fn message_log_delete(
         return Ok(());
     };
 
-    // 1. Load configuration from dynamic settings (JSONB)
     let settings = get_settings(&_data.db, &_data.redis, g_id).await?;
-    let Some(raw_id) = settings.message_log_channel_id else {
+    let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };
-    let del_channel_id = serenity::ChannelId::new(raw_id.parse::<u64>()?);
 
-    // 2. Extract message information from the local cache
+    let is_enabled = logging_config
+        .enabled
+        .unwrap_or(false)
+        && logging_config
+        .events
+        .as_ref()
+        .and_then(|ev| ev.message_delete)
+        .unwrap_or(false);
+
+    if !is_enabled {
+        return Ok(());
+    }
+
     let Some(msg) =
         message_logging::fetch_cached_message(&ctx.cache, channel_id, deleted_message_id)
     else {
         return Ok(());
     };
 
-    // 3. Log the deletion to the database
+    if message_logging::should_exclude_from_logging(
+        logging_config,
+        msg.author_id,
+        msg.chan_id,
+        g_id,
+        ctx,
+    )
+        .await
+    {
+        return Ok(());
+    }
+
     let joined_image_urls = msg.image_urls.join(",");
     sqlx::query!(
         r#"
@@ -66,22 +87,24 @@ pub async fn message_log_delete(
         .execute(&_data.db)
         .await?;
 
-    // Quick sanity check to ensure the channel exists before generating embeds
-    if del_channel_id.to_channel(&ctx.http).await.is_err() {
-        return Ok(());
+    let payload = DeletedMessagePayload {
+        id: msg.msg_id.to_string(),
+        guild_id: g_id.to_string(),
+        author_name: msg.author_name.clone(),
+        content: msg.content.clone(),
+        channel_id: msg.chan_id.to_string(),
+        deleted_at: chrono::Utc::now().to_rfc3339(),
+        attachment_url: joined_image_urls.to_string(),
+    };
+
+    if let Ok(payload_json) = serde_json::to_string(&payload) {
+        let mut conn = _data.redis.clone();
+        let _: Result<(), _> = redis::cmd("PUBLISH")
+            .arg("discord:deletes")
+            .arg(payload_json)
+            .query_async(&mut conn)
+            .await;
     }
-
-    // 4. Build message embeds and dispatch log message
-    let embeds = message_logging::build_delete_embeds(
-        msg.author_id,
-        msg.chan_id,
-        &msg.content,
-        &msg.avatar_url,
-        &msg.image_urls,
-    );
-
-    let builder = serenity::CreateMessage::new().embeds(embeds);
-    let _ = del_channel_id.send_message(&ctx.http, builder).await;
 
     Ok(())
 }
@@ -97,17 +120,40 @@ pub async fn message_log_update(
         return Ok(());
     };
 
-    // 1. Fetch settings (JSONB)
     let settings = get_settings(&_data.db, &_data.redis, g_id).await?;
-    let Some(raw_id) = settings.message_log_channel_id else {
+    let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };
-    let message_log_channel_id = serenity::ChannelId::new(raw_id.parse::<u64>()?);
 
-    // 2. Extract and validate message update details
+    let is_enabled = logging_config
+        .enabled
+        .unwrap_or(false)
+        && logging_config
+        .events
+        .as_ref()
+        .and_then(|ev| ev.message_edit)
+        .unwrap_or(false);
+
+    if !is_enabled {
+        return Ok(());
+    }
+
     let Some(details) = message_logging::extract_edit_details(old_if_available, new, event) else {
         return Ok(());
     };
+
+    // Check if message should be excluded from logging
+    if message_logging::should_exclude_from_logging(
+        logging_config,
+        details.author_id,
+        details.chan_id,
+        g_id,
+        ctx,
+    )
+        .await
+    {
+        return Ok(());
+    }
 
     // 3. Log modified messages in database
     sqlx::query!(
@@ -126,17 +172,25 @@ pub async fn message_log_update(
         .execute(&_data.db)
         .await?;
 
-    // Quick verification that the log channel is accessible
-    if message_log_channel_id.to_channel(&ctx.http).await.is_err() {
-        return Ok(());
-    }
+    // 4. Publish to Redis for real-time web delivery
+    let payload = ModifiedMessagePayload {
+        id: details.msg_id.to_string(),
+        guild_id: g_id.to_string(),
+        author_name: details.author_name.clone(),
+        channel_id: details.chan_id.to_string(),
+        old_content: details.old_content.clone(),
+        new_content: details.new_content.clone(),
+        edited_at: chrono::Utc::now().to_rfc3339(),
+    };
 
-    // 4. Generate visual embed and send
-    let embed = message_logging::build_edit_embed(&details);
-    let builder = serenity::CreateMessage::new().embed(embed);
-    let _ = message_log_channel_id
-        .send_message(&ctx.http, builder)
-        .await;
+    if let Ok(payload_json) = serde_json::to_string(&payload) {
+        let mut conn = _data.redis.clone();
+        let _: Result<(), _> = redis::cmd("PUBLISH")
+            .arg("discord:updates")
+            .arg(payload_json)
+            .query_async(&mut conn)
+            .await;
+    }
 
     Ok(())
 }

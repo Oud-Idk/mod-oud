@@ -1,3 +1,4 @@
 pub mod error;
-pub mod events;
 pub mod logger;
+pub mod custom_msg;
+pub mod moderating;

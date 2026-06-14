@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { User } from "lucide-react";
 import { LogoutButton } from "@/components/Sidebar/LogoutButton";
 import { ServerList } from "@/components/Sidebar/ServerList";
-import { getGuildLists } from "@/lib/servers";
+import { getGuildLists } from "@/utils/servers";
 import { DiscordGuild } from "@/types";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -39,7 +39,8 @@ export async function Sidebar() {
                 <SidebarLinks/>
             </div>
             <div
-                className="p-3 dark:bg-neutral-950 bg-white flex items-center justify-between border-t">
+                className="p-3 dark:bg-neutral-950 bg-white flex items-center justify-between border-t"
+            >
                 <div className="flex items-center gap-2 overflow-hidden">
                     <div className="relative">
                         {session?.user?.image ? (
@@ -50,15 +51,17 @@ export async function Sidebar() {
                             />
                         ) : (
                             <div
-                                className="w-9 h-9 rounded-full flex items-center justify-center">
+                                className="w-9 h-9 rounded-full flex items-center justify-center"
+                            >
                                 <User className="w-5 h-5"/>
                             </div>
                         )}
                     </div>
                     <div
-                        className="flex flex-col overflow-hidden text-left">
+                        className="flex flex-col overflow-hidden text-left"
+                    >
                         <span className="text-md font-semibold truncate">
-                          {session?.user?.name || "Discord User"}
+                            {session?.user?.name || "Discord User"}
                         </span>
                     </div>
                 </div>

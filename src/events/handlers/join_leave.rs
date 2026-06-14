@@ -1,8 +1,11 @@
-use crate::core::config::{get_guild_ctx, get_settings, replace_placeholders};
-use crate::types::config::WelcomeMessageSettings;
+use crate::core::config::{get_guild_ctx, get_settings, replace_welcome_goodbye_placeholders};
+use crate::types::config::welcome::{WelcomeConfig, WelcomeMessageSettings};
 use crate::types::types::{Data, Error};
+use crate::utils::custom_msg::build_custom_message;
 use poise::serenity_prelude as serenity;
+use serenity::all::{EditMember, RoleId};
 use serenity::{ChannelId, CreateEmbed, CreateMessage, Mentionable};
+use std::collections::HashSet;
 
 pub async fn on_member_join(
     ctx: &serenity::Context,
@@ -12,57 +15,15 @@ pub async fn on_member_join(
     let guild_id = member.guild_id.get() as i64;
     let settings = get_settings(&data.db, &data.redis, guild_id).await?;
 
-    if let Some(role_id_i64) = settings.join_role_id {
-        let role_id = serenity::RoleId::new(role_id_i64.parse::<u64>()?);
-        if let Err(e) = member.add_role(&ctx.http, role_id).await {
-            eprintln!("Failed to add join role to {}: {}", member.user.name, e);
-        }
-    }
-
+    // If welcoming is configured, run the welcome handler.
+    // If it fails, we log it, but we DO NOT crash so we can still write the database log below!
     if let Some(welcome_config) = settings.welcome {
-        let warning_text = check_alt_status(&member.user);
-        let gctx = get_guild_ctx(member, ctx).await?;
-
-        let public_channel_id_str = welcome_config.public.as_ref().and_then(|p| p.channel_id.as_deref());
-        if let Ok(context_channel) = get_context_channel(ctx, member, public_channel_id_str).await {
-            if let Some(ref public_settings) = welcome_config.public {
-                if public_settings.enabled.unwrap_or(false) {
-                    if let Some(ref channel_id_str) = public_settings.channel_id {
-                        if let Ok(ch_u64) = channel_id_str.parse::<u64>() {
-                            let public_channel_id = serenity::all::ChannelId::new(ch_u64);
-
-                            match build_welcome_message(public_settings, member, &context_channel, &gctx, &warning_text, false) {
-                                Ok(builder) => {
-                                    let _ = public_channel_id.send_message(&ctx.http, builder).await;
-                                }
-                                Err(e) => eprintln!("Failed to build public welcome message: {}", e),
-                            }
-                        }
-                    }
-                }
-            }
-
-            if let Some(ref private_settings) = welcome_config.private {
-                if private_settings.enabled.unwrap_or(false) {
-                    match member.user.create_dm_channel(&ctx.http).await {
-                        Ok(private_channel) => {
-                            match build_welcome_message(private_settings, member, &context_channel, &gctx, &warning_text, true) {
-                                Ok(builder) => {
-                                    let _ = private_channel.send_message(&ctx.http, builder).await;
-                                }
-                                Err(e) => eprintln!("Failed to build private welcome message: {}", e),
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to create DM channel for user {}: {}", member.user.name, e);
-                        }
-                    }
-                }
-            }
+        if let Err(e) = handle_member_welcome(ctx, member, welcome_config).await {
+            eprintln!("Error processing welcome routine for {}: {:?}", member.user.name, e);
         }
     }
 
-    // 3. Log join event in database
+    // This is now perfectly flat and guaranteed to run
     let user_id = member.user.id.get() as i64;
     sqlx::query!(
         "INSERT INTO join_leave_logs (user_id, guild_id, action) VALUES ($1, $2, 'JOIN')",
@@ -75,6 +36,53 @@ pub async fn on_member_join(
     Ok(())
 }
 
+/// The extracted, flat welcome handling routine
+async fn handle_member_welcome(
+    ctx: &serenity::Context,
+    member: &serenity::all::Member,
+    config: WelcomeConfig, // Adjust type as necessary
+) -> Result<(), Error> {
+    let warning_text = check_alt_status(&member.user);
+
+    // Using our unified context fetcher!
+    let gctx = get_guild_ctx(member.guild_id, ctx).await?;
+
+    let public_channel_id_str = config.public.as_ref().and_then(|p| p.channel_id.as_deref());
+    let context_channel = get_context_channel(ctx, member, public_channel_id_str).await?;
+
+    // 1. Handle Join Roles
+    if let Some(role_ids) = config.join_role_ids {
+        let mut role_set: HashSet<RoleId> = member.roles.iter().copied().collect();
+        for role_id in role_ids {
+            role_set.insert(RoleId::from(role_id.parse::<u64>()?));
+        }
+        let merged_roles: Vec<RoleId> = role_set.into_iter().collect();
+        let builder = EditMember::new().roles(merged_roles);
+        member.guild_id.edit_member(ctx, member.user.id, builder).await?;
+    }
+
+    // 2. Public Channel Welcome
+    if let Some(public) = config.public.filter(|p| p.enabled.unwrap_or(false)) {
+        if let Some(ch_str) = public.channel_id.as_ref().and_then(|id| id.parse::<u64>().ok()) {
+            let channel_id = ChannelId::new(ch_str);
+            if let Ok(builder) = build_welcome_message(&public, member, &context_channel, &gctx, &warning_text, false) {
+                let _ = channel_id.send_message(&ctx.http, builder).await;
+            }
+        }
+    }
+
+    // 3. Private DM Welcome
+    if let Some(private) = config.private.filter(|p| p.enabled.unwrap_or(false)) {
+        if let Ok(dm_channel) = member.user.create_dm_channel(&ctx.http).await {
+            if let Ok(builder) = build_welcome_message(&private, member, &context_channel, &gctx, &warning_text, true) {
+                let _ = dm_channel.send_message(&ctx.http, builder).await;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn on_member_leave(
     ctx: &serenity::Context,
     _guild_id: &serenity::GuildId,
@@ -83,40 +91,84 @@ pub async fn on_member_leave(
     data: &Data,
 ) -> Result<(), Error> {
     let guild_id = _guild_id.get() as i64;
-
-    // Load settings (JSONB)
     let settings = get_settings(&data.db, &data.redis, guild_id).await?;
 
-    // 1. Send departure message to logs if channel is configured
-    if let Some(log_channel_i64) = settings.leave_channel_id {
-        let channel_id = ChannelId::new(log_channel_i64.parse::<u64>()?);
-        let roles_text = format_member_roles(member_data_if_available);
+    // GUARD: Get out early if leaving alerts are disabled
+    let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled.unwrap_or(false)) else {
+        return log_leave_to_db(user.id.get() as i64, guild_id, &data.db).await;
+    };
 
-        let embed = CreateEmbed::new()
-            .title("Member Left / Kicked")
-            .description(format!(
-                "**{}** (`{}`) is no longer in the server.",
-                user.name, user.id
-            ))
-            .field("Roles before leaving", roles_text, false)
-            .thumbnail(user.face())
-            .color(serenity::Color::from_rgb(255, 0, 0))
-            .timestamp(serenity::Timestamp::now());
+    // GUARD: Get out early if there is no channel ID, or it is invalid
+    let Some(channel_id) = leave_cfg.channel_id.as_ref().and_then(|id| id.parse::<u64>().ok().map(ChannelId::new)) else {
+        return log_leave_to_db(user.id.get() as i64, guild_id, &data.db).await;
+    };
 
-        let builder = CreateMessage::new().embed(embed);
+    // Declaratively decide what message to build. No mutable flags!
+    let msg_payload = match member_data_if_available {
+        Some(member) => {
+            let gctx_res = get_guild_ctx(_guild_id.clone(), ctx).await;
+            let context_ch_res = get_context_channel(ctx, member, leave_cfg.channel_id.as_deref()).await;
+
+            match (gctx_res, context_ch_res) {
+                (Ok(gctx), Ok(context_channel)) => {
+                    let is_embed = leave_cfg.format.as_deref().unwrap_or("embed") == "embed";
+
+                    let custom = build_custom_message(
+                        is_embed,
+                        leave_cfg.content.as_ref(),
+                        leave_cfg.embed.as_ref(),
+                        |text| replace_welcome_goodbye_placeholders(text, &gctx, member, &context_channel, None, None),
+                    ).unwrap_or_else(|e| {
+                        eprintln!("Failed to build custom leave message: {}", e);
+                        None
+                    });
+
+                    Some(custom.unwrap_or_else(|| build_fallback_message(user, member_data_if_available)))
+                }
+                _ => {
+                    None
+                }
+            }
+        }
+        None => {
+            // No member info available: send generic fallback embed immediately
+            Some(build_fallback_message(user, &None))
+        }
+    };
+
+    // If we have a message payload, send it
+    if let Some(builder) = msg_payload {
         let _ = channel_id.send_message(&ctx.http, builder).await;
     }
 
-    // 2. Log leave event to database
-    let user_id = user.id.get() as i64;
+    // Finally log to DB
+    log_leave_to_db(user.id.get() as i64, guild_id, &data.db).await?;
+    Ok(())
+}
+
+/// Helper function to build fallback message
+fn build_fallback_message(user: &serenity::User, member: &Option<serenity::Member>) -> CreateMessage {
+    let roles_text = format_member_roles(member);
+    let embed = CreateEmbed::new()
+        .title("Member Left / Kicked")
+        .description(format!("**{}** (`{}`) is no longer in the server.", user.name, user.id))
+        .field("Roles before leaving", roles_text, false)
+        .thumbnail(user.face())
+        .color(serenity::Color::from_rgb(255, 0, 0))
+        .timestamp(serenity::Timestamp::now());
+
+    CreateMessage::new().embed(embed)
+}
+
+/// Quick helper to avoid duplicating the database logger inside guards
+async fn log_leave_to_db(user_id: i64, guild_id: i64, db: &sqlx::PgPool) -> Result<(), Error> {
     sqlx::query!(
         "INSERT INTO join_leave_logs (user_id, guild_id, action) VALUES ($1, $2, 'LEAVE')",
         user_id,
         guild_id
     )
-        .execute(&data.db)
+        .execute(db)
         .await?;
-
     Ok(())
 }
 
@@ -129,62 +181,24 @@ fn build_welcome_message(
     warning_text: &str,
     is_dm: bool,
 ) -> Result<CreateMessage, Error> {
-    let mut builder = CreateMessage::new();
-    let mut has_payload = false;
+    let is_embed = settings.format.as_deref().unwrap_or("embed") == "embed";
 
-    let format = settings.format.as_deref().unwrap_or("embed");
+    let custom_msg_opt = build_custom_message(
+        is_embed,
+        settings.content.as_ref(),
+        settings.embed.as_ref(),
+        |text| replace_welcome_goodbye_placeholders(text, gctx, member, channel, None, Some(warning_text)),
+    )?;
 
-    // Plaintext format option
-    if format == "text" {
-        if let Some(ref text_template) = settings.content {
-            let parsed_content = replace_placeholders(
-                text_template,
-                gctx,
-                member,
-                channel,
-                None,
-                Some(warning_text),
-            );
-            builder = builder.content(parsed_content);
-            has_payload = true;
-        }
-    }
-
-    // Rich embed format option
-    if format == "embed" {
-        if let Some(ref custom_embed_template) = settings.embed {
-            if !custom_embed_template.is_empty() {
-                let embed = custom_embed_template.to_create_embed_with_ctx(
-                    member,
-                    channel,
-                    gctx,
-                    None,
-                    Some(warning_text),
-                )?;
-                builder = builder.embed(embed);
-                has_payload = true;
-            }
-        }
-    }
-
-    // Standard fallback string if both options are unpopulated
-    if !has_payload {
+    // If we got a built message from the helper, use it. Otherwise, fallback.
+    Ok(custom_msg_opt.unwrap_or_else(|| {
         let base_msg = if is_dm {
-            format!(
-                "Welcome to the server, {}! We are glad to have you here.",
-                member.user.mention()
-            )
+            format!("Welcome to the server, {}! We are glad to have you here.", member.user.mention())
         } else {
-            format!(
-                "Welcome to the server, {}! We are glad to have you here.{}",
-                member.user.mention(),
-                warning_text
-            )
+            format!("Welcome to the server, {}! We are glad to have you here.{}", member.user.mention(), warning_text)
         };
-        builder = builder.content(base_msg);
-    }
-
-    Ok(builder)
+        CreateMessage::new().content(base_msg)
+    }))
 }
 
 /// Helper to safely resolve a text channel to populate the placeholder evaluation context.

@@ -7,7 +7,7 @@ interface PlaceholderListProps {
 export const PlaceholderList = ({ config }: PlaceholderListProps) => {
     return (
         <div className="p-3 rounded-lg border">
-            <h3 className="text-xs font-bold uppercase mb-2 tracking-wider text-neutral-500 dark:text-neutral-400">
+            <h3 className="text-xs font-bold uppercase mb-2 tracking-wider">
                 Available Placeholders </h3>
             <div className="flex flex-wrap gap-2">
                 {config.placeholders.map((p) => (

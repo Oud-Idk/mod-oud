@@ -71,7 +71,7 @@ async fn send_moderation_dm(
         .color(color)
         .field("Reason", reason, false)
         .footer(poise::serenity_prelude::CreateEmbedFooter::new(
-            "This is an automated moderation action. Moderator name is hidden for privacy.",
+            "Moderator name is hidden for privacy.",
         ));
 
     if let Some(icon) = guild_icon {

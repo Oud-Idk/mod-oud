@@ -1,4 +1,47 @@
 use crate::events::handlers::message_logging::{EditDetails, MessageDetails};
+use crate::types::config::message_logging::MessageLoggingConfig;
+use serenity::all::GuildId;
+
+/// Checks if a message should be excluded from logging based on channel, user, or role exclusions.
+pub async fn should_exclude_from_logging(
+    config: &MessageLoggingConfig,
+    author_id: i64,
+    channel_id: i64,
+    guild_id: i64,
+    ctx: &serenity::all::Context,
+) -> bool {
+    // Check if channel is ignored
+    if let Some(ref ignored_channels) = config.ignored_channels {
+        if ignored_channels.contains(&channel_id.to_string()) {
+            return true;
+        }
+    }
+
+    // Check if user is ignored
+    if let Some(ref ignored_users) = config.ignored_users {
+        if ignored_users.contains(&author_id.to_string()) {
+            return true;
+        }
+    }
+
+    // Check if user has any ignored roles
+    if let Some(ref ignored_roles) = config.ignored_roles {
+        if !ignored_roles.is_empty() {
+            if let Ok(member) = GuildId::new(guild_id as u64)
+                .member(ctx, serenity::all::UserId::new(author_id as u64))
+                .await
+            {
+                for role_id in &member.roles {
+                    if ignored_roles.contains(&role_id.get().to_string()) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
 
 /// Extracts message details from the cache if the message was not authored by a bot.
 pub fn fetch_cached_message(
@@ -42,48 +85,6 @@ fn is_image_attachment(attachment: &serenity::all::Attachment) -> bool {
         || attachment.filename.ends_with(".gif")
 }
 
-/// Generates a unified vector of embeds representing the deleted text and images.
-pub fn build_delete_embeds(
-    author_id: i64,
-    chan_id: i64,
-    content: &str,
-    avatar_url: &Option<String>,
-    image_urls: &[String],
-) -> Vec<serenity::all::CreateEmbed> {
-    let content_display = if content.is_empty() && image_urls.is_empty() {
-        "*No text content or attachments*"
-    } else if content.is_empty() {
-        "*No text content (attachments only)*"
-    } else {
-        content
-    };
-
-    let mut main_embed = serenity::all::CreateEmbed::new()
-        .title("Message Deleted")
-        .color(0xD0021B)
-        .field("Author", format!("<@{}>", author_id), true)
-        .field("Channel", format!("<#{}>", chan_id), true)
-        .field("Content", content_display, false);
-
-    if let Some(url) = avatar_url {
-        main_embed = main_embed.thumbnail(url);
-    }
-
-    let mut embeds = Vec::new();
-    if let Some(first_url) = image_urls.first() {
-        main_embed = main_embed.image(first_url);
-        embeds.push(main_embed);
-
-        // Add additional secondary embeds to attach multiple images to a single block
-        for url in image_urls.iter().skip(1).take(9) {
-            embeds.push(serenity::all::CreateEmbed::new().image(url));
-        }
-    } else {
-        embeds.push(main_embed);
-    }
-
-    embeds
-}
 
 /// Resolves message text values and user identifiers while handling fallbacks.
 /// Returns `None` if the author was a bot or if the text was not modified.
@@ -145,35 +146,4 @@ pub fn extract_edit_details(
         old_content,
         new_content,
     })
-}
-
-/// Constructs a Discord embed displaying the transition from the old message value to the new one.
-pub fn build_edit_embed(details: &EditDetails) -> serenity::all::CreateEmbed {
-    let mut embed = serenity::all::CreateEmbed::new()
-        .title("Message Edited")
-        .color(0xF5A623)
-        .field("Author", format!("<@{}>", details.author_id), true)
-        .field("Channel", format!("<#{}>", details.chan_id), true)
-        .field(
-            "Original Content",
-            details
-                .old_content
-                .as_deref()
-                .unwrap_or("*Unknown (not in cache)*"),
-            false,
-        )
-        .field(
-            "New Content",
-            details
-                .new_content
-                .as_deref()
-                .unwrap_or("*No text content*"),
-            false,
-        );
-
-    if let Some(ref url) = details.avatar_url {
-        embed = embed.thumbnail(url);
-    }
-
-    embed
 }

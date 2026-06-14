@@ -1,10 +1,10 @@
+use crate::types::types::{Context, Error};
+use crate::utils::logger::{log_moderation_action, ActionType};
+use crate::utils::moderating::issue_warning;
 use futures::StreamExt;
 use poise::serenity_prelude as serenity;
 use serenity::model::guild::Member;
 use serenity::model::user::User;
-
-use crate::types::types::{Context, Error};
-use crate::utils::logger::{log_moderation_action, ActionType};
 
 /// Intermediate representation of warning data used for unified display.
 struct WarningInfo {
@@ -29,71 +29,35 @@ pub async fn warn(
 
     #[description = "The reason"] reason: Option<String>,
 ) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().unwrap().get() as i64;
-    let user_id = member.user.id.get() as i64;
-    let author_id = ctx.author().id.get() as i64;
+    // if author_id == user_id {
+    //     ctx.send(
+    //         poise::CreateReply::default()
+    //             .content("You cannot warn yourself!")
+    //             .ephemeral(true),
+    //     )
+    //         .await?;
+    //     return Ok(());
+    // }
+    // For testing purposes. Uncomment later.
+
     let reason_str = reason.unwrap_or_else(|| "No reason specified".to_string());
-    let db = &ctx.data().db;
-    let guild_name = ctx.guild().unwrap().name.clone();
 
-    if author_id == user_id {
-        ctx.send(
-            poise::CreateReply::default()
-                .content("You cannot warn yourself!")
-                .ephemeral(true),
-        )
-            .await?;
-        return Ok(());
-    }
-
-    let res = sqlx::query!(
-        r#"
-        INSERT INTO warns (guild_id, user_id, moderator_id, reason)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id
-        "#,
-        guild_id,
-        user_id,
-        author_id,
-        reason_str,
-    )
-        .fetch_optional(db)
-        .await?;
-
-    let embed = poise::serenity_prelude::CreateEmbed::new()
-        .title(format!("You have been formally warned from {}", guild_name))
-        .color(0xFF4747)
-        .field("Reason", &reason_str, false)
-        .field("ID", format!("{}", res.unwrap().id), false)
-        .thumbnail(ctx.guild().and_then(|g| g.icon_url()).unwrap_or_default())
-        .footer(poise::serenity_prelude::CreateEmbedFooter::new(
-            "This is an automated moderation action. Moderator name is hidden for privacy.",
-        ));
-
-    let message = poise::serenity_prelude::CreateMessage::new().embed(embed);
-    let _ = member.user.dm(&ctx.serenity_context().http, message).await;
+    issue_warning(
+        &ctx.data().db,
+        &ctx.data().redis,
+        &ctx.serenity_context().http,
+        ctx.guild_id().unwrap(),
+        member.user.id,
+        ctx.author().id,
+        &reason_str,
+    ).await?;
 
     ctx.send(
         poise::CreateReply::default()
-            .content(format!(
-                "Successfully warned {} for: {}",
-                member.user.name, &reason_str
-            ))
+            .content(format!("Successfully warned {} for: {}", member.user.name, &reason_str))
             .ephemeral(true),
-    )
-        .await?;
+    ).await?;
 
-    // Log the moderation action
-    log_moderation_action(
-        &ctx,
-        guild_id as u64,
-        user_id as u64,
-        author_id as u64,
-        ActionType::Warn,
-        Some(&reason_str),
-        None,
-    )
-        .await?;
     Ok(())
 }
 

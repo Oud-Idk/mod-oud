@@ -1,7 +1,9 @@
-use serenity::model::user::User;
-
 use crate::commands::helpers::show_history;
-use crate::types::types::{Context, Error};
+use crate::core::config::get_settings;
+use crate::types::types::{Context, Error, ReportedMessagePayload};
+use poise::{serenity_prelude as serenity, Modal};
+use redis::AsyncCommands;
+use serenity::model::user::User;
 
 /// Get the history of deleted messages by a user
 #[poise::command(slash_command, default_member_permissions = "BAN_MEMBERS", guild_only)]
@@ -170,6 +172,159 @@ pub async fn edit_history(
             .ephemeral(ephemeral.unwrap_or(true)),
     )
         .await?;
+
+    Ok(())
+}
+
+pub fn extract_image_urls(message: &serenity::Message) -> Vec<String> {
+    let mut urls = Vec::new();
+
+    for attachment in &message.attachments {
+        let is_image = attachment.content_type
+            .as_deref()
+            .map_or(false, |mime| mime.starts_with("image/"))
+            || attachment.dimensions().is_some();
+
+        if is_image {
+            urls.push(attachment.url.clone());
+        }
+    }
+
+    // 2. Rich Embeds (link previews, webhooks, GIFs)
+    for embed in &message.embeds {
+        if let Some(image) = &embed.image {
+            urls.push(image.url.clone());
+        }
+        if let Some(thumbnail) = &embed.thumbnail {
+            urls.push(thumbnail.url.clone());
+        }
+    }
+
+    urls
+}
+
+#[derive(poise::Modal)]
+#[name = "Report This Message"] // The title of the popup window
+struct ReportModal {
+    #[placeholder = "Please explain why you are reporting this message..."]
+    #[paragraph]
+    reason: String,
+}
+
+#[poise::command(context_menu_command = "Report This Message", guild_only)]
+pub async fn report_message(
+    ctx: Context<'_>,
+    message: serenity::Message,
+) -> Result<(), Error> {
+    let app_ctx = match ctx {
+        Context::Application(x) => x,
+        _ => return Ok(()),
+    };
+
+    let db = &ctx.data().db;
+    let redis = ctx.data().redis.clone();
+    let guild_id = ctx.guild_id().unwrap().get();
+
+    let config = get_settings(db, &redis, guild_id as i64).await?;
+    let Some(report_config) = config.report else {
+        println!("Report is not available");
+        ctx.send(
+            poise::CreateReply::default()
+                .content("Reporting isn't enabled in this guild.")
+                .ephemeral(true)
+        ).await?;
+
+        return Ok(());
+    };
+    if report_config.enabled == false {
+        ctx.send(
+            poise::CreateReply::default()
+                .content("Reporting isn't enabled in this guild.")
+                .ephemeral(true)
+        ).await?;
+
+        return Ok(());
+    }
+
+    let modal_data = ReportModal::execute(app_ctx).await?;
+
+    if let Some(modal) = modal_data {
+        let reporter = ctx.author();
+        let author = &message.author;
+        let reason = modal.reason;
+
+        // 3. Extract the metadata we designed for the Postgres database
+        let message_id = message.id.to_string();
+        let channel_id = message.channel_id.to_string();
+        let guild_id_str = guild_id.to_string();
+        let author_id = author.id.to_string();
+        let reporter_id = reporter.id.to_string();
+        let message_content = message.content.clone();
+        let joined_image_urls = extract_image_urls(&message).join(",");
+
+        let author_name = author.name.clone();
+        let reporter_name = reporter.name.clone();
+
+        // 4. Save to your Postgres DB!
+        let db = &ctx.data().db;
+
+        let row = sqlx::query!(
+            r#"
+            INSERT INTO reported_messages (guild_id, channel_id, message_id, author_id, reporter_id, message_content, attachment_url, reason, author_name, reporter_name)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ON CONFLICT (message_id, reporter_id) DO NOTHING
+            RETURNING id
+            "#,
+            guild_id_str,
+            channel_id,
+            message_id,
+            author_id,
+            reporter_id,
+            message_content,
+            joined_image_urls,
+            reason,
+            author_name,
+            reporter_name,
+        )
+            .fetch_optional(db)
+            .await?;
+
+        let Some(inserted_row) = row else {
+            ctx.send(
+                poise::CreateReply::default()
+                    .content("You have already reported this message.")
+                    .ephemeral(true)
+            ).await?;
+
+            return Ok(());
+        };
+
+        // This is the actual DB ID (e.g., 10)
+        let generated_id = inserted_row.id;
+
+        let payload = ReportedMessagePayload {
+            id: generated_id,
+            guild_id: guild_id_str,
+            message_id,
+            channel_id,
+            reporter_name,
+            author_name,
+            reason,
+            content: message_content,
+            attachment_url: joined_image_urls,
+            status: "under_review".to_string(),
+        };
+
+        let payload_str = serde_json::to_string(&payload)?;
+        let mut redis_conn = ctx.data().redis.clone();
+        redis_conn.publish::<_, _, ()>("discord:reports", payload_str).await?;
+
+        ctx.send(
+            poise::CreateReply::default()
+                .content("Thank you! Your report has been submitted to the moderation team.")
+                .ephemeral(true)
+        ).await?;
+    }
 
     Ok(())
 }

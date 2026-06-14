@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { LayoutDashboard, MessageSquare } from "lucide-react";
+import {
+    DoorOpen,
+    FileText,
+    LayoutDashboard,
+    Logs,
+    Megaphone,
+    MessageSquare,
+    MessageSquareWarning,
+    Star,
+    TrendingUp
+} from "lucide-react";
 
 export function SidebarLinks() {
     const params = useParams();
@@ -27,6 +37,48 @@ export function SidebarLinks() {
             icon: MessageSquare,
             exact: false,
         },
+        {
+            name: "Leave",
+            href: `/dashboard/${guildId}/leave`,
+            icon: DoorOpen,
+            exact: false,
+        },
+        {
+            name: "Message Logging",
+            href: `/dashboard/${guildId}/message-logging`,
+            icon: Logs,
+            exact: false,
+        },
+        {
+            name: "Message Filtering",
+            href: `/dashboard/${guildId}/message-filtering`,
+            icon: MessageSquareWarning,
+            exact: false,
+        },
+        {
+            name: "Moderation DMs",
+            href: `/dashboard/${guildId}/moderation-dm`,
+            icon: FileText,
+            exact: false,
+        },
+        {
+            name: "Reporting",
+            href: `/dashboard/${guildId}/report`,
+            icon: Megaphone,
+            exact: false,
+        },
+        {
+            name: "Starboard",
+            href: `/dashboard/${guildId}/starboard`,
+            icon: Star,
+            exact: false,
+        },
+        {
+            name: "Leveling",
+            href: `/dashboard/${guildId}/leveling`,
+            icon: TrendingUp,
+            exact: false,
+        }
     ];
 
     return (

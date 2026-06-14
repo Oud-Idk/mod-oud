@@ -12,6 +12,12 @@ export interface EmbedFooter {
     icon_url?: string;
 }
 
+export interface EmbedField {
+    name: string;
+    value: string;
+    inline: boolean;
+}
+
 export interface DiscordEmbed {
     title?: string;
     description?: string;
@@ -19,5 +25,6 @@ export interface DiscordEmbed {
     thumbnail?: EmbedThumbnail;
     author?: EmbedAuthor;
     footer?: EmbedFooter;
+    fields?: EmbedField[];
     image?: EmbedThumbnail;
 }

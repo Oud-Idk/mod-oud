@@ -1,5 +1,5 @@
-use crate::types::config::GuildSettings;
-use crate::types::types::Error;
+use crate::types::config::config::GuildSettings;
+use crate::types::config::starboard::Starboard;
 use poise::serenity_prelude as serenity;
 use rand::RngExt;
 use redis::aio::MultiplexedConnection;
@@ -8,9 +8,9 @@ use regex::{Captures, Regex};
 use std::sync::OnceLock;
 
 pub struct GuildCtx {
-    name: String,
+    pub(crate) name: String,
     id: String,
-    icon_url: String,
+    pub(crate) icon_url: String,
     icon_hash: String,
     owner_id: String,
     member_count: String,
@@ -19,36 +19,40 @@ pub struct GuildCtx {
 }
 
 pub async fn get_guild_ctx(
-    member: &serenity::all::Member,
-    ctx: &serenity::Context,
-) -> Result<GuildCtx, Error> {
-    if let Some(g) = member.guild_id.to_guild_cached(&ctx.cache) {
-        Ok(GuildCtx {
-            name: g.name.clone(),
-            id: g.id.to_string(),
-            icon_url: g.icon_url().unwrap_or_default(),
-            icon_hash: g.icon.map(|h| h.to_string()).unwrap_or_default(),
-            owner_id: g.owner_id.to_string(),
-            member_count: g.member_count.to_string(),
-            verification_level: u8::from(g.verification_level).to_string(),
-            joined_at: g.joined_at.to_string(),
-        })
-    } else {
-        let g = ctx.http.get_guild_with_counts(member.guild_id).await?;
-        Ok(GuildCtx {
-            name: g.name.clone(),
-            id: g.id.to_string(),
-            icon_url: g.icon_url().unwrap_or_default(),
-            icon_hash: g.icon.map(|h| h.to_string()).unwrap_or_default(),
-            owner_id: g.owner_id.to_string(),
-            member_count: g.approximate_member_count.unwrap_or(0).to_string(),
-            verification_level: u8::from(g.verification_level).to_string(),
-            joined_at: String::new(), // Not available on PartialGuild
-        })
-    }
-}
+    guild_id: serenity::GuildId,
+    cache_http: impl serenity::CacheHttp,
+) -> Result<GuildCtx, Box<dyn std::error::Error + Send + Sync>> { // Use your crate's Error type here
 
-pub fn replace_placeholders(
+    // 1. Try to pluck it out of the cache first
+    if let Some(cache) = cache_http.cache() {
+        if let Some(g) = guild_id.to_guild_cached(cache) {
+            return Ok(GuildCtx {
+                name: g.name.clone(),
+                id: g.id.to_string(),
+                icon_url: g.icon_url().unwrap_or_default(),
+                icon_hash: g.icon.map(|h| h.to_string()).unwrap_or_default(),
+                owner_id: g.owner_id.to_string(),
+                member_count: g.member_count.to_string(),
+                verification_level: u8::from(g.verification_level).to_string(),
+                joined_at: g.joined_at.to_string(),
+            });
+        }
+    }
+
+    // 2. If it's not in cache (or we are in a worker with no cache), fallback to HTTP
+    let g = cache_http.http().get_guild_with_counts(guild_id).await?;
+    Ok(GuildCtx {
+        name: g.name.clone(),
+        id: g.id.to_string(),
+        icon_url: g.icon_url().unwrap_or_default(),
+        icon_hash: g.icon.map(|h| h.to_string()).unwrap_or_default(),
+        owner_id: g.owner_id.to_string(),
+        member_count: g.approximate_member_count.unwrap_or(0).to_string(),
+        verification_level: u8::from(g.verification_level).to_string(),
+        joined_at: String::new(), // HTTP fetch doesn't give us joined_at
+    })
+}
+pub fn replace_welcome_goodbye_placeholders(
     text: &str,
     gctx: &GuildCtx,
     member: &serenity::all::Member,
@@ -111,10 +115,127 @@ pub fn replace_placeholders(
         .into_owned()
 }
 
+pub fn replace_starboard_placeholders(
+    text: &str,
+    gctx: &GuildCtx,
+    member: &serenity::all::Member,
+    channel: &serenity::GuildChannel,
+    source_channel: &serenity::GuildChannel,
+    message: &serenity::all::Message,
+    starboard: &Starboard,
+    star_count: &u64,
+) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap());
+
+    re.replace_all(text, |caps: &Captures| {
+        match &caps["key"] {
+            // ── Server ──────────────────────────────────────────────────────────
+            "server.name" => gctx.name.clone(),
+            "server.id" => gctx.id.clone(),
+            "server.icon_url" => gctx.icon_url.clone(),
+            "server.member_count" => gctx.member_count.clone(),
+
+            // ── Message ─────────────────────────────────────────────────────────
+            "message.text" => message.content.clone(),
+            "message.timestamp" => {
+                // Formats the timestamp (e.g., "January 01, 1970, at 00:00")
+                message.timestamp.format("%B %d, %Y at %R").to_string()
+            }
+            "message.stars_count" => star_count.to_string(),
+
+            // ── Starboard ───────────────────────────────────────────────────────
+            "starboard.emojis" => starboard.emojis.as_ref()
+                .map(|emojis| emojis.join(", "))
+                .unwrap_or_default(),
+            "starboard.first_emoji" => starboard.emojis.as_ref()
+                .and_then(|v| v.first().cloned())
+                .unwrap_or_default(),
+
+            // ── Member ──────────────────────────────────────────────────────────
+            "member.mention" => format!("<@{}>", member.user.id),
+            "member.username" => member.user.name.clone(),
+            "member.id" => member.user.id.to_string(),
+            "member.avatar_url" => member.user.face(),
+
+            // ── Channel ─────────────────────────────────────────────────────────
+            "channel.mention" => format!("<#{}>", source_channel.id),
+            "channel.name" => channel.name.clone(),
+            "channel.id" => channel.id.to_string(),
+
+            // ── Unknown: echo back verbatim ──────────────────────────────────
+            _ => caps[0].to_string(),
+        }
+    })
+        .into_owned()
+}
+
+fn resolve_common_placeholder(
+    key: &str,
+    gctx: &GuildCtx,
+    member: &serenity::all::Member,
+) -> Option<String> {
+    match key {
+        "server.name" => Some(gctx.name.clone()),
+        "server.id" => Some(gctx.id.clone()),
+        "server.icon_url" => Some(gctx.icon_url.clone()),
+        "member.username" => Some(member.user.name.clone()),
+        "member.id" => Some(member.user.id.to_string()),
+        "member.avatar_url" => Some(member.user.face()),
+        _ => None,
+    }
+}
+
+// Resolves placeholders related to the moderator performing the action
+fn resolve_moderator_placeholder(
+    key: &str,
+    moderator: &serenity::all::User,
+) -> Option<String> {
+    match key {
+        "moderator.username" => Some(moderator.name.clone()),
+        "moderator.id" => Some(moderator.id.to_string()),
+        _ => None,
+    }
+}
+
+// Internal helper to get or initialize the regex pattern
+fn get_placeholder_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap())
+}
+
+pub fn replace_warn_placeholders(
+    text: &str,
+    gctx: &GuildCtx,
+    member: &serenity::all::Member,
+    reason: &str,
+    moderator: &serenity::all::User,
+) -> String {
+    let re = get_placeholder_regex();
+
+    re.replace_all(text, |caps: &Captures| {
+        let key = &caps["key"];
+
+        if let Some(val) = resolve_common_placeholder(key, gctx, member) {
+            return val;
+        }
+        if let Some(val) = resolve_moderator_placeholder(key, moderator) {
+            return val;
+        }
+
+        match key {
+            "reason" => reason.to_string(),
+            _ => caps[0].to_string(),
+        }
+    })
+        .into_owned()
+}
+
+
 /// Retrieves settings. Returns a default struct if none exists in the DB.
 pub async fn get_settings(
     db: &sqlx::PgPool,
-    redis: &MultiplexedConnection, // 1. Passed as an immutable reference
+    redis: &MultiplexedConnection,
     guild_id: i64,
 ) -> Result<GuildSettings, sqlx::Error> {
     let mut redis = redis.clone();

@@ -1,13 +1,15 @@
 use crate::commands::{emergency, ticket};
+use crate::core::web::start_web_server;
 use crate::models::spam_tracker::SpamTracker;
-use axum::{routing::get, Router};
+use crate::types::types::{LogEvent, SearchUrlsResponse};
 use commands::{messages, moderation, ping, warn};
 use poise::serenity_prelude as serenity;
+use prost::Message;
 use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
 use std::env;
-use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 use types::types::{Data, Error};
 
 mod commands;
@@ -23,32 +25,52 @@ impl serenity::prelude::TypeMapKey for ShardManagerContainer {
     type Value = Arc<ShardManager>;
 }
 
-async fn health_check() -> &'static str {
-    "OK"
+struct WebState {
+    tx: broadcast::Sender<LogEvent>,
 }
 
-async fn start_web_server() -> Result<(), Error> {
-    let app = Router::new().route("/health", get(health_check));
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+pub struct SafeBrowsingClient {
+    api_key: String,
+    http_client: reqwest::Client,
+}
 
-    println!("Starting health check server on http://{}", addr);
-
-    // Spawn the server in the background so it doesn't block the Discord client
-    tokio::spawn(async move {
-        if let Err(e) = axum::serve(listener, app).await {
-            eprintln!("Health check server error: {}", e);
+impl SafeBrowsingClient {
+    pub fn new(api_key: String) -> Self {
+        Self {
+            api_key,
+            http_client: reqwest::Client::new(),
         }
-    });
+    }
 
-    Ok(())
+    /// Checks a batch of URLs and returns recognized threats
+    pub async fn check_urls(&self, urls: &[&str]) -> Result<Vec<i32>, Error> {
+        let endpoint = "https://safebrowsing.googleapis.com/v5/urls:search";
+        let mut query_params = vec![("key".to_string(), self.api_key.clone())];
+        for url in urls {
+            query_params.push(("urls".to_string(), url.to_string()));
+        }
+
+        let response = self.http_client.get(endpoint).query(&query_params).send().await?;
+        if !response.status().is_success() {
+            return Err(format!("Safe Browsing API Error: {}", response.text().await?).into());
+        }
+
+        let bytes = response.bytes().await?;
+        let search_response = SearchUrlsResponse::decode(bytes)?;
+
+        let mut threat_types = Vec::new();
+        for threat in search_response.threats {
+            threat_types.extend(threat.threat_types);
+        }
+
+        Ok(threat_types)
+    }
 }
+
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     dotenvy::dotenv().ok();
-
-    start_web_server().await?;
 
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment table, `DISCORD_TOKEN`");
@@ -56,21 +78,21 @@ async fn main() -> Result<(), Error> {
         .expect("Expected a database URL in the environment table, `DATABASE_URL`");
     let redis_url =
         env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
-
-    let _ = env::var("SAFE_BROWSING_KEY").unwrap_or_else(|_| {
-        eprintln!("Safe browsing API key not found. Scam detection will not work");
-        "".to_owned()
-    });
+    let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
 
     // Initialize the database connection pool
     let pool = sqlx::PgPool::connect(&database_url).await?;
     let redis_client = redis::Client::open(redis_url)?;
 
+    let (tx, _) = broadcast::channel::<LogEvent>(100);
+    start_web_server(redis_client.clone(), tx).await?;
+
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
-        | GatewayIntents::GUILD_MEMBERS;
+        | GatewayIntents::GUILD_MEMBERS
+        | GatewayIntents::GUILD_MESSAGE_REACTIONS;
 
     let mut cache_settings = serenity::cache::Settings::default();
     cache_settings.max_messages = 100;
@@ -101,6 +123,7 @@ async fn main() -> Result<(), Error> {
                 warn::search_warnings(),
                 messages::deleted_history(),
                 messages::edit_history(),
+                messages::report_message(),
                 emergency::lock(),
                 emergency::unlock(),
                 emergency::global_lock(),
@@ -110,7 +133,7 @@ async fn main() -> Result<(), Error> {
             ],
             on_error: |error| Box::pin(utils::error::on_error(error)),
             event_handler: |ctx, event, framework, data| {
-                Box::pin(utils::events::event_handler(ctx, event, framework, data))
+                Box::pin(events::events::event_handler(ctx, event, framework, data))
             },
             ..Default::default()
         })
@@ -125,13 +148,24 @@ async fn main() -> Result<(), Error> {
                     ctx.http.clone(),
                 );
 
+                jobs::dashboard_commands::start_dashboard_command_worker(
+                    pool.clone(),
+                    ctx.http.clone(),
+                    redis_client.clone(),
+                );
+
                 let spam_tracker = SpamTracker::new(redis_client.clone());
                 let redis_conn = redis_client.get_multiplexed_async_connection().await?;
+                let client = match safe_browsing_api_key {
+                    Some(k) => Some(SafeBrowsingClient::new(k)),
+                    None => None,
+                };
 
                 Ok(Data {
                     db: pool,
                     redis: redis_conn,
                     spam_tracker,
+                    safe_browsing_client: client,
                 })
             })
         })

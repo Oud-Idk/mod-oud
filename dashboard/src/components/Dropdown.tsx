@@ -8,14 +8,28 @@ export interface DropdownOption {
     label: string;
 }
 
-interface DropdownProps {
+interface BaseDropdownProps {
     options: DropdownOption[];
-    value: string;
-    onChange: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
     className?: string;
 }
+
+// Props signature when multiple-selection is disabled
+interface SingleDropdownProps extends BaseDropdownProps {
+    multiple?: false;
+    value: string;
+    onChange: (value: string) => void;
+}
+
+// Props signature when multiple-selection is enabled
+interface MultiDropdownProps extends BaseDropdownProps {
+    multiple: true;
+    value: string[];
+    onChange: (value: string[]) => void;
+}
+
+export type DropdownProps = SingleDropdownProps | MultiDropdownProps;
 
 export function Dropdown({
     options,
@@ -24,18 +38,29 @@ export function Dropdown({
     placeholder = "Select an option",
     disabled,
     className = "",
+    multiple = false,
 }: DropdownProps) {
-    const selectedOption = options.find((opt) => opt.value === value);
+    // Resolve which labels to display depending on select mode
+    const selectedLabels = multiple
+        ? options
+            .filter((opt) => Array.isArray(value) && value.includes(opt.value))
+            .map((opt) => opt.label)
+        : [options.find((opt) => opt.value === value)?.label].filter(Boolean) as string[];
+
+    const hasSelection = selectedLabels.length > 0;
+    const displayText = hasSelection ? selectedLabels.join(", ") : placeholder;
 
     return (
         <div className={`w-full ${className}`}>
-            <Listbox value={value} disabled={disabled} onChange={onChange}>
+            <Listbox
+                value={value} disabled={disabled} onChange={onChange as any} multiple={multiple}
+            >
                 <div className="relative">
                     <ListboxButton
-                        className="relative w-full cursor-pointer rounded-md border border-neutral-500 bg-neutral-300/10 py-2 pl-3 pr-10 text-left text-sm focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                        className="relative w-full cursor-pointer rounded-md border border-neutral-500 bg-neutral-300/10 py-2 pl-3 pr-10 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        <span className="block truncate font-medium">
-                            {selectedOption ? selectedOption.label : placeholder}
+                        <span className={`block truncate font-medium ${!hasSelection && 'text-neutral-500'}`}>
+                            {displayText}
                         </span>
                         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                             <ChevronsUpDown className="h-4 w-4 text-neutral-400" aria-hidden="true"/>

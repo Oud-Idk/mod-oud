@@ -1,5 +1,6 @@
 import React from "react";
 import { Sidebar } from "@/components/Sidebar/Sidebar";
+import 'katex/dist/katex.min.css';
 
 export default function DashboardLayout({
     children,
