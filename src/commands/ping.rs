@@ -5,6 +5,7 @@ use crate::ShardManagerContainer;
 #[poise::command(slash_command)]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     let pool = &ctx.data().db;
+    let redis = &ctx.data().redis; // MultiplexedConnection
     let data = ctx.serenity_context().data.read().await;
     let shard_manager = match data.get::<ShardManagerContainer>() {
         Some(v) => v,
@@ -29,20 +30,38 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 
     let runners = shard_manager.runners.lock().await;
 
+    // PostgreSQL Check
     let db_status = match sqlx::query("SELECT 1").execute(pool).await {
         Ok(_) => "PostgreSQL connection is healthy.",
-        Err(_) => "PostgreSQL connection failed. For some reason.",
+        Err(_) => "PostgreSQL connection failed.",
+    };
+
+    // Redis Check
+    let mut redis_conn = redis.clone();
+    let redis_ping: Result<String, _> = redis::cmd("PING").query_async(&mut redis_conn).await;
+
+    let redis_status = match redis_ping {
+        Ok(_) => "Redis connection is healthy.",
+        Err(_) => "Redis connection failed.",
     };
 
     if let Some(runner) = runners.get(&ctx.serenity_context().shard_id) {
         match runner.latency {
             Some(latency) => {
-                ctx.say(format!("Pong!\n{}\n{}\nGateway Latency: {}ms\nWritten in Rust <:OwoFerris:1463892004885758014>", db_status, member_count_text, latency.as_millis())).await?;
+                ctx.say(format!(
+                    "Pong!\n{}\n{}\n{}\nGateway Latency: {}ms\nWritten in Rust <:OwoFerris:1463892004885758014>",
+                    db_status,
+                    redis_status,
+                    member_count_text,
+                    latency.as_millis()
+                )).await?;
             }
             None => {
                 ctx.say(format!(
-                    "Pong!\n{}\n{}\nWritten in Rust <:OwoFerris:1463892004885758014>",
-                    db_status, member_count_text,
+                    "Pong!\n{}\n{}\n{}\nGateway Latency: Here's the thing. It's not **yet** provided by Discord.\nWritten in Rust <:OwoFerris:1463892004885758014>",
+                    db_status,
+                    redis_status,
+                    member_count_text,
                 ))
                     .await?;
             }
