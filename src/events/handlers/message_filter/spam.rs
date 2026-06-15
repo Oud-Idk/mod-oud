@@ -7,7 +7,6 @@ use std::time::Duration;
 
 async fn handle_spam(ctx: &serenity::all::Context, message: &Message, data: &Data, guild_id: u64, author_id: u64, warning_cooldown: Duration, anti_spam_rule: &AntiSpamRule) -> Result<(), Error> {
     log_spam_message(
-        ctx,
         data,
         guild_id,
         message.channel_id.get(),

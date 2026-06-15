@@ -1,6 +1,5 @@
 use crate::types::flag::FlagSeverity;
 use crate::types::types::{Context, Data, Error};
-use poise::serenity_prelude as serenity;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "varchar", rename_all = "snake_case")] // Adjust based on your DB setup
@@ -47,7 +46,6 @@ pub async fn log_moderation_action(
 }
 
 pub async fn log_offensive_message(
-    ctx: &serenity::Context,
     data: &Data,
     guild_id: u64,
     channel_id: u64,
@@ -73,7 +71,6 @@ pub async fn log_offensive_message(
 }
 
 pub async fn log_scam_message(
-    ctx: &serenity::Context,
     data: &Data,
     guild_id: u64,
     channel_id: u64,
@@ -99,7 +96,6 @@ pub async fn log_scam_message(
 }
 
 pub async fn log_spam_message(
-    ctx: &serenity::Context,
     data: &Data,
     guild_id: u64,
     channel_id: u64,

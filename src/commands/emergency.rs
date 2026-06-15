@@ -1,4 +1,4 @@
-use crate::commands::helpers::dm::GuildMetadata;
+use crate::types::types::GuildMetadata;
 use crate::types::types::{Context, Error};
 use crate::utils::logger::log_moderation_action;
 use crate::utils::logger::ActionType;

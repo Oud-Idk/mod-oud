@@ -113,7 +113,6 @@ pub async fn execute_verdict(
     match metadata {
         ViolationMetadata::Offensive { severity } => {
             log_offensive_message(
-                ctx,
                 data,
                 guild_id,
                 channel_id,
@@ -126,7 +125,6 @@ pub async fn execute_verdict(
         }
         ViolationMetadata::MaliciousUrls { threats } => {
             log_scam_message(
-                ctx,
                 data,
                 guild_id,
                 channel_id,

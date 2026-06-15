@@ -1,8 +1,11 @@
+use crate::commands::moderation::warn::database::{delete_warn, update_warn};
 use crate::core::config::{get_guild_ctx, get_settings, replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
 use crate::types::config::config::Format;
 use crate::utils::custom_msg::build_custom_message;
+use crate::utils::logger::ActionType;
 use duration_str::HumanFormat;
 use poise::serenity_prelude as serenity;
+use redis::aio::MultiplexedConnection;
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage};
 use std::sync::Arc;
 use std::time::Duration;
@@ -57,7 +60,7 @@ macro_rules! send_mod_dm {
 
 pub async fn issue_warning(
     db: &sqlx::PgPool,
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis_conn: &MultiplexedConnection,
     http: &Arc<serenity::Http>,
     guild_id: serenity::GuildId,
     user_id: serenity::UserId,
@@ -96,7 +99,7 @@ pub async fn issue_warning(
 /// Core logic for issuing a kick, fetching custom settings, and sending DMs
 pub async fn issue_kick(
     db: &sqlx::PgPool,
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis_conn: &MultiplexedConnection,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     channel_id: serenity::all::ChannelId,
@@ -154,14 +157,14 @@ pub async fn issue_kick(
 
 pub async fn issue_ban(
     db: &sqlx::PgPool,
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis_conn: &MultiplexedConnection,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
     moderator: serenity::all::User,
     reason: &str,
     dmd_time: u8,
-    duration: Option<std::time::Duration>,
+    duration: Option<Duration>,
     duration_label: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
@@ -208,7 +211,7 @@ pub async fn issue_ban(
 
 pub async fn issue_mute(
     db: &sqlx::PgPool,
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis_conn: &MultiplexedConnection,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
@@ -244,7 +247,7 @@ pub async fn issue_mute(
 
 pub async fn issue_unmute(
     db: &sqlx::PgPool,
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis_conn: &MultiplexedConnection,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
@@ -275,7 +278,7 @@ pub async fn issue_unmute(
 /// Core logic for issuing a softban (ban + immediate unban to clear messages)
 pub async fn issue_softban(
     db: &sqlx::PgPool,
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis_conn: &MultiplexedConnection,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
@@ -310,4 +313,160 @@ pub async fn issue_softban(
     guild_id.unban(http, user.id).await?;
 
     Ok(())
+}
+
+/// Deletes a warning from the database, builds and sends the appropriate DM (custom or default).
+/// Returns `Some((target_user_id, reason))` if deleted, or `None` if the warning didn't exist.
+pub async fn issue_delete_warning(
+    db: &sqlx::PgPool,
+    redis_conn: &MultiplexedConnection,
+    http: &Arc<serenity::all::Http>,
+    guild_id_raw: serenity::all::GuildId,
+    id: i32,
+    author: &serenity::all::User,
+) -> Result<Option<(u64, String)>, Box<dyn std::error::Error + Send + Sync>> {
+    let guild_id = guild_id_raw.get() as i64;
+
+    // 1. Perform database deletion
+    let Some(row) = delete_warn(db, id, guild_id).await? else {
+        return Ok(None);
+    };
+
+    let target_user_id = row.user_id as u64;
+    let user_id = serenity::UserId::new(target_user_id);
+    let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
+
+    // 2. Fetch cache/HTTP contexts safely without poise context
+    let gctx = get_guild_ctx(guild_id_raw, http.as_ref()).await?;
+    let member = http.get_member(guild_id_raw, user_id).await?;
+    let user = &member.user;
+
+    // 3. Fetch custom DM settings
+    let settings = get_settings(db, redis_conn, guild_id).await?;
+    let dm_settings_opt = settings.moderation_dms.and_then(|m| m.unpardon_delete_warn);
+
+    let mut custom_msg_opt = None;
+    if let Some(dm_settings) = dm_settings_opt {
+        let is_embed = matches!(dm_settings.format, Format::Embed);
+
+        custom_msg_opt = build_custom_message(
+            is_embed,
+            Some(&dm_settings.content),
+            dm_settings.embed.as_ref(),
+            |text| {
+                replace_basic_placeholder(
+                    text,
+                    &gctx,
+                    &member,
+                    author,
+                )
+            },
+        ).unwrap_or_else(|e| {
+            eprintln!("Failed to build custom warning deletion message: {}", e);
+            None
+        });
+    }
+
+    // 4. Default DM fallback layout
+    let message = custom_msg_opt.unwrap_or_else(|| {
+        let embed = CreateEmbed::new()
+            .title(format!(
+                "Your warning at {} has been permanently deleted.",
+                gctx.name
+            ))
+            .field("Warning Reason", &reason, false)
+            .field("Warning ID", id.to_string(), false)
+            .color(0x48F767)
+            .thumbnail(&gctx.icon_url);
+        CreateMessage::new().embed(embed)
+    });
+
+    // 5. Send the DM (ignore failures, the user might have DMs closed)
+    let _ = user.dm(http, message).await;
+
+    Ok(Some((target_user_id, reason)))
+}
+
+/// Updates the active status of a warning, handles the custom/default DMs.
+/// Returns `Some((target_user_id, reason))` if successful, or `None` if the warning wasn't found.
+pub async fn issue_warning_status_change(
+    db: &sqlx::PgPool,
+    redis_conn: &MultiplexedConnection,
+    http: &Arc<serenity::all::Http>,
+    guild_id_raw: serenity::all::GuildId,
+    id: i32,
+    set_active: bool,
+    author: &serenity::all::User,
+) -> Result<Option<(u64, String)>, Box<dyn std::error::Error + Send + Sync>> {
+    let guild_id = guild_id_raw.get() as i64;
+    let expected_current_state = !set_active;
+
+    // 1. Database Update
+    let Some(row) = update_warn(db, set_active, id, guild_id, expected_current_state).await? else {
+        return Ok(None);
+    };
+
+    let target_user_id = row.user_id as u64;
+    let user_id = serenity::UserId::new(target_user_id);
+    let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
+
+    // 2. Fetch cache/HTTP contexts safely without poise context
+    let gctx = get_guild_ctx(guild_id_raw, http.as_ref()).await?;
+    let member = http.get_member(guild_id_raw, user_id).await?;
+    let user = &member.user;
+
+    // Determine values for DM based on target status
+    let (action_past_tense, _, color) = if set_active {
+        ("unpardoned", ActionType::Unpardon, 0xFF5757)
+    } else {
+        ("pardoned", ActionType::Pardon, 0x2AB83C)
+    };
+
+    // 3. Fetch custom DM settings
+    let settings = get_settings(db, redis_conn, guild_id).await?;
+    let dm_settings_opt = if set_active {
+        settings.moderation_dms.and_then(|m| m.unpardon_warn)
+    } else {
+        settings.moderation_dms.and_then(|m| m.pardon_warn)
+    };
+
+    let mut custom_msg_opt = None;
+    if let Some(dm_settings) = dm_settings_opt {
+        let is_embed = matches!(dm_settings.format, Format::Embed);
+
+        custom_msg_opt = build_custom_message(
+            is_embed,
+            Some(&dm_settings.content),
+            dm_settings.embed.as_ref(),
+            |text| {
+                replace_basic_placeholder(
+                    text,
+                    &gctx,
+                    &member,
+                    author,
+                )
+            },
+        ).unwrap_or_else(|e| {
+            eprintln!("Failed to build custom warning status message: {}", e);
+            None
+        });
+    }
+
+    // 4. Default DM fallback layout
+    let message = custom_msg_opt.unwrap_or_else(|| {
+        let embed = CreateEmbed::new()
+            .title(format!(
+                "Your warning at {} has been {}.",
+                gctx.name, action_past_tense
+            ))
+            .field("Warning Reason", &reason, false)
+            .field("Warning ID", id.to_string(), false)
+            .color(color)
+            .thumbnail(&gctx.icon_url);
+        CreateMessage::new().embed(embed)
+    });
+
+    let _ = user.dm(http, message).await;
+
+    Ok(Some((target_user_id, reason)))
 }

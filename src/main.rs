@@ -2,7 +2,7 @@ use crate::commands::{emergency, moderation, ticket};
 use crate::core::web::start_web_server;
 use crate::models::spam_tracker::SpamTracker;
 use crate::types::types::{LogEvent, SearchUrlsResponse};
-use commands::{messages, ping, warn};
+use commands::{messages, ping};
 use poise::serenity_prelude as serenity;
 use prost::Message;
 use serenity::gateway::ShardManager;
@@ -108,20 +108,20 @@ async fn main() -> Result<(), Error> {
             },
             commands: vec![
                 ping::ping(),
-                moderation::commands::purge(),
-                moderation::commands::kick(),
-                moderation::commands::ban(),
-                moderation::commands::mute(),
-                moderation::commands::unmute(),
-                moderation::commands::softban(),
-                moderation::commands::unban(),
-                warn::warn(),
-                warn::search_warning_by_id(),
-                warn::warn_history(),
-                warn::pardon_warning(),
-                warn::unpardon_warning(),
-                warn::delete_warning(),
-                warn::search_warnings(),
+                moderation::others::commands::purge(),
+                moderation::others::commands::kick(),
+                moderation::others::commands::ban(),
+                moderation::others::commands::mute(),
+                moderation::others::commands::unmute(),
+                moderation::others::commands::softban(),
+                moderation::others::commands::unban(),
+                moderation::warn::commands::warn(),
+                moderation::warn::commands::warn_history(),
+                moderation::warn::commands::search_warnings(),
+                moderation::warn::commands::search_warning_by_id(),
+                moderation::warn::commands::pardon_warning(),
+                moderation::warn::commands::unpardon_warning(),
+                moderation::warn::commands::delete_warning(),
                 messages::deleted_history(),
                 messages::edit_history(),
                 messages::report_message(),

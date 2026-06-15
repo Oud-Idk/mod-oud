@@ -1,7 +1,7 @@
-use crate::commands::helpers::dm::GuildMetadata;
 use crate::commands::moderation::perms::pre_flight_check;
 use crate::commands::moderation::utils;
 use crate::commands::moderation::utils::{parse_duration, send_ephemeral};
+use crate::types::types::GuildMetadata;
 use crate::types::types::{Context, Error};
 use crate::utils::logger::{log_moderation_action, ActionType};
 use crate::utils::moderating::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};

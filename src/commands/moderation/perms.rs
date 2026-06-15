@@ -1,5 +1,5 @@
-use crate::commands::helpers::dm::GuildMetadata;
 use crate::commands::moderation::utils;
+use crate::types::types::GuildMetadata;
 use crate::types::types::{Context, Data, Error};
 use poise::serenity_prelude as serenity;
 use serenity::all::UserId;
