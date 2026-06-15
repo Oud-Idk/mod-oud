@@ -65,7 +65,6 @@ pub fn fetch_cached_message(
         msg_id: message.id.get() as i64,
         author_id: message.author.id.get() as i64,
         author_name: message.author.name.clone(),
-        avatar_url: message.author.avatar_url(),
         chan_id: message.channel_id.get() as i64,
         content: message.content.clone(),
         image_urls,
@@ -142,7 +141,6 @@ pub fn extract_edit_details(
         chan_id,
         author_id,
         author_name,
-        avatar_url,
         old_content,
         new_content,
     })
