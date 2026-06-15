@@ -21,8 +21,6 @@ struct DashboardCommand {
     #[serde(flatten)]
     action: DashboardAction,
     report_id: i32,
-    channel_id: String,
-    message_id: String,
     moderator_id: Option<String>,
     reason: Option<String>,
     duration_mins: Option<u64>,
@@ -114,7 +112,12 @@ async fn process_dashboard_command(
         DashboardAction::DeleteMessage { channel_id, message_id } => {
             let ch_id = serenity::ChannelId::new(channel_id.parse()?);
             let msg_id = serenity::MessageId::new(message_id.parse()?);
+
+            // 1. Delete the message on Discord
             http.delete_message(ch_id, msg_id, Some("Deleted via Moderation Dashboard")).await?;
+
+            // 2. Update the DB and broadcast the update to the frontend via SSE
+            handle_resolve_report(pool, redis, cmd.report_id, ReportStatus::Actioned).await?;
         }
         DashboardAction::WarnUser { moderator_id, reason } => {
             let mod_id_val = moderator_id.and_then(|id| id.parse::<u64>().ok()).unwrap_or(0);

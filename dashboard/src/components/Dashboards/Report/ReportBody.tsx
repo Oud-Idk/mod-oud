@@ -1,4 +1,3 @@
-// components/ReportBody.tsx
 "use client";
 
 import { ReportConfig } from "@/types/config";
@@ -37,7 +36,6 @@ export function ReportBody({
     const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
     const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
 
-    // === ADDED: Filter State ===
     const [statusFilter, setStatusFilter] = useState<"all" | "opened" | "closed">("all");
 
     const isDirty = !isDeepEqual(config, normalizedReportConfig);
@@ -50,7 +48,6 @@ export function ReportBody({
         eventName: "message-report",
     });
 
-    // === ADDED: Computed Filtered Logs ===
     const filteredLogs = useMemo(() => {
         return logs.filter((log) => {
             const currentStatus = log.status?.toLowerCase();
@@ -92,13 +89,14 @@ export function ReportBody({
 
         const result = await deleteReportedMessage(reportId, channelId, messageId);
 
+        setDeletingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(reportId);
+            return next;
+        });
+
         if (!result.success) {
             alert("Error sending delete instruction. Please try again.");
-            setDeletingIds((prev) => {
-                const next = new Set(prev);
-                next.delete(reportId);
-                return next;
-            });
         }
     };
 
@@ -147,7 +145,8 @@ export function ReportBody({
 
                         {/* === ADDED: Visual Filter Tabs === */}
                         <div
-                            className="flex items-center space-x-1 bg-neutral-200/50 dark:bg-neutral-800/50 p-1 rounded-lg text-xs self-start sm:self-auto border border-neutral-300 dark:border-neutral-700">
+                            className="flex items-center space-x-1 bg-neutral-200/50 dark:bg-neutral-800/50 p-1 rounded-lg text-xs self-start sm:self-auto border border-neutral-300 dark:border-neutral-700"
+                        >
                             <button
                                 type="button"
                                 onClick={() => setStatusFilter("all")}
@@ -185,7 +184,8 @@ export function ReportBody({
                     </div>
 
                     <div
-                        className="space-y-4 overflow-y-auto pr-4 scrollbar-thin p-4 bg-neutral-300/10 border-neutral-200 dark:border-neutral-700 rounded-xl rounded-r-none border">
+                        className="space-y-4 overflow-y-auto pr-4 scrollbar-thin p-4 bg-neutral-300/10 border-neutral-200 dark:border-neutral-700 rounded-xl rounded-r-none border"
+                    >
                         {/* === CHANGED: Render filteredLogs instead of logs === */}
                         {filteredLogs.length === 0 ? (
                             <p className="text-sm text-zinc-500 py-8 text-center">
@@ -219,7 +219,8 @@ export function ReportBody({
                                         </div>
                                         <div className="text-sm mb-0">
                                             Author: <code
-                                            className="py-0.5 rounded">{log.author_name}</code>{" "}&nbsp;|&nbsp;
+                                            className="py-0.5 rounded"
+                                        >{log.author_name}</code>{" "}&nbsp;|&nbsp;
                                             Reporter: <code className="py-0.5 rounded">{log.reporter_name}</code>
                                         </div>
                                         {log.message_content.trim() !== "" && (
@@ -257,14 +258,25 @@ export function ReportBody({
                                         )}
 
                                         <div
-                                            className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end">
+                                            className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end"
+                                        >
                                             {isActioned ? (
                                                 <span
-                                                    className="text-xs text-emerald-500 font-semibold flex items-center gap-1">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4"
-                                                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round"
-                                                              strokeWidth={2} d="M5 13l4 4L19 7"/>
+                                                    className="text-xs text-emerald-500 font-semibold flex items-center gap-1"
+                                                >
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        className="h-4 w-4"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M5 13l4 4L19 7"
+                                                        />
                                                     </svg>
                                                     Message Deleted
                                                 </span>
