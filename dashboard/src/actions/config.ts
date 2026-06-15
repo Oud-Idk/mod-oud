@@ -110,7 +110,7 @@ export async function saveModerationDMsConfigAction(guildId: string, data: Moder
         await saveModerationDMsConfig(guildId, data);
         revalidatePath(`/dashboard/${guildId}/moderation-dms`);
     } catch (error) {
-        console.error("Failed to save moderation DMs config:", error);
+        console.error("Failed to save moderation_old DMs config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }

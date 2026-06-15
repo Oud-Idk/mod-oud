@@ -124,7 +124,7 @@ export const STARBOARD_CONFIG: BuilderConfig = {
     ],
 };
 
-// Placeholders shared across all moderation Direct Messages
+// Placeholders shared across all moderation_old Direct Messages
 const COMMON_PLACEHOLDERS = [
     // ── Server ──────────────────────────────────────────────────────────
     { key: "server.name", mockValue: "My Server", label: "The name of your server" },

@@ -48,7 +48,7 @@ pub async fn apply_warning(
                 .field("Reason", &reason_str, false)
                 .field("ID", warn_id.to_string(), false) // More idiomatic than format!("{}", warn_id)
                 .footer(CreateEmbedFooter::new(
-                    "This is an automated moderation action. If you believe this was a mistake, please create a ticket on the server.",
+                    "This is an automated moderation_old action. If you believe this was a mistake, please create a ticket on the server.",
                 ));
 
             let dm = CreateMessage::new().embed(embed);

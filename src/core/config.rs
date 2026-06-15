@@ -1,11 +1,13 @@
 use crate::types::config::config::GuildSettings;
 use crate::types::config::starboard::Starboard;
+use duration_str::HumanFormat;
 use poise::serenity_prelude as serenity;
 use rand::RngExt;
 use redis::aio::MultiplexedConnection;
 use redis::AsyncCommands;
 use regex::{Captures, Regex};
 use std::sync::OnceLock;
+use std::time::Duration;
 
 pub struct GuildCtx {
     pub(crate) name: String,
@@ -204,7 +206,7 @@ fn get_placeholder_regex() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap())
 }
 
-pub fn replace_warn_placeholders(
+pub fn replace_reason_placeholders(
     text: &str,
     gctx: &GuildCtx,
     member: &serenity::all::Member,
@@ -227,6 +229,116 @@ pub fn replace_warn_placeholders(
             "reason" => reason.to_string(),
             _ => caps[0].to_string(),
         }
+    })
+        .into_owned()
+}
+
+pub fn replace_ban_placeholders(
+    text: &str,
+    gctx: &GuildCtx, // Adjust to your actual GuildCtx struct
+    member: &serenity::all::Member,
+    reason: &str,
+    moderator: &serenity::all::User,
+) -> String {
+    // Standardize the replacement values
+    let re = get_placeholder_regex();
+
+    re.replace_all(text, |caps: &Captures| {
+        let key = &caps["key"];
+
+        if let Some(val) = resolve_common_placeholder(key, gctx, member) {
+            return val;
+        }
+        if let Some(val) = resolve_moderator_placeholder(key, moderator) {
+            return val;
+        }
+
+        match key {
+            "reason" => reason.to_string(),
+            "appeal_link" => "to be implemented".to_string(),
+            _ => caps[0].to_string(),
+        }
+    })
+        .into_owned()
+}
+
+pub fn replace_kick_placeholder(
+    text: &str,
+    gctx: &GuildCtx,
+    member: &serenity::all::Member,
+    reason: &str,
+    moderator: &serenity::all::User,
+    invite_url: Option<&str>,
+) -> String {
+    let re = get_placeholder_regex();
+
+    re.replace_all(text, |caps: &Captures| {
+        let key = &caps["key"];
+
+        if let Some(val) = resolve_common_placeholder(key, gctx, member) {
+            return val;
+        }
+        if let Some(val) = resolve_moderator_placeholder(key, moderator) {
+            return val;
+        }
+
+        match key {
+            "reason" => reason.to_string(),
+            "invite.url" => invite_url.unwrap_or("<there was no invite URL. Please ask the server owner for one.>").to_string(),
+            _ => caps[0].to_string(),
+        }
+    })
+        .into_owned()
+}
+
+pub fn replace_mute_placeholder(
+    text: &str,
+    gctx: &GuildCtx,
+    member: &serenity::all::Member,
+    reason: &str,
+    moderator: &serenity::all::User,
+    dur: &Duration,
+) -> String {
+    let re = get_placeholder_regex();
+
+    re.replace_all(text, |caps: &Captures| {
+        let key = &caps["key"];
+
+        if let Some(val) = resolve_common_placeholder(key, gctx, member) {
+            return val;
+        }
+        if let Some(val) = resolve_moderator_placeholder(key, moderator) {
+            return val;
+        }
+
+        match key {
+            "reason" => reason.to_string(),
+            "duration" => dur.human_format(),
+            _ => caps[0].to_string(),
+        }
+    })
+        .into_owned()
+}
+
+pub fn replace_basic_placeholder(
+    text: &str,
+    gctx: &GuildCtx,
+    member: &serenity::all::Member,
+    moderator: &serenity::all::User,
+) -> String {
+    let re = get_placeholder_regex();
+
+    re.replace_all(text, |caps: &Captures| {
+        let key = &caps["key"];
+
+        if let Some(val) = resolve_common_placeholder(key, gctx, member) {
+            return val;
+        }
+        if let Some(val) = resolve_moderator_placeholder(key, moderator) {
+            return val;
+        }
+
+        return caps[0].to_string();
     })
         .into_owned()
 }

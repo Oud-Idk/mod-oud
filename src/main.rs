@@ -1,8 +1,8 @@
-use crate::commands::{emergency, ticket};
+use crate::commands::{emergency, moderation, ticket};
 use crate::core::web::start_web_server;
 use crate::models::spam_tracker::SpamTracker;
 use crate::types::types::{LogEvent, SearchUrlsResponse};
-use commands::{messages, moderation, ping, warn};
+use commands::{messages, ping, warn};
 use poise::serenity_prelude as serenity;
 use prost::Message;
 use serenity::gateway::ShardManager;
@@ -108,12 +108,13 @@ async fn main() -> Result<(), Error> {
             },
             commands: vec![
                 ping::ping(),
-                moderation::purge(),
-                moderation::kick(),
-                moderation::ban(),
-                moderation::mute(),
-                moderation::unmute(),
-                moderation::softban(),
+                moderation::commands::purge(),
+                moderation::commands::kick(),
+                moderation::commands::ban(),
+                moderation::commands::mute(),
+                moderation::commands::unmute(),
+                moderation::commands::softban(),
+                moderation::commands::unban(),
                 warn::warn(),
                 warn::search_warning_by_id(),
                 warn::warn_history(),

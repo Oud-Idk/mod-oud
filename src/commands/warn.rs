@@ -29,16 +29,17 @@ pub async fn warn(
 
     #[description = "The reason"] reason: Option<String>,
 ) -> Result<(), Error> {
-    // if author_id == user_id {
-    //     ctx.send(
-    //         poise::CreateReply::default()
-    //             .content("You cannot warn yourself!")
-    //             .ephemeral(true),
-    //     )
-    //         .await?;
-    //     return Ok(());
-    // }
-    // For testing purposes. Uncomment later.
+    let author = ctx.author();
+
+    if author.id == member.user.id {
+        ctx.send(
+            poise::CreateReply::default()
+                .content("You cannot warn yourself!")
+                .ephemeral(true),
+        )
+            .await?;
+        return Ok(());
+    }
 
     let reason_str = reason.unwrap_or_else(|| "No reason specified".to_string());
 
@@ -336,7 +337,7 @@ async fn set_warning_active_status(
             )
                 .await?;
 
-            // Log the moderation action
+            // Log the moderation_old action
             log_moderation_action(
                 &ctx,
                 guild_id as u64,
@@ -587,7 +588,7 @@ pub async fn delete_warning(
             let message = poise::serenity_prelude::CreateMessage::new().embed(embed);
             let _ = user.dm(&ctx.serenity_context().http, message).await;
 
-            // Log the moderation action
+            // Log the moderation_old action
             log_moderation_action(
                 &ctx,
                 guild_id as u64,

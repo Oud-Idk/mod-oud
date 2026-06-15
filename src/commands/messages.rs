@@ -321,7 +321,7 @@ pub async fn report_message(
 
         ctx.send(
             poise::CreateReply::default()
-                .content("Thank you! Your report has been submitted to the moderation team.")
+                .content("Thank you! Your report has been submitted to the moderation_old team.")
                 .ephemeral(true)
         ).await?;
     }

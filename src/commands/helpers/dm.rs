@@ -1,3 +1,4 @@
+use crate::commands::moderation::remind;
 use crate::types::types::{Context, Error};
 use poise::serenity_prelude as serenity;
 use ::serenity::model::channel::Message;
@@ -29,87 +30,6 @@ impl GuildMetadata {
     }
 }
 
-/// Sends a simple ephemeral reply back to the user.
-pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Result<(), Error> {
-    ctx.send(
-        poise::CreateReply::default()
-            .content(message)
-            .ephemeral(true),
-    )
-        .await?;
-    Ok(())
-}
-
-pub async fn check_self_moderation(
-    ctx: &Context<'_>,
-    target_id: serenity::UserId,
-    action: &str,
-) -> Result<bool, Error> {
-    if ctx.author().id == target_id {
-        ctx.send(
-            poise::CreateReply::default()
-                .content(format!("You cannot {} yourself!", action))
-                .ephemeral(true),
-        )
-            .await?;
-        return Ok(true);
-    }
-    Ok(false)
-}
-
-async fn send_moderation_dm(
-    http: &serenity::Http,
-    user: &serenity::User,
-    guild_icon: Option<String>,
-    title: String,
-    color: u32,
-    reason: &str,
-    extra_fields: &[(&str, &str)],
-) -> Result<Message, serenity::Error> {
-    let mut embed = poise::serenity_prelude::CreateEmbed::new()
-        .title(title)
-        .color(color)
-        .field("Reason", reason, false)
-        .footer(poise::serenity_prelude::CreateEmbedFooter::new(
-            "Moderator name is hidden for privacy.",
-        ));
-
-    if let Some(icon) = guild_icon {
-        embed = embed.thumbnail(icon);
-    }
-
-    for &(name, value) in extra_fields {
-        embed = embed.field(name, value, false);
-    }
-
-    let message = poise::serenity_prelude::CreateMessage::new().embed(embed);
-    return user.dm(http, message).await;
-}
-
-/// Attempts to DM a user about a moderation action. Silently ignores errors if DMs are disabled.
-/// Designed for use inside Poise command contexts.
-pub async fn try_dm_moderation_action(
-    ctx: &Context<'_>,
-    user: &serenity::User,
-    title: String,
-    color: u32,
-    reason: &str,
-    extra_fields: &[(&str, &str)],
-) {
-    let guild_icon = ctx.guild().and_then(|g| g.icon_url());
-
-    let _ = send_moderation_dm(
-        &ctx.serenity_context().http,
-        user,
-        guild_icon,
-        title,
-        color,
-        reason,
-        extra_fields,
-    )
-        .await;
-}
-
 /// Attempts to DM a user about a moderation action during event handling.
 /// Designed for use inside general Serenity event hooks.
 pub async fn try_dm_message_action(
@@ -128,7 +48,7 @@ pub async fn try_dm_message_action(
         }
     }
 
-    return send_moderation_dm(
+    return remind::send_moderation_dm(
         &ctx.http,
         user,
         guild_icon,
