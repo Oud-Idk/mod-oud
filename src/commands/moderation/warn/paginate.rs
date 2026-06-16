@@ -1,6 +1,5 @@
 use crate::commands::helpers::pagination;
-use crate::types::types::{Context, Error, WarningInfo};
-
+use crate::types::{Context, Error, WarningInfo};
 fn make_page(warn: &WarningInfo) -> String {
     let status = if warn.is_active.unwrap_or(true) { "Active" } else { "Pardoned" };
     let time_str = match warn.created_at {

@@ -1,5 +1,4 @@
-use crate::types::types::{Data, Error};
-
+use crate::types::{Data, Error};
 pub async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     match error {
         poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {:?}", error),

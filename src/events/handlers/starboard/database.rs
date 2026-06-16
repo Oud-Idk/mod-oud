@@ -1,4 +1,4 @@
-use crate::types::types::Error;
+use crate::types::Error;
 use serenity::all::{ChannelId, Context, GuildId, MessageId, UserId};
 use sqlx::PgPool;
 

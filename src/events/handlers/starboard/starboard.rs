@@ -1,6 +1,6 @@
 use crate::events::handlers::starboard::{database, permissions, utils};
 use crate::types::config::starboard::Starboard;
-use crate::types::types::{Data, Error};
+use crate::types::{Data, Error};
 use redis::AsyncCommands;
 use serenity::all::{ChannelId, Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction};
 use sqlx::PgPool;

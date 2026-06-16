@@ -1,5 +1,5 @@
 use crate::types::embed::DiscordEmbed;
-use crate::types::types::Error;
+use crate::types::Error;
 use serenity::builder::CreateMessage;
 
 /// A generic builder that takes your templates and a placeholder replacement closure.

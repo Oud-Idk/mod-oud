@@ -1,5 +1,5 @@
 use crate::types::config::starboard::{RestrictionType, Starboard};
-use crate::types::types::Error;
+use crate::types::Error;
 use chrono::Utc;
 use redis::aio::MultiplexedConnection;
 use redis::AsyncCommands;

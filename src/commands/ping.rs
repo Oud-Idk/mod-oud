@@ -1,4 +1,4 @@
-use crate::types::types::{Context, Error};
+use crate::types::{Context, Error};
 use crate::ShardManagerContainer;
 
 /// Pong!

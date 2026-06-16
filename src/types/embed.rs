@@ -1,4 +1,4 @@
-use crate::types::types::Error;
+use crate::types::Error;
 use serde::{Deserialize, Serialize};
 use serenity::all::CreateEmbed;
 

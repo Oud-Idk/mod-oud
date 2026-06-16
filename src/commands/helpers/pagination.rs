@@ -1,4 +1,4 @@
-use crate::types::types::{Context, Error};
+use crate::types::{Context, Error};
 use futures::{Stream, StreamExt};
 use poise::{serenity_prelude as serenity, ReplyHandle};
 use serenity::all::ComponentInteraction;

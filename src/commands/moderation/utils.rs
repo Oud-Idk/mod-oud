@@ -1,4 +1,4 @@
-use crate::types::types::{Context, Error};
+use crate::types::{Context, Error};
 use serenity::all::{Member, Message, MessageId, PartialGuild, UserId};
 
 /// Calculates the highest role position of a member.

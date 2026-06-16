@@ -1,5 +1,4 @@
-use crate::types::types::{Data, Error};
-
+use crate::types::{Data, Error};
 pub async fn log_join_to_db(user_id: i64, guild_id: i64, data: &Data) -> Result<(), Error> {
     sqlx::query!(
         "INSERT INTO join_leave_logs (user_id, guild_id, action) VALUES ($1, $2, 'JOIN')",

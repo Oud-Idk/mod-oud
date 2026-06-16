@@ -1,6 +1,6 @@
 use crate::core::config::replace_welcome_goodbye_placeholders;
 use crate::types::config::welcome::WelcomeMessageSettings;
-use crate::types::types::Error;
+use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use serenity::all::{ChannelId, CreateMessage, Mentionable};
 

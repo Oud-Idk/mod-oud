@@ -5,7 +5,7 @@ use crate::events::handlers::message_filter::{spam, verdict};
 use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
 use crate::events::handlers::{message_logging, tickets};
 use crate::types::config::message_filter::{RuleScope, ScopeMode};
-use crate::types::types::{Data, Error};
+use crate::types::{Data, Error};
 use serenity::all::{ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent, Reaction};
 
 fn should_apply_filter(scope: &RuleScope, channel_id: u64, user_roles: &[u64]) -> bool {

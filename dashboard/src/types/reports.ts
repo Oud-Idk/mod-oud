@@ -13,15 +13,8 @@ export interface ReportedMessage {
     moderator_notes: string | null;
     created_at: string;
     resolved_at: string | null;
-}
-
-// Matches your Rust struct
-export interface ReportedMessagePayload {
-    message_id: string;
-    channel_id: string;
-    reporter_id: string;
-    author_id: string;
-    reason: string;
-    content: string;
-    attachment_url: string;
+    message_deleted: boolean;
+    user_warned: boolean;
+    user_timed_out: boolean;
+    user_banned: boolean;
 }

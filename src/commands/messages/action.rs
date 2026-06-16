@@ -1,6 +1,6 @@
 use crate::commands::messages::database::insert_reported_message;
 use crate::commands::messages::utils;
-use crate::types::types::ReportedMessagePayload;
+use crate::types::payloads::{ReportStatus, ReportedMessagePayload};
 use redis::aio::MultiplexedConnection;
 use redis::AsyncCommands;
 
@@ -34,13 +34,23 @@ pub async fn issue_report(
     };
 
     let id = row.id;
-    let status = "under_review".to_string(); // default
+    let status = ReportStatus::UnderReview;
 
-    #[rustfmt::skip]
     let payload = ReportedMessagePayload {
-        id, guild_id, message_id, channel_id,
-        reporter_name, author_name, reason,
-        content, attachment_url, status,
+        id,
+        guild_id,
+        message_id,
+        channel_id,
+        reporter_name,
+        author_name,
+        reason,
+        content,
+        attachment_url,
+        status,
+        message_deleted: false,
+        user_warned: false,
+        user_timed_out: false,
+        user_banned: false
     };
 
     let payload_str = serde_json::to_string(&payload)?;

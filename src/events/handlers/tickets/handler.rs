@@ -1,5 +1,5 @@
 use crate::events::handlers::tickets::utils::{is_ticket_active, update_redis_activity};
-use crate::types::types::{Data, Error};
+use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, CreateMessage, Message, MessageId};
 

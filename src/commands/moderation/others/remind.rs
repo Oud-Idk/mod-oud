@@ -1,4 +1,4 @@
-use crate::types::types::Context;
+use crate::types::Context;
 use serenity::all::Message;
 
 pub async fn send_moderation_dm(

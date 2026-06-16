@@ -1,6 +1,5 @@
 use crate::types::flag::FlagSeverity;
-use crate::types::types::{Context, Data, Error};
-
+use crate::types::{Context, Data, Error};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "varchar", rename_all = "snake_case")] // Adjust based on your DB setup
 pub enum ActionType {

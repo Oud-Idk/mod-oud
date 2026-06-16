@@ -1,4 +1,4 @@
-use crate::types::types::WarningInfo;
+use crate::types::WarningInfo;
 use sqlx::{Error, PgPool};
 
 pub async fn fetch_warnings(db: &PgPool, guild_id: i64, user_id: i64) -> Result<Vec<WarningInfo>, sqlx::Error> {

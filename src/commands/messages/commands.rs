@@ -2,7 +2,7 @@ use crate::commands::messages::action::issue_report;
 use crate::commands::messages::database::{fetch_deleted_messages, fetch_modified_messages};
 use crate::commands::messages::formatting;
 use crate::core::config::get_settings;
-use crate::types::types::{Context, Error};
+use crate::types::{Context, Error};
 use poise::{serenity_prelude as serenity, Modal};
 use serenity::model::user::User;
 

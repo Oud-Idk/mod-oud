@@ -1,6 +1,7 @@
 use crate::commands::moderation::warn::database::{delete_warn, update_warn};
 use crate::core::config::{get_guild_ctx, get_settings, replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
 use crate::types::config::config::Format;
+use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::logger::ActionType;
 use duration_str::HumanFormat;
@@ -35,25 +36,25 @@ macro_rules! send_mod_dm {
         let mut custom_msg_opt = None;
 
         if let Some(dm_settings) = $dm_settings_opt {
-            let is_embed = matches!(dm_settings.format, Format::Embed);
+            if dm_settings.enabled {
+                let is_embed = matches!(dm_settings.format, Format::Embed);
 
-            custom_msg_opt = build_custom_message(
-                is_embed,
-                Some(&dm_settings.content),
-                dm_settings.embed.as_ref(),
-                $replace_closure,
-            ).unwrap_or_else(|e| {
-                eprintln!("Failed to build custom {} message: {}", $action_name, e);
-                None
-            });
+                custom_msg_opt = build_custom_message(
+                    is_embed,
+                    Some(&dm_settings.content),
+                    dm_settings.embed.as_ref(),
+                    $replace_closure,
+                ).unwrap_or_else(|e| {
+                    eprintln!("Failed to build custom {} message: {}", $action_name, e);
+                    None
+                });
+            }
         }
 
-        // Use the custom message or fallback to the provided default embed
         let dm_message = custom_msg_opt.unwrap_or_else(|| {
             CreateMessage::new().embed($default_embed_block)
         });
 
-        // Silently ignore if DMs are closed
         let _ = $user_id.dm($http, dm_message).await;
     }};
 }
@@ -66,7 +67,7 @@ pub async fn issue_warning(
     user_id: serenity::UserId,
     moderator_id: serenity::UserId,
     reason: &str,
-) -> Result<i64, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<i64, Error> {
     let warn_res = sqlx::query!(
         r#"INSERT INTO warns (guild_id, user_id, moderator_id, reason) VALUES ($1, $2, $3, $4) RETURNING id"#,
         guild_id.get() as i64, user_id.get() as i64, moderator_id.get() as i64, reason
@@ -106,7 +107,7 @@ pub async fn issue_kick(
     user: serenity::all::User,
     moderator: serenity::all::User,
     reason: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Error> {
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
 
     let kick_dm_settings_opt = settings.moderation_dms.and_then(|m| m.kick);
@@ -166,7 +167,7 @@ pub async fn issue_ban(
     dmd_time: u8,
     duration: Option<Duration>,
     duration_label: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Error> {
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
 
     // 1. Check for custom ban DMs
@@ -219,7 +220,7 @@ pub async fn issue_mute(
     reason: &str,
     duration: &Duration,
     timestamp: serenity::all::Timestamp,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Error> {
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
 
     let mute_dm_settings_opt = settings.moderation_dms.and_then(|m| m.mute);
@@ -252,7 +253,7 @@ pub async fn issue_unmute(
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
     moderator: serenity::all::User,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Error> {
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
 
     let unmute_dm_settings_opt = settings.moderation_dms.and_then(|m| m.unmute);
@@ -285,7 +286,7 @@ pub async fn issue_softban(
     moderator: serenity::all::User,
     reason: &str,
     dmd: u8,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Error> {
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
 
     let softban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.softban);
@@ -324,7 +325,7 @@ pub async fn issue_delete_warning(
     guild_id_raw: serenity::all::GuildId,
     id: i32,
     author: &serenity::all::User,
-) -> Result<Option<(u64, String)>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<(u64, String)>, Error> {
     let guild_id = guild_id_raw.get() as i64;
 
     // 1. Perform database deletion
@@ -397,7 +398,7 @@ pub async fn issue_warning_status_change(
     id: i32,
     set_active: bool,
     author: &serenity::all::User,
-) -> Result<Option<(u64, String)>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<(u64, String)>, Error> {
     let guild_id = guild_id_raw.get() as i64;
     let expected_current_state = !set_active;
 

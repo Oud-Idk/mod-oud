@@ -1,7 +1,6 @@
 use crate::commands::{emergency, moderation, ticket};
 use crate::core::web::start_web_server;
 use crate::models::spam_tracker::SpamTracker;
-use crate::types::types::{LogEvent, SearchUrlsResponse};
 use commands::{messages, ping};
 use poise::serenity_prelude as serenity;
 use prost::Message;
@@ -10,8 +9,7 @@ use serenity::prelude::GatewayIntents;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use types::types::{Data, Error};
-
+use types::{Data, Error, LogEvent, SearchUrlsResponse};
 mod commands;
 mod core;
 mod events;
@@ -25,8 +23,11 @@ impl serenity::prelude::TypeMapKey for ShardManagerContainer {
     type Value = Arc<ShardManager>;
 }
 
-struct WebState {
-    tx: broadcast::Sender<LogEvent>,
+pub struct WebState {
+    pub tx: broadcast::Sender<LogEvent>,
+    pub pool: sqlx::PgPool,
+    pub http: Arc<poise::serenity_prelude::Http>,
+    pub redis_client: redis::Client,
 }
 
 pub struct SafeBrowsingClient {
@@ -80,12 +81,21 @@ async fn main() -> Result<(), Error> {
         env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
     let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
 
-    // Initialize the database connection pool
+    // Initialize dependencies
     let pool = sqlx::PgPool::connect(&database_url).await?;
     let redis_client = redis::Client::open(redis_url)?;
 
+    // Create a standalone HTTP instance for the web server
+    let http = Arc::new(serenity::Http::new(&token));
+
+    // Initialize and start the web server with the shared dependencies
     let (tx, _) = broadcast::channel::<LogEvent>(100);
-    start_web_server(redis_client.clone(), tx).await?;
+    start_web_server(
+        pool.clone(),
+        Arc::clone(&http),
+        redis_client.clone(),
+        tx,
+    ).await?;
 
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
@@ -149,11 +159,8 @@ async fn main() -> Result<(), Error> {
                     ctx.http.clone(),
                 );
 
-                jobs::dashboard_commands::start_dashboard_command_worker(
-                    pool.clone(),
-                    ctx.http.clone(),
-                    redis_client.clone(),
-                );
+                // Note: Legacy Redis PubSub command worker removed from here
+                // since commands are now processed via HTTP routes.
 
                 let spam_tracker = SpamTracker::new(redis_client.clone());
                 let redis_conn = redis_client.get_multiplexed_async_connection().await?;

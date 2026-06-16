@@ -1,7 +1,7 @@
 use crate::events::handlers::message_filter::actions;
 use crate::types::config::message_filter::{BaseRule, ExternalLinksRule};
 use crate::types::flag::{FlagSeverity, ThreatType};
-use crate::types::types::{Data, Error};
+use crate::types::{Data, Error};
 use crate::utils::logger::{log_offensive_message, log_scam_message};
 use serenity::all::Message;
 use std::borrow::Cow;

@@ -1,5 +1,5 @@
 use crate::commands::moderation::utils::send_ephemeral;
-use crate::types::types::{Context, Error, GuildMetadata};
+use crate::types::{Context, Error, GuildMetadata};
 use crate::utils::logger::{log_moderation_action, ActionType};
 use crate::utils::moderating::issue_warning_status_change;
 

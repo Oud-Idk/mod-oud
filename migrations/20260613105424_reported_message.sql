@@ -16,6 +16,12 @@ CREATE TABLE reported_messages
     author_id       VARCHAR(20)   NOT NULL, -- The person who sent the bad message
     reporter_id     VARCHAR(20)   NOT NULL, -- The person who reported it
 
+    -- States
+    message_deleted BOOLEAN       NOT NULL   DEFAULT FALSE,
+    user_warned     BOOLEAN       NOT NULL   DEFAULT FALSE,
+    user_timed_out  BOOLEAN       NOT NULL   DEFAULT FALSE,
+    user_banned     BOOLEAN       NOT NULL   DEFAULT FALSE,
+
     -- Friendly Names
     author_name     TEXT          NOT NULL,
     reporter_name   TEXT          NOT NULL,
