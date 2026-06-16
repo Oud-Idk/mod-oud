@@ -23,6 +23,7 @@ pub async fn issue_report(
     let attachment_url = utils::extract_image_urls(message).join(",");
 
     let author_name = author.name.clone();
+    let author_id = author.id.to_string();
     let reporter_name = reporter.name.clone();
 
     let Some(row) = insert_reported_message(
@@ -40,17 +41,19 @@ pub async fn issue_report(
         id,
         guild_id,
         message_id,
+        author_id,
         channel_id,
         reporter_name,
         author_name,
         reason,
         content,
-        attachment_url,
+        attachment_url: Some(attachment_url),
         status,
         message_deleted: false,
         user_warned: false,
         user_timed_out: false,
-        user_banned: false
+        user_banned: false,
+        reporter_id: "".to_string(),
     };
 
     let payload_str = serde_json::to_string(&payload)?;

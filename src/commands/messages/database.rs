@@ -41,7 +41,7 @@ pub async fn insert_reported_message(
     sqlx::query_as!(
         Id,
         r#"
-        INSERT INTO reported_messages (guild_id, channel_id, message_id, author_id, reporter_id, message_content, attachment_url, reason, author_name, reporter_name)
+        INSERT INTO reported_messages (guild_id, channel_id, message_id, author_id, reporter_id, content, attachment_url, reason, author_name, reporter_name)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (message_id, reporter_id) DO NOTHING
         RETURNING id

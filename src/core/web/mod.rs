@@ -1,6 +1,6 @@
 pub mod routes;
 
-use crate::core::web::routes::commands::handle_dashboard_command;
+use crate::core::web::routes::commands::commands::handle_dashboard_command;
 use crate::types::{Error, LogEvent};
 use crate::WebState;
 use axum::http::{HeaderValue, Method};

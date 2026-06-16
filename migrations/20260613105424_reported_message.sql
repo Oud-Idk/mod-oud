@@ -27,7 +27,7 @@ CREATE TABLE reported_messages
     reporter_name   TEXT          NOT NULL,
 
     -- Evidence preservation
-    message_content TEXT          NOT NULL,
+    content         TEXT          NOT NULL,
     attachment_url  TEXT,
 
     -- The reporter's reasoning

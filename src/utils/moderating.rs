@@ -170,7 +170,6 @@ pub async fn issue_ban(
 ) -> Result<(), Error> {
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
 
-    // 1. Check for custom ban DMs
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
 
     send_mod_dm!(
@@ -188,12 +187,9 @@ pub async fn issue_ban(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
-    // 2. Actually ban the user
     guild_id.ban_with_reason(http, user.id, dmd_time, reason).await?;
 
-    // 3. Register temporary ban if duration is specified
     if let Some(dur) = duration {
-        // Convert std::time::Duration to chrono::Duration
         let chrono_dur = chrono::Duration::from_std(dur).map_err(|_| "Time overflowed")?;
         let unban_at = chrono::Utc::now() + chrono_dur;
 
