@@ -2,7 +2,6 @@ use crate::events::handlers::message_filter::actions;
 use crate::types::config::message_filter::{BaseRule, ExternalLinksRule};
 use crate::types::flag::{FlagSeverity, ThreatType};
 use crate::types::{Data, Error};
-use crate::utils::logger::{log_offensive_message, log_scam_message};
 use serenity::all::Message;
 use std::borrow::Cow;
 
@@ -13,7 +12,6 @@ pub enum FilterVerdict<'a> {
         base_rule: &'a BaseRule,
         trigger_content: Option<Cow<'a, str>>,
         custom_dm_message: Option<Cow<'a, str>>,
-        metadata: ViolationMetadata,
     },
     RequiresSafeBrowsingCheck {
         urls: Vec<String>,
@@ -77,7 +75,6 @@ pub async fn resolve_safe_browsing<'a>(
                     "You have sent a malicious URL with these flags: {}",
                     threats_str
                 ))),
-                metadata: ViolationMetadata::MaliciousUrls { threats: threats_int },
             }
         }
         Ok(_) => FilterVerdict::Pass,
@@ -99,44 +96,9 @@ pub async fn execute_verdict(
         base_rule,
         trigger_content,
         custom_dm_message,
-        metadata,
     } = verdict else {
         return Ok(false); // No violation occurred, message can pass
     };
-
-    let author_id = message.author.id.get();
-    let channel_id = message.channel_id.get();
-    let message_id = message.id.get();
-    let guild_id = message.guild_id.unwrap_or_default().get();
-
-    // 1. Handle any custom logging based on metadata variants
-    match metadata {
-        ViolationMetadata::Offensive { severity } => {
-            log_offensive_message(
-                data,
-                guild_id,
-                channel_id,
-                message_id,
-                author_id,
-                &message.content,
-                severity,
-            )
-                .await?;
-        }
-        ViolationMetadata::MaliciousUrls { threats } => {
-            log_scam_message(
-                data,
-                guild_id,
-                channel_id,
-                message_id,
-                author_id,
-                &message.content,
-                &threats,
-            )
-                .await?;
-        }
-        ViolationMetadata::None => {}
-    }
 
     actions::execute_rule_actions(
         ctx,

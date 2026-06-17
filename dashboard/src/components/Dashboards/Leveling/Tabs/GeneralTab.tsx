@@ -31,12 +31,6 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap }: Genera
                 channelMap={channelMap}
                 roleMap={roleMap}
             />
-            <div className="border-t pt-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wider">Bonus on</h4>
-                <div className="space-y-2">
-
-                </div>
-            </div>
         </div>
     )
 }

@@ -1,21 +1,10 @@
 use crate::events::handlers::message_filter::actions;
 use crate::types::config::message_filter::{AntiSpamRule, MessageFilteringConfig};
 use crate::types::{Data, Error};
-use crate::utils::logger::log_spam_message;
 use serenity::all::Message;
 use std::time::Duration;
 
 async fn handle_spam(ctx: &serenity::all::Context, message: &Message, data: &Data, guild_id: u64, author_id: u64, warning_cooldown: Duration, anti_spam_rule: &AntiSpamRule) -> Result<(), Error> {
-    log_spam_message(
-        data,
-        guild_id,
-        message.channel_id.get(),
-        message.id.get(),
-        author_id,
-        &message.content,
-    )
-        .await?;
-
     let should_warn = data
         .spam_tracker
         .check_warning_cooldown_async(guild_id, author_id, warning_cooldown)

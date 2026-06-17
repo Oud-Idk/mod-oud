@@ -18,7 +18,6 @@ interface LevelingBodyProps {
     channelMap: Record<string, string>;
     roleMap: Record<string, string>;
     multipliers: XpMultiplier[];
-    // Updated props to support array structures for bulk saves/deletes
     onSaveMultipliers: (
         targets: Array<{ targetId: string; targetType: "channel" | "role"; multiplier: number }>
     ) => Promise<void>;
@@ -35,7 +34,7 @@ const LEVEL_TABS: TabItem<TabValue>[] = [
 ];
 
 export function LevelingBody({
-    guildId, // Destructured
+    guildId,
     levelingConfig,
     onSave,
     channelMap,

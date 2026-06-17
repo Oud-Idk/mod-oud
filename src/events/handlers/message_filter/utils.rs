@@ -77,7 +77,6 @@ pub fn calculate_spoiler_amount(text: &str) -> f64 {
     let mut inside = false;
     let mut chars = text.chars().peekable();
 
-    // Scan through characters in a single O(N) pass
     while let Some(c) = chars.next() {
         if c == '|' && chars.peek() == Some(&'|') {
             chars.next(); // Consume the second '|'

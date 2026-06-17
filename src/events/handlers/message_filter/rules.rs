@@ -1,8 +1,7 @@
 use crate::events::handlers::message_filter::utils;
 use crate::events::handlers::message_filter::utils::{DISCORD_EMOJI_REGEX, DISCORD_PING_REGEX, INVITE_REGEX};
-use crate::events::handlers::message_filter::verdict::{FilterVerdict, ViolationMetadata};
+use crate::events::handlers::message_filter::verdict::FilterVerdict;
 use crate::types::config::message_filter::{HasBaseRule, MatchStrategy, MessageFilteringConfig, Modes, Pattern, ScopeMode};
-use crate::types::flag::FlagSeverity;
 use poise::serenity_prelude as serenity;
 use rustrict::Censor;
 use serenity::model::channel::Message;
@@ -118,7 +117,6 @@ pub fn filter_bad_words<'a>(
             base_rule: bad_words.base(),
             trigger_content: Some(Cow::Borrowed(&pattern.value)),
             custom_dm_message: None,
-            metadata: ViolationMetadata::None,
         }
     } else {
         FilterVerdict::Pass
@@ -129,25 +127,18 @@ pub fn filter_offensive_messages<'a>(
     message: &Message,
     filtering: &'a MessageFilteringConfig,
 ) -> FilterVerdict<'a> {
-    // 1. Configuration Guard Check
     let Some(offensive_rule) = check_rule(filtering.offensive_messages.as_ref(), message) else {
         return FilterVerdict::Pass;
     };
 
-    // 2. Perform Pure Content Analysis
     let cleaned_content = utils::clean_message_content(&message.content);
     let analysis = Censor::from_str(&cleaned_content).analyze();
-
-    let Some(severity) = FlagSeverity::from_analysis(analysis) else {
-        return FilterVerdict::Pass;
-    };
 
     let flag_threshold = offensive_rule.flag_threshold;
     if !analysis.is(flag_threshold.to_type()) {
         return FilterVerdict::Pass;
     }
 
-    // 3. Format the metadata
     let categories = utils::get_rustrict_categories(&analysis);
     let trigger_content = if categories.is_empty() {
         None
@@ -155,13 +146,11 @@ pub fn filter_offensive_messages<'a>(
         Some(Cow::Owned(categories.join(", ")))
     };
 
-    // 4. Return the Verdict instead of executing actions
     FilterVerdict::Block {
         rule_name: "Offensive Message",
         base_rule: &offensive_rule.base,
         trigger_content,
         custom_dm_message: None,
-        metadata: ViolationMetadata::Offensive { severity },
     }
 }
 
@@ -181,7 +170,6 @@ pub fn filter_server_invites<'a>(
             base_rule: server_invites.base(),
             trigger_content: matched_link,
             custom_dm_message: None,
-            metadata: ViolationMetadata::None,
         };
     }
 
@@ -223,7 +211,6 @@ pub fn filter_external_urls<'a>(
         base_rule: &external_links.base,
         trigger_content: Some(Cow::Borrowed(url)),
         custom_dm_message: None,
-        metadata: ViolationMetadata::None,
     }
 }
 
@@ -247,7 +234,6 @@ pub fn filter_excessive_caps<'a>(
         base_rule: &excessive_caps.base,
         trigger_content: None,
         custom_dm_message: None,
-        metadata: ViolationMetadata::None,
     }
 }
 
@@ -267,7 +253,6 @@ pub fn filter_excessive_emojis<'a>(
             base_rule: &excessive_emojis.base,
             trigger_content: None,
             custom_dm_message: None,
-            metadata: ViolationMetadata::None,
         };
     }
 
@@ -289,7 +274,6 @@ pub fn filter_excessive_spoilers<'a>(
             base_rule: &excessive_spoilers.base,
             trigger_content: None,
             custom_dm_message: None,
-            metadata: ViolationMetadata::None,
         };
     }
 
@@ -311,7 +295,6 @@ pub fn filter_excessive_mentions<'a>(
             base_rule: &excessive_mentions.base,
             trigger_content: None,
             custom_dm_message: None,
-            metadata: ViolationMetadata::None,
         };
     }
 
@@ -332,7 +315,6 @@ pub fn filter_zalgo<'a>(
             base_rule: &zalgo,
             trigger_content: None,
             custom_dm_message: None,
-            metadata: ViolationMetadata::None,
         };
     }
 

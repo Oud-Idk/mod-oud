@@ -135,7 +135,7 @@ export function MessageLoggingBody({
                         </div>
 
                         <div className="space-y-6 pt-4 border-t">
-                            <h4 className="text-sm font-semibold uppercase tracking-wider">Exclusion
+                            <h4 className="text-sm font-semibold uppercase tracking-wider mb-2">Exclusion
                                 Rules</h4>
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium">Ignored Channels</label>

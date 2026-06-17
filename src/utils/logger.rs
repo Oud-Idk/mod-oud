@@ -1,5 +1,4 @@
-use crate::types::flag::FlagSeverity;
-use crate::types::{Context, Data, Error};
+use crate::types::{Context, Error};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "varchar", rename_all = "snake_case")] // Adjust based on your DB setup
 pub enum ActionType {
@@ -39,79 +38,6 @@ pub async fn log_moderation_action(
         duration
     )
         .execute(&ctx.data().db)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn log_offensive_message(
-    data: &Data,
-    guild_id: u64,
-    channel_id: u64,
-    message_id: u64,
-    author_id: u64,
-    content: &str,
-    flag_type: FlagSeverity,
-) -> Result<(), Error> {
-    sqlx::query!(
-        "INSERT INTO flagged_messages (guild_id, channel_id, message_id, author_id, content, flag_type)
-         VALUES ($1, $2, $3, $4, $5, $6)",
-        guild_id as i64,
-        channel_id as i64,
-        message_id as i64,
-        author_id as i64,
-        content,
-        flag_type.to_string(),
-    )
-        .execute(&data.db)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn log_scam_message(
-    data: &Data,
-    guild_id: u64,
-    channel_id: u64,
-    message_id: u64,
-    author_id: u64,
-    content: &str,
-    flag_type: &[i32],
-) -> Result<(), Error> {
-    sqlx::query!(
-        "INSERT INTO scam_messages (guild_id, channel_id, message_id, author_id, content, flag_type)
-         VALUES ($1, $2, $3, $4, $5, $6)",
-        guild_id as i64,
-        channel_id as i64,
-        message_id as i64,
-        author_id as i64,
-        content,
-        flag_type,
-    )
-        .execute(&data.db)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn log_spam_message(
-    data: &Data,
-    guild_id: u64,
-    channel_id: u64,
-    message_id: u64,
-    author_id: u64,
-    content: &str,
-) -> Result<(), Error> {
-    sqlx::query!(
-        "INSERT INTO spammed_messages (guild_id, channel_id, message_id, author_id, content)
-         VALUES ($1, $2, $3, $4, $5)",
-        guild_id as i64,
-        channel_id as i64,
-        message_id as i64,
-        author_id as i64,
-        content,
-    )
-        .execute(&data.db)
         .await?;
 
     Ok(())
