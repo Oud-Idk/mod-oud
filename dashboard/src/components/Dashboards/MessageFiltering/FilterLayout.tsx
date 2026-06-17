@@ -1,8 +1,9 @@
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import ActionsSettings from "@/components/Dashboards/MessageFiltering/General/ActionsSettings";
 import ScopeSettings from "@/components/Dashboards/MessageFiltering/General/ScopeSettings";
-import { RuleAction, Scope } from "@/types/config/messageFiltering"; // Imported RuleAction here
+import { RuleAction } from "@/types/config/messageFiltering"; // Imported RuleAction here
 import { ReactNode } from "react";
+import { Scope } from "@/types/config";
 
 interface FilterLayoutProps {
     enabled: boolean;

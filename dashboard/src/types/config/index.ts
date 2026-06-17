@@ -44,10 +44,20 @@ export interface VoiceSettings {
     xp_range: Range;
 }
 
+export interface NotificationSettings {
+    scope: "current_channel" | "specified_channel" | "dm" | "none";
+    channel_id?: string;
+
+    format: "embed" | "text";
+    content: string;
+    embed: string;
+}
+
 export interface LevelingConfig {
     text: TextSettings;
     voice: VoiceSettings;
     scope: Scope;
+    notify: NotificationSettings;
 
     level_cap: number;
     keep_level_on_leave: boolean;

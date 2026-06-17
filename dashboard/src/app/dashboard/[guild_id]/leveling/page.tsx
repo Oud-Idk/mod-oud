@@ -2,11 +2,16 @@ import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader
 import { LevelingBody } from "@/components/Dashboards/Leveling/LevelingBody";
 import { getLevelingConfig } from "@/utils/db/config";
 import { saveLevelingConfigAction } from "@/actions/config";
-import { getXpMultipliers } from "@/utils/db/multipliers";
-import { deleteMultipliersAction, saveMultipliersAction } from "@/actions/multipliers";
+import { getLevelRewards, getXpMultipliers } from "@/utils/db/leveling";
+import {
+    deleteMultipliersAction,
+    deleteRewardsAction,
+    saveMultipliersAction,
+    saveRewardsAction
+} from "@/actions/levels";
 import Math from "@/components/Math";
 import { Pad } from "@/components/Pad";
-import { getChannelMap, getRoleMap } from "@/utils/discord";
+import { getChannelMap, getGuildChannels, getRoleMap } from "@/utils/discord";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>
@@ -21,11 +26,15 @@ export default async function LevelingPage({ params }: PageProps) {
         channelMap,
         roleMap,
         multipliers,
+        levelRewards,
+        channels,
     ] = await Promise.all([
         getLevelingConfig(guild_id),
         getChannelMap(guild_id),
         getRoleMap(guild_id),
         getXpMultipliers(guild_id),
+        getLevelRewards(guild_id),
+        getGuildChannels(guild_id),
     ]);
 
     const onSave = saveLevelingConfigAction.bind(null, guild_id);
@@ -33,6 +42,8 @@ export default async function LevelingPage({ params }: PageProps) {
     // Bind the new bulk actions
     const onSaveMultipliers = saveMultipliersAction.bind(null, guild_id);
     const onDeleteMultipliers = deleteMultipliersAction.bind(null, guild_id);
+    const onSaveLevelRewards = saveRewardsAction.bind(null, guild_id);
+    const onDeleteLevelRewards = deleteRewardsAction.bind(null, guild_id);
 
     return (
         <div>
@@ -42,14 +53,18 @@ export default async function LevelingPage({ params }: PageProps) {
 
             <Pad/>
             <LevelingBody
-                guildId={guild_id} // Passed to resolve type checking in optimistic updates
+                guildId={guild_id}
                 levelingConfig={levelingConfig}
                 onSave={onSave}
                 channelMap={channelMap}
                 roleMap={roleMap}
                 multipliers={multipliers}
-                onSaveMultipliers={onSaveMultipliers} // Hooked to new bulk actions
+                rewards={levelRewards}
+                onSaveMultipliers={onSaveMultipliers}
+                onSaveRewards={onSaveLevelRewards}
                 onDeleteMultipliers={onDeleteMultipliers}
+                onDeleteRewards={onDeleteLevelRewards}
+                channels={channels}
             />
         </div>
     )

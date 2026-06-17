@@ -324,7 +324,6 @@ pub async fn issue_delete_warning(
 ) -> Result<Option<(u64, String)>, Error> {
     let guild_id = guild_id_raw.get() as i64;
 
-    // 1. Perform database deletion
     let Some(row) = delete_warn(db, id, guild_id).await? else {
         return Ok(None);
     };
@@ -333,12 +332,10 @@ pub async fn issue_delete_warning(
     let user_id = serenity::UserId::new(target_user_id);
     let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
 
-    // 2. Fetch cache/HTTP contexts safely without poise context
     let gctx = get_guild_ctx(guild_id_raw, http.as_ref()).await?;
     let member = http.get_member(guild_id_raw, user_id).await?;
     let user = &member.user;
 
-    // 3. Fetch custom DM settings
     let settings = get_settings(db, redis_conn, guild_id).await?;
     let dm_settings_opt = settings.moderation_dms.and_then(|m| m.unpardon_delete_warn);
 

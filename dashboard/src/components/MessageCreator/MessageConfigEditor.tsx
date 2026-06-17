@@ -4,7 +4,7 @@ import { Pad } from "@/components/Pad";
 import { ChannelSelector } from "@/components/Dashboards/General/ChannelSelector";
 import { MessageModeSelector } from "@/components/MessageCreator/MessageModeSelector";
 import { PlaintextEditor } from "@/components/MessageCreator/PlaintextEditor";
-import GenericEmbedBuilder from "@/components/Embed/GenericEmbedBuilder";
+import EmbedBuilder from "@/components/Embed/EmbedBuilder";
 import { DiscordChannel } from "@/types";
 
 export interface GenericMessageConfig {
@@ -19,7 +19,8 @@ interface MessageConfigEditorProps {
     config: GenericMessageConfig;
     onChange: (updatedConfig: GenericMessageConfig) => void;
     onEmbedChange: (embed: any) => void; // ← add this
-    toggleLabel: string;
+    toggleLabel?: string;
+    enableToggle?: boolean;
     embedTemplateConfig: any;
     channels?: DiscordChannel[];
     disabled?: boolean;
@@ -38,17 +39,20 @@ export function MessageConfigEditor({
     disabled = false,
     resetKey = 0,
     modeLabel,
-    placeholderText, // Deconstructed here
+    placeholderText,
+    enableToggle = true,
 }: MessageConfigEditorProps): JSX.Element {
     return (
         <>
-            <ToggleSwitch
-                enabled={config.enabled}
-                disabled={disabled}
-                onChange={(checked) => onChange({ ...config, enabled: checked })}
-                text={toggleLabel}
-            />
-            <Pad/>
+            {enableToggle && <>
+                <ToggleSwitch
+                    enabled={config.enabled}
+                    disabled={disabled}
+                    onChange={(checked) => onChange({ ...config, enabled: checked })}
+                    text={toggleLabel}
+                />
+                <Pad/>
+            </>}
 
             {config.enabled && (
                 <>
@@ -60,7 +64,6 @@ export function MessageConfigEditor({
                                 disabled={disabled}
                                 onChange={(value) => onChange({ ...config, channel_id: value })}
                             />
-                            <Pad/>
                         </>
                     )}
 
@@ -70,7 +73,6 @@ export function MessageConfigEditor({
                         disabled={disabled}
                         onChange={(format) => onChange({ ...config, format })}
                     />
-                    <Pad/>
 
                     {config.format === "text" ? (
                         <PlaintextEditor
@@ -81,7 +83,7 @@ export function MessageConfigEditor({
                             onChange={(val) => onChange({ ...config, content: val })}
                         />
                     ) : (
-                        <GenericEmbedBuilder
+                        <EmbedBuilder
                             key={`${resetKey}`}
                             setEmbedState={onEmbedChange}
                             config={embedTemplateConfig}

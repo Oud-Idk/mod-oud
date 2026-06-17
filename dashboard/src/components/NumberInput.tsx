@@ -18,7 +18,6 @@ export function NumberInput({
     step = 1,
     label,
 }: NumberInputProps) {
-
     const increment = () => {
         onChange(Math.min(max, value + step));
     };
@@ -48,7 +47,8 @@ export function NumberInput({
                 </Label>
             )}
 
-            <div className="flex items-center border border-neutral-500 rounded-lg overflow-hidden bg-neutral-300/10 max-w-35">
+            <div
+                className="flex items-center border border-neutral-500 rounded-lg overflow-hidden bg-neutral-300/10 max-w-35">
                 {/* Decrement Button */}
                 <button
                     type="button"

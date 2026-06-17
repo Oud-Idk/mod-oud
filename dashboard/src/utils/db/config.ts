@@ -214,6 +214,13 @@ export async function getLevelingConfig(guildId: string): Promise<LevelingConfig
         },
         level_cap: 40,
         keep_level_on_leave: false,
+        notify: {
+            channel_id: "",
+            scope: "none",
+            format: "text",
+            content: "",
+            embed: "",
+        }
     }
 
     const dbLeveling = await getGuildConfigField<any>(guildId, 'leveling');

@@ -19,13 +19,6 @@ interface EmbedProps {
 export const Embed = ({ config, embed }: EmbedProps) => {
     const { resolvedTheme } = useTheme();
 
-    console.log("[Embed Debug] Rendering Embed Component:", {
-        rawEmbedProp: embed,
-        titleType: typeof embed.title,
-        descriptionType: typeof embed.description,
-        isDescriptionTruthy: !!embed.description,
-    });
-
     const renderWithPlaceholders = (text: string | undefined): string => {
         if (!text) return "";
         let parsed = text;

@@ -343,6 +343,33 @@ pub fn replace_basic_placeholder(
         .into_owned()
 }
 
+pub fn replace_level_notify_placeholder(
+    text: &str,
+    gctx: &GuildCtx,
+    user: &serenity::all::User,
+    current_level: i32,
+    previous_level: i32,
+) -> String {
+    let re = get_placeholder_regex();
+
+    re.replace_all(text, |caps: &Captures| {
+        let key = &caps["key"];
+
+        match key {
+            "server.name" => gctx.name.clone(),
+            "server.id" => gctx.id.clone(),
+            "server.icon_url" => gctx.icon_url.clone(),
+            "member.username" => user.name.clone(),
+            "member.id" => user.id.to_string(),
+            "member.avatar_url" => user.face(),
+            "member.mention" => format!("<@{}>", user.id.get()),
+            "level.current" => current_level.to_string(),
+            "level.previous" => previous_level.to_string(),
+            _ => caps[0].to_string(),
+        }
+    }).into_owned()
+}
+
 
 /// Retrieves settings. Returns a default struct if none exists in the DB.
 pub async fn get_settings(

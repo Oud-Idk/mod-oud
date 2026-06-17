@@ -22,7 +22,6 @@ export function PlaintextEditor({
                 Message Content
             </label>
 
-            {/* Render placeholder helper tags if a config is passed */}
             {placeholderConfig && <PlaceholderList config={placeholderConfig}/>}
 
             <textarea
@@ -31,8 +30,11 @@ export function PlaintextEditor({
                 onChange={(e) => onChange(e.target.value)}
                 rows={4}
                 placeholder={placeholder}
-                className="w-full p-2 bg-neutral-300/5 border rounded text-sm focus:outline-none focus:border-neutral-500 resize-none font-mono placeholder-neutral-600"
+                className={`w-full mb-0 p-2 bg-neutral-300/5 border rounded text-sm resize-none font-mono focus:outline-none placeholder-neutral-600 ${value.trim() === "" ? "border-red-500 ring-red-500 focus:ring-2" : ""}`}
             />
+            {value.trim() === "" && (
+                <p className="text-red-500 text-xs">Message cannot be empty.</p>
+            )}
             <p className="text-xs text-neutral-500">
                 Supports dynamic placeholders and mentions. </p>
         </div>

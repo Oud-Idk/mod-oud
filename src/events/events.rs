@@ -1,4 +1,5 @@
 use crate::events::handlers::join_leave::join_leave::{on_member_join, on_member_leave};
+use crate::events::handlers::levels::levels_voice::on_voice_state_update;
 use crate::events::interact::on_interact;
 use crate::events::message::{on_message, on_message_delete, on_message_update, on_reaction_add, on_reaction_remove};
 use crate::types::{Data, Error};
@@ -47,6 +48,9 @@ pub async fn event_handler(
         }
         FullEvent::ReactionRemove { removed_reaction } => {
             on_reaction_remove(ctx, removed_reaction, data).await?;
+        }
+        FullEvent::VoiceStateUpdate { old, new } => {
+            on_voice_state_update(ctx, old.as_ref(), new, data).await?;
         }
         _ => {}
     }

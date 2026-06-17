@@ -294,3 +294,15 @@ export const SOFTBAN_CONFIG: BuilderConfig = {
         { key: "moderator.id", mockValue: "9876543210987654321", label: "The unique ID of the softbanning moderator" },
     ],
 };
+
+export const LEVEL_NOTIFY_CONFIG: BuilderConfig = {
+    id: "levels",
+    name: "Level Up Message Builder",
+    description: "Configure the messages sent when a user levels up.",
+    placeholders: [
+        ...COMMON_PLACEHOLDERS,
+        { key: "member.mention", mockValue: "@JaneDoe", label: "Mentions the member who leveled up" },
+        { key: "level.current", mockValue: "17", label: "The current level" },
+        { key: "level.previous", mockValue: "16", label: "The previous level" },
+    ],
+};

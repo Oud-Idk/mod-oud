@@ -4,3 +4,4 @@ pub mod messages;
 pub mod ping;
 pub mod ticket;
 pub mod moderation;
+pub mod leveling;

@@ -1,3 +1,4 @@
+use crate::types::config::leveling::LevelingConfig;
 use crate::types::config::message_filter::MessageFilteringConfig;
 use crate::types::config::message_logging::MessageLoggingConfig;
 use crate::types::config::welcome::WelcomeConfig;
@@ -6,10 +7,11 @@ use crate::types::flag::FlagSeverity;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Format {
     Embed,
+    #[default]
     Text,
 }
 
@@ -68,11 +70,8 @@ where
     D: Deserializer<'de>,
     T: Deserialize<'de>,
 {
-    // We deserialize into serde_json::Value first to "catch" the data.
-    // This allows us to attempt a conversion without failing the whole struct.
     let v = serde_json::Value::deserialize(deserializer)?;
 
-    // Attempt to convert the Value into the desired type T
     match T::deserialize(v) {
         Ok(val) => Ok(Some(val)),
         Err(_) => Ok(None),
@@ -88,7 +87,7 @@ pub struct GuildSettings {
     pub message_filtering: Option<MessageFilteringConfig>,
     pub report: Option<ReportConfig>,
     pub moderation_dms: Option<ModerationDMsConfig>,
-    // pub leveling: LevelingConfig,
+    pub leveling: Option<LevelingConfig>,
 
     pub leave_channel_id: Option<String>,
     pub general_bot_logs_id: Option<String>,

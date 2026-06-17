@@ -1,13 +1,13 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { XpMultiplier } from "@/utils/db/multipliers";
+import { XpMultiplier } from "@/utils/db/leveling";
 import { Dropdown } from "@/components/Dropdown";
 import { NumberInput } from "@/components/NumberInput";
 import { getAvailableRoleOptions } from "@/utils/utils";
 
 export interface MultiplierTabProps {
-    guildId: string; // Added to satisfy XpMultiplier requirements
+    guildId: string;
     multipliers: XpMultiplier[];
     onSave: (
         targets: Array<{ targetId: string; targetType: "channel" | "role"; multiplier: number }>
@@ -157,7 +157,7 @@ export function MultiplierTab({
                     Apply XP bonuses to specific roles or channels. </p>
             </div>
 
-            <div className="bg-neutral-300/10 p-3 rounded-lg border space-y-4">
+            <div className="p-3 rounded-lg border space-y-4">
                 <p className="text-lg m-0">Apply New Multipliers</p>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div className="space-y-1.5">
@@ -215,7 +215,7 @@ export function MultiplierTab({
 
             {/* Listing Active Multipliers */}
             <div className="space-y-3">
-                <div className="flex justify-between items-center min-h-[36px]">
+                <div className="flex justify-between items-center min-h-9">
                     <h4 className="text-sm font-semibold">Active Multipliers</h4>
                     {selectedActiveIds.length > 0 && (
                         <button
@@ -233,7 +233,9 @@ export function MultiplierTab({
                 ) : (
                     <div className="border border-neutral-500/30 rounded-lg overflow-hidden">
                         {/* Select All Header */}
-                        <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-300/10 border-b border-neutral-500/30">
+                        <div
+                            className="flex items-center gap-3 px-4 py-2.5 bg-neutral-300/10 border-b border-neutral-500/30"
+                        >
                             <input
                                 type="checkbox"
                                 checked={isAllSelected}
@@ -273,12 +275,16 @@ export function MultiplierTab({
                                         <div className="flex-1 flex justify-between items-center">
                                             <div>
                                                 <span className="font-semibold text-sm">{displayName}</span>
-                                                <span className="text-xs ml-2.5 px-2 py-0.5 rounded bg-neutral-300/15 border border-neutral-500/20 uppercase tracking-wider text-neutral-400 font-mono">
+                                                <span
+                                                    className="text-xs ml-2.5 px-2 py-0.5 rounded bg-neutral-300/15 border border-neutral-500/20 uppercase tracking-wider text-neutral-400 font-mono"
+                                                >
                                                     {m.target_type}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-4">
-                                                <span className="font-mono text-sm font-bold text-neutral-900 dark:text-neutral-100">
+                                                <span
+                                                    className="font-mono text-sm font-bold text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     {m.multiplier.toFixed(1)}x
                                                 </span>
                                                 <button

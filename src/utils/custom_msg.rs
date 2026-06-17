@@ -3,11 +3,10 @@ use crate::types::Error;
 use serenity::builder::CreateMessage;
 
 /// A generic builder that takes your templates and a placeholder replacement closure.
-/// Returns `Some(CreateMessage)` if a payload was successfully built, or `None` so you can apply fallbacks.
 pub fn build_custom_message<F>(
     is_embed: bool,
     content: Option<&String>,
-    embed_template: Option<&DiscordEmbed>, // Replace `CustomEmbed` with your actual embed struct type
+    embed_template: Option<&DiscordEmbed>,
     replace_fn: F,
 ) -> Result<Option<CreateMessage>, Error>
 where
@@ -23,8 +22,6 @@ where
         }
     } else {
         if let Some(custom_embed) = embed_template {
-            // I noticed you use `.is_empty()` in welcome/leave but not in warn.
-            // It's safer to just check it here universally!
             if !custom_embed.is_empty() {
                 let embed = custom_embed.to_embed(replace_fn)?;
                 builder = builder.embed(embed);

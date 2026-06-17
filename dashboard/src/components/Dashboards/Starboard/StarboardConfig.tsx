@@ -6,7 +6,7 @@ import type { StarboardConfigInput } from "@/types/config/starboard";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { Dropdown } from "@/components/Dropdown";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
-import GenericEmbedBuilder, { convertToEmbedState } from "@/components/Embed/GenericEmbedBuilder";
+import EmbedBuilder, { convertToEmbedState } from "@/components/Embed/EmbedBuilder";
 import { STARBOARD_CONFIG } from "@/utils/embedTemplates";
 import { StarboardMessage } from "@/components/Dashboards/Starboard/StarboardMessage";
 import { PlaceholderList } from "@/components/Embed/PlaceholderList";
@@ -195,7 +195,7 @@ export function StarboardConfig({
                         onChange={v => onChange({ ...config, plaintext_template: v })}
                     />
                     <Pad/>
-                    <GenericEmbedBuilder
+                    <EmbedBuilder
                         config={STARBOARD_CONFIG}
                         initialEmbedState={config.embed_template}
                         setEmbedState={(obj) => onChange({ ...config, embed_template: obj })}
@@ -215,12 +215,16 @@ export function StarboardConfig({
                 <div className="space-y-2">
                     <label className="block text-sm font-medium">Required Stars</label>
                     <input
-                        type="number" min={1} value={config.reaction_threshold || 3} onChange={(e) =>
-                        onChange({
-                            ...config,
-                            reaction_threshold: parseInt(e.target.value) || 1,
-                        })
-                    } className="border rounded px-3 py-2 text-sm w-32 focus:outline-none"
+                        type="number"
+                        min={1}
+                        value={config.reaction_threshold || 3}
+                        onChange={(e) =>
+                            onChange({
+                                ...config,
+                                reaction_threshold: parseInt(e.target.value) || 1,
+                            })
+                        }
+                        className="border bg-neutral-300/10 border-neutral-500 rounded px-3 py-2 text-sm w-32 focus:outline-none"
                     />
                 </div>
 
@@ -233,10 +237,10 @@ export function StarboardConfig({
                             placeholder="e.g. 1 day"
                             value={minAgeInput}
                             onChange={(e) => handleMinAgeChange(e.target.value)}
-                            className={`border rounded px-3 py-2 text-sm w-full focus:outline-none ${
+                            className={`border rounded px-3 py-2 text-sm w-full focus:outline-none bg-neutral-300/10 ${
                                 validationErrors.minAge
                                     ? "border-red-900/50"
-                                    : "border-zinc-800"
+                                    : "border-neutral-500"
                             }`}
                         />
                         {validationErrors.minAge ? (
@@ -252,10 +256,10 @@ export function StarboardConfig({
                             placeholder="e.g. 90 days"
                             value={maxAgeInput}
                             onChange={(e) => handleMaxAgeChange(e.target.value)}
-                            className={`border rounded px-3 py-2 text-sm w-full focus:outline-none ${
+                            className={`border rounded px-3 py-2 text-sm w-full focus:outline-none bg-neutral-300/10 ${
                                 validationErrors.maxAge
                                     ? "border-red-900/50"
-                                    : "border-zinc-800"
+                                    : "border-neutral-500"
                             }`}
                         />
                         {validationErrors.maxAge ? (
@@ -280,7 +284,7 @@ export function StarboardConfig({
                             placeholder="Add emoji (e.g. ⭐)"
                             value={emojiInput}
                             onChange={(e) => setEmojiInput(e.target.value)}
-                            className="border rounded px-3 py-1 text-sm flex-1 focus:outline-none"
+                            className="border border-neutral-500 bg-neutral-300/10 rounded px-3 py-1 text-sm flex-1 focus:outline-none"
                         />
                         <button
                             type="submit" className="px-3 py-1 bg-zinc-850 hover:bg-zinc-800 text-sm rounded"

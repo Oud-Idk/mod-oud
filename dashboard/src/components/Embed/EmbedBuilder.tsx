@@ -56,7 +56,6 @@ function convertToDiscordEmbed(embed: EmbedState): DiscordEmbed {
 function decimalToHex(decimal?: number): string {
     if (decimal === undefined || decimal === null) return "#000000"; // Default fallback color
 
-    // Ensure the number is within the valid 24-bit color range
     const clamped = Math.max(0, Math.min(decimal, 0xffffff));
     return `#${clamped.toString(16).padStart(6, '0')}`;
 }
@@ -80,20 +79,18 @@ export function convertToEmbedState(embed: DiscordEmbed): EmbedState {
     };
 }
 
-export default function GenericEmbedBuilder({
+export default function EmbedBuilder({
     config,
     setEmbedState,
     initialEmbedState,
     enablePlaceholderList = true,
     customPreview: CustomPreview,
 }: Props) {
-    // 1. Derive the form's local structure directly from the prop
     const embed = useMemo<EmbedState>(() => {
         const parsed = parseSavedEmbed(initialEmbedState, emptyState);
         return { ...emptyState, ...parsed, fields: parsed.fields || [] };
     }, [initialEmbedState]);
 
-    // 2. Compute updates and dispatch them immediately to the parent
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         const updated = { ...embed, [name]: value };

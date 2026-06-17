@@ -12,15 +12,16 @@ mod types {
 }
 use crate::types::flag::FlagSeverity;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ScopeMode {
+    #[default]
     Exempt,
     Enforced,
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuleScope {
     pub mode: ScopeMode,
 

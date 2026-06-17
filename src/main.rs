@@ -1,4 +1,4 @@
-use crate::commands::{emergency, moderation, ticket};
+use crate::commands::{emergency, leveling, moderation, ticket};
 use crate::core::web::start_web_server;
 use crate::models::spam_tracker::SpamTracker;
 use commands::{messages, ping};
@@ -8,6 +8,7 @@ use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
 use std::env;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::broadcast;
 use types::{Data, Error, LogEvent, SearchUrlsResponse};
 
@@ -82,7 +83,6 @@ async fn main() -> Result<(), Error> {
         env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
     let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
 
-    // Read topology configurations (defaulting to true if not specified)
     let run_bot: bool = env::var("RUN_BOT")
         .unwrap_or_else(|_| "true".to_string())
         .parse()
@@ -95,21 +95,17 @@ async fn main() -> Result<(), Error> {
 
     let pool = sqlx::PgPool::connect(&database_url).await?;
 
-    // Automatically execute SQLx migrations on startup
     println!("Checking database migrations...");
     sqlx::migrate!()
         .run(&pool)
         .await?;
     println!("Database migrations complete.");
 
-    // Initialize core shared dependencies
     let pool = sqlx::PgPool::connect(&database_url).await?;
     let redis_client = redis::Client::open(redis_url)?;
 
-    // Create a standalone HTTP instance for the web server
     let http = Arc::new(serenity::Http::new(&token));
 
-    // 1. Conditionally start the Web Server
     if run_web {
         // Increased broadcast capacity to 1024 to prevent client lag during high traffic
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
@@ -130,9 +126,11 @@ async fn main() -> Result<(), Error> {
             | GatewayIntents::GUILD_MEMBERS
             | GatewayIntents::GUILD_MESSAGE_REACTIONS;
 
-        // Reduced cache limit from 100 to 20 since Redis distributed cache handles old message states
         let mut cache_settings = serenity::cache::Settings::default();
-        cache_settings.max_messages = 20;
+        cache_settings.max_messages = 5;
+        cache_settings.cache_users = false;
+        cache_settings.cache_channels = false;
+        cache_settings.time_to_live = Duration::from_secs(60 * 30);
 
         let framework = poise::Framework::builder()
             .options(poise::FrameworkOptions {
@@ -162,6 +160,7 @@ async fn main() -> Result<(), Error> {
                     messages::commands::deleted_history(),
                     messages::commands::edit_history(),
                     messages::commands::report_message(),
+                    leveling::level(),
                     emergency::lock(),
                     emergency::unlock(),
                     emergency::global_lock(),
@@ -230,8 +229,6 @@ async fn main() -> Result<(), Error> {
 
         client.start_shard(shard_index, total_shards).await?;
     } else {
-        // If the Bot Gateway client is disabled but the Web Server is enabled,
-        // we block and keep the main thread alive.
         println!("Bot Gateway client is disabled. Web server running exclusively.");
         tokio::signal::ctrl_c().await?;
     }

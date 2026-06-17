@@ -9,6 +9,29 @@ interface EmbedBuilderProps {
     removeField: (index: number) => void;
 }
 
+function isEmbedStateEmpty(embed: EmbedState): boolean {
+    const hasTitle = embed.title.trim() !== "";
+    const hasDescription = embed.description.trim() !== "";
+    const hasThumbnail = embed.thumbnailUrl.trim() !== "";
+    const hasAuthor = embed.authorName.trim() !== "" || embed.authorIcon.trim() !== "";
+    const hasFooter = embed.footerText.trim() !== "" || embed.footerIcon.trim() !== "";
+    const hasImage = embed.imageUrl.trim() !== "";
+
+    const hasFields = embed.fields?.some(
+        field => field.name.trim() !== "" || field.value.trim() !== ""
+    );
+
+    return !(
+        hasTitle ||
+        hasDescription ||
+        hasThumbnail ||
+        hasAuthor ||
+        hasFooter ||
+        hasImage ||
+        hasFields
+    );
+}
+
 export const EmbedBuilderForm = ({
     embed,
     handleChange,
@@ -17,8 +40,10 @@ export const EmbedBuilderForm = ({
     removeField,
 }: EmbedBuilderProps) => {
     return (
-        <div className="p-4 rounded-lg space-y-4 border">
-            {/* ── Author Block ── */}
+        <div className={`p-4 rounded-lg space-y-4 border ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}>
+            {isEmbedStateEmpty(embed) && (
+                <p className="text-red-500">Embed cannot be completely empty!</p>
+            )}
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="text-xs font-bold uppercase tracking-wider">Author Title</label>
@@ -27,7 +52,7 @@ export const EmbedBuilderForm = ({
                         name="authorName"
                         value={embed.authorName || ""}
                         onChange={handleChange}
-                        className="w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500"
+                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
                     />
                 </div>
                 <div>
@@ -37,7 +62,7 @@ export const EmbedBuilderForm = ({
                         name="authorIcon"
                         value={embed.authorIcon || ""}
                         onChange={handleChange}
-                        className="w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500"
+                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
                     />
                 </div>
             </div>
@@ -50,7 +75,7 @@ export const EmbedBuilderForm = ({
                     name="title"
                     value={embed.title || ""}
                     onChange={handleChange}
-                    className="w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500"
+                    className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
                 />
             </div>
 
@@ -61,7 +86,7 @@ export const EmbedBuilderForm = ({
                     rows={5}
                     value={embed.description || ""}
                     onChange={handleChange}
-                    className="w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500 resize-none font-mono"
+                    className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 resize-none font-mono ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
                 />
             </div>
 
@@ -74,7 +99,7 @@ export const EmbedBuilderForm = ({
                         name="thumbnailUrl"
                         value={embed.thumbnailUrl || ""}
                         onChange={handleChange}
-                        className="w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500"
+                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
                     />
                 </div>
                 <div>
@@ -84,7 +109,7 @@ export const EmbedBuilderForm = ({
                         name="imageUrl"
                         value={embed.imageUrl || ""}
                         onChange={handleChange}
-                        className="w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500"
+                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
                     />
                 </div>
             </div>
@@ -98,7 +123,7 @@ export const EmbedBuilderForm = ({
                         name="footerText"
                         value={embed.footerText || ""}
                         onChange={handleChange}
-                        className="w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500"
+                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
                     />
                 </div>
                 <div>
@@ -108,7 +133,7 @@ export const EmbedBuilderForm = ({
                         name="footerIcon"
                         value={embed.footerIcon || ""}
                         onChange={handleChange}
-                        className="w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:border-neutral-500"
+                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
                     />
                 </div>
             </div>
