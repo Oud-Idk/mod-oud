@@ -13,3 +13,9 @@ target/
 # Ignore any local build artifacts or archives
 *.tar.gz
 *.zip
+
+node_modules/
+.next/
+out/
+build/
+.npm/

@@ -10,6 +10,7 @@ use std::env;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use types::{Data, Error, LogEvent, SearchUrlsResponse};
+
 mod commands;
 mod core;
 mod events;
@@ -81,127 +82,159 @@ async fn main() -> Result<(), Error> {
         env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
     let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
 
-    // Initialize dependencies
+    // Read topology configurations (defaulting to true if not specified)
+    let run_bot: bool = env::var("RUN_BOT")
+        .unwrap_or_else(|_| "true".to_string())
+        .parse()
+        .unwrap_or(true);
+
+    let run_web: bool = env::var("RUN_WEB")
+        .unwrap_or_else(|_| "true".to_string())
+        .parse()
+        .unwrap_or(true);
+
+    let pool = sqlx::PgPool::connect(&database_url).await?;
+
+    // Automatically execute SQLx migrations on startup
+    println!("Checking database migrations...");
+    sqlx::migrate!()
+        .run(&pool)
+        .await?;
+    println!("Database migrations complete.");
+
+    // Initialize core shared dependencies
     let pool = sqlx::PgPool::connect(&database_url).await?;
     let redis_client = redis::Client::open(redis_url)?;
 
     // Create a standalone HTTP instance for the web server
     let http = Arc::new(serenity::Http::new(&token));
 
-    // Initialize and start the web server with the shared dependencies
-    let (tx, _) = broadcast::channel::<LogEvent>(100);
-    start_web_server(
-        pool.clone(),
-        Arc::clone(&http),
-        redis_client.clone(),
-        tx,
-    ).await?;
-
-    let intents = GatewayIntents::GUILDS
-        | GatewayIntents::GUILD_MESSAGES
-        | GatewayIntents::DIRECT_MESSAGES
-        | GatewayIntents::MESSAGE_CONTENT
-        | GatewayIntents::GUILD_MEMBERS
-        | GatewayIntents::GUILD_MESSAGE_REACTIONS;
-
-    let mut cache_settings = serenity::cache::Settings::default();
-    cache_settings.max_messages = 100;
-
-    let framework = poise::Framework::builder()
-        .options(poise::FrameworkOptions {
-            prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("!".into()),
-                edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
-                    std::time::Duration::from_secs(3600),
-                ))),
-                ..Default::default()
-            },
-            commands: vec![
-                ping::ping(),
-                moderation::others::commands::purge(),
-                moderation::others::commands::kick(),
-                moderation::others::commands::ban(),
-                moderation::others::commands::mute(),
-                moderation::others::commands::unmute(),
-                moderation::others::commands::softban(),
-                moderation::others::commands::unban(),
-                moderation::warn::commands::warn(),
-                moderation::warn::commands::warn_history(),
-                moderation::warn::commands::search_warnings(),
-                moderation::warn::commands::search_warning_by_id(),
-                moderation::warn::commands::pardon_warning(),
-                moderation::warn::commands::unpardon_warning(),
-                moderation::warn::commands::delete_warning(),
-                messages::commands::deleted_history(),
-                messages::commands::edit_history(),
-                messages::commands::report_message(),
-                emergency::lock(),
-                emergency::unlock(),
-                emergency::global_lock(),
-                emergency::global_unlock(),
-                ticket::setup_tickets(),
-                register(),
-            ],
-            on_error: |error| Box::pin(utils::error::on_error(error)),
-            event_handler: |ctx, event, framework, data| {
-                Box::pin(events::events::event_handler(ctx, event, framework, data))
-            },
-            ..Default::default()
-        })
-        .setup(move |ctx, _ready, _framework| {
-            Box::pin(async move {
-                println!("Logged in as {}", _ready.user.name);
-
-                jobs::temp_ban::start_temp_ban_worker(pool.clone(), ctx.http.clone());
-
-                jobs::ticket_inactivity::start_ticket_inactivity_worker(
-                    pool.clone(),
-                    ctx.http.clone(),
-                );
-
-                // Note: Legacy Redis PubSub command worker removed from here
-                // since commands are now processed via HTTP routes.
-
-                let spam_tracker = SpamTracker::new(redis_client.clone());
-                let redis_conn = redis_client.get_multiplexed_async_connection().await?;
-                let client = match safe_browsing_api_key {
-                    Some(k) => Some(SafeBrowsingClient::new(k)),
-                    None => None,
-                };
-
-                Ok(Data {
-                    db: pool,
-                    redis: redis_conn,
-                    spam_tracker,
-                    safe_browsing_client: client,
-                })
-            })
-        })
-        .build();
-
-    let mut client = serenity::Client::builder(token, intents)
-        .framework(framework)
-        .cache_settings(cache_settings)
-        .await?;
-
-    {
-        let mut data = client.data.write().await;
-        data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
+    // 1. Conditionally start the Web Server
+    if run_web {
+        // Increased broadcast capacity to 1024 to prevent client lag during high traffic
+        let (tx, _) = broadcast::channel::<LogEvent>(1024);
+        start_web_server(
+            pool.clone(),
+            Arc::clone(&http),
+            redis_client.clone(),
+            tx,
+        ).await?;
     }
 
-    let shard_index: u32 = env::var("SHARD_INDEX")
-        .unwrap_or_else(|_| "0".to_string())
-        .parse()
-        .expect("SHARD_INDEX must be a valid u32");
+    // 2. Conditionally start the Bot Gateway Client
+    if run_bot {
+        let intents = GatewayIntents::GUILDS
+            | GatewayIntents::GUILD_MESSAGES
+            | GatewayIntents::DIRECT_MESSAGES
+            | GatewayIntents::MESSAGE_CONTENT
+            | GatewayIntents::GUILD_MEMBERS
+            | GatewayIntents::GUILD_MESSAGE_REACTIONS;
 
-    let total_shards: u32 = env::var("TOTAL_SHARDS")
-        .unwrap_or_else(|_| "1".to_string())
-        .parse()
-        .expect("TOTAL_SHARDS must be a valid u32");
+        // Reduced cache limit from 100 to 20 since Redis distributed cache handles old message states
+        let mut cache_settings = serenity::cache::Settings::default();
+        cache_settings.max_messages = 20;
 
-    println!("Starting Shard {} of {}...", shard_index + 1, total_shards);
+        let framework = poise::Framework::builder()
+            .options(poise::FrameworkOptions {
+                prefix_options: poise::PrefixFrameworkOptions {
+                    prefix: Some("!".into()),
+                    edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
+                        std::time::Duration::from_secs(3600),
+                    ))),
+                    ..Default::default()
+                },
+                commands: vec![
+                    ping::ping(),
+                    moderation::others::commands::purge(),
+                    moderation::others::commands::kick(),
+                    moderation::others::commands::ban(),
+                    moderation::others::commands::mute(),
+                    moderation::others::commands::unmute(),
+                    moderation::others::commands::softban(),
+                    moderation::others::commands::unban(),
+                    moderation::warn::commands::warn(),
+                    moderation::warn::commands::warn_history(),
+                    moderation::warn::commands::search_warnings(),
+                    moderation::warn::commands::search_warning_by_id(),
+                    moderation::warn::commands::pardon_warning(),
+                    moderation::warn::commands::unpardon_warning(),
+                    moderation::warn::commands::delete_warning(),
+                    messages::commands::deleted_history(),
+                    messages::commands::edit_history(),
+                    messages::commands::report_message(),
+                    emergency::lock(),
+                    emergency::unlock(),
+                    emergency::global_lock(),
+                    emergency::global_unlock(),
+                    ticket::setup_tickets(),
+                    register(),
+                ],
+                on_error: |error| Box::pin(utils::error::on_error(error)),
+                event_handler: |ctx, event, framework, data| {
+                    Box::pin(events::events::event_handler(ctx, event, framework, data))
+                },
+                ..Default::default()
+            })
+            .setup(move |ctx, _ready, _framework| {
+                Box::pin(async move {
+                    println!("Logged in as {}", _ready.user.name);
 
-    client.start_shard(shard_index, total_shards).await?;
+                    // Workers now accept redis_client to execute Redis Distributed Locks (HA)
+                    jobs::temp_ban::start_temp_ban_worker(
+                        pool.clone(),
+                        ctx.http.clone(),
+                        redis_client.clone()
+                    );
+
+                    jobs::ticket_inactivity::start_ticket_inactivity_worker(
+                        pool.clone(),
+                        ctx.http.clone(),
+                        redis_client.clone(),
+                    );
+
+                    let spam_tracker = SpamTracker::new(redis_client.clone());
+                    let redis_conn = redis_client.get_multiplexed_async_connection().await?;
+                    let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
+
+                    Ok(Data {
+                        db: pool,
+                        redis: redis_conn,
+                        spam_tracker,
+                        safe_browsing_client: client,
+                    })
+                })
+            })
+            .build();
+
+        let mut client = serenity::Client::builder(token, intents)
+            .framework(framework)
+            .cache_settings(cache_settings)
+            .await?;
+
+        {
+            let mut data = client.data.write().await;
+            data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
+        }
+
+        let shard_index: u32 = env::var("SHARD_INDEX")
+            .unwrap_or_else(|_| "0".to_string())
+            .parse()
+            .expect("SHARD_INDEX must be a valid u32");
+
+        let total_shards: u32 = env::var("TOTAL_SHARDS")
+            .unwrap_or_else(|_| "1".to_string())
+            .parse()
+            .expect("TOTAL_SHARDS must be a valid u32");
+
+        println!("Starting Shard {} of {}...", shard_index + 1, total_shards);
+
+        client.start_shard(shard_index, total_shards).await?;
+    } else {
+        // If the Bot Gateway client is disabled but the Web Server is enabled,
+        // we block and keep the main thread alive.
+        println!("Bot Gateway client is disabled. Web server running exclusively.");
+        tokio::signal::ctrl_c().await?;
+    }
 
     Ok(())
 }

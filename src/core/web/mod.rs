@@ -77,7 +77,11 @@ pub async fn start_web_server(
         .layer(cors)
         .with_state(shared_state);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let port: u16 = std::env::var("PORT")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse()
+        .unwrap_or(8080);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
     println!("Starting web server on http://{}", addr);

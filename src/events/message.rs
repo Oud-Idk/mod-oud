@@ -2,6 +2,7 @@ use crate::core::config::get_settings;
 use crate::events::handlers::message_filter::rules::{self};
 use crate::events::handlers::message_filter::verdict::FilterVerdict;
 use crate::events::handlers::message_filter::{spam, verdict};
+use crate::events::handlers::message_logging::cache_message_in_redis;
 use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
 use crate::events::handlers::{message_logging, tickets};
 use crate::types::config::message_filter::{RuleScope, ScopeMode};
@@ -27,6 +28,8 @@ pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result
     let Some(guild_id) = message.guild_id else {
         return Ok(());
     };
+
+    let _ = cache_message_in_redis(&data.redis, message).await;
 
     let guild_id_i64 = guild_id.get() as i64;
     let guild_id_u64 = guild_id.get();
