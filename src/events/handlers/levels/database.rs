@@ -1,5 +1,8 @@
-use crate::events::handlers::levels::levels_text::{LevelReward, UserLevel, XpMultiplier};
+use crate::events::handlers::levels::levels_text::{calculation, LevelReward, UserLevel, XpMultiplier};
+use crate::types::config::leveling::LevelingConfig;
 use crate::types::Error;
+use redis::aio::MultiplexedConnection;
+use redis::AsyncCommands;
 use serenity::all::{GuildId, UserId};
 use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
@@ -75,4 +78,51 @@ pub async fn fetch_level_rewards(
     )
         .fetch_all(db)
         .await
+}
+
+pub async fn get_user_level(conn: &mut MultiplexedConnection, db: &PgPool, guild_id: &GuildId, author_id: &UserId, stats_key: &str) -> Result<UserLevel, Error> {
+    let cached_user: Option<String> = conn.get(&stats_key).await?;
+
+    match cached_user {
+        Some(json_data) => {
+            Ok(serde_json::from_str::<UserLevel>(&json_data)?)
+        }
+        None => {
+            let db_user = get_level(db, *guild_id, *author_id).await?;
+
+            let user = match db_user {
+                Some(user) => user,
+                None => {
+                    insert_level(db, *guild_id, *author_id).await?
+                }
+            };
+
+            let serialized = serde_json::to_string(&user)?;
+            let _: () = conn.set_ex(&stats_key, serialized, 3600).await?;
+
+            Ok(user)
+        }
+    }
+}
+
+pub async fn clamp_to_level_cap(leveling_config: &LevelingConfig, redis: &mut MultiplexedConnection, db: &PgPool, stats_key: &String, mut user_level: &mut UserLevel) -> Result<bool, Error> {
+    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
+        let mut needs_update = false;
+        if user_level.current_level > leveling_config.level_cap as i32 {
+            user_level.current_level = leveling_config.level_cap as i32;
+            needs_update = true;
+        }
+        if user_level.current_xp > 0 {
+            user_level.current_xp = 0;
+            needs_update = true;
+        }
+        if needs_update {
+            user_level.cumulative_xp = calculation::calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
+            update_level(db, &user_level).await?;
+            let serialized = serde_json::to_string(&user_level)?;
+            let _: () = redis.set_ex(&stats_key, serialized, 3600).await?;
+        }
+        return Ok(true);
+    }
+    Ok(false)
 }

@@ -3,14 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth"; // Your Auth.js/NextAuth configuration
 import {
+    getTicketConfig,
     saveLeaveConfig,
     saveLevelingConfig,
     saveMessageFilteringConfig,
     saveModerationDMsConfig,
     saveReportConfig,
+    saveTicketConfig,
     saveWelcomeConfig
 } from "@/utils/db/config";
-import { LeaveConfig, LevelingConfig, ReportConfig } from "@/types/config";
+import { LeaveConfig, LevelingConfig, ReportConfig, TicketConfig } from "@/types/config";
 import { WelcomeConfig } from "@/types/config/welcome";
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { getGuildLists } from "@/utils/servers";
@@ -71,6 +73,17 @@ export async function saveLeaveConfigAction(guildId: string, data: LeaveConfig) 
     }
 }
 
+export async function saveTicketsConfigAction(guildId: string, data: TicketConfig) {
+    try {
+        await verifyGuildAccess(guildId);
+        await saveTicketConfig(guildId, data);
+        revalidatePath(`/dashboard/${guildId}/leave`);
+    } catch (error) {
+        console.error("Failed to save tickets config:", error);
+        throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
+    }
+}
+
 export async function saveReportConfigAction(guildId: string, data: ReportConfig) {
     try {
         await verifyGuildAccess(guildId);
@@ -112,5 +125,68 @@ export async function saveModerationDMsConfigAction(guildId: string, data: Moder
     } catch (error) {
         console.error("Failed to save moderation_old DMs config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
+    }
+}
+
+export async function sendTicketMessageAction(guildId: string, channelId: string) {
+    try {
+        await verifyGuildAccess(guildId);
+        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+
+        const response = await fetch(`${backendUrl}/api/guilds/${guildId}/tickets/send-message`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ channel_id: channelId }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || "Could not instruct the bot to send the message.");
+        }
+
+        const data = (await response.json()) as { message_id: string };
+
+        const currentConfig = await getTicketConfig(guildId);
+        await saveTicketConfig(guildId, {
+            ...currentConfig,
+            posted_message_id: data.message_id,
+        });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return data.message_id;
+    } catch (error) {
+        console.error("Failed to send ticket message:", error);
+        throw new Error(error instanceof Error ? error.message : "Could not post ticket panel.");
+    }
+}
+
+export async function deleteTicketMessageAction(guildId: string, channelId: string, messageId: string) {
+    try {
+        await verifyGuildAccess(guildId);
+        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+
+        const response = await fetch(`${backendUrl}/api/guilds/${guildId}/tickets/delete-message`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ channel_id: channelId, message_id: messageId }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || "Could not instruct the bot to delete the message.");
+        }
+
+        const currentConfig = await getTicketConfig(guildId);
+        const { posted_message_id, ...rest } = currentConfig;
+        await saveTicketConfig(guildId, rest);
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+    } catch (error) {
+        console.error("Failed to delete ticket message:", error);
+        throw new Error(error instanceof Error ? error.message : "Could not delete ticket panel.");
     }
 }

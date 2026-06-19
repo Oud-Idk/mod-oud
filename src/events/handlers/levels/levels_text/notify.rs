@@ -1,6 +1,6 @@
 use crate::core::config::{get_guild_ctx, replace_level_notify_placeholder};
+use crate::events::handlers::levels::effects;
 use crate::events::handlers::levels::levels_text::UserLevel;
-use crate::events::handlers::levels::utils;
 use crate::types::config::config::Format;
 use crate::types::config::leveling::LevelingConfig;
 use crate::types::embed::DiscordEmbed;
@@ -44,7 +44,7 @@ pub async fn send_message(
         CreateMessage::new().content(content)
     });
 
-    utils::send_according_to_config(&ctx, message, config, author, msg).await?;
+    effects::send_according_to_config(&ctx, message.channel_id, config, author, msg).await?;
 
     Ok(())
 }

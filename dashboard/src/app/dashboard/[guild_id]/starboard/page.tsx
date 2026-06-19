@@ -13,7 +13,6 @@ export default async function StarboardPage({ params, searchParams }: PageProps)
     const { guild_id } = await params;
     const { id } = await searchParams;
 
-    // Fetch both the db configs and the Discord channels in parallel
     const [starboardConfigs, channelMap, roleMap] = await Promise.all([
         getStarboardConfigs(guild_id),
         getChannelMap(guild_id),
@@ -24,13 +23,12 @@ export default async function StarboardPage({ params, searchParams }: PageProps)
         ? (starboardConfigs.find((config) => config.id === id) || null)
         : (starboardConfigs[0] || null);
 
-    // Pre-bind the guild_id to the server actions so the client component doesn't need to know it
     const onSave = saveStarboardConfigAction.bind(null, guild_id);
     const onDelete = deleteStarboardConfigAction.bind(null, guild_id);
 
     return (
         <div>
-            <DashboardHeader>Starboard Settings</DashboardHeader>
+            <DashboardHeader>Starboard</DashboardHeader>
             <StarboardBody
                 starboardConfigs={starboardConfigs}
                 activeConfig={activeConfig}

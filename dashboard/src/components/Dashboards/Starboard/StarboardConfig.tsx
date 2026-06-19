@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { SetStateAction, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { StarboardConfigInput } from "@/types/config/starboard";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
@@ -13,12 +13,9 @@ import { PlaceholderList } from "@/components/Embed/PlaceholderList";
 import { Pad } from "@/components/Pad";
 import { PlaintextEditor } from "@/components/MessageCreator/PlaintextEditor";
 
-// Validation function for PostgreSQL interval format
 function validateIntervalFormat(value: string | null): boolean {
     if (!value || value.trim() === "") return true; // Empty is valid
 
-    // Accepted PostgreSQL interval format: number + unit (with optional pluralization)
-    // Examples: "1 day", "5 hours", "30 minutes", "2 weeks 3 days", "1 year 2 months"
     const intervalRegex = /^(\d+\s+(year|month|week|day|hour|minute|second)s?(\s+|$))+$/i;
     return intervalRegex.test(value.trim());
 }
@@ -30,6 +27,7 @@ interface StarboardConfigProps {
     isPending: boolean;
     onDelete: (id: string) => Promise<void>;
     onChange: (updated: StarboardConfigInput) => void;
+    setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
 }
 
 export function StarboardConfig({
@@ -39,6 +37,7 @@ export function StarboardConfig({
     isPending,
     onDelete,
     onChange,
+    setIsEmpty
 }: StarboardConfigProps) {
     const router = useRouter();
     const params = useParams();
@@ -193,6 +192,8 @@ export function StarboardConfig({
                     <PlaintextEditor
                         value={config.plaintext_template || ""}
                         onChange={v => onChange({ ...config, plaintext_template: v })}
+                        setIsEmpty={setIsEmpty}
+                        emptyable
                     />
                     <Pad/>
                     <EmbedBuilder
@@ -204,10 +205,10 @@ export function StarboardConfig({
                                 config={STARBOARD_CONFIG}
                                 embed={convertToEmbedState(config.embed_template || {})}
                                 text={config.plaintext_template || ''}
-
                             />
                         )}
                         enablePlaceholderList={false}
+                        setIsEmpty={setIsEmpty}
                     />
                 </div>
 

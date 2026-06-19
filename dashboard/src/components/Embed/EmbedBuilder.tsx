@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useMemo } from "react";
+import React, { ReactNode, SetStateAction, useMemo } from "react";
 import { BuilderConfig, EmbedState } from "@/types/builder";
 import { DiscordEmbed } from "@/types/embed";
 import { Embed } from "@/components/Embed/Embed";
@@ -14,6 +14,7 @@ interface Props {
     initialEmbedState?: string | object;
     enablePlaceholderList?: boolean;
     customPreview?: ReactNode;
+    setIsEmpty: (value: SetStateAction<boolean>) => void;
 }
 
 const emptyState: EmbedState = {
@@ -85,6 +86,7 @@ export default function EmbedBuilder({
     initialEmbedState,
     enablePlaceholderList = true,
     customPreview: CustomPreview,
+    setIsEmpty,
 }: Props) {
     const embed = useMemo<EmbedState>(() => {
         const parsed = parseSavedEmbed(initialEmbedState, emptyState);
@@ -123,7 +125,7 @@ export default function EmbedBuilder({
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="flex flex-col space-y-6">
+                <div className="flex flex-col space-y-4 pt-2">
                     {enablePlaceholderList && (<PlaceholderList config={config}/>)}
                     <EmbedBuilderForm
                         embed={embed}
@@ -131,6 +133,7 @@ export default function EmbedBuilder({
                         handleFieldChange={handleFieldChange}
                         addField={addField}
                         removeField={removeField}
+                        setIsEmpty={setIsEmpty}
                     />
                 </div>
 

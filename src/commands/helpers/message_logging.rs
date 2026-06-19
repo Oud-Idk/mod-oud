@@ -1,4 +1,4 @@
-use crate::events::handlers::message_logging::{EditDetails, MessageDetails};
+use crate::events::handlers::message_logging::types::{EditDetails, MessageDetails};
 use crate::types::config::message_logging::MessageLoggingConfig;
 use serenity::all::GuildId;
 

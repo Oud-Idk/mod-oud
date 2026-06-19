@@ -46,9 +46,6 @@ function mapRowToConfig(row: any): StarboardConfig {
     };
 }
 
-/**
- * Retrieves all starboard configurations associated with a specific guild.
- */
 export async function getStarboardConfigs(guildId: string): Promise<StarboardConfig[]> {
     const query = `
         SELECT *
@@ -61,24 +58,6 @@ export async function getStarboardConfigs(guildId: string): Promise<StarboardCon
         return res.rows.map(mapRowToConfig);
     } catch (error) {
         console.error(`Error fetching starboards for guild ${guildId}:`, error);
-        throw error;
-    }
-}
-
-/**
- * Retrieves a single starboard configuration by its ID.
- */
-export async function getStarboardConfigById(id: string): Promise<StarboardConfig | null> {
-    const query = `SELECT *
-                   FROM starboards
-                   WHERE id = $1
-                   LIMIT 1;`;
-    try {
-        const res = await db.query(query, [id]);
-        if (res.rows.length === 0) return null;
-        return mapRowToConfig(res.rows[0]);
-    } catch (error) {
-        console.error(`Error fetching starboard config by id ${id}:`, error);
         throw error;
     }
 }

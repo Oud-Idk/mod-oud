@@ -1,6 +1,8 @@
-use crate::core::config::get_settings;
-use crate::events::handlers::tickets::utils::{get_configured_role, initialize_redis_state, send_missing_config_error};
+use crate::core::config::{get_guild_ctx, get_settings, replace_welcome_goodbye_placeholders, GuildCtx};
+use crate::events::handlers::tickets::utils::{initialize_redis_state, send_disabled_error, send_missing_config_error};
+use crate::types::config::config::{Format, TicketConfig};
 use crate::types::{Data, Error};
+use crate::utils::custom_msg::build_custom_message;
 use poise::serenity_prelude as serenity;
 use serenity::all::{
     ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel,
@@ -17,17 +19,21 @@ pub async fn on_open_ticket(
         return Ok(());
     };
     let user_interact = &component.user;
-
     let settings = get_settings(&data.db, &data.redis, guild_id.get() as i64).await?;
+    let tickets = settings.tickets.as_ref();
 
-    // Resolve staff role or return early if unconfigured
-    let role_id = match get_configured_role(&settings.ticket_role_id) {
-        Some(role) => role,
+    let role_id = match tickets.and_then(|t| t.ticket_role_id) {
+        Some(role_u64) => RoleId::new(role_u64),
         None => {
             send_missing_config_error(ctx, component).await?;
             return Ok(());
         }
     };
+
+    if tickets.and_then(|t| t.enabled) != Some(true) {
+        send_disabled_error(ctx, component).await?;
+        return Ok(());
+    }
 
     component
         .create_response(
@@ -36,20 +42,32 @@ pub async fn on_open_ticket(
         )
         .await?;
 
-    // Create channel
+    let member = guild_id.member(&ctx.http, user_interact.id).await?;
+    let gctx = get_guild_ctx(guild_id, &ctx.http).await?;
+
+    let ticket_category_id = settings
+        .tickets
+        .as_ref()
+        .and_then(|t| t.category_id);
+
     let overwrites = build_permission_overwrites(guild_id, user_interact.id, role_id);
     let ticket_channel = create_ticket_channel(
         ctx,
         guild_id,
         &user_interact.name,
         overwrites,
-        settings.ticket_category_id,
+        ticket_category_id,
     ).await?;
 
-    // Send welcome assets
-    let welcome_msg = send_welcome_message(ctx, &ticket_channel, user_interact.id).await?;
+    // Pass member and gctx to send_welcome_message
+    let welcome_msg = send_welcome_message(
+        ctx,
+        &ticket_channel,
+        &member,
+        &gctx,
+        settings.tickets.as_ref()
+    ).await?;
 
-    // Track ticket in DB & Redis
     save_ticket_to_db(data, guild_id, ticket_channel.id, user_interact.id, welcome_msg.id).await?;
     initialize_redis_state(data, ticket_channel.id, welcome_msg.id).await?;
 
@@ -63,8 +81,6 @@ pub async fn on_open_ticket(
 
     Ok(())
 }
-
-// --- Helper Functions ---
 
 fn build_permission_overwrites(guild_id: GuildId, user_id: UserId, role_id: RoleId) -> Vec<PermissionOverwrite> {
     vec![
@@ -91,30 +107,62 @@ async fn create_ticket_channel(
     guild_id: GuildId,
     username: &str,
     overwrites: Vec<PermissionOverwrite>,
-    category_id_str: Option<String>,
+    category_id_str: Option<u64>,
 ) -> Result<serenity::all::GuildChannel, Error> {
     let mut channel_builder = CreateChannel::new(format!("ticket-{}", username))
         .kind(ChannelType::Text)
         .permissions(overwrites);
 
-    if let Some(cat_str) = category_id_str {
-        if let Ok(cat_u64) = cat_str.parse::<u64>() {
-            channel_builder = channel_builder.category(ChannelId::new(cat_u64));
-        }
+    if let Some(cat) = category_id_str {
+        channel_builder = channel_builder.category(ChannelId::new(cat)); // meow
     }
 
     let channel = guild_id.create_channel(&ctx.http, channel_builder).await?;
     Ok(channel)
 }
 
-async fn send_welcome_message(ctx: &Context, channel: &serenity::all::GuildChannel, user_id: UserId) -> Result<Message, Error> {
-    let welcome_embed = serenity::all::CreateEmbed::default()
+async fn send_welcome_message(
+    ctx: &Context,
+    channel: &serenity::all::GuildChannel,
+    member: &serenity::all::Member,
+    gctx: &GuildCtx,
+    ticket_cfg: Option<&TicketConfig>,
+) -> Result<Message, Error> {
+    let default_embed = serenity::all::CreateEmbed::default()
         .title("Ticket Opened")
         .description(format!(
             "Hello <@{}>, welcome to your ticket. Please describe your issue. Support will be with you shortly.",
-            user_id
+            member.user.id
         ))
         .color(0x2ECC71);
+
+    let mut message_builder = if let Some(cfg) = ticket_cfg.and_then(|c| c.welcome_message.as_ref()) {
+        let is_embed = matches!(cfg.format, Format::Embed);
+
+        let custom_layout = build_custom_message(
+            is_embed,
+            Some(&cfg.content),
+            cfg.embed.as_ref(),
+            |text| {
+                replace_welcome_goodbye_placeholders(
+                    text,
+                    gctx,
+                    member,
+                    channel,
+                    None, // No plan context
+                    None, // No achievement context
+                )
+            },
+        )
+            .ok()
+            .flatten();
+
+        custom_layout.unwrap_or_else(|| {
+            CreateMessage::default().embed(default_embed.clone())
+        })
+    } else {
+        CreateMessage::default().embed(default_embed)
+    };
 
     let close_button = vec![serenity::all::CreateActionRow::Buttons(vec![
         serenity::all::CreateButton::new("close_ticket")
@@ -123,14 +171,9 @@ async fn send_welcome_message(ctx: &Context, channel: &serenity::all::GuildChann
             .emoji('🔒'),
     ])];
 
-    let message = channel
-        .send_message(
-            &ctx.http,
-            CreateMessage::default()
-                .embed(welcome_embed)
-                .components(close_button),
-        )
-        .await?;
+    message_builder = message_builder.components(close_button);
+
+    let message = channel.send_message(&ctx.http, message_builder).await?;
     Ok(message)
 }
 

@@ -2,8 +2,7 @@
 
 import { LevelingConfig } from "@/types/config";
 import { LevelReward, XpMultiplier } from "@/utils/db/leveling";
-import { useCallback, useMemo, useState, useTransition } from "react";
-import { isDeepEqual } from "@/utils/embed";
+import { useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { TabItem, Tabs } from "@/components/Tabs";
 import { TextTab } from "@/components/Dashboards/Leveling/Tabs/TextTab";
@@ -12,21 +11,18 @@ import { GeneralTab } from "@/components/Dashboards/Leveling/Tabs/GeneralTab";
 import { MultiplierTab } from "@/components/Dashboards/Leveling/Tabs/MultiplierTab";
 import { RewardTab } from "@/components/Dashboards/Leveling/Tabs/RewardTab";
 import { DiscordChannel } from "@/types";
+import { useConfigForm } from "@/hooks/useConfigForm";
 
 interface LevelingBodyProps {
-    guildId: string; // Added here
+    guildId: string;
     levelingConfig: LevelingConfig;
     onSave: (config: LevelingConfig) => Promise<void>;
     channelMap: Record<string, string>;
     roleMap: Record<string, string>;
     multipliers: XpMultiplier[];
     rewards: LevelReward[];
-    onSaveMultipliers: (
-        targets: Array<{ targetId: string; targetType: "channel" | "role"; multiplier: number }>
-    ) => Promise<void>;
-    onSaveRewards: (
-        rewards: Array<{ levelRequirement: number; rolesToAdd: string[]; removePreviousRoles: boolean }>
-    ) => Promise<void>;
+    onSaveMultipliers: (targets: any[]) => Promise<void>;
+    onSaveRewards: (rewards: any[]) => Promise<void>;
     onDeleteMultipliers: (targetIds: string[]) => Promise<void>;
     onDeleteRewards: (ids: number[]) => Promise<void>;
     channels: DiscordChannel[];
@@ -56,31 +52,21 @@ export function LevelingBody({
     onDeleteRewards,
     channels,
 }: LevelingBodyProps) {
-    const normalizedLevelingConfig = useMemo((): LevelingConfig => {
-        return levelingConfig;
-    }, [levelingConfig]);
-
-    const [config, setConfig] = useState<LevelingConfig>(normalizedLevelingConfig);
+    const normalizedLevelingConfig = useMemo(() => levelingConfig, [levelingConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("text");
-    const [isPending, startTransition] = useTransition();
-    const isDirty = !isDeepEqual(config, normalizedLevelingConfig);
 
-    const handleSave = () => {
-        startTransition(async () => {
-            await onSave(config);
-        });
-    };
-
-    const handleCancel = () => {
-        setConfig(normalizedLevelingConfig);
-    };
-
-    const handleChange = useCallback((updated: Partial<LevelingConfig>) => {
-        setConfig((prev) => ({
-            ...prev,
-            ...updated,
-        }));
-    }, []);
+    const {
+        config,
+        isPending,
+        isDirty,
+        setIsEmpty,
+        handleSave,
+        handleCancel,
+        handleChange,
+    } = useConfigForm({
+        initialConfig: normalizedLevelingConfig,
+        onSave,
+    });
 
     return (
         <div>
@@ -94,6 +80,7 @@ export function LevelingBody({
                     channelMap={channelMap}
                     roleMap={roleMap}
                     channels={channels}
+                    setIsEmpty={setIsEmpty}
                 />
             )}
             {activeTab === "multipliers" && (

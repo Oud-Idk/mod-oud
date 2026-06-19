@@ -1,5 +1,6 @@
 use crate::types::config::config::Format;
 use crate::types::config::message_filter::RuleScope;
+use crate::types::config::ok_or_none;
 use crate::types::embed::DiscordEmbed;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
@@ -42,6 +43,7 @@ pub struct NotificationSettings {
     pub channel_id: Option<u64>,
     pub format: Format,
     pub content: String,
+    #[serde(default, deserialize_with = "ok_or_none")]
     pub embed: Option<DiscordEmbed>,
 }
 

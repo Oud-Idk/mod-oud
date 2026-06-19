@@ -11,6 +11,7 @@ import {
     MessageSquare,
     MessageSquareWarning,
     Star,
+    Ticket,
     TrendingUp
 } from "lucide-react";
 
@@ -77,6 +78,12 @@ export function SidebarLinks() {
             name: "Leveling",
             href: `/dashboard/${guildId}/leveling`,
             icon: TrendingUp,
+            exact: false,
+        },
+        {
+            name: "Tickets",
+            href: `/dashboard/${guildId}/tickets`,
+            icon: Ticket,
             exact: false,
         }
     ];

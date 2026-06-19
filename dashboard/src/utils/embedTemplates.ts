@@ -306,3 +306,65 @@ export const LEVEL_NOTIFY_CONFIG: BuilderConfig = {
         { key: "level.previous", mockValue: "16", label: "The previous level" },
     ],
 };
+
+export const TICKETS_PANEL_CONFIG: BuilderConfig = {
+    id: "tickets_panel",
+    name: "Tickets Panel Message Builder",
+    description: "Configure the greeting message containing the button used to open tickets.",
+    placeholders: [
+        // ── Server ──────────────────────────────────────────────────────────
+        { key: "server.name", mockValue: "My Server", label: "The name of your server" },
+        { key: "server.id", mockValue: "1234567890123456789", label: "The unique ID of your server" },
+        {
+            key: "server.icon_url",
+            mockValue: "https://cdn.discordapp.com/embed/avatars/0.png",
+            label: "A direct link to your server's icon image"
+        },
+        { key: "server.member_count", mockValue: "3150", label: "The total number of members in your server" },
+
+        // ── Support Role ───────────────────────────────────────────────────
+        { key: "role.mention", mockValue: "@Support Staff", label: "Mentions your configured ticket support role" },
+        { key: "role.name", mockValue: "Support Staff", label: "The name of your configured ticket support role" },
+        { key: "role.id", mockValue: "1122334455667788992", label: "The unique ID of your ticket support role" },
+    ],
+};
+
+export const TICKETS_WELCOME_CONFIG: BuilderConfig = {
+    id: "tickets_welcome",
+    name: "Ticket Welcome Message Builder",
+    description: "Configure the message sent inside the newly created ticket channel.",
+    placeholders: [
+        // ── Member (The Ticket Creator) ────────────────────────────────────
+        { key: "member.mention", mockValue: "@JaneDoe", label: "Mentions the member who opened the ticket" },
+        { key: "member.username", mockValue: "JaneDoe", label: "The username of the ticket creator" },
+        { key: "member.id", mockValue: "1122334455667788990", label: "The unique ID of the ticket creator" },
+        {
+            key: "member.avatar_url",
+            mockValue: "https://cdn.discordapp.com/embed/avatars/0.png",
+            label: "A direct link to the ticket creator's avatar"
+        },
+
+        // ── Server ──────────────────────────────────────────────────────────
+        { key: "server.name", mockValue: "My Server", label: "The name of your server" },
+        { key: "server.id", mockValue: "1234567890123456789", label: "The unique ID of your server" },
+        {
+            key: "server.icon_url",
+            mockValue: "https://cdn.discordapp.com/embed/avatars/0.png",
+            label: "A direct link to your server's icon image"
+        },
+
+        // ── Support Role ───────────────────────────────────────────────────
+        { key: "role.mention", mockValue: "@Support Staff", label: "Mentions your configured ticket support role" },
+        { key: "role.name", mockValue: "Support Staff", label: "The name of your configured ticket support role" },
+        { key: "role.id", mockValue: "1122334455667788992", label: "The unique ID of your ticket support role" },
+
+        // ── Channel (The Ticket Channel) ───────────────────────────────────
+        {
+            key: "channel.mention",
+            mockValue: "#ticket-janedoe",
+            label: "Mentions the newly created ticket text channel"
+        },
+        { key: "channel.name", mockValue: "ticket-janedoe", label: "The name of the ticket channel" },
+        { key: "channel.id", mockValue: "1122334455667788991", label: "The unique ID of the ticket channel" },
+    ],
+};

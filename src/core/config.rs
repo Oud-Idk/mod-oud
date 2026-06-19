@@ -370,6 +370,40 @@ pub fn replace_level_notify_placeholder(
     }).into_owned()
 }
 
+pub fn replace_ticket_panel_placeholders(
+    text: &str,
+    gctx: &GuildCtx,
+    role_id: Option<serenity::RoleId>,
+    role_name: Option<&str>,
+) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap());
+
+    re.replace_all(text, |caps: &regex::Captures| {
+        match &caps["key"] {
+            // ── Server ──────────────────────────────────────────────────────────
+            "server.name" => gctx.name.clone(),
+            "server.id" => gctx.id.clone(),
+            "server.icon_url" => gctx.icon_url.clone(),
+            "server.member_count" => gctx.member_count.clone(),
+
+            // ── Role ────────────────────────────────────────────────────────────
+            "role.mention" => role_id
+                .map(|id| format!("<@&{}>", id))
+                .unwrap_or_default(),
+            "role.name" => role_name
+                .map(|name| name.to_string())
+                .unwrap_or_default(),
+            "role.id" => role_id
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+
+            // ── Unknown: echo back verbatim ──────────────────────────────────
+            _ => caps[0].to_string(),
+        }
+    })
+        .into_owned()
+}
 
 /// Retrieves settings. Returns a default struct if none exists in the DB.
 pub async fn get_settings(

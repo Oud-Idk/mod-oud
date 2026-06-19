@@ -1,7 +1,14 @@
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { db } from "@/utils/init/db";
 import redis from "@/utils/init/redis";
-import { LeaveConfig, LevelingConfig, MessageLoggingConfig, ReportConfig } from "@/types/config";
+import {
+    LeaveConfig,
+    LevelingConfig,
+    MessageLayout,
+    MessageLoggingConfig,
+    ReportConfig,
+    TicketConfig
+} from "@/types/config";
 import { WelcomeConfig } from "@/types/config/welcome";
 import { ModerationDMsConfig } from "@/types/config/moderationDMs";
 
@@ -103,7 +110,6 @@ export async function getReportConfig(guildId: string): Promise<ReportConfig> {
         enabled: false,
     };
 
-    // Read the stored `report` configuration (was incorrectly reading `leave` previously)
     const dbReport = await getGuildConfigField<any>(guildId, 'report');
     if (!dbReport) return default_config;
 
@@ -270,6 +276,44 @@ export async function getModerationDMsConfig(guildId: string): Promise<Moderatio
         ban: { ...default_template, ...(dbConfig.ban || {}) },
         softban: { ...default_template, ...(dbConfig.softban || {}) },
     };
+}
+
+export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
+    const defaultConfig = {
+        category_id: "",
+        enabled: false,
+        channel_id: "",
+        format: "text",
+        content: "",
+        embed: "",
+        posted_message_id: "",
+        ticket_role_id: "",
+        warn_threshold: 30,
+        delete_threshold: 45,
+        bump_every: 20,
+    }
+
+    const defaultMessageConfig: MessageLayout = {
+        enabled: false,
+        format: "text",
+        content: "",
+        embed: "",
+    }
+
+    const dbConfig = await getGuildConfigField<any>(guildId, 'tickets');
+
+    return {
+        ...defaultConfig,
+        ...dbConfig,
+        welcome_message: {
+            ...defaultMessageConfig,
+            ...dbConfig.welcome_message,
+        }
+    }
+}
+
+export async function saveTicketConfig(guildId: string, config: TicketConfig): Promise<void> {
+    await saveGuildConfigField(guildId, 'tickets', config);
 }
 
 export async function saveModerationDMsConfig(guildId: string, config: ModerationDMsConfig): Promise<void> {

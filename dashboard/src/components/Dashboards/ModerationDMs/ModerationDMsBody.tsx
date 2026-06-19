@@ -1,6 +1,6 @@
 "use client";
 
-import { JSX, useMemo, useState, useTransition } from "react";
+import { JSX, useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import {
     BAN_CONFIG,
@@ -13,11 +13,11 @@ import {
     UNPARDON_WARN_CONFIG,
     WARN_CONFIG
 } from "@/utils/embedTemplates";
-import { isDeepEqual } from "@/utils/embed";
 import { TabItem, Tabs } from "@/components/Tabs";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { ModerationDMsConfig } from "@/types/config/moderationDMs";
 import { BuilderConfig } from "@/types/builder";
+import { useConfigForm } from "@/hooks/useConfigForm";
 
 interface ModerationDMsBodyProps {
     moderationDMsConfig: ModerationDMsConfig;
@@ -75,33 +75,26 @@ export function ModerationDMsBody({
     moderationDMsConfig,
     onSave
 }: ModerationDMsBodyProps): JSX.Element {
-    const normalizedConfig = useMemo((): ModerationDMsConfig => {
-        return moderationDMsConfig;
-    }, [moderationDMsConfig]);
-
-    const [config, setConfig] = useState<ModerationDMsConfig>(normalizedConfig);
+    const normalizedConfig = useMemo(() => moderationDMsConfig, [moderationDMsConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("warn");
-    const [isPending, startTransition] = useTransition();
-    const [resetKey, setResetKey] = useState(0);
 
-    const isDirty = !isDeepEqual(config, normalizedConfig);
-
-    const handleSave = () => {
-        startTransition(async () => {
-            await onSave(config);
-        });
-    };
-
-    const handleCancel = () => {
-        setConfig(normalizedConfig);
-        setResetKey((prev) => prev + 1);
-    };
+    const {
+        config,
+        setConfig,
+        isPending,
+        isDirty,
+        resetKey,
+        setIsEmpty,
+        handleSave,
+        handleCancel,
+    } = useConfigForm({
+        initialConfig: normalizedConfig,
+        onSave,
+    });
 
     return (
         <div>
-            <Tabs
-                tabs={MODERATION_DM_TABS} activeTab={activeTab} onChange={setActiveTab}
-            />
+            <Tabs tabs={MODERATION_DM_TABS} activeTab={activeTab} onChange={setActiveTab}/>
 
             <MessageConfigEditor
                 config={config[activeTab]}
@@ -124,13 +117,11 @@ export function ModerationDMsBody({
                 }
                 disabled={isPending}
                 toggleLabel={`Apply Custom Direct Messages for ${activeTab.charAt(0).toUpperCase() + activeTab.replace(/_/g, " ").slice(1)}s`}
-
-                // DYNAMIC MAP:
                 embedTemplateConfig={MODERATION_DM_CONFIGS[activeTab]}
-
                 resetKey={`${resetKey}_${activeTab}`}
                 modeLabel={`Message Mode (${activeTab.replace(/_/g, " ")})`}
                 placeholderText={PLACEHOLDERS[activeTab]}
+                setIsEmpty={setIsEmpty}
             />
 
             {isDirty && (

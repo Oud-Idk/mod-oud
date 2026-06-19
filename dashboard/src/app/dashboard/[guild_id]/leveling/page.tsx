@@ -39,7 +39,6 @@ export default async function LevelingPage({ params }: PageProps) {
 
     const onSave = saveLevelingConfigAction.bind(null, guild_id);
 
-    // Bind the new bulk actions
     const onSaveMultipliers = saveMultipliersAction.bind(null, guild_id);
     const onDeleteMultipliers = deleteMultipliersAction.bind(null, guild_id);
     const onSaveLevelRewards = saveRewardsAction.bind(null, guild_id);
@@ -47,7 +46,7 @@ export default async function LevelingPage({ params }: PageProps) {
 
     return (
         <div>
-            <DashboardHeader>Leveling Settings</DashboardHeader>
+            <DashboardHeader>Leveling</DashboardHeader>
             <p>The polynomial used to find out how much XP the user needs to level up in each level is</p>
             <Math tex={formula}/>
 

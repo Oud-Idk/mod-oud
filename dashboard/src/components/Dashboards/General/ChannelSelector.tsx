@@ -9,13 +9,15 @@ interface ChannelSelectorProps {
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
+    className?: string;
 }
 
 export function ChannelSelector({
     channels,
     value,
     onChange,
-    disabled
+    disabled,
+    className,
 }: ChannelSelectorProps) {
     const options = useMemo(() => {
         const list = channels.map((channel) => ({
@@ -28,8 +30,8 @@ export function ChannelSelector({
     }, [channels]);
 
     return (
-        <div className="flex flex-col gap-2 mb-6 max-w-sm">
-            <label className="text-sm font-semibold block">
+        <div className="flex flex-col gap-2 max-w-sm">
+            <label className="text-sm block">
                 Target Channel
             </label>
             <Dropdown
@@ -38,6 +40,7 @@ export function ChannelSelector({
                 onChange={onChange}
                 disabled={disabled}
                 placeholder="Select a channel..."
+                className={className}
             />
         </div>
     );

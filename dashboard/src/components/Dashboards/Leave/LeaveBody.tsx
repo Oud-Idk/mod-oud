@@ -1,12 +1,12 @@
 "use client";
 
 import { DiscordChannel } from "@/types";
-import { JSX, useCallback, useMemo, useState, useTransition } from "react";
+import { JSX, useCallback, useMemo } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
-import { isDeepEqual } from "@/utils/embed";
-import { GenericMessageConfig, MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
+import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { DEFAULT_CONFIG } from "@/utils/embedTemplates";
 import { LeaveConfig } from "@/types/config";
+import { useConfigForm } from "@/hooks/useConfigForm";
 
 interface LeaveBodyProps {
     leaveConfig: LeaveConfig;
@@ -19,48 +19,44 @@ export function LeaveBody({
     channels,
     onSave
 }: LeaveBodyProps): JSX.Element {
-    const normalizedLeaveConfig = useMemo((): LeaveConfig => {
-        return leaveConfig;
-    }, [leaveConfig]);
+    const normalizedLeaveConfig = useMemo(() => leaveConfig, [leaveConfig]);
 
-    const [config, setConfig] = useState<LeaveConfig>(normalizedLeaveConfig);
-    const [isPending, startTransition] = useTransition();
-    const [resetKey, setResetKey] = useState(0);
+    const {
+        config,
+        setConfig,
+        isPending,
+        isDirty,
+        resetKey,
+        targetChannelIsEmpty,
+        setIsEmpty,
+        setTargetChannelIsEmpty,
+        handleSave,
+        handleCancel,
+        handleChange,
+    } = useConfigForm({
+        initialConfig: normalizedLeaveConfig,
+        onSave,
+    });
 
-    const isDirty = !isDeepEqual(config, normalizedLeaveConfig);
-
-    const handleSave = () => {
-        startTransition(async () => {
-            await onSave(config);
-        });
-    };
-
-    const handleCancel = () => {
-        setConfig(normalizedLeaveConfig);
-        setResetKey((prev) => prev + 1);
-    };
-
-    const handleChange = useCallback((updated: GenericMessageConfig) => {
-        setConfig((prev) => ({
-            ...prev,
+    const handleEditorChange = useCallback((updated: any) => {
+        handleChange({
             enabled: updated.enabled,
             channel_id: updated.channel_id || "",
             content: updated.content,
             embed: updated.embed,
             format: updated.format,
-        }));
-    }, []);
+        });
+    }, [handleChange]);
 
-    // Stabilize the embed change callback so it doesn't recreate on every render
     const handleEmbedChange = useCallback((embed: any) => {
         setConfig((prev) => ({ ...prev, embed }));
-    }, []);
+    }, [setConfig]);
 
     return (
         <div>
             <MessageConfigEditor
                 config={config}
-                onChange={handleChange}
+                onChange={handleEditorChange}
                 onEmbedChange={handleEmbedChange}
                 channels={channels}
                 disabled={isPending}
@@ -69,6 +65,9 @@ export function LeaveBody({
                 resetKey={`${resetKey}_public`}
                 modeLabel="Message Mode (Leave)"
                 placeholderText="{user.username} has left the server. Goodbye!"
+                setIsEmpty={setIsEmpty}
+                setTargetChannelIsEmpty={setTargetChannelIsEmpty}
+                targetChannelIsEmpty={targetChannelIsEmpty}
             />
 
             {isDirty && (

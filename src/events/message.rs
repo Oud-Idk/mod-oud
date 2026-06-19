@@ -1,8 +1,9 @@
 use crate::core::config::get_settings;
 use crate::events::handlers::levels::levels_text;
-use crate::events::handlers::message_logging::cache_message_in_redis;
+use crate::events::handlers::message_logging::cache::cache_message_in_redis;
+use crate::events::handlers::message_logging::handlers::{message_log_delete, message_log_update};
 use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
-use crate::events::handlers::{message_filter, message_logging, tickets};
+use crate::events::handlers::{message_filter, tickets};
 use crate::types::{Data, Error};
 use serenity::all::{ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent, Reaction};
 
@@ -33,8 +34,7 @@ pub async fn on_message_delete(
     guild_id: &Option<GuildId>,
     _data: &Data,
 ) -> Result<(), Error> {
-    message_logging::message_log_delete(ctx, channel_id, deleted_message_id, guild_id, _data)
-        .await?;
+    message_log_delete(ctx, channel_id, deleted_message_id, guild_id, _data).await?;
     Ok(())
 }
 
@@ -45,7 +45,7 @@ pub async fn on_message_update(
     event: &MessageUpdateEvent,
     _data: &Data,
 ) -> Result<(), Error> {
-    message_logging::message_log_update(ctx, old_if_available, new, event, _data).await?;
+    message_log_update(ctx, old_if_available, new, event, _data).await?;
 
     Ok(())
 }

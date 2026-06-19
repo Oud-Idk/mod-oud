@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useState, useTransition } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { StarboardConfig as StarboardConfigType, StarboardConfigInput } from "@/types/config/starboard";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfig } from "./StarboardConfig";
-import { isDeepEqual } from "@/utils/embed";
 import { Pad } from "@/components/Pad";
+import { useConfigForm } from "@/hooks/useConfigForm";
 
 interface StarboardBodyProps {
     starboardConfigs: StarboardConfigType[];
@@ -30,44 +30,28 @@ export function StarboardBody({
     const params = useParams();
     const guildId = params?.guild_id as string;
 
-    // Local states
-    const [config, setConfig] = useState<StarboardConfigInput | null>(activeConfig);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isPending, startTransition] = useTransition();
-
-
-    const isDirty = activeConfig && !isDeepEqual(config, activeConfig);
-
-    // Sync active record transitions
-    useEffect(() => {
-        setConfig(activeConfig);
-    }, [activeConfig]);
-
-    const handleCancel = () => {
-        setConfig(activeConfig);
-    };
-
-    const handleChange = useCallback((updated: StarboardConfigInput) => {
-        setConfig(updated);
-    }, []);
-
-    const handleSave = () => {
-        if (!config || !config.id) return;
-        startTransition(async () => {
-            try {
-                await onSave(config);
-            } catch (err) {
-                alert("Failed to save configuration.");
+    const {
+        config,
+        isPending,
+        isDirty,
+        setIsEmpty,
+        handleSave,
+        handleCancel,
+        handleChange,
+    } = useConfigForm<StarboardConfigInput | null>({
+        initialConfig: activeConfig,
+        onSave: async (updatedConfig) => {
+            if (updatedConfig) {
+                await onSave(updatedConfig);
             }
-        });
-    };
+        },
+    });
 
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     return (
         <div className="gap-6 items-start mt-4 shrink">
-            {/* First div: flex container, height-constrained, hiding its own overflow */}
             <div className="md:col-span-1 flex flex-col min-h-70 max-h-70 p-4 rounded-lg border overflow-hidden">
-                {/* Header (stays fixed at the top) */}
                 <div className="flex justify-between items-center pb-2 border-b">
                     <span className="text-sm font-semibold uppercase tracking-wider">Boards</span>
                     <button
@@ -78,7 +62,6 @@ export function StarboardBody({
                     </button>
                 </div>
 
-                {/* Second div: takes remaining height and handles scrolling */}
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 mt-4">
                     {starboardConfigs.length === 0 ? (
                         <p className="text-xs text-zinc-500 py-2">No starboards configured yet.</p>
@@ -108,7 +91,6 @@ export function StarboardBody({
             </div>
             <Pad/>
 
-            {/* Right Panel: Selected Config Form */}
             <div className="md:col-span-3 border border-zinc-850 p-6 rounded-lg">
                 {!config ? (
                     <div className="text-center py-12 text-zinc-500 space-y-3">
@@ -128,18 +110,17 @@ export function StarboardBody({
                         isPending={isPending}
                         onDelete={onDelete}
                         onChange={handleChange}
+                        setIsEmpty={setIsEmpty}
                     />
                 )}
             </div>
 
-            {/* Save Overlay */}
             {isDirty && (
                 <SavePopup
                     handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
                 />
             )}
 
-            {/* Creation Modal */}
             <StarboardCreateModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}

@@ -3,14 +3,14 @@
 import { DeletedMessage, EditedMessage } from "@/types";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { Dropdown } from "@/components/Dropdown";
-import React, { useCallback, useMemo, useState, useTransition } from "react";
-import { isDeepEqual } from "@/utils/embed";
+import React, { useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { DeletedMessageLogViewer } from "@/components/Dashboards/MessageLogging/DeleteMessageLogViewer";
 import { EditedMessageLogViewer } from "@/components/Dashboards/MessageLogging/EditMessageLogViewer";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
 import { MessageLoggingConfig } from "@/types/config";
 import { TextInput } from "@/components/TextInput";
+import { useConfigForm } from "@/hooks/useConfigForm";
 
 interface MessageLoggingBodyProps {
     messageLoggingConfig: MessageLoggingConfig;
@@ -18,7 +18,7 @@ interface MessageLoggingBodyProps {
     deletedMessagesHistory: DeletedMessage[];
     editedMessagesHistory: EditedMessage[];
     channelMap: Record<string, string>;
-    roleMap: Record<string, string>; // Added
+    roleMap: Record<string, string>;
     fetchMoreDeletedAction: (guild_id: string, before_id: number) => Promise<DeletedMessage[]>;
     fetchMoreEditedAction: (guild_id: string, before_id: number) => Promise<EditedMessage[]>;
     guildId: string;
@@ -44,32 +44,27 @@ export function MessageLoggingBody({
         };
     }, [messageLoggingConfig]);
 
-    const [config, setConfig] = useState<MessageLoggingConfig>(normalizedMessageLoggingConfig);
-    const isDirty = !isDeepEqual(config, normalizedMessageLoggingConfig);
-    const [isPending, startTransition] = useTransition();
+    const {
+        config,
+        isPending,
+        isDirty,
+        handleSave,
+        handleCancel: resetConfig,
+        handleChange,
+    } = useConfigForm({
+        initialConfig: normalizedMessageLoggingConfig,
+        onSave,
+    });
 
-    // Local state for the "Add User ID" manual input
     const [userIdInput, setUserIdInput] = useState("");
-    // Local dropdown selection state so the Dropdown can show a placeholder and reset after selection
     const [channelDropdownValue, setChannelDropdownValue] = useState("");
     const [roleDropdownValue, setRoleDropdownValue] = useState("");
 
     const handleCancel = () => {
-        setConfig(normalizedMessageLoggingConfig);
+        resetConfig();
         setUserIdInput("");
     };
 
-    const handleChange = useCallback((updated: MessageLoggingConfig) => {
-        setConfig(updated);
-    }, []);
-
-    const handleSave = () => {
-        startTransition(async () => {
-            await onSave(config);
-        });
-    };
-
-    // Helper to toggle options in arrays
     const toggleSelection = (key: "ignored_channels" | "ignored_roles", id: string) => {
         const current = config[key] || [];
         const updated = current.includes(id)
@@ -78,13 +73,11 @@ export function MessageLoggingBody({
         handleChange({ ...config, [key]: updated });
     };
 
-    // Handle adding a user ID manually
-    const handleAddUserId = (e: React.SubmitEvent) => {
+    const handleAddUserId = (e: React.FormEvent) => {
         e.preventDefault();
         const trimmed = userIdInput.trim();
         if (!trimmed) return;
 
-        // Simple numeric verification for discord snowflakes
         if (!/^\d+$/.test(trimmed)) {
             alert("Please enter a valid Discord User ID.");
             return;
@@ -116,10 +109,8 @@ export function MessageLoggingBody({
 
                 {config.enabled && (
                     <div className="space-y-6">
-                        {/* Event toggles */}
                         <div className="space-y-4">
-                            <h4 className="text-sm font-semibold uppercase tracking-wider">Logging
-                                Events</h4>
+                            <h4 className="text-sm font-semibold uppercase tracking-wider">Logging Events</h4>
                             <ToggleSwitch
                                 enabled={config.events.message_delete} onChange={(checked) => handleChange({
                                 ...config,
@@ -135,8 +126,7 @@ export function MessageLoggingBody({
                         </div>
 
                         <div className="space-y-6 pt-4 border-t">
-                            <h4 className="text-sm font-semibold uppercase tracking-wider mb-2">Exclusion
-                                Rules</h4>
+                            <h4 className="text-sm font-semibold uppercase tracking-wider mb-2">Exclusion Rules</h4>
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium">Ignored Channels</label>
                                 <MultiSelectViewer
@@ -201,7 +191,6 @@ export function MessageLoggingBody({
                 )}
             </div>
 
-            {/* Grid display: Side-by-side on wide screens, single column on smaller screens */}
             {showViewers && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 items-start">
                     {config.events?.message_delete && (

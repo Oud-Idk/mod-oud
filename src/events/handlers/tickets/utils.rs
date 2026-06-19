@@ -1,6 +1,6 @@
 use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
-use serenity::all::{ChannelId, ComponentInteraction, CreateInteractionResponse, CreateInteractionResponseMessage, RoleId};
+use serenity::all::{ChannelId, ComponentInteraction, CreateInteractionResponse, CreateInteractionResponseMessage};
 
 pub async fn is_ticket_active(redis_conn: &mut redis::aio::MultiplexedConnection, channel_id_str: &str) -> bool {
     redis::cmd("SISMEMBER")
@@ -44,10 +44,6 @@ pub async fn update_redis_activity(
     Ok((new_count, last_button_id))
 }
 
-pub fn get_configured_role(role_id_str: &Option<String>) -> Option<RoleId> {
-    role_id_str.as_ref()?.parse::<u64>().ok().map(RoleId::new)
-}
-
 pub async fn send_missing_config_error(ctx: &serenity::Context, component: &ComponentInteraction) -> Result<(), Error> {
     component
         .create_response(
@@ -61,6 +57,21 @@ pub async fn send_missing_config_error(ctx: &serenity::Context, component: &Comp
         .await?;
     Ok(())
 }
+
+pub async fn send_disabled_error(ctx: &serenity::Context, component: &ComponentInteraction) -> Result<(), Error> {
+    component
+        .create_response(
+            &ctx.http,
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content("❌ Tickets are currently disabled in this guild.")
+                    .ephemeral(true),
+            ),
+        )
+        .await?;
+    Ok(())
+}
+
 
 pub async fn initialize_redis_state(
     data: &Data,

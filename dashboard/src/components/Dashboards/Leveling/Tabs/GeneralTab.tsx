@@ -6,6 +6,7 @@ import { Dropdown, DropdownOption } from "@/components/Dropdown";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { LEVEL_NOTIFY_CONFIG } from "@/utils/embedTemplates";
 import { DiscordChannel } from "@/types";
+import { SetStateAction } from "react";
 
 export interface GeneralTabProps {
     config: LevelingConfig;
@@ -13,9 +14,10 @@ export interface GeneralTabProps {
     channelMap: Record<string, string>;
     roleMap: Record<string, string>;
     channels: DiscordChannel[];
+    setIsEmpty: (value: SetStateAction<boolean>) => void;
 }
 
-export function GeneralTab({ config, handleChange, channelMap, roleMap, channels }: GeneralTabProps) {
+export function GeneralTab({ config, handleChange, channelMap, roleMap, channels, setIsEmpty }: GeneralTabProps) {
     const options: DropdownOption[] = [
         {
             value: "none",
@@ -39,6 +41,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
         <div className="space-y-4">
             <div>
                 <p className="text-lg">Level Cap</p>
+                <p className="text-sm">Set 0 to remove cap</p>
                 <NumberInput
                     value={config.level_cap} onChange={v => handleChange({ level_cap: v })}
                 />
@@ -78,6 +81,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                     enableToggle={false}
                     embedTemplateConfig={LEVEL_NOTIFY_CONFIG}
                     channels={config.notify.scope === "specified_channel" ? channels : undefined}
+                    setIsEmpty={setIsEmpty}
                 />
             )}
             <ScopeSettings

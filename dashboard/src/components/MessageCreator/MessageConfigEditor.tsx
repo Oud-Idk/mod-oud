@@ -1,6 +1,5 @@
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
-import { JSX } from "react";
-import { Pad } from "@/components/Pad";
+import { JSX, ReactNode, SetStateAction, useEffect } from "react";
 import { ChannelSelector } from "@/components/Dashboards/General/ChannelSelector";
 import { MessageModeSelector } from "@/components/MessageCreator/MessageModeSelector";
 import { PlaintextEditor } from "@/components/MessageCreator/PlaintextEditor";
@@ -27,6 +26,11 @@ interface MessageConfigEditorProps {
     resetKey?: string | number;
     modeLabel?: string;
     placeholderText?: string;
+    setIsEmpty: (value: SetStateAction<boolean>) => void;
+    targetChannelIsEmpty?: boolean;
+    setTargetChannelIsEmpty?: (value: SetStateAction<boolean>) => void;
+    noChannels?: boolean;
+    customFields?: ReactNode;
 }
 
 export function MessageConfigEditor({
@@ -41,31 +45,46 @@ export function MessageConfigEditor({
     modeLabel,
     placeholderText,
     enableToggle = true,
+    setIsEmpty,
+    targetChannelIsEmpty,
+    setTargetChannelIsEmpty,
+    noChannels = false,
+    customFields: CustomFields,
 }: MessageConfigEditorProps): JSX.Element {
+    if (!noChannels) {
+        useEffect(() => {
+            if (setTargetChannelIsEmpty) {
+                const normalizedChannelId = config.channel_id || "";
+                setTargetChannelIsEmpty(normalizedChannelId.trim() === "");
+            }
+        }, [config.channel_id]);
+    }
+
     return (
         <>
-            {enableToggle && <>
-                <ToggleSwitch
-                    enabled={config.enabled}
-                    disabled={disabled}
-                    onChange={(checked) => onChange({ ...config, enabled: checked })}
-                    text={toggleLabel}
-                />
-                <Pad/>
-            </>}
+            {enableToggle && (
+                <>
+                    <ToggleSwitch
+                        enabled={config.enabled}
+                        disabled={disabled}
+                        onChange={(checked) => onChange({ ...config, enabled: checked })}
+                        text={toggleLabel}
+                    />
+                </>
+            )}
 
             {config.enabled && (
                 <>
-                    {channels && (
-                        <>
-                            <ChannelSelector
-                                channels={channels}
-                                value={config.channel_id || ""}
-                                disabled={disabled}
-                                onChange={(value) => onChange({ ...config, channel_id: value })}
-                            />
-                        </>
+                    {!noChannels && channels && (
+                        <ChannelSelector
+                            channels={channels}
+                            value={config.channel_id || ""}
+                            disabled={disabled}
+                            onChange={(value) => onChange({ ...config, channel_id: value })}
+                            className={targetChannelIsEmpty ? "ring-2 ring-red-500 rounded-md" : ""}
+                        />
                     )}
+                    {CustomFields}
 
                     <MessageModeSelector
                         format={config.format}
@@ -77,10 +96,11 @@ export function MessageConfigEditor({
                     {config.format === "text" ? (
                         <PlaintextEditor
                             value={config.content || ""}
-                            placeholder={placeholderText} // Passed here
-                            placeholderConfig={embedTemplateConfig} // Reuses config structure
+                            placeholder={placeholderText}
+                            placeholderConfig={embedTemplateConfig}
                             disabled={disabled}
                             onChange={(val) => onChange({ ...config, content: val })}
+                            setIsEmpty={setIsEmpty}
                         />
                     ) : (
                         <EmbedBuilder
@@ -88,6 +108,7 @@ export function MessageConfigEditor({
                             setEmbedState={onEmbedChange}
                             config={embedTemplateConfig}
                             initialEmbedState={config.embed}
+                            setIsEmpty={setIsEmpty}
                         />
                     )}
                 </>

@@ -1,5 +1,5 @@
 export const Pad = ({ amount = 1 }: { amount?: number }) => {
     return (
-        <div style={{ paddingTop: `${amount}rem` }}/>
+        <div style={{ padding: "0", paddingTop: `${amount}rem`, margin: "0" }}/>
     )
 }

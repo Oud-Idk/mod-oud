@@ -79,84 +79,78 @@ export async function getGuildDetails(guildId: string): Promise<DiscordGuildDeta
     }
 }
 
-export async function getChannelMap(guildId: string): Promise<Record<string, string>> {
-    const cacheKey = `guild:${guildId}:channels`;
+interface ResourceConfig<T> {
+    cacheSuffix: string;
+    endpoint: string;
+    filter?: (item: T) => boolean;
+}
+
+// Reusable fetch and cache helper
+async function getGuildResourceMap<T extends { id: string; name: string }>(
+    guildId: string,
+    config: ResourceConfig<T>
+): Promise<Record<string, string>> {
+    const { cacheSuffix, endpoint, filter } = config;
+    const cacheKey = `guild:${guildId}:${cacheSuffix}`;
 
     try {
         const cached = await redis.get(cacheKey);
         if (cached) return typeof cached === "string" ? JSON.parse(cached) : cached;
     } catch (redisError) {
-        console.error("Failed to read channel cache from Redis:", redisError);
+        console.error(`Failed to read ${cacheSuffix} cache from Redis:`, redisError);
     }
 
     const token = process.env.DISCORD_TOKEN;
     if (!token) return {};
 
     try {
-        const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+        const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/${endpoint}`, {
             headers: { Authorization: `Bot ${token}` },
             next: { revalidate: 300 }
         });
 
         if (!res.ok) throw new Error(`Discord API returned status ${res.status}`);
 
-        const channels: Array<{ id: string; name: string; type: number }> = await res.json();
-        const channelMap = channels.reduce<Record<string, string>>((acc, channel) => {
-            if (channel.type !== 4 && channel.type !== 2 && channel.type !== 13) {
-                acc[channel.id] = channel.name;
+        const items: T[] = await res.json();
+        const itemMap = items.reduce<Record<string, string>>((acc, item) => {
+            if (!filter || filter(item)) {
+                acc[item.id] = item.name;
             }
             return acc;
         }, {});
 
         try {
-            await redis.set(cacheKey, JSON.stringify(channelMap), "EX", 300);
+            await redis.set(cacheKey, JSON.stringify(itemMap), "EX", 300);
         } catch (redisError) {
-            console.error("Failed to write channel cache to Redis:", redisError);
+            console.error(`Failed to write ${cacheSuffix} cache to Redis:`, redisError);
         }
 
-        return channelMap;
+        return itemMap;
     } catch (err) {
-        console.error("Failed to fetch channels from Discord API:", err);
+        console.error(`Failed to fetch ${cacheSuffix} from Discord API:`, err);
         return {};
     }
 }
 
+export async function getChannelMap(guildId: string): Promise<Record<string, string>> {
+    return getGuildResourceMap<DiscordChannel>(guildId, {
+        cacheSuffix: "channels",
+        endpoint: "channels",
+        filter: (channel) => channel.type !== 4 && channel.type !== 2 && channel.type !== 13
+    });
+}
+
 export async function getRoleMap(guildId: string): Promise<Record<string, string>> {
-    const cacheKey = `guild:${guildId}:roles`;
+    return getGuildResourceMap<{ id: string; name: string }>(guildId, {
+        cacheSuffix: "roles",
+        endpoint: "roles"
+    });
+}
 
-    try {
-        const cached = await redis.get(cacheKey);
-        if (cached) return typeof cached === "string" ? JSON.parse(cached) : cached;
-    } catch (redisError) {
-        console.error("Failed to read role cache from Redis:", redisError);
-    }
-
-    const token = process.env.DISCORD_TOKEN;
-    if (!token) return {};
-
-    try {
-        const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
-            headers: { Authorization: `Bot ${token}` },
-            next: { revalidate: 300 }
-        });
-
-        if (!res.ok) throw new Error(`Discord API returned status ${res.status}`);
-
-        const roles: Array<{ id: string; name: string }> = await res.json();
-        const roleMap = roles.reduce<Record<string, string>>((acc, role) => {
-            acc[role.id] = role.name;
-            return acc;
-        }, {});
-
-        try {
-            await redis.set(cacheKey, JSON.stringify(roleMap), "EX", 300);
-        } catch (redisError) {
-            console.error("Failed to write role cache to Redis:", redisError);
-        }
-
-        return roleMap;
-    } catch (err) {
-        console.error("Failed to fetch roles from Discord API:", err);
-        return {};
-    }
+export async function getCategoryMap(guildId: string): Promise<Record<string, string>> {
+    return getGuildResourceMap<DiscordChannel>(guildId, {
+        cacheSuffix: "categories",
+        endpoint: "channels",
+        filter: (channel) => channel.type === 4
+    });
 }

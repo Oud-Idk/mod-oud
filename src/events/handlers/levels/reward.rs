@@ -9,7 +9,7 @@ pub fn parse_role_ids(roles_opt: &Option<Vec<String>>) -> Vec<RoleId> {
                 .filter_map(|r| match r.parse::<u64>() {
                     Ok(val) => Some(RoleId::new(val)),
                     Err(_) => {
-                        eprintln!("[ERROR] Failed to parse role ID: {}", r);
+                        eprintln!("Failed to parse role ID: {}", r);
                         None
                     }
                 })
@@ -27,7 +27,7 @@ pub async fn fetch_member_roles(
         Ok(member) => Some(member.roles),
         Err(e) => {
             eprintln!(
-                "[WARNING] Could not fetch roles for user {}: {}. Proceeding without cache.",
+                "Could not fetch roles for user {}: {}. Proceeding without cache.",
                 user_id, e
             );
             None
@@ -77,7 +77,7 @@ pub async fn apply_role_modifications(
         }
 
         if let Err(e) = ctx.http.add_member_role(guild_id, user_id, role_id, Some("Level reward granted")).await {
-            eprintln!("[ERROR] Failed to add role {} to user {}: {}", role_id, user_id, e);
+            eprintln!("Failed to add role {} to user {}: {}", role_id, user_id, e);
         }
     }
 
@@ -90,7 +90,7 @@ pub async fn apply_role_modifications(
         }
 
         if let Err(e) = ctx.http.remove_member_role(guild_id, user_id, role_id, Some("Level reward cleanup")).await {
-            eprintln!("[ERROR] Failed to remove role {} from user {}: {}", role_id, user_id, e);
+            eprintln!("Failed to remove role {} from user {}: {}", role_id, user_id, e);
         }
     }
 }

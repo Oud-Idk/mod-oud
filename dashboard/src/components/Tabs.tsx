@@ -17,7 +17,7 @@ export function Tabs<T extends string>({
     onChange
 }: TabsProps<T>): JSX.Element {
     return (
-        <div className="flex space-x-4 border-b border-neutral-800 mb-6">
+        <div className="flex space-x-4 border-b border-neutral-800 mb-2">
             {tabs.map((tab) => (
                 <button
                     key={tab.value}

@@ -1,11 +1,12 @@
 use crate::types::config::leveling::LevelingConfig;
 use crate::types::config::message_filter::MessageFilteringConfig;
 use crate::types::config::message_logging::MessageLoggingConfig;
+use crate::types::config::ok_or_none;
 use crate::types::config::welcome::WelcomeConfig;
 use crate::types::embed::DiscordEmbed;
-use crate::types::flag::FlagSeverity;
-use serde::{Deserialize, Deserializer, Serialize};
-use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, serde_conv, DefaultOnError, DisplayFromStr};
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "lowercase")]
@@ -21,6 +22,7 @@ pub struct LeaveConfig {
     pub enabled: Option<bool>,
     pub channel_id: Option<String>,
     pub format: Option<String>,
+    #[serde(default, deserialize_with = "ok_or_none")]
     pub embed: Option<DiscordEmbed>,
     pub content: Option<String>,
 }
@@ -65,17 +67,47 @@ pub struct ModerationDMsConfig {
     pub softban: Option<DMTemplateSetting>,
 }
 
-fn ok_or_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    let v = serde_json::Value::deserialize(deserializer)?;
 
-    match T::deserialize(v) {
-        Ok(val) => Ok(Some(val)),
-        Err(_) => Ok(None),
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MessageLayout {
+    pub format: Format,
+    pub content: String,
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub embed: Option<DiscordEmbed>,
+}
+
+serde_conv!(
+    DurationMinutes,
+    Duration,
+    |duration: &Duration| duration.as_secs() / 60,
+    |mins: u64| -> Result<_, std::convert::Infallible> {
+        Ok(Duration::from_secs(mins * 60))
     }
+);
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TicketConfig {
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub category_id: Option<u64>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub ticket_role_id: Option<u64>,
+    pub enabled: Option<bool>,
+    pub posted_message_id: Option<String>,
+    pub channel_id: Option<String>,
+
+    pub content: Option<String>,
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub embed: Option<DiscordEmbed>,
+    pub format: Format,
+
+    #[serde_as(as = "DurationMinutes")]
+    pub warn_threshold: Duration,
+    #[serde_as(as = "DurationMinutes")]
+    pub delete_threshold: Duration,
+    pub bump_every: i32,
+
+    pub welcome_message: Option<MessageLayout>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -88,10 +120,5 @@ pub struct GuildSettings {
     pub report: Option<ReportConfig>,
     pub moderation_dms: Option<ModerationDMsConfig>,
     pub leveling: Option<LevelingConfig>,
-
-    pub leave_channel_id: Option<String>,
-    pub general_bot_logs_id: Option<String>,
-    pub message_filter_above: Option<FlagSeverity>,
-    pub ticket_category_id: Option<String>,
-    pub ticket_role_id: Option<String>,
+    pub tickets: Option<TicketConfig>,
 }

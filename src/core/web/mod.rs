@@ -1,6 +1,8 @@
 pub mod routes;
 
 use crate::core::web::routes::commands::commands::handle_dashboard_command;
+use crate::core::web::routes::tickets_delete::handle_delete_ticket_message;
+use crate::core::web::routes::tickets_send::handle_send_ticket_message;
 use crate::types::{Error, LogEvent};
 use crate::WebState;
 use axum::http::{HeaderValue, Method};
@@ -74,6 +76,14 @@ pub async fn start_web_server(
         .route("/health", get(health_check))
         .route("/api/sse/events", get(sse::sse_handler))
         .route("/api/commands", axum::routing::post(handle_dashboard_command))
+        .route(
+            "/api/guilds/{guild_id}/tickets/send-message",
+            axum::routing::post(handle_send_ticket_message)
+        )
+        .route(
+            "/api/guilds/{guild_id}/tickets/delete-message",
+            axum::routing::post(handle_delete_ticket_message)
+        )
         .layer(cors)
         .with_state(shared_state);
 

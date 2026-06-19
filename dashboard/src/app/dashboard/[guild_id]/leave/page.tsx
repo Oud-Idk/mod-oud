@@ -1,6 +1,5 @@
 import { LeaveBody } from "@/components/Dashboards/Leave/LeaveBody";
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { auth } from "@/auth";
 import { getGuildChannels } from "@/utils/discord";
 import { getLeaveConfig } from "@/utils/db/config";
 import { saveLeaveConfigAction } from "@/actions/config";
@@ -11,7 +10,6 @@ export interface PageProps {
 
 export default async function LeavePage({ params }: PageProps) {
     const { guild_id } = await params;
-    const session = await auth();
 
     const [leaveConfig, channels] = await Promise.all([
         getLeaveConfig(guild_id),

@@ -1,10 +1,9 @@
 "use client";
 
 import { TabItem, Tabs } from "@/components/Tabs";
-import { ComponentType, JSX, useCallback, useMemo, useState, useTransition } from "react";
+import { ComponentType, JSX, useMemo, useState } from "react";
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
-import { isDeepEqual } from "@/utils/embed";
 import { BadWordTab } from "@/components/Dashboards/MessageFiltering/Tabs/BadWordTab";
 import { OffensiveMessagesTab } from "@/components/Dashboards/MessageFiltering/Tabs/OffensiveMessagesTab";
 import { ServerInvitesTab } from "@/components/Dashboards/MessageFiltering/Tabs/ServerInvitesTab";
@@ -16,6 +15,7 @@ import { ExcessiveMentionsTab } from "@/components/Dashboards/MessageFiltering/T
 import { ZalgoTab } from "@/components/Dashboards/MessageFiltering/Tabs/ZalgoTab";
 import { AntiSpamFilterTab } from "@/components/Dashboards/MessageFiltering/Tabs/AntiSpamFilterTab";
 import { GlobalScopeTab } from "@/components/Dashboards/MessageFiltering/Tabs/GlobalScope";
+import { useConfigForm } from "@/hooks/useConfigForm";
 
 type TabValue =
     | "bad_words"
@@ -79,26 +79,20 @@ export function MessageFilteringBody({
     const normalizedConfig = useMemo(() => {
         return {
             ...messageFilteringConfig,
-        }
+        };
     }, [messageFilteringConfig]);
 
-    const [config, setConfig] = useState<MessageFilteringConfig>(normalizedConfig);
-    const isDirty = !isDeepEqual(config, normalizedConfig);
-    const [isPending, startTransition] = useTransition();
-
-    const handleChange = useCallback((updated: MessageFilteringConfig) => {
-        setConfig(updated);
-    }, []);
-
-    const handleSave = () => {
-        startTransition(async () => {
-            await onSave(config);
-        });
-    };
-
-    const handleCancel = () => {
-        setConfig(normalizedConfig);
-    };
+    const {
+        config,
+        isPending,
+        isDirty,
+        handleSave,
+        handleCancel,
+        handleChange,
+    } = useConfigForm({
+        initialConfig: normalizedConfig,
+        onSave,
+    });
 
     const ActiveTabComponent = TAB_MAP[activeTab];
 

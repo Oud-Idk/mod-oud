@@ -3,20 +3,20 @@
 import { ReportConfig } from "@/types/config";
 import { DiscordChannel } from "@/types";
 import { ReportedMessage } from "@/types/reports";
-import { useCallback, useMemo, useState, useTransition } from "react";
-import { isDeepEqual } from "@/utils/embed";
+import { useMemo, useState } from "react";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { ChannelSelector } from "@/components/Dashboards/General/ChannelSelector";
 import { Pad } from "@/components/Pad";
 import { useSSEInfiniteScroll } from "@/hooks/useSSEInfiniteScroll";
-import { useReportActions } from "@/hooks/useReportActions"; // Import our fresh hook
+import { useReportActions } from "@/hooks/useReportActions";
 import { fetchMoreReports } from "@/actions/reports";
 import { ImageModal } from "@/components/Dashboards/General/ImageModal";
 import { ReportedMessageCard } from "./ReportMessageCard/ReportedMessageCard";
 import { TimeoutModal } from "@/components/Dashboards/Report/Modals/TimeoutModal";
 import { WarnModal } from "@/components/Dashboards/Report/Modals/WarnModal";
 import { BanModal } from "@/components/Dashboards/Report/Modals/BanModal";
+import { useConfigForm } from "@/hooks/useConfigForm";
 
 interface ReportBodyConfig {
     reportConfig: ReportConfig;
@@ -35,8 +35,18 @@ export function ReportBody({
 }: ReportBodyConfig) {
     const normalizedReportConfig = useMemo(() => reportConfig, [reportConfig]);
 
-    const [config, setConfig] = useState<ReportConfig>(normalizedReportConfig);
-    const [isPending, startTransition] = useTransition();
+    const {
+        config,
+        isPending,
+        isDirty,
+        handleSave,
+        handleCancel,
+        handleChange,
+    } = useConfigForm({
+        initialConfig: normalizedReportConfig,
+        onSave,
+    });
+
     const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<"all" | "opened" | "closed">("all");
 
@@ -59,8 +69,6 @@ export function ReportBody({
         handleBanUser,
     } = useReportActions();
 
-    const isDirty = !isDeepEqual(config, normalizedReportConfig);
-
     const { logs, status, isLoadingMore, observerTarget } = useSSEInfiniteScroll<ReportedMessage>({
         sseUrl: `http://localhost:8080/api/sse/events?guild_id=${guildId}`,
         initialHistory: initialReports,
@@ -81,23 +89,6 @@ export function ReportBody({
             return true;
         });
     }, [logs, statusFilter]);
-
-    const handleSave = () => {
-        startTransition(async () => {
-            await onSave(config);
-        });
-    };
-
-    const handleCancel = () => {
-        setConfig(normalizedReportConfig);
-    };
-
-    const handleChange = useCallback((updated: Partial<ReportConfig>) => {
-        setConfig((prev) => ({
-            ...prev,
-            ...updated,
-        }));
-    }, []);
 
     return (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -126,7 +117,6 @@ export function ReportBody({
 
             {config.enabled && (
                 <div className="border-t border-neutral-500 pt-4 flex-1 flex flex-col min-h-0">
-
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
                         <div className="flex items-center space-x-4">
                             <h3 className="text-lg font-semibold">Recent Reports</h3>
@@ -141,9 +131,7 @@ export function ReportBody({
                             </div>
                         </div>
 
-                        <div
-                            className="flex items-center space-x-1 bg-neutral-200/50 dark:bg-neutral-800/50 p-1 rounded-lg text-xs self-start sm:self-auto border border-neutral-300 dark:border-neutral-700"
-                        >
+                        <div className="flex items-center space-x-1 bg-neutral-200/50 dark:bg-neutral-800/50 p-1 rounded-lg text-xs self-start sm:self-auto border border-neutral-300 dark:border-neutral-700">
                             <button
                                 type="button"
                                 onClick={() => setStatusFilter("all")}
@@ -180,9 +168,7 @@ export function ReportBody({
                         </div>
                     </div>
 
-                    <div
-                        className="space-y-4 overflow-y-auto pr-4 scrollbar-thin p-4 bg-neutral-300/10 border-neutral-200 dark:border-neutral-700 rounded-xl rounded-r-none border"
-                    >
+                    <div className="space-y-4 overflow-y-auto pr-4 scrollbar-thin p-4 bg-neutral-300/10 border-neutral-200 dark:border-neutral-700 rounded-xl rounded-r-none border">
                         {filteredLogs.length === 0 ? (
                             <p className="text-sm text-zinc-500 py-8 text-center">
                                 {statusFilter === "opened"

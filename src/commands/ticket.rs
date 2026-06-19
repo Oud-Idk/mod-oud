@@ -41,42 +41,77 @@ pub async fn setup_tickets(
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap().get() as i64;
     let settings = get_settings(&ctx.data().db, &ctx.data().redis, guild_id).await?;
-    let ticket_category_id_config = settings.ticket_category_id;
-    let ticket_category_id = get_or_error!(
-        ticket_category_id_config,
-        category,
-        ctx,
-        "Please set a category for this"
-    );
 
-    let ticket_role_id = get_or_error!(
-        settings.ticket_role_id,
-        role,
-        ctx,
-        "Please set a role for this"
-    );
+    if let Some(ref ticket_cfg) = settings.tickets {
+        if let Some(ref posted_id) = ticket_cfg.posted_message_id {
+            if !posted_id.trim().is_empty() {
+                ctx.send(
+                    CreateReply::default()
+                        .content("A ticket panel is already active. Please delete the existing panel before setting up a new one.")
+                        .ephemeral(true),
+                )
+                    .await?;
+                return Ok(());
+            }
+        }
+    }
 
-    sqlx::query!(
-        r#"
-        INSERT INTO guild_configs (guild_id, settings)
-        VALUES ($1, $2)
-        ON CONFLICT (guild_id)
-        DO UPDATE SET settings = guild_configs.settings || EXCLUDED.settings
-        "#,
-        guild_id,
-        serde_json::json!({
-            "ticket_category_id": ticket_category_id,
-            "ticket_role_id": ticket_role_id,
-        }),
-    )
-        .execute(&ctx.data().db)
-        .await?;
+    let category_id: u64 = match category {
+        Some(c) => c.id.get(),
+        None => {
+            let config_cat_id = settings.tickets.as_ref().and_then(|t| {
+                t.category_id
+            });
 
+            match config_cat_id {
+                Some(id) => id,
+                None => {
+                    ctx.send(
+                        CreateReply::default()
+                            .content("Please set a category for tickets using the dashboard/config first, or pass it as an argument.")
+                            .ephemeral(true),
+                    )
+                        .await?;
+                    return Ok(());
+                }
+            }
+        }
+    };
+
+    let ticket_role_id: u64 = match role {
+        Some(r) => r.id.get(),
+        None => {
+            let config_role_id = settings.tickets.as_ref().and_then(|t| {
+                t.ticket_role_id
+            });
+
+            match config_role_id {
+                Some(id) => id,
+                None => {
+                    ctx.send(
+                        CreateReply::default()
+                            .content("Please set a support role using the dashboard/config first, or pass it as an argument.")
+                            .ephemeral(true),
+                    )
+                        .await?;
+                    return Ok(());
+                }
+            }
+        }
+    };
+
+    let target_channel_id: u64 = match &channel {
+        Some(c) => c.id.get(),
+        None => ctx.channel_id().get(),
+    };
+
+    // Build the message to send
     let embed = serenity::CreateEmbed::default()
         .title("Support Tickets")
-        .description(
-            format!("Click the button below to open a support ticket. Our staff with role <@{}> will assist you shortly.", ticket_role_id),
-        )
+        .description(format!(
+            "Click the button below to open a support ticket. Our staff with role <@{}> will assist you shortly.",
+            ticket_role_id
+        ))
         .color(0x5865F2);
 
     let components = vec![serenity::CreateActionRow::Buttons(vec![
@@ -90,16 +125,49 @@ pub async fn setup_tickets(
         .embed(embed)
         .components(components);
 
-    match channel {
+    // Send the message
+    let sent_message = match channel {
         Some(c) => {
-            c.send_message(&ctx.http(), message_builder).await?;
+            c.send_message(&ctx.http(), message_builder).await?
         }
         None => {
             ctx.channel_id()
                 .send_message(&ctx.http(), message_builder)
-                .await?;
+                .await?
         }
     };
+
+    let message_id = sent_message.id.to_string();
+
+    let mut tickets_payload = match settings.tickets {
+        Some(cfg) => serde_json::to_value(cfg).unwrap_or_else(|_| serde_json::json!({})),
+        None => serde_json::json!({
+            "format": "embed",
+            "content": "",
+            "embed": "",
+        }),
+    };
+
+    tickets_payload["category_id"] = serde_json::json!(category_id);
+    tickets_payload["ticket_role_id"] = serde_json::json!(ticket_role_id);
+    tickets_payload["channel_id"] = serde_json::json!(target_channel_id);
+    tickets_payload["enabled"] = serde_json::json!(true);
+    tickets_payload["posted_message_id"] = serde_json::json!(message_id);
+
+    sqlx::query!(
+        r#"
+        INSERT INTO guild_configs (guild_id, settings)
+        VALUES ($1, $2)
+        ON CONFLICT (guild_id)
+        DO UPDATE SET settings = guild_configs.settings || EXCLUDED.settings
+        "#,
+        guild_id,
+        serde_json::json!({
+            "tickets": tickets_payload
+        }),
+    )
+        .execute(&ctx.data().db)
+        .await?;
 
     ctx.send(
         CreateReply::default()

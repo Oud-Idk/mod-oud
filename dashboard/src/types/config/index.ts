@@ -68,6 +68,31 @@ export interface ReportConfig {
     reporting_channel?: string;
 }
 
+export interface MessageLayout {
+    enabled: boolean;
+    format: "embed" | "text";
+    content: string;
+    embed: string;
+}
+
+export interface TicketConfig {
+    category_id: string;
+    channel_id: string;
+    posted_message_id?: string;
+    ticket_role_id: string;
+
+    enabled: boolean;
+    format: "embed" | "text";
+    content: string;
+    embed: string;
+
+    warn_threshold: number;
+    delete_threshold: number;
+    bump_every: number;
+
+    welcome_message: MessageLayout;
+}
+
 export interface Config {
     welcome: WelcomeConfig;
     leave: LeaveConfig;
@@ -76,4 +101,5 @@ export interface Config {
     leveling: LevelingConfig;
     report: ReportConfig;
     moderation_dms: ModerationDMsConfig;
+    tickets: TicketConfig;
 }

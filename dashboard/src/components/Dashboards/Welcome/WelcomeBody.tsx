@@ -1,15 +1,14 @@
 "use client";
 
 import { DiscordChannel } from "@/types";
-import { JSX, useMemo, useState, useTransition } from "react";
+import { JSX, useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { DEFAULT_CONFIG } from "@/utils/embedTemplates";
-import { isDeepEqual } from "@/utils/embed";
 import { TabItem, Tabs } from "@/components/Tabs";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { AutoAssignRole } from "@/components/Dashboards/Welcome/AutoAssignRole";
-
 import { WelcomeConfig } from "@/types/config/welcome";
+import { useConfigForm } from "@/hooks/useConfigForm";
 
 export interface DiscordRole {
     id: string;
@@ -40,33 +39,28 @@ export function WelcomeBody({
     roles,
     onSave
 }: WelcomeBodyProps): JSX.Element {
-    const normalizedWelcomeConfig = useMemo((): WelcomeConfig => {
-        return welcomeConfig
-    }, [welcomeConfig]);
-
-    const [config, setConfig] = useState<WelcomeConfig>(normalizedWelcomeConfig);
+    const normalizedWelcomeConfig = useMemo(() => welcomeConfig, [welcomeConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("public");
-    const [isPending, startTransition] = useTransition();
-    const [resetKey, setResetKey] = useState(0);
 
-    const isDirty = !isDeepEqual(config, normalizedWelcomeConfig);
-
-    const handleSave = () => {
-        startTransition(async () => {
-            await onSave(config);
-        });
-    };
-
-    const handleCancel = () => {
-        setConfig(normalizedWelcomeConfig);
-        setResetKey((prev) => prev + 1);
-    };
+    const {
+        config,
+        setConfig,
+        isPending,
+        isDirty,
+        resetKey,
+        targetChannelIsEmpty,
+        setIsEmpty,
+        setTargetChannelIsEmpty,
+        handleSave,
+        handleCancel,
+    } = useConfigForm({
+        initialConfig: normalizedWelcomeConfig,
+        onSave,
+    });
 
     return (
         <div>
-            <Tabs
-                tabs={WELCOME_TABS} activeTab={activeTab} onChange={setActiveTab}
-            />
+            <Tabs tabs={WELCOME_TABS} activeTab={activeTab} onChange={setActiveTab}/>
 
             {activeTab === "public" && (
                 <MessageConfigEditor
@@ -83,6 +77,7 @@ export function WelcomeBody({
                             }
                         }))
                     }
+                    setIsEmpty={setIsEmpty}
                     onEmbedChange={(embed) =>
                         setConfig((prev) => ({
                             ...prev,
@@ -96,6 +91,8 @@ export function WelcomeBody({
                     resetKey={`${resetKey}_public`}
                     modeLabel="Message Mode (Public)"
                     placeholderText="Welcome to the server, {user.mention}!"
+                    setTargetChannelIsEmpty={setTargetChannelIsEmpty}
+                    targetChannelIsEmpty={targetChannelIsEmpty}
                 />
             )}
             {activeTab === "private" && (
@@ -108,12 +105,15 @@ export function WelcomeBody({
                             private: { ...prev.private, embed }
                         }))
                     }
+                    setIsEmpty={setIsEmpty}
                     disabled={isPending}
                     toggleLabel="Send Direct Message (DM) when New User Joins"
                     embedTemplateConfig={DEFAULT_CONFIG}
                     resetKey={`${resetKey}_private`}
                     modeLabel="Message Mode (Private)"
                     placeholderText="Thanks for joining our server, {user.mention}! Here are some links to get started..."
+                    setTargetChannelIsEmpty={setTargetChannelIsEmpty}
+                    targetChannelIsEmpty={targetChannelIsEmpty}
                 />
             )}
 

@@ -1,5 +1,5 @@
 import { EmbedState } from "@/types/builder";
-import { ChangeEvent } from "react";
+import { ChangeEvent, SetStateAction, useEffect } from "react";
 
 interface EmbedBuilderProps {
     embed: EmbedState;
@@ -7,6 +7,7 @@ interface EmbedBuilderProps {
     handleFieldChange: (index: number, key: "name" | "value" | "inline", value: string | boolean) => void;
     addField: () => void;
     removeField: (index: number) => void;
+    setIsEmpty: (value: SetStateAction<boolean>) => void;
 }
 
 function isEmbedStateEmpty(embed: EmbedState): boolean {
@@ -38,9 +39,15 @@ export const EmbedBuilderForm = ({
     handleFieldChange,
     addField,
     removeField,
+    setIsEmpty,
 }: EmbedBuilderProps) => {
+    useEffect(() => {
+        setIsEmpty(isEmbedStateEmpty(embed));
+    }, [embed])
+
     return (
-        <div className={`p-4 rounded-lg space-y-4 border ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}>
+        <div
+            className={`p-4 rounded-lg space-y-4 border ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}>
             {isEmbedStateEmpty(embed) && (
                 <p className="text-red-500">Embed cannot be completely empty!</p>
             )}

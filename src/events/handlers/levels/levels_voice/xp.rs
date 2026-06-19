@@ -1,7 +1,7 @@
 use crate::core::config::{get_guild_ctx, get_settings, replace_level_notify_placeholder};
 use crate::events::handlers::levels::levels_text::{calculation, UserLevel};
 use crate::events::handlers::levels::utils::apply_level_rewards;
-use crate::events::handlers::levels::{database, utils};
+use crate::events::handlers::levels::{database, effects, rules};
 use crate::types::config::config::Format;
 use crate::types::config::leveling::{LevelingConfig, NotificationScope};
 use crate::types::embed::DiscordEmbed;
@@ -19,12 +19,13 @@ pub async fn award_vc_xp_for_session(
     leave_time: i64,
     data: &Data,
 ) -> Result<(), Error> {
+    let db = &data.db;
     let elapsed_seconds = leave_time - join_time;
     if elapsed_seconds < 60 {
         return Ok(());
     }
 
-    let config = get_settings(&data.db, &data.redis, guild_id.get() as i64).await?;
+    let config = get_settings(db, &data.redis, guild_id.get() as i64).await?;
     let Some(leveling_config) = config.leveling else {
         return Ok(());
     };
@@ -36,7 +37,7 @@ pub async fn award_vc_xp_for_session(
     let user = user_id.to_user(&ctx.http).await?;
 
     // Check exclusions
-    if utils::should_exclude_from_level_up(
+    if rules::should_exclude_from_level_up(
         &leveling_config,
         &user,
         &mut redis,
@@ -53,7 +54,7 @@ pub async fn award_vc_xp_for_session(
     let stats_key = format!("member:{}:{}", guild_id, user_id);
     let multiplier_key = format!("multipliers:{}", guild_id.get());
 
-    let multiplier = utils::get_voice_multiplier(
+    let multiplier = rules::get_voice_multiplier(
         &mut redis,
         &multiplier_key,
         &data.db,
@@ -67,11 +68,25 @@ pub async fn award_vc_xp_for_session(
     let elapsed_minutes = elapsed_seconds / 60;
     let total_added_xp = calculate_session_xp(elapsed_minutes, &leveling_config, multiplier);
 
-    let mut user_level = utils::get_user_level(&mut redis, &data.db, &guild_id, &user_id, &stats_key).await?;
-    let previous_level = user_level.current_level;
+    let mut user_level = database::get_user_level(&mut redis, db, &guild_id, &user_id, &stats_key).await?;
 
+    let should_be_clamped = database::clamp_to_level_cap(&leveling_config, &mut redis, db, &stats_key, &mut user_level).await?;
+    if should_be_clamped { return Ok(()) }
+
+    let previous_level = user_level.current_level;
     user_level.current_xp += total_added_xp;
-    let leveled_up = process_level_ups(&mut user_level);
+
+    // Pass the level_cap configuration to the loop handler
+    let leveled_up = effects::process_level_ups(&mut user_level, leveling_config.level_cap as i32);
+
+    // Double-check clamp ensuring no rogue XP remains
+    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
+        user_level.current_level = leveling_config.level_cap as i32;
+        user_level.current_xp = 0;
+    }
+
+    // Keep cumulative XP properly synced
+    user_level.cumulative_xp = calculation::calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
 
     if leveled_up {
         handle_level_up(
@@ -87,7 +102,7 @@ pub async fn award_vc_xp_for_session(
             .await?;
     }
 
-    database::update_level(&data.db, &user_level).await?;
+    database::update_level(db, &user_level).await?;
 
     let serialized = serde_json::to_string(&user_level)?;
     let _: () = redis.set_ex(&stats_key, serialized, 3600).await?;
@@ -103,24 +118,6 @@ fn calculate_session_xp(elapsed_minutes: i64, config: &LevelingConfig, multiplie
         total_added_xp += (base_xp as f32 * multiplier) as i32;
     }
     total_added_xp
-}
-
-/// Applies cumulative XP changes and loops through any earned levels.
-fn process_level_ups(user_level: &mut UserLevel) -> bool {
-    let mut leveled_up = false;
-    loop {
-        let xp_needed = calculation::calculate_xp_needed(user_level.current_level);
-        if user_level.current_xp >= xp_needed {
-            user_level.current_xp -= xp_needed;
-            user_level.current_level += 1;
-            leveled_up = true;
-        } else {
-            break;
-        }
-    }
-    user_level.cumulative_xp =
-        calculation::calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
-    leveled_up
 }
 
 /// Dispatches level notifications and runs rewards functions.
@@ -200,7 +197,7 @@ async fn send_voice_level_up_message(
         CreateMessage::new().content(content)
     });
 
-    utils::send_voice_according_to_config(ctx, voice_channel_id, config, user, msg).await?;
+    effects::send_according_to_config(ctx, voice_channel_id, config, user, msg).await?;
 
     Ok(())
 }

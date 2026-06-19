@@ -14,8 +14,8 @@ export function MessageModeSelector({
     onChange
 }: MessageModeSelectorProps): JSX.Element {
     return (
-        <div className="space-y-2">
-            <label className="text-sm font-semibold block">
+        <div className="space-y-2 mt-1">
+            <label className="text-sm block">
                 {label}
             </label>
             <div className="flex space-x-2 bg-neutral-300/5 p-1 rounded border border-neutral-700 w-fit">

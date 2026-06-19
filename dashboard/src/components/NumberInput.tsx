@@ -8,6 +8,8 @@ interface NumberInputProps {
     max?: number;
     step?: number;
     label?: string;
+    className?: string;
+    disabled?: boolean;
 }
 
 export function NumberInput({
@@ -17,16 +19,21 @@ export function NumberInput({
     max = 100,
     step = 1,
     label,
+    className = "",
+    disabled = false,
 }: NumberInputProps) {
     const increment = () => {
+        if (disabled) return;
         onChange(Math.min(max, value + step));
     };
 
     const decrement = () => {
+        if (disabled) return;
         onChange(Math.max(min, value - step));
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (disabled) return;
         const val = parseFloat(e.target.value);
         if (!isNaN(val)) {
             onChange(val);
@@ -34,32 +41,33 @@ export function NumberInput({
     };
 
     const handleBlur = () => {
-        // If the user manually types a value outside the bounds, clamp it on blur
+        if (disabled) return;
         if (value < min) onChange(min);
         if (value > max) onChange(max);
     };
 
     return (
-        <Field className="flex flex-col gap-1.5 w-full">
+        <Field className={`flex flex-col gap-1.5 w-full ${className}`}>
             {label && (
-                <Label className="text-sm font-medium">
+                <Label className={`text-sm ${disabled ? "text-neutral-400" : ""}`}>
                     {label}
                 </Label>
             )}
 
             <div
-                className="flex items-center border border-neutral-500 rounded-lg overflow-hidden bg-neutral-300/10 max-w-35">
-                {/* Decrement Button */}
+                className={`flex items-center border border-neutral-500 rounded-lg overflow-hidden bg-neutral-300/10 max-w-35 transition-opacity ${
+                    disabled ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+            >
                 <button
                     type="button"
                     onClick={decrement}
-                    disabled={value <= min}
+                    disabled={disabled || value <= min}
                     className="px-3 py-2 hover:bg-neutral-300/30 disabled:opacity-50 disabled:hover:bg-transparent transition-colors border-r border-neutral-500 font-medium select-none cursor-pointer"
                 >
                     &minus;
                 </button>
 
-                {/* Number Input (Chrome/Safari/Firefox default arrows hidden via CSS classes) */}
                 <input
                     type="number"
                     min={min}
@@ -68,14 +76,14 @@ export function NumberInput({
                     value={value}
                     onChange={handleInputChange}
                     onBlur={handleBlur}
-                    className="w-full text-center bg-transparent border-0 py-2 focus:outline-0 dark:text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    disabled={disabled}
+                    className="w-full text-center bg-transparent border-0 py-2 focus:outline-0 dark:text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:cursor-not-allowed"
                 />
 
-                {/* Increment Button */}
                 <button
                     type="button"
                     onClick={increment}
-                    disabled={value >= max}
+                    disabled={disabled || value >= max}
                     className="px-3 py-2 hover:bg-neutral-300/15 disabled:opacity-50 disabled:hover:bg-transparent transition-colors border-l border-neutral-500 font-medium select-none cursor-pointer"
                 >
                     +

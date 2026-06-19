@@ -10,7 +10,6 @@ use sqlx::types::Json;
 pub struct Starboard {
     pub id: i64,
 
-    // Serializes/deserializes directly to/from String
     #[serde_as(as = "DisplayFromStr")]
     pub guild_id: u64,
 
@@ -20,7 +19,6 @@ pub struct Starboard {
     pub emojis: Option<Vec<String>>,
     pub reaction_threshold: Option<i32>,
 
-    // You can keep standard #[serde(with = "...")] alongside #[serde_as]
     #[serde(with = "option_pg_interval_serde")]
     pub min_message_age: Option<PgInterval>,
     #[serde(with = "option_pg_interval_serde")]
@@ -30,7 +28,6 @@ pub struct Starboard {
     pub allow_bot_messages: Option<bool>,
     pub role_restriction_type: Option<RestrictionType>,
 
-    // Handles Option<Vec<u64>> serialized as Option<Vec<String>>
     #[serde_as(as = "Option<Vec<DisplayFromStr>>")]
     pub restricted_roles: Option<Vec<u64>>,
 
