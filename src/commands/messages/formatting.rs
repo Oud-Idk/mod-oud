@@ -1,5 +1,5 @@
-use crate::commands::helpers::show_history;
 use crate::commands::messages::database::{PartialDeletedMessage, PartialEditedMessage};
+use crate::commands::messages::utils;
 use serenity::all::User;
 
 /// Formats a single edit record into blockquoted Discord markdown.
@@ -40,7 +40,7 @@ pub fn build_deleted_history_response(records: &[PartialDeletedMessage], user: U
 
     for record in records {
         let timestamp = record.deleted_at.map(|t| t.timestamp());
-        let formatted_entry = show_history::format_record(
+        let formatted_entry = utils::format_record(
             &record.content,
             timestamp,
             record.channel_id,

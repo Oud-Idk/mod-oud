@@ -1,8 +1,5 @@
-// Adjust these imports as necessary depending on where your helper functions are located
-use crate::core::config::{get_guild_ctx, get_settings, replace_ticket_panel_placeholders};
-use crate::types::config::config::Format;
-use crate::utils::custom_msg::build_custom_message;
-// Assuming get_guild_ctx and replace_ticket_panel_placeholders are in crate::utils::placeholders:
+use crate::core::config::get_settings;
+use crate::utils::ticket::build_ticket_message_payload;
 use crate::WebState;
 use axum::{
     extract::{Path, State},
@@ -12,6 +9,7 @@ use axum::{
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::{debug, info, warn};
 
 #[derive(Deserialize)]
 pub struct SendTicketMessagePayload {
@@ -28,6 +26,8 @@ pub async fn handle_send_ticket_message(
     Path(guild_id_str): Path<String>,
     Json(payload): Json<SendTicketMessagePayload>,
 ) -> Result<(StatusCode, Json<SendTicketMessageResponse>), (StatusCode, String)> {
+    info!(guild_id = guild_id_str, "Axum ticket panel dispatch endpoint triggered");
+
     let guild_id = guild_id_str.parse::<i64>().map_err(|_| {
         (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string())
     })?;
@@ -41,6 +41,7 @@ pub async fn handle_send_ticket_message(
         .get_multiplexed_async_connection()
         .await
         .map_err(|e| {
+            warn!(error = ?e, guild_id, "Failed to establish Redis connection during endpoint execution");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to create Redis connection: {}", e),
@@ -49,87 +50,47 @@ pub async fn handle_send_ticket_message(
 
     let settings = get_settings(&state.pool, &redis_conn, guild_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| {
+            warn!(error = ?e, guild_id, "Failed to load guild configuration settings");
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        })?;
 
     let ticket_cfg = match settings.tickets {
         Some(cfg) => cfg,
         None => {
+            debug!(guild_id, "Ticket dispatch failed: system is unconfigured");
             return Err((
                 StatusCode::BAD_REQUEST,
                 "Ticket system is not configured yet.".to_string(),
-            ))
+            ));
         }
     };
 
     let serenity_guild_id = serenity::GuildId::new(guild_id as u64);
-
-    let gctx = get_guild_ctx(serenity_guild_id, &state.http)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to load guild context: {}", e),
-            )
-        })?;
-
-    let role_id_opt = ticket_cfg
-        .ticket_role_id
-        .map(serenity::RoleId::new);
-
-    let mut role_name_opt = None;
-    if let Some(role_id) = role_id_opt {
-        if let Ok(roles) = serenity_guild_id.roles(&state.http).await {
-            if let Some(role) = roles.get(&role_id) {
-                role_name_opt = Some(role.name.clone());
-            }
-        }
-    }
-
     let channel = serenity::ChannelId::new(channel_id_u64);
-    let is_embed = matches!(ticket_cfg.format, Format::Embed);
 
-    let custom_msg_opt = build_custom_message(
-        is_embed,
+    let message_builder = build_ticket_message_payload(
+        &state.http,
+        serenity_guild_id,
+        ticket_cfg.ticket_role_id,
+        Some(&ticket_cfg.format),
         ticket_cfg.content.as_ref(),
         ticket_cfg.embed.as_ref(),
-        |text| {
-            replace_ticket_panel_placeholders(
-                text,
-                &gctx,
-                role_id_opt,
-                role_name_opt.as_deref(),
-            )
-        },
     )
+        .await
         .map_err(|e| {
+            warn!(error = ?e, guild_id, "Failed to compile custom ticket layout payload");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to construct custom message layout: {}", e),
+                format!("Failed to build ticket message layout: {}", e),
             )
         })?;
-
-    let mut message_builder = custom_msg_opt.unwrap_or_else(|| {
-        let default_embed = serenity::CreateEmbed::default()
-            .title("Support Tickets")
-            .description("Click the button below to open a support ticket. Our staff will assist you shortly.".to_string())
-            .color(0x5865F2);
-
-        serenity::CreateMessage::default().embed(default_embed)
-    });
-
-    let components = vec![serenity::CreateActionRow::Buttons(vec![
-        serenity::CreateButton::new("open_ticket")
-            .label("Open Ticket")
-            .style(serenity::ButtonStyle::Primary)
-            .emoji('🎫'),
-    ])];
-
-    message_builder = message_builder.components(components);
 
     let message = channel
         .send_message(&state.http, message_builder)
         .await
         .map_err(|e| {
+            warn!(error = ?e, guild_id, channel_id = channel_id_u64, "Failed to send Discord panel message");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to send Discord message: {}", e),
@@ -139,6 +100,13 @@ pub async fn handle_send_ticket_message(
     let response = SendTicketMessageResponse {
         message_id: message.id.to_string(),
     };
+
+    info!(
+        guild_id,
+        channel_id = channel_id_u64,
+        message_id = response.message_id,
+        "Ticket panel message dispatched successfully via Web API"
+    );
 
     Ok((StatusCode::OK, Json(response)))
 }

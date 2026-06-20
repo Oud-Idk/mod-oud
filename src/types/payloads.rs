@@ -9,6 +9,8 @@ pub struct DeletedMessagePayload {
     pub channel_id: String,
     pub deleted_at: String,
     pub attachment_url: String,
+    pub deleted_by_id: Option<String>,
+    pub deleted_by_name: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

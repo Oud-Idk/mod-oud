@@ -4,15 +4,21 @@ use crate::utils::logger::ActionType;
 use poise::serenity_prelude as serenity;
 use serenity::model::channel::GuildChannel;
 use serenity::{PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId};
+use tracing::{info, trace, warn};
 
 /// Resolves the guild channel from the parameter or falls back to the current context channel.
 async fn resolve_target_channel(
     ctx: &Context<'_>,
     channel: Option<GuildChannel>,
 ) -> Result<GuildChannel, Error> {
+    trace!("Resolving target channel for lockdown operation");
     match channel {
-        Some(ch) => Ok(ch),
+        Some(ch) => {
+            trace!(channel_id = ch.id.get(), "Using provided target channel");
+            Ok(ch)
+        }
         None => {
+            trace!("No channel provided; falling back to the current context channel");
             let guild_channel = ctx
                 .channel_id()
                 .to_channel(ctx.http())
@@ -29,6 +35,10 @@ fn calculate_lockdown_overwrite(
     channel: &GuildChannel,
     everyone_role_id: RoleId,
 ) -> PermissionOverwrite {
+    trace!(
+        channel_id = channel.id.get(),
+        "Calculating permission overwrite for lockdown"
+    );
     let lockdown_deny = Permissions::SEND_MESSAGES
         | Permissions::SEND_MESSAGES_IN_THREADS
         | Permissions::ADD_REACTIONS;
@@ -54,6 +64,12 @@ async fn log_action(
     action: ActionType,
     reason: Option<&str>,
 ) -> Result<(), Error> {
+    trace!(
+        guild_id = guild_id.get(),
+        target_id,
+        action = ?action,
+        "Dispatching moderation log to database and Discord integration"
+    );
     log_moderation_action(
         ctx,
         guild_id.get(),
@@ -76,8 +92,12 @@ pub async fn lock(
     >,
     #[description = "Reason for the lockdown"] reason: Option<String>,
 ) -> Result<(), Error> {
+    let caller_id = ctx.author().id.get();
+    info!(caller_id, "Invoked lock command");
+
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = resolve_target_channel(&ctx, channel).await?;
+    let target_channel_id = target_channel.id.get();
     let everyone_role_id = RoleId::new(meta.id.get());
 
     let overwrite = calculate_lockdown_overwrite(&target_channel, everyone_role_id);
@@ -97,12 +117,13 @@ pub async fn lock(
     log_action(
         &ctx,
         meta.id,
-        target_channel.id.get(),
+        target_channel_id,
         ActionType::Lock,
         Some(reason_str),
     )
         .await?;
 
+    info!(caller_id, target_channel_id, "Channel locked down successfully");
     Ok(())
 }
 
@@ -114,8 +135,12 @@ pub async fn unlock(
         GuildChannel,
     >,
 ) -> Result<(), Error> {
+    let caller_id = ctx.author().id.get();
+    info!(caller_id, "Invoked unlock command");
+
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = resolve_target_channel(&ctx, channel).await?;
+    let target_channel_id = target_channel.id.get();
     let everyone_role_id = RoleId::new(meta.id.get());
 
     target_channel
@@ -129,12 +154,13 @@ pub async fn unlock(
     log_action(
         &ctx,
         meta.id,
-        target_channel.id.get(),
+        target_channel_id,
         ActionType::Unlock,
         None,
     )
         .await?;
 
+    info!(caller_id, target_channel_id, "Channel unlocked successfully");
     Ok(())
 }
 
@@ -144,6 +170,10 @@ pub async fn global_lock(
     ctx: Context<'_>,
     #[description = "Reason for the server-wide lockdown"] reason: Option<String>,
 ) -> Result<(), Error> {
+    let caller_id = ctx.author().id.get();
+    let guild_id = ctx.guild_id().map(|g| g.get());
+    info!(caller_id, guild_id, "Invoked global_lock command");
+
     let meta = GuildMetadata::extract(&ctx)?;
     let everyone_role_id = RoleId::new(meta.id.get());
 
@@ -155,14 +185,20 @@ pub async fn global_lock(
 
     for (_, channel) in channels {
         if channel.is_text_based() {
+            let channel_id = channel.id.get();
             let overwrite = calculate_lockdown_overwrite(&channel, everyone_role_id);
-            if channel
-                .id
-                .create_permission(ctx.http(), overwrite)
-                .await
-                .is_ok()
-            {
-                locked_count += 1;
+            match channel.id.create_permission(ctx.http(), overwrite).await {
+                Ok(_) => {
+                    locked_count += 1;
+                    trace!(channel_id, "Lockdown applied to channel");
+                }
+                Err(err) => {
+                    warn!(
+                        error = ?err,
+                        channel_id,
+                        "Failed to apply lockdown permission overwrite to channel"
+                    );
+                }
             }
         }
     }
@@ -185,12 +221,22 @@ pub async fn global_lock(
     )
         .await?;
 
+    info!(
+        caller_id,
+        guild_id,
+        locked_count,
+        "Global lockdown completed successfully"
+    );
     Ok(())
 }
 
 /// Unlock all text channels across the server.
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
 pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
+    let caller_id = ctx.author().id.get();
+    let guild_id = ctx.guild_id().map(|g| g.get());
+    info!(caller_id, guild_id, "Invoked global_unlock command");
+
     let meta = GuildMetadata::extract(&ctx)?;
     let everyone_role_id = RoleId::new(meta.id.get());
 
@@ -202,14 +248,20 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
 
     for (_, channel) in channels {
         if channel.is_text_based() {
+            let channel_id = channel.id.get();
             let target_overwrite = PermissionOverwriteType::Role(everyone_role_id);
-            if channel
-                .id
-                .delete_permission(ctx.http(), target_overwrite)
-                .await
-                .is_ok()
-            {
-                unlocked_count += 1;
+            match channel.id.delete_permission(ctx.http(), target_overwrite).await {
+                Ok(_) => {
+                    unlocked_count += 1;
+                    trace!(channel_id, "Lockdown removed from channel");
+                }
+                Err(err) => {
+                    warn!(
+                        error = ?err,
+                        channel_id,
+                        "Failed to remove lockdown permission overwrite from channel"
+                    );
+                }
             }
         }
     }
@@ -230,5 +282,11 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
     )
         .await?;
 
+    info!(
+        caller_id,
+        guild_id,
+        unlocked_count,
+        "Global unlock completed successfully"
+    );
     Ok(())
 }

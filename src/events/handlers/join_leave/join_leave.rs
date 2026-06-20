@@ -77,17 +77,14 @@ pub async fn on_member_leave(
         }
     };
 
-    // If we have a message payload, send it
     if let Some(builder) = msg_payload {
         let _ = channel_id.send_message(&ctx.http, builder).await;
     }
 
-    // Finally log to DB
     database::log_leave_to_db(user.id.get() as i64, guild_id, &data.db).await?;
     Ok(())
 }
 
-/// The extracted, flat welcome handling routine
 async fn handle_member_welcome(
     ctx: &serenity::Context,
     member: &serenity::all::Member,
@@ -95,13 +92,11 @@ async fn handle_member_welcome(
 ) -> Result<(), Error> {
     let warning_text = utils::check_alt_status(&member.user);
 
-    // Using our unified context fetcher!
     let gctx = get_guild_ctx(member.guild_id, ctx).await?;
 
     let public_channel_id_str = config.public.as_ref().and_then(|p| p.channel_id.as_deref());
     let context_channel = utils::get_context_channel(ctx, member, public_channel_id_str).await?;
 
-    // 1. Handle Join Roles
     if let Some(role_ids) = config.join_role_ids {
         let mut role_set: HashSet<RoleId> = member.roles.iter().copied().collect();
         for role_id in role_ids {
@@ -112,7 +107,6 @@ async fn handle_member_welcome(
         member.guild_id.edit_member(ctx, member.user.id, builder).await?;
     }
 
-    // 2. Public Channel Welcome
     if let Some(public) = config.public.filter(|p| p.enabled.unwrap_or(false)) {
         if let Some(ch_str) = public.channel_id.as_ref().and_then(|id| id.parse::<u64>().ok()) {
             let channel_id = ChannelId::new(ch_str);
@@ -122,7 +116,6 @@ async fn handle_member_welcome(
         }
     }
 
-    // 3. Private DM Welcome
     if let Some(private) = config.private.filter(|p| p.enabled.unwrap_or(false)) {
         if let Ok(dm_channel) = member.user.create_dm_channel(&ctx.http).await {
             if let Ok(builder) = utils::build_welcome_message(&private, member, &context_channel, &gctx, &warning_text, true) {

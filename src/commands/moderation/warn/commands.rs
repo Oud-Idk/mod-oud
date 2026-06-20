@@ -9,6 +9,7 @@ use crate::commands::moderation::warn::modify_warns::set_warning_active_status;
 use crate::types::{Context, Error, GuildMetadata};
 use poise::serenity_prelude as serenity;
 use serenity::all::{Member, User};
+use tracing::{debug, info, trace};
 
 /// Warns a user.
 #[poise::command(
@@ -18,12 +19,20 @@ use serenity::all::{Member, User};
 )]
 pub async fn warn(
     ctx: Context<'_>,
-
     #[description = "The member to warn"] member: Member,
-
     #[description = "The reason"] reason: Option<String>,
 ) -> Result<(), Error> {
-    let Some(meta) = pre_flight_check(&ctx, member.user.id, "warn").await? else { return Ok(()); };
+    let target_id = member.user.id.get();
+    info!(
+        caller_id = ctx.author().id.get(),
+        target_id,
+        "Invoked warn command"
+    );
+
+    let Some(meta) = pre_flight_check(&ctx, member.user.id, "warn").await? else {
+        debug!(target_id, "Warn pre-flight permissions check failed");
+        return Ok(());
+    };
 
     let reason_str = reason.unwrap_or_else(|| "No reason specified".to_string());
 
@@ -43,6 +52,7 @@ pub async fn warn(
             .ephemeral(true),
     ).await?;
 
+    info!(target_id, "User successfully warned");
     Ok(())
 }
 
@@ -56,16 +66,25 @@ pub async fn warn_history(
     ctx: Context<'_>,
     #[description = "The member to check"] member: Member,
 ) -> Result<(), Error> {
-    let meta = GuildMetadata::extract(&ctx)?; // ✅ Clean, safe extraction
+    let target_id = member.user.id.get();
+    info!(
+        caller_id = ctx.author().id.get(),
+        target_id,
+        "Invoked warn_history command"
+    );
+
+    let meta = GuildMetadata::extract(&ctx)?;
     let db = &ctx.data().db;
 
-    let warnings = fetch_warnings(db, meta.id.get() as i64, member.user.id.get() as i64).await?;
+    let warnings = fetch_warnings(db, meta.id.get() as i64, target_id as i64).await?;
 
     if warnings.is_empty() {
+        debug!(target_id, "No active warnings found for user");
         send_ephemeral(&ctx, format!("<@{}> has no active warnings.", member.user.id)).await?;
         return Ok(());
     }
 
+    trace!(target_id, count = warnings.len(), "Paginating warning history results");
     let title = format!("Warning History for {}", member.user.name);
     let avatar_url = Some(member.user.face());
 
@@ -85,14 +104,27 @@ pub async fn search_warnings(
     #[description = "The text to search for in warning reasons"] query: String,
     #[description = "Filter results to a specific user"] user: Option<User>,
 ) -> Result<(), Error> {
+    let target_user_id = user.as_ref().map(|u| u.id.get());
+    info!(
+        caller_id = ctx.author().id.get(),
+        query,
+        target_user_id,
+        "Invoked search_warnings command"
+    );
+
     let meta = GuildMetadata::extract(&ctx)?;
     let db = &ctx.data().db;
 
     let search_pattern = format!("%{}%", query);
-    let target_user_id = user.as_ref().map(|u| u.id.get() as i64);
-    let warnings = search_warnings_by_pattern(db, meta.id.get() as i64, target_user_id, &search_pattern).await?;
+    let warnings = search_warnings_by_pattern(
+        db,
+        meta.id.get() as i64,
+        target_user_id.map(|id| id as i64),
+        &search_pattern,
+    ).await?;
 
     if warnings.is_empty() {
+        debug!(query, target_user_id, "No warnings matched the search criteria");
         let filter_message = match user {
             Some(u) => format!("issued to <@{}> ", u.id),
             None => String::new(),
@@ -104,6 +136,7 @@ pub async fn search_warnings(
         return Ok(());
     }
 
+    trace!(query, count = warnings.len(), "Paginating pattern search results");
     let title = format!("Search Results for \"{}\"", query);
     let avatar_url = user.as_ref().map(|u| u.face());
 
@@ -122,6 +155,12 @@ pub async fn search_warning_by_id(
     ctx: Context<'_>,
     #[description = "The ID of the warning to look up"] id: i32,
 ) -> Result<(), Error> {
+    info!(
+        caller_id = ctx.author().id.get(),
+        warning_id = id,
+        "Invoked search_warning_by_id command"
+    );
+
     let meta = GuildMetadata::extract(&ctx)?;
     let db = &ctx.data().db;
 
@@ -129,6 +168,7 @@ pub async fn search_warning_by_id(
 
     match record {
         Some(warn) => {
+            trace!(warning_id = id, "Warning detail retrieved successfully");
             let status = if warn.is_active.unwrap_or(true) { "Active" } else { "Pardoned" };
             let time_str = match warn.created_at {
                 Some(dt) => format!("<t:{0}:f> (<t:{0}:R>)", dt.timestamp()),
@@ -148,6 +188,7 @@ pub async fn search_warning_by_id(
             ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true)).await?;
         }
         None => {
+            debug!(warning_id = id, "Warning details search returned empty");
             send_ephemeral(&ctx, format!("Could not find warning with ID **#{}** in this server.", id)).await?;
         }
     }
@@ -165,6 +206,12 @@ pub async fn delete_warning(
     ctx: Context<'_>,
     #[description = "The warning ID"] id: i32,
 ) -> Result<(), Error> {
+    info!(
+        caller_id = ctx.author().id.get(),
+        warning_id = id,
+        "Invoked delete_warning command"
+    );
+
     let meta = GuildMetadata::extract(&ctx)?;
 
     let result = issue_delete_warning(
@@ -195,8 +242,15 @@ pub async fn delete_warning(
                 Some(&reason),
                 None,
             ).await?;
+
+            info!(
+                warning_id = id,
+                target_user_id,
+                "Warning record permanently deleted from the database"
+            );
         }
         None => {
+            debug!(warning_id = id, "Delete warning failed: ID not found in database");
             send_ephemeral(
                 &ctx,
                 format!("Could not find a warning with ID **#{}** in this server.", id),
@@ -217,6 +271,11 @@ pub async fn pardon_warning(
     ctx: Context<'_>,
     #[description = "The warning ID"] id: i32,
 ) -> Result<(), Error> {
+    info!(
+        caller_id = ctx.author().id.get(),
+        warning_id = id,
+        "Invoked pardon_warning command"
+    );
     set_warning_active_status(ctx, id, false).await
 }
 
@@ -230,5 +289,10 @@ pub async fn unpardon_warning(
     ctx: Context<'_>,
     #[description = "The warning ID"] id: i32,
 ) -> Result<(), Error> {
+    info!(
+        caller_id = ctx.author().id.get(),
+        warning_id = id,
+        "Invoked unpardon_warning command"
+    );
     set_warning_active_status(ctx, id, true).await
 }

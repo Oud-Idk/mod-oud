@@ -5,6 +5,57 @@ use crate::events::handlers::message_logging::database;
 use crate::types::payloads::{DeletedMessagePayload, ModifiedMessagePayload};
 use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
+use serenity::all::{audit_log, MessageAction};
+
+async fn determine_deleter(
+    ctx: &serenity::Context,
+    guild_id: serenity::GuildId,
+    channel_id: serenity::ChannelId,
+    author_id: u64,
+) -> Option<(String, String)> {
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+
+    let audit_logs = guild_id
+        .audit_logs(
+            &ctx.http,
+            Some(audit_log::Action::Message(
+                MessageAction::Delete,
+            ),
+            ),
+            None,
+            None,
+            Some(5),
+        )
+        .await
+        .ok()?;
+
+    for entry in audit_logs.entries {
+        // Check if the target is the author of the deleted message
+        let target_matches = entry.target_id.map(|id| id.get() == author_id).unwrap_or(false);
+
+        // Check if the channel matches
+        let mut channel_matches = false;
+        if let Some(options) = &entry.options {
+            if let Some(entry_channel_id) = options.channel_id {
+                if entry_channel_id == channel_id {
+                    channel_matches = true;
+                }
+            }
+        }
+
+        if target_matches && channel_matches {
+            if let Some(user) = audit_logs.users.get(&entry.user_id) {
+                return Some((entry.user_id.to_string(), user.name.clone()));
+            }
+
+            if let Ok(user) = entry.user_id.to_user(&ctx.http).await {
+                return Some((entry.user_id.to_string(), user.name));
+            }
+        }
+    }
+
+    None
+}
 
 pub async fn message_log_delete(
     ctx: &serenity::Context,
@@ -36,12 +87,19 @@ pub async fn message_log_delete(
         return Ok(());
     };
 
+    let deleted_by = if let Some(g_id_raw) = guild_id {
+        determine_deleter(ctx, *g_id_raw, *channel_id, msg.author_id as u64)
+            .await
+    } else {
+        None
+    };
+
     if local_logging_helpers::should_exclude_from_logging(logging_config, msg.author_id, msg.chan_id, g_id, ctx).await {
         return Ok(());
     }
 
     let joined_image_urls = msg.image_urls.join(",");
-    database::insert_deleted_message(&data.db, &msg, g_id, &joined_image_urls).await?;
+    database::insert_deleted_message(&data.db, &msg, g_id, &joined_image_urls, &deleted_by).await?;
 
     let payload = DeletedMessagePayload {
         id: msg.msg_id.to_string(),
@@ -51,6 +109,8 @@ pub async fn message_log_delete(
         channel_id: msg.chan_id.to_string(),
         deleted_at: chrono::Utc::now().to_rfc3339(),
         attachment_url: joined_image_urls.to_string(),
+        deleted_by_id: deleted_by.clone().map(|id| id.0),
+        deleted_by_name: deleted_by.map(|name| name.1), // clone later if we need to reuse deleted_by
     };
 
     if let Ok(payload_json) = serde_json::to_string(&payload) {
@@ -64,6 +124,7 @@ pub async fn message_log_delete(
 
     Ok(())
 }
+
 pub async fn message_log_update(
     ctx: &serenity::Context,
     old_if_available: Option<&serenity::Message>,

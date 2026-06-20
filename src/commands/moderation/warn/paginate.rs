@@ -1,5 +1,7 @@
 use crate::commands::helpers::pagination;
 use crate::types::{Context, Error, WarningInfo};
+use tracing::trace;
+
 fn make_page(warn: &WarningInfo) -> String {
     let status = if warn.is_active.unwrap_or(true) { "Active" } else { "Pardoned" };
     let time_str = match warn.created_at {
@@ -24,6 +26,12 @@ pub async fn paginate_warnings(
     let warnings_per_page = 5;
     let chunks: Vec<_> = warnings.chunks(warnings_per_page).collect();
     let total_pages = chunks.len();
+
+    trace!(
+        total_warnings = warnings.len(),
+        total_pages,
+        "Rendering warning pagination flow"
+    );
 
     pagination::paginate(ctx, total_pages, move |page_idx| {
         let mut embed_description = String::new();

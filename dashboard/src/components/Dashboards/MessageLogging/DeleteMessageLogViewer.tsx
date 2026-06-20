@@ -14,6 +14,8 @@ interface DeletedMessage {
     content: string;
     attachment_url: string;
     deleted_at: string;
+    deleted_by_name?: string;
+    deleted_by_id?: string;
 }
 
 interface DeletedMessageLogViewerProps {
@@ -63,6 +65,10 @@ export function DeletedMessageLogViewer({
                                 </span>
                                 <span>{new Date(log.deleted_at).toLocaleTimeString()}</span>
                             </div>
+
+                            {log.deleted_by_name && (
+                                <p className="text-sm wrap-break-word">Deleted By: {log.deleted_by_name}</p>
+                            )}
 
                             {log.content && (
                                 <p className="text-sm wrap-break-word">{log.content}</p>

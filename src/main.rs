@@ -10,6 +10,7 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
+use tracing::{debug, info, trace, warn};
 use types::{Data, Error, LogEvent, SearchUrlsResponse};
 use web::start_web_server;
 
@@ -77,39 +78,72 @@ impl SafeBrowsingClient {
 async fn main() -> Result<(), Error> {
     dotenvy::dotenv().ok();
 
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_target(true)
+        .with_line_number(true)
+        .init();
+
+    let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
+
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment table, `DISCORD_TOKEN`");
+    trace!("Discord token loaded successfully.");
+
     let database_url = env::var("DATABASE_URL")
         .expect("Expected a database URL in the environment table, `DATABASE_URL`");
+    trace!("Database URL loaded successfully.");
+
     let redis_url =
         env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
-    let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
+    trace!("Redis URL loaded successfully.");
+
+    if safe_browsing_api_key.is_some() {
+        trace!("Safe Browsing API key loaded successfully.");
+    } else {
+        warn!("Safe Browsing API key not found. URL checking will be disabled.");
+    }
 
     let run_bot: bool = env::var("RUN_BOT")
         .unwrap_or_else(|_| "true".to_string())
         .parse()
         .unwrap_or(true);
 
+    if run_bot {
+        debug!("Since RUN_BOT is true, running discord bot.");
+    } else {
+        debug!("Since RUN_BOT is false, not running discord bot.");
+    }
+
     let run_web: bool = env::var("RUN_WEB")
         .unwrap_or_else(|_| "true".to_string())
         .parse()
         .unwrap_or(true);
 
-    let pool = sqlx::PgPool::connect(&database_url).await?;
+    if run_web {
+        debug!("Since RUN_WEB is true, running REST API.");
+    } else {
+        debug!("Since RUN_WEB is false, not running REST API.");
+    }
 
-    println!("Checking database migrations...");
+    let pool = sqlx::PgPool::connect(&database_url).await?;
+    info!(
+        "Database connection established! Pool size: {}, Idle: {}",
+        pool.size(),
+        pool.num_idle()
+    );
+
     sqlx::migrate!()
         .run(&pool)
         .await?;
-    println!("Database migrations complete.");
+    info!("Database migrated.");
 
-    let pool = sqlx::PgPool::connect(&database_url).await?;
     let redis_client = redis::Client::open(redis_url)?;
+    debug!("Connected to Redis as {}.", redis_client.get_connection_info().redis_settings().username().unwrap_or("unknown username"));
 
     let http = Arc::new(serenity::Http::new(&token));
 
     if run_web {
-        // Increased broadcast capacity to 1024 to prevent client lag during high traffic
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
         start_web_server(
             pool.clone(),
@@ -119,20 +153,65 @@ async fn main() -> Result<(), Error> {
         ).await?;
     }
 
-    // 2. Conditionally start the Bot Gateway Client
     if run_bot {
         let intents = GatewayIntents::GUILDS
             | GatewayIntents::GUILD_MESSAGES
             | GatewayIntents::DIRECT_MESSAGES
             | GatewayIntents::MESSAGE_CONTENT
             | GatewayIntents::GUILD_MEMBERS
-            | GatewayIntents::GUILD_MESSAGE_REACTIONS;
+            | GatewayIntents::GUILD_MESSAGE_REACTIONS
+            | GatewayIntents::GUILD_MODERATION;
+
+        let active_names: Vec<&str> = intents
+            .iter_names()
+            .map(|(name, _flag)| name)
+            .collect();
+
+        info!("Selected intents: {:?}", active_names);
 
         let mut cache_settings = serenity::cache::Settings::default();
         cache_settings.max_messages = 5;
         cache_settings.cache_users = false;
         cache_settings.cache_channels = false;
         cache_settings.time_to_live = Duration::from_secs(60 * 30);
+
+        debug!("Setting cache with {} messages per channel, caching user: {}, caching channels: {}, caching guilds: {}, and TTL: {} seconds",
+            cache_settings.max_messages,
+            cache_settings.cache_users,
+            cache_settings.cache_channels,
+            cache_settings.cache_guilds,
+            cache_settings.time_to_live.as_secs(),
+        );
+
+        let commands_to_register = vec![
+            ping::ping(),
+            moderation::others::commands::purge(),
+            moderation::others::commands::kick(),
+            moderation::others::commands::ban(),
+            moderation::others::commands::mute(),
+            moderation::others::commands::unmute(),
+            moderation::others::commands::softban(),
+            moderation::others::commands::unban(),
+            moderation::warn::commands::warn(),
+            moderation::warn::commands::warn_history(),
+            moderation::warn::commands::search_warnings(),
+            moderation::warn::commands::search_warning_by_id(),
+            moderation::warn::commands::pardon_warning(),
+            moderation::warn::commands::unpardon_warning(),
+            moderation::warn::commands::delete_warning(),
+            messages::commands::deleted_history(),
+            messages::commands::edit_history(),
+            messages::commands::report_message(),
+            leveling::level(),
+            emergency::lock(),
+            emergency::unlock(),
+            emergency::global_lock(),
+            emergency::global_unlock(),
+            ticket::setup_tickets(),
+            register(),
+        ];
+
+        info!("Registered {} commands", commands_to_register.len());
 
         let framework = poise::Framework::builder()
             .options(poise::FrameworkOptions {
@@ -143,33 +222,7 @@ async fn main() -> Result<(), Error> {
                     ))),
                     ..Default::default()
                 },
-                commands: vec![
-                    ping::ping(),
-                    moderation::others::commands::purge(),
-                    moderation::others::commands::kick(),
-                    moderation::others::commands::ban(),
-                    moderation::others::commands::mute(),
-                    moderation::others::commands::unmute(),
-                    moderation::others::commands::softban(),
-                    moderation::others::commands::unban(),
-                    moderation::warn::commands::warn(),
-                    moderation::warn::commands::warn_history(),
-                    moderation::warn::commands::search_warnings(),
-                    moderation::warn::commands::search_warning_by_id(),
-                    moderation::warn::commands::pardon_warning(),
-                    moderation::warn::commands::unpardon_warning(),
-                    moderation::warn::commands::delete_warning(),
-                    messages::commands::deleted_history(),
-                    messages::commands::edit_history(),
-                    messages::commands::report_message(),
-                    leveling::level(),
-                    emergency::lock(),
-                    emergency::unlock(),
-                    emergency::global_lock(),
-                    emergency::global_unlock(),
-                    ticket::setup_tickets(),
-                    register(),
-                ],
+                commands: commands_to_register,
                 on_error: |error| Box::pin(utils::error::on_error(error)),
                 event_handler: |ctx, event, framework, data| {
                     Box::pin(events::events::event_handler(ctx, event, framework, data))
@@ -178,7 +231,7 @@ async fn main() -> Result<(), Error> {
             })
             .setup(move |ctx, _ready, _framework| {
                 Box::pin(async move {
-                    println!("Logged in as {}", _ready.user.name);
+                    info!("Logged in as {}", _ready.user.name);
 
                     let active_tickets_cache = Arc::new(DashSet::new());
 
@@ -194,7 +247,7 @@ async fn main() -> Result<(), Error> {
                             active_tickets_cache.insert(channel_id);
                         }
                     }
-                    println!("Hydrated {} active tickets into local cache.", active_tickets_cache.len());
+                    debug!("Hydrated {} active tickets into local cache.", active_tickets_cache.len());
 
                     jobs::sync_tickets::sync_tickets(
                         &redis_client,
@@ -222,7 +275,7 @@ async fn main() -> Result<(), Error> {
                         redis: redis_conn,
                         spam_tracker,
                         safe_browsing_client: client,
-                        active_tickets: active_tickets_cache, // Pass the cache to data
+                        active_tickets: active_tickets_cache,
                     })
                 })
             })
@@ -248,11 +301,11 @@ async fn main() -> Result<(), Error> {
             .parse()
             .expect("TOTAL_SHARDS must be a valid u32");
 
-        println!("Starting Shard {} of {}...", shard_index + 1, total_shards);
+        info!("Starting Shard {} of {}...", shard_index + 1, total_shards);
 
         client.start_shard(shard_index, total_shards).await?;
     } else {
-        println!("Bot Gateway client is disabled. Web server running exclusively.");
+        warn!("Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional.");
         tokio::signal::ctrl_c().await?;
     }
 

@@ -94,8 +94,6 @@ pub async fn start_web_server(
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
-    println!("Starting web server on http://{}", addr);
-
     tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, app).await {
             eprintln!("Web server error: {}", e);

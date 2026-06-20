@@ -3,6 +3,7 @@ use crate::commands::messages::utils;
 use crate::types::payloads::{ReportStatus, ReportedMessagePayload};
 use redis::aio::MultiplexedConnection;
 use redis::AsyncCommands;
+use tracing::{debug, trace, warn};
 
 /// Core logic for saving a report to Postgres and publishing it to Redis Pub/Sub.
 /// Returns the generated report ID, or None if the message was already reported by this user.
@@ -15,6 +16,14 @@ pub async fn issue_report(
     reporter: &serenity::all::User,
     reason: String,
 ) -> Result<Option<i32>, Box<dyn std::error::Error + Send + Sync>> {
+    trace!(
+        guild_id = guild_id_u64,
+        channel_id = channel_id_u64,
+        message_id = message.id.get(),
+        reporter_id = reporter.id.get(),
+        "Starting issue_report process"
+    );
+
     let author = &message.author;
     let message_id = message.id.to_string();
     let channel_id = channel_id_u64.to_string();
@@ -26,15 +35,29 @@ pub async fn issue_report(
     let author_id = author.id.to_string();
     let reporter_name = reporter.name.clone();
 
+    trace!("Attempting to insert reported message into the database");
     let Some(row) = insert_reported_message(
-        &db, &guild_id, &channel_id,
-        &attachment_url, &reason,
-        &reporter_name, &message, &reporter,
-    ).await? else {
+        db,
+        &guild_id,
+        &channel_id,
+        &attachment_url,
+        &reason,
+        &reporter_name,
+        message,
+        reporter,
+    )
+        .await? else {
+        debug!(
+            message_id = message.id.get(),
+            reporter_id = reporter.id.get(),
+            "Report creation skipped: message was already reported by this user"
+        );
         return Ok(None);
     };
 
     let id = row.id;
+    debug!(report_id = id, "Successfully saved reported message to database");
+
     let status = ReportStatus::UnderReview;
 
     let payload = ReportedMessagePayload {
@@ -56,9 +79,22 @@ pub async fn issue_report(
         reporter_id: "".to_string(),
     };
 
-    let payload_str = serde_json::to_string(&payload)?;
-    let mut redis_pub = redis_conn.clone();
-    redis_pub.publish::<_, _, ()>("discord:reports", payload_str).await?;
+    trace!(report_id = id, "Serializing report payload to JSON");
+    let payload_str = serde_json::to_string(&payload).map_err(|err| {
+        warn!(error = ?err, report_id = id, "Failed to serialize report payload to JSON");
+        err
+    })?;
 
+    debug!(report_id = id, "Publishing report payload to Redis 'discord:reports' channel");
+    let mut redis_pub = redis_conn.clone();
+    redis_pub
+        .publish::<_, _, ()>("discord:reports", payload_str)
+        .await
+        .map_err(|err| {
+            warn!(error = ?err, report_id = id, "Failed to publish report to Redis Pub/Sub");
+            err
+        })?;
+
+    debug!(report_id = id, "Successfully completed report processing and transmission");
     Ok(Some(row.id))
 }

@@ -4,6 +4,7 @@ use futures_util::StreamExt;
 use redis::Client;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::debug;
 
 async fn hydrate_active_tickets(
     redis_client: &Client,
@@ -22,7 +23,7 @@ async fn hydrate_active_tickets(
             cache.insert(channel_id);
         }
     }
-    println!("Hydrated {} active tickets into local cache.", cache.len());
+    debug!("Hydrated {} active tickets into local cache.", cache.len());
     Ok(())
 }
 
@@ -33,19 +34,16 @@ pub fn sync_tickets(redis_client: &Client, active_tickets_cache: &Arc<DashSet<u6
         loop {
             match pubsub_client.get_async_pubsub().await {
                 Ok(mut pubsub) => {
-                    // 1. Subscribe first to start buffering incoming messages
                     if let Err(e) = pubsub.subscribe("ticket_updates").await {
                         eprintln!("Failed to subscribe to 'ticket_updates': {}", e);
                         tokio::time::sleep(Duration::from_secs(5)).await;
                         continue;
                     }
 
-                    // 2. Hydrate the cache from the database state
                     if let Err(e) = hydrate_active_tickets(&pubsub_client, &cache_clone).await {
                         eprintln!("Failed to hydrate cache on reconnect: {}", e);
                     }
 
-                    // 3. Process the message stream (including any buffered during hydration)
                     let mut msg_stream = pubsub.into_on_message();
 
                     while let Some(msg) = msg_stream.next().await {

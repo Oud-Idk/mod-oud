@@ -2,6 +2,7 @@ use crate::events::handlers::levels::database::get_user_level;
 use crate::events::handlers::levels::levels_text::calculation::calculate_xp_needed;
 use crate::types::{Data, Error};
 use serenity::all::{CreateEmbed, User};
+use tracing::{debug, trace};
 
 /// Check your current level and experience progress, or inspect another user.
 #[poise::command(slash_command, guild_only, rename = "level")]
@@ -12,11 +13,28 @@ pub async fn level(
     let guild_id = ctx.guild_id().ok_or("This command can only be used inside a server.")?;
     let target_user = user.as_ref().unwrap_or(ctx.author());
 
+    let caller_id = ctx.author().id.get();
+    let target_id = target_user.id;
+    let target_id_u64 = target_id.get();
+    let guild_id_u64 = guild_id.get();
+
+    debug!(
+        caller_id,
+        target_id = target_id_u64,
+        guild_id = guild_id_u64,
+        "Invoked level slash command"
+    );
+
     let mut redis = ctx.data().redis.clone();
     let db = &ctx.data().db;
 
-    let target_id = target_user.id;
     let stats_key = format!("member:{}:{}", guild_id, target_id);
+
+    trace!(
+        target_id = target_id_u64,
+        key = %stats_key,
+        "Retrieving level profile from database/cache"
+    );
 
     // Retrieve user level utilizing your existing utility
     let user_level = get_user_level(
@@ -26,6 +44,13 @@ pub async fn level(
         &target_id,
         &stats_key
     ).await?;
+
+    trace!(
+        target_id = target_id_u64,
+        level = user_level.current_level,
+        xp = user_level.current_xp,
+        "Successfully retrieved level metadata"
+    );
 
     let xp_needed = calculate_xp_needed(user_level.current_level);
 
@@ -55,6 +80,7 @@ pub async fn level(
         .field("Progress", format!("{}\n`{:.1}%`", progress_bar, progress_percentage * 100.0), false)
         .color(0x5865F2); // Blurple color
 
+    trace!(target_id = target_id_u64, "Dispatching response embed back to channel");
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
 
     Ok(())

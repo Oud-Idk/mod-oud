@@ -1,6 +1,7 @@
 use crate::events::handlers::message_logging::types::{EditDetails, MessageDetails};
 use crate::types::config::message_logging::MessageLoggingConfig;
 use serenity::all::GuildId;
+use tracing::{debug, trace, warn};
 
 /// Checks if a message should be excluded from logging based on channel, user, or role exclusions.
 pub async fn should_exclude_from_logging(
@@ -10,9 +11,17 @@ pub async fn should_exclude_from_logging(
     guild_id: i64,
     ctx: &serenity::all::Context,
 ) -> bool {
+    trace!(
+        author_id,
+        channel_id,
+        guild_id,
+        "Evaluating message logging exclusions"
+    );
+
     // Check if channel is ignored
     if let Some(ref ignored_channels) = config.ignored_channels {
         if ignored_channels.contains(&channel_id.to_string()) {
+            debug!(channel_id, "Message excluded: channel is ignored");
             return true;
         }
     }
@@ -20,6 +29,7 @@ pub async fn should_exclude_from_logging(
     // Check if user is ignored
     if let Some(ref ignored_users) = config.ignored_users {
         if ignored_users.contains(&author_id.to_string()) {
+            debug!(author_id, "Message excluded: user is ignored");
             return true;
         }
     }
@@ -27,19 +37,40 @@ pub async fn should_exclude_from_logging(
     // Check if user has any ignored roles
     if let Some(ref ignored_roles) = config.ignored_roles {
         if !ignored_roles.is_empty() {
-            if let Ok(member) = GuildId::new(guild_id as u64)
+            let member_result = GuildId::new(guild_id as u64)
                 .member(ctx, serenity::all::UserId::new(author_id as u64))
-                .await
-            {
-                for role_id in &member.roles {
-                    if ignored_roles.contains(&role_id.get().to_string()) {
-                        return true;
+                .await;
+
+            match member_result {
+                Ok(member) => {
+                    for role_id in &member.roles {
+                        if ignored_roles.contains(&role_id.get().to_string()) {
+                            debug!(
+                                author_id,
+                                role_id = role_id.get(),
+                                "Message excluded: user has ignored role"
+                            );
+                            return true;
+                        }
                     }
+                }
+                Err(err) => {
+                    warn!(
+                        error = ?err,
+                        author_id,
+                        guild_id,
+                        "Failed to fetch guild member metadata for exclusion checks"
+                    );
                 }
             }
         }
     }
 
+    trace!(
+        author_id,
+        channel_id,
+        "No matching exclusions found for message"
+    );
     false
 }
 
@@ -49,8 +80,30 @@ pub fn fetch_cached_message(
     channel_id: &serenity::all::ChannelId,
     message_id: &serenity::all::MessageId,
 ) -> Option<MessageDetails> {
-    let message = cache.message(channel_id, message_id)?;
+    trace!(
+        chan_id = channel_id.get(),
+        msg_id = message_id.get(),
+        "Fetching message from cache"
+    );
+
+    let message = match cache.message(channel_id, message_id) {
+        Some(msg) => msg,
+        None => {
+            trace!(
+                chan_id = channel_id.get(),
+                msg_id = message_id.get(),
+                "Message not found in cache"
+            );
+            return None;
+        }
+    };
+
     if message.author.bot {
+        debug!(
+            msg_id = message.id.get(),
+            author_id = message.author.id.get(),
+            "Cached message skipped: author is a bot"
+        );
         return None;
     }
 
@@ -60,6 +113,11 @@ pub fn fetch_cached_message(
         .filter(|a| is_image_attachment(a))
         .map(|a| a.url.clone())
         .collect();
+
+    trace!(
+        msg_id = message.id.get(),
+        "Successfully retrieved and parsed cached message"
+    );
 
     Some(MessageDetails {
         msg_id: message.id.get() as i64,
@@ -73,7 +131,7 @@ pub fn fetch_cached_message(
 
 /// Evaluates if an attachment is an image based on its suffix or content type header.
 fn is_image_attachment(attachment: &serenity::all::Attachment) -> bool {
-    attachment
+    let result = attachment
         .content_type
         .as_ref()
         .map_or(false, |ct| ct.starts_with("image/"))
@@ -81,9 +139,17 @@ fn is_image_attachment(attachment: &serenity::all::Attachment) -> bool {
         || attachment.filename.ends_with(".jpg")
         || attachment.filename.ends_with(".jpeg")
         || attachment.filename.ends_with(".webp")
-        || attachment.filename.ends_with(".gif")
-}
+        || attachment.filename.ends_with(".gif");
 
+    trace!(
+        attachment_id = attachment.id.get(),
+        filename = attachment.filename,
+        is_image = result,
+        "Evaluated attachment image status"
+    );
+
+    result
+}
 
 /// Resolves message text values and user identifiers while handling fallbacks.
 /// Returns `None` if the author was a bot or if the text was not modified.
@@ -92,34 +158,52 @@ pub fn extract_edit_details(
     new: Option<&serenity::all::Message>,
     event: &serenity::all::MessageUpdateEvent,
 ) -> Option<EditDetails> {
+    let msg_id = event.id.get() as i64;
+    let chan_id = event.channel_id.get() as i64;
+
+    trace!(msg_id, chan_id, "Processing message update event");
+
     // Check if the author of the update or the cached message is a bot
     if let Some(author) = &event.author {
         if author.bot {
+            debug!(msg_id, "Edit ignored: author is a bot (from event)");
             return None;
         }
     } else if let Some(old) = old_if_available {
         if old.author.bot {
+            debug!(msg_id, "Edit ignored: author is a bot (from cache)");
             return None;
         }
     }
 
-    let msg_id = event.id.get() as i64;
-    let chan_id = event.channel_id.get() as i64;
-
     // Fallback to old message details if event author metadata is incomplete
-    let author_id = event
+    let author_id = match event
         .author
         .as_ref()
         .map(|u| u.id.get() as i64)
-        .or_else(|| old_if_available.map(|m| m.author.id.get() as i64))?;
+        .or_else(|| old_if_available.map(|m| m.author.id.get() as i64))
+    {
+        Some(id) => id,
+        None => {
+            warn!(msg_id, "Unable to resolve author ID for edit event");
+            return None;
+        }
+    };
 
-    let author_name = event
+    let author_name = match event
         .author
         .as_ref()
         .map(|u| u.name.clone())
-        .or_else(|| old_if_available.map(|m| m.author.name.clone()))?;
+        .or_else(|| old_if_available.map(|m| m.author.name.clone()))
+    {
+        Some(name) => name,
+        None => {
+            warn!(msg_id, "Unable to resolve author username for edit event");
+            return None;
+        }
+    };
 
-    let avatar_url = event
+    let _avatar_url = event
         .author
         .as_ref()
         .and_then(|u| u.avatar_url())
@@ -133,8 +217,14 @@ pub fn extract_edit_details(
 
     // Skip log dispatch if the text payload hasn't changed (e.g. embed edits, link expanding)
     if old_content == new_content {
+        debug!(
+            msg_id,
+            "Edit ignored: content was unmodified (possibly embed or link metadata change)"
+        );
         return None;
     }
+
+    trace!(msg_id, author_id, "Successfully resolved edit details");
 
     Some(EditDetails {
         msg_id,

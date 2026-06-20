@@ -14,7 +14,6 @@ interface LogViewerProps<T> {
     renderItem: (log: T) => ReactNode;
 }
 
-// We constrain T to require an id field, which is common to both log types
 export function LogViewer<T extends { id: number }>({
     title,
     sseUrl,
