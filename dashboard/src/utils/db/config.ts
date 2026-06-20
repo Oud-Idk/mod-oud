@@ -106,8 +106,17 @@ export async function saveLeaveConfig(guildId: string, config: LeaveConfig): Pro
 }
 
 export async function getReportConfig(guildId: string): Promise<ReportConfig> {
+    const default_message_config: MessageLayout = {
+        enabled: false,
+        format: "text",
+        content: "",
+        embed: "",
+    }
+
     const default_config: ReportConfig = {
         enabled: false,
+        resolved_dm: default_message_config,
+        dismissed_dm: default_message_config,
     };
 
     const dbReport = await getGuildConfigField<any>(guildId, 'report');
@@ -302,12 +311,15 @@ export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
 
     const dbConfig = await getGuildConfigField<any>(guildId, 'tickets');
 
+    // Ensure dbConfig is an object to prevent errors when destructuring
+    const safeDbConfig = dbConfig ?? {};
+
     return {
         ...defaultConfig,
-        ...dbConfig,
+        ...safeDbConfig,
         welcome_message: {
             ...defaultMessageConfig,
-            ...dbConfig.welcome_message,
+            ...(safeDbConfig.welcome_message ?? {}),
         }
     }
 }

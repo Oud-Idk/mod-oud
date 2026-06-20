@@ -1,9 +1,11 @@
 use crate::models::spam_tracker::SpamTracker;
 use crate::SafeBrowsingClient;
 use chrono::{DateTime, Utc};
+use dashmap::DashSet;
 use payloads::{DeletedMessagePayload, ModifiedMessagePayload, ReportedMessagePayload};
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub mod flag;
 pub mod embed;
@@ -19,6 +21,7 @@ pub struct Data {
     pub redis: redis::aio::MultiplexedConnection,
     pub spam_tracker: SpamTracker,
     pub safe_browsing_client: Option<SafeBrowsingClient>,
+    pub active_tickets: Arc<DashSet<u64>>,
 }
 
 #[derive(Clone, PartialEq, Message)]

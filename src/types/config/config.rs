@@ -5,7 +5,7 @@ use crate::types::config::ok_or_none;
 use crate::types::config::welcome::WelcomeConfig;
 use crate::types::embed::DiscordEmbed;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, serde_conv, DefaultOnError, DisplayFromStr};
+use serde_with::{serde_as, serde_conv, DisplayFromStr};
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -32,8 +32,8 @@ pub struct LeaveConfig {
 #[serde(default)]
 pub struct ReportConfig {
     pub enabled: bool,
-    #[serde_as(as = "DefaultOnError<Option<DisplayFromStr>>")]
-    pub reporting_channel: Option<u64>,
+    pub resolved_dm: Option<MessageLayout>,
+    pub dismissed_dm: Option<MessageLayout>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -70,6 +70,7 @@ pub struct ModerationDMsConfig {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MessageLayout {
+    pub enabled: bool,
     pub format: Format,
     pub content: String,
     #[serde(default, deserialize_with = "ok_or_none")]

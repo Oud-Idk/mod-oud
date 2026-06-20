@@ -29,7 +29,7 @@ export function ReportedMessageCard({
     onWarnClick,
 }: ReportedMessageCardProps) {
     return (
-        <div className="p-3 border border-neutral-500 rounded-lg space-y-2 text-sm dark:bg-[#121212] bg-[#fcfcfc]">
+        <div className="p-3 border border-neutral-300 dark:border-neutral-700 rounded-lg space-y-2 text-sm dark:bg-neutral-300/5 bg-[#fcfcfc]">
             <ReportHeader
                 id={log.id}
                 status={log.status}

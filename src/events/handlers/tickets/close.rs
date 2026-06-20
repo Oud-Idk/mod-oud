@@ -48,18 +48,16 @@ async fn cleanup_ticket_records(data: &Data, channel_id: ChannelId) -> Result<()
         .execute(&data.db)
         .await?;
 
-    // 2. Redis Cleanup
     let mut redis_conn = data.redis.clone();
-    let _: () = redis::cmd("SREM")
-        .arg("active_tickets")
-        .arg(&channel_id_str)
+
+    let _: () = redis::pipe()
+        .cmd("SREM").arg("active_tickets").arg(&channel_id_str)
+        .cmd("DEL").arg(format!("ticket:{}", channel_id_str))
+        .cmd("PUBLISH").arg("ticket_updates").arg(format!("close:{}", channel_id.get()))
         .query_async(&mut redis_conn)
         .await?;
 
-    let _: () = redis::cmd("DEL")
-        .arg(format!("ticket:{}", channel_id_str))
-        .query_async(&mut redis_conn)
-        .await?;
+    data.active_tickets.remove(&channel_id.get());
 
     Ok(())
 }

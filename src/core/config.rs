@@ -145,6 +145,7 @@ pub fn replace_starboard_placeholders(
                 message.timestamp.format("%B %d, %Y at %R").to_string()
             }
             "message.stars_count" => star_count.to_string(),
+            "message.link" => message.link(),
 
             // ── Starboard ───────────────────────────────────────────────────────
             "starboard.emojis" => starboard.emojis.as_ref()
@@ -399,6 +400,61 @@ pub fn replace_ticket_panel_placeholders(
                 .unwrap_or_default(),
 
             // ── Unknown: echo back verbatim ──────────────────────────────────
+            _ => caps[0].to_string(),
+        }
+    })
+        .into_owned()
+}
+
+pub fn replace_ticket_welcome_placeholders(
+    text: &str,
+    gctx: &GuildCtx,
+    member: Option<&serenity::all::Member>,
+    role_id: Option<&serenity::RoleId>,
+    role_name: Option<&str>,
+    channel: Option<&serenity::GuildChannel>,
+) -> String {
+    let re = get_placeholder_regex();
+
+    re.replace_all(text, |caps: &Captures| {
+        match &caps["key"] {
+            "server.name" => gctx.name.clone(),
+            "server.id" => gctx.id.clone(),
+            "server.icon_url" => gctx.icon_url.clone(),
+
+            "member.mention" => member
+                .map(|m| format!("<@{}>", m.user.id))
+                .unwrap_or_default(),
+            "member.username" => member
+                .map(|m| m.user.name.clone())
+                .unwrap_or_default(),
+            "member.id" => member
+                .map(|m| m.user.id.to_string())
+                .unwrap_or_default(),
+            "member.avatar_url" => member
+                .map(|m| m.user.face())
+                .unwrap_or_default(),
+
+            "role.mention" => role_id
+                .map(|id| format!("<@&{}>", id))
+                .unwrap_or_default(),
+            "role.name" => role_name
+                .map(|name| name.to_string())
+                .unwrap_or_default(),
+            "role.id" => role_id
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+
+            "channel.mention" => channel
+                .map(|c| format!("<#{}>", c.id))
+                .unwrap_or_default(),
+            "channel.name" => channel
+                .map(|c| c.name.clone())
+                .unwrap_or_default(),
+            "channel.id" => channel
+                .map(|c| c.id.to_string())
+                .unwrap_or_default(),
+
             _ => caps[0].to_string(),
         }
     })

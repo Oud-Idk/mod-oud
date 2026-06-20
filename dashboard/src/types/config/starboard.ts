@@ -10,6 +10,7 @@ export interface StarboardConfig {
     max_message_age: string | null;
     prevent_self_star: boolean;
     allow_bot_messages: boolean;
+    keep_deleted_messages: boolean;
     role_restriction_type: 'none' | 'all_except' | 'only_these';
     restricted_roles: string[];
     channel_restriction_type: 'none' | 'all_except' | 'only_these';

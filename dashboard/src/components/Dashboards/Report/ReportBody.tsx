@@ -6,8 +6,6 @@ import { ReportedMessage } from "@/types/reports";
 import { useMemo, useState } from "react";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
-import { ChannelSelector } from "@/components/Dashboards/General/ChannelSelector";
-import { Pad } from "@/components/Pad";
 import { useSSEInfiniteScroll } from "@/hooks/useSSEInfiniteScroll";
 import { useReportActions } from "@/hooks/useReportActions";
 import { fetchMoreReports } from "@/actions/reports";
@@ -17,6 +15,65 @@ import { TimeoutModal } from "@/components/Dashboards/Report/Modals/TimeoutModal
 import { WarnModal } from "@/components/Dashboards/Report/Modals/WarnModal";
 import { BanModal } from "@/components/Dashboards/Report/Modals/BanModal";
 import { useConfigForm } from "@/hooks/useConfigForm";
+
+// New imports for tabs and message customization
+import { TabItem, Tabs } from "@/components/Tabs";
+import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
+import { BuilderConfig } from "@/types/builder";
+
+// Define our DM tabs for reports
+type ReportTabValue = "resolved_dm" | "dismissed_dm";
+
+const REPORT_DM_TABS: TabItem<ReportTabValue>[] = [
+    { value: "resolved_dm", label: "Report Actioned" },
+    { value: "dismissed_dm", label: "Report Dismissed" },
+];
+
+const REPORT_PLACEHOLDER_METADATA = [
+    {
+        key: "server.name",
+        mockValue: "Community Haven",
+        label: "The name of the Discord server"
+    },
+    {
+        key: "channel.name",
+        mockValue: "general-chat",
+        label: "The channel where the reported content was located"
+    },
+    {
+        key: "message.snippet",
+        mockValue: "Get cheap coins at this link...",
+        label: "A brief snippet of the reported message content"
+    },
+    {
+        key: "report.id",
+        mockValue: "1024",
+        label: "The system ID of the filed report"
+    }
+];
+
+// 2. The default text templates (indexed by ReportTabValue)
+const REPORT_PLACEHOLDER_TEXTS: Record<ReportTabValue, string> = {
+    resolved_dm: "Your report regarding message ID {report.id} has been reviewed and action has been taken. Thank you for helping keep the server safe!",
+    dismissed_dm: "Your report regarding message ID {report.id} has been reviewed and dismissed.",
+};
+
+// 3. The BuilderConfigs (indexed by ReportTabValue)
+export const REPORT_DM_CONFIGS: Record<ReportTabValue, BuilderConfig> = {
+    resolved_dm: {
+        id: "report_resolved",
+        name: "Report Actioned",
+        description: "Sent to the reporting user when a moderator takes action on their report.",
+        placeholders: REPORT_PLACEHOLDER_METADATA,
+    },
+    dismissed_dm: {
+        id: "report_dismissed",
+        name: "Report Dismissed",
+        description: "Sent to the reporting user when a moderator reviews and dismisses their report.",
+        placeholders: REPORT_PLACEHOLDER_METADATA,
+    },
+};
+
 
 interface ReportBodyConfig {
     reportConfig: ReportConfig;
@@ -39,6 +96,8 @@ export function ReportBody({
         config,
         isPending,
         isDirty,
+        resetKey,
+        setIsEmpty,
         handleSave,
         handleCancel,
         handleChange,
@@ -49,6 +108,7 @@ export function ReportBody({
 
     const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<"all" | "opened" | "closed">("all");
+    const [activeDmTab, setActiveDmTab] = useState<ReportTabValue>("resolved_dm");
 
     const {
         deletingIds,
@@ -91,33 +151,65 @@ export function ReportBody({
     }, [logs, statusFilter]);
 
     return (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div>
-                <ToggleSwitch
-                    enabled={config.enabled}
-                    onChange={v => handleChange({ enabled: v })}
-                    disabled={false}
-                    text="Enable Reporting"
-                />
-                <Pad/>
-                {config.enabled && (
-                    <ChannelSelector
-                        channels={channels}
-                        value={config.reporting_channel || ""}
-                        disabled={false}
-                        onChange={(value) => handleChange({ reporting_channel: value })}
+        <div className="flex-1 scrollbar-thin pr-2 pb-12 space-y-6">
+            <ToggleSwitch
+                enabled={config.enabled}
+                onChange={v => handleChange({ enabled: v })}
+                disabled={false}
+                text="Enable Reporting"
+            />
+
+            {/* 2. Notification Preferences Card */}
+            {config.enabled && (
+                <div className="border rounded-xl p-4 space-y-6">
+                    <div>
+                        <h3 className="text-lg font-semibold">Reporter Notifications</h3>
+                        <p className="text-sm text-zinc-500">
+                            Customize the messages sent to users who report content when their report status
+                            changes. </p>
+                    </div>
+
+                    <Tabs
+                        tabs={REPORT_DM_TABS} activeTab={activeDmTab} onChange={setActiveDmTab}
                     />
-                )}
-                {isDirty && (
-                    <SavePopup
-                        handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
-                    />
-                )}
-            </div>
+
+                    <div className="mt-4">
+                        <MessageConfigEditor
+                            config={config[activeDmTab]}
+                            onChange={(updated) =>
+                                handleChange({
+                                    [activeDmTab]: {
+                                        enabled: updated.enabled,
+                                        content: updated.content,
+                                        embed: updated.embed,
+                                        format: updated.format,
+                                    }
+                                })
+                            }
+                            onEmbedChange={(embed) =>
+                                handleChange({
+                                    [activeDmTab]: {
+                                        ...config[activeDmTab],
+                                        embed
+                                    }
+                                })
+                            }
+                            disabled={isPending}
+                            toggleLabel={`Enable DM when Report is ${activeDmTab === "resolved_dm" ? "Actioned" : "Dismissed"}`}
+                            embedTemplateConfig={REPORT_DM_CONFIGS[activeDmTab]}
+                            resetKey={`${resetKey}_${activeDmTab}`}
+                            modeLabel={`Message Mode (${activeDmTab === "resolved_dm" ? "Actioned" : "Dismissed"})`}
+                            placeholderText={REPORT_PLACEHOLDER_TEXTS[activeDmTab]}
+                            setIsEmpty={setIsEmpty}
+                            noChannels
+                        />
+                    </div>
+                </div>
+            )}
 
             {config.enabled && (
-                <div className="border-t border-neutral-500 pt-4 flex-1 flex flex-col min-h-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div className="border rounded-xl p-6 flex flex-col space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center space-x-4">
                             <h3 className="text-lg font-semibold">Recent Reports</h3>
                             <div className="flex items-center space-x-1.5">
@@ -168,9 +260,9 @@ export function ReportBody({
                         </div>
                     </div>
 
-                    <div className="space-y-4 overflow-y-auto pr-4 scrollbar-thin p-4 bg-neutral-300/10 border-neutral-200 dark:border-neutral-700 rounded-xl rounded-r-none border">
+                    <div className="space-y-4 max-h-125 overflow-y-auto scrollbar-thin p-4 rounded-xl border border-neutral-500">
                         {filteredLogs.length === 0 ? (
-                            <p className="text-sm text-zinc-500 py-8 text-center">
+                            <p className="text-sm text-zinc-500 py-12 text-center">
                                 {statusFilter === "opened"
                                     ? "No open reports."
                                     : statusFilter === "closed"
@@ -197,10 +289,16 @@ export function ReportBody({
                         <div ref={observerTarget} className="h-4 w-full">
                             {isLoadingMore ? (
                                 <p className="text-center text-xs text-zinc-500">Loading older records...</p>
-                            ) : <p className="text-center text-xs text-zinc-500">That's everything for you.</p>}
+                            ) : <p className="text-center text-xs text-zinc-500 pt-2">That's everything for you.</p>}
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isDirty && (
+                <SavePopup
+                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                />
             )}
 
             <TimeoutModal

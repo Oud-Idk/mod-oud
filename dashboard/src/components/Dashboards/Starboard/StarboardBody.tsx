@@ -93,11 +93,11 @@ export function StarboardBody({
 
             <div className="md:col-span-3 border border-zinc-850 p-6 rounded-lg">
                 {!config ? (
-                    <div className="text-center py-12 text-zinc-500 space-y-3">
+                    <div className="text-center py-12 space-y-3">
                         <p className="text-sm">Select an active starboard, or create a new one to begin.</p>
                         <button
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="text-xs px-3.5 py-1.5 bg-zinc-850 rounded transition border border-zinc-800 hover:bg-neutral-300/10 cursor-pointer"
+                            className="text-xs px-3.5 py-1.5 bg-zinc-850 rounded transition border border-neutral-500 hover:bg-neutral-300/10 cursor-pointer"
                         >
                             Create Your First Starboard
                         </button>

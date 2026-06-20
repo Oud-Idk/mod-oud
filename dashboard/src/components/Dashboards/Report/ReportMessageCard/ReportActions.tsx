@@ -29,7 +29,8 @@ export function ReportActions({
 
     if (isResolved) {
         return (
-            <div className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end">
+            <div
+                className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end">
                 <span className="text-xs text-emerald-500 font-semibold flex items-center gap-1">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -49,7 +50,8 @@ export function ReportActions({
     const isInteractionDisabled = isResolving || isDeleting;
 
     return (
-        <div className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end gap-2">
+        <div
+            className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end gap-2">
             {isMessageDeleted ? (
                 <span className="text-xs text-neutral-500 font-semibold mr-auto">
                     Message Deleted
@@ -100,9 +102,18 @@ export function ReportActions({
                 type="button"
                 onClick={() => onResolve(log.id, "actioned")}
                 disabled={isInteractionDisabled}
-                className="px-2 py-0.5 text-sm rounded text-blue-500 border border-blue-500 hover:text-blue-400 hover:border-blue-400 transition-all disabled:opacity-50 cursor-pointer-pointer"
+                className="px-2 py-0.5 text-sm rounded text-blue-500 border border-blue-500 hover:text-blue-400 hover:border-blue-400 transition-all disabled:opacity-50 cursor-pointer"
             >
                 {isResolving ? "Resolving..." : "Mark as Actioned"}
+            </button>
+
+            <button
+                type="button"
+                onClick={() => onResolve(log.id, "dismissed")}
+                disabled={isInteractionDisabled}
+                className="px-2 py-0.5 text-sm rounded text-neutral-500 border border-neutral-500 hover:text-neutral-400 hover:border-neutral-400 transition-all disabled:opacity-50 cursor-pointer"
+            >
+                {isResolving ? "Resolving..." : "Mark as Dismissed"}
             </button>
         </div>
     );

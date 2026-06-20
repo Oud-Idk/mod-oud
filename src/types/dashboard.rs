@@ -11,14 +11,13 @@ pub enum ReportUpdate {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct DashboardCommand {
+pub struct DashboardCommand {
     #[serde(flatten)]
-    pub(crate) action: DashboardAction,
-    pub(crate) report_id: i32,
-    pub(crate) moderator_id: Option<String>,
-    pub(crate) reason: Option<String>,
-    pub(crate) duration_mins: Option<u64>,
-    pub(crate) status: Option<ReportStatus>,
+    pub action: DashboardAction,
+    pub report_id: i32,
+    pub moderator_id: Option<String>,
+    pub reason: Option<String>,
+    pub duration_mins: Option<u64>,
 }
 
 #[derive(Deserialize, Debug)]

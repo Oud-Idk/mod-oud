@@ -102,6 +102,11 @@ export const STARBOARD_CONFIG: BuilderConfig = {
             mockValue: "3",
             label: "The reaction count",
         },
+        {
+            key: "message.link",
+            mockValue: "https://discord.com/channels/123456789/987654321/123456789",
+            label: "A clickable message link"
+        },
 
         // ── Starboard ───────────────────────────────────────────────────────
         { key: "starboard.emojis", mockValue: "⭐❤️", label: "All starboard reaction emojis" },

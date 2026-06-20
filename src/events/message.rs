@@ -3,10 +3,9 @@ use crate::events::handlers::levels::levels_text;
 use crate::events::handlers::message_logging::cache::cache_message_in_redis;
 use crate::events::handlers::message_logging::handlers::{message_log_delete, message_log_update};
 use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
-use crate::events::handlers::{message_filter, tickets};
+use crate::events::handlers::{message_filter, starboard, tickets};
 use crate::types::{Data, Error};
 use serenity::all::{ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent, Reaction};
-
 pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
     if message.author.bot {
         return Ok(());
@@ -32,9 +31,10 @@ pub async fn on_message_delete(
     channel_id: &ChannelId,
     deleted_message_id: &MessageId,
     guild_id: &Option<GuildId>,
-    _data: &Data,
+    data: &Data,
 ) -> Result<(), Error> {
-    message_log_delete(ctx, channel_id, deleted_message_id, guild_id, _data).await?;
+    starboard::handle_cleanup_if_starboard(&ctx, &data.db, deleted_message_id).await?;
+    message_log_delete(ctx, channel_id, deleted_message_id, guild_id, data).await?;
     Ok(())
 }
 

@@ -43,6 +43,7 @@ function mapRowToConfig(row: any): StarboardConfig {
         updated_at: row.updated_at,
         embed_template: row.embed_template,
         plaintext_template: row.plaintext_template,
+        keep_deleted_messages: row.keep_deleted_messages,
     };
 }
 
@@ -88,9 +89,10 @@ export async function upsertStarboardConfig(
                 restricted_channels      = $11,
                 embed_template           = $12,
                 plaintext_template       = $13,
+                keep_deleted_messages    = $14,
                 updated_at               = CURRENT_TIMESTAMP
-            WHERE id = $14
-              AND guild_id = $15
+            WHERE id = $15
+              AND guild_id = $16
             RETURNING *;
         `;
         const values = [
@@ -107,6 +109,7 @@ export async function upsertStarboardConfig(
             config.restricted_channels || [],
             config.embed_template || {},
             config.plaintext_template || '',
+            config.keep_deleted_messages ?? true, // Adjust default value as needed
             config.id,
             guildId
         ];
@@ -135,8 +138,10 @@ export async function upsertStarboardConfig(
                                     restricted_roles,
                                     channel_restriction_type,
                                     restricted_channels,
-                                    embed_template, plaintext_template)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                                    embed_template,
+                                    plaintext_template,
+                                    keep_deleted_messages)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             RETURNING *;
         `;
         const values = [
@@ -154,6 +159,7 @@ export async function upsertStarboardConfig(
             config.restricted_channels || [],
             config.embed_template || {},
             config.plaintext_template || '',
+            config.keep_deleted_messages ?? true, // Adjust default value as needed
         ];
 
         try {
@@ -177,7 +183,6 @@ export async function deleteStarboardConfig(id: string, guildId: string): Promis
 
     try {
         const res = await db.query(query, [id, guildId]);
-        // If rowCount is greater than 0, the record existed and was deleted
         return (res.rowCount ?? 0) > 0;
     } catch (error) {
         console.error(`Error deleting starboard config ${id} for guild ${guildId}:`, error);

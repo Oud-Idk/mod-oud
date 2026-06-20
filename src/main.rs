@@ -1,7 +1,7 @@
 use crate::commands::{emergency, leveling, moderation, ticket};
-use crate::core::web::start_web_server;
 use crate::models::spam_tracker::SpamTracker;
 use commands::{messages, ping};
+use dashmap::DashSet;
 use poise::serenity_prelude as serenity;
 use prost::Message;
 use serenity::gateway::ShardManager;
@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use types::{Data, Error, LogEvent, SearchUrlsResponse};
+use web::start_web_server;
 
 mod commands;
 mod core;
@@ -19,6 +20,7 @@ mod jobs;
 mod models;
 mod types;
 mod utils;
+pub mod web;
 
 pub struct ShardManagerContainer;
 impl serenity::prelude::TypeMapKey for ShardManagerContainer {
@@ -137,7 +139,7 @@ async fn main() -> Result<(), Error> {
                 prefix_options: poise::PrefixFrameworkOptions {
                     prefix: Some("!".into()),
                     edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
-                        std::time::Duration::from_secs(3600),
+                        Duration::from_secs(3600),
                     ))),
                     ..Default::default()
                 },
@@ -178,7 +180,27 @@ async fn main() -> Result<(), Error> {
                 Box::pin(async move {
                     println!("Logged in as {}", _ready.user.name);
 
-                    // Workers now accept redis_client to execute Redis Distributed Locks (HA)
+                    let active_tickets_cache = Arc::new(DashSet::new());
+
+                    let mut redis_conn_setup = redis_client.get_multiplexed_async_connection().await?;
+                    let active_tickets_list: Vec<String> = redis::cmd("SMEMBERS")
+                        .arg("active_tickets")
+                        .query_async(&mut redis_conn_setup)
+                        .await
+                        .unwrap_or_default();
+
+                    for channel_str in active_tickets_list {
+                        if let Ok(channel_id) = channel_str.parse::<u64>() {
+                            active_tickets_cache.insert(channel_id);
+                        }
+                    }
+                    println!("Hydrated {} active tickets into local cache.", active_tickets_cache.len());
+
+                    jobs::sync_tickets::sync_tickets(
+                        &redis_client,
+                        &active_tickets_cache
+                    );
+
                     jobs::temp_ban::start_temp_ban_worker(
                         pool.clone(),
                         ctx.http.clone(),
@@ -200,6 +222,7 @@ async fn main() -> Result<(), Error> {
                         redis: redis_conn,
                         spam_tracker,
                         safe_browsing_client: client,
+                        active_tickets: active_tickets_cache, // Pass the cache to data
                     })
                 })
             })

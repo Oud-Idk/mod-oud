@@ -19,7 +19,7 @@ export function ReportContent({
     attachmentUrl,
     onImageClick,
 }: ReportContentProps) {
-    const cleanContent = messageContent.trim();
+    const cleanContent = (messageContent ?? "").trim();
     const attachments = attachmentUrl ? attachmentUrl.split(",").map(u => u.trim()) : [];
 
     return (

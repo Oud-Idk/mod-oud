@@ -33,6 +33,7 @@ export default async function TicketsPage({ params }: PageProps) {
                 onSave={onSave}
                 onSendTicketMessage={onSendTicketMessage}
                 onDeleteTicketMessage={onDeleteTicketMessage}
+                guildId={guild_id}
             />
         </div>
     );

@@ -37,7 +37,7 @@ export function PlaintextEditor({
                 onChange={(e) => onChange(e.target.value)}
                 rows={4}
                 placeholder={placeholder}
-                className={`w-full mb-0 p-2 bg-neutral-300/5 border rounded text-sm resize-none font-mono focus:outline-none placeholder-neutral-600 ${value.trim() === "" && !emptyable ? "border-red-500 ring-red-500 focus:ring-2" : ""}`}
+                className={`w-full mb-0 p-2 bg-neutral-300/5 border-neutral-500 border rounded-lg text-sm resize-none font-mono focus:outline-none placeholder-neutral-600 ${value.trim() === "" && !emptyable ? "border-red-500 ring-red-500 focus:ring-2" : ""}`}
             />
             {value.trim() === "" && !emptyable && (
                 <p className="text-red-500 text-xs">Message cannot be empty.</p>

@@ -29,11 +29,12 @@ pub fn start_ticket_inactivity_worker(
         };
 
         loop {
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            // Increased interval to 60 seconds to match realistic inactivity requirements
+            tokio::time::sleep(Duration::from_secs(60)).await;
 
-            match locking::acquire_lock(&redis_client, lock_key, &lock_value, 4).await {
+            // Increased lock duration to 50 seconds to cover network latency safely
+            match locking::acquire_lock(&redis_client, lock_key, &lock_value, 50).await {
                 Ok(true) => {
-                    // Pass the Redis connection to the helpers
                     if let Err(e) = warn_inactive_tickets(&pool, &redis_conn, &http).await {
                         eprintln!("Error warning inactive tickets: {:?}", e);
                     }

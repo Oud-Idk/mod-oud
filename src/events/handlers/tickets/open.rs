@@ -1,4 +1,4 @@
-use crate::core::config::{get_guild_ctx, get_settings, replace_welcome_goodbye_placeholders, GuildCtx};
+use crate::core::config::{get_guild_ctx, get_settings, replace_ticket_welcome_placeholders, GuildCtx};
 use crate::events::handlers::tickets::utils::{initialize_redis_state, send_disabled_error, send_missing_config_error};
 use crate::types::config::config::{Format, TicketConfig};
 use crate::types::{Data, Error};
@@ -42,7 +42,10 @@ pub async fn on_open_ticket(
         )
         .await?;
 
-    let member = guild_id.member(&ctx.http, user_interact.id).await?;
+    let member = component
+        .member
+        .as_ref()
+        .ok_or_else(|| Error::from("Interaction missing member data"))?;
     let gctx = get_guild_ctx(guild_id, &ctx.http).await?;
 
     let ticket_category_id = settings
@@ -59,17 +62,36 @@ pub async fn on_open_ticket(
         ticket_category_id,
     ).await?;
 
+    let mut resolved_role_name = None;
+
+    if let Ok(roles) = ticket_channel.guild_id.roles(&ctx.http).await {
+        resolved_role_name = roles.get(&role_id).map(|r| r.name.clone());
+    }
+
     // Pass member and gctx to send_welcome_message
     let welcome_msg = send_welcome_message(
         ctx,
         &ticket_channel,
         &member,
         &gctx,
-        settings.tickets.as_ref()
+        settings.tickets.as_ref(),
+        &role_id,
+        resolved_role_name.as_deref(),
     ).await?;
 
-    save_ticket_to_db(data, guild_id, ticket_channel.id, user_interact.id, welcome_msg.id).await?;
-    initialize_redis_state(data, ticket_channel.id, welcome_msg.id).await?;
+    tokio::try_join!(
+        save_ticket_to_db(data, guild_id, ticket_channel.id, user_interact.id, welcome_msg.id, &member.user.name),
+        initialize_redis_state(data, ticket_channel.id, welcome_msg.id),
+    )?;
+
+    let mut redis_conn = data.redis.clone();
+    let _: () = redis::cmd("PUBLISH")
+        .arg("ticket_updates")
+        .arg(format!("open:{}", ticket_channel.id.get()))
+        .query_async(&mut redis_conn)
+        .await?;
+
+    data.active_tickets.insert(ticket_channel.id.get());
 
     component
         .edit_response(
@@ -127,6 +149,8 @@ async fn send_welcome_message(
     member: &serenity::all::Member,
     gctx: &GuildCtx,
     ticket_cfg: Option<&TicketConfig>,
+    role_id: &RoleId,
+    role_name: Option<&str>,
 ) -> Result<Message, Error> {
     let default_embed = serenity::all::CreateEmbed::default()
         .title("Ticket Opened")
@@ -144,13 +168,13 @@ async fn send_welcome_message(
             Some(&cfg.content),
             cfg.embed.as_ref(),
             |text| {
-                replace_welcome_goodbye_placeholders(
+                replace_ticket_welcome_placeholders(
                     text,
                     gctx,
-                    member,
-                    channel,
-                    None, // No plan context
-                    None, // No achievement context
+                    Some(member),
+                    Some(role_id),
+                    role_name,
+                    Some(channel),
                 )
             },
         )
@@ -183,16 +207,18 @@ async fn save_ticket_to_db(
     channel_id: ChannelId,
     user_id: UserId,
     welcome_msg_id: serenity::all::MessageId,
+    username: &str,
 ) -> Result<(), Error> {
     sqlx::query!(
         r#"
-        INSERT INTO tickets (guild_id, channel_id, opener_id, last_button_message_id)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO tickets (guild_id, channel_id, opener_id, last_button_message_id, opener_name)
+        VALUES ($1, $2, $3, $4, $5)
         "#,
         guild_id.get() as i64,
         channel_id.get() as i64,
         user_id.get() as i64,
-        welcome_msg_id.get() as i64
+        welcome_msg_id.get() as i64,
+        username,
     )
         .execute(&data.db)
         .await?;

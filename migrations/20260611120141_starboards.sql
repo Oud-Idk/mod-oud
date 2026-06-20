@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS starboards
     max_message_age          INTERVAL                 DEFAULT NULL,
     prevent_self_star        BOOLEAN                  DEFAULT TRUE,
     allow_bot_messages       BOOLEAN                  DEFAULT FALSE,
+    keep_deleted_messages    BOOLEAN                  DEFAULT FALSE,
     role_restriction_type    VARCHAR(20)              DEFAULT 'none'
         CHECK (role_restriction_type IN ('none', 'all_except', 'only_these')),
     restricted_roles         VARCHAR(20)[]            DEFAULT ARRAY []::VARCHAR(20)[],

@@ -22,7 +22,6 @@ pub async fn on_member_join(
         }
     }
 
-    // This is now perfectly flat and guaranteed to run
     let user_id = member.user.id.get() as i64;
     database::log_join_to_db(user_id, guild_id, &data).await?;
 

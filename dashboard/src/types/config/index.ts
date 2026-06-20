@@ -66,6 +66,8 @@ export interface LevelingConfig {
 export interface ReportConfig {
     enabled: boolean;
     reporting_channel?: string;
+    resolved_dm: MessageLayout;
+    dismissed_dm: MessageLayout;
 }
 
 export interface MessageLayout {

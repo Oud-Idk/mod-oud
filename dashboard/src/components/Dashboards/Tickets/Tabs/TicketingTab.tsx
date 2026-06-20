@@ -20,6 +20,8 @@ interface TicketingTabProps {
     onPostPanel: () => Promise<void>;
     isProcessing: boolean;
     isDirty: boolean;
+    status: { type: "success" | "error"; message: string } | null,
+    isEmpty: boolean,
 }
 
 export default function TicketingTab({
@@ -36,7 +38,9 @@ export default function TicketingTab({
     onDeletePanel,
     onPostPanel,
     isProcessing,
-    isDirty
+    isDirty,
+    status,
+    isEmpty,
 }: TicketingTabProps) {
     const targetCategoryIsEmpty = config.category_id.trim() === "";
     const targetRoleIsEmpty = !config.ticket_role_id || config.ticket_role_id.trim() === "";
@@ -80,7 +84,7 @@ export default function TicketingTab({
         return [{ value: "", label: "Select a support role..." }, ...transformedArray];
     }, [roleMap]);
 
-    const actionButtonDisabled = isProcessing || isDirty || !config.channel_id || !config.enabled;
+    const actionButtonDisabled = !(!isDirty && config.channel_id && config.enabled && !targetChannelIsEmpty && !isEmpty);
 
     return (
         <div className="flex flex-col gap-3 mt-4">
@@ -122,7 +126,7 @@ export default function TicketingTab({
                     </div>
                 }
             />
-            
+
             {config.enabled && (
                 <div className="flex flex-col  gap-4">
                     <div>
@@ -153,6 +157,12 @@ export default function TicketingTab({
                         <span className="text-sm text-amber-600 italic">
                             Please save your changes first to enable actions.
                         </span>
+                    )}
+
+                    {status && (
+                        <p className={`text-sm ${status.type === "success" ? "text-green-600" : "text-red-600"}`}>
+                            {status.message}
+                        </p>
                     )}
                 </div>
             )}

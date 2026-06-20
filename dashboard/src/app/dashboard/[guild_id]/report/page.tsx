@@ -21,7 +21,7 @@ export default async function ReportPage({ params }: PageProps) {
     const onSave = saveReportConfigAction.bind(null, guild_id);
 
     return (
-        <div className="h-full overflow-hidden flex flex-col">
+        <div className="h-full flex flex-col ">
             <DashboardHeader>Reporting</DashboardHeader>
             <ReportBody
                 reportConfig={reportConfig}

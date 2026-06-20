@@ -1,6 +1,6 @@
-use crate::core::web::routes::commands::error::WebError;
-use crate::core::web::routes::commands::{database, handlers};
-use crate::types::dashboard::{DashboardAction, DashboardCommand, ReportUpdate};
+use crate::types::dashboard::{DashboardAction, DashboardCommand};
+use crate::web::routes::commands::error::WebError;
+use crate::web::routes::commands::{database, handlers};
 use crate::WebState;
 use axum::{
     extract::State,
@@ -37,7 +37,7 @@ pub async fn handle_dashboard_command(
 
     match &cmd.action {
         DashboardAction::ResolveReport { status } => {
-            database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::Status(status.clone())).await?;
+            handlers::handle_resolve_report(&state, &cmd, status, &guild_id).await?;
         }
         DashboardAction::DeleteMessage { channel_id, message_id } => {
             handlers::handle_delete_message(&state, &cmd, channel_id, message_id).await?;

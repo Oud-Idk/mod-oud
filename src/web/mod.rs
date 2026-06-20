@@ -1,9 +1,9 @@
 pub mod routes;
 
-use crate::core::web::routes::commands::commands::handle_dashboard_command;
-use crate::core::web::routes::tickets_delete::handle_delete_ticket_message;
-use crate::core::web::routes::tickets_send::handle_send_ticket_message;
 use crate::types::{Error, LogEvent};
+use crate::web::routes::commands::commands::handle_dashboard_command;
+use crate::web::routes::tickets_delete::handle_delete_ticket_message;
+use crate::web::routes::tickets_send::handle_send_ticket_message;
 use crate::WebState;
 use axum::http::{HeaderValue, Method};
 use axum::routing::method_routing::get;

@@ -64,8 +64,9 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
                                 : "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-900"
                         }`}
                     >
-                        <span className={`w-2 h-2 rounded-full ${status ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}/>
-                        {status ? "Online" : "Offline (Oud is an Idiot)"}
+                        <span
+                            className={`w-2 h-2 rounded-full ${status ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}/>
+                        {status ? "Online" : "Offline (Oud (the only programmer) is an Idiot)"}
                     </span>
                 </div>
             </div>

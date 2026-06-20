@@ -309,6 +309,12 @@ export function StarboardConfig({
                         disabled={false}
                         text="Allow Bot Messages to be Starred"
                     />
+                    <ToggleSwitch
+                        enabled={config.keep_deleted_messages || false}
+                        onChange={(checked) => onChange({ ...config, keep_deleted_messages: checked })}
+                        disabled={false}
+                        text="Keep Starred Messages even when Deleted"
+                    />
                 </div>
 
                 {/* Restrictions Segment */}

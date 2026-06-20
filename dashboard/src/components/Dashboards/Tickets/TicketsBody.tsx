@@ -8,10 +8,12 @@ import { TabItem, Tabs } from "@/components/Tabs";
 import TicketingTab from "@/components/Dashboards/Tickets/Tabs/TicketingTab";
 import InitialMessageTab from "@/components/Dashboards/Tickets/Tabs/InitialMessageTab";
 import GeneralsTab from "@/components/Dashboards/Tickets/Tabs/GeneralsTab";
+import HistoryTab from "@/components/Dashboards/Tickets/Tabs/HistoryTab"; // Import HistoryTab
 import { useTicketing } from "@/hooks/useTicketing";
 import { useState } from "react";
 
 interface TicketsBodyProps {
+    guildId: string; // Add guildId prop
     categoryMap: Record<string, string>;
     roleMap: Record<string, string>;
     channels: DiscordChannel[];
@@ -21,15 +23,17 @@ interface TicketsBodyProps {
     onDeleteTicketMessage: (channelId: string, messageId: string) => Promise<void>;
 }
 
-type TabValue = "ticketing" | "welcome" | "general";
+type TabValue = "ticketing" | "welcome" | "general" | "history";
 
 const MODERATION_DM_TABS: TabItem<TabValue>[] = [
     { value: "ticketing", label: "Ticketing" },
     { value: "welcome", label: "Initial Message" },
     { value: "general", label: "General" },
+    { value: "history", label: "History" },
 ];
 
 export function TicketsBody({
+    guildId, // Destructure guildId
     categoryMap = {},
     roleMap = {},
     channels = [],
@@ -79,11 +83,13 @@ export function TicketsBody({
 
             {activeTab === "ticketing" && (
                 <TicketingTab
+                    status={status}
                     config={config}
                     setConfig={setConfig}
                     channels={channels}
                     disabled={isPending}
                     resetKey={resetKey}
+                    isEmpty={isEmpty}
                     setIsEmpty={setIsEmpty}
                     targetChannelIsEmpty={targetChannelIsEmpty}
                     setTargetChannelIsEmpty={setTargetChannelIsEmpty}
@@ -97,7 +103,6 @@ export function TicketsBody({
             )}
             {activeTab === "welcome" && (
                 <InitialMessageTab
-                    status={status}
                     config={config}
                     onChange={handleWelcomeChange}
                     onEmbedChange={handleWelcomeEmbedChange}
@@ -114,6 +119,9 @@ export function TicketsBody({
                     onChange1={handleDeleteThresholdChange}
                     onChange2={handleBumpEveryChange}
                 />
+            )}
+            {activeTab === "history" && (
+                <HistoryTab guildId={guildId}/> // Mount HistoryTab here
             )}
 
             {isDirty && (
