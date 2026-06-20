@@ -1,4 +1,4 @@
-use crate::core::config::{get_guild_ctx, replace_level_notify_placeholder};
+use crate::core::config::get_guild_ctx;
 use crate::events::handlers::levels::effects;
 use crate::events::handlers::levels::levels_text::UserLevel;
 use crate::types::config::config::Format;
@@ -6,6 +6,7 @@ use crate::types::config::leveling::LevelingConfig;
 use crate::types::embed::DiscordEmbed;
 use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
+use crate::utils::placeholders::replace_level_notify_placeholder;
 use serenity::all::{Context, CreateMessage, GuildId, Message};
 
 pub async fn send_message(

@@ -4,3 +4,4 @@ pub mod custom_msg;
 pub mod moderating;
 pub mod locking;
 pub mod ticket;
+pub mod placeholders;

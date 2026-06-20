@@ -1,9 +1,10 @@
 use crate::commands::moderation::warn::database::{delete_warn, update_warn};
-use crate::core::config::{get_guild_ctx, get_settings, replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
+use crate::core::config::{get_guild_ctx, get_settings};
 use crate::types::config::config::Format;
 use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::logger::ActionType;
+use crate::utils::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
 use duration_str::HumanFormat;
 use poise::serenity_prelude as serenity;
 use redis::aio::MultiplexedConnection;

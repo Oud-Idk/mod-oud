@@ -1,8 +1,9 @@
-use crate::core::config::{get_guild_ctx, get_settings, replace_welcome_goodbye_placeholders};
+use crate::core::config::{get_guild_ctx, get_settings};
 use crate::events::handlers::join_leave::{database, utils};
 use crate::types::config::welcome::WelcomeConfig;
 use crate::types::{Data, Error};
 use crate::utils::custom_msg::build_custom_message;
+use crate::utils::placeholders::replace_welcome_goodbye_placeholders;
 use poise::serenity_prelude as serenity;
 use serenity::all::{EditMember, RoleId};
 use serenity::{ChannelId, CreateEmbed, CreateMessage};

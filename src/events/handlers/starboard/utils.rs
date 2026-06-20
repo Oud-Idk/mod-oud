@@ -1,6 +1,7 @@
-use crate::core::config::{get_guild_ctx, replace_starboard_placeholders};
+use crate::core::config::get_guild_ctx;
 use crate::types::config::starboard::{Starboard, StarboardRow};
 use crate::types::Error;
+use crate::utils::placeholders::replace_starboard_placeholders;
 use redis::aio::MultiplexedConnection;
 use redis::{AsyncCommands, RedisError};
 use serenity::all::{Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId, Reaction, ReactionType, UserId};

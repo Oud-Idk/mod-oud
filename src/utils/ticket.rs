@@ -1,7 +1,8 @@
-use crate::core::config::{get_guild_ctx, replace_ticket_panel_placeholders};
+use crate::core::config::get_guild_ctx;
 use crate::types::config::config::Format;
 use crate::types::embed::DiscordEmbed;
 use crate::utils::custom_msg::build_custom_message;
+use crate::utils::placeholders::replace_ticket_panel_placeholders;
 use poise::serenity_prelude as serenity;
 use tracing::{debug, trace};
 

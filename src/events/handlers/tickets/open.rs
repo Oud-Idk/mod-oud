@@ -1,8 +1,9 @@
-use crate::core::config::{get_guild_ctx, get_settings, replace_ticket_welcome_placeholders, GuildCtx};
+use crate::core::config::{get_guild_ctx, get_settings, GuildCtx};
 use crate::events::handlers::tickets::utils::{initialize_redis_state, send_disabled_error, send_missing_config_error};
 use crate::types::config::config::{Format, TicketConfig};
 use crate::types::{Data, Error};
 use crate::utils::custom_msg::build_custom_message;
+use crate::utils::placeholders::replace_ticket_welcome_placeholders;
 use poise::serenity_prelude as serenity;
 use serenity::all::{
     ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel,
