@@ -8,6 +8,7 @@ use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::placeholders::replace_level_notify_placeholder;
 use serenity::all::{Context, CreateMessage, GuildId, Message};
+use tracing::{debug, trace, warn};
 
 pub async fn send_message(
     ctx: &Context,
@@ -18,6 +19,16 @@ pub async fn send_message(
     guild_id: &GuildId,
     previous_level: i32,
 ) -> Result<(), Error> {
+    let guild_id_u64 = guild_id.get();
+    let user_id = &user_level.user_id;
+
+    trace!(
+        guild_id = guild_id_u64,
+        user_id = %user_id,
+        current_level = user_level.current_level,
+        "Initiating level up notification sequence"
+    );
+
     let is_embed = matches!(config.notify.format, Format::Embed);
     let gctx = get_guild_ctx(*guild_id, ctx.http.as_ref()).await?;
     let author = &message.author;
@@ -36,15 +47,30 @@ pub async fn send_message(
             )
         }
     ).unwrap_or_else(|e| {
-        eprintln!("Failed to build custom level message: {}", e);
+        warn!(
+            error = ?e,
+            guild_id = guild_id_u64,
+            user_id = %user_id,
+            "Failed to compile custom level-up layout; using standard fallback"
+        );
         None
     });
 
     let msg = custom_message_opt.unwrap_or_else(|| {
+        debug!(
+            guild_id = guild_id_u64,
+            user_id = %user_id,
+            "Using fallback level-up announcement string"
+        );
         let content = format!("Congratulations, <@{}>. You have leveled up to **level {}**", user_level.user_id, user_level.current_level);
         CreateMessage::new().content(content)
     });
 
+    trace!(
+        guild_id = guild_id_u64,
+        user_id = %user_id,
+        "Sending announcement message according to notification scope configuration"
+    );
     effects::send_according_to_config(&ctx, message.channel_id, config, author, msg).await?;
 
     Ok(())

@@ -1,10 +1,11 @@
 use crate::types::Error;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
+use tracing::{trace, warn};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VcSession {
-    pub join_time: i64, // Unix timestamp
+    pub join_time: i64,
     pub channel_id: u64,
 }
 
@@ -20,6 +21,7 @@ pub async fn save_session(
     channel_id: u64,
     now: i64,
 ) -> Result<(), Error> {
+    trace!(key, channel_id, "Saving voice session state to Redis cache");
     let session = VcSession {
         join_time: now,
         channel_id,
@@ -34,13 +36,19 @@ pub async fn consume_session(
     redis: &mut redis::aio::MultiplexedConnection,
     key: &str,
 ) -> Result<Option<VcSession>, Error> {
+    trace!(key, "Retrieving and consuming voice session from Redis cache");
     let cached_session: Option<String> = redis.get(key).await.ok().flatten();
     if let Some(session_str) = cached_session {
         if let Ok(session) = serde_json::from_str::<VcSession>(&session_str) {
             // Delete the key to prevent processing it again
-            let _: () = redis.del(key).await.unwrap_or_default();
+            if let Err(err) = redis.del::<_, ()>(key).await {
+                warn!(error = ?err, key, "Failed to delete voice session key from Redis cache");
+            } else {
+                trace!(key, "Successfully deleted voice session key from Redis cache");
+            }
             return Ok(Some(session));
         }
     }
+    trace!(key, "No active voice session found for key");
     Ok(None)
 }

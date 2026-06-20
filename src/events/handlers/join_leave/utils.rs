@@ -3,8 +3,8 @@ use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::placeholders::replace_welcome_goodbye_placeholders;
 use serenity::all::{ChannelId, CreateMessage, Mentionable};
+use tracing::{debug, trace, warn};
 
-/// Resolves a member's role list to a comma-separated mention string.
 pub fn format_member_roles(member_data: &Option<serenity::all::Member>) -> String {
     let Some(member) = member_data else {
         return "Unknown (User was not in bot cache)".to_string();
@@ -22,32 +22,36 @@ pub fn format_member_roles(member_data: &Option<serenity::all::Member>) -> Strin
     }
 }
 
-/// Helper to safely resolve a text channel to populate the placeholder evaluation context.
-/// Defaults to the configured welcome channel, or falls back to any visible text channel.
 pub async fn get_context_channel(
     ctx: &serenity::all::Context,
     member: &serenity::all::Member,
     public_channel_id_str: Option<&str>,
 ) -> Result<serenity::all::GuildChannel, Error> {
+    let guild_id = member.guild_id.get();
+    trace!(guild_id, "Resolving text channel context for placeholder evaluation");
+
     if let Some(ch_str) = public_channel_id_str {
         if let Ok(id_u64) = ch_str.parse::<u64>() {
             let channel_id = ChannelId::new(id_u64);
             if let Ok(channel) = channel_id.to_channel(ctx).await {
                 if let Some(guild_ch) = channel.guild() {
+                    trace!(guild_id, channel_id = id_u64, "Resolved configured target channel context");
                     return Ok(guild_ch);
                 }
             }
         }
     }
 
-    // Fallback search using ChannelType enum to locate any standard guild text channel
+    debug!(guild_id, "No valid public welcome channel provided; scanning for any standard text channel context");
     let channels = member.guild_id.channels(&ctx.http).await?;
     for (_, channel) in channels {
         if channel.kind == serenity::all::ChannelType::Text {
+            trace!(guild_id, fallback_channel_id = channel.id.get(), "Fallback text channel context resolved");
             return Ok(channel);
         }
     }
 
+    warn!(guild_id, "Failed to resolve any valid text channel context in guild");
     Err(std::io::Error::new(
         std::io::ErrorKind::Other,
         "Could not resolve a suitable text channel context.",
@@ -55,23 +59,25 @@ pub async fn get_context_channel(
         .into())
 }
 
-/// Checks the creation date of an account and returns a warning string if it is newer than 3 days.
 pub fn check_alt_status(user: &serenity::all::User) -> String {
+    let user_id = user.id.get();
+    trace!(user_id, "Evaluating account age for alt-status tracking");
     let created_timestamp = user.id.created_at().unix_timestamp();
     let now_timestamp = serenity::all::Timestamp::now().unix_timestamp();
     let age_in_days = (now_timestamp - created_timestamp) / 86400;
 
     if age_in_days < 3 {
+        debug!(user_id, age_in_days, "New account detected (less than 3 days old); creating alert text");
         format!(
             "\n\n⚠️ **WARNING:** This account is very new! Created {} days ago.",
             age_in_days
         )
     } else {
+        trace!(user_id, age_in_days, "Account age is normal");
         String::new()
     }
 }
 
-/// Helper to compile the plaintext content or parsed embed payload for a welcome configuration
 pub fn build_welcome_message(
     settings: &WelcomeMessageSettings,
     member: &serenity::all::Member,
@@ -80,6 +86,10 @@ pub fn build_welcome_message(
     warning_text: &str,
     is_dm: bool,
 ) -> Result<CreateMessage, Error> {
+    let user_id = member.user.id.get();
+    let guild_id = member.guild_id.get();
+    trace!(guild_id, user_id, is_dm, "Compiling welcome notification message template");
+
     let is_embed = settings.format.as_deref().unwrap_or("embed") == "embed";
 
     let custom_msg_opt = build_custom_message(
@@ -89,8 +99,8 @@ pub fn build_welcome_message(
         |text| replace_welcome_goodbye_placeholders(text, gctx, member, channel, None, Some(warning_text)),
     )?;
 
-    // If we got a built message from the helper, use it. Otherwise, fallback.
     Ok(custom_msg_opt.unwrap_or_else(|| {
+        debug!(guild_id, user_id, is_dm, "No custom welcome template found; rendering standard layout");
         let base_msg = if is_dm {
             format!("Welcome to the server, {}! We are glad to have you here.", member.user.mention())
         } else {

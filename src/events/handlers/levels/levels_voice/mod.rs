@@ -1,11 +1,17 @@
 use crate::types::{Data, Error};
 use redis::aio::MultiplexedConnection;
 use serenity::all::{ChannelId, Context, GuildId, UserId, VoiceState};
+use tracing::{debug, trace};
 
 pub mod session;
 pub mod xp;
 
 async fn close_session(ctx: &Context, data: &Data, guild_id: GuildId, user_id: UserId, mut redis: &mut MultiplexedConnection, session_key: &String, now: i64) -> Result<(), Error> {
+    trace!(
+        guild_id = guild_id.get(),
+        user_id = user_id.get(),
+        "Attempting to close active voice session"
+    );
     if let Some(s) = session::consume_session(&mut redis, &session_key).await? {
         xp::award_vc_xp_for_session(
             ctx,
@@ -31,8 +37,15 @@ pub async fn on_voice_state_update(
     let Some(guild_id) = new.guild_id else { return Ok(()) };
     let user_id = new.user_id;
 
+    trace!(
+        guild_id = guild_id.get(),
+        user_id = user_id.get(),
+        "Voice state update event received"
+    );
+
     if let Some(member) = &new.member {
         if member.user.bot {
+            trace!(user_id = user_id.get(), "Skipping voice state update: user is a bot");
             return Ok(());
         }
     }
@@ -52,14 +65,32 @@ pub async fn on_voice_state_update(
     let switched_channels = left_channel.is_some() && joined_channel.is_some() && left_channel != joined_channel;
 
     if should_close_session {
+        debug!(
+            guild_id = guild_id.get(),
+            user_id = user_id.get(),
+            "Closing voice session (member disconnected or deafened)"
+        );
         close_session(ctx, data, guild_id, user_id, &mut redis, &session_key, now).await?;
     } else if should_open_session {
         if let Some(channel_id) = joined_channel {
             if !is_deafened {
+                debug!(
+                    guild_id = guild_id.get(),
+                    user_id = user_id.get(),
+                    channel_id = channel_id.get(),
+                    "Opening voice session (member connected or undeafened)"
+                );
                 session::save_session(&mut redis, &session_key, channel_id.get(), now).await?;
             }
         }
     } else if switched_channels {
+        debug!(
+            guild_id = guild_id.get(),
+            user_id = user_id.get(),
+            old_channel = ?left_channel.map(|c| c.get()),
+            new_channel = ?joined_channel.map(|c| c.get()),
+            "Handling voice channel switch"
+        );
         close_session(ctx, data, guild_id, user_id, &mut redis, &session_key, now).await?;
 
         if let Some(channel_id) = joined_channel {
@@ -71,4 +102,3 @@ pub async fn on_voice_state_update(
 
     Ok(())
 }
-

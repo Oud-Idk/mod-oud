@@ -10,6 +10,7 @@ use crate::utils::custom_msg::build_custom_message;
 use crate::utils::placeholders::replace_level_notify_placeholder;
 use redis::AsyncCommands;
 use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User, UserId};
+use tracing::{debug, info, trace, warn};
 
 pub async fn award_vc_xp_for_session(
     ctx: &Context,
@@ -20,17 +21,36 @@ pub async fn award_vc_xp_for_session(
     leave_time: i64,
     data: &Data,
 ) -> Result<(), Error> {
+    let guild_id_u64 = guild_id.get();
+    let user_id_u64 = user_id.get();
+    let channel_id_u64 = channel_id.get();
+
+    trace!(
+        guild_id = guild_id_u64,
+        user_id = user_id_u64,
+        channel_id = channel_id_u64,
+        "Calculating voice XP awards for completed session"
+    );
+
     let db = &data.db;
     let elapsed_seconds = leave_time - join_time;
     if elapsed_seconds < 60 {
+        trace!(
+            guild_id = guild_id_u64,
+            user_id = user_id_u64,
+            elapsed_seconds,
+            "Skipping XP reward: voice session was too brief (under 60 seconds)"
+        );
         return Ok(());
     }
 
-    let config = get_settings(db, &data.redis, guild_id.get() as i64).await?;
+    let config = get_settings(db, &data.redis, guild_id_u64 as i64).await?;
     let Some(leveling_config) = config.leveling else {
+        trace!(guild_id = guild_id_u64, "Skipping XP reward: leveling system is unconfigured");
         return Ok(());
     };
     if !leveling_config.voice.enabled {
+        trace!(guild_id = guild_id_u64, "Skipping XP reward: voice leveling is disabled");
         return Ok(());
     }
 
@@ -42,18 +62,23 @@ pub async fn award_vc_xp_for_session(
         &leveling_config,
         &user,
         &mut redis,
-        &(channel_id.get() as i64),
-        &guild_id.get(),
+        &(channel_id_u64 as i64),
+        &guild_id_u64,
         ctx,
     )
         .await
     {
+        trace!(
+            guild_id = guild_id_u64,
+            user_id = user_id_u64,
+            "Skipping XP reward: user or channel is excluded from voice leveling rules"
+        );
         return Ok(());
     }
 
     let member = guild_id.member(&ctx.http, user_id).await?;
     let stats_key = format!("member:{}:{}", guild_id, user_id);
-    let multiplier_key = format!("multipliers:{}", guild_id.get());
+    let multiplier_key = format!("multipliers:{}", guild_id_u64);
 
     let multiplier = rules::get_voice_multiplier(
         &mut redis,
@@ -69,10 +94,25 @@ pub async fn award_vc_xp_for_session(
     let elapsed_minutes = elapsed_seconds / 60;
     let total_added_xp = calculate_session_xp(elapsed_minutes, &leveling_config, multiplier);
 
+    debug!(
+        guild_id = guild_id_u64,
+        user_id = user_id_u64,
+        elapsed_minutes,
+        total_added_xp,
+        "Completed calculations for session voice XP"
+    );
+
     let mut user_level = database::get_user_level(&mut redis, db, &guild_id, &user_id, &stats_key).await?;
 
     let should_be_clamped = database::clamp_to_level_cap(&leveling_config, &mut redis, db, &stats_key, &mut user_level).await?;
-    if should_be_clamped { return Ok(()) }
+    if should_be_clamped {
+        debug!(
+            guild_id = guild_id_u64,
+            user_id = user_id_u64,
+            "Skipping voice XP award: user level has hit the leveling cap"
+        );
+        return Ok(());
+    }
 
     let previous_level = user_level.current_level;
     user_level.current_xp += total_added_xp;
@@ -90,6 +130,13 @@ pub async fn award_vc_xp_for_session(
     user_level.cumulative_xp = calculation::calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
 
     if leveled_up {
+        info!(
+            guild_id = guild_id_u64,
+            user_id = user_id_u64,
+            old_level = previous_level,
+            new_level = user_level.current_level,
+            "User leveled up in voice channel!"
+        );
         handle_level_up(
             ctx,
             data,
@@ -133,6 +180,11 @@ async fn handle_level_up(
     previous_level: i32,
 ) -> Result<(), Error> {
     if !matches!(config.notify.scope, NotificationScope::None) {
+        trace!(
+            guild_id = guild_id.get(),
+            user_id = user.id.get(),
+            "Evaluating notification dispatcher for voice level up"
+        );
         send_voice_level_up_message(
             ctx,
             config.notify.embed.as_ref(),
@@ -146,6 +198,12 @@ async fn handle_level_up(
             .await?;
     }
 
+    trace!(
+        guild_id = guild_id.get(),
+        user_id = user.id.get(),
+        level = user_level.current_level,
+        "Evaluating level reward assignments"
+    );
     let _ = apply_level_rewards(
         ctx,
         &data.db,
@@ -168,6 +226,15 @@ async fn send_voice_level_up_message(
     voice_channel_id: ChannelId,
     previous_level: i32,
 ) -> Result<(), Error> {
+    let guild_id_u64 = guild_id.get();
+    let user_id_u64 = user.id.get();
+
+    trace!(
+        guild_id = guild_id_u64,
+        user_id = user_id_u64,
+        "Compiling custom voice level up message"
+    );
+
     let is_embed = matches!(config.notify.format, Format::Embed);
     let gctx = get_guild_ctx(*guild_id, ctx.http.as_ref()).await?;
 
@@ -186,11 +253,21 @@ async fn send_voice_level_up_message(
         },
     )
         .unwrap_or_else(|e| {
-            eprintln!("Failed to build custom VC level message: {}", e);
+            warn!(
+            error = ?e,
+            guild_id = guild_id_u64,
+            user_id = user_id_u64,
+            "Failed to construct custom VC level-up layout; using standard fallback"
+        );
             None
         });
 
     let msg = custom_message_opt.unwrap_or_else(|| {
+        debug!(
+            guild_id = guild_id_u64,
+            user_id = user_id_u64,
+            "Using fallback default voice level-up message"
+        );
         let content = format!(
             "Congratulations, <@{}>. You have leveled up to **level {}**",
             user.id, user_level.current_level
