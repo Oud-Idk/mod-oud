@@ -48,7 +48,7 @@ pub async fn handle_send_ticket_message(
             )
         })?;
 
-    let settings = get_settings(&state.pool, &redis_conn, guild_id)
+    let settings = get_settings(&state.pool, &redis_conn, &state.guild_configs, guild_id)
         .await
         .map_err(|e| {
             warn!(error = ?e, guild_id, "Failed to load guild configuration settings");

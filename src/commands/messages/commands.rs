@@ -125,9 +125,10 @@ pub async fn report_message(
 
     let db = &ctx.data().db;
     let redis = ctx.data().redis.clone();
+    let guild_configs = &ctx.data().guild_configs;
 
     trace!(guild_id, "Fetching server settings for report configuration check");
-    let config = get_settings(db, &redis, guild_id as i64).await?;
+    let config = get_settings(db, &redis, guild_configs, guild_id as i64).await?;
     let report_enabled = config.report.map_or(false, |r| r.enabled);
 
     if !report_enabled {

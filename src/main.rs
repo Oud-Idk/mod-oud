@@ -1,17 +1,11 @@
 use self::core::setup;
 use crate::commands::{emergency, leveling, moderation, ticket};
-use crate::models::spam_tracker::SpamTracker;
 use commands::{messages, ping};
-use dashmap::DashSet;
 use poise::serenity_prelude as serenity;
 use prost::Message;
-use redis::Client;
-use serenity::all::{Context, Ready};
 use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
-use sqlx::{Pool, Postgres};
 use std::env;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -33,11 +27,13 @@ impl serenity::prelude::TypeMapKey for ShardManagerContainer {
     type Value = Arc<ShardManager>;
 }
 
+#[derive(Clone)]
 pub struct WebState {
     pub tx: broadcast::Sender<LogEvent>,
     pub pool: sqlx::PgPool,
     pub http: Arc<poise::serenity_prelude::Http>,
     pub redis_client: redis::Client,
+    pub guild_configs: moka::future::Cache<i64, types::config::config::GuildSettings>,
 }
 
 pub struct SafeBrowsingClient {
@@ -148,12 +144,16 @@ async fn main() -> Result<(), Error> {
 
     let http = Arc::new(serenity::Http::new(&token));
 
+    let guild_configs = moka::future::Cache::new(5000);
+    jobs::sync_configs::sync_configs(&redis_client, &guild_configs);
+
     if run_web {
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
         start_web_server(
             pool.clone(),
             Arc::clone(&http),
             redis_client.clone(),
+            guild_configs.clone(),
             tx,
         ).await?;
     }

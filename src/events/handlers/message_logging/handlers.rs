@@ -68,7 +68,7 @@ pub async fn message_log_delete(
         return Ok(());
     };
 
-    let settings = get_settings(&data.db, &data.redis, g_id).await?;
+    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, g_id).await?;
     let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };
@@ -136,7 +136,7 @@ pub async fn message_log_update(
         return Ok(());
     };
 
-    let settings = get_settings(&data.db, &data.redis, g_id).await?;
+    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, g_id).await?;
     let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };

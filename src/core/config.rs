@@ -59,17 +59,27 @@ pub async fn get_guild_ctx(
 pub async fn get_settings(
     db: &sqlx::PgPool,
     redis: &MultiplexedConnection,
+    cache: &moka::future::Cache<i64, GuildSettings>, // Accept the Moka cache reference
     guild_id: i64,
 ) -> Result<GuildSettings, sqlx::Error> {
-    let mut redis = redis.clone();
+    if let Some(settings) = cache.get(&guild_id).await {
+        trace!(guild_id, "Retrieved settings from memory cache");
+        return Ok(settings);
+    }
+
+    let mut redis_conn = redis.clone();
     let cache_key = format!("config:guild:{}", guild_id);
 
     trace!(guild_id, key = %cache_key, "Fetching guild settings configuration");
 
-    if let Ok(Some(cached_string)) = redis.get::<_, Option<String>>(&cache_key).await {
+    // 2. Try checking the Redis L2 cache
+    if let Ok(Some(cached_string)) = redis_conn.get::<_, Option<String>>(&cache_key).await {
         match serde_json::from_str::<GuildSettings>(&cached_string) {
             Ok(settings) => {
-                trace!(guild_id, key = %cache_key, "Successfully retrieved settings from Redis cache");
+                trace!(guild_id, key = %cache_key, "Retrieved settings from Redis cache");
+
+                // Write back to local memory L1 cache
+                cache.insert(guild_id, settings.clone()).await;
                 return Ok(settings);
             }
             Err(e) => {
@@ -77,17 +87,13 @@ pub async fn get_settings(
                     error = ?e,
                     guild_id,
                     key = %cache_key,
-                    "Failed to parse guild settings payload retrieved from Redis cache; falling back to PostgreSQL"
+                    "Failed to parse settings from Redis; falling back to DB"
                 );
             }
         }
     }
 
-    debug!(
-        guild_id,
-        key = %cache_key,
-        "Settings cache miss; querying PostgreSQL database"
-    );
+    debug!(guild_id, key = %cache_key, "Settings cache miss; querying DB");
     let row = sqlx::query!(
         "SELECT settings FROM guild_configs WHERE guild_id = $1",
         guild_id
@@ -99,31 +105,23 @@ pub async fn get_settings(
         Some(r) => match serde_json::from_value::<GuildSettings>(r.settings.clone()) {
             Ok(s) => s,
             Err(e) => {
-                error!(
-                    error = ?e,
-                    guild_id,
-                    raw_json = ?r.settings,
-                    "Failed to deserialize raw database JSON into GuildSettings; falling back to default values"
-                );
+                error!(error = ?e, guild_id, "Failed to deserialize database JSON; using default");
                 GuildSettings::default()
             }
         },
         None => {
-            trace!(guild_id, "No config row found in database; using default settings");
+            trace!(guild_id, "No config found in database; using default settings");
             GuildSettings::default()
         }
     };
 
-    // Populate the Redis cache with the retrieved data (TTL: 1 hour)
+    // 3. Cache settings into Redis (L2 Cache, 1 hour TTL)
     if let Ok(serialized) = serde_json::to_string(&settings) {
-        trace!(
-            guild_id,
-            key = %cache_key,
-            "Serializing and caching settings to Redis with a 1-hour TTL"
-        );
-        // Store the JSON string for 3600 seconds (1 hour)
-        let _: Result<(), _> = redis.set_ex(&cache_key, serialized, 3600).await;
+        let _: Result<(), _> = redis_conn.set_ex(&cache_key, serialized, 3600).await;
     }
+
+    // 4. Cache settings into local memory (L1 Cache)
+    cache.insert(guild_id, settings.clone()).await;
 
     Ok(settings)
 }

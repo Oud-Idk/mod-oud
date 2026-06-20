@@ -19,7 +19,7 @@ pub async fn on_member_join(
     let user_id = member.user.id.get();
     info!(guild_id, user_id, user_name = %member.user.name, "Member joined the guild");
 
-    let settings = get_settings(&data.db, &data.redis, guild_id as i64).await?;
+    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id as i64).await?;
 
     if let Some(welcome_config) = settings.welcome {
         trace!(guild_id, user_id, "Welcome configuration detected; launching welcome routine");
@@ -53,7 +53,7 @@ pub async fn on_member_leave(
     let user_id = user.id.get();
     info!(guild_id, user_id, user_name = %user.name, "Member left the guild");
 
-    let settings = get_settings(&data.db, &data.redis, guild_id as i64).await?;
+    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id as i64).await?;
 
     let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled.unwrap_or(false)) else {
         trace!(guild_id, user_id, "Leave notifications are disabled; logging departure directly to DB");

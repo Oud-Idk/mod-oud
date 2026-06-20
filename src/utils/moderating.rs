@@ -1,6 +1,6 @@
 use crate::commands::moderation::warn::database::{delete_warn, update_warn};
 use crate::core::config::{get_guild_ctx, get_settings};
-use crate::types::config::config::Format;
+use crate::types::config::config::{Format, GuildSettings};
 use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::logger::ActionType;
@@ -16,10 +16,11 @@ const MODERATION_FOOTER: &str = "This is an automated moderation action. If you 
 
 /// Helper macro to fetch common moderation context (Guild Context, Member, Settings)
 macro_rules! fetch_mod_ctx {
-    ($db:expr, $redis_conn:expr, $http:expr, $guild_id:expr, $user_id:expr) => {{
+    ($db:expr, $redis_conn:expr, $config_cache:expr, $http:expr, $guild_id:expr, $user_id:expr) => {{
         let gctx = get_guild_ctx($guild_id, $http.as_ref()).await?;
         let member = $http.get_member($guild_id, $user_id).await?;
-        let settings = get_settings($db, $redis_conn, $guild_id.get() as i64).await?;
+        // Pass the config cache argument as the third parameter to get_settings
+        let settings = get_settings($db, $redis_conn, $config_cache, $guild_id.get() as i64).await?;
         (gctx, member, settings)
     }};
 }
@@ -63,6 +64,7 @@ macro_rules! send_mod_dm {
 pub async fn issue_warning(
     db: &sqlx::PgPool,
     redis_conn: &MultiplexedConnection,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::Http>,
     guild_id: serenity::GuildId,
     user_id: serenity::UserId,
@@ -75,7 +77,7 @@ pub async fn issue_warning(
     ).fetch_one(db).await?;
     let warn_id = warn_res.id;
 
-    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user_id);
+    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
     let moderator_user = http.get_user(moderator_id).await.unwrap_or_else(|_| member.user.clone());
 
     let warn_dm_settings_opt = settings.moderation_dms.and_then(|m| m.warn);
@@ -102,6 +104,7 @@ pub async fn issue_warning(
 pub async fn issue_kick(
     db: &sqlx::PgPool,
     redis_conn: &MultiplexedConnection,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     channel_id: serenity::all::ChannelId,
@@ -109,7 +112,7 @@ pub async fn issue_kick(
     moderator: serenity::all::User,
     reason: &str,
 ) -> Result<(), Error> {
-    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
+    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let kick_dm_settings_opt = settings.moderation_dms.and_then(|m| m.kick);
     let mut invite_url = None;
@@ -160,6 +163,7 @@ pub async fn issue_kick(
 pub async fn issue_ban(
     db: &sqlx::PgPool,
     redis_conn: &MultiplexedConnection,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
@@ -169,7 +173,7 @@ pub async fn issue_ban(
     duration: Option<Duration>,
     duration_label: &str,
 ) -> Result<(), Error> {
-    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
+    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
 
@@ -210,6 +214,7 @@ pub async fn issue_ban(
 pub async fn issue_mute(
     db: &sqlx::PgPool,
     redis_conn: &MultiplexedConnection,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
@@ -218,7 +223,7 @@ pub async fn issue_mute(
     duration: &Duration,
     timestamp: serenity::all::Timestamp,
 ) -> Result<(), Error> {
-    let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
+    let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let mute_dm_settings_opt = settings.moderation_dms.and_then(|m| m.mute);
 
@@ -246,12 +251,13 @@ pub async fn issue_mute(
 pub async fn issue_unmute(
     db: &sqlx::PgPool,
     redis_conn: &MultiplexedConnection,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
     moderator: serenity::all::User,
 ) -> Result<(), Error> {
-    let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
+    let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let unmute_dm_settings_opt = settings.moderation_dms.and_then(|m| m.unmute);
 
@@ -277,6 +283,7 @@ pub async fn issue_unmute(
 pub async fn issue_softban(
     db: &sqlx::PgPool,
     redis_conn: &MultiplexedConnection,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
     user: serenity::all::User,
@@ -284,7 +291,7 @@ pub async fn issue_softban(
     reason: &str,
     dmd: u8,
 ) -> Result<(), Error> {
-    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, http, guild_id, user.id);
+    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let softban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.softban);
 
@@ -318,6 +325,7 @@ pub async fn issue_softban(
 pub async fn issue_delete_warning(
     db: &sqlx::PgPool,
     redis_conn: &MultiplexedConnection,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id_raw: serenity::all::GuildId,
     id: i32,
@@ -337,7 +345,7 @@ pub async fn issue_delete_warning(
     let member = http.get_member(guild_id_raw, user_id).await?;
     let user = &member.user;
 
-    let settings = get_settings(db, redis_conn, guild_id).await?;
+    let settings = get_settings(db, redis_conn, guild_configs, guild_id).await?;
     let dm_settings_opt = settings.moderation_dms.and_then(|m| m.unpardon_delete_warn);
 
     let mut custom_msg_opt = None;
@@ -387,6 +395,7 @@ pub async fn issue_delete_warning(
 pub async fn issue_warning_status_change(
     db: &sqlx::PgPool,
     redis_conn: &MultiplexedConnection,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id_raw: serenity::all::GuildId,
     id: i32,
@@ -418,7 +427,7 @@ pub async fn issue_warning_status_change(
     };
 
     // 3. Fetch custom DM settings
-    let settings = get_settings(db, redis_conn, guild_id).await?;
+    let settings = get_settings(db, redis_conn, guild_configs, guild_id).await?;
     let dm_settings_opt = if set_active {
         settings.moderation_dms.and_then(|m| m.unpardon_warn)
     } else {

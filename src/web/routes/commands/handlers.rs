@@ -54,6 +54,7 @@ pub async fn handle_warn(
     crate::utils::moderating::issue_warning(
         &state.pool,
         &redis_conn,
+        &state.guild_configs,
         &state.http,
         *guild_id,
         *user_id,
@@ -103,7 +104,7 @@ pub async fn handle_timeout(
 
     crate::utils::moderating::issue_mute(
         &state.pool,
-        &redis_conn,
+        &redis_conn, &state.guild_configs,
         &state.http,
         *guild_id,
         user,
@@ -145,7 +146,7 @@ pub async fn handle_ban_user(
 
     crate::utils::moderating::issue_ban(
         &state.pool,
-        &redis_conn,
+        &redis_conn, &state.guild_configs,
         &state.http,
         *guild_id,
         user,
@@ -169,7 +170,7 @@ pub async fn handle_resolve_report(
     guild_id: &GuildId,
 ) -> Result<StatusCode, WebError> {
     let redis_conn = get_redis_conn(&state.redis_client).await?;
-    let config = get_settings(&state.pool, &redis_conn, guild_id.get() as i64)
+    let config = get_settings(&state.pool, &redis_conn, &state.guild_configs, guild_id.get() as i64)
         .await
         .map_err(|e| WebError::Internal(e.to_string()))?;
 

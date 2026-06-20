@@ -20,7 +20,7 @@ pub async fn on_open_ticket(
         return Ok(());
     };
     let user_interact = &component.user;
-    let settings = get_settings(&data.db, &data.redis, guild_id.get() as i64).await?;
+    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
     let tickets = settings.tickets.as_ref();
 
     let role_id = match tickets.and_then(|t| t.ticket_role_id) {
@@ -92,7 +92,7 @@ pub async fn on_open_ticket(
         .query_async(&mut redis_conn)
         .await?;
 
-    data.active_tickets.insert(ticket_channel.id.get());
+    data.active_tickets.insert(ticket_channel.id.get(), ()).await;
 
     component
         .edit_response(

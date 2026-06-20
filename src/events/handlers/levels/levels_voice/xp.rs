@@ -44,7 +44,7 @@ pub async fn award_vc_xp_for_session(
         return Ok(());
     }
 
-    let config = get_settings(db, &data.redis, guild_id_u64 as i64).await?;
+    let config = get_settings(db, &data.redis, &data.guild_configs, guild_id_u64 as i64).await?;
     let Some(leveling_config) = config.leveling else {
         trace!(guild_id = guild_id_u64, "Skipping XP reward: leveling system is unconfigured");
         return Ok(());

@@ -1,5 +1,6 @@
 pub mod routes;
 
+use crate::types::config::config::GuildSettings;
 use crate::types::{Error, LogEvent};
 use crate::web::routes::commands::commands::handle_dashboard_command;
 use crate::web::routes::tickets_delete::handle_delete_ticket_message;
@@ -24,6 +25,7 @@ pub async fn start_web_server(
     pool: sqlx::PgPool,
     http: Arc<poise::serenity_prelude::Http>,
     redis_client: redis::Client,
+    guild_configs: moka::future::Cache<i64, GuildSettings>,
     tx: broadcast::Sender<LogEvent>,
 ) -> Result<(), Error> {
     let tx_clone = tx.clone();
@@ -69,7 +71,8 @@ pub async fn start_web_server(
         tx,
         pool,
         http,
-        redis_client
+        redis_client,
+        guild_configs,
     });
 
     let app = Router::new()

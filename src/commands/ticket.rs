@@ -30,7 +30,7 @@ pub async fn setup_tickets(
         "Moderator invoked setup_tickets slash command"
     );
 
-    let settings = get_settings(&ctx.data().db, &ctx.data().redis, guild_id).await?;
+    let settings = get_settings(&ctx.data().db, &ctx.data().redis, &ctx.data().guild_configs, guild_id).await?;
 
     if let Some(ref ticket_cfg) = settings.tickets {
         if let Some(ref posted_id) = ticket_cfg.posted_message_id {

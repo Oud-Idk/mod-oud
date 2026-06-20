@@ -32,6 +32,7 @@ pub async fn kick(
     issue_kick(
         &ctx.data().db,
         &ctx.data().redis,
+        &ctx.data().guild_configs,
         &ctx.serenity_context().http,
         meta.id,
         ctx.channel_id(),
@@ -95,7 +96,8 @@ pub async fn ban(
 
     issue_ban(
         &ctx.data().db,
-        redis_conn,
+        &redis_conn,
+        &ctx.data().guild_configs,
         &ctx.serenity_context().http,
         meta.id,
         user.clone(),
@@ -226,6 +228,7 @@ pub async fn mute(
     issue_mute(
         &ctx.data().db,
         &ctx.data().redis,
+        &ctx.data().guild_configs,
         &ctx.serenity_context().http,
         meta.id,
         member.user.clone(),
@@ -287,7 +290,8 @@ pub async fn unmute(
 
     issue_unmute(
         &ctx.data().db,
-        redis_conn,
+        &redis_conn,
+        &ctx.data().guild_configs,
         &ctx.serenity_context().http,
         meta.id,
         member.user.clone(),
@@ -339,7 +343,8 @@ pub async fn softban(
 
     issue_softban(
         &ctx.data().db,
-        redis_conn,
+        &redis_conn,
+        &ctx.data().guild_configs,
         &ctx.serenity_context().http,
         meta.id,
         member.user.clone(),

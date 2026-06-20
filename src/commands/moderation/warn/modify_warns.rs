@@ -23,6 +23,7 @@ pub async fn set_warning_active_status(
     let result = issue_warning_status_change(
         &ctx.data().db,
         &ctx.data().redis,
+        &ctx.data().guild_configs,
         &ctx.serenity_context().http,
         meta.id,
         id,

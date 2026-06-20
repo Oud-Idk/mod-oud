@@ -1,4 +1,5 @@
 use crate::core::config::get_settings;
+use crate::types::config::config::GuildSettings;
 use crate::utils::locking;
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
@@ -15,6 +16,7 @@ pub fn start_ticket_inactivity_worker(
     pool: sqlx::PgPool,
     http: Arc<serenity::Http>,
     redis_client: redis::Client,
+    guild_config: moka::future::Cache<i64, GuildSettings>
 ) {
     tokio::spawn(async move {
         let lock_key = "lock:ticket_inactivity_worker";
@@ -35,11 +37,11 @@ pub fn start_ticket_inactivity_worker(
             // Increased lock duration to 50 seconds to cover network latency safely
             match locking::acquire_lock(&redis_client, lock_key, &lock_value, 50).await {
                 Ok(true) => {
-                    if let Err(e) = warn_inactive_tickets(&pool, &redis_conn, &http).await {
+                    if let Err(e) = warn_inactive_tickets(&pool, &redis_conn, &http, &guild_config).await {
                         eprintln!("Error warning inactive tickets: {:?}", e);
                     }
 
-                    if let Err(e) = close_abandoned_tickets(&pool, &redis_conn, &http).await {
+                    if let Err(e) = close_abandoned_tickets(&pool, &redis_conn, &http, &guild_config).await {
                         eprintln!("Error closing abandoned tickets: {:?}", e);
                     }
 
@@ -59,6 +61,7 @@ async fn warn_inactive_tickets(
     pool: &sqlx::PgPool,
     redis: &redis::aio::MultiplexedConnection,
     http: &serenity::Http,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let now = Utc::now();
 
@@ -86,7 +89,7 @@ async fn warn_inactive_tickets(
 
     for row in candidates {
         // Retrieve settings for the ticket's guild
-        let settings = get_settings(pool, redis, row.guild_id)
+        let settings = get_settings(pool, redis, guild_configs, row.guild_id)
             .await
             .unwrap_or_default();
 
@@ -148,6 +151,7 @@ async fn close_abandoned_tickets(
     pool: &sqlx::PgPool,
     redis: &redis::aio::MultiplexedConnection,
     http: &serenity::Http,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let now = Utc::now();
     let safety_threshold = now - ChronoDuration::minutes(1);
@@ -171,7 +175,7 @@ async fn close_abandoned_tickets(
     let mut tickets_to_close = Vec::new();
 
     for row in candidates {
-        let settings = get_settings(pool, redis, row.guild_id)
+        let settings = get_settings(pool, redis, guild_configs, row.guild_id)
             .await
             .unwrap_or_default();
 

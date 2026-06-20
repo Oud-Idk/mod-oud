@@ -6,6 +6,7 @@ use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_ad
 use crate::events::handlers::{message_filter, starboard, tickets};
 use crate::types::{Data, Error};
 use serenity::all::{ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent, Reaction};
+
 pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
     if message.author.bot {
         return Ok(());
@@ -15,14 +16,21 @@ pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result
         return Ok(());
     };
 
-    let _ = cache_message_in_redis(&data.redis, message).await;
     let guild_id_i64 = guild_id.get() as i64;
-    let config = get_settings(&data.db, &data.redis, guild_id_i64).await?;
+    let config = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id_i64).await?; // Redis GET
+    let is_enabled = config.message_logging
+        .as_ref()
+        .map(|v| v.enabled)
+        .flatten()
+        .unwrap_or(false);
+
+    if is_enabled == true {
+        let _ = cache_message_in_redis(&data.redis, message).await; // Redis SET
+    }
 
     message_filter::handle_filtering(&ctx, &data, &config, &message).await?;
-    tickets::handle_tickets(ctx, message, data).await?;
+    tickets::handle_tickets(ctx, message, data, &config).await?;
     levels_text::handle_leveling(ctx, message, data, config.leveling).await?;
-
     Ok(())
 }
 

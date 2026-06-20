@@ -3,7 +3,7 @@ use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, ComponentInteraction, CreateInteractionResponse, CreateInteractionResponseMessage};
 
 pub fn is_ticket_active(data: &Data, channel_id: u64) -> bool {
-    data.active_tickets.contains(&channel_id)
+    data.active_tickets.contains_key(&channel_id)
 }
 
 pub async fn update_redis_activity(

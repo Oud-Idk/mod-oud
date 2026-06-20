@@ -1,13 +1,11 @@
 use crate::models::spam_tracker::SpamTracker;
 use crate::types::{Data, Error};
 use crate::{jobs, SafeBrowsingClient};
-use dashmap::DashSet;
 use redis::Client;
 use serenity::all::{Context, Ready};
 use sqlx::{Pool, Postgres};
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 use tracing::{debug, info};
 
 pub fn setup<'a>(
@@ -20,7 +18,8 @@ pub fn setup<'a>(
     Box::pin(async move {
         info!("Logged in as {}", _ready.user.name);
 
-        let active_tickets_cache = Arc::new(DashSet::new());
+        let active_tickets_cache = moka::future::Cache::new(10_000);
+        let guild_configs_cache = moka::future::Cache::new(5000);
 
         let mut redis_conn_setup = redis_client.get_multiplexed_async_connection().await?;
         let active_tickets_list: Vec<String> = redis::cmd("SMEMBERS")
@@ -31,11 +30,14 @@ pub fn setup<'a>(
 
         for channel_str in active_tickets_list {
             if let Ok(channel_id) = channel_str.parse::<u64>() {
-                active_tickets_cache.insert(channel_id);
+                active_tickets_cache.insert(channel_id, ()).await;
             }
         }
-        debug!("Hydrated {} active tickets into local cache.", active_tickets_cache.len());
 
+        // Moka cache length is accessed via .entry_count()
+        debug!("Hydrated {} active tickets into local cache.", active_tickets_cache.entry_count());
+
+        // 3. Pass the Moka cache into sync_tickets (matches our new signature)
         jobs::sync_tickets::sync_tickets(
             &redis_client,
             &active_tickets_cache
@@ -51,6 +53,7 @@ pub fn setup<'a>(
             pool.clone(),
             ctx.http.clone(),
             redis_client.clone(),
+            guild_configs_cache.clone(),
         );
 
         let spam_tracker = SpamTracker::new(redis_client.clone());
@@ -63,6 +66,7 @@ pub fn setup<'a>(
             spam_tracker,
             safe_browsing_client: client,
             active_tickets: active_tickets_cache,
+            guild_configs: guild_configs_cache,
         })
     })
 }

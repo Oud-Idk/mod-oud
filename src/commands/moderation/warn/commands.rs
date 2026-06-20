@@ -39,6 +39,7 @@ pub async fn warn(
     issue_warning(
         &ctx.data().db,
         &ctx.data().redis,
+        &ctx.data().guild_configs,
         &ctx.serenity_context().http,
         meta.id,
         member.user.id,
@@ -217,6 +218,7 @@ pub async fn delete_warning(
     let result = issue_delete_warning(
         &ctx.data().db,
         &ctx.data().redis,
+        &ctx.data().guild_configs,
         &ctx.serenity_context().http,
         meta.id,
         id,

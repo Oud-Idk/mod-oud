@@ -1,18 +1,14 @@
-use crate::core::config::get_settings;
 use crate::events::handlers::tickets::utils::{is_ticket_active, update_redis_activity};
+use crate::types::config::config::GuildSettings;
 use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, CreateMessage, Message, MessageId, RoleId};
 
-pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
+pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data, settings: &GuildSettings) -> Result<(), Error> {
     let channel_id = message.channel_id;
     let channel_id_str = channel_id.get().to_string();
     let Some(guild_id) = message.guild_id else { return Ok(()) };
     let mut redis_conn = data.redis.clone();
-    let db = &data.db;
-    let redis = &data.redis;
-
-    let settings = get_settings(db, redis, guild_id.get() as i64).await?;
 
     let bump_every = settings.tickets.as_ref()
         .map(|v| v.bump_every)

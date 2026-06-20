@@ -1,14 +1,14 @@
 use crate::types::Error;
-use dashmap::DashSet;
 use futures_util::StreamExt;
+// Import the async Cache from moka
+use moka::future::Cache;
 use redis::Client;
-use std::sync::Arc;
 use std::time::Duration;
 use tracing::debug;
 
 async fn hydrate_active_tickets(
     redis_client: &Client,
-    cache: &Arc<DashSet<u64>>,
+    cache: &Cache<u64, ()>,
 ) -> Result<(), Error> {
     let mut conn = redis_client.get_multiplexed_async_connection().await?;
     let active_tickets_list: Vec<String> = redis::cmd("SMEMBERS")
@@ -17,19 +17,25 @@ async fn hydrate_active_tickets(
         .await
         .unwrap_or_default();
 
-    cache.clear();
+    // Clear everything currently cached in Moka
+    cache.invalidate_all();
+
+    // Insert active keys
     for channel_str in active_tickets_list {
         if let Ok(channel_id) = channel_str.parse::<u64>() {
-            cache.insert(channel_id);
+            cache.insert(channel_id, ()).await;
         }
     }
-    debug!("Hydrated {} active tickets into local cache.", cache.len());
+
+    debug!("Hydrated active tickets into local Moka cache.");
     Ok(())
 }
 
-pub fn sync_tickets(redis_client: &Client, active_tickets_cache: &Arc<DashSet<u64>>) {
+pub fn sync_tickets(redis_client: &Client, active_tickets_cache: &Cache<u64, ()>) {
     let pubsub_client = redis_client.clone();
-    let cache_clone = Arc::clone(&active_tickets_cache);
+    // Directly clone the Cache (it's essentially an Arc under the hood)
+    let cache_clone = active_tickets_cache.clone();
+
     tokio::spawn(async move {
         loop {
             match pubsub_client.get_async_pubsub().await {
@@ -53,8 +59,12 @@ pub fn sync_tickets(redis_client: &Client, active_tickets_cache: &Arc<DashSet<u6
                                 let action = parts[0];
                                 if let Ok(channel_id) = parts[1].parse::<u64>() {
                                     match action {
-                                        "open" => { cache_clone.insert(channel_id); }
-                                        "close" => { cache_clone.remove(&channel_id); }
+                                        "open" => {
+                                            cache_clone.insert(channel_id, ()).await;
+                                        }
+                                        "close" => {
+                                            cache_clone.invalidate(&channel_id).await;
+                                        }
                                         _ => {}
                                     }
                                 }

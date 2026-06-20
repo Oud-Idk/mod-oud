@@ -44,6 +44,8 @@ export async function saveGuildConfigField<T>(guildId: string, key: string, valu
     const cacheKey = `config:guild:${guildId}`;
     try {
         await redis.del(cacheKey);
+
+        await redis.publish("config_updates", `invalidate:${guildId}`);
     } catch (redisError) {
         console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
     }
