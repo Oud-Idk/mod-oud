@@ -70,15 +70,11 @@ pub async fn get_settings(
     let mut redis_conn = redis.clone();
     let cache_key = format!("config:guild:{}", guild_id);
 
-    trace!(guild_id, key = %cache_key, "Fetching guild settings configuration");
-
-    // 2. Try checking the Redis L2 cache
     if let Ok(Some(cached_string)) = redis_conn.get::<_, Option<String>>(&cache_key).await {
         match serde_json::from_str::<GuildSettings>(&cached_string) {
             Ok(settings) => {
                 trace!(guild_id, key = %cache_key, "Retrieved settings from Redis cache");
 
-                // Write back to local memory L1 cache
                 cache.insert(guild_id, settings.clone()).await;
                 return Ok(settings);
             }

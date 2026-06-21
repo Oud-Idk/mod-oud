@@ -4,8 +4,11 @@ use serenity::all::{
     ChannelId, CreateEmbed, CreateEmbedFooter, CreateMessage, EditMember, Mentionable, Message, Timestamp,
 };
 use std::time::Duration;
+use tracing::{debug, error, info, instrument, trace, warn};
+// Added tracing imports
 
 /// Helper function to send a message that deletes itself after a set duration.
+#[instrument(skip(ctx, channel_id))]
 async fn send_temp_warning(
     ctx: &serenity::all::Context,
     channel_id: ChannelId,
@@ -14,13 +17,27 @@ async fn send_temp_warning(
 ) {
     if let Ok(temp_msg) = channel_id.say(&ctx.http, content).await {
         let http = ctx.http.clone(); // Clone only the Arc<Http> instead of the entire Context
+        let temp_msg_id = temp_msg.id;
         tokio::spawn(async move {
             tokio::time::sleep(duration).await;
-            let _ = temp_msg.delete(&http).await;
+            if let Err(err) = temp_msg.delete(&http).await {
+                warn!(error = %err, message_id = %temp_msg_id.get(), "Failed to remove temporary warning message");
+            } else {
+                trace!(message_id = %temp_msg_id.get(), "Cleaned up temporary warning message");
+            }
         });
+    } else {
+        warn!("Failed to dispatch temporary channel warning message");
     }
 }
 
+#[instrument(
+    skip(ctx, message, db),
+    fields(
+        user_id = %message.author.id.get(),
+        rule = rule_name
+    )
+)]
 pub async fn apply_warning(
     ctx: &serenity::all::Context,
     rule_name: &str,
@@ -35,6 +52,8 @@ pub async fn apply_warning(
 
     match database::insert_warning(db, guild_id, user_id, bot_id, &reason_str).await {
         Ok(Some(warn_id)) => {
+            info!(warn_id, "Recorded warning log in database successfully");
+
             let guild_name = message
                 .guild_id
                 .and_then(|id| id.name(&ctx.cache));
@@ -46,21 +65,31 @@ pub async fn apply_warning(
                 .title(format!("You have been formally warned from {}", guild_name_ref))
                 .color(0xFF4747)
                 .field("Reason", &reason_str, false)
-                .field("ID", warn_id.to_string(), false) // More idiomatic than format!("{}", warn_id)
+                .field("ID", warn_id.to_string(), false)
                 .footer(CreateEmbedFooter::new(
-                    "This is an automated moderation_old action. If you believe this was a mistake, please create a ticket on the server.",
+                    "This is an automated moderation action. If you believe this was a mistake, please create a ticket on the server.",
                 ));
 
             let dm = CreateMessage::new().embed(embed);
-            let _ = message.author.dm(&ctx.http, dm).await;
+            if let Err(err) = message.author.dm(&ctx.http, dm).await {
+                warn!(error = %err, "Could not deliver warning DM notification to user");
+            }
         }
         Err(err) => {
-            eprintln!("Failed to insert warning into DB: {:?}", err);
+            error!(error = %err, "Database write failure on warning record insertion");
         }
-        Ok(None) => {}
+        Ok(None) => {
+            trace!("Warning assertion completed with empty database outcome");
+        }
     }
 }
 
+#[instrument(
+    skip(ctx, message, base),
+    fields(
+        user_id = %message.author.id.get()
+    )
+)]
 pub async fn apply_mute(
     ctx: &serenity::all::Context,
     message: &Message,
@@ -77,16 +106,26 @@ pub async fn apply_mute(
 
         // Directly edit the member on the guild, saving a GET HTTP request
         if let Err(err) = guild_id.edit_member(&ctx.http, message.author.id, builder).await {
-            eprintln!("Failed to timeout user {}: {:?}", message.author.id, err);
+            error!(error = %err, "Failed to apply timeout restriction on member API call");
+        } else {
+            info!(duration_secs, "Successfully timed out user");
         }
     }
 }
 
+#[instrument(
+    skip(ctx, message),
+    fields(
+        user_id = %message.author.id.get(),
+        channel_id = %message.channel_id.get()
+    )
+)]
 pub async fn apply_public_reminder(
     ctx: &serenity::all::Context,
     message: &Message,
     rule_name: &str,
 ) {
+    trace!("Sending public automod violation warning");
     send_temp_warning(
         ctx,
         message.channel_id,
@@ -100,6 +139,12 @@ pub async fn apply_public_reminder(
         .await;
 }
 
+#[instrument(
+    skip(ctx, message),
+    fields(
+        user_id = %message.author.id.get()
+    )
+)]
 pub async fn apply_private_reminder(
     ctx: &serenity::all::Context,
     message: &Message,
@@ -116,9 +161,20 @@ pub async fn apply_private_reminder(
     };
 
     // Use the single DM API wrapper
-    let _ = message.author.dm(&ctx.http, builder).await;
+    trace!("Sending private direct message automod warning");
+    if let Err(err) = message.author.dm(&ctx.http, builder).await {
+        warn!(error = %err, "Direct message reminder delivery failed");
+    }
 }
 
+#[instrument(
+    skip_all,
+    fields(
+        rule = rule_name,
+        user_id = %message.author.id.get(),
+        channel_id = %message.channel_id.get()
+    )
+)]
 pub async fn execute_rule_actions(
     ctx: &serenity::all::Context,
     db: &sqlx::PgPool,
@@ -134,6 +190,7 @@ pub async fn execute_rule_actions(
         .map(|action| action.as_str())
         .collect();
 
+    debug!(?actions_taken, "Executing configured actions for matched rule");
     log_automod_event(db, message, rule_name, trigger_content, &actions_taken).await;
     handle_automod(ctx, message, base, db, rule_name, should_warn, custom_dm_message).await;
 }
@@ -163,7 +220,7 @@ async fn log_automod_event(
     )
         .await
     {
-        eprintln!("Failed to write automod log to DB: {:?}", err);
+        error!(error = %err, "Unable to insert automod log record into database");
     }
 }
 
@@ -179,15 +236,18 @@ async fn handle_automod(
     let warn_enabled = should_warn.unwrap_or(true);
 
     for action in &base.action {
+        trace!(?action, "Applying target configuration action");
         match action {
             RuleAction::Delete => {
-                let _ = message.delete(&ctx.http).await;
+                if let Err(err) = message.delete(&ctx.http).await {
+                    warn!(error = %err, "Could not delete flagged message");
+                }
             }
             RuleAction::Warn => {
-                let _ = apply_warning(ctx, rule_name, message, db).await;
+                apply_warning(ctx, rule_name, message, db).await;
             }
             RuleAction::Timeout => {
-                let _ = apply_mute(ctx, message, base).await;
+                apply_mute(ctx, message, base).await;
             }
             RuleAction::RemindPublicly => {
                 if warn_enabled {

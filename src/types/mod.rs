@@ -1,7 +1,7 @@
 use crate::events::handlers::tickets::handler::TicketLogPayload;
+use crate::models::safe_browsing::SafeBrowsingClient;
 use crate::models::spam_tracker::SpamTracker;
 use crate::types::config::config::GuildSettings;
-use crate::SafeBrowsingClient;
 use chrono::{DateTime, Utc};
 use payloads::{DeletedMessagePayload, ModifiedMessagePayload, ReportedMessagePayload};
 use prost::Message;

@@ -2,6 +2,7 @@ use crate::events::handlers::levels::levels_text::{calculation, UserLevel};
 use crate::types::config::leveling::{LevelingConfig, NotificationScope};
 use crate::types::Error;
 use serenity::all::{ChannelId, Context, CreateMessage, User};
+use tracing::trace;
 
 pub async fn send_according_to_config(
     ctx: &Context,
@@ -10,6 +11,12 @@ pub async fn send_according_to_config(
     author: &User,
     msg: CreateMessage,
 ) -> Result<(), Error> {
+    trace!(
+        channel_id = channel_id.get(),
+        author_id = author.id.get(),
+        "Sending announcement message according to notification scope configuration"
+    );
+
     match config.notify.scope {
         NotificationScope::CurrentChannel => {
             channel_id.send_message(&ctx.http, msg).await?;

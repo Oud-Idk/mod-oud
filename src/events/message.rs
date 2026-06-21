@@ -17,20 +17,33 @@ pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result
     };
 
     let guild_id_i64 = guild_id.get() as i64;
-    let config = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id_i64).await?; // Redis GET
+    let config = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id_i64).await?;
+
     let is_enabled = config.message_logging
         .as_ref()
-        .map(|v| v.enabled)
-        .flatten()
+        .and_then(|v| v.enabled)
         .unwrap_or(false);
 
-    if is_enabled == true {
-        let _ = cache_message_in_redis(&data.redis, message).await; // Redis SET
+    if is_enabled {
+        let redis_conn = data.redis.clone();
+        let msg_clone = message.clone();
+
+        tokio::spawn(async move {
+            if let Err(e) = cache_message_in_redis(&redis_conn, &msg_clone).await {
+                tracing::error!("Failed to cache message in Redis: {}", e);
+            }
+        });
     }
 
-    message_filter::handle_filtering(&ctx, &data, &config, &message).await?;
+    let was_filtered = message_filter::handle_filtering(ctx, data, &config, message).await?;
+    if was_filtered {
+        // Prevent deleted/filtered messages from affecting tickets or awarding XP
+        return Ok(());
+    }
+
     tickets::handle_tickets(ctx, message, data, &config).await?;
     levels_text::handle_leveling(ctx, message, data, config.leveling).await?;
+
     Ok(())
 }
 

@@ -1,10 +1,13 @@
 use crate::events::handlers::message_filter::actions;
 use crate::types::config::message_filter::{BaseRule, ExternalLinksRule};
-use crate::types::flag::{FlagSeverity, ThreatType};
+use crate::types::flag::ThreatType;
 use crate::types::{Data, Error};
 use serenity::all::Message;
 use std::borrow::Cow;
+use tracing::{debug, error, instrument, trace};
+// Added tracing imports
 
+#[derive(Debug)]
 pub enum FilterVerdict<'a> {
     Pass,
     Block {
@@ -37,28 +40,24 @@ impl<'a> FilterVerdict<'a> {
     }
 }
 
-pub enum ViolationMetadata {
-    None,
-    Offensive {
-        severity: FlagSeverity,
-    },
-    MaliciousUrls {
-        threats: Vec<i32>,
-    },
-}
-
+#[instrument(
+    name = "resolve_safe_browsing",
+    skip(data, external_links),
+    fields(url_count = urls.len())
+)]
 pub async fn resolve_safe_browsing<'a>(
     data: &Data,
     external_links: &'a ExternalLinksRule,
     urls: &[String],
 ) -> FilterVerdict<'a> {
     let Some(client) = &data.safe_browsing_client else {
+        trace!("Safe Browsing client is not configured; passing evaluation");
         return FilterVerdict::Pass;
     };
 
-    // Convert Vec<String> refs to Vec<&str> for check_urls
     let url_refs: Vec<&str> = urls.iter().map(|s| s.as_str()).collect();
 
+    trace!(?url_refs, "Requesting threat analysis from Safe Browsing API");
     match client.check_urls(&url_refs).await {
         Ok(threats_int) if !threats_int.is_empty() => {
             let threats_str = threats_int
@@ -66,6 +65,11 @@ pub async fn resolve_safe_browsing<'a>(
                 .map(|threat_type| format!("{}", ThreatType::from(*threat_type)))
                 .collect::<Vec<String>>()
                 .join(", ");
+
+            debug!(
+                threats = %threats_str,
+                "Malicious URL threat confirmed by Safe Browsing API check"
+            );
 
             FilterVerdict::Block {
                 rule_name: "Malicious URLs",
@@ -77,9 +81,15 @@ pub async fn resolve_safe_browsing<'a>(
                 ))),
             }
         }
-        Ok(_) => FilterVerdict::Pass,
+        Ok(_) => {
+            trace!("URLs verified as clean by Safe Browsing API check");
+            FilterVerdict::Pass
+        }
         Err(e) => {
-            eprintln!("Safe Browsing API check failed: {}", e);
+            error!(
+                error = %e,
+                "Safe Browsing API validation request failed; falling back to Pass"
+            );
             FilterVerdict::Pass
         }
     }

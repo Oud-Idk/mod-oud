@@ -6,6 +6,8 @@ use poise::serenity_prelude as serenity;
 use rustrict::Censor;
 use serenity::model::channel::Message;
 use std::borrow::Cow;
+use tracing::{debug, trace, warn};
+// Added tracing imports
 
 fn should_be_skipped<T: HasBaseRule>(
     message: &Message,
@@ -25,23 +27,27 @@ fn should_be_skipped<T: HasBaseRule>(
         })
     };
 
-    // 2. Short-circuit logic based on ScopeMode
+    // Short-circuit logic based on ScopeMode
     match base.scope.mode {
         ScopeMode::Exempt => {
             if is_channel_matched {
+                trace!("Skipping rule check: target channel is exempt");
                 return true;
             }
             if has_matching_role() {
+                trace!("Skipping rule check: user possesses an exempt role");
                 return true;
             }
         }
         ScopeMode::Enforced => {
             if !is_channel_matched {
+                trace!("Skipping rule check: target channel is not enforced");
                 return true;
             }
 
             let role_enforced_but_missing = !base.scope.roles.is_empty() && !has_matching_role();
             if role_enforced_but_missing {
+                trace!("Skipping rule check: user lacks required enforced role");
                 return true;
             }
         }
@@ -65,10 +71,15 @@ fn has_bad_words(pattern: &Pattern, message: &Message) -> bool {
         }
         MatchStrategy::Regex => {
             let cached_regex = pattern.compiled_regex.get_or_init(|| {
-                regex::RegexBuilder::new(&pattern.value)
+                match regex::RegexBuilder::new(&pattern.value)
                     .case_insensitive(true)
-                    .build()
-                    .ok() // If compile fails, store None so we don't keep trying to compile it
+                    .build() {
+                    Ok(re) => Some(re),
+                    Err(err) => {
+                        warn!(error = %err, pattern = %pattern.value, "Failed to compile rule regex pattern");
+                        None
+                    }
+                }
             });
 
             if let Some(re) = cached_regex {
@@ -105,6 +116,7 @@ pub fn filter_bad_words<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'Bad Words' filter rule");
     let mut matched_pattern = None;
 
     for pattern in bad_words.patterns.iter() {
@@ -117,6 +129,7 @@ pub fn filter_bad_words<'a>(
     }
 
     if let Some(pattern) = matched_pattern {
+        debug!(trigger = %pattern.value, "Message flagged by Bad Words filter");
         FilterVerdict::Block {
             rule_name: "Bad Words",
             base_rule: bad_words.base(),
@@ -136,6 +149,7 @@ pub fn filter_offensive_messages<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'Offensive Messages' filter rule");
     let cleaned_content = utils::clean_message_content(&message.content);
     let analysis = Censor::from_str(&cleaned_content).analyze();
 
@@ -151,6 +165,7 @@ pub fn filter_offensive_messages<'a>(
         Some(Cow::Owned(categories.join(", ")))
     };
 
+    debug!(?categories, "Message flagged by Offensive Messages filter");
     FilterVerdict::Block {
         rule_name: "Offensive Message",
         base_rule: &offensive_rule.base,
@@ -167,9 +182,11 @@ pub fn filter_server_invites<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'Server Invites' filter rule");
     if let Some(captures) = INVITE_REGEX.captures(&message.content) {
         let matched_link = captures.get(0).map(|m| Cow::Borrowed(m.as_str()));
 
+        debug!(matched_link = ?matched_link, "Message flagged by Server Invites filter");
         return FilterVerdict::Block {
             rule_name: "Server Invites",
             base_rule: server_invites.base(),
@@ -189,12 +206,14 @@ pub fn filter_external_urls<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'External URLs' filter rule");
     let (_, urls) = utils::remove_urls(&message.content);
     if urls.is_empty() {
         return FilterVerdict::Pass;
     }
 
     if external_links.block_only_malicious {
+        trace!("External URLs verification deferred for external API evaluation");
         return FilterVerdict::RequiresSafeBrowsingCheck {
             urls: urls.into_iter().map(String::from).collect(),
             external_links,
@@ -211,6 +230,7 @@ pub fn filter_external_urls<'a>(
         Modes::Denylist => "External URLs (Blocklisted)",
     };
 
+    debug!(url, rule_name, "Message flagged by External URLs domain list filters");
     FilterVerdict::Block {
         rule_name,
         base_rule: &external_links.base,
@@ -227,6 +247,7 @@ pub fn filter_excessive_caps<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'Excessive Caps' filter rule");
     if message.content.chars().count() < excessive_caps.min_length as usize { return FilterVerdict::Pass; }
     let count = utils::amount_of_uppercase(message.content.as_str());
 
@@ -234,6 +255,7 @@ pub fn filter_excessive_caps<'a>(
         return FilterVerdict::Pass;
     }
 
+    debug!(caps_count = count, threshold = excessive_caps.threshold, "Message flagged by Excessive Caps filter");
     FilterVerdict::Block {
         rule_name: "Excessive Caps",
         base_rule: &excessive_caps.base,
@@ -250,9 +272,11 @@ pub fn filter_excessive_emojis<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'Excessive Emojis' filter rule");
     let total_count = utils::count_emojis(&message.content) + DISCORD_EMOJI_REGEX.find_iter(&message.content).count();
 
     if total_count > excessive_emojis.max_emojis as usize {
+        debug!(emoji_count = total_count, threshold = excessive_emojis.max_emojis, "Message flagged by Excessive Emojis filter");
         return FilterVerdict::Block {
             rule_name: "Excessive Emojis",
             base_rule: &excessive_emojis.base,
@@ -272,8 +296,10 @@ pub fn filter_excessive_spoilers<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'Excessive Spoilers' filter rule");
     let amount = utils::calculate_spoiler_amount(&message.content);
     if amount > excessive_spoilers.threshold {
+        debug!(spoiler_count = amount, threshold = excessive_spoilers.threshold, "Message flagged by Excessive Spoilers filter");
         return FilterVerdict::Block {
             rule_name: "Excessive Spoiler",
             base_rule: &excessive_spoilers.base,
@@ -293,8 +319,10 @@ pub fn filter_excessive_mentions<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'Excessive Mentions' filter rule");
     let discord_count = DISCORD_PING_REGEX.find_iter(&message.content).count();
     if discord_count > excessive_mentions.max_mentions as usize {
+        debug!(mention_count = discord_count, threshold = excessive_mentions.max_mentions, "Message flagged by Excessive Mentions filter");
         return FilterVerdict::Block {
             rule_name: "Excessive Mentions",
             base_rule: &excessive_mentions.base,
@@ -314,7 +342,9 @@ pub fn filter_zalgo<'a>(
         return FilterVerdict::Pass;
     };
 
+    trace!("Checking 'Zalgo' filter rule");
     if utils::is_zalgo_grapheme(&message.content, 3) {
+        debug!("Message flagged by Zalgo filter");
         return FilterVerdict::Block {
             rule_name: "Zalgo",
             base_rule: &zalgo,

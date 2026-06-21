@@ -1,7 +1,8 @@
+use crate::jobs;
+use crate::models::safe_browsing::SafeBrowsingClient;
 use crate::models::spam_tracker::SpamTracker;
 use crate::types::config::config::GuildSettings;
 use crate::types::{Data, Error};
-use crate::{jobs, SafeBrowsingClient};
 use redis::Client;
 use serenity::all::{Context, Ready};
 use sqlx::{Pool, Postgres};
@@ -22,10 +23,10 @@ pub fn setup<'a>(
 
         let active_tickets_cache = moka::future::Cache::new(10_000);
 
-        let mut redis_conn_setup = redis_client.get_multiplexed_async_connection().await?;
+        let mut redis_conn = redis_client.get_multiplexed_async_connection().await?;
         let active_tickets_list: Vec<String> = redis::cmd("SMEMBERS")
             .arg("active_tickets")
-            .query_async(&mut redis_conn_setup)
+            .query_async(&mut redis_conn)
             .await
             .unwrap_or_default();
 
@@ -63,7 +64,7 @@ pub fn setup<'a>(
 
         jobs::ticket_logger::start_ticket_logger(rx, pool.clone());
 
-        let spam_tracker = SpamTracker::new(redis_client.clone());
+        let spam_tracker = SpamTracker::new(redis_conn);
         let redis_conn = redis_client.get_multiplexed_async_connection().await?;
         let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
         let audit_log_cache = moka::future::Cache::new(5000);

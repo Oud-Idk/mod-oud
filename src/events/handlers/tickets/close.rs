@@ -57,7 +57,7 @@ async fn cleanup_ticket_records(data: &Data, channel_id: ChannelId) -> Result<()
         .query_async(&mut redis_conn)
         .await?;
 
-    data.active_tickets.remove(&channel_id.get());
+    data.active_tickets.remove(&channel_id.get()).await;
 
     Ok(())
 }

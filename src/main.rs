@@ -36,50 +36,6 @@ pub struct WebState {
     pub guild_configs: moka::future::Cache<i64, types::config::config::GuildSettings>,
 }
 
-pub struct SafeBrowsingClient {
-    api_key: String,
-    http_client: reqwest::Client,
-}
-
-impl SafeBrowsingClient {
-    pub fn new(api_key: String) -> Self {
-        let http_client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(3)) // Max 3-second wait
-            .connect_timeout(Duration::from_secs(2))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
-
-        Self {
-            api_key,
-            http_client,
-        }
-    }
-
-    /// Checks a batch of URLs and returns recognized threats
-    pub async fn check_urls(&self, urls: &[&str]) -> Result<Vec<i32>, Error> {
-        let endpoint = "https://safebrowsing.googleapis.com/v5/urls:search";
-        let mut query_params = vec![("key".to_string(), self.api_key.clone())];
-        for url in urls {
-            query_params.push(("urls".to_string(), url.to_string()));
-        }
-
-        let response = self.http_client.get(endpoint).query(&query_params).send().await?;
-        if !response.status().is_success() {
-            return Err(format!("Safe Browsing API Error: {}", response.text().await?).into());
-        }
-
-        let bytes = response.bytes().await?;
-        let search_response = SearchUrlsResponse::decode(bytes)?;
-
-        let mut threat_types = Vec::new();
-        for threat in search_response.threats {
-            threat_types.extend(threat.threat_types);
-        }
-
-        Ok(threat_types)
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     dotenvy::dotenv().ok();
@@ -201,12 +157,13 @@ async fn main() -> Result<(), Error> {
         cache_settings.cache_channels = false;
         cache_settings.time_to_live = Duration::from_secs(60 * 30);
 
-        debug!("Setting cache with {} messages per channel, caching user: {}, caching channels: {}, caching guilds: {}, and TTL: {} seconds",
-            cache_settings.max_messages,
-            cache_settings.cache_users,
-            cache_settings.cache_channels,
-            cache_settings.cache_guilds,
-            cache_settings.time_to_live.as_secs(),
+        debug!(
+            max_messages = cache_settings.max_messages,
+            cache_users = cache_settings.cache_users,
+            cache_channels = cache_settings.cache_channels,
+            cache_guilds = cache_settings.cache_guilds,
+            ttl = cache_settings.time_to_live.as_secs(),
+            "Setting up cache",
         );
 
         let commands_to_register = vec![

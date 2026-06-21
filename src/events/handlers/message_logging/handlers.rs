@@ -205,7 +205,7 @@ pub async fn message_log_update(
         channel_id: details.chan_id.to_string(),
         old_content: details.old_content.clone(),
         new_content: details.new_content.clone(),
-        edited_at: chrono::Utc::now().to_rfc3339(),
+        updated_at: chrono::Utc::now().to_rfc3339(),
     };
 
     if let Ok(payload_json) = serde_json::to_string(&payload) {

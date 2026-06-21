@@ -66,11 +66,6 @@ pub async fn send_message(
         CreateMessage::new().content(content)
     });
 
-    trace!(
-        guild_id = guild_id_u64,
-        user_id = %user_id,
-        "Sending announcement message according to notification scope configuration"
-    );
     effects::send_according_to_config(&ctx, message.channel_id, config, author, msg).await?;
 
     Ok(())

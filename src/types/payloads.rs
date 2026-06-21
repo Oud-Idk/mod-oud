@@ -21,7 +21,7 @@ pub struct ModifiedMessagePayload {
     pub channel_id: String,
     pub old_content: Option<String>,
     pub new_content: Option<String>,
-    pub edited_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
