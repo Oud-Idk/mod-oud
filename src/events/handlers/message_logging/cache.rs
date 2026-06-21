@@ -18,12 +18,11 @@ pub async fn cache_message_in_redis(
     let serialized = serde_json::to_string(&cached)?;
     let key = format!("msg:{}:{}", msg.channel_id.get(), msg.id.get());
 
-    // Set with a 24-hour (86400 seconds) expiration to prevent Redis memory exhaustion
     let _: () = redis::cmd("SET")
         .arg(&key)
         .arg(serialized)
         .arg("EX")
-        .arg(86400)
+        .arg(18000)
         .query_async(&mut conn)
         .await?;
 
@@ -88,7 +87,7 @@ pub async fn fetch_dist_edit_details(
                     .arg(&key)
                     .arg(serialized)
                     .arg("EX")
-                    .arg(86400) // Reset TTL
+                    .arg(18000) // Reset TTL
                     .query_async(&mut conn)
                     .await?;
             }

@@ -1,5 +1,7 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
+use std::sync::OnceLock;
 // Required imports
 
 // Placeholder for your external type
@@ -75,12 +77,29 @@ pub enum MatchStrategy {
     Regex,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Pattern {
-    pub value: String,
     pub strategy: MatchStrategy,
+    pub value: String,
+
+    #[serde(skip, default)]
+    pub compiled_regex: OnceLock<Option<Regex>>,
 }
 
+impl Clone for Pattern {
+    fn clone(&self) -> Self {
+        let cell = OnceLock::new();
+        if let Some(cached_re) = self.compiled_regex.get() {
+            let _ = cell.set(cached_re.clone());
+        }
+
+        Self {
+            strategy: self.strategy.clone(),
+            value: self.value.clone(),
+            compiled_regex: cell,
+        }
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BadWordsRule {
     #[serde(flatten)]

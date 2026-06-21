@@ -1,3 +1,4 @@
+use crate::events::handlers::tickets::handler::TicketLogPayload;
 use crate::models::spam_tracker::SpamTracker;
 use crate::types::config::config::GuildSettings;
 use crate::SafeBrowsingClient;
@@ -5,6 +6,8 @@ use chrono::{DateTime, Utc};
 use payloads::{DeletedMessagePayload, ModifiedMessagePayload, ReportedMessagePayload};
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedSender;
 
 pub mod flag;
 pub mod embed;
@@ -15,6 +18,12 @@ pub mod dashboard;
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
+#[derive(Clone)]
+pub struct CachedAuditLogs {
+    pub entries: Vec<serenity::all::AuditLogEntry>,
+    pub users: std::collections::HashMap<serenity::all::UserId, serenity::all::User>,
+}
+
 pub struct Data {
     pub db: sqlx::PgPool,
     pub redis: redis::aio::MultiplexedConnection,
@@ -22,6 +31,8 @@ pub struct Data {
     pub safe_browsing_client: Option<SafeBrowsingClient>,
     pub active_tickets: moka::future::Cache<u64, ()>,
     pub guild_configs: moka::future::Cache<i64, GuildSettings>,
+    pub audit_log_cache: moka::future::Cache<u64, Arc<CachedAuditLogs>>,
+    pub ticket_log_tx: UnboundedSender<TicketLogPayload>,
 }
 
 #[derive(Clone, PartialEq, Message)]

@@ -36,17 +36,7 @@ pub async fn handle_send_ticket_message(
         (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string())
     })?;
 
-    let redis_conn = state
-        .redis_client
-        .get_multiplexed_async_connection()
-        .await
-        .map_err(|e| {
-            warn!(error = ?e, guild_id, "Failed to establish Redis connection during endpoint execution");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to create Redis connection: {}", e),
-            )
-        })?;
+    let redis_conn = state.redis.clone();
 
     let settings = get_settings(&state.pool, &redis_conn, &state.guild_configs, guild_id)
         .await

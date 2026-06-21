@@ -1,6 +1,5 @@
 use crate::types::Error;
 use futures_util::StreamExt;
-// Import the async Cache from moka
 use moka::future::Cache;
 use redis::Client;
 use std::time::Duration;
@@ -11,23 +10,31 @@ async fn hydrate_active_tickets(
     cache: &Cache<u64, ()>,
 ) -> Result<(), Error> {
     let mut conn = redis_client.get_multiplexed_async_connection().await?;
-    let active_tickets_list: Vec<String> = redis::cmd("SMEMBERS")
-        .arg("active_tickets")
-        .query_async(&mut conn)
-        .await
-        .unwrap_or_default();
-
-    // Clear everything currently cached in Moka
     cache.invalidate_all();
 
-    // Insert active keys
-    for channel_str in active_tickets_list {
-        if let Ok(channel_id) = channel_str.parse::<u64>() {
-            cache.insert(channel_id, ()).await;
+    let mut cursor = 0_u64;
+    loop {
+        let (next_cursor, keys): (u64, Vec<String>) = redis::cmd("SSCAN")
+            .arg("active_tickets")
+            .arg(cursor)
+            .arg("COUNT")
+            .arg(250)
+            .query_async(&mut conn)
+            .await?;
+
+        for channel_str in keys {
+            if let Ok(channel_id) = channel_str.parse::<u64>() {
+                cache.insert(channel_id, ()).await;
+            }
+        }
+
+        cursor = next_cursor;
+        if cursor == 0 {
+            break;
         }
     }
 
-    debug!("Hydrated active tickets into local Moka cache.");
+    debug!("Hydrated active tickets into local cache.");
     Ok(())
 }
 

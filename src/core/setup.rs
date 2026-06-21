@@ -1,4 +1,5 @@
 use crate::models::spam_tracker::SpamTracker;
+use crate::types::config::config::GuildSettings;
 use crate::types::{Data, Error};
 use crate::{jobs, SafeBrowsingClient};
 use redis::Client;
@@ -12,6 +13,7 @@ pub fn setup<'a>(
     safe_browsing_api_key: Option<String>,
     pool: Pool<Postgres>,
     redis_client: Client,
+    guild_configs_cache: moka::future::Cache<i64, GuildSettings>, // <-- Added this parameter
     ctx: &'a Context,
     _ready: &'a Ready,
 ) -> Pin<Box<dyn Future<Output=Result<Data, Error>> + Send + 'a>> {
@@ -19,7 +21,6 @@ pub fn setup<'a>(
         info!("Logged in as {}", _ready.user.name);
 
         let active_tickets_cache = moka::future::Cache::new(10_000);
-        let guild_configs_cache = moka::future::Cache::new(5000);
 
         let mut redis_conn_setup = redis_client.get_multiplexed_async_connection().await?;
         let active_tickets_list: Vec<String> = redis::cmd("SMEMBERS")
@@ -33,11 +34,10 @@ pub fn setup<'a>(
                 active_tickets_cache.insert(channel_id, ()).await;
             }
         }
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-        // Moka cache length is accessed via .entry_count()
         debug!("Hydrated {} active tickets into local cache.", active_tickets_cache.entry_count());
 
-        // 3. Pass the Moka cache into sync_tickets (matches our new signature)
         jobs::sync_tickets::sync_tickets(
             &redis_client,
             &active_tickets_cache
@@ -56,9 +56,17 @@ pub fn setup<'a>(
             guild_configs_cache.clone(),
         );
 
+        jobs::flush_levels::start_level_flush_worker(
+            pool.clone(),
+            redis_client.clone()
+        );
+
+        jobs::ticket_logger::start_ticket_logger(rx, pool.clone());
+
         let spam_tracker = SpamTracker::new(redis_client.clone());
         let redis_conn = redis_client.get_multiplexed_async_connection().await?;
         let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
+        let audit_log_cache = moka::future::Cache::new(5000);
 
         Ok(Data {
             db: pool,
@@ -67,6 +75,8 @@ pub fn setup<'a>(
             safe_browsing_client: client,
             active_tickets: active_tickets_cache,
             guild_configs: guild_configs_cache,
+            ticket_log_tx: tx,
+            audit_log_cache,
         })
     })
 }

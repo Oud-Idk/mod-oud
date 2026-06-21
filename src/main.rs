@@ -32,7 +32,7 @@ pub struct WebState {
     pub tx: broadcast::Sender<LogEvent>,
     pub pool: sqlx::PgPool,
     pub http: Arc<poise::serenity_prelude::Http>,
-    pub redis_client: redis::Client,
+    pub redis: redis::aio::MultiplexedConnection,
     pub guild_configs: moka::future::Cache<i64, types::config::config::GuildSettings>,
 }
 
@@ -43,9 +43,15 @@ pub struct SafeBrowsingClient {
 
 impl SafeBrowsingClient {
     pub fn new(api_key: String) -> Self {
+        let http_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(3)) // Max 3-second wait
+            .connect_timeout(Duration::from_secs(2))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
         Self {
             api_key,
-            http_client: reqwest::Client::new(),
+            http_client,
         }
     }
 
@@ -73,7 +79,6 @@ impl SafeBrowsingClient {
         Ok(threat_types)
     }
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -127,17 +132,30 @@ async fn main() -> Result<(), Error> {
         debug!("Since RUN_WEB is false, not running REST API.");
     }
 
-    let pool = sqlx::PgPool::connect(&database_url).await?;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(25)
+        .min_connections(5)
+        .idle_timeout(Duration::from_secs(30))
+        .acquire_timeout(Duration::from_secs(10))
+        .connect(&database_url)
+        .await?;
+
     info!(
         "Database connection established! Pool size: {}, Idle: {}",
         pool.size(),
         pool.num_idle()
     );
 
-    sqlx::migrate!()
-        .run(&pool)
-        .await?;
-    info!("Database migrated.");
+    let run_migrations = env::var("RUN_MIGRATIONS")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse()
+        .unwrap_or(false);
+
+    if run_migrations {
+        info!("Running database migrations...");
+        sqlx::migrate!().run(&pool).await?;
+        info!("Database migrated successfully.");
+    }
 
     let redis_client = redis::Client::open(redis_url)?;
     debug!("Connected to Redis as {}.", redis_client.get_connection_info().redis_settings().username().unwrap_or("unknown username"));
@@ -149,6 +167,7 @@ async fn main() -> Result<(), Error> {
 
     if run_web {
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
+
         start_web_server(
             pool.clone(),
             Arc::clone(&http),
@@ -157,6 +176,8 @@ async fn main() -> Result<(), Error> {
             tx,
         ).await?;
     }
+
+    let guild_configs_for_setup = guild_configs.clone();
 
     if run_bot {
         let intents = GatewayIntents::GUILDS
@@ -235,7 +256,7 @@ async fn main() -> Result<(), Error> {
                 ..Default::default()
             })
             .setup(move |ctx, _ready, _framework| {
-                setup::setup(safe_browsing_api_key, pool, redis_client.clone(), ctx, _ready)
+                setup::setup(safe_browsing_api_key, pool, redis_client.clone(), guild_configs_for_setup.clone(), ctx, _ready)
             })
             .build();
 

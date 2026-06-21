@@ -6,24 +6,54 @@ use tracing::{debug, trace};
 pub mod session;
 pub mod xp;
 
-async fn close_session(ctx: &Context, data: &Data, guild_id: GuildId, user_id: UserId, mut redis: &mut MultiplexedConnection, session_key: &String, now: i64) -> Result<(), Error> {
+// Inside src/events/handlers/levels/levels_voice/mod.rs:
+
+async fn close_session(
+    ctx: &Context,
+    data: &Data,
+    guild_id: GuildId,
+    user_id: UserId,
+    mut redis: &mut MultiplexedConnection,
+    session_key: &String,
+    now: i64
+) -> Result<(), Error> {
     trace!(
         guild_id = guild_id.get(),
         user_id = user_id.get(),
         "Attempting to close active voice session"
     );
+
     if let Some(s) = session::consume_session(&mut redis, &session_key).await? {
-        xp::award_vc_xp_for_session(
-            ctx,
-            guild_id,
-            user_id,
-            ChannelId::new(s.channel_id),
-            s.join_time,
-            now,
-            data,
-        )
-            .await?;
+        let session_duration = now - s.join_time;
+
+        if session_duration >= 10 {
+            trace!(
+                guild_id = guild_id.get(),
+                user_id = user_id.get(),
+                duration_secs = session_duration,
+                "Awarding voice XP for completed session"
+            );
+
+            xp::award_vc_xp_for_session(
+                ctx,
+                guild_id,
+                user_id,
+                ChannelId::new(s.channel_id),
+                s.join_time,
+                now,
+                data,
+            )
+                .await?;
+        } else {
+            debug!(
+                guild_id = guild_id.get(),
+                user_id = user_id.get(),
+                duration_secs = session_duration,
+                "Discarded voice micro-session (under 10s) to prevent write-thrashing"
+            );
+        }
     }
+
     Ok(())
 }
 
@@ -98,6 +128,12 @@ pub async fn on_voice_state_update(
                 session::save_session(&mut redis, &session_key, channel_id.get(), now).await?;
             }
         }
+    } else {
+        let _: Result<(), _> = redis::cmd("EXPIRE")
+            .arg(&session_key)
+            .arg(86400) // Reset lease to 24 hours
+            .query_async(&mut redis)
+            .await;
     }
 
     Ok(())

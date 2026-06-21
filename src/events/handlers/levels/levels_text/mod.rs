@@ -33,27 +33,22 @@ pub struct XpMultiplier {
     pub multiplier: f32,
 }
 
-pub async fn handle_leveling(ctx: &Context, message: &Message, data: &Data, config_maybe: Option<LevelingConfig>) -> Result<(), Error> {
+pub async fn handle_leveling(
+    ctx: &Context,
+    message: &Message,
+    data: &Data,
+    config_maybe: Option<LevelingConfig>
+) -> Result<(), Error> {
     let Some(guild_id) = &message.guild_id else { return Ok(()) };
     let Some(leveling_config) = config_maybe else { return Ok(()) };
     if leveling_config.text.enabled == false { return Ok(()) };
 
     let guild_id_u64 = guild_id.get();
     let author_id = message.author.id.get();
+    let channel_id_u64 = message.channel_id.get();
 
-    trace!(
-        guild_id = guild_id_u64,
-        author_id,
-        channel_id = message.channel_id.get(),
-        "Evaluating message for leveling XP validation"
-    );
-
-    let mut redis = data.redis.clone();
-
-    let channel_id_str = message.channel_id.get().to_string();
-    let is_ticket: bool = redis.sismember("active_tickets", &channel_id_str).await.unwrap_or(false);
-    if is_ticket {
-        trace!(guild_id = guild_id_u64, channel_id = %channel_id_str, "Skipping leveling XP: channel is marked as a ticket");
+    if data.active_tickets.contains_key(&channel_id_u64) {
+        trace!(guild_id = guild_id_u64, channel_id = %channel_id_u64, "Skipping leveling XP: channel is marked as a ticket");
         return Ok(());
     }
 
@@ -61,29 +56,31 @@ pub async fn handle_leveling(ctx: &Context, message: &Message, data: &Data, conf
     let author = &message.author;
     let mut add_level = rand::random_range(leveling_config.text.xp_range.min..=leveling_config.text.xp_range.max);
 
+    let mut redis = data.redis.clone();
+
     if rules::should_exclude_from_level_up(&leveling_config, &author, &mut redis, &(message.channel_id.get() as i64), &guild_id.get(), ctx).await {
         trace!(guild_id = guild_id_u64, author_id, "Skipping leveling XP: member or channel is excluded");
         return Ok(());
     }
 
     let cooldown_key = format!("cooldown:{}:{}", guild_id, author.id);
+    let set_cooldown = redis_cache::create_redis_cooldown(&cooldown_key, &leveling_config, &redis).await?;
+
+    if !set_cooldown {
+        trace!(guild_id = guild_id_u64, author_id, "Skipping leveling XP: user is on XP cooldown");
+        return Ok(());
+    }
+
     let stats_key = format!("member:{}:{}", guild_id, author.id);
     let multiplier_key = format!("multipliers:{}", guild_id.get());
 
-    let set_cooldown = redis_cache::create_redis_cooldown(&cooldown_key, &leveling_config, &redis).await?;
+    let mut redis_mult = redis.clone();
+    let mut redis_level = redis.clone();
 
-    match set_cooldown {
-        true => {
-            trace!(guild_id = guild_id_u64, author_id, "Leveling cooldown initialized");
-        }
-        false => {
-            trace!(guild_id = guild_id_u64, author_id, "Skipping leveling XP: user is on XP cooldown");
-            return Ok(());
-        }
-    }
-
-    let applied_multiplier = rules::get_multiplier(&mut redis, &multiplier_key, &db, guild_id, message).await?;
-    let mut user_level = database::get_user_level(&mut redis, &db, &guild_id, &author.id, &stats_key).await?;
+    let (applied_multiplier, mut user_level) = tokio::try_join!(
+        rules::get_multiplier(&mut redis_mult, &multiplier_key, db, guild_id, message),
+        database::get_user_level(&mut redis_level, db, guild_id, &author.id, &stats_key)
+    )?;
 
     let should_be_clamped = database::clamp_to_level_cap(&leveling_config, &mut redis, db, &stats_key, &mut user_level).await?;
     if should_be_clamped {
@@ -94,14 +91,6 @@ pub async fn handle_leveling(ctx: &Context, message: &Message, data: &Data, conf
     let previous_level = user_level.current_level;
     add_level = (add_level as f32 * applied_multiplier) as i32;
     user_level.current_xp += add_level;
-
-    trace!(
-        guild_id = guild_id_u64,
-        author_id,
-        xp_gained = add_level,
-        multiplier = applied_multiplier,
-        "Awarding leveling XP to user"
-    );
 
     let leveled_up = process_level_ups(&mut user_level, leveling_config.level_cap as i32);
 
@@ -114,28 +103,63 @@ pub async fn handle_leveling(ctx: &Context, message: &Message, data: &Data, conf
             "User has leveled up!"
         );
 
-        let embed = &leveling_config.notify.embed;
-        if !matches!(leveling_config.notify.scope, NotificationScope::None) {
-            trace!(guild_id = guild_id_u64, author_id, "Initiating level-up notification");
-            notify::send_message(ctx, embed.as_ref(), message, &user_level, &leveling_config, guild_id, previous_level).await?;
-        }
+        // Clone the cheap Arc references and copyable data for our background worker
+        let ctx_clone = ctx.clone();
+        let db_clone = db.clone();
+        let msg_clone = message.clone();
+        let user_level_clone = user_level.clone();
+        let leveling_config_clone = leveling_config.clone();
 
-        // Apply level rewards to the user
-        trace!(guild_id = guild_id_u64, author_id, level = user_level.current_level, "Evaluating reward assignments");
-        if let Err(e) = utils::apply_level_rewards(ctx, db, guild_id, author.id, user_level.current_level).await {
-            warn!(
-                error = ?e,
-                guild_id = guild_id_u64,
-                author_id,
-                level = user_level.current_level,
-                "Failed to apply leveling role rewards to member"
-            );
-        }
+        let guild_id_val = *guild_id;
+        let author_id_val = author.id;
+        let previous_level_val = previous_level;
+        let current_level_val = user_level.current_level;
+
+        tokio::spawn(async move {
+            if !matches!(leveling_config_clone.notify.scope, NotificationScope::None) {
+                let embed = &leveling_config_clone.notify.embed;
+                trace!(guild_id = guild_id_val.get(), author_id = author_id_val.get(), "Initiating level-up notification");
+
+                if let Err(e) = notify::send_message(
+                    &ctx_clone,
+                    embed.as_ref(),
+                    &msg_clone,
+                    &user_level_clone,
+                    &leveling_config_clone,
+                    &guild_id_val,
+                    previous_level_val
+                ).await {
+                    warn!(error = ?e, "Failed to send level-up notification");
+                }
+            }
+
+            trace!(guild_id = guild_id_val.get(), author_id = author_id_val.get(), level = current_level_val, "Evaluating reward assignments");
+            if let Err(e) = utils::apply_level_rewards(
+                &ctx_clone,
+                &db_clone,
+                &guild_id_val,
+                author_id_val,
+                current_level_val
+            ).await {
+                warn!(
+                    error = ?e,
+                    guild_id = guild_id_val.get(),
+                    author_id = author_id_val.get(),
+                    level = current_level_val,
+                    "Failed to apply leveling role rewards to member"
+                );
+            }
+        });
     }
 
-    database::update_level(db, &user_level).await?;
-
     let serialized = serde_json::to_string(&user_level)?;
-    let _: () = redis.set_ex(&stats_key, serialized, 3600).await?;
+    let pending_key = format!("{}:{}", guild_id, author.id);
+    let _: () = redis::pipe()
+        .atomic()
+        .cmd("SET").arg(&stats_key).arg(&serialized).arg("EX").arg(3600)
+        .cmd("HSET").arg("levels:pending").arg(pending_key).arg(&serialized)
+        .query_async(&mut redis)
+        .await?;
+
     Ok(())
 }

@@ -79,7 +79,60 @@ async fn handle_starboard_reaction(
 
         let emoji_count = utils::count_emoji_and_cache(ctx, maybe_count, &message, reaction, &starboard, &mut redis, &cached_key).await?;
 
-        let _ = upsert_starboard(ctx, db, &starboard, reaction, &member, emoji_count).await;
+        let lock_key = format!("lock:starboard:{}:{}", guild_id, reaction.message_id.get());
+        let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
+
+        let lock_acquired: Option<String> = redis::cmd("SET")
+            .arg(&lock_key)
+            .arg(&lock_value)
+            .arg("NX")
+            .arg("EX")
+            .arg(15)
+            .query_async(&mut redis)
+            .await?;
+
+        if lock_acquired.is_some() {
+            let ctx_clone = ctx.clone();
+            let db_clone = data.db.clone();
+            let mut redis_clone = redis.clone();
+            let starboard_clone = starboard.clone();
+            let reaction_clone = reaction.clone();
+            let member_clone = member.clone();
+            let cached_key_clone = cached_key.clone();
+
+            tokio::spawn(async move {
+                // Debounce Window: Sleep for 1.5s to let other concurrent reactions accumulate in Redis
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+
+                // Fetch the LATEST, fully consolidated star count from Redis
+                let final_count: u64 = redis_clone.get(&cached_key_clone).await.unwrap_or(emoji_count);
+
+                let _ = upsert_starboard(
+                    &ctx_clone,
+                    &db_clone,
+                    &starboard_clone,
+                    &reaction_clone,
+                    &member_clone,
+                    final_count
+                ).await;
+
+                // Release the lock atomically using our safe Lua script
+                let release_script = redis::Script::new(r#"
+                    if redis.call("get", KEYS[1]) == ARGV[1] then
+                        return redis.call("del", KEYS[1])
+                    else
+                        return 0
+                    end
+                "#);
+                let _: Result<(), _> = release_script
+                    .key(&lock_key)
+                    .arg(&lock_value)
+                    .invoke_async(&mut redis_clone)
+                    .await;
+            });
+        } else {
+            // Another node has already locked this message and will handle the updates.
+        }
     }
 
     Ok(())

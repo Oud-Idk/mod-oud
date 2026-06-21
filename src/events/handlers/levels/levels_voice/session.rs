@@ -1,4 +1,5 @@
 use crate::types::Error;
+use redis::aio::MultiplexedConnection;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use tracing::{trace, warn};
@@ -16,18 +17,23 @@ pub fn get_session_key(guild_id: u64, user_id: u64) -> String {
 
 /// Saves a new voice session to Redis.
 pub async fn save_session(
-    redis: &mut redis::aio::MultiplexedConnection,
-    key: &str,
+    redis_conn: &mut MultiplexedConnection,
+    session_key: &str,
     channel_id: u64,
-    now: i64,
+    join_time: i64,
 ) -> Result<(), Error> {
-    trace!(key, channel_id, "Saving voice session state to Redis cache");
-    let session = VcSession {
-        join_time: now,
-        channel_id,
-    };
-    let serialized = serde_json::to_string(&session)?;
-    let _: () = redis.set(key, serialized).await?;
+    trace!(session_key, channel_id, "Saving voice session state to Redis cache");
+    let _: () = redis::pipe()
+        .atomic()
+        .cmd("HSET").arg(session_key).arg(&[
+        ("channel_id", channel_id.to_string()),
+        ("join_time", join_time.to_string()),
+    ])
+        // Set a generous 24-hour expiration (86400 seconds)
+        .cmd("EXPIRE").arg(session_key).arg(86400)
+        .query_async(redis_conn)
+        .await?;
+
     Ok(())
 }
 
@@ -36,19 +42,19 @@ pub async fn consume_session(
     redis: &mut redis::aio::MultiplexedConnection,
     key: &str,
 ) -> Result<Option<VcSession>, Error> {
-    trace!(key, "Retrieving and consuming voice session from Redis cache");
-    let cached_session: Option<String> = redis.get(key).await.ok().flatten();
+    trace!(key, "Retrieving and consuming voice session atomically");
+
+    let cached_session: Option<String> = redis::cmd("GETDEL")
+        .arg(key)
+        .query_async(redis)
+        .await
+        .ok()
+        .flatten();
+
     if let Some(session_str) = cached_session {
         if let Ok(session) = serde_json::from_str::<VcSession>(&session_str) {
-            // Delete the key to prevent processing it again
-            if let Err(err) = redis.del::<_, ()>(key).await {
-                warn!(error = ?err, key, "Failed to delete voice session key from Redis cache");
-            } else {
-                trace!(key, "Successfully deleted voice session key from Redis cache");
-            }
             return Ok(Some(session));
         }
     }
-    trace!(key, "No active voice session found for key");
     Ok(None)
 }

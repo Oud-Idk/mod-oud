@@ -93,7 +93,7 @@ pub async fn get_settings(
         }
     }
 
-    debug!(guild_id, key = %cache_key, "Settings cache miss; querying DB");
+    debug!(guild_id, key = cache_key, "Settings cache miss; querying DB");
     let row = sqlx::query!(
         "SELECT settings FROM guild_configs WHERE guild_id = $1",
         guild_id
@@ -103,7 +103,10 @@ pub async fn get_settings(
 
     let settings: GuildSettings = match row {
         Some(r) => match serde_json::from_value::<GuildSettings>(r.settings.clone()) {
-            Ok(s) => s,
+            Ok(s) => {
+                debug!("Found config from DB.");
+                s
+            },
             Err(e) => {
                 error!(error = ?e, guild_id, "Failed to deserialize database JSON; using default");
                 GuildSettings::default()

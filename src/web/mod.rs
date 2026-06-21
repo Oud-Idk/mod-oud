@@ -28,8 +28,9 @@ pub async fn start_web_server(
     guild_configs: moka::future::Cache<i64, GuildSettings>,
     tx: broadcast::Sender<LogEvent>,
 ) -> Result<(), Error> {
-    let tx_clone = tx.clone();
+    let redis_conn = redis_client.get_multiplexed_async_connection().await?;
 
+    let tx_clone = tx.clone();
     let redis_sub_client = redis_client.clone();
 
     tokio::spawn(async move {
@@ -71,7 +72,7 @@ pub async fn start_web_server(
         tx,
         pool,
         http,
-        redis_client,
+        redis: redis_conn,
         guild_configs,
     });
 

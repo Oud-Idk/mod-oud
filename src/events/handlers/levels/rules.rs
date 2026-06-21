@@ -32,10 +32,10 @@ pub async fn should_exclude_from_level_up(
                 if let Ok(json_str) = serde_json::to_string(&fetched_roles) {
                     let _: Result<(), _> = redis_conn.set_ex(&cache_key, json_str, 300).await;
                 }
-
                 fetched_roles
             }
             Err(_) => {
+                let _: Result<(), _> = redis_conn.set_ex(&cache_key, "[]", 60).await;
                 Vec::new()
             }
         }

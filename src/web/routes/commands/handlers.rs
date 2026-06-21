@@ -7,6 +7,7 @@ use crate::web::routes::commands::error::WebError;
 use crate::web::routes::commands::{database, getters};
 use crate::WebState;
 use axum::http::StatusCode;
+use redis::aio::MultiplexedConnection;
 use serenity::all::{GuildId, UserId};
 
 fn parse_id<T: std::str::FromStr>(val: &str, entity: &str) -> Result<T, WebError> {
@@ -46,14 +47,14 @@ pub async fn handle_warn(
     mod_id_str: Option<&str>,
     guild_id: &GuildId,
     user_id: &UserId,
+    redis_conn: &mut redis::aio::MultiplexedConnection, // <-- Accept conn directly
 ) -> Result<StatusCode, WebError> {
-    let redis_conn = get_redis_conn(&state.redis_client).await?;
     let moderator_id = getters::resolve_moderator_id(&state.http, mod_id_str).await?;
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
 
     crate::utils::moderating::issue_warning(
         &state.pool,
-        &redis_conn,
+        redis_conn,
         &state.guild_configs,
         &state.http,
         *guild_id,
@@ -74,14 +75,12 @@ pub async fn handle_timeout(
     mod_id_str: Option<&str>,
     guild_id: &GuildId,
     user_id: &UserId,
+    redis_conn: &mut redis::aio::MultiplexedConnection, // <-- Accept conn directly
 ) -> Result<StatusCode, WebError> {
     let duration_mins = cmd.duration_mins.ok_or_else(|| {
         WebError::BadRequest("Missing duration_mins parameter".to_string())
     })?;
 
-    let redis_conn = get_redis_conn(&state.redis_client).await?;
-
-    // Concurrent fetch works automatically with `?` now
     let (user, moderator) = tokio::try_join!(
         getters::resolve_target_user(&state.http, *user_id),
         getters::resolve_moderator_user(&state.http, mod_id_str)
@@ -104,7 +103,8 @@ pub async fn handle_timeout(
 
     crate::utils::moderating::issue_mute(
         &state.pool,
-        &redis_conn, &state.guild_configs,
+        redis_conn,
+        &state.guild_configs,
         &state.http,
         *guild_id,
         user,
@@ -126,9 +126,8 @@ pub async fn handle_ban_user(
     mod_id_str: Option<&str>,
     guild_id: &GuildId,
     user_id: &UserId,
+    redis_conn: &mut redis::aio::MultiplexedConnection, // <-- Accept conn directly
 ) -> Result<StatusCode, WebError> {
-    let redis_conn = get_redis_conn(&state.redis_client).await?;
-
     let (user, moderator) = tokio::try_join!(
         getters::resolve_target_user(&state.http, *user_id),
         getters::resolve_moderator_user(&state.http, mod_id_str)
@@ -146,7 +145,8 @@ pub async fn handle_ban_user(
 
     crate::utils::moderating::issue_ban(
         &state.pool,
-        &redis_conn, &state.guild_configs,
+        redis_conn,
+        &state.guild_configs,
         &state.http,
         *guild_id,
         user,
@@ -168,8 +168,8 @@ pub async fn handle_resolve_report(
     cmd: &DashboardCommand,
     status: &ReportStatus,
     guild_id: &GuildId,
+    redis_conn: &mut MultiplexedConnection,
 ) -> Result<StatusCode, WebError> {
-    let redis_conn = get_redis_conn(&state.redis_client).await?;
     let config = get_settings(&state.pool, &redis_conn, &state.guild_configs, guild_id.get() as i64)
         .await
         .map_err(|e| WebError::Internal(e.to_string()))?;

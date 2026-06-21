@@ -9,22 +9,37 @@ pub fn is_ticket_active(data: &Data, channel_id: u64) -> bool {
 pub async fn update_redis_activity(
     redis_conn: &mut redis::aio::MultiplexedConnection,
     ticket_key: &str,
-) -> Result<(i32, Option<String>), Error> {
+    bump_every: i32, // Added this parameter
+) -> Result<(bool, Option<String>), Error> {
     let now_ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
         .to_string();
 
-    let (new_count, _, last_button_id): (i32, (), Option<String>) = redis::pipe()
-        .atomic()
-        .cmd("HINCRBY").arg(ticket_key).arg("message_count").arg(1)
-        .cmd("HSET").arg(ticket_key).arg("last_activity").arg(&now_ts)
-        .cmd("HGET").arg(ticket_key).arg("last_button_message_id")
-        .query_async(redis_conn)
+    let script = redis::Script::new(r#"
+        local count = tonumber(redis.call("HINCRBY", KEYS[1], "message_count", 1))
+        redis.call("HSET", KEYS[1], "last_activity", ARGV[1])
+        local limit = tonumber(ARGV[2])
+        local last_button = redis.call("HGET", KEYS[1], "last_button_message_id")
+
+        if count >= limit then
+            redis.call("HSET", KEYS[1], "message_count", 0)
+            return {1, last_button} -- 1 means "Trigger Rotation"
+        else
+            return {0, last_button} -- 0 means "Do Not Trigger"
+        end
+    "#);
+
+    // Invoke the script on the Redis thread
+    let (should_rotate, last_button_id): (i32, Option<String>) = script
+        .key(ticket_key)
+        .arg(&now_ts)
+        .arg(bump_every)
+        .invoke_async(redis_conn)
         .await?;
 
-    Ok((new_count, last_button_id))
+    Ok((should_rotate == 1, last_button_id))
 }
 
 pub async fn send_missing_config_error(ctx: &serenity::Context, component: &ComponentInteraction) -> Result<(), Error> {

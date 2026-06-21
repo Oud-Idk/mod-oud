@@ -3,38 +3,54 @@ use crate::commands::helpers::message_logging as local_logging_helpers;
 use crate::core::config::get_settings;
 use crate::events::handlers::message_logging::database;
 use crate::types::payloads::{DeletedMessagePayload, ModifiedMessagePayload};
-use crate::types::{Data, Error};
+use crate::types::{CachedAuditLogs, Data, Error};
 use poise::serenity_prelude as serenity;
 use serenity::all::{audit_log, MessageAction};
+use std::sync::Arc;
 
 async fn determine_deleter(
     ctx: &serenity::Context,
     guild_id: serenity::GuildId,
     channel_id: serenity::ChannelId,
     author_id: u64,
+    audit_cache: &moka::future::Cache<u64, Arc<CachedAuditLogs>>,
 ) -> Option<(String, String)> {
-    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    let guild_id_u64 = guild_id.get();
 
-    let audit_logs = guild_id
-        .audit_logs(
-            &ctx.http,
-            Some(audit_log::Action::Message(
-                MessageAction::Delete,
-            ),
-            ),
-            None,
-            None,
-            Some(5),
-        )
-        .await
-        .ok()?;
+    let cached_logs = audit_cache.get(&guild_id_u64).await;
 
-    for entry in audit_logs.entries {
-        // Check if the target is the author of the deleted message
+    let audit_data = match cached_logs {
+        Some(data) => data,
+        None => {
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+
+            // expensive
+            let audit_logs = guild_id
+                .audit_logs(
+                    &ctx.http,
+                    Some(audit_log::Action::Message(MessageAction::Delete)),
+                    None,
+                    None,
+                    Some(10),
+                )
+                .await
+                .ok()?;
+
+            let data = Arc::new(CachedAuditLogs {
+                entries: audit_logs.entries,
+                users: audit_logs.users,
+            });
+
+            // Cache for 3 seconds to debounce rapid sequential deletes (e.g. purges)
+            audit_cache.insert(guild_id_u64, data.clone()).await;
+            data
+        }
+    };
+
+    for entry in &audit_data.entries {
         let target_matches = entry.target_id.map(|id| id.get() == author_id).unwrap_or(false);
-
-        // Check if the channel matches
         let mut channel_matches = false;
+
         if let Some(options) = &entry.options {
             if let Some(entry_channel_id) = options.channel_id {
                 if entry_channel_id == channel_id {
@@ -44,7 +60,7 @@ async fn determine_deleter(
         }
 
         if target_matches && channel_matches {
-            if let Some(user) = audit_logs.users.get(&entry.user_id) {
+            if let Some(user) = audit_data.users.get(&entry.user_id) {
                 return Some((entry.user_id.to_string(), user.name.clone()));
             }
 
@@ -87,40 +103,61 @@ pub async fn message_log_delete(
         return Ok(());
     };
 
-    let deleted_by = if let Some(g_id_raw) = guild_id {
-        determine_deleter(ctx, *g_id_raw, *channel_id, msg.author_id as u64)
-            .await
-    } else {
-        None
-    };
-
     if local_logging_helpers::should_exclude_from_logging(logging_config, msg.author_id, msg.chan_id, g_id, ctx).await {
         return Ok(());
     }
 
     let joined_image_urls = msg.image_urls.join(",");
-    database::insert_deleted_message(&data.db, &msg, g_id, &joined_image_urls, &deleted_by).await?;
 
-    let payload = DeletedMessagePayload {
-        id: msg.msg_id.to_string(),
-        guild_id: g_id.to_string(),
-        author_name: msg.author_name.clone(),
-        content: msg.content.clone(),
-        channel_id: msg.chan_id.to_string(),
-        deleted_at: chrono::Utc::now().to_rfc3339(),
-        attachment_url: joined_image_urls.to_string(),
-        deleted_by_id: deleted_by.clone().map(|id| id.0),
-        deleted_by_name: deleted_by.map(|name| name.1), // clone later if we need to reuse deleted_by
-    };
+    database::insert_deleted_message(&data.db, &msg, g_id, &joined_image_urls, &None).await?;
 
-    if let Ok(payload_json) = serde_json::to_string(&payload) {
-        let mut conn = data.redis.clone();
-        let _: Result<(), _> = redis::cmd("PUBLISH")
-            .arg("discord:deletes")
-            .arg(payload_json)
-            .query_async(&mut conn)
-            .await;
-    }
+    let pool = data.db.clone();
+    let redis = data.redis.clone();
+    let audit_log_cache = data.audit_log_cache.clone();
+    let ctx_clone = ctx.clone();
+    let msg_clone = msg; // Custom cheap struct
+    let guild_id_opt = *guild_id;
+    let channel_id_val = *channel_id;
+
+    tokio::spawn(async move {
+        let deleted_by = if let Some(g_id_raw) = guild_id_opt {
+            determine_deleter(&ctx_clone, g_id_raw, channel_id_val, msg_clone.author_id as u64, &audit_log_cache).await
+        } else {
+            None
+        };
+
+        if let Some((deleter_id, deleter_name)) = &deleted_by {
+            let _ = sqlx::query!(
+                "UPDATE deleted_messages SET deleted_by_name = $1, deleted_by_id = $2 WHERE message_id = $3",
+                deleter_name,
+                deleter_id,
+                msg_clone.msg_id
+            )
+                .execute(&pool)
+                .await;
+        }
+
+        let payload = DeletedMessagePayload {
+            id: msg_clone.msg_id.to_string(),
+            guild_id: g_id.to_string(),
+            author_name: msg_clone.author_name.clone(),
+            content: msg_clone.content.clone(),
+            channel_id: msg_clone.chan_id.to_string(),
+            deleted_at: chrono::Utc::now().to_rfc3339(),
+            attachment_url: msg_clone.image_urls.join(","),
+            deleted_by_id: deleted_by.clone().map(|id| id.0),
+            deleted_by_name: deleted_by.map(|id| id.1),
+        };
+
+        if let Ok(payload_json) = serde_json::to_string(&payload) {
+            let mut conn = redis.clone();
+            let _: Result<(), _> = redis::cmd("PUBLISH")
+                .arg("discord:deletes")
+                .arg(payload_json)
+                .query_async(&mut conn)
+                .await;
+        }
+    });
 
     Ok(())
 }

@@ -32,3 +32,4 @@ futures-util = "0.3.32"
 moka = { version = "0.12", features = ["future"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+log = "0.4.30"

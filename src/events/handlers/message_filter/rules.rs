@@ -64,12 +64,17 @@ fn has_bad_words(pattern: &Pattern, message: &Message) -> bool {
             message_content_lower.contains(&pattern.value.to_lowercase())
         }
         MatchStrategy::Regex => {
-            match regex::RegexBuilder::new(&pattern.value)
-                .case_insensitive(true)
-                .build()
-            {
-                Ok(re) => re.is_match(&message.content),
-                Err(_) => false,
+            let cached_regex = pattern.compiled_regex.get_or_init(|| {
+                regex::RegexBuilder::new(&pattern.value)
+                    .case_insensitive(true)
+                    .build()
+                    .ok() // If compile fails, store None so we don't keep trying to compile it
+            });
+
+            if let Some(re) = cached_regex {
+                re.is_match(&message.content)
+            } else {
+                false
             }
         }
     }
