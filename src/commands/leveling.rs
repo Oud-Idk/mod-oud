@@ -42,7 +42,8 @@ pub async fn level(
         db,
         &guild_id,
         &target_id,
-        &stats_key
+        &stats_key,
+        &target_user.name,
     ).await?;
 
     trace!(

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dropdown, DropdownOption } from "@/components/Dropdown";
+import { Dropdown, DropdownOption } from "@/components/Inputs/Dropdown";
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
@@ -48,7 +48,7 @@ export function OffensiveMessagesTab({
             <p>Powered by <Link
                 href="https://github.com/finnbear/rustrict" className="text-blue-500 hover:underline"
             >Rustirct</Link>. Enabling this feature but doing no actions will default to just logging.</p>
-            <div className="space-y-4 max-w-65">
+            <div className="space-y-4 max-w-xs">
                 <div className="space-y-2">
                     <p className="text-sm font-medium">Threshold</p>
                     <Dropdown

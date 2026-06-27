@@ -1,7 +1,7 @@
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
-import { PercentSlider } from "@/components/PercentSlider";
+import { PercentSlider } from "@/components/Inputs/PercentSlider";
 
 interface ExcessiveSpoilersTabProp {
     config: MessageFilteringConfig;

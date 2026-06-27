@@ -44,12 +44,17 @@ pub fn is_zalgo_grapheme(text: &str, max_marks_per_char: usize) -> bool {
 }
 
 pub fn remove_urls(input: &str) -> (String, Vec<&str>) {
-    // Pre-allocate the capacity to avoid incremental reallocations
+    let mut links_iter = LINK_FINDER.links(input).peekable();
+
+    if links_iter.peek().is_none() {
+        return (input.to_string(), Vec::new());
+    }
+
     let mut cleaned = String::with_capacity(input.len());
     let mut urls = Vec::new();
     let mut last_pos = 0;
 
-    for link in LINK_FINDER.links(input) {
+    for link in links_iter {
         if link.kind() == &LinkKind::Url {
             cleaned.push_str(&input[last_pos..link.start()]);
             urls.push(link.as_str());

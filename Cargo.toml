@@ -8,7 +8,7 @@ serenity = "0.12"
 tokio = { version = "1.0", features = ["full"] }
 poise = "0.6"
 dotenvy = "0.15"
-sqlx = { version = "0.9.0", features = ["postgres", "chrono", "runtime-tokio"] }
+sqlx = { version = "0.9.0", features = ["postgres", "chrono", "runtime-tokio", "uuid"] }
 duration-str = "0.21.0"
 chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
@@ -21,11 +21,9 @@ prost = "0.14.3"
 reqwest = { version = "0.13.4", features = ["query"] }
 redis = { version = "1.2.2", features = ["tokio-comp", "aio", "connection-manager"] }
 rand = "0.10.1"
-strum = { version = "0.28.0", features = ["derive"] }
 axum = "0.8"
 tokio-stream = { version = "0.1", features = ["sync"] }
 tower-http = { version = "0.7.0", features = ["cors"] }
-emojis = "0.8.2"
 unicode-segmentation = "1.10.1"
 serde_with = "3.21.0"
 futures-util = "0.3.32"
@@ -33,3 +31,5 @@ moka = { version = "0.12", features = ["future"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 log = "0.4.30"
+uuid = { version = "1.23.3", features = ["v4", "serde"] }
+emojis = "0.9.0"

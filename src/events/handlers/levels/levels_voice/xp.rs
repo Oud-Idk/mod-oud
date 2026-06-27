@@ -9,13 +9,14 @@ use crate::types::{Data, Error};
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::placeholders::replace_level_notify_placeholder;
 use redis::AsyncCommands;
-use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User, UserId};
+use serenity::all::{ChannelId, Context, CreateMessage, GuildId, Member, User, UserId};
 use tracing::{debug, info, trace, warn};
 
 pub async fn award_vc_xp_for_session(
     ctx: &Context,
     guild_id: GuildId,
     user_id: UserId,
+    member_opt: Option<Member>, // Add member parameter
     channel_id: ChannelId,
     join_time: i64,
     leave_time: i64,
@@ -54,20 +55,29 @@ pub async fn award_vc_xp_for_session(
         return Ok(());
     }
 
-    let mut redis = data.redis.clone();
-    let user = user_id.to_user(&ctx.http).await?;
+    let member = match member_opt {
+        Some(m) => m,
+        None => {
+            let cached_member = ctx.cache.member(guild_id, user_id).map(|m| m.clone());
 
-    // Check exclusions
+            if let Some(m) = cached_member {
+                m
+            } else {
+                guild_id.member(&ctx.http, user_id).await?
+            }
+        }
+    };
+
+    let user = &member.user;
+    let user_roles: Vec<u64> = member.roles.iter().map(|r| r.get()).collect();
+
+    let mut redis = data.redis.clone();
+
     if rules::should_exclude_from_level_up(
         &leveling_config,
-        &user,
-        &mut redis,
-        &(channel_id_u64 as i64),
-        &guild_id_u64,
-        ctx,
-    )
-        .await
-    {
+        &user_roles,
+        channel_id_u64,
+    ) {
         trace!(
             guild_id = guild_id_u64,
             user_id = user_id_u64,
@@ -76,7 +86,6 @@ pub async fn award_vc_xp_for_session(
         return Ok(());
     }
 
-    let member = guild_id.member(&ctx.http, user_id).await?;
     let stats_key = format!("member:{}:{}", guild_id, user_id);
     let multiplier_key = format!("multipliers:{}", guild_id_u64);
 
@@ -86,7 +95,7 @@ pub async fn award_vc_xp_for_session(
         &data.db,
         &guild_id,
         channel_id,
-        &member.roles,
+        &member.roles, // Reuse the roles array directly
     )
         .await?;
 
@@ -102,7 +111,7 @@ pub async fn award_vc_xp_for_session(
         "Completed calculations for session voice XP"
     );
 
-    let mut user_level = database::get_user_level(&mut redis, db, &guild_id, &user_id, &stats_key).await?;
+    let mut user_level = database::get_user_level(&mut redis, db, &guild_id, &user_id, &stats_key, &user.name).await?;
 
     let should_be_clamped = database::clamp_to_level_cap(&leveling_config, &mut redis, db, &stats_key, &mut user_level).await?;
     if should_be_clamped {

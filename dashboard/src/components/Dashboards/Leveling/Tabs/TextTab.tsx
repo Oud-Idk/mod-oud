@@ -1,6 +1,6 @@
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
-import { RangeSlider } from "@/components/RangeSlider";
-import { NumberInput } from "@/components/NumberInput";
+import { RangeSlider } from "@/components/Inputs/RangeSlider";
+import { NumberInput } from "@/components/Inputs/NumberInput";
 import { LevelingConfig } from "@/types/config";
 
 interface TextTabProps {

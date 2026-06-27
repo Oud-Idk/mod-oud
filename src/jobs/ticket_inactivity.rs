@@ -138,17 +138,16 @@ async fn warn_inactive_tickets(
         return Ok(());
     }
 
-    // Update DB
-    let mut tx = pool.begin().await?;
-    for target in &tickets_to_warn {
+    let target_ids: Vec<i64> = tickets_to_warn.iter().map(|t| t.channel_id).collect();
+
+    if !target_ids.is_empty() {
         sqlx::query!(
-            "UPDATE tickets SET warned = TRUE WHERE channel_id = $1",
-            target.channel_id
-        )
-            .execute(&mut *tx)
+        "UPDATE tickets SET warned = TRUE WHERE channel_id = ANY($1)",
+        &target_ids
+    )
+            .execute(pool)
             .await?;
     }
-    tx.commit().await?;
 
     // Send warning messages
     for target in tickets_to_warn {
@@ -231,17 +230,15 @@ async fn close_abandoned_tickets(
     if tickets_to_close.is_empty() {
         return Ok(());
     }
-
-    let mut tx = pool.begin().await?;
-    for channel_id in &tickets_to_close {
+    
+    if !tickets_to_close.is_empty() {
         sqlx::query!(
-            "UPDATE tickets SET status = 'CLOSE', closed_at = CURRENT_TIMESTAMP WHERE channel_id = $1",
-            channel_id
-        )
-            .execute(&mut *tx)
+        "UPDATE tickets SET warned = TRUE WHERE channel_id = ANY($1)",
+        &tickets_to_close
+    )
+            .execute(pool) // No explicit transaction block needed for a single query!
             .await?;
     }
-    tx.commit().await?;
 
     for channel_id in tickets_to_close {
         let chan = serenity::ChannelId::new(channel_id as u64);

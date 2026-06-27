@@ -7,6 +7,7 @@ export type RuleAction =
     | "remind_publicly"
     | "remind_privately";
 
+
 export interface BaseRule {
     enabled: boolean;
     action: RuleAction[];

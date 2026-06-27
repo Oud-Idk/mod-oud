@@ -63,7 +63,7 @@ export function DeletedMessageLogViewer({
                                     Message Deleted | {log.author_name}
                                     <span className="text-neutral-500 ml-2">in {channelName}</span>
                                 </span>
-                                <span>{new Date(log.deleted_at).toLocaleTimeString()}</span>
+                                <span>{new Date(log.deleted_at).toLocaleString()}</span>
                             </div>
 
                             {log.deleted_by_name && (

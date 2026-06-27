@@ -1,8 +1,8 @@
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
-import { PercentSlider } from "@/components/PercentSlider";
-import { NumberInput } from "@/components/NumberInput";
+import { PercentSlider } from "@/components/Inputs/PercentSlider";
+import { NumberInput } from "@/components/Inputs/NumberInput";
 
 interface ExcessiveCapsProps {
     config: MessageFilteringConfig;

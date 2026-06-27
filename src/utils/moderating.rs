@@ -17,11 +17,22 @@ const MODERATION_FOOTER: &str = "This is an automated moderation action. If you 
 /// Helper macro to fetch common moderation context (Guild Context, Member, Settings)
 macro_rules! fetch_mod_ctx {
     ($db:expr, $redis_conn:expr, $config_cache:expr, $http:expr, $guild_id:expr, $user_id:expr) => {{
-        let gctx = get_guild_ctx($guild_id, $http.as_ref()).await?;
-        let member = $http.get_member($guild_id, $user_id).await?;
-        // Pass the config cache argument as the third parameter to get_settings
-        let settings = get_settings($db, $redis_conn, $config_cache, $guild_id.get() as i64).await?;
-        (gctx, member, settings)
+        let gctx_fut = async {
+            get_guild_ctx($guild_id, $http.as_ref()).await
+                .map_err(|e| -> crate::types::Error { e.into() })
+        };
+
+        let member_fut = async {
+            $http.get_member($guild_id, $user_id).await
+                .map_err(|e| -> crate::types::Error { e.into() })
+        };
+
+        let settings_fut = async {
+            get_settings($db, $redis_conn, $config_cache, $guild_id.get() as i64).await
+                .map_err(|e| -> crate::types::Error { e.into() })
+        };
+
+        tokio::try_join!(gctx_fut, member_fut, settings_fut)?
     }};
 }
 
@@ -118,9 +129,13 @@ pub async fn issue_kick(
     let mut invite_url = None;
 
     if let Some(kick_dm_settings) = &kick_dm_settings_opt {
-        let serialized_settings = format!("{:?} {:?}", kick_dm_settings.content, kick_dm_settings.embed);
+        let contains_invite = kick_dm_settings.content.contains("invite.url")
+            || kick_dm_settings.embed.as_ref().map_or(false, |emb| {
+            emb.description.as_ref().map_or(false, |d| d.contains("invite.url"))
+                || emb.title.as_ref().map_or(false, |t| t.contains("invite.url"))
+        });
 
-        if serialized_settings.contains("invite.url") {
+        if contains_invite {
             let builder = CreateInvite::default()
                 .max_age(86400) // 24 hrs
                 .max_uses(1)

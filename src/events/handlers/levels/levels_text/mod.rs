@@ -5,7 +5,6 @@ use crate::events::handlers::levels::effects::process_level_ups;
 use crate::events::handlers::levels::{database, redis_cache, rules, utils};
 use crate::types::config::leveling::{LevelingConfig, NotificationScope};
 use crate::types::{Data, Error};
-use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use serenity::all::{Context, Message};
 use tracing::{debug, info, trace, warn};
@@ -17,6 +16,7 @@ pub struct UserLevel {
     pub(crate) cumulative_xp: i32,
     pub(crate) current_level: i32,
     pub(crate) current_xp: i32,
+    pub(crate) username: String,
 }
 
 #[derive(Debug, Clone)]
@@ -58,7 +58,15 @@ pub async fn handle_leveling(
 
     let mut redis = data.redis.clone();
 
-    if rules::should_exclude_from_level_up(&leveling_config, &author, &mut redis, &(message.channel_id.get() as i64), &guild_id.get(), ctx).await {
+    let user_roles: Vec<u64> = message.member.as_ref()
+        .map(|m|
+            m.roles.iter().map(|r|
+                r.get()
+            ).collect()
+        )
+        .unwrap_or_default();
+
+    if rules::should_exclude_from_level_up(&leveling_config, &user_roles, channel_id_u64) {
         trace!(guild_id = guild_id_u64, author_id, "Skipping leveling XP: member or channel is excluded");
         return Ok(());
     }
@@ -79,7 +87,7 @@ pub async fn handle_leveling(
 
     let (applied_multiplier, mut user_level) = tokio::try_join!(
         rules::get_multiplier(&mut redis_mult, &multiplier_key, db, guild_id, message),
-        database::get_user_level(&mut redis_level, db, guild_id, &author.id, &stats_key)
+        database::get_user_level(&mut redis_level, db, guild_id, &author.id, &stats_key, &author.name)
     )?;
 
     let should_be_clamped = database::clamp_to_level_cap(&leveling_config, &mut redis, db, &stats_key, &mut user_level).await?;
@@ -103,7 +111,6 @@ pub async fn handle_leveling(
             "User has leveled up!"
         );
 
-        // Clone the cheap Arc references and copyable data for our background worker
         let ctx_clone = ctx.clone();
         let db_clone = db.clone();
         let msg_clone = message.clone();
@@ -153,11 +160,15 @@ pub async fn handle_leveling(
     }
 
     let serialized = serde_json::to_string(&user_level)?;
-    let pending_key = format!("{}:{}", guild_id, author.id);
+    let guild_id_str = guild_id.get().to_string();
+    let guild_pending_key = format!("levels:pending:{}", guild_id_str);
+    let user_field = author.id.get().to_string();
+
     let _: () = redis::pipe()
         .atomic()
         .cmd("SET").arg(&stats_key).arg(&serialized).arg("EX").arg(3600)
-        .cmd("HSET").arg("levels:pending").arg(pending_key).arg(&serialized)
+        .cmd("HSET").arg(&guild_pending_key).arg(&user_field).arg(&serialized)
+        .cmd("SADD").arg("levels:dirty_guilds").arg(&guild_id_str)
         .query_async(&mut redis)
         .await?;
 

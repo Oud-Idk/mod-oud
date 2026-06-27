@@ -1,7 +1,7 @@
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
-import { NumberInput } from "@/components/NumberInput";
+import { NumberInput } from "@/components/Inputs/NumberInput";
 
 interface ExcessiveMentionsTabProp {
     config: MessageFilteringConfig;

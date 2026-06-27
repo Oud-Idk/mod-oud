@@ -1,18 +1,17 @@
 use crate::types::{Data, Error};
 use redis::aio::MultiplexedConnection;
-use serenity::all::{ChannelId, Context, GuildId, UserId, VoiceState};
+use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
 use tracing::{debug, trace};
 
 pub mod session;
 pub mod xp;
-
-// Inside src/events/handlers/levels/levels_voice/mod.rs:
 
 async fn close_session(
     ctx: &Context,
     data: &Data,
     guild_id: GuildId,
     user_id: UserId,
+    member_opt: Option<Member>, // Accept Option<Member>
     mut redis: &mut MultiplexedConnection,
     session_key: &String,
     now: i64
@@ -38,6 +37,7 @@ async fn close_session(
                 ctx,
                 guild_id,
                 user_id,
+                member_opt, // Pass Member down
                 ChannelId::new(s.channel_id),
                 s.join_time,
                 now,
@@ -57,7 +57,7 @@ async fn close_session(
     Ok(())
 }
 
-/// Entry point triggered by Serenity's VoiceStateUpdate event.
+
 pub async fn on_voice_state_update(
     ctx: &Context,
     old: Option<&VoiceState>,
@@ -67,18 +67,15 @@ pub async fn on_voice_state_update(
     let Some(guild_id) = new.guild_id else { return Ok(()) };
     let user_id = new.user_id;
 
-    trace!(
-        guild_id = guild_id.get(),
-        user_id = user_id.get(),
-        "Voice state update event received"
-    );
-
     if let Some(member) = &new.member {
         if member.user.bot {
             trace!(user_id = user_id.get(), "Skipping voice state update: user is a bot");
             return Ok(());
         }
     }
+
+    // Capture the member object from the gateway update payload
+    let member = new.member.clone();
 
     let mut redis = data.redis.clone();
     let session_key = session::get_session_key(guild_id.get(), user_id.get());
@@ -100,7 +97,7 @@ pub async fn on_voice_state_update(
             user_id = user_id.get(),
             "Closing voice session (member disconnected or deafened)"
         );
-        close_session(ctx, data, guild_id, user_id, &mut redis, &session_key, now).await?;
+        close_session(ctx, data, guild_id, user_id, member, &mut redis, &session_key, now).await?;
     } else if should_open_session {
         if let Some(channel_id) = joined_channel {
             if !is_deafened {
@@ -121,7 +118,7 @@ pub async fn on_voice_state_update(
             new_channel = ?joined_channel.map(|c| c.get()),
             "Handling voice channel switch"
         );
-        close_session(ctx, data, guild_id, user_id, &mut redis, &session_key, now).await?;
+        close_session(ctx, data, guild_id, user_id, member.clone(), &mut redis, &session_key, now).await?;
 
         if let Some(channel_id) = joined_channel {
             if !is_deafened {
@@ -131,7 +128,7 @@ pub async fn on_voice_state_update(
     } else {
         let _: Result<(), _> = redis::cmd("EXPIRE")
             .arg(&session_key)
-            .arg(86400) // Reset lease to 24 hours
+            .arg(86400)
             .query_async(&mut redis)
             .await;
     }

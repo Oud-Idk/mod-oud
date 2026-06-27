@@ -32,14 +32,14 @@ async fn handle_starboard_reaction(
     let Some(user_id) = reaction.user_id else { return Ok(()) };
     let guild_id_str = guild_id.to_string();
 
-    let starboards = utils::get_starboards(&guild_id_str, db).await?;
+    let starboards = utils::get_starboards(&guild_id_str, db, &mut redis).await?;
     if starboards.is_empty() { return Ok(()); }
 
     let Some(member) = utils::resolve_member(ctx, guild_id, user_id, reaction).await else { return Ok(()) };
     let message = reaction.message(&ctx.http).await?;
 
     for starboard in starboards {
-        if !permissions::is_event_allowed(&starboard, reaction, &message, &member, user_id, &mut redis).await? {
+        if !permissions::is_event_allowed(&starboard, reaction, &message, &member, user_id) {
             continue;
         }
 
@@ -57,7 +57,6 @@ async fn handle_starboard_reaction(
             emoji_string
         );
 
-        // Unified atomic script: we pass "INCR" or "DECR" as ARGV[1]
         let opt_script = redis::Script::new(r#"
             if redis.call("EXISTS", KEYS[1]) == 1 then
                 return redis.call(ARGV[1], KEYS[1])
@@ -101,22 +100,36 @@ async fn handle_starboard_reaction(
             let cached_key_clone = cached_key.clone();
 
             tokio::spawn(async move {
-                // Debounce Window: Sleep for 1.5s to let other concurrent reactions accumulate in Redis
                 tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
 
-                // Fetch the LATEST, fully consolidated star count from Redis
-                let final_count: u64 = redis_clone.get(&cached_key_clone).await.unwrap_or(emoji_count);
+                let mut current_processed = emoji_count;
+                let mut loop_count = 0;
 
-                let _ = upsert_starboard(
-                    &ctx_clone,
-                    &db_clone,
-                    &starboard_clone,
-                    &reaction_clone,
-                    &member_clone,
-                    final_count
-                ).await;
+                loop {
+                    let final_count: u64 = redis_clone.get(&cached_key_clone).await.unwrap_or(current_processed);
 
-                // Release the lock atomically using our safe Lua script
+                    let _ = upsert_starboard(
+                        &ctx_clone,
+                        &db_clone,
+                        &starboard_clone,
+                        &reaction_clone,
+                        &member_clone,
+                        final_count
+                    ).await;
+
+                    current_processed = final_count;
+                    loop_count += 1;
+
+                    let latest_count: u64 = redis_clone.get(&cached_key_clone).await.unwrap_or(final_count);
+
+                    if latest_count == final_count || loop_count >= 5 {
+                        break;
+                    }
+
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+
+                // 4. Release the lock atomically using our safe Lua script
                 let release_script = redis::Script::new(r#"
                     if redis.call("get", KEYS[1]) == ARGV[1] then
                         return redis.call("del", KEYS[1])
@@ -130,8 +143,6 @@ async fn handle_starboard_reaction(
                     .invoke_async(&mut redis_clone)
                     .await;
             });
-        } else {
-            // Another node has already locked this message and will handle the updates.
         }
     }
 

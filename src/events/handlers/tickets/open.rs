@@ -63,11 +63,15 @@ pub async fn on_open_ticket(
         ticket_category_id,
     ).await?;
 
-    let mut resolved_role_name = None;
-
-    if let Ok(roles) = ticket_channel.guild_id.roles(&ctx.http).await {
-        resolved_role_name = roles.get(&role_id).map(|r| r.name.clone());
-    }
+    let resolved_role_name = if let Some(guild) = ctx.cache.guild(ticket_channel.guild_id) {
+        guild.roles.get(&role_id).map(|r| r.name.clone())
+    } else {
+        ticket_channel.guild_id
+            .roles(&ctx.http)
+            .await
+            .ok()
+            .and_then(|roles| roles.get(&role_id).map(|r| r.name.clone()))
+    };
 
     // Pass member and gctx to send_welcome_message
     let welcome_msg = send_welcome_message(

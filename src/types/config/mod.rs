@@ -6,6 +6,7 @@ pub mod welcome;
 pub mod message_filter;
 pub mod starboard;
 pub mod leveling;
+pub mod bad_words;
 
 fn ok_or_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where

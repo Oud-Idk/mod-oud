@@ -4,7 +4,7 @@ import React, { SetStateAction, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { StarboardConfigInput } from "@/types/config/starboard";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
-import { Dropdown } from "@/components/Dropdown";
+import { Dropdown } from "@/components/Inputs/Dropdown";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
 import EmbedBuilder, { convertToEmbedState } from "@/components/Embed/EmbedBuilder";
 import { STARBOARD_CONFIG } from "@/utils/embedTemplates";
@@ -91,7 +91,6 @@ export function StarboardConfig({
     };
 
     const handleDelete = (id: string) => {
-        if (!confirm("Are you sure you want to delete this starboard?")) return;
         onDelete(id).then(() => {
             router.push(`/dashboard/${guildId}/starboard`);
         }).catch(() => {
@@ -163,14 +162,28 @@ export function StarboardConfig({
     return (
         <div className="space-y-6">
             <div>
-                <h3 className="text-lg font-medium">
-                    Configure #{channelMap[config.starboard_channel_id || ""] || "Starboard"}
-                </h3>
-                <p className="text-xs text-zinc-500">Edit guidelines, emojis, and access filters.</p>
+                <div>
+                    <h3 className="text-lg font-medium">
+                        Configure #{channelMap[config.starboard_channel_id || ""] || "Starboard"}
+                    </h3>
+                    <p className="text-xs text-zinc-500">Edit guidelines, emojis, and access filters.</p>
+                </div>
+
+                {config.id && (
+                    <div className="pt-6 border-zinc-850 flex justify-end">
+                        <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleDelete(config.id as string)}
+                            className="px-4 py-2 text-sm cursor-pointer border-red-500 border hover:bg-red-300/10 rounded transition"
+                        >
+                            Delete Starboard
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="space-y-4">
-                {/* Destination Channel */}
                 <div className="space-y-2">
                     <label className="block text-sm font-medium">Destination Channel</label>
                     <Dropdown
@@ -401,19 +414,6 @@ export function StarboardConfig({
                     </div>
                 </div>
             </div>
-
-            {config.id && (
-                <div className="pt-6 border-t border-zinc-850 flex justify-end">
-                    <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => handleDelete(config.id as string)}
-                        className="px-4 py-2 text-sm cursor-pointer border-red-500 border hover:bg-red-300/10 rounded transition"
-                    >
-                        Delete This Starboard
-                    </button>
-                </div>
-            )}
         </div>
     );
 }

@@ -1,8 +1,8 @@
-import { NumberInput } from "@/components/NumberInput";
+import { NumberInput } from "@/components/Inputs/NumberInput";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { LevelingConfig } from "@/types/config";
 import ScopeSettings from "@/components/Dashboards/MessageFiltering/General/ScopeSettings";
-import { Dropdown, DropdownOption } from "@/components/Dropdown";
+import { Dropdown, DropdownOption } from "@/components/Inputs/Dropdown";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { LEVEL_NOTIFY_CONFIG } from "@/utils/embedTemplates";
 import { DiscordChannel } from "@/types";
@@ -62,7 +62,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                             scope: val as "current_channel" | "specified_channel" | "dm" | "none"
                         }
                     })
-                }} placeholder={"Choose where to send your level up message"} className="max-w-sm"
+                }} placeholder={"Choose where to send your level up message"} className="max-w-xs"
                 />
             </div>
             {config.notify.scope !== "none" && (

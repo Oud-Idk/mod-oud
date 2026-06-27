@@ -28,7 +28,9 @@ export async function Sidebar() {
                 className="h-16 border-b flex justify-between items-center px-4 bg-white dark:bg-black"
             >
                 <Link href="/" className="font-bold">Mod Oud</Link>
-                <ThemeToggle/>
+                <div className="hidden md:block">
+                    <ThemeToggle/>
+                </div>
             </div>
             <div
                 className="h-14 border-b flex justify-start items-center bg-white dark:bg-black"

@@ -4,95 +4,38 @@ use crate::types::config::leveling::LevelingConfig;
 use crate::types::config::message_filter::ScopeMode;
 use crate::types::Error;
 use redis::aio::MultiplexedConnection;
-use redis::AsyncCommands;
-use serenity::all::{ChannelId, Context, GuildId, Message, RoleId, User};
+use serenity::all::{ChannelId, GuildId, Message, RoleId};
 use sqlx::PgPool;
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, error, instrument, trace};
 
-#[instrument(
-    name = "should_exclude_from_level_up",
-    skip(config, redis_conn, ctx),
-    fields(
-        author_id = %author.id.get(),
-        guild_id = %guild_id,
-        channel_id = %channel_id
-    )
-)]
-pub async fn should_exclude_from_level_up(
+pub fn should_exclude_from_level_up(
     config: &LevelingConfig,
-    author: &User,
-    redis_conn: &mut MultiplexedConnection,
-    channel_id: &i64,
-    guild_id: &u64,
-    ctx: &Context,
+    user_roles: &[u64],
+    channel_id: u64,
 ) -> bool {
-    let channel_u64 = *channel_id as u64;
-    let guild_id_typed = GuildId::new(*guild_id);
-    let cache_key = format!("xp_roles:{}:{}", guild_id, author.id.get());
-
-    let cached_data: Option<String> = redis_conn.get(&cache_key).await.ok();
-
-    let user_roles: Vec<u64> = if let Some(json_str) = cached_data {
-        trace!("Cache hit for user roles");
-        serde_json::from_str(&json_str).unwrap_or_else(|err| {
-            warn!(error = %err, "Failed to deserialize cached user roles");
-            Vec::new()
-        })
-    } else {
-        trace!("Cache miss for user roles; fetching from Discord HTTP API");
-        match guild_id_typed.member(&ctx.http, author.id).await {
-            Ok(member) => {
-                let fetched_roles: Vec<u64> = member.roles.iter().map(|role_id| role_id.get()).collect();
-
-                if let Ok(json_str) = serde_json::to_string(&fetched_roles) {
-                    let res: Result<(), _> = redis_conn.set_ex(&cache_key, json_str, 300).await;
-                    if let Err(err) = res {
-                        warn!(error = %err, "Failed to cache user roles in Redis");
-                    }
-                }
-                fetched_roles
-            }
-            Err(err) => {
-                warn!(error = %err, "Failed to fetch member roles from Discord API");
-                let res: Result<(), _> = redis_conn.set_ex(&cache_key, "[]", 60).await;
-                if let Err(err) = res {
-                    warn!(error = %err, "Failed to write fallback empty user roles cache in Redis");
-                }
-                Vec::new()
-            }
-        }
-    };
-
-    let result = match config.scope.mode {
+    match config.scope.mode {
         ScopeMode::Exempt => {
-            if config.scope.channels.contains(&channel_u64) {
-                debug!(channel_id = channel_u64, "Excluding level up: channel is in the exempt list");
+            if config.scope.channels.contains(&channel_id) {
                 return true;
             }
             if user_roles.iter().any(|role| config.scope.roles.contains(role)) {
-                debug!("Excluding level up: user possesses an exempt role");
                 return true;
             }
             false
         }
         ScopeMode::Enforced => {
-            if !config.scope.channels.is_empty() && !config.scope.channels.contains(&channel_u64) {
-                debug!(channel_id = channel_u64, "Excluding level up: channel is not in the enforced list");
+            if !config.scope.channels.is_empty() && !config.scope.channels.contains(&channel_id) {
                 return true;
             }
             if !config.scope.roles.is_empty() {
                 let has_allowed_role = user_roles.iter().any(|role| config.scope.roles.contains(role));
                 if !has_allowed_role {
-                    debug!("Excluding level up: user lacks required enforced role");
                     return true;
                 }
             }
             false
         }
-    };
-
-    trace!(excluded = result, "Completed leveling exclusion check");
-    result
+    }
 }
 
 fn calculate_multiplier(multipliers: Vec<XpMultiplier>, channel_id: u64, role_ids: Vec<u64>) -> f32 {

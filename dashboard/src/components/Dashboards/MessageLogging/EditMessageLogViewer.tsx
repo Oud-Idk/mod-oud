@@ -49,7 +49,7 @@ export function EditedMessageLogViewer({
                                 Message Edited | {log.author_name}
                                 <span className="text-neutral-500 ml-2">in {channelName}</span>
                             </span>
-                            <span>{new Date(log.updated_at).toLocaleTimeString()}</span>
+                            <span>{new Date(log.updated_at).toLocaleString()}</span>
                         </div>
                         <div className="text-sm wrap-break-word space-y-1">
                             {log.old_content && (

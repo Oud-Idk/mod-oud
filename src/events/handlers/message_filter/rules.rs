@@ -1,34 +1,28 @@
 use crate::events::handlers::message_filter::utils;
 use crate::events::handlers::message_filter::utils::{DISCORD_EMOJI_REGEX, DISCORD_PING_REGEX, INVITE_REGEX};
 use crate::events::handlers::message_filter::verdict::FilterVerdict;
-use crate::types::config::message_filter::{HasBaseRule, MatchStrategy, MessageFilteringConfig, Modes, Pattern, ScopeMode};
+use crate::types::config::bad_words::BadWordRuleset;
+use crate::types::config::message_filter::{HasBaseRule, MatchStrategy, MessageFilteringConfig, Modes, Pattern, RuleScope, ScopeMode};
 use poise::serenity_prelude as serenity;
 use rustrict::Censor;
 use serenity::model::channel::Message;
 use std::borrow::Cow;
-use tracing::{debug, trace, warn};
-// Added tracing imports
+use tracing::{debug, trace};
 
-fn should_be_skipped<T: HasBaseRule>(
-    message: &Message,
-    rule: &T,
-) -> bool {
-    let base = rule.base();
-
+fn should_skip_scope(message: &Message, scope: &RuleScope) -> bool {
     let current_channel_id = message.channel_id;
-    let is_channel_matched = base.scope.channels.contains(&current_channel_id.get());
+    let is_channel_matched = scope.channels.contains(&current_channel_id.get());
 
     let has_matching_role = || -> bool {
         let Some(member) = &message.member else {
             return false;
         };
         member.roles.iter().any(|role_id| {
-            base.scope.roles.contains(&role_id.get())
+            scope.roles.contains(&role_id.get())
         })
     };
 
-    // Short-circuit logic based on ScopeMode
-    match base.scope.mode {
+    match scope.mode {
         ScopeMode::Exempt => {
             if is_channel_matched {
                 trace!("Skipping rule check: target channel is exempt");
@@ -45,7 +39,7 @@ fn should_be_skipped<T: HasBaseRule>(
                 return true;
             }
 
-            let role_enforced_but_missing = !base.scope.roles.is_empty() && !has_matching_role();
+            let role_enforced_but_missing = !scope.roles.is_empty() && !has_matching_role();
             if role_enforced_but_missing {
                 trace!("Skipping rule check: user lacks required enforced role");
                 return true;
@@ -56,37 +50,37 @@ fn should_be_skipped<T: HasBaseRule>(
     false
 }
 
-fn has_bad_words(pattern: &Pattern, message: &Message) -> bool {
-    let message_content_lower = message.content.to_lowercase();
+fn should_be_skipped<T: HasBaseRule>(
+    message: &Message,
+    rule: &T,
+) -> bool {
+    should_skip_scope(message, &rule.base().scope)
+}
 
+fn should_be_skipped_ruleset(message: &Message, ruleset: &BadWordRuleset) -> bool {
+    should_skip_scope(message, &ruleset.scope)
+}
+
+fn has_bad_words(pattern: &Pattern, original: &str, lower: &str) -> bool {
     match pattern.strategy {
         MatchStrategy::Exact => {
-            let target = pattern.value.to_lowercase();
-            message_content_lower
+            let target = pattern.lowercase_value.get_or_init(|| pattern.value.to_lowercase());
+            lower
                 .split(|c: char| !c.is_alphanumeric())
                 .any(|word| word == target)
         }
         MatchStrategy::Substring => {
-            message_content_lower.contains(&pattern.value.to_lowercase())
+            let target = pattern.lowercase_value.get_or_init(|| pattern.value.to_lowercase());
+            lower.contains(target)
         }
         MatchStrategy::Regex => {
             let cached_regex = pattern.compiled_regex.get_or_init(|| {
-                match regex::RegexBuilder::new(&pattern.value)
+                regex::RegexBuilder::new(&pattern.value)
                     .case_insensitive(true)
-                    .build() {
-                    Ok(re) => Some(re),
-                    Err(err) => {
-                        warn!(error = %err, pattern = %pattern.value, "Failed to compile rule regex pattern");
-                        None
-                    }
-                }
+                    .build()
+                    .ok()
             });
-
-            if let Some(re) = cached_regex {
-                re.is_match(&message.content)
-            } else {
-                false
-            }
+            cached_regex.as_ref().map_or(false, |re| re.is_match(original))
         }
     }
 }
@@ -106,39 +100,6 @@ fn check_rule<'a, T: HasBaseRule>(
     }
 
     Some(rule)
-}
-
-pub fn filter_bad_words<'a>(
-    message: &Message,
-    filtering: &'a MessageFilteringConfig,
-) -> FilterVerdict<'a> {
-    let Some(bad_words) = check_rule(filtering.bad_words.as_ref(), message) else {
-        return FilterVerdict::Pass;
-    };
-
-    trace!("Checking 'Bad Words' filter rule");
-    let mut matched_pattern = None;
-
-    for pattern in bad_words.patterns.iter() {
-        let is_match = has_bad_words(pattern, &message);
-
-        if is_match {
-            matched_pattern = Some(pattern);
-            break;
-        }
-    }
-
-    if let Some(pattern) = matched_pattern {
-        debug!(trigger = %pattern.value, "Message flagged by Bad Words filter");
-        FilterVerdict::Block {
-            rule_name: "Bad Words",
-            base_rule: bad_words.base(),
-            trigger_content: Some(Cow::Borrowed(&pattern.value)),
-            custom_dm_message: None,
-        }
-    } else {
-        FilterVerdict::Pass
-    }
 }
 
 pub fn filter_offensive_messages<'a>(
@@ -167,8 +128,8 @@ pub fn filter_offensive_messages<'a>(
 
     debug!(?categories, "Message flagged by Offensive Messages filter");
     FilterVerdict::Block {
-        rule_name: "Offensive Message",
-        base_rule: &offensive_rule.base,
+        rule_name: "Offensive Message".into(),
+        base_rule: Cow::Borrowed(&offensive_rule.base),
         trigger_content,
         custom_dm_message: None,
     }
@@ -188,8 +149,8 @@ pub fn filter_server_invites<'a>(
 
         debug!(matched_link = ?matched_link, "Message flagged by Server Invites filter");
         return FilterVerdict::Block {
-            rule_name: "Server Invites",
-            base_rule: server_invites.base(),
+            rule_name: "Server Invites".into(),
+            base_rule: Cow::Borrowed(server_invites.base()),
             trigger_content: matched_link,
             custom_dm_message: None,
         };
@@ -232,8 +193,8 @@ pub fn filter_external_urls<'a>(
 
     debug!(url, rule_name, "Message flagged by External URLs domain list filters");
     FilterVerdict::Block {
-        rule_name,
-        base_rule: &external_links.base,
+        rule_name: rule_name.into(),
+        base_rule: Cow::Owned(external_links.base.clone()),
         trigger_content: Some(Cow::Borrowed(url)),
         custom_dm_message: None,
     }
@@ -257,8 +218,8 @@ pub fn filter_excessive_caps<'a>(
 
     debug!(caps_count = count, threshold = excessive_caps.threshold, "Message flagged by Excessive Caps filter");
     FilterVerdict::Block {
-        rule_name: "Excessive Caps",
-        base_rule: &excessive_caps.base,
+        rule_name: "Excessive Caps".into(),
+        base_rule: Cow::Borrowed(&excessive_caps.base),
         trigger_content: None,
         custom_dm_message: None,
     }
@@ -278,8 +239,8 @@ pub fn filter_excessive_emojis<'a>(
     if total_count > excessive_emojis.max_emojis as usize {
         debug!(emoji_count = total_count, threshold = excessive_emojis.max_emojis, "Message flagged by Excessive Emojis filter");
         return FilterVerdict::Block {
-            rule_name: "Excessive Emojis",
-            base_rule: &excessive_emojis.base,
+            rule_name: "Excessive Emojis".into(),
+            base_rule: Cow::Borrowed(&excessive_emojis.base),
             trigger_content: None,
             custom_dm_message: None,
         };
@@ -301,8 +262,8 @@ pub fn filter_excessive_spoilers<'a>(
     if amount > excessive_spoilers.threshold {
         debug!(spoiler_count = amount, threshold = excessive_spoilers.threshold, "Message flagged by Excessive Spoilers filter");
         return FilterVerdict::Block {
-            rule_name: "Excessive Spoiler",
-            base_rule: &excessive_spoilers.base,
+            rule_name: "Excessive Spoiler".into(),
+            base_rule: Cow::Borrowed(&excessive_spoilers.base),
             trigger_content: None,
             custom_dm_message: None,
         };
@@ -324,8 +285,8 @@ pub fn filter_excessive_mentions<'a>(
     if discord_count > excessive_mentions.max_mentions as usize {
         debug!(mention_count = discord_count, threshold = excessive_mentions.max_mentions, "Message flagged by Excessive Mentions filter");
         return FilterVerdict::Block {
-            rule_name: "Excessive Mentions",
-            base_rule: &excessive_mentions.base,
+            rule_name: "Excessive Mentions".into(),
+            base_rule: Cow::Borrowed(&excessive_mentions.base),
             trigger_content: None,
             custom_dm_message: None,
         };
@@ -346,11 +307,54 @@ pub fn filter_zalgo<'a>(
     if utils::is_zalgo_grapheme(&message.content, 3) {
         debug!("Message flagged by Zalgo filter");
         return FilterVerdict::Block {
-            rule_name: "Zalgo",
-            base_rule: &zalgo,
+            rule_name: "Zalgo".into(),
+            base_rule: Cow::Borrowed(&zalgo),
             trigger_content: None,
             custom_dm_message: None,
         };
+    }
+
+    FilterVerdict::Pass
+}
+
+/// Evaluates active, custom database-driven bad word rulesets
+pub fn filter_bad_words<'a>(
+    message: &Message,
+    rulesets: &'a [BadWordRuleset],
+) -> FilterVerdict<'a> {
+    for ruleset in rulesets {
+        if !ruleset.enabled {
+            continue;
+        }
+
+        if should_be_skipped_ruleset(message, ruleset) {
+            continue;
+        }
+
+        trace!(ruleset_name = %ruleset.name, "Checking custom database bad words ruleset");
+        let content_lower = message.content.to_lowercase();
+        let mut matched_pattern = None;
+
+        for pattern in ruleset.patterns.iter() {
+            if has_bad_words(pattern, &message.content, &content_lower) {
+                matched_pattern = Some(pattern);
+                break;
+            }
+        }
+
+        if let Some(pattern) = matched_pattern {
+            debug!(
+                ruleset = %ruleset.name,
+                trigger = %pattern.value,
+                "Message flagged by dynamic Bad Words ruleset"
+            );
+            return FilterVerdict::Block {
+                rule_name: Cow::Borrowed(&ruleset.name),
+                base_rule: Cow::Owned(ruleset.to_base_rule()),
+                trigger_content: Some(Cow::Borrowed(&pattern.value)),
+                custom_dm_message: None,
+            };
+        }
     }
 
     FilterVerdict::Pass

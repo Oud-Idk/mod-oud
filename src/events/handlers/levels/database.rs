@@ -10,7 +10,7 @@ use sqlx::PgPool;
 pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<Option<UserLevel>, sqlx::Error> {
     sqlx::query_as!(
         UserLevel,
-        "SELECT guild_id, user_id, cumulative_xp, current_level, current_xp
+        "SELECT *
         FROM levels
         WHERE user_id = $1 AND guild_id = $2",
         user_id.to_string(),
@@ -18,14 +18,15 @@ pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Resul
     ).fetch_optional(db).await
 }
 
-pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<UserLevel, sqlx::Error> {
+pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId, username: &str) -> Result<UserLevel, sqlx::Error> {
     sqlx::query_as!(
         UserLevel,
-        "INSERT INTO levels (user_id, guild_id)
-         VALUES ($1, $2)
-         RETURNING guild_id, user_id, cumulative_xp, current_level, current_xp",
+        "INSERT INTO levels (user_id, guild_id, username)
+         VALUES ($1, $2, $3)
+         RETURNING *",
         user_id.to_string(),
-        guild_id.to_string()
+        guild_id.to_string(),
+        username,
     )
         .fetch_one(db)
         .await
@@ -80,7 +81,7 @@ pub async fn fetch_level_rewards(
         .await
 }
 
-pub async fn get_user_level(conn: &mut MultiplexedConnection, db: &PgPool, guild_id: &GuildId, author_id: &UserId, stats_key: &str) -> Result<UserLevel, Error> {
+pub async fn get_user_level(conn: &mut MultiplexedConnection, db: &PgPool, guild_id: &GuildId, author_id: &UserId, stats_key: &str, username: &str) -> Result<UserLevel, Error> {
     let cached_user: Option<String> = conn.get(&stats_key).await?;
 
     match cached_user {
@@ -93,7 +94,7 @@ pub async fn get_user_level(conn: &mut MultiplexedConnection, db: &PgPool, guild
             let user = match db_user {
                 Some(user) => user,
                 None => {
-                    insert_level(db, *guild_id, *author_id).await?
+                    insert_level(db, *guild_id, *author_id, username).await?
                 }
             };
 

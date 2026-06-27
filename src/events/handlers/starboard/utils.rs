@@ -8,7 +8,10 @@ use serenity::all::{Channel, ChannelId, Context, CreateEmbed, GuildChannel, Guil
 use sqlx::PgPool;
 
 pub async fn get_channel(ctx: &Context, guild_id: GuildId, channel_id: ChannelId) -> Option<GuildChannel> {
-    if let Some(channel) = ctx.cache.guild(guild_id).and_then(|g| g.channels.get(&channel_id).cloned()) {
+    let cached_channel = ctx.cache.guild(guild_id)
+        .and_then(|g| g.channels.get(&channel_id).cloned());
+
+    if let Some(channel) = cached_channel {
         Some(channel)
     } else {
         match channel_id.to_channel(&ctx.http).await {
@@ -17,7 +20,6 @@ pub async fn get_channel(ctx: &Context, guild_id: GuildId, channel_id: ChannelId
         }
     }
 }
-
 pub fn is_emoji_match(a: &ReactionType, b: &ReactionType) -> bool {
     match (a, b) {
         (ReactionType::Custom { id: id_a, .. }, ReactionType::Custom { id: id_b, .. }) => id_a == id_b,
@@ -81,16 +83,34 @@ pub async fn build_starboard_message(
     Ok(Some((text_message, embedded_message, origin_message)))
 }
 
-pub async fn get_starboards(guild_id: &str, db: &PgPool) -> Result<Vec<Starboard>, sqlx::Error> {
+pub async fn get_starboards(
+    guild_id: &str,
+    db: &PgPool,
+    redis: &mut MultiplexedConnection,
+) -> Result<Vec<Starboard>, Error> {
+    let cache_key = format!("starboard:config:{}", guild_id);
+
+    if let Ok(Some(cached_data)) = redis.get::<_, Option<String>>(&cache_key).await {
+        if let Ok(configs) = serde_json::from_str::<Vec<Starboard>>(&cached_data) {
+            return Ok(configs);
+        }
+    }
+
     let rows = sqlx::query_as::<_, StarboardRow>("SELECT * FROM starboards WHERE guild_id = $1")
         .bind(guild_id)
         .fetch_all(db)
         .await?;
 
-    rows.into_iter()
+    let starboards = rows.into_iter()
         .map(Starboard::try_from)
         .collect::<Result<Vec<Starboard>, _>>()
-        .map_err(|e| sqlx::Error::Decode(Box::new(e)))
+        .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+    if let Ok(serialized) = serde_json::to_string(&starboards) {
+        let _: Result<(), _> = redis.set_ex(&cache_key, serialized, 86400).await;
+    }
+
+    Ok(starboards)
 }
 
 pub async fn count_emoji_and_cache(

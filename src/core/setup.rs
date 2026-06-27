@@ -64,8 +64,7 @@ pub fn setup<'a>(
 
         jobs::ticket_logger::start_ticket_logger(rx, pool.clone());
 
-        let spam_tracker = SpamTracker::new(redis_conn);
-        let redis_conn = redis_client.get_multiplexed_async_connection().await?;
+        let spam_tracker = SpamTracker::new(redis_conn.clone());
         let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
         let audit_log_cache = moka::future::Cache::new(5000);
 

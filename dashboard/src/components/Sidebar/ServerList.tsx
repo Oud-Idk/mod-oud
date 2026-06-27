@@ -3,7 +3,7 @@
 import { DiscordGuild } from "@/types";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { Dropdown } from "@/components/Dropdown"; // Adjust the import path as necessary
+import { Dropdown } from "@/components/Inputs/Dropdown";
 
 interface ServerListProps {
     guilds: DiscordGuild[];

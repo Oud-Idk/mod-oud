@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig, Pattern, RuleAction } from "@/types/config/messageFiltering";
 import { db } from "@/utils/init/db";
 import redis from "@/utils/init/redis";
 import {
@@ -7,10 +7,24 @@ import {
     MessageLayout,
     MessageLoggingConfig,
     ReportConfig,
+    Scope,
     TicketConfig
 } from "@/types/config";
 import { WelcomeConfig } from "@/types/config/welcome";
 import { ModerationDMsConfig } from "@/types/config/moderationDMs";
+
+export interface BadWordRulesetRow {
+    id: string;
+    guildId: string;
+    name: string;
+    enabled: boolean;
+    patterns: Pattern[];
+    actions: RuleAction[];
+    timeoutDurationSeconds: number | null;
+    scope: Scope;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 /**
  * Generic JSONB settings getter
@@ -332,4 +346,103 @@ export async function saveTicketConfig(guildId: string, config: TicketConfig): P
 
 export async function saveModerationDMsConfig(guildId: string, config: ModerationDMsConfig): Promise<void> {
     await saveGuildConfigField(guildId, 'moderation_dms', config);
+}
+
+/**
+ * Fetch all bad word rulesets for a specific guild
+ */
+export async function getBadWordRulesets(guildId: string): Promise<BadWordRulesetRow[]> {
+    const query = `
+        SELECT id,
+               guild_id                 AS "guildId",
+               name,
+               enabled,
+               patterns,
+               actions,
+               timeout_duration_seconds AS "timeoutDurationSeconds",
+               scope,
+               created_at               AS "createdAt",
+               updated_at               AS "updatedAt"
+        FROM bad_word_rulesets
+        WHERE guild_id = $1
+        ORDER BY created_at ASC
+    `;
+    const res = await db.query(query, [guildId]);
+    return res.rows;
+}
+
+/**
+ * Upsert a bad word ruleset (Insert or Update)
+ */
+export async function saveBadWordRuleset(
+    guildId: string,
+    ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId'> & { id?: string }
+): Promise<BadWordRulesetRow> {
+    const query = `
+        INSERT INTO bad_word_rulesets (id, guild_id, name, enabled, patterns, actions, timeout_duration_seconds, scope)
+        VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5::JSONB, $6::JSONB, $7, $8::JSONB)
+        ON CONFLICT (id) DO UPDATE SET name                     = EXCLUDED.name,
+                                       enabled                  = EXCLUDED.enabled,
+                                       patterns                 = EXCLUDED.patterns,
+                                       actions                  = EXCLUDED.actions,
+                                       timeout_duration_seconds = EXCLUDED.timeout_duration_seconds,
+                                       scope                    = EXCLUDED.scope,
+                                       updated_at               = CURRENT_TIMESTAMP
+        RETURNING
+            id,
+            guild_id AS "guildId",
+            name,
+            enabled,
+            patterns,
+            actions,
+            timeout_duration_seconds AS "timeoutDurationSeconds",
+            scope,
+            created_at AS "createdAt",
+            updated_at AS "updatedAt"
+    `;
+
+    const params = [
+        ruleset.id || null,
+        guildId,
+        ruleset.name,
+        ruleset.enabled,
+        JSON.stringify(ruleset.patterns),
+        JSON.stringify(ruleset.actions),
+        ruleset.timeoutDurationSeconds,
+        JSON.stringify(ruleset.scope)
+    ];
+
+    const res = await db.query(query, params);
+
+    // Keep Redis cache in sync
+    const cacheKey = `config:guild:${guildId}:bad_words`;
+    try {
+        await redis.del(cacheKey);
+        await redis.publish("config_updates", `invalidate:${guildId}`);
+    } catch (redisError) {
+        console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
+    }
+
+    return res.rows[0];
+}
+
+/**
+ * Delete a bad word ruleset by ID and Guild ID
+ */
+export async function deleteBadWordRuleset(guildId: string, id: string): Promise<void> {
+    const query = `
+        DELETE
+        FROM bad_word_rulesets
+        WHERE id = $1
+          AND guild_id = $2
+    `;
+    await db.query(query, [id, guildId]);
+
+    const cacheKey = `config:guild:${guildId}`;
+    try {
+        await redis.del(cacheKey);
+        await redis.publish("config_updates", `invalidate:${guildId}`);
+    } catch (redisError) {
+        console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
+    }
 }

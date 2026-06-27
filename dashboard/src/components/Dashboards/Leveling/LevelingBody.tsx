@@ -12,6 +12,8 @@ import { MultiplierTab } from "@/components/Dashboards/Leveling/Tabs/MultiplierT
 import { RewardTab } from "@/components/Dashboards/Leveling/Tabs/RewardTab";
 import { DiscordChannel } from "@/types";
 import { useConfigForm } from "@/hooks/useConfigForm";
+import { UserLevel } from "@/utils/db/leaderboard";
+import { LeaderboardTab } from "@/components/Dashboards/Leveling/Tabs/LeaderboardTab";
 
 interface LevelingBodyProps {
     guildId: string;
@@ -26,9 +28,11 @@ interface LevelingBodyProps {
     onDeleteMultipliers: (targetIds: string[]) => Promise<void>;
     onDeleteRewards: (ids: number[]) => Promise<void>;
     channels: DiscordChannel[];
+    levels: UserLevel[];
+    fetchMoreLevels: (currentLowestXp: number) => Promise<UserLevel[]>;
 }
 
-type TabValue = "text" | "voice" | "general" | "multipliers" | "rewards";
+type TabValue = "text" | "voice" | "general" | "multipliers" | "rewards" | "leaderboard";
 
 const LEVEL_TABS: TabItem<TabValue>[] = [
     { value: "text", label: "Text" },
@@ -36,6 +40,7 @@ const LEVEL_TABS: TabItem<TabValue>[] = [
     { value: "general", label: "General" },
     { value: "multipliers", label: "Multipliers" },
     { value: "rewards", label: "Rewards" },
+    { value: "leaderboard", label: "Leaderboard" },
 ];
 
 export function LevelingBody({
@@ -51,6 +56,8 @@ export function LevelingBody({
     onDeleteMultipliers,
     onDeleteRewards,
     channels,
+    levels,
+    fetchMoreLevels,
 }: LevelingBodyProps) {
     const normalizedLevelingConfig = useMemo(() => levelingConfig, [levelingConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("text");
@@ -100,6 +107,12 @@ export function LevelingBody({
                     onSave={onSaveRewards}
                     onDelete={onDeleteRewards}
                     roleMap={roleMap}
+                />
+            )}
+
+            {activeTab === "leaderboard" && (
+                <LeaderboardTab
+                    levels={levels} fetchMoreLevels={fetchMoreLevels}
                 />
             )}
 

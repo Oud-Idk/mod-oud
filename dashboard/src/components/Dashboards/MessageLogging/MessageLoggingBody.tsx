@@ -2,14 +2,14 @@
 
 import { DeletedMessage, EditedMessage } from "@/types";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
-import { Dropdown } from "@/components/Dropdown";
+import { Dropdown } from "@/components/Inputs/Dropdown";
 import React, { useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { DeletedMessageLogViewer } from "@/components/Dashboards/MessageLogging/DeleteMessageLogViewer";
 import { EditedMessageLogViewer } from "@/components/Dashboards/MessageLogging/EditMessageLogViewer";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
 import { MessageLoggingConfig } from "@/types/config";
-import { TextInput } from "@/components/TextInput";
+import { TextInput } from "@/components/Inputs/TextInput";
 import { useConfigForm } from "@/hooks/useConfigForm";
 
 interface MessageLoggingBodyProps {
@@ -184,6 +184,7 @@ export function MessageLoggingBody({
                                     onSubmit={handleAddUserId}
                                     value={userIdInput}
                                     onChange={(e) => setUserIdInput(e.target.value)}
+                                    placeholder="Type a User ID"
                                 />
                             </div>
                         </div>

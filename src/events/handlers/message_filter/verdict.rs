@@ -5,14 +5,13 @@ use crate::types::{Data, Error};
 use serenity::all::Message;
 use std::borrow::Cow;
 use tracing::{debug, error, instrument, trace};
-// Added tracing imports
 
 #[derive(Debug)]
 pub enum FilterVerdict<'a> {
     Pass,
     Block {
-        rule_name: &'static str,
-        base_rule: &'a BaseRule,
+        rule_name: Cow<'a, str>,
+        base_rule: Cow<'a, BaseRule>,
         trigger_content: Option<Cow<'a, str>>,
         custom_dm_message: Option<Cow<'a, str>>,
     },
@@ -23,7 +22,6 @@ pub enum FilterVerdict<'a> {
 }
 
 impl<'a> FilterVerdict<'a> {
-    /// Evaluates the fallback closure only if the current verdict is `Pass`.
     pub fn or_else<F>(self, f: F) -> Self
     where
         F: FnOnce() -> Self,
@@ -34,12 +32,10 @@ impl<'a> FilterVerdict<'a> {
         }
     }
 
-    /// Helper to check if the verdict is a pass
     pub fn is_pass(&self) -> bool {
         matches!(self, FilterVerdict::Pass)
     }
 }
-
 #[instrument(
     name = "resolve_safe_browsing",
     skip(data, external_links),
@@ -72,8 +68,8 @@ pub async fn resolve_safe_browsing<'a>(
             );
 
             FilterVerdict::Block {
-                rule_name: "Malicious URLs",
-                base_rule: &external_links.base,
+                rule_name: Cow::Borrowed("Malicious URLs"),
+                base_rule: Cow::Borrowed(&external_links.base),
                 trigger_content: Some(Cow::Owned(threats_str.clone())),
                 custom_dm_message: Some(Cow::Owned(format!(
                     "You have sent a malicious URL with these flags: {}",
@@ -114,8 +110,8 @@ pub async fn execute_verdict(
         ctx,
         &data.db,
         message,
-        base_rule,
-        rule_name,
+        base_rule.as_ref(),
+        rule_name.as_ref(),
         trigger_content.as_deref(),
         custom_dm_message.as_deref(),
         None,

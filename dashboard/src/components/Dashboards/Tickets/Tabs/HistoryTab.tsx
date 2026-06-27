@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { getTicketHistoryAction, getTicketsListAction, TicketSummary } from "@/actions/tickets";
 import { TicketHistory } from "@/utils/db/ticket_history";
-import { Dropdown } from "@/components/Dropdown";
+import { Dropdown } from "@/components/Inputs/Dropdown";
 
 interface HistoryTabProps {
     guildId: string;

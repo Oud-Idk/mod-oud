@@ -14,16 +14,13 @@ export function useConfigForm<T>({
     const [isPending, startTransition] = useTransition();
     const [resetKey, setResetKey] = useState(0);
 
-    // Validation helpers used by various forms
     const [isEmpty, setIsEmpty] = useState(false);
     const [targetChannelIsEmpty, setTargetChannelIsEmpty] = useState(false);
 
-    // Keep draft state in sync if initial prop changes
     useEffect(() => {
         setConfig(initialConfig);
     }, [initialConfig]);
 
-    // Check if form is dirty and not blocked by validation flags
     const isDirty = !isDeepEqual(config, initialConfig) && !isEmpty && !targetChannelIsEmpty;
 
     const handleSave = useCallback(() => {
@@ -43,7 +40,6 @@ export function useConfigForm<T>({
         setTargetChannelIsEmpty(false);
     }, [initialConfig]);
 
-    // General state modifier that supports partial or complete updates
     const handleChange = useCallback((updated: Partial<T> | T) => {
         setConfig((prev) => {
             if (typeof updated === "object" && updated !== null && !Array.isArray(updated)) {

@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth"; // Your Auth.js/NextAuth configuration
 import {
+    BadWordRulesetRow,
+    deleteBadWordRuleset,
     getTicketConfig,
+    saveBadWordRuleset,
     saveLeaveConfig,
     saveLevelingConfig,
     saveMessageFilteringConfig,
@@ -188,5 +191,41 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
     } catch (error) {
         console.error("Failed to delete ticket message:", error);
         throw new Error(error instanceof Error ? error.message : "Could not delete ticket panel.");
+    }
+}
+
+/**
+ * Saves or updates a bad word ruleset row in the database,
+ * then revalidates the message filtering page.
+ */
+export async function saveBadWordRulesetAction(
+    guildId: string,
+    ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId'> & { id?: string }
+): Promise<BadWordRulesetRow> {
+    try {
+        const savedRow = await saveBadWordRuleset(guildId, ruleset);
+        revalidatePath(`/dashboard/${guildId}/message-filtering`);
+
+        return savedRow;
+    } catch (error) {
+        console.error(`Failed to save bad word ruleset for guild ${guildId}:`, error);
+        throw new Error("Could not save ruleset settings. Please try again.");
+    }
+}
+
+/**
+ * Deletes a bad word ruleset row from the database,
+ * then revalidates the message filtering page.
+ */
+export async function deleteBadWordRulesetAction(
+    guildId: string,
+    id: string
+): Promise<void> {
+    try {
+        await deleteBadWordRuleset(guildId, id);
+        revalidatePath(`/dashboard/${guildId}/message-filtering`);
+    } catch (error) {
+        console.error(`Failed to delete bad word ruleset ${id} for guild ${guildId}:`, error);
+        throw new Error("Could not delete ruleset. Please try again.");
     }
 }

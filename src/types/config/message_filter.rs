@@ -2,15 +2,9 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::sync::OnceLock;
-// Required imports
 
-// Placeholder for your external type
 mod types {
-    pub mod flag {
-        use serde::{Deserialize, Serialize};
-        #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-        pub enum FlagSeverity { Low, Medium, High }
-    }
+    pub mod flag {}
 }
 use crate::types::flag::FlagSeverity;
 
@@ -84,22 +78,32 @@ pub struct Pattern {
 
     #[serde(skip, default)]
     pub compiled_regex: OnceLock<Option<Regex>>,
+
+    #[serde(skip, default)]
+    pub lowercase_value: OnceLock<String>,
 }
 
 impl Clone for Pattern {
     fn clone(&self) -> Self {
-        let cell = OnceLock::new();
+        let re_cell = OnceLock::new();
         if let Some(cached_re) = self.compiled_regex.get() {
-            let _ = cell.set(cached_re.clone());
+            let _ = re_cell.set(cached_re.clone());
+        }
+
+        let lower_cell = OnceLock::new();
+        if let Some(cached_lower) = self.lowercase_value.get() {
+            let _ = lower_cell.set(cached_lower.clone());
         }
 
         Self {
             strategy: self.strategy.clone(),
             value: self.value.clone(),
-            compiled_regex: cell,
+            compiled_regex: re_cell,
+            lowercase_value: lower_cell,
         }
     }
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BadWordsRule {
     #[serde(flatten)]

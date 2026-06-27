@@ -2,8 +2,8 @@
 
 import React, { useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Dropdown } from "@/components/Dropdown";
-import { NumberInput } from "@/components/NumberInput";
+import { Dropdown } from "@/components/Inputs/Dropdown";
+import { NumberInput } from "@/components/Inputs/NumberInput";
 
 interface StarboardCreateModalProps {
     isOpen: boolean;
@@ -82,7 +82,7 @@ export function StarboardCreateModal({
                         />
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-zinc-850">
+                    <div className="flex justify-end gap-3">
                         <button
                             type="button"
                             onClick={onClose}
@@ -93,7 +93,7 @@ export function StarboardCreateModal({
                         <button
                             type="submit"
                             disabled={isPending}
-                            className="px-4 py-2 text-sm hover:bg-neutral-300/20 font-semibold rounded transition disabled:opacity-50 cursor-pointer"
+                            className="px-4 py-2 text-sm hover:bg-neutral-300/20 font-semibold rounded transition disabled:opacity-50 cursor-pointer border"
                         >
                             {isPending ? "Creating..." : "Create"}
                         </button>

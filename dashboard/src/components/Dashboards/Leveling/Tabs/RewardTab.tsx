@@ -2,8 +2,8 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { getAvailableRoleOptions } from "@/utils/utils";
-import { NumberInput } from "@/components/NumberInput";
-import { Dropdown } from "@/components/Dropdown";
+import { NumberInput } from "@/components/Inputs/NumberInput";
+import { Dropdown } from "@/components/Inputs/Dropdown";
 import { LevelReward } from "@/utils/db/leveling";
 
 // Note: This assumes LevelReward has been updated to use:
@@ -184,7 +184,6 @@ export function RewardTab({
                 <p className="text-lg m-0">Create New Level Reward</p>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
 
-                    {/* Level Requirement Input */}
                     <div className="space-y-1.5">
                         <NumberInput
                             value={levelRequirement} onChange={(val) => {
@@ -194,7 +193,6 @@ export function RewardTab({
                         />
                     </div>
 
-                    {/* Roles Multi-Select Selector */}
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium">
                             Roles to Add
@@ -209,7 +207,6 @@ export function RewardTab({
                         />
                     </div>
 
-                    {/* Behavior Settings */}
                     <div className="flex items-center space-x-2.5 pb-3">
                         <input
                             type="checkbox"
@@ -225,7 +222,6 @@ export function RewardTab({
                         </label>
                     </div>
 
-                    {/* Action Button */}
                     <div className="flex justify-end pt-2">
                         <button
                             type="button"

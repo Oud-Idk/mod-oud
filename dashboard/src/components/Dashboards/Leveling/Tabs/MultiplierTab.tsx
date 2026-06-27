@@ -2,8 +2,8 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { XpMultiplier } from "@/utils/db/leveling";
-import { Dropdown } from "@/components/Dropdown";
-import { NumberInput } from "@/components/NumberInput";
+import { Dropdown } from "@/components/Inputs/Dropdown";
+import { NumberInput } from "@/components/Inputs/NumberInput";
 import { getAvailableRoleOptions } from "@/utils/utils";
 
 export interface MultiplierTabProps {

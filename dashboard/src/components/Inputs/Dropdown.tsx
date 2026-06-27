@@ -79,8 +79,6 @@ export function Dropdown({
                 value={value} disabled={disabled} onChange={onChange as any} multiple={multiple}
             >
                 {({ open }) => {
-                    // Recalculate position when the dropdown opens, scrolls, or resizes
-                    // eslint-disable-next-line react-hooks/rules-of-hooks
                     useEffect(() => {
                         if (!open) return;
 

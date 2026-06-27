@@ -3,7 +3,7 @@
 import { JSX } from "react";
 import { Radio, RadioGroup } from "@headlessui/react";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
-import { Dropdown } from "@/components/Dropdown";
+import { Dropdown } from "@/components/Inputs/Dropdown";
 import { getAvailableRoleOptions } from "@/utils/utils";
 
 export type ScopeMode = "exempt" | "enforced";
@@ -49,7 +49,10 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
                         {({ checked }) => (
                             <>
                                 <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
-                                    {checked ? <span className="w-2 h-2 rounded-full bg-white" aria-hidden/> : null}
+                                    {checked ? <span
+                                        className="w-2 h-2 rounded-full bg-black dark:bg-white"
+                                        aria-hidden
+                                    /> : null}
                                 </span>
                                 <span>Run everywhere except selected (Exempt)</span>
                             </>
@@ -63,7 +66,9 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
                         {({ checked }) => (
                             <>
                                 <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
-                                    {checked ? <span className="w-2 h-2 rounded-full bg-white" aria-hidden/> : null}
+                                    {checked ? <span
+                                        className="w-2 h-2 rounded-full bg-black dark:bg-white" aria-hidden
+                                    /> : null}
                                 </span>
                                 <span>Run only on selected (Enforced)</span>
                             </>

@@ -1,5 +1,6 @@
 import { db } from "@/utils/init/db"
 import { StarboardConfig, StarboardConfigInput } from '@/types/config/starboard';
+import redis from "@/utils/init/redis";
 
 function formatInterval(interval: any): string | null {
     if (!interval) return null;
@@ -72,6 +73,7 @@ export async function upsertStarboardConfig(
     config: StarboardConfigInput
 ): Promise<StarboardConfig> {
     const isUpdate = !!config.id;
+    let dbRow: any;
 
     if (isUpdate) {
         const updateQuery = `
@@ -109,7 +111,7 @@ export async function upsertStarboardConfig(
             config.restricted_channels || [],
             config.embed_template || {},
             config.plaintext_template || '',
-            config.keep_deleted_messages ?? true, // Adjust default value as needed
+            config.keep_deleted_messages ?? true,
             config.id,
             guildId
         ];
@@ -119,7 +121,7 @@ export async function upsertStarboardConfig(
             if (res.rows.length === 0) {
                 throw new Error(`Starboard configuration with ID ${config.id} not found for guild ${guildId}`);
             }
-            return mapRowToConfig(res.rows[0]);
+            dbRow = res.rows[0];
         } catch (error) {
             console.error(`Error updating starboard ${config.id}:`, error);
             throw error;
@@ -159,18 +161,28 @@ export async function upsertStarboardConfig(
             config.restricted_channels || [],
             config.embed_template || {},
             config.plaintext_template || '',
-            config.keep_deleted_messages ?? true, // Adjust default value as needed
+            config.keep_deleted_messages ?? true,
         ];
 
         try {
             const res = await db.query(insertQuery, values);
-            return mapRowToConfig(res.rows[0]);
+            dbRow = res.rows[0];
         } catch (error) {
             console.error(`Error inserting new starboard config:`, error);
             throw error;
         }
     }
+
+    try {
+        const cacheKey = `starboard:config:${guildId}`;
+        await redis.del(cacheKey);
+    } catch (redisError) {
+        console.error(`Failed to invalidate starboard cache for guild ${guildId}:`, redisError);
+    }
+
+    return mapRowToConfig(dbRow);
 }
+
 
 export async function deleteStarboardConfig(id: string, guildId: string): Promise<boolean> {
     const query = `
@@ -183,7 +195,19 @@ export async function deleteStarboardConfig(id: string, guildId: string): Promis
 
     try {
         const res = await db.query(query, [id, guildId]);
-        return (res.rowCount ?? 0) > 0;
+        const deleted = (res.rowCount ?? 0) > 0;
+
+        // Only invalidate the cache if a configuration was actually removed
+        if (deleted) {
+            try {
+                const cacheKey = `starboard:config:${guildId}`;
+                await redis.del(cacheKey);
+            } catch (redisError) {
+                console.error(`Failed to invalidate starboard cache for guild ${guildId}:`, redisError);
+            }
+        }
+
+        return deleted;
     } catch (error) {
         console.error(`Error deleting starboard config ${id} for guild ${guildId}:`, error);
         throw error;

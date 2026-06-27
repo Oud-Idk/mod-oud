@@ -2,7 +2,7 @@ import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { Radio, RadioGroup } from "@headlessui/react";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
-import { TextInput } from "@/components/TextInput";
+import { TextInput } from "@/components/Inputs/TextInput";
 import React, { useState } from "react";
 import { isFQDN } from "validator";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";

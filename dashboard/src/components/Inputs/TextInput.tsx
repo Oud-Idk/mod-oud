@@ -1,10 +1,12 @@
 import React from "react";
+import { twMerge } from "tailwind-merge";
 
 interface TextInputProps {
     onSubmit: (e: React.SubmitEvent) => void;
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
+    className?: string;
 }
 
 export function TextInput({
@@ -12,8 +14,9 @@ export function TextInput({
     value,
     onChange,
     placeholder,
+    className,
 }: TextInputProps) {
-    return <form onSubmit={onSubmit} className="flex gap-2 max-w-xs">
+    return <form onSubmit={onSubmit} className={twMerge("flex gap-2 max-w-xs", className)}>
         <input
             type="text"
             placeholder={placeholder}

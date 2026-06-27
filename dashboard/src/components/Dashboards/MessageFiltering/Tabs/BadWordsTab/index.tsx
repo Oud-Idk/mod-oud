@@ -2,29 +2,29 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { StarboardConfig as StarboardConfigType, StarboardConfigInput } from "@/types/config/starboard";
-import { StarboardCreateModal } from "./StarboardCreateModal";
-import { StarboardConfig } from "./StarboardConfig";
+import { BadWordRulesetRow } from "@/utils/db/config"; // Path where you exported the type
 import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayout";
+import { BadWordCreateModal } from "./BadWordCreateModal";
+import { BadWordRulesetConfig } from "./BadWordRulesetConfig";
 import { useConfigForm } from "@/hooks/useConfigForm";
 
-interface StarboardBodyProps {
-    starboardConfigs: StarboardConfigType[];
-    activeConfig: StarboardConfigType | null;
+interface BadWordsBodyProps {
+    rulesets: BadWordRulesetRow[];
+    activeRuleset: BadWordRulesetRow | null;
     channelMap: Record<string, string>;
     roleMap?: Record<string, string>;
-    onSave: (config: StarboardConfigInput) => Promise<any>;
+    onSave: (ruleset: Partial<BadWordRulesetRow>) => Promise<any>;
     onDelete: (id: string) => Promise<void>;
 }
 
-export function StarboardBody({
-    starboardConfigs,
-    activeConfig,
+export function BadWordTab({
+    rulesets,
+    activeRuleset,
     channelMap,
     roleMap,
     onSave,
     onDelete,
-}: StarboardBodyProps) {
+}: BadWordsBodyProps) {
     const router = useRouter();
     const params = useParams();
     const guildId = params?.guild_id as string;
@@ -37,8 +37,8 @@ export function StarboardBody({
         handleSave,
         handleCancel,
         handleChange,
-    } = useConfigForm<StarboardConfigInput | null>({
-        initialConfig: activeConfig,
+    } = useConfigForm<Partial<BadWordRulesetRow> | null>({
+        initialConfig: activeRuleset,
         onSave: async (updatedConfig) => {
             if (updatedConfig) await onSave(updatedConfig);
         },
@@ -48,49 +48,60 @@ export function StarboardBody({
 
     return (
         <>
-            <ConfigListLayout<StarboardConfigType> title="Boards"
+            <ConfigListLayout<BadWordRulesetRow> title="Rulesets"
                 onCreateClick={() => setIsCreateModalOpen(true)}
-                items={starboardConfigs}
-                emptyMessage="No starboards configured yet."
+                items={rulesets}
+                emptyMessage="No rulesets configured yet."
                 hasActiveConfig={!!config}
                 isDirty={isDirty}
                 isPending={isPending}
                 handleSave={handleSave}
                 handleCancel={handleCancel}
-                renderItem={(board) => {
-                    const isCurrent = activeConfig?.id === board.id;
-                    const channelName = channelMap[board.starboard_channel_id] || "unknown-channel";
+                renderItem={(ruleset) => {
+                    const isCurrent = activeRuleset?.id === ruleset.id;
+                    const statusText = ruleset.enabled ? "Active" : "Disabled";
+                    const patternCount = ruleset.patterns.length;
+
                     return (
                         <button
-                            key={board.id}
-                            onClick={() => router.push(`/dashboard/${guildId}/starboard?id=${board.id}`)}
+                            key={ruleset.id}
+                            onClick={() => router.push(`/dashboard/${guildId}/message-filtering?id=${ruleset.id}`)}
                             className={`w-full text-left px-3 py-2 rounded text-sm transition block cursor-pointer truncate ${
                                 isCurrent
                                     ? "bg-neutral-400/15 hover:bg-neutral-400/20 font-medium"
                                     : "hover:bg-neutral-300/15"
                             }`}
                         >
-                            <div className="truncate font-semibold">#{channelName}</div>
+                            <div className="flex justify-between items-center">
+                                <span className="truncate font-semibold">{ruleset.name}</span>
+                                <span
+                                    className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                        ruleset.enabled ? "bg-emerald-500/10 text-emerald-500" : "bg-neutral-500/10 text-neutral-400"
+                                    }`}
+                                >
+                                    {statusText}
+                                </span>
+                            </div>
                             <div className="text-xs text-zinc-500 truncate mt-0.5">
-                                {board.emojis.join(" ")} • Min: {board.reaction_threshold} Reactions
+                                {patternCount === 1 ? "1 Pattern" : `${patternCount} Patterns`} • {ruleset.actions.join(", ")}
                             </div>
                         </button>
                     );
                 }}
                 noActivePlaceholder={
                     <>
-                        <p className="text-sm">Select an active starboard, or create a new one to begin.</p>
+                        <p className="text-sm">Select an active ruleset, or create a new one to begin.</p>
                         <button
                             onClick={() => setIsCreateModalOpen(true)}
                             className="text-xs px-3.5 py-1.5 bg-zinc-850 rounded transition border border-neutral-500 hover:bg-neutral-300/10 cursor-pointer"
                         >
-                            Create Your First Starboard
+                            Create Your First Ruleset
                         </button>
                     </>
                 }
             >
-                <StarboardConfig
-                    config={config!}
+                <BadWordRulesetConfig
+                    config={config as BadWordRulesetRow}
                     channelMap={channelMap}
                     roleMap={roleMap}
                     isPending={isPending}
@@ -100,11 +111,8 @@ export function StarboardBody({
                 />
             </ConfigListLayout>
 
-            <StarboardCreateModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-                channelMap={channelMap}
-                onSave={onSave}
+            <BadWordCreateModal
+                isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSave={onSave}
             />
         </>
     );

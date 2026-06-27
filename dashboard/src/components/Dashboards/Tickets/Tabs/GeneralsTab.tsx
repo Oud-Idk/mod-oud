@@ -1,5 +1,5 @@
 import { TicketConfig } from "@/types/config";
-import { NumberInput } from "@/components/NumberInput";
+import { NumberInput } from "@/components/Inputs/NumberInput";
 
 export default function GeneralsTab(props: {
     config: TicketConfig,

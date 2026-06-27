@@ -1,48 +1,31 @@
 use crate::types::config::starboard::{RestrictionType, Starboard};
-use crate::types::Error;
 use chrono::Utc;
-use redis::aio::MultiplexedConnection;
-use redis::AsyncCommands;
 use serenity::all::{ChannelId, Member, Message, Reaction, RoleId, UserId};
 
-pub async fn is_event_allowed(
+pub fn is_event_allowed(
     starboard: &Starboard,
     reaction: &Reaction,
     message: &Message,
     member: &Member,
     user_id: UserId,
-    redis: &mut MultiplexedConnection,
-) -> Result<bool, Error> {
+) -> bool {
     if !is_channel_allowed(starboard, reaction) {
-        return Ok(false);
+        return false;
     }
 
     if starboard.prevent_self_star.unwrap_or(false) && user_id == message.author.id {
-        return Ok(false);
+        return false;
     }
 
     if !starboard.allow_bot_messages.unwrap_or(true) && message.author.bot {
-        return Ok(false);
+        return false;
     }
 
     if !is_message_age_allowed(starboard, message.timestamp.timestamp_millis()) {
-        return Ok(false);
+        return false;
     }
 
-    let guild_id_str = reaction.guild_id.unwrap_or_default().to_string();
-    let allowed_cache_key = format!("starboard:allowed:{}:{}:{}", guild_id_str, starboard.id, user_id);
-    let maybe_user_allowed: Option<bool> = redis.get(&allowed_cache_key).await?;
-
-    let user_allowed = match maybe_user_allowed {
-        Some(allowed) => allowed,
-        None => {
-            let allowed = is_role_allowed(starboard, member);
-            let _: () = redis.set_ex(&allowed_cache_key, allowed, 3600).await?;
-            allowed
-        }
-    };
-
-    Ok(user_allowed)
+    is_role_allowed(starboard, member)
 }
 
 fn is_role_allowed(starboard: &Starboard, member: &Member) -> bool {

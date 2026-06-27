@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { DiscordChannel } from "@/types";
-import { Dropdown } from "@/components/Dropdown"; // Adjust the import path as necessary
+import { Dropdown } from "@/components/Inputs/Dropdown"; // Adjust the import path as necessary
 
 interface ChannelSelectorProps {
     channels: DiscordChannel[];

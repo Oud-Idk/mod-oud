@@ -1,6 +1,6 @@
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { LevelingConfig } from "@/types/config";
-import { RangeSlider } from "@/components/RangeSlider";
+import { RangeSlider } from "@/components/Inputs/RangeSlider";
 
 interface VoiceTabProps {
     config: LevelingConfig;

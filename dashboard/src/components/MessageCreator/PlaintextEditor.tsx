@@ -42,8 +42,6 @@ export function PlaintextEditor({
             {value.trim() === "" && !emptyable && (
                 <p className="text-red-500 text-xs">Message cannot be empty.</p>
             )}
-            <p className="text-xs text-neutral-500">
-                Supports dynamic placeholders and mentions. </p>
         </div>
     );
 }

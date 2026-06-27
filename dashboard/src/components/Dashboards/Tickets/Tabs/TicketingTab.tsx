@@ -3,7 +3,7 @@ import { TicketConfig } from "@/types/config";
 import { GenericMessageConfig, MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { DiscordChannel } from "@/types";
 import { TICKETS_PANEL_CONFIG } from "@/utils/embedTemplates";
-import { Dropdown } from "@/components/Dropdown";
+import { Dropdown } from "@/components/Inputs/Dropdown";
 
 interface TicketingTabProps {
     config: TicketConfig;
