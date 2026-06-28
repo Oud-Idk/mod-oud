@@ -1,43 +1,45 @@
 use crate::types::config::config::GuildSettings;
-use futures_util::StreamExt;
+use fred::clients::SubscriberClient;
+use fred::prelude::{Client, EventInterface, PubsubInterface};
 use moka::future::Cache;
-use redis::Client;
-use std::time::Duration;
 
-pub fn sync_configs(redis_client: &Client, config_cache: &Cache<i64, GuildSettings>) {
-    let pubsub_client = redis_client.clone();
+pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<i64, GuildSettings>) {
     let cache_clone = config_cache.clone();
 
-    tokio::spawn(async move {
-        loop {
-            match pubsub_client.get_async_pubsub().await {
-                Ok(mut pubsub) => {
-                    if let Err(e) = pubsub.subscribe("config_updates").await {
-                        eprintln!("Failed to subscribe to 'config_updates': {}", e);
-                        tokio::time::sleep(Duration::from_secs(5)).await;
-                        continue;
-                    }
+    subscriber.on_message(move |msg| {
+        let cache = cache_clone.clone();
 
-                    let mut msg_stream = pubsub.into_on_message();
-
-                    while let Some(msg) = msg_stream.next().await {
-                        if let Ok(payload) = msg.get_payload::<String>() {
-                            let parts: Vec<&str> = payload.split(':').collect();
-                            if parts.len() == 2 && parts[0] == "invalidate" {
-                                if let Ok(guild_id) = parts[1].parse::<i64>() {
-                                    // Evict configuration from L1 Cache
-                                    cache_clone.invalidate(&guild_id).await;
-                                    tracing::debug!(guild_id, "Evicted guild config from memory via pub/sub");
-                                }
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Redis PubSub connection dropped for config sync: {}. Reconnecting...", e);
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                }
+        async move {
+            if msg.channel != "config_updates" {
+                return Ok(());
             }
+
+            let Ok(payload) = msg.value.convert::<String>() else {
+                return Ok(());
+            };
+
+            let parts: Vec<&str> = payload.split(':').collect();
+            if parts.len() != 2 || parts[0] != "invalidate" {
+                return Ok(());
+            }
+
+            let Ok(guild_id) = parts[1].parse::<i64>() else {
+                return Ok(());
+            };
+
+            cache.invalidate(&guild_id).await;
+            tracing::debug!(guild_id, "Evicted guild config from memory via pub/sub");
+
+            Ok(())
+        }
+    });
+
+    let client_clone = subscriber.clone();
+    tokio::spawn(async move {
+        if let Err(e) = client_clone.subscribe("config_updates").await {
+            tracing::error!("Failed to subscribe to 'config_updates' channel: {:?}", e);
+        } else {
+            tracing::info!("Subscribed to 'config_updates' channel. Listener active!");
         }
     });
 }

@@ -1,10 +1,12 @@
 use super::types::{DistributedCachedMessage, EditDetails, MessageDetails};
 use crate::types::Error;
+use fred::interfaces::{FredResult, PubsubInterface};
+use fred::prelude::{Client, Expiration, KeysInterface};
 use poise::serenity_prelude as serenity;
 use tracing::{debug, error, instrument};
 
 #[instrument(
-    skip(redis_conn, msg),
+    skip(redis, msg),
     fields(
         message_id = msg.id.get(),
         channel_id = msg.channel_id.get(),
@@ -12,10 +14,9 @@ use tracing::{debug, error, instrument};
     )
 )]
 pub async fn cache_message_in_redis(
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis: &Client,
     msg: &serenity::Message,
 ) -> Result<(), Error> {
-    let mut conn = redis_conn.clone();
     let cached = DistributedCachedMessage {
         author_id: msg.author.id.get() as i64,
         author_name: msg.author.name.clone(),
@@ -32,14 +33,7 @@ pub async fn cache_message_in_redis(
     };
 
     let key = format!("msg:{}:{}", msg.channel_id.get(), msg.id.get());
-
-    let _: () = redis::cmd("SET")
-        .arg(&key)
-        .arg(serialized)
-        .arg("EX")
-        .arg(18000)
-        .query_async(&mut conn)
-        .await?;
+    let _: () = redis.set(&key, &serialized, Some(Expiration::EX(18000)), None, false).await?;
 
     debug!(key = %key, "Message successfully cached in Redis");
     Ok(())
@@ -47,26 +41,21 @@ pub async fn cache_message_in_redis(
 
 /// Retrieve a deleted message's details from the distributed Redis cache
 #[instrument(
-    skip(redis_conn),
+    skip(redis),
     fields(
         channel_id = channel_id.get(),
         message_id = message_id.get()
     )
 )]
 pub async fn fetch_dist_cached_message(
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis: &Client,
     channel_id: serenity::ChannelId,
     message_id: serenity::MessageId,
 ) -> Result<Option<MessageDetails>, Error> {
-    let mut conn = redis_conn.clone();
     let key = format!("msg:{}:{}", channel_id.get(), message_id.get());
 
     debug!(key = %key, "Fetching message from Redis distributed cache");
-
-    let val: Option<String> = redis::cmd("GET")
-        .arg(&key)
-        .query_async(&mut conn)
-        .await?;
+    let val: Option<String> = redis.get(&key).await?;
 
     match val {
         Some(raw) => {
@@ -97,25 +86,21 @@ pub async fn fetch_dist_cached_message(
 
 /// Retrieve and update a message's details during an edit event
 #[instrument(
-    skip(redis_conn, event),
+    skip(redis, event),
     fields(
         channel_id = event.channel_id.get(),
         message_id = event.id.get()
     )
 )]
 pub async fn fetch_dist_edit_details(
-    redis_conn: &redis::aio::MultiplexedConnection,
+    redis: &Client,
     event: &serenity::MessageUpdateEvent,
 ) -> Result<Option<EditDetails>, Error> {
-    let mut conn = redis_conn.clone();
     let key = format!("msg:{}:{}", event.channel_id.get(), event.id.get());
 
     debug!(key = %key, "Fetching pre-edit message details from Redis");
 
-    let val: Option<String> = redis::cmd("GET")
-        .arg(&key)
-        .query_async(&mut conn)
-        .await?;
+    let val: Option<String> = redis.get(&key).await?;
 
     match val {
         Some(raw) => {
@@ -144,13 +129,7 @@ pub async fn fetch_dist_edit_details(
                     }
                 };
 
-                let _: () = redis::cmd("SET")
-                    .arg(&key)
-                    .arg(serialized)
-                    .arg("EX")
-                    .arg(18000) // Reset TTL
-                    .query_async(&mut conn)
-                    .await?;
+                let _: () = redis.set(&key, serialized, Some(Expiration::EX(18000)), None, false).await?;
             }
 
             Ok(Some(EditDetails {
@@ -167,4 +146,12 @@ pub async fn fetch_dist_edit_details(
             Ok(None)
         }
     }
+}
+
+pub async fn publish_delete_event(redis: Client, payload_json: String) -> FredResult<()> {
+    redis.publish("discord:delete", payload_json).await
+}
+
+pub async fn publish_edit_event(redis: &Client, payload_json: String) -> FredResult<()> {
+    redis.publish("discord:updates", payload_json).await
 }

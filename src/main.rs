@@ -1,16 +1,21 @@
-use self::core::setup;
 use crate::commands::{emergency, leveling, moderation, ticket};
+use crate::core::setup::setup;
 use commands::{messages, ping};
+use fred::clients::SubscriberClient;
+use fred::prelude::*;
 use poise::serenity_prelude as serenity;
-use prost::Message;
 use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+use sqlx::ConnectOptions;
 use std::env;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
+use tracing::log::LevelFilter;
 use tracing::{debug, info, trace, warn};
-use types::{Data, Error, LogEvent, SearchUrlsResponse};
+use types::{Data, Error, LogEvent};
 use web::start_web_server;
 
 mod commands;
@@ -32,7 +37,7 @@ pub struct WebState {
     pub tx: broadcast::Sender<LogEvent>,
     pub pool: sqlx::PgPool,
     pub http: Arc<poise::serenity_prelude::Http>,
-    pub redis: redis::aio::MultiplexedConnection,
+    pub redis: fred::clients::Client,
     pub guild_configs: moka::future::Cache<i64, types::config::config::GuildSettings>,
 }
 
@@ -88,12 +93,16 @@ async fn main() -> Result<(), Error> {
         debug!("Since RUN_WEB is false, not running REST API.");
     }
 
-    let pool = sqlx::postgres::PgPoolOptions::new()
+    let connection_options = PgConnectOptions::from_str(&database_url)?
+        .log_statements(LevelFilter::Debug)
+        .log_slow_statements(LevelFilter::Warn, Duration::from_millis(100));
+
+    let pool = PgPoolOptions::new()
         .max_connections(25)
         .min_connections(5)
         .idle_timeout(Duration::from_secs(30))
         .acquire_timeout(Duration::from_secs(10))
-        .connect(&database_url)
+        .connect_with(connection_options)
         .await?;
 
     info!(
@@ -113,13 +122,22 @@ async fn main() -> Result<(), Error> {
         info!("Database migrated successfully.");
     }
 
-    let redis_client = redis::Client::open(redis_url)?;
-    debug!("Connected to Redis as {}.", redis_client.get_connection_info().redis_settings().username().unwrap_or("unknown username"));
+    let redis_config = Config::from_url(&redis_url)?;
+    let redis_client = Builder::from_config(redis_config).build()?;
+    redis_client.init().await?;
+    debug!("Connected to Redis as {}.", redis_client.client_config().username.as_deref().unwrap_or("default"));
+
+    let subscriber_config = Config::from_url(&redis_url)?;
+    let subscriber_client: SubscriberClient = Builder::from_config(subscriber_config).build_subscriber_client()?;
+    subscriber_client.init().await?;
+    subscriber_client.manage_subscriptions();
+    debug!("Connected to Redis with Subscriber as {}.", subscriber_client.client_config().username.as_deref().unwrap_or("default"));
+
 
     let http = Arc::new(serenity::Http::new(&token));
 
     let guild_configs = moka::future::Cache::new(5000);
-    jobs::sync_configs::sync_configs(&redis_client, &guild_configs);
+    jobs::sync_configs::sync_configs(&subscriber_client, &guild_configs);
 
     if run_web {
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
@@ -128,6 +146,7 @@ async fn main() -> Result<(), Error> {
             pool.clone(),
             Arc::clone(&http),
             redis_client.clone(),
+            subscriber_client.clone(),
             guild_configs.clone(),
             tx,
         ).await?;
@@ -213,7 +232,7 @@ async fn main() -> Result<(), Error> {
                 ..Default::default()
             })
             .setup(move |ctx, _ready, _framework| {
-                setup::setup(safe_browsing_api_key, pool, redis_client.clone(), guild_configs_for_setup.clone(), ctx, _ready)
+                setup(safe_browsing_api_key, pool, redis_client.clone(), subscriber_client.clone(), guild_configs_for_setup.clone(), ctx, _ready)
             })
             .build();
 

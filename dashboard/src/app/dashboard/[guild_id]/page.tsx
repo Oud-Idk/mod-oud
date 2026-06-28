@@ -1,4 +1,4 @@
-import { Gavel, Ticket, TicketX, Users } from "lucide-react";
+import { CircleArrowUp, Gavel, Ticket, TicketX, Users } from "lucide-react";
 import { BotNotSetup } from "@/components/Dashboards/General/BotNotSetup";
 import Image from "next/image";
 import { Card } from "@/components/Overview/Card";
@@ -47,7 +47,7 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
                         {iconUrl && (
                             <Image src={iconUrl} alt="Server Icon" width="50" height="50" className="rounded-full"/>
                         )}
-                        <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">{guildDetails.name}</h1>
                     </div>
                     <p className="text-neutral-500 dark:text-neutral-400 mt-1">
                         Managing server ID:{" "}
@@ -65,7 +65,8 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
                         }`}
                     >
                         <span
-                            className={`w-2 h-2 rounded-full ${status ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}/>
+                            className={`w-2 h-2 rounded-full ${status ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+                        />
                         {status ? "Online" : "Offline (Oud (the only programmer) is an Idiot)"}
                     </span>
                 </div>
@@ -91,6 +92,12 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
                 />
                 <Card
                     icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount?.toString() || "X"} footer="Now"
+                />
+                <Card
+                    icon={<CircleArrowUp/>}
+                    title="Features"
+                    main="Blazingly Fast & Zero Cost Abstractions"
+                    footer="Written in Rust"
                 />
             </div>
         </div>

@@ -14,6 +14,7 @@ pub mod embed;
 pub mod config;
 pub mod payloads;
 pub mod dashboard;
+pub(crate) mod leveling;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
@@ -26,7 +27,7 @@ pub struct CachedAuditLogs {
 
 pub struct Data {
     pub db: sqlx::PgPool,
-    pub redis: redis::aio::MultiplexedConnection,
+    pub redis: fred::clients::Client,
     pub spam_tracker: SpamTracker,
     pub safe_browsing_client: Option<SafeBrowsingClient>,
     pub active_tickets: moka::future::Cache<u64, ()>,

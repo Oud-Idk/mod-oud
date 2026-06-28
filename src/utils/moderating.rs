@@ -6,8 +6,8 @@ use crate::utils::custom_msg::build_custom_message;
 use crate::utils::logger::ActionType;
 use crate::utils::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
 use duration_str::HumanFormat;
+use fred::prelude::Client;
 use poise::serenity_prelude as serenity;
-use redis::aio::MultiplexedConnection;
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage};
 use std::sync::Arc;
 use std::time::Duration;
@@ -74,7 +74,7 @@ macro_rules! send_mod_dm {
 
 pub async fn issue_warning(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::Http>,
     guild_id: serenity::GuildId,
@@ -114,7 +114,7 @@ pub async fn issue_warning(
 /// Core logic for issuing a kick, fetching custom settings, and sending DMs
 pub async fn issue_kick(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
@@ -177,7 +177,7 @@ pub async fn issue_kick(
 
 pub async fn issue_ban(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
@@ -228,7 +228,7 @@ pub async fn issue_ban(
 
 pub async fn issue_mute(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
@@ -265,7 +265,7 @@ pub async fn issue_mute(
 
 pub async fn issue_unmute(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
@@ -297,7 +297,7 @@ pub async fn issue_unmute(
 /// Core logic for issuing a softban (ban + immediate unban to clear messages)
 pub async fn issue_softban(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id: serenity::all::GuildId,
@@ -339,7 +339,7 @@ pub async fn issue_softban(
 /// Returns `Some((target_user_id, reason))` if deleted, or `None` if the warning didn't exist.
 pub async fn issue_delete_warning(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id_raw: serenity::all::GuildId,
@@ -409,7 +409,7 @@ pub async fn issue_delete_warning(
 /// Returns `Some((target_user_id, reason))` if successful, or `None` if the warning wasn't found.
 pub async fn issue_warning_status_change(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<serenity::all::Http>,
     guild_id_raw: serenity::all::GuildId,

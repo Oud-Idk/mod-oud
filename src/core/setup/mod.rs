@@ -1,12 +1,15 @@
-use crate::jobs;
+pub mod jobs;
+
+use crate::core::setup::jobs::start_jobs;
 use crate::models::safe_browsing::SafeBrowsingClient;
 use crate::models::spam_tracker::SpamTracker;
 use crate::types::config::config::GuildSettings;
 use crate::types::{Data, Error};
-use redis::Client;
+use fred::clients::{Client, SubscriberClient};
+use fred::prelude::SetsInterface;
+use moka::future::Cache;
 use serenity::all::{Context, Ready};
 use sqlx::{Pool, Postgres};
-use std::future::Future;
 use std::pin::Pin;
 use tracing::{debug, info};
 
@@ -14,19 +17,18 @@ pub fn setup<'a>(
     safe_browsing_api_key: Option<String>,
     pool: Pool<Postgres>,
     redis_client: Client,
-    guild_configs_cache: moka::future::Cache<i64, GuildSettings>, // <-- Added this parameter
+    subscriber_client: SubscriberClient,
+    guild_configs_cache: Cache<i64, GuildSettings>,
     ctx: &'a Context,
     _ready: &'a Ready,
 ) -> Pin<Box<dyn Future<Output=Result<Data, Error>> + Send + 'a>> {
     Box::pin(async move {
         info!("Logged in as {}", _ready.user.name);
 
-        let active_tickets_cache = moka::future::Cache::new(10_000);
+        let active_tickets_cache = Cache::new(10_000);
 
-        let mut redis_conn = redis_client.get_multiplexed_async_connection().await?;
-        let active_tickets_list: Vec<String> = redis::cmd("SMEMBERS")
-            .arg("active_tickets")
-            .query_async(&mut redis_conn)
+        let active_tickets_list: Vec<String> = redis_client
+            .smembers("active_tickets")
             .await
             .unwrap_or_default();
 
@@ -39,38 +41,15 @@ pub fn setup<'a>(
 
         debug!("Hydrated {} active tickets into local cache.", active_tickets_cache.entry_count());
 
-        jobs::sync_tickets::sync_tickets(
-            &redis_client,
-            &active_tickets_cache
-        );
+        start_jobs(&pool, &redis_client, &subscriber_client, &guild_configs_cache, ctx, &active_tickets_cache, rx);
 
-        jobs::temp_ban::start_temp_ban_worker(
-            pool.clone(),
-            ctx.http.clone(),
-            redis_client.clone()
-        );
-
-        jobs::ticket_inactivity::start_ticket_inactivity_worker(
-            pool.clone(),
-            ctx.http.clone(),
-            redis_client.clone(),
-            guild_configs_cache.clone(),
-        );
-
-        jobs::flush_levels::start_level_flush_worker(
-            pool.clone(),
-            redis_client.clone()
-        );
-
-        jobs::ticket_logger::start_ticket_logger(rx, pool.clone());
-
-        let spam_tracker = SpamTracker::new(redis_conn.clone());
+        let spam_tracker = SpamTracker::new(redis_client.clone());
         let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
-        let audit_log_cache = moka::future::Cache::new(5000);
+        let audit_log_cache = Cache::new(5000);
 
         Ok(Data {
             db: pool,
-            redis: redis_conn,
+            redis: redis_client,
             spam_tracker,
             safe_browsing_client: client,
             active_tickets: active_tickets_cache,

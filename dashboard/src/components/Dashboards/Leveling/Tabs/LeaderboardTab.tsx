@@ -45,7 +45,7 @@ export function LeaderboardTab({
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, hasMore, displayedLevels, fetchMoreLevels]);
+    }, [isLoading, hasMore, displayedLevels, fetchMoreLevels, displayedLevels[displayedLevels.length - 1].cumulative_xp]);
 
     const lastElementRef = useCallback(
         (node: HTMLDivElement | null) => {
@@ -77,12 +77,12 @@ export function LeaderboardTab({
     }, []);
 
     return (
-        <div className="w-full max-w-2xl mx-auto p-4">
+        <div className="w-full mx-auto mt-4">
             <div className="space-y-2">
                 {displayedLevels.map((userLevel, index) => (
                     <div
                         key={`${userLevel.guild_id}-${userLevel.user_id}`}
-                        className="flex justify-between items-center p-4 border rounded-lg bg-card text-card-foreground shadow-sm hover:bg-accent/50 transition-colors"
+                        className="flex justify-between items-center p-2 px-4 border rounded-lg bg-card text-card-foreground shadow-sm hover:bg-accent/50 transition-colors"
                     >
                         <div className="flex items-center space-x-4">
                             <span className="font-semibold text-muted-foreground w-8">

@@ -18,9 +18,8 @@ impl IntoResponse for WebError {
     }
 }
 
-// Convert Reqwest status tuple (from getters) to WebError
 impl From<(StatusCode, String)> for WebError {
-    fn from((status, msg): (reqwest::StatusCode, String)) -> Self {
+    fn from((status, msg): (StatusCode, String)) -> Self {
         if status.is_client_error() {
             WebError::BadRequest(msg)
         } else {
@@ -29,9 +28,8 @@ impl From<(StatusCode, String)> for WebError {
     }
 }
 
-// Handle Redis errors
-impl From<redis::RedisError> for WebError {
-    fn from(err: redis::RedisError) -> Self {
+impl From<fred::error::Error> for WebError {
+    fn from(err: fred::error::Error) -> Self {
         WebError::Internal(err.to_string())
     }
 }

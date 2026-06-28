@@ -1,7 +1,6 @@
-use crate::events::handlers::levels::levels_text::LevelReward;
-use log::warn;
+use crate::types::leveling::LevelReward;
 use serenity::all::{Context, GuildId, RoleId, UserId};
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 pub fn parse_role_ids(roles_opt: &Option<Vec<String>>) -> Vec<RoleId> {
     roles_opt

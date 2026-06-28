@@ -1,15 +1,15 @@
 use crate::commands::messages::database::insert_reported_message;
-use crate::commands::messages::utils;
+use crate::commands::messages::{database, utils};
 use crate::types::payloads::{ReportStatus, ReportedMessagePayload};
-use redis::aio::MultiplexedConnection;
-use redis::AsyncCommands;
+use fred::prelude::*;
+use futures_util::TryFutureExt;
 use tracing::{debug, trace, warn};
 
 /// Core logic for saving a report to Postgres and publishing it to Redis Pub/Sub.
 /// Returns the generated report ID, or None if the message was already reported by this user.
 pub async fn issue_report(
     db: &sqlx::PgPool,
-    redis_conn: &MultiplexedConnection,
+    redis_conn: &Client,
     guild_id_u64: u64,
     channel_id_u64: u64,
     message: &serenity::all::Message,
@@ -86,15 +86,14 @@ pub async fn issue_report(
     })?;
 
     debug!(report_id = id, "Publishing report payload to Redis 'discord:reports' channel");
-    let mut redis_pub = redis_conn.clone();
-    redis_pub
-        .publish::<_, _, ()>("discord:reports", payload_str)
-        .await
+
+    database::publish_report(redis_conn, &payload_str)
         .map_err(|err| {
             warn!(error = ?err, report_id = id, "Failed to publish report to Redis Pub/Sub");
             err
-        })?;
+        }).await?;
 
     debug!(report_id = id, "Successfully completed report processing and transmission");
     Ok(Some(row.id))
 }
+

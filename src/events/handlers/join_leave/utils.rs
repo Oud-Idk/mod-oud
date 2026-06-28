@@ -1,3 +1,4 @@
+use crate::core::config::GuildCtx;
 use crate::types::config::welcome::WelcomeMessageSettings;
 use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
@@ -78,34 +79,3 @@ pub fn check_alt_status(user: &serenity::all::User) -> String {
     }
 }
 
-pub fn build_welcome_message(
-    settings: &WelcomeMessageSettings,
-    member: &serenity::all::Member,
-    channel: &serenity::all::GuildChannel,
-    gctx: &crate::core::config::GuildCtx,
-    warning_text: &str,
-    is_dm: bool,
-) -> Result<CreateMessage, Error> {
-    let user_id = member.user.id.get();
-    let guild_id = member.guild_id.get();
-    trace!(guild_id, user_id, is_dm, "Compiling welcome notification message template");
-
-    let is_embed = settings.format.as_deref().unwrap_or("embed") == "embed";
-
-    let custom_msg_opt = build_custom_message(
-        is_embed,
-        settings.content.as_ref(),
-        settings.embed.as_ref(),
-        |text| replace_welcome_goodbye_placeholders(text, gctx, member, channel, None, Some(warning_text)),
-    )?;
-
-    Ok(custom_msg_opt.unwrap_or_else(|| {
-        debug!(guild_id, user_id, is_dm, "No custom welcome template found; rendering standard layout");
-        let base_msg = if is_dm {
-            format!("Welcome to the server, {}! We are glad to have you here.", member.user.mention())
-        } else {
-            format!("Welcome to the server, {}! We are glad to have you here.{}", member.user.mention(), warning_text)
-        };
-        CreateMessage::new().content(base_msg)
-    }))
-}

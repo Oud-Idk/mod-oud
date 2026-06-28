@@ -1,11 +1,14 @@
-use crate::events::handlers::levels::levels_text::{calculation, LevelReward, UserLevel, XpMultiplier};
+use crate::core::config::get_settings;
+use crate::events::handlers::levels::cache;
 use crate::types::config::leveling::LevelingConfig;
-use crate::types::Error;
-use redis::aio::MultiplexedConnection;
-use redis::AsyncCommands;
+use crate::types::leveling::{LevelReward, UserLevel, XpMultiplier};
+use crate::types::{Data, Error};
+use fred::clients::Client;
+use fred::interfaces::{KeysInterface, SetsInterface, TransactionInterface};
 use serenity::all::{GuildId, UserId};
 use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
+use tracing::trace;
 
 pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<Option<UserLevel>, sqlx::Error> {
     sqlx::query_as!(
@@ -81,8 +84,8 @@ pub async fn fetch_level_rewards(
         .await
 }
 
-pub async fn get_user_level(conn: &mut MultiplexedConnection, db: &PgPool, guild_id: &GuildId, author_id: &UserId, stats_key: &str, username: &str) -> Result<UserLevel, Error> {
-    let cached_user: Option<String> = conn.get(&stats_key).await?;
+pub async fn get_user_level(redis: &Client, db: &PgPool, guild_id: &GuildId, author_id: &UserId, stats_key: &str, username: &str) -> Result<UserLevel, Error> {
+    let cached_user: Option<String> = redis.get(stats_key).await?;
 
     match cached_user {
         Some(json_data) => {
@@ -99,31 +102,29 @@ pub async fn get_user_level(conn: &mut MultiplexedConnection, db: &PgPool, guild
             };
 
             let serialized = serde_json::to_string(&user)?;
-            let _: () = conn.set_ex(&stats_key, serialized, 3600).await?;
+            let _: () = cache::save_user_level_cache(redis, stats_key, serialized).await?;
 
             Ok(user)
         }
     }
 }
 
-pub async fn clamp_to_level_cap(leveling_config: &LevelingConfig, redis: &mut MultiplexedConnection, db: &PgPool, stats_key: &String, mut user_level: &mut UserLevel) -> Result<bool, Error> {
-    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
-        let mut needs_update = false;
-        if user_level.current_level > leveling_config.level_cap as i32 {
-            user_level.current_level = leveling_config.level_cap as i32;
-            needs_update = true;
-        }
-        if user_level.current_xp > 0 {
-            user_level.current_xp = 0;
-            needs_update = true;
-        }
-        if needs_update {
-            user_level.cumulative_xp = calculation::calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
-            update_level(db, &user_level).await?;
-            let serialized = serde_json::to_string(&user_level)?;
-            let _: () = redis.set_ex(&stats_key, serialized, 3600).await?;
-        }
-        return Ok(true);
+pub async fn load_leveling_config(
+    data: &Data,
+    guild_id: GuildId,
+) -> Result<Option<LevelingConfig>, Error> {
+    let config = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64)
+        .await?;
+
+    let Some(leveling_config) = config.leveling else {
+        trace!(guild_id = guild_id.get(), "Skipping XP reward: leveling system is unconfigured");
+        return Ok(None);
+    };
+
+    if !leveling_config.voice.enabled {
+        trace!(guild_id = guild_id.get(), "Skipping XP reward: voice leveling is disabled");
+        return Ok(None);
     }
-    Ok(false)
+
+    Ok(Some(leveling_config))
 }

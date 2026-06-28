@@ -1,5 +1,5 @@
 use crate::core::config::get_settings;
-use crate::events::handlers::levels::levels_text;
+use crate::events::handlers::levels::text;
 use crate::events::handlers::message_logging::cache::cache_message_in_redis;
 use crate::events::handlers::message_logging::handlers::{message_log_delete, message_log_update};
 use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
@@ -42,7 +42,7 @@ pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result
     }
 
     tickets::handle_tickets(ctx, message, data, &config).await?;
-    levels_text::handle_leveling(ctx, message, data, config.leveling).await?;
+    text::handle_leveling(ctx, message, data, config.leveling).await?;
 
     Ok(())
 }

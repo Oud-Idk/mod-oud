@@ -1,27 +1,30 @@
-use redis::aio::MultiplexedConnection;
+use fred::prelude::*;
+use fred::types::{Expiration, SetOptions};
 
 pub async fn acquire_lock(
-    conn: &mut MultiplexedConnection,
+    client: &Client,
     key: &str,
     value: &str,
-    expiry_secs: usize,
-) -> Result<bool, redis::RedisError> {
-    let res: Option<String> = redis::cmd("SET")
-        .arg(key)
-        .arg(value)
-        .arg("NX")
-        .arg("EX")
-        .arg(expiry_secs)
-        .query_async(conn)
+    expiry_secs: u64,
+) -> Result<bool, Error> {
+    let res: Option<String> = client
+        .set(
+            key,
+            value,
+            Some(Expiration::EX(expiry_secs as i64)),
+            Some(SetOptions::NX),
+            false,
+        )
         .await?;
+
     Ok(res.is_some())
 }
 
 pub async fn release_lock(
-    conn: &mut MultiplexedConnection,
+    client: &Client,
     key: &str,
     value: &str,
-) -> Result<(), redis::RedisError> {
+) -> Result<(), Error> {
     let script = r#"
         if redis.call("get", KEYS[1]) == ARGV[1] then
             return redis.call("del", KEYS[1])
@@ -29,12 +32,8 @@ pub async fn release_lock(
             return 0
         end
     "#;
-    let _: () = redis::cmd("EVAL")
-        .arg(script)
-        .arg(1)
-        .arg(key)
-        .arg(value)
-        .query_async(conn)
-        .await?;
+
+    let _: u32 = client.eval(script, key, value).await?;
+
     Ok(())
 }

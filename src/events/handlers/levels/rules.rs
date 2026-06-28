@@ -1,9 +1,9 @@
-use crate::events::handlers::levels::levels_text::XpMultiplier;
-use crate::events::handlers::levels::redis_cache;
+use crate::events::handlers::levels::cache;
 use crate::types::config::leveling::LevelingConfig;
 use crate::types::config::message_filter::ScopeMode;
+use crate::types::leveling::XpMultiplier;
 use crate::types::Error;
-use redis::aio::MultiplexedConnection;
+use fred::clients::Client;
 use serenity::all::{ChannelId, GuildId, Message, RoleId};
 use sqlx::PgPool;
 use tracing::{debug, error, instrument, trace};
@@ -77,14 +77,14 @@ fn calculate_multiplier(multipliers: Vec<XpMultiplier>, channel_id: u64, role_id
     )
 )]
 pub async fn get_multiplier(
-    redis: &mut MultiplexedConnection,
+    redis: &Client,
     multiplier_key: &str,
     db: &PgPool,
     guild_id: &GuildId,
     message: &Message,
 ) -> Result<f32, Error> {
     trace!("Fetching multipliers");
-    let multipliers = redis_cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
+    let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .map_err(|err| {
             error!(error = %err, "Failed to retrieve XP multipliers from cache/database");
@@ -110,7 +110,7 @@ pub async fn get_multiplier(
     )
 )]
 pub async fn get_voice_multiplier(
-    redis: &mut MultiplexedConnection,
+    redis: &Client,
     multiplier_key: &str,
     db: &PgPool,
     guild_id: &GuildId,
@@ -118,7 +118,7 @@ pub async fn get_voice_multiplier(
     member_roles: &[RoleId],
 ) -> Result<f32, Error> {
     trace!("Fetching voice multipliers");
-    let multipliers = redis_cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
+    let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .map_err(|err| {
             error!(error = %err, "Failed to retrieve voice XP multipliers from cache/database");

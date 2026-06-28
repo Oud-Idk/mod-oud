@@ -1,5 +1,6 @@
-use crate::events::handlers::levels::levels_text::{calculation, UserLevel};
+use crate::events::handlers::levels::calculation;
 use crate::types::config::leveling::{LevelingConfig, NotificationScope};
+use crate::types::leveling::UserLevel;
 use crate::types::Error;
 use serenity::all::{ChannelId, Context, CreateMessage, User};
 use tracing::trace;

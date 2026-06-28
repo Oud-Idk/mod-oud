@@ -1,9 +1,11 @@
 use super::cache::{fetch_dist_cached_message, fetch_dist_edit_details};
 use crate::commands::helpers::message_logging as local_logging_helpers;
 use crate::core::config::get_settings;
-use crate::events::handlers::message_logging::database;
+use crate::events::handlers::message_logging::{cache, database};
 use crate::types::payloads::{DeletedMessagePayload, ModifiedMessagePayload};
 use crate::types::{CachedAuditLogs, Data, Error};
+use fred::clients::Client;
+use fred::prelude::{FredResult, PubsubInterface};
 use poise::serenity_prelude as serenity;
 use serenity::all::{audit_log, MessageAction};
 use std::sync::Arc;
@@ -136,7 +138,6 @@ pub async fn message_log_delete(
         return Ok(());
     }
 
-    // Clone the cheap Arc references and data
     let pool = data.db.clone();
     let redis = data.redis.clone();
     let audit_log_cache = data.audit_log_cache.clone();
@@ -180,18 +181,15 @@ pub async fn message_log_delete(
         };
 
         if let Ok(payload_json) = serde_json::to_string(&payload) {
-            let mut conn = redis.clone();
-            let _: Result<(), _> = redis::cmd("PUBLISH")
-                .arg("discord:deletes")
-                .arg(payload_json)
-                .query_async(&mut conn)
-                .await;
+            let res: FredResult<()> = cache::publish_delete_event(redis, payload_json).await;
+            if let Err(err) = res {
+                warn!(error = %err, "Failed to publish delete message event!");
+            };
         }
     });
 
     Ok(())
 }
-
 
 #[instrument(
     skip(ctx, old_if_available, new, event, data),
@@ -208,12 +206,15 @@ pub async fn message_log_update(
     event: &serenity::MessageUpdateEvent,
     data: &Data,
 ) -> Result<(), Error> {
+    let redis = &data.redis;
+    let db = &data.db;
+
     let Some(g_id) = event.guild_id.map(|id| id.get() as i64) else {
         debug!("Message updated outside of a guild context; skipping logging");
         return Ok(());
     };
 
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, g_id).await?;
+    let settings = get_settings(db, redis, &data.guild_configs, g_id).await?;
     let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };
@@ -232,7 +233,7 @@ pub async fn message_log_update(
         }
         None => {
             debug!("Edit details not available locally; querying distributed Redis cache");
-            fetch_dist_edit_details(&data.redis, event).await?
+            fetch_dist_edit_details(redis, event).await?
         }
     }) else {
         warn!("Unable to retrieve message modification history; log action skipped");
@@ -260,12 +261,7 @@ pub async fn message_log_update(
     match serde_json::to_string(&payload) {
         Ok(payload_json) => {
             debug!("Publishing modified message payload to Redis pub/sub channel 'discord:updates'");
-            let mut conn = data.redis.clone();
-            let pub_res: Result<(), _> = redis::cmd("PUBLISH")
-                .arg("discord:updates")
-                .arg(payload_json)
-                .query_async(&mut conn)
-                .await;
+            let pub_res: FredResult<()> = cache::publish_edit_event(redis, payload_json).await;
 
             if let Err(e) = pub_res {
                 error!(error = %e, "Failed to publish update event payload to Redis channel");
@@ -278,3 +274,4 @@ pub async fn message_log_update(
 
     Ok(())
 }
+

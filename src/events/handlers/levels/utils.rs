@@ -1,7 +1,12 @@
+use crate::events::handlers::levels::cache::save_user_level_cache;
 use crate::events::handlers::levels::database::fetch_level_rewards;
-use crate::events::handlers::levels::levels_text::LevelReward;
 use crate::events::handlers::levels::reward::{apply_role_modifications, determine_role_changes, fetch_member_roles};
+use crate::events::handlers::levels::{calculation, database};
+use crate::types::config::leveling::LevelingConfig;
+use crate::types::leveling::LevelReward;
+use crate::types::leveling::UserLevel;
 use crate::types::Error;
+use fred::clients::Client;
 use serenity::all::{Context, GuildId, UserId};
 use sqlx::PgPool;
 use tracing::{debug, info, instrument};
@@ -67,4 +72,26 @@ pub async fn apply_level_rewards(
         .await;
 
     Ok(())
+}
+
+pub async fn clamp_to_level_cap(leveling_config: &LevelingConfig, redis: &Client, db: &PgPool, stats_key: &str, user_level: &mut UserLevel) -> Result<bool, Error> {
+    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
+        let mut needs_update = false;
+        if user_level.current_level > leveling_config.level_cap as i32 {
+            user_level.current_level = leveling_config.level_cap as i32;
+            needs_update = true;
+        }
+        if user_level.current_xp > 0 {
+            user_level.current_xp = 0;
+            needs_update = true;
+        }
+        if needs_update {
+            user_level.cumulative_xp = calculation::calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
+            database::update_level(db, &user_level).await?;
+            let serialized = serde_json::to_string(&user_level)?;
+            let _: () = save_user_level_cache(redis, stats_key, serialized).await?;
+        }
+        return Ok(true);
+    }
+    Ok(false)
 }

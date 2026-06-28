@@ -1,4 +1,5 @@
 use crate::utils::locking::{acquire_lock, release_lock};
+use fred::prelude::*;
 use futures_util::StreamExt;
 use poise::serenity_prelude as serenity;
 use std::sync::Arc;
@@ -15,31 +16,24 @@ fn is_unknown_ban_error(err: &serenity::Error) -> bool {
 pub fn start_temp_ban_worker(
     db_pool: sqlx::PgPool,
     http: Arc<serenity::Http>,
-    redis_client: redis::Client
+    redis_client: Client,
 ) {
     tokio::spawn(async move {
         let lock_key = "lock:temp_ban_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
-
-        let mut redis_conn = match redis_client.get_multiplexed_async_connection().await {
-            Ok(conn) => conn,
-            Err(e) => {
-                eprintln!("Failed to initialize Redis connection for temp bans worker: {:?}", e);
-                return;
-            }
-        };
 
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
 
             let now = chrono::Utc::now();
 
-            match acquire_lock(&mut redis_conn, lock_key, &lock_value, 50).await {
+            // Pass our thread-safe &redis_client reference directly! No mutability required.
+            match acquire_lock(&redis_client, lock_key, &lock_value, 50).await {
                 Ok(true) => {
                     if let Err(e) = process_expired_temp_bans(&db_pool, &http, now).await {
                         eprintln!("Error processing expired temp bans: {:?}", e);
                     }
-                    let _ = release_lock(&mut redis_conn, lock_key, &lock_value).await;
+                    let _ = release_lock(&redis_client, lock_key, &lock_value).await;
                 }
                 Ok(false) => {}
                 Err(e) => {
@@ -50,7 +44,7 @@ pub fn start_temp_ban_worker(
     });
 }
 
-/// Fetch and process expired temp bans.
+/// Fetch and process expired temp bans. (Unchanged!)
 async fn process_expired_temp_bans(
     db_pool: &sqlx::PgPool,
     http: &serenity::Http,
@@ -72,7 +66,7 @@ async fn process_expired_temp_bans(
     }
 
     let unban_futures = expired_bans.into_iter().map(|record| {
-        let http_ref = http; // Reference is cheaply cloneable or shared
+        let http_ref = http;
 
         async move {
             let guild_id = serenity::GuildId::new(record.guild_id as u64);
@@ -90,7 +84,6 @@ async fn process_expired_temp_bans(
                             "Failed to unban user {} in guild {}: {:?}",
                             record.user_id, record.guild_id, e
                         );
-                        // Return error so we preserve this ban to retry next cycle
                         Err(record.id)
                     }
                 }
@@ -103,7 +96,6 @@ async fn process_expired_temp_bans(
         .collect()
         .await;
 
-    // 4. Gather successful IDs
     let successful_ids: Vec<i32> = results
         .into_iter()
         .filter_map(|r| r.ok())

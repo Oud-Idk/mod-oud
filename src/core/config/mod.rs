@@ -1,7 +1,10 @@
+pub mod database;
+
+use crate::core::config::database::{get_settings_from_database, get_settings_from_redis, set_setting_to_redis};
 use crate::types::config::config::GuildSettings;
+use fred::clients::Client;
 use poise::serenity_prelude as serenity;
-use redis::aio::MultiplexedConnection;
-use redis::AsyncCommands;
+use sqlx::PgPool;
 use tracing::{debug, error, trace, warn};
 
 pub struct GuildCtx {
@@ -57,52 +60,32 @@ pub async fn get_guild_ctx(
 
 /// Retrieves settings. Returns a default struct if none exists in the DB.
 pub async fn get_settings(
-    db: &sqlx::PgPool,
-    redis: &MultiplexedConnection,
-    cache: &moka::future::Cache<i64, GuildSettings>, // Accept the Moka cache reference
+    db: &PgPool,
+    redis: &Client,
+    cache: &moka::future::Cache<i64, GuildSettings>,
     guild_id: i64,
-) -> Result<GuildSettings, sqlx::Error> {
+) -> anyhow::Result<GuildSettings> {
     if let Some(settings) = cache.get(&guild_id).await {
         trace!(guild_id, "Retrieved settings from memory cache");
         return Ok(settings);
     }
 
-    let mut redis_conn = redis.clone();
     let cache_key = format!("config:guild:{}", guild_id);
 
-    if let Ok(Some(cached_string)) = redis_conn.get::<_, Option<String>>(&cache_key).await {
-        match serde_json::from_str::<GuildSettings>(&cached_string) {
-            Ok(settings) => {
-                trace!(guild_id, key = %cache_key, "Retrieved settings from Redis cache");
-
-                cache.insert(guild_id, settings.clone()).await;
-                return Ok(settings);
-            }
-            Err(e) => {
-                warn!(
-                    error = ?e,
-                    guild_id,
-                    key = %cache_key,
-                    "Failed to parse settings from Redis; falling back to DB"
-                );
-            }
-        }
+    if let Some(settings) = get_settings_from_redis(redis, &cache_key, guild_id).await {
+        cache.insert(guild_id, settings.clone()).await;
+        return Ok(settings);
     }
 
     debug!(guild_id, key = cache_key, "Settings cache miss; querying DB");
-    let row = sqlx::query!(
-        "SELECT settings FROM guild_configs WHERE guild_id = $1",
-        guild_id
-    )
-        .fetch_optional(db)
-        .await?;
+    let settings_db = get_settings_from_database(db, guild_id).await?;
 
-    let settings: GuildSettings = match row {
-        Some(r) => match serde_json::from_value::<GuildSettings>(r.settings.clone()) {
+    let settings: GuildSettings = match settings_db {
+        Some(v) => match serde_json::from_value::<GuildSettings>(v.clone()) {
             Ok(s) => {
                 debug!("Found config from DB.");
                 s
-            },
+            }
             Err(e) => {
                 error!(error = ?e, guild_id, "Failed to deserialize database JSON; using default");
                 GuildSettings::default()
@@ -114,12 +97,10 @@ pub async fn get_settings(
         }
     };
 
-    // 3. Cache settings into Redis (L2 Cache, 1 hour TTL)
-    if let Ok(serialized) = serde_json::to_string(&settings) {
-        let _: Result<(), _> = redis_conn.set_ex(&cache_key, serialized, 3600).await;
+    if let Err(e) = set_setting_to_redis(&redis, &settings, &cache_key).await {
+        warn!("Redis failed to cache: {:?}", e);
     }
 
-    // 4. Cache settings into local memory (L1 Cache)
     cache.insert(guild_id, settings.clone()).await;
 
     Ok(settings)

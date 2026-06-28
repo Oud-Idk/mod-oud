@@ -1,5 +1,5 @@
+use crate::events::handlers::levels::calculation::calculate_xp_needed;
 use crate::events::handlers::levels::database::get_user_level;
-use crate::events::handlers::levels::levels_text::calculation::calculate_xp_needed;
 use crate::types::{Data, Error};
 use serenity::all::{CreateEmbed, User};
 use tracing::{debug, trace};

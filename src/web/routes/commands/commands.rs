@@ -1,3 +1,4 @@
+use crate::commands::messages::database::publish_report;
 use crate::types::dashboard::{DashboardAction, DashboardCommand};
 use crate::web::routes::commands::error::WebError;
 use crate::web::routes::commands::{database, handlers};
@@ -7,22 +8,19 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use fred::clients::Client;
 use sqlx::PgPool;
 use std::sync::Arc;
 
 async fn broadcast_report_update(
     pool: &PgPool,
-    redis_conn: &mut redis::aio::MultiplexedConnection,
+    redis_conn: &Client,
     report_id: i32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let sse_update = database::get_reported_message_by_id(pool, report_id).await?;
     let sse_payload = serde_json::to_string(&sse_update)?;
 
-    let _: () = redis::cmd("PUBLISH")
-        .arg("discord:reports")
-        .arg(&sse_payload)
-        .query_async(redis_conn)
-        .await?;
+    publish_report(redis_conn, &sse_payload).await?;
 
     Ok(())
 }
@@ -34,8 +32,7 @@ pub async fn handle_dashboard_command(
     let (guild_id, user_id) = database::fetch_target_report(&state.pool, cmd.report_id).await?;
     let mod_id_str = cmd.moderator_id.as_deref();
 
-    // 1. Clone the persistent Redis multiplexed connection for our handlers
-    let mut redis_conn = state.redis.clone(); // <-- $O(1)$ cheap clone
+    let mut redis_conn = state.redis.clone();
 
     match &cmd.action {
         DashboardAction::ResolveReport { status } => {
@@ -55,7 +52,6 @@ pub async fn handle_dashboard_command(
         }
     }
 
-    // 2. Pass our cloned connection for broadcasting updates
     broadcast_report_update(&state.pool, &mut redis_conn, cmd.report_id)
         .await
         .map_err(|e| WebError::Internal(e.to_string()))?;

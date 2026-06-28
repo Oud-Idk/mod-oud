@@ -1,6 +1,10 @@
 use crate::types::config::bad_words::BadWordRuleset;
 use crate::types::config::message_filter::{Pattern, RuleAction, RuleScope};
 use crate::types::{Data, Error};
+use fred::bytes_utils::Str;
+use fred::interfaces::FredResult;
+use fred::prelude::KeysInterface;
+use fred::types::Expiration;
 use tracing::{debug, instrument, warn};
 
 /// Inserts a formal warning into the database and returns the generated warning ID.
@@ -112,15 +116,12 @@ pub async fn get_active_bad_word_rulesets(
     guild_id: i64,
 ) -> Result<Vec<BadWordRuleset>, Error> {
     let cache_key = format!("config:guild:{}:bad_words", guild_id);
-    let mut conn = data.redis.clone();
+    let conn = &data.redis;
 
     debug!(cache_key = %cache_key, "Checking Redis cache for bad word rulesets");
 
-    match redis::cmd("GET")
-        .arg(&cache_key)
-        .query_async::<String>(&mut conn)
-        .await
-    {
+    let res: FredResult<String> = conn.get(&cache_key).await;
+    match res {
         Ok(cached) => {
             match serde_json::from_str::<Vec<BadWordRuleset>>(&cached) {
                 Ok(rulesets) => {
@@ -144,13 +145,7 @@ pub async fn get_active_bad_word_rulesets(
     match serde_json::to_string(&rulesets) {
         Ok(serialized) => {
             debug!("Writing rulesets to Redis cache");
-            let set_result: Result<(), _> = redis::cmd("SET")
-                .arg(&cache_key)
-                .arg(serialized)
-                .arg("EX")
-                .arg(3600) // 1 Hour TTL
-                .query_async(&mut conn)
-                .await;
+            let set_result: Result<(), _> = conn.set(&cache_key, serialized, Some(Expiration::EX(3600)), None, false).await;
 
             if let Err(err) = set_result {
                 warn!(error = %err, "Failed to write rulesets to Redis cache");

@@ -1,4 +1,7 @@
 use chrono::{DateTime, Utc};
+use fred::clients::Client;
+use fred::error;
+use fred::interfaces::PubsubInterface;
 use serenity::all::{Message, User};
 use sqlx::{Error, PgPool};
 
@@ -87,5 +90,11 @@ pub async fn fetch_modified_messages(db: &PgPool, target_uid: &i64, limit: i64) 
         limit,
     )
         .fetch_all(db)
+        .await
+}
+
+pub async fn publish_report(redis_conn: &Client, payload_str: &str) -> Result<(), error::Error> {
+    redis_conn
+        .publish::<(), _, _>("discord:reports", payload_str)
         .await
 }

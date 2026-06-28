@@ -1,37 +1,47 @@
 use crate::core::config::{get_guild_ctx, get_settings, GuildCtx};
-use crate::events::handlers::tickets::utils::{initialize_redis_state, send_disabled_error, send_missing_config_error};
+use crate::events::handlers::tickets::cache::initialize_redis_state;
+use crate::events::handlers::tickets::utils::{send_disabled_error, send_missing_config_error};
+use crate::events::handlers::tickets::{cache, database};
 use crate::types::config::config::{Format, TicketConfig};
 use crate::types::{Data, Error};
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::placeholders::replace_ticket_welcome_placeholders;
+use fred::clients::Client;
+use fred::interfaces::{FredResult, PubsubInterface};
 use poise::serenity_prelude as serenity;
-use serenity::all::{
-    ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel,
-    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage,
-    GuildId, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId,
-};
+use serenity::all::{ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildChannel, GuildId, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
+use tracing::{debug, info, instrument, trace, warn};
 
+#[instrument(skip(ctx, data), fields(guild_id = ?component.guild_id, user_id = %component.user.id))]
 pub async fn on_open_ticket(
     ctx: &Context,
     component: &ComponentInteraction,
     data: &Data,
 ) -> Result<(), Error> {
+    let redis = &data.redis;
+    let db = &data.db;
+
     let Some(guild_id) = component.guild_id else {
+        trace!("Interaction occurs outside of a guild context; ignoring");
         return Ok(());
     };
     let user_interact = &component.user;
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+
+    debug!("Checking settings validation for ticket generation");
+    let settings = get_settings(db, redis, &data.guild_configs, guild_id.get() as i64).await?;
     let tickets = settings.tickets.as_ref();
 
     let role_id = match tickets.and_then(|t| t.ticket_role_id) {
         Some(role_u64) => RoleId::new(role_u64),
         None => {
+            warn!("Ticket staff role missing from guild configuration");
             send_missing_config_error(ctx, component).await?;
             return Ok(());
         }
     };
 
     if tickets.and_then(|t| t.enabled) != Some(true) {
+        debug!("Ticket system is disabled in this guild settings");
         send_disabled_error(ctx, component).await?;
         return Ok(());
     }
@@ -54,6 +64,7 @@ pub async fn on_open_ticket(
         .as_ref()
         .and_then(|t| t.category_id);
 
+    debug!("Creating channel overwrites and constructing new Discord channel");
     let overwrites = build_permission_overwrites(guild_id, user_interact.id, role_id);
     let ticket_channel = create_ticket_channel(
         ctx,
@@ -73,7 +84,7 @@ pub async fn on_open_ticket(
             .and_then(|roles| roles.get(&role_id).map(|r| r.name.clone()))
     };
 
-    // Pass member and gctx to send_welcome_message
+    debug!("Sending custom ticket welcome layout");
     let welcome_msg = send_welcome_message(
         ctx,
         &ticket_channel,
@@ -84,20 +95,17 @@ pub async fn on_open_ticket(
         resolved_role_name.as_deref(),
     ).await?;
 
+    debug!("Persisting new ticket status to DB and initializing state in Redis");
     tokio::try_join!(
         save_ticket_to_db(data, guild_id, ticket_channel.id, user_interact.id, welcome_msg.id, &member.user.name),
         initialize_redis_state(data, ticket_channel.id, welcome_msg.id),
     )?;
 
-    let mut redis_conn = data.redis.clone();
-    let _: () = redis::cmd("PUBLISH")
-        .arg("ticket_updates")
-        .arg(format!("open:{}", ticket_channel.id.get()))
-        .query_async(&mut redis_conn)
-        .await?;
+    let _: () = cache::publish_open_ticket(redis, &ticket_channel).await?;
 
     data.active_tickets.insert(ticket_channel.id.get(), ()).await;
 
+    debug!("Confirming channel link to user interaction");
     component
         .edit_response(
             &ctx.http,
@@ -106,6 +114,7 @@ pub async fn on_open_ticket(
         )
         .await?;
 
+    info!(channel_id = %ticket_channel.id, "Ticket channel created and initialized successfully");
     Ok(())
 }
 
@@ -129,28 +138,31 @@ fn build_permission_overwrites(guild_id: GuildId, user_id: UserId, role_id: Role
     ]
 }
 
+#[instrument(skip(ctx, overwrites))]
 async fn create_ticket_channel(
     ctx: &Context,
     guild_id: GuildId,
     username: &str,
     overwrites: Vec<PermissionOverwrite>,
     category_id_str: Option<u64>,
-) -> Result<serenity::all::GuildChannel, Error> {
+) -> Result<GuildChannel, Error> {
     let mut channel_builder = CreateChannel::new(format!("ticket-{}", username))
         .kind(ChannelType::Text)
         .permissions(overwrites);
 
     if let Some(cat) = category_id_str {
-        channel_builder = channel_builder.category(ChannelId::new(cat)); // meow
+        channel_builder = channel_builder.category(ChannelId::new(cat));
     }
 
+    debug!("Calling Discord API to create ticket channel");
     let channel = guild_id.create_channel(&ctx.http, channel_builder).await?;
     Ok(channel)
 }
 
+#[instrument(skip(ctx, channel, member, gctx, ticket_cfg))]
 async fn send_welcome_message(
     ctx: &Context,
-    channel: &serenity::all::GuildChannel,
+    channel: &GuildChannel,
     member: &serenity::all::Member,
     gctx: &GuildCtx,
     ticket_cfg: Option<&TicketConfig>,
@@ -187,6 +199,7 @@ async fn send_welcome_message(
             .flatten();
 
         custom_layout.unwrap_or_else(|| {
+            trace!("Custom ticket template parse failed or empty; using fallback system default layout");
             CreateMessage::default().embed(default_embed.clone())
         })
     } else {
@@ -206,6 +219,7 @@ async fn send_welcome_message(
     Ok(message)
 }
 
+#[instrument(skip(data))]
 async fn save_ticket_to_db(
     data: &Data,
     guild_id: GuildId,
@@ -214,6 +228,7 @@ async fn save_ticket_to_db(
     welcome_msg_id: serenity::all::MessageId,
     username: &str,
 ) -> Result<(), Error> {
+    trace!("Executing database write for ticket registration");
     sqlx::query!(
         r#"
         INSERT INTO tickets (guild_id, channel_id, opener_id, last_button_message_id, opener_name)
@@ -229,4 +244,3 @@ async fn save_ticket_to_db(
         .await?;
     Ok(())
 }
-
