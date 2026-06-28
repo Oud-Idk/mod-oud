@@ -5,12 +5,11 @@ use crate::events::handlers::levels;
 use crate::events::handlers::levels::database::get_user_level;
 use crate::events::handlers::levels::effects::process_level_ups;
 use crate::events::handlers::levels::utils::clamp_to_level_cap;
-use crate::events::handlers::levels::{cache, calculation, rules, utils};
-use crate::types::config::leveling::{LevelingConfig, NotificationScope};
+use crate::events::handlers::levels::{cache, calculation, rules};
+use crate::types::config::leveling::LevelingConfig;
 use crate::types::{Data, Error};
-use serde::{Deserialize, Serialize};
 use serenity::all::{Context, Message};
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, info, trace};
 
 pub async fn handle_leveling(
     ctx: &Context,
@@ -18,6 +17,7 @@ pub async fn handle_leveling(
     data: &Data,
     config_maybe: Option<LevelingConfig>
 ) -> Result<(), Error> {
+    trace!("Leveling handling received.");
     let Some(guild_id) = &message.guild_id else { return Ok(()) };
     let Some(leveling_config) = config_maybe else { return Ok(()) };
     if !leveling_config.text.enabled { return Ok(()) };

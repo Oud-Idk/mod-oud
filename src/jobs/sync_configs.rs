@@ -1,6 +1,6 @@
 use crate::types::config::config::GuildSettings;
 use fred::clients::SubscriberClient;
-use fred::prelude::{Client, EventInterface, PubsubInterface};
+use fred::prelude::{EventInterface, PubsubInterface};
 use moka::future::Cache;
 
 pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<i64, GuildSettings>) {
@@ -14,21 +14,39 @@ pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<i64, Gui
                 return Ok(());
             }
 
-            let Ok(payload) = msg.value.convert::<String>() else {
-                return Ok(());
+            let payload = match msg.value.convert::<String>() {
+                Ok(val) => val,
+                Err(e) => {
+                    tracing::warn!(error = ?e, "Failed to convert config pub/sub message value to String");
+                    return Ok(());
+                }
             };
+
+            tracing::debug!(payload = %payload, "Processing config update pub/sub event");
 
             let parts: Vec<&str> = payload.split(':').collect();
             if parts.len() != 2 || parts[0] != "invalidate" {
+                tracing::warn!(
+                    payload = %payload,
+                    "Invalid pub/sub message payload format; expected 'invalidate:GUILD_ID'"
+                );
                 return Ok(());
             }
 
-            let Ok(guild_id) = parts[1].parse::<i64>() else {
-                return Ok(());
+            let guild_id = match parts[1].parse::<i64>() {
+                Ok(id) => id,
+                Err(e) => {
+                    tracing::warn!(
+                        guild_id_raw = %parts[1],
+                        error = ?e,
+                        "Failed to parse guild ID into i64 from config update payload"
+                    );
+                    return Ok(());
+                }
             };
 
             cache.invalidate(&guild_id).await;
-            tracing::debug!(guild_id, "Evicted guild config from memory via pub/sub");
+            tracing::info!(guild_id = %guild_id, "Evicted guild config from memory cache via pub/sub");
 
             Ok(())
         }
@@ -36,10 +54,15 @@ pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<i64, Gui
 
     let client_clone = subscriber.clone();
     tokio::spawn(async move {
-        if let Err(e) = client_clone.subscribe("config_updates").await {
-            tracing::error!("Failed to subscribe to 'config_updates' channel: {:?}", e);
-        } else {
-            tracing::info!("Subscribed to 'config_updates' channel. Listener active!");
+        tracing::debug!("Attempting to register subscriber on 'config_updates' channel");
+
+        match client_clone.subscribe("config_updates").await {
+            Ok(_) => {
+                tracing::info!("Subscribed to 'config_updates' channel. Listener active!");
+            }
+            Err(e) => {
+                tracing::error!(error = ?e, "Failed to subscribe to 'config_updates' channel");
+            }
         }
     });
 }

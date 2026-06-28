@@ -9,7 +9,7 @@ use fred::prelude::{FredResult, PubsubInterface};
 use poise::serenity_prelude as serenity;
 use serenity::all::{audit_log, MessageAction};
 use std::sync::Arc;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 #[instrument(
     skip(ctx, audit_cache),
@@ -111,6 +111,7 @@ pub async fn message_log_delete(
     guild_id: &Option<serenity::GuildId>,
     data: &Data,
 ) -> Result<(), Error> {
+    trace!("Received message delete event.");
     let Some(g_id) = guild_id.map(|id| id.get() as i64) else {
         return Ok(());
     };
@@ -206,6 +207,8 @@ pub async fn message_log_update(
     event: &serenity::MessageUpdateEvent,
     data: &Data,
 ) -> Result<(), Error> {
+    trace!("Received message update event.");
+
     let redis = &data.redis;
     let db = &data.db;
 

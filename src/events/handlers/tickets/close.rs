@@ -8,7 +8,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, CreateMessage,
 };
 use std::time::Duration;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 #[instrument(skip(ctx, data), fields(channel_id = %component.channel_id, user_id = %component.user.id
 ))]
@@ -17,7 +17,7 @@ pub async fn on_close_ticket(
     component: &ComponentInteraction,
     data: &Data,
 ) -> Result<(), Error> {
-    debug!("Ticket close request received from button interaction");
+    trace!("Ticket close request received from button interaction");
 
     component
         .create_response(

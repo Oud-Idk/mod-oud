@@ -1,11 +1,12 @@
 use crate::types::leveling::UserLevel;
+use crate::utils::locking::{acquire_lock, release_lock};
 use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
 use futures_util::StreamExt;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Duration;
-use tracing::error;
+use tracing::{debug, error, info, instrument, trace, warn};
 
 pub fn start_level_flush_worker(
     db_pool: PgPool,
@@ -15,64 +16,37 @@ pub fn start_level_flush_worker(
         let lock_key = "lock:level_flush_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
+        info!(worker_id = %lock_value, "Starting level flush worker task");
+
         loop {
             tokio::time::sleep(Duration::from_secs(15)).await;
 
+            trace!("Attempting to acquire lock for level flushing");
             match acquire_lock(&redis_client, lock_key, &lock_value, 10).await {
                 Ok(true) => {
+                    debug!("Lock acquired; starting pending level flush");
                     if let Err(e) = flush_pending_levels(&db_pool, &redis_client).await {
-                        error!("Error flushing levels to database: {:?}", e);
+                        error!(error = ?e, "Error flushing levels to database");
                     }
-                    let _ = release_lock(&redis_client, lock_key, &lock_value).await;
+
+                    match release_lock(&redis_client, lock_key, &lock_value).await {
+                        Ok(true) => debug!("Lock released successfully"),
+                        Ok(false) => warn!("Attempted to release lock, but it was already modified or expired"),
+                        Err(e) => error!(error = ?e, "Failed to release lock due to a Redis error"),
+                    }
                 }
-                Ok(false) => {}
+                Ok(false) => {
+                    trace!("Lock already held by another worker; skipping this iteration");
+                }
                 Err(e) => {
-                    error!("Failed to coordinate Redis lock for level flushing: {:?}", e);
+                    error!(error = ?e, "Failed to coordinate Redis lock for level flushing");
                 }
             }
         }
     });
 }
 
-async fn acquire_lock(
-    redis: &Client,
-    lock_key: &str,
-    lock_value: &str,
-    ttl_secs: i64,
-) -> Result<bool, Error> {
-    let acquired: Option<String> = redis
-        .set(
-            lock_key,
-            lock_value,
-            Some(Expiration::EX(ttl_secs)),
-            Some(SetOptions::NX),
-            false,
-        )
-        .await?;
-    Ok(acquired.is_some())
-}
-
-async fn release_lock(
-    redis: &Client,
-    lock_key: &str,
-    lock_value: &str,
-) -> Result<bool, Error> {
-    let released: u32 = redis
-        .eval(
-            r#"
-                if redis.call("get", KEYS[1]) == ARGV[1] then
-                    return redis.call("del", KEYS[1])
-                else
-                    return 0
-                end
-            "#,
-            lock_key,
-            lock_value,
-        )
-        .await?;
-    Ok(released == 1)
-}
-
+#[instrument(skip(redis), fields(src = %src, dst = %dst))]
 async fn claim_if_exists(
     redis: &Client,
     src: &str,
@@ -93,40 +67,60 @@ async fn claim_if_exists(
         )
         .await?;
 
-    Ok(claimed == 1)
+    let success = claimed == 1;
+    debug!(claimed = success, "Claim key attempt result");
+    Ok(success)
 }
 
+#[instrument(skip(redis, db), fields(flushing_key = %flushing_key))]
 async fn process_flushing_key(
     flushing_key: &str,
     redis: &Client,
     db: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    debug!("Retrieving records for flushing key");
     let records: HashMap<String, String> = redis.hgetall(flushing_key).await?;
 
     if records.is_empty() {
+        debug!("Flushing key was empty; removing key");
         let _: () = redis.del(flushing_key).await?;
         return Ok(());
     }
 
-    let mut guild_ids = Vec::with_capacity(records.len());
-    let mut user_ids = Vec::with_capacity(records.len());
-    let mut usernames = Vec::with_capacity(records.len());
-    let mut cumulative_xps = Vec::with_capacity(records.len());
-    let mut current_levels = Vec::with_capacity(records.len());
-    let mut current_xps = Vec::with_capacity(records.len());
+    let records_count = records.len();
+    debug!(records_count, "Found records to process");
 
-    for (_, serialized) in records {
-        if let Ok(user_level) = serde_json::from_str::<UserLevel>(&serialized) {
-            guild_ids.push(user_level.guild_id);
-            user_ids.push(user_level.user_id);
-            usernames.push(user_level.username);
-            cumulative_xps.push(user_level.cumulative_xp);
-            current_levels.push(user_level.current_level);
-            current_xps.push(user_level.current_xp);
+    let mut guild_ids = Vec::with_capacity(records_count);
+    let mut user_ids = Vec::with_capacity(records_count);
+    let mut usernames = Vec::with_capacity(records_count);
+    let mut cumulative_xps = Vec::with_capacity(records_count);
+    let mut current_levels = Vec::with_capacity(records_count);
+    let mut current_xps = Vec::with_capacity(records_count);
+
+    for (field, serialized) in records {
+        match serde_json::from_str::<UserLevel>(&serialized) {
+            Ok(user_level) => {
+                guild_ids.push(user_level.guild_id);
+                user_ids.push(user_level.user_id);
+                usernames.push(user_level.username);
+                cumulative_xps.push(user_level.cumulative_xp);
+                current_levels.push(user_level.current_level);
+                current_xps.push(user_level.current_xp);
+            }
+            Err(e) => {
+                warn!(
+                    field = %field,
+                    error = ?e,
+                    "Failed to deserialize UserLevel from flushing map field"
+                );
+            }
         }
     }
 
     if !guild_ids.is_empty() {
+        let records_to_upsert = guild_ids.len();
+        debug!(records_to_upsert, "Upserting user levels to database");
+
         sqlx::query!(
             r#"
             INSERT INTO levels (guild_id, user_id, username, cumulative_xp, current_level, current_xp)
@@ -146,13 +140,17 @@ async fn process_flushing_key(
         )
             .execute(db)
             .await?;
+
+        debug!(records_to_upsert, "Database upsert complete");
     }
 
     let _: () = redis.del(flushing_key).await?;
+    debug!("Successfully deleted flushing key from Redis");
 
     Ok(())
 }
 
+#[instrument(skip(redis, db), fields(guild_id = %guild_id_str))]
 async fn flush_guild(
     guild_id_str: &str,
     redis: &Client,
@@ -164,20 +162,26 @@ async fn flush_guild(
     let stale_exists: bool = redis.exists(&flushing_key).await?;
 
     if stale_exists {
+        warn!("Found stale flushing key; processing outstanding records");
         process_flushing_key(&flushing_key, redis, db).await?;
     }
 
     let claimed = claim_if_exists(redis, &pending_key, &flushing_key).await?;
 
     if claimed {
+        debug!("Pending records claimed; processing batch");
         process_flushing_key(&flushing_key, redis, db).await?;
+    } else {
+        trace!("No pending records to claim");
     }
 
     let _: () = redis.srem("levels:dirty_guilds", guild_id_str).await?;
+    debug!("Guild removed from dirty guilds list");
 
     Ok(())
 }
 
+#[instrument(skip_all)]
 async fn flush_pending_levels(
     db: &PgPool,
     redis: &Client
@@ -185,8 +189,12 @@ async fn flush_pending_levels(
     let dirty_guilds: Vec<String> = redis.smembers("levels:dirty_guilds").await?;
 
     if dirty_guilds.is_empty() {
+        debug!("No dirty guilds found to flush");
         return Ok(());
     }
+
+    let guilds_count = dirty_guilds.len();
+    info!(guilds_count, "Flushing levels for dirty guilds");
 
     let flush_futures = dirty_guilds.into_iter().map(|guild_id_str| {
         let redis_clone = redis.clone();
@@ -194,7 +202,7 @@ async fn flush_pending_levels(
 
         async move {
             if let Err(e) = flush_guild(&guild_id_str, &redis_clone, db_pool).await {
-                error!("Error flushing levels for guild {}: {:?}", guild_id_str, e);
+                error!(guild_id = %guild_id_str, error = ?e, "Failed to flush levels for guild");
             }
         }
     });
@@ -204,5 +212,6 @@ async fn flush_pending_levels(
         .collect::<Vec<()>>()
         .await;
 
+    debug!("Finished processing current batch of dirty guilds");
     Ok(())
 }

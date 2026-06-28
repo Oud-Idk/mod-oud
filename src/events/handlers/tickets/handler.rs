@@ -21,6 +21,7 @@ pub struct TicketLogPayload {
 #[instrument(skip(ctx, data, settings, message), fields(msg_id = %message.id, channel_id = %message.channel_id, author = %message.author.id
 ))]
 pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data, settings: &GuildSettings) -> Result<(), Error> {
+    trace!("Handling tickets.");
     let channel_id = message.channel_id;
     let channel_id_str = channel_id.get().to_string();
     let Some(guild_id) = message.guild_id else { return Ok(()) };

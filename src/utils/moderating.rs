@@ -11,6 +11,7 @@ use poise::serenity_prelude as serenity;
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage};
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::{debug, error, info, instrument, warn};
 
 const MODERATION_FOOTER: &str = "This is an automated moderation action. If you believe this was a mistake, please create a ticket on the server.";
 
@@ -58,7 +59,7 @@ macro_rules! send_mod_dm {
                     dm_settings.embed.as_ref(),
                     $replace_closure,
                 ).unwrap_or_else(|e| {
-                    eprintln!("Failed to build custom {} message: {}", $action_name, e);
+                    tracing::error!(error = %e, action = $action_name, "Failed to build custom moderation DM");
                     None
                 });
             }
@@ -68,10 +69,24 @@ macro_rules! send_mod_dm {
             CreateMessage::new().embed($default_embed_block)
         });
 
-        let _ = $user_id.dm($http, dm_message).await;
+        match $user_id.dm($http, dm_message).await {
+            Ok(_) => {
+                tracing::debug!(user_id = %$user_id, action = $action_name, "Successfully sent moderation DM to user");
+            }
+            Err(e) => {
+                tracing::warn!(
+                    user_id = %$user_id,
+                    action = $action_name,
+                    error = ?e,
+                    "Failed to send moderation DM to user (DMs may be closed)"
+                );
+            }
+        }
     }};
 }
 
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user_id, moderator_id = %moderator_id
+))]
 pub async fn issue_warning(
     db: &sqlx::PgPool,
     redis_conn: &Client,
@@ -82,12 +97,14 @@ pub async fn issue_warning(
     moderator_id: serenity::UserId,
     reason: &str,
 ) -> Result<i64, Error> {
+    debug!("Inserting warning record into database");
     let warn_res = sqlx::query!(
         r#"INSERT INTO warns (guild_id, user_id, moderator_id, reason) VALUES ($1, $2, $3, $4) RETURNING id"#,
         guild_id.get() as i64, user_id.get() as i64, moderator_id.get() as i64, reason
     ).fetch_one(db).await?;
     let warn_id = warn_res.id;
 
+    debug!(warn_id, "Warning record inserted; retrieving moderation context");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
     let moderator_user = http.get_user(moderator_id).await.unwrap_or_else(|_| member.user.clone());
 
@@ -108,10 +125,13 @@ pub async fn issue_warning(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
+    info!(warn_id, "Successfully issued warning to user");
     Ok(warn_id as i64)
 }
 
 /// Core logic for issuing a kick, fetching custom settings, and sending DMs
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+))]
 pub async fn issue_kick(
     db: &sqlx::PgPool,
     redis_conn: &Client,
@@ -123,6 +143,7 @@ pub async fn issue_kick(
     moderator: serenity::all::User,
     reason: &str,
 ) -> Result<(), Error> {
+    debug!("Retrieving moderation context for kick");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let kick_dm_settings_opt = settings.moderation_dms.and_then(|m| m.kick);
@@ -136,13 +157,19 @@ pub async fn issue_kick(
         });
 
         if contains_invite {
+            debug!("Generating transient invite URL for kick DM fallback");
             let builder = CreateInvite::default()
                 .max_age(86400) // 24 hrs
                 .max_uses(1)
                 .unique(true);
 
-            if let Ok(invite) = channel_id.create_invite(http, builder).await {
-                invite_url = Some(format!("https://discord.gg/{}", invite.code));
+            match channel_id.create_invite(http, builder).await {
+                Ok(invite) => {
+                    invite_url = Some(format!("https://discord.gg/{}", invite.code));
+                }
+                Err(e) => {
+                    warn!(error = ?e, "Failed to create Discord invite for kick DM");
+                }
             }
         }
     }
@@ -168,13 +195,15 @@ pub async fn issue_kick(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
-    // Actually kick the user
+    debug!("Executing kick via Discord HTTP API");
     guild_id.kick_with_reason(http, user.id, reason).await?;
 
+    info!("Successfully kicked user from guild");
     Ok(())
 }
 
-
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id, duration_label
+))]
 pub async fn issue_ban(
     db: &sqlx::PgPool,
     redis_conn: &Client,
@@ -188,6 +217,7 @@ pub async fn issue_ban(
     duration: Option<Duration>,
     duration_label: &str,
 ) -> Result<(), Error> {
+    debug!("Retrieving moderation context for ban");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
@@ -207,9 +237,11 @@ pub async fn issue_ban(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
+    debug!("Executing ban via Discord HTTP API");
     guild_id.ban_with_reason(http, user.id, dmd_time, reason).await?;
 
     if let Some(dur) = duration {
+        debug!("Ban is scheduled; registering unban timeout in database");
         let chrono_dur = chrono::Duration::from_std(dur).map_err(|_| "Time overflowed")?;
         let unban_at = chrono::Utc::now() + chrono_dur;
 
@@ -223,9 +255,12 @@ pub async fn issue_ban(
             .await?;
     }
 
+    info!("Successfully banned user from guild");
     Ok(())
 }
 
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+))]
 pub async fn issue_mute(
     db: &sqlx::PgPool,
     redis_conn: &Client,
@@ -238,6 +273,7 @@ pub async fn issue_mute(
     duration: &Duration,
     timestamp: serenity::all::Timestamp,
 ) -> Result<(), Error> {
+    debug!("Retrieving moderation context for timeout");
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let mute_dm_settings_opt = settings.moderation_dms.and_then(|m| m.mute);
@@ -257,12 +293,15 @@ pub async fn issue_mute(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
-    // 3. Actually mute (timeout) the user via Discord API
+    debug!(until = %timestamp, "Applying timeout via Discord HTTP API");
     member.disable_communication_until_datetime(http, timestamp).await?;
 
+    info!("Successfully muted user in guild");
     Ok(())
 }
 
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+))]
 pub async fn issue_unmute(
     db: &sqlx::PgPool,
     redis_conn: &Client,
@@ -272,6 +311,7 @@ pub async fn issue_unmute(
     user: serenity::all::User,
     moderator: serenity::all::User,
 ) -> Result<(), Error> {
+    debug!("Retrieving moderation context for unmute");
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let unmute_dm_settings_opt = settings.moderation_dms.and_then(|m| m.unmute);
@@ -284,17 +324,20 @@ pub async fn issue_unmute(
         |text| replace_basic_placeholder(text, &gctx, &member, &moderator),
         CreateEmbed::new()
             .title(format!("You have been unmuted from {}!", gctx.name))
-            .color(0xFFC54F) // Matching your yellow-orange color
+            .color(0xFFC54F)
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
-    // 3. Actually unmute the user via Discord API
+    debug!("Removing timeout via Discord HTTP API");
     member.enable_communication(http).await?;
 
+    info!("Successfully unmuted user in guild");
     Ok(())
 }
 
 /// Core logic for issuing a softban (ban + immediate unban to clear messages)
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+))]
 pub async fn issue_softban(
     db: &sqlx::PgPool,
     redis_conn: &Client,
@@ -306,6 +349,7 @@ pub async fn issue_softban(
     reason: &str,
     dmd: u8,
 ) -> Result<(), Error> {
+    debug!("Retrieving moderation context for softban");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let softban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.softban);
@@ -329,14 +373,20 @@ pub async fn issue_softban(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
+    debug!("Executing temporary ban for softban via Discord HTTP API");
     guild_id.ban_with_reason(http, user.id, dmd, reason).await?;
+
+    debug!("Executing immediate unban for softban via Discord HTTP API");
     guild_id.unban(http, user.id).await?;
 
+    info!("Successfully soft-banned user from guild");
     Ok(())
 }
 
 /// Deletes a warning from the database, builds and sends the appropriate DM (custom or default).
 /// Returns `Some((target_user_id, reason))` if deleted, or `None` if the warning didn't exist.
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id_raw, warning_id = id, moderator_id = %author.id
+))]
 pub async fn issue_delete_warning(
     db: &sqlx::PgPool,
     redis_conn: &Client,
@@ -348,7 +398,9 @@ pub async fn issue_delete_warning(
 ) -> Result<Option<(u64, String)>, Error> {
     let guild_id = guild_id_raw.get() as i64;
 
+    debug!("Deleting warning record from database");
     let Some(row) = delete_warn(db, id, guild_id).await? else {
+        debug!("Warning record not found; skipping deletion");
         return Ok(None);
     };
 
@@ -356,6 +408,7 @@ pub async fn issue_delete_warning(
     let user_id = serenity::UserId::new(target_user_id);
     let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
 
+    debug!(target_user_id, "Record deleted; retrieving context for warning deletion message");
     let gctx = get_guild_ctx(guild_id_raw, http.as_ref()).await?;
     let member = http.get_member(guild_id_raw, user_id).await?;
     let user = &member.user;
@@ -380,12 +433,11 @@ pub async fn issue_delete_warning(
                 )
             },
         ).unwrap_or_else(|e| {
-            eprintln!("Failed to build custom warning deletion message: {}", e);
+            error!(error = %e, "Failed to build custom warning deletion message");
             None
         });
     }
 
-    // 4. Default DM fallback layout
     let message = custom_msg_opt.unwrap_or_else(|| {
         let embed = CreateEmbed::new()
             .title(format!(
@@ -399,14 +451,27 @@ pub async fn issue_delete_warning(
         CreateMessage::new().embed(embed)
     });
 
-    // 5. Send the DM (ignore failures, the user might have DMs closed)
-    let _ = user.dm(http, message).await;
+    match user.dm(http, message).await {
+        Ok(_) => {
+            debug!(target_user_id, "Successfully sent warning deletion DM to user");
+        }
+        Err(e) => {
+            warn!(
+                target_user_id,
+                error = ?e,
+                "Failed to send warning deletion DM to user (DMs may be closed)"
+            );
+        }
+    }
 
+    info!(target_user_id, "Successfully processed warning deletion");
     Ok(Some((target_user_id, reason)))
 }
 
 /// Updates the active status of a warning, handles the custom/default DMs.
 /// Returns `Some((target_user_id, reason))` if successful, or `None` if the warning wasn't found.
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id_raw, warning_id = id, set_active, moderator_id = %author.id
+))]
 pub async fn issue_warning_status_change(
     db: &sqlx::PgPool,
     redis_conn: &Client,
@@ -420,8 +485,9 @@ pub async fn issue_warning_status_change(
     let guild_id = guild_id_raw.get() as i64;
     let expected_current_state = !set_active;
 
-    // 1. Database Update
+    debug!("Updating warning status in database");
     let Some(row) = update_warn(db, set_active, id, guild_id, expected_current_state).await? else {
+        debug!("Warning record not found; skipping update");
         return Ok(None);
     };
 
@@ -429,19 +495,17 @@ pub async fn issue_warning_status_change(
     let user_id = serenity::UserId::new(target_user_id);
     let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
 
-    // 2. Fetch cache/HTTP contexts safely without poise context
+    debug!(target_user_id, "Warning updated; retrieving context for DM");
     let gctx = get_guild_ctx(guild_id_raw, http.as_ref()).await?;
     let member = http.get_member(guild_id_raw, user_id).await?;
     let user = &member.user;
 
-    // Determine values for DM based on target status
     let (action_past_tense, _, color) = if set_active {
         ("unpardoned", ActionType::Unpardon, 0xFF5757)
     } else {
         ("pardoned", ActionType::Pardon, 0x2AB83C)
     };
 
-    // 3. Fetch custom DM settings
     let settings = get_settings(db, redis_conn, guild_configs, guild_id).await?;
     let dm_settings_opt = if set_active {
         settings.moderation_dms.and_then(|m| m.unpardon_warn)
@@ -466,12 +530,11 @@ pub async fn issue_warning_status_change(
                 )
             },
         ).unwrap_or_else(|e| {
-            eprintln!("Failed to build custom warning status message: {}", e);
+            error!(error = %e, "Failed to build custom warning status message");
             None
         });
     }
 
-    // 4. Default DM fallback layout
     let message = custom_msg_opt.unwrap_or_else(|| {
         let embed = CreateEmbed::new()
             .title(format!(
@@ -485,7 +548,20 @@ pub async fn issue_warning_status_change(
         CreateMessage::new().embed(embed)
     });
 
-    let _ = user.dm(http, message).await;
+    match user.dm(http, message).await {
+        Ok(_) => {
+            debug!(target_user_id, action = action_past_tense, "Successfully sent warning status change DM");
+        }
+        Err(e) => {
+            warn!(
+                target_user_id,
+                action = action_past_tense,
+                error = ?e,
+                "Failed to send warning status change DM (DMs may be closed)"
+            );
+        }
+    }
 
+    info!(target_user_id, action = action_past_tense, "Successfully processed warning status update");
     Ok(Some((target_user_id, reason)))
 }

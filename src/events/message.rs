@@ -37,7 +37,6 @@ pub async fn on_message(ctx: &Context, message: &Message, data: &Data) -> Result
 
     let was_filtered = message_filter::handle_filtering(ctx, data, &config, message).await?;
     if was_filtered {
-        // Prevent deleted/filtered messages from affecting tickets or awarding XP
         return Ok(());
     }
 

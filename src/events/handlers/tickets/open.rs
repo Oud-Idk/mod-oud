@@ -18,6 +18,8 @@ pub async fn on_open_ticket(
     component: &ComponentInteraction,
     data: &Data,
 ) -> Result<(), Error> {
+    trace!("Opening ticket event received.");
+
     let redis = &data.redis;
     let db = &data.db;
 

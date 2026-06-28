@@ -1,6 +1,8 @@
 use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
+use tracing::{debug, instrument};
 
+#[instrument(skip(client), fields(key = %key, value = %value))]
 pub async fn acquire_lock(
     client: &Client,
     key: &str,
@@ -17,14 +19,18 @@ pub async fn acquire_lock(
         )
         .await?;
 
-    Ok(res.is_some())
+    let success = res.is_some();
+    debug!(success, "Attempted to acquire Redis lock");
+
+    Ok(success)
 }
 
+#[instrument(skip(client), fields(key = %key, value = %value))]
 pub async fn release_lock(
     client: &Client,
     key: &str,
     value: &str,
-) -> Result<(), Error> {
+) -> Result<bool, Error> {
     let script = r#"
         if redis.call("get", KEYS[1]) == ARGV[1] then
             return redis.call("del", KEYS[1])
@@ -33,7 +39,10 @@ pub async fn release_lock(
         end
     "#;
 
-    let _: u32 = client.eval(script, key, value).await?;
+    let res: u32 = client.eval(script, key, value).await?;
+    let success = res == 1;
 
-    Ok(())
+    debug!(success, "Attempted to release Redis lock");
+
+    Ok(success)
 }

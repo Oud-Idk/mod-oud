@@ -1,5 +1,4 @@
 use crate::types::{Data, Error};
-use fred::interfaces::KeysInterface;
 use serenity::all::ChannelId;
 pub async fn mark_ticket_as_closed_db(data: &&Data, channel_id: ChannelId) -> Result<(), Error> {
     sqlx::query!(
