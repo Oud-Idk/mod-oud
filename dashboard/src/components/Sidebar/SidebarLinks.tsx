@@ -14,6 +14,7 @@ import {
     Ticket,
     TrendingUp
 } from "lucide-react";
+import { FaceSmileIcon } from "@heroicons/react/24/outline";
 
 export function SidebarLinks() {
     const params = useParams();
@@ -81,6 +82,12 @@ export function SidebarLinks() {
             exact: false,
         },
         {
+            name: "Reaction Roles",
+            href: `/dashboard/${guildId}/reaction-roles`,
+            icon: FaceSmileIcon,
+            exact: false,
+        },
+        {
             name: "Tickets",
             href: `/dashboard/${guildId}/tickets`,
             icon: Ticket,
@@ -106,7 +113,7 @@ export function SidebarLinks() {
                                 : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
                         }`}
                     >
-                        <link.icon className="w-4 h-4"/>
+                        <link.icon className="w-5 h-5" strokeWidth="2"/>
                         {link.name}
                     </Link>
                 );

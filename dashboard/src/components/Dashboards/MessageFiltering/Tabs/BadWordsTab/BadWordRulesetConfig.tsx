@@ -75,7 +75,7 @@ export function BadWordRulesetConfig({
                 <button
                     onClick={() => onDelete(config.id)}
                     disabled={isPending}
-                    className="text-xs text-red-500 border border-red-500/30 hover:bg-red-500/10 px-3 py-1.5 rounded transition disabled:opacity-50 cursor-pointer"
+                    className="text-xs border border-red-500 hover:bg-red-500/10 px-3 py-1.5 rounded transition disabled:opacity-50 cursor-pointer"
                 >
                     Delete Ruleset
                 </button>

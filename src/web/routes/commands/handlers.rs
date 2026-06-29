@@ -9,11 +9,17 @@ use crate::WebState;
 use axum::http::StatusCode;
 use fred::prelude::Client;
 use serenity::all::{GuildId, UserId};
+use tracing::{error, info, instrument, warn};
+// Added tracing imports
 
 fn parse_id<T: std::str::FromStr>(val: &str, entity: &str) -> Result<T, WebError> {
-    val.parse().map_err(|_| WebError::BadRequest(format!("Invalid {} ID", entity)))
+    val.parse().map_err(|_| {
+        warn!(entity_type = entity, raw_value = val, "Failed to parse entity ID");
+        WebError::BadRequest(format!("Invalid {} ID", entity))
+    })
 }
 
+#[instrument(skip(state), fields(report_id = cmd.report_id))]
 pub async fn handle_delete_message(
     state: &WebState,
     cmd: &DashboardCommand,
@@ -23,30 +29,44 @@ pub async fn handle_delete_message(
     let ch_id = parse_id(channel_id, "channel")?;
     let msg_id = parse_id(message_id, "message")?;
 
+    info!(channel_id = %ch_id, message_id = %msg_id, "Attempting message deletion");
+
     match state.http.delete_message(ch_id, msg_id, Some("Deleted via Moderation Dashboard")).await {
-        Ok(_) => {}
+        Ok(_) => {
+            info!("Discord message deleted successfully");
+        }
         Err(poise::serenity_prelude::Error::Http(http_err)) => {
-            if http_err.status_code().map(|s| s.as_u16()) != Some(404) {
+            if http_err.status_code().map(|s| s.as_u16()) == Some(404) {
+                warn!("Message already deleted (404) returned from Discord API");
+            } else {
+                error!(error = %http_err, "Failed to delete message via HTTP");
                 return Err(WebError::BadGateway(format!("Discord API Error: {}", http_err)));
             }
         }
-        Err(e) => return Err(WebError::BadGateway(format!("Discord API Error: {}", e))),
+        Err(e) => {
+            error!(error = %e, "Unexpected error deleting message");
+            return Err(WebError::BadGateway(format!("Discord API Error: {}", e)));
+        }
     }
 
     database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::MessageDeleted).await?;
     Ok(StatusCode::OK)
 }
 
+#[instrument(skip(state, redis), fields(report_id = cmd.report_id, guild_id = %guild_id, user_id = %user_id
+))]
 pub async fn handle_warn(
     state: &WebState,
     cmd: &DashboardCommand,
     mod_id_str: Option<&str>,
     guild_id: &GuildId,
     user_id: &UserId,
-    redis: &Client, // <-- Accept conn directly
+    redis: &Client,
 ) -> Result<StatusCode, WebError> {
     let moderator_id = getters::resolve_moderator_id(&state.http, mod_id_str).await?;
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
+
+    info!(moderator_id = %moderator_id, "Issuing warning to user");
 
     crate::utils::moderating::issue_warning(
         &state.pool,
@@ -59,23 +79,31 @@ pub async fn handle_warn(
         reason_str,
     )
         .await
-        .map_err(|e| WebError::Internal(e.to_string()))?;
+        .map_err(|e| {
+            error!(error = %e, "Failed to execute warning issuance");
+            WebError::Internal(e.to_string())
+        })?;
 
     database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::UserWarned).await?;
     Ok(StatusCode::OK)
 }
 
+#[instrument(skip(state, redis), fields(report_id = cmd.report_id, guild_id = %guild_id, user_id = %user_id
+))]
 pub async fn handle_timeout(
     state: &WebState,
     cmd: &DashboardCommand,
     mod_id_str: Option<&str>,
     guild_id: &GuildId,
     user_id: &UserId,
-    redis: &Client, // <-- Accept conn directly
+    redis: &Client,
 ) -> Result<StatusCode, WebError> {
     let duration_mins = cmd.duration_mins.ok_or_else(|| {
+        warn!("Missing duration_mins parameter for timeout action");
         WebError::BadRequest("Missing duration_mins parameter".to_string())
     })?;
+
+    info!(duration_minutes = duration_mins, "Issuing timeout to user");
 
     let (user, moderator) = tokio::try_join!(
         getters::resolve_target_user(&state.http, *user_id),
@@ -90,10 +118,16 @@ pub async fn handle_timeout(
 
     let future_secs = now_secs
         .checked_add(duration_mins * 60)
-        .ok_or_else(|| WebError::BadRequest("Duration calculation overflowed".to_string()))?;
+        .ok_or_else(|| {
+            error!("Duration calculation overflowed during timeout window generation");
+            WebError::BadRequest("Duration calculation overflowed".to_string())
+        })?;
 
     let timestamp = poise::serenity_prelude::Timestamp::from_unix_timestamp(future_secs as i64)
-        .map_err(|e| WebError::Internal(e.to_string()))?;
+        .map_err(|e| {
+            error!(error = %e, "Failed to construct valid serenity Timestamp");
+            WebError::Internal(e.to_string())
+        })?;
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
 
@@ -110,20 +144,27 @@ pub async fn handle_timeout(
         timestamp,
     )
         .await
-        .map_err(|e| WebError::Internal(format!("Failed to issue mute: {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Failed to issue mute inside core utilities");
+            WebError::Internal(format!("Failed to issue mute: {}", e))
+        })?;
 
     database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::UserTimedOut).await?;
     Ok(StatusCode::OK)
 }
 
+#[instrument(skip(state, redis), fields(report_id = cmd.report_id, guild_id = %guild_id, user_id = %user_id
+))]
 pub async fn handle_ban_user(
     state: &WebState,
     cmd: &DashboardCommand,
     mod_id_str: Option<&str>,
     guild_id: &GuildId,
     user_id: &UserId,
-    redis: &Client, // <-- Accept conn directly
+    redis: &Client,
 ) -> Result<StatusCode, WebError> {
+    info!("Issuing ban to user");
+
     let (user, moderator) = tokio::try_join!(
         getters::resolve_target_user(&state.http, *user_id),
         getters::resolve_moderator_user(&state.http, mod_id_str)
@@ -153,12 +194,17 @@ pub async fn handle_ban_user(
         &duration_label,
     )
         .await
-        .map_err(|e| WebError::Internal(format!("Failed to issue ban: {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Failed to complete ban operation");
+            WebError::Internal(format!("Failed to issue ban: {}", e))
+        })?;
 
     database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::UserBanned).await?;
     Ok(StatusCode::OK)
 }
 
+#[instrument(skip(state, redis), fields(report_id = cmd.report_id, guild_id = %guild_id, status = ?status
+))]
 pub async fn handle_resolve_report(
     state: &WebState,
     cmd: &DashboardCommand,
@@ -166,11 +212,17 @@ pub async fn handle_resolve_report(
     guild_id: &GuildId,
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
+    info!("Resolving report status and notifying reporter");
+
     let config = get_settings(&state.pool, redis, &state.guild_configs, guild_id.get() as i64)
         .await
-        .map_err(|e| WebError::Internal(e.to_string()))?;
+        .map_err(|e| {
+            error!(error = %e, "Failed to resolve guild config");
+            WebError::Internal(e.to_string())
+        })?;
 
     let Some(report_config) = config.report else {
+        warn!("Report config was missing for target guild during report resolution");
         return Ok(StatusCode::BAD_REQUEST);
     };
 
@@ -180,11 +232,17 @@ pub async fn handle_resolve_report(
     )
         .fetch_one(&state.pool)
         .await
-        .map_err(|e| WebError::Internal(format!("Failed to fetch reporter ID: {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Failed to retrieve reporter ID from database");
+            WebError::Internal(format!("Failed to fetch reporter ID: {}", e))
+        })?;
 
     let reporter_id_u64: u64 = reporter_id_str
         .parse()
-        .map_err(|_| WebError::Internal("Invalid reporter ID format in database".to_string()))?;
+        .map_err(|e| {
+            error!(error = %e, raw_reporter_id = %reporter_id_str, "Reporter ID in database is not a valid u64");
+            WebError::Internal("Invalid reporter ID format in database".to_string())
+        })?;
 
     let reporter_id = UserId::new(reporter_id_u64);
 
@@ -195,13 +253,17 @@ pub async fn handle_resolve_report(
     )
         .await
         .map_err(|(_status_code, err_msg)| {
+            error!(error = %err_msg, "Database report status update failed");
             WebError::Internal(err_msg)
         })?;
 
     let dm_channel = reporter_id
         .create_dm_channel(&state.http)
         .await
-        .map_err(|e| WebError::BadGateway(format!("Failed to open DM channel: {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Failed to open direct message channel to the reporter");
+            WebError::BadGateway(format!("Failed to open DM channel: {}", e))
+        })?;
 
     let layout_opt = match status {
         ReportStatus::Actioned => report_config.resolved_dm.as_ref(),
@@ -209,7 +271,10 @@ pub async fn handle_resolve_report(
         ReportStatus::UnderReview => None,
     };
 
-    if layout_opt.map(|l| l.enabled) != Some(true) { return Ok(StatusCode::OK) }
+    if layout_opt.map(|l| l.enabled) != Some(true) {
+        info!("Report status resolved; skipping DM layout dispatch since configurations are disabled");
+        return Ok(StatusCode::OK);
+    }
 
     let replace_fn = |s: &str| s.to_string();
 
@@ -220,7 +285,10 @@ pub async fn handle_resolve_report(
             layout.embed.as_ref(),
             replace_fn,
         )
-            .map_err(|e| WebError::Internal(format!("Failed to build custom message: {}", e)))?
+            .map_err(|e| {
+                error!(error = %e, "Failed to generate custom messaging content layout");
+                WebError::Internal(format!("Failed to build custom message: {}", e))
+            })?
     } else {
         None
     };
@@ -244,7 +312,9 @@ pub async fn handle_resolve_report(
     };
 
     if let Err(e) = send_result {
-        eprintln!("Could not send DM to reporter {}: {}", reporter_id, e);
+        warn!(error = %e, %reporter_id, "Could not send resolution DM to reporter");
+    } else {
+        info!(%reporter_id, "Resolution DM successfully sent to reporter");
     }
 
     Ok(StatusCode::OK)

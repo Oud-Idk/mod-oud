@@ -11,6 +11,7 @@ use axum::{
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::sync::Arc;
+use tracing::{error, info, instrument};
 
 async fn broadcast_report_update(
     pool: &PgPool,
@@ -25,11 +26,23 @@ async fn broadcast_report_update(
     Ok(())
 }
 
+#[instrument(skip(state), fields(report_id = cmd.report_id, action = ?cmd.action))]
 pub async fn handle_dashboard_command(
     State(state): State<Arc<WebState>>,
     Json(cmd): Json<DashboardCommand>,
 ) -> Result<StatusCode, WebError> {
-    let (guild_id, user_id) = database::fetch_target_report(&state.pool, cmd.report_id).await?;
+    info!("Processing dashboard moderation command");
+
+    let (guild_id, user_id) = database::fetch_target_report(&state.pool, cmd.report_id)
+        .await
+        .map_err(|(status, err_msg)| {
+            error!(
+                status = %status,
+                error = %err_msg,
+                "Failed to fetch target report details from database"
+            );
+            (status, err_msg)
+        })?;
     let mod_id_str = cmd.moderator_id.as_deref();
 
     let mut redis_conn = state.redis.clone();
@@ -52,9 +65,11 @@ pub async fn handle_dashboard_command(
         }
     }
 
-    broadcast_report_update(&state.pool, &mut redis_conn, cmd.report_id)
-        .await
-        .map_err(|e| WebError::Internal(e.to_string()))?;
+    if let Err(e) = broadcast_report_update(&state.pool, &mut redis_conn, cmd.report_id).await {
+        error!(error = ?e, "Failed to broadcast report update after moderation action");
+        return Err(WebError::Internal(e.to_string()));
+    }
 
+    info!("Dashboard moderation command executed successfully");
     Ok(StatusCode::OK)
 }

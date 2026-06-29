@@ -16,11 +16,16 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
+use tracing::{debug, error, info, instrument, trace, warn};
 
+#[instrument]
 async fn health_check() -> &'static str {
+    debug!("Health check endpoint called");
     "OK"
 }
 
+#[instrument(skip(pool, http, redis_client, subscriber_client, guild_configs, tx))]
 pub async fn start_web_server(
     pool: sqlx::PgPool,
     http: Arc<poise::serenity_prelude::Http>,
@@ -35,11 +40,28 @@ pub async fn start_web_server(
         let tx = tx_clone.clone();
         async move {
             let mut channel = msg.channel.to_string();
+
             let Ok(payload_str) = msg.value.convert::<String>() else {
+                warn!(channel = %channel, "Failed to convert Redis message value to String");
                 return Ok(());
             };
-            if let Some(event) = LogEvent::from_redis(&mut channel, &payload_str) {
-                let _ = tx.send(event);
+
+            debug!(
+                channel = %channel,
+                payload_len = payload_str.len(),
+                "Received Redis subscription message"
+            );
+
+            if LogEvent::REDIS_CHANNELS.contains(&channel.as_str()) {
+                if let Some(event) = LogEvent::from_redis(&mut channel, &payload_str) {
+                    if let Err(e) = tx.send(event) {
+                        error!(error = %e, "Failed to send LogEvent to broadcast channel");
+                    }
+                } else {
+                    warn!(channel = %channel, "Failed to parse LogEvent from Redis payload");
+                }
+            } else {
+                trace!(channel = %channel, "Received irrelevant payload; skipping");
             }
             Ok(())
         }
@@ -50,10 +72,11 @@ pub async fn start_web_server(
         .map(|&c| Key::from(c))
         .collect();
 
+    info!(channels = ?LogEvent::REDIS_CHANNELS, "Subscribing to Redis channels...");
     if let Err(e) = subscriber_client.subscribe(channels).await {
-        eprintln!("Failed to subscribe to Redis channels on startup: {:?}", e);
+        error!(error = ?e, "Failed to subscribe to Redis channels on startup");
     } else {
-        println!("Subscribed to Redis channels: {:?}", LogEvent::REDIS_CHANNELS);
+        info!("Successfully subscribed to Redis channels");
     }
 
     let cors = CorsLayer::new()
@@ -82,6 +105,7 @@ pub async fn start_web_server(
             axum::routing::post(handle_delete_ticket_message)
         )
         .layer(cors)
+        .layer(TraceLayer::new_for_http())
         .with_state(shared_state);
 
     let port: u16 = std::env::var("PORT")
@@ -89,11 +113,15 @@ pub async fn start_web_server(
         .parse()
         .unwrap_or(8080);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
+
+    info!(address = %addr, "Attempting to bind TCP listener");
     let listener = tokio::net::TcpListener::bind(addr).await?;
+    info!(address = %addr, "TCP listener bound successfully");
 
     tokio::spawn(async move {
+        info!("Web server task started");
         if let Err(e) = axum::serve(listener, app).await {
-            eprintln!("Web server error: {}", e);
+            error!(error = %e, "Web server encountered a fatal runtime error");
         }
     });
 

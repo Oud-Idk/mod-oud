@@ -75,7 +75,7 @@ export function BadWordTab({
                             <div className="flex justify-between items-center">
                                 <span className="truncate font-semibold">{ruleset.name}</span>
                                 <span
-                                    className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                    className={`text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                                         ruleset.enabled ? "bg-emerald-500/10 text-emerald-500" : "bg-neutral-500/10 text-neutral-400"
                                     }`}
                                 >

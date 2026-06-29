@@ -61,7 +61,7 @@ pub async fn create_redis_cooldown(
         "Attempting to set cooldown in Redis"
     );
 
-    let cooldown = redis
+    let cooldown_result: Option<String> = redis
         .set(
             cooldown_key,
             1,
@@ -69,15 +69,17 @@ pub async fn create_redis_cooldown(
             Some(SetOptions::NX),
             false,
         )
-        .await;
+        .await?;
 
-    match &cooldown {
-        Ok(true) => debug!(key = %cooldown_key, "Cooldown successfully created"),
-        Ok(false) => debug!(key = %cooldown_key, "Cooldown already active"),
-        Err(err) => error!(error = ?err, key = %cooldown_key, "Failed to execute Redis cooldown command"),
+    let success = cooldown_result.is_some();
+
+    if success {
+        debug!(key = %cooldown_key, "Cooldown successfully created");
+    } else {
+        debug!(key = %cooldown_key, "Cooldown already active");
     }
 
-    cooldown
+    Ok(success)
 }
 
 /// Uses Fred's pipelining/transaction feature to write levels atomically.

@@ -37,7 +37,7 @@ pub struct WebState {
     pub tx: broadcast::Sender<LogEvent>,
     pub pool: sqlx::PgPool,
     pub http: Arc<poise::serenity_prelude::Http>,
-    pub redis: fred::clients::Client,
+    pub redis: Client,
     pub guild_configs: moka::future::Cache<i64, types::config::config::GuildSettings>,
 }
 
@@ -47,8 +47,11 @@ async fn main() -> Result<(), Error> {
 
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .pretty()
         .with_target(true)
         .with_line_number(true)
+        .with_file(true)
+        .with_thread_names(true)
         .init();
 
     let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
@@ -123,12 +126,22 @@ async fn main() -> Result<(), Error> {
     }
 
     let redis_config = Config::from_url(&redis_url)?;
-    let redis_client = Builder::from_config(redis_config).build()?;
+    let redis_client = Builder::from_config(redis_config)
+        .with_config(|config| {
+            config.tracing.enabled = true;
+            config.tracing.default_tracing_level = tracing::Level::DEBUG;
+        })
+        .build()?;
     redis_client.init().await?;
     debug!("Connected to Redis as {}.", redis_client.client_config().username.as_deref().unwrap_or("default"));
 
     let subscriber_config = Config::from_url(&redis_url)?;
-    let subscriber_client: SubscriberClient = Builder::from_config(subscriber_config).build_subscriber_client()?;
+    let subscriber_client: SubscriberClient = Builder::from_config(subscriber_config)
+        .with_config(|config| {
+            config.tracing.enabled = true;
+            config.tracing.default_tracing_level = tracing::Level::DEBUG;
+        })
+        .build_subscriber_client()?;
     subscriber_client.init().await?;
     subscriber_client.manage_subscriptions();
     debug!("Connected to Redis with Subscriber as {}.", subscriber_client.client_config().username.as_deref().unwrap_or("default"));

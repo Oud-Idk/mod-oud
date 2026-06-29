@@ -26,7 +26,7 @@ pub async fn handle_send_ticket_message(
     Path(guild_id_str): Path<String>,
     Json(payload): Json<SendTicketMessagePayload>,
 ) -> Result<(StatusCode, Json<SendTicketMessageResponse>), (StatusCode, String)> {
-    info!(guild_id = guild_id_str, "Axum ticket panel dispatch endpoint triggered");
+    debug!(guild_id = guild_id_str, "Axum ticket panel dispatch endpoint triggered");
 
     let guild_id = guild_id_str.parse::<i64>().map_err(|_| {
         (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string())
