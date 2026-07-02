@@ -18,6 +18,7 @@ pub struct DashboardCommand {
     pub moderator_id: Option<String>,
     pub reason: Option<String>,
     pub duration_mins: Option<u64>,
+    pub name: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

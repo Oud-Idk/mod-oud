@@ -1,4 +1,9 @@
-use crate::types::{Context, Error};
+use crate::types::Error;
+use chrono::TimeDelta;
+use serenity::all::{GuildId, User};
+use sqlx::postgres::types::PgInterval;
+use sqlx::PgPool;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "varchar", rename_all = "snake_case")] // Adjust based on your DB setup
 pub enum ActionType {
@@ -18,27 +23,32 @@ pub enum ActionType {
     GlobalUnlock,
 }
 
-pub async fn log_moderation_action(
-    ctx: &Context<'_>,
-    guild_id: u64,
-    target_id: u64,
-    moderator_id: u64,
-    action_type: ActionType,
-    reason: Option<&str>,
-    duration: Option<&str>,
-) -> Result<(), Error> {
-    sqlx::query!(
-        "INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration)
-         VALUES ($1, $2, $3, $4, $5, $6)",
-        guild_id as i64,
-        target_id as i64,
-        moderator_id as i64,
-        action_type as ActionType,
-        reason,
-        duration
-    )
-        .execute(&ctx.data().db)
-        .await?;
+pub(crate) async fn log_moderation_action(db: &PgPool, guild_id: GuildId, user: Option<&User>, moderator: &User, reason: Option<&str>, action: &str, interval: Option<TimeDelta>) -> Result<(), Error> {
+    let pg_interval = interval.map(|delta| {
+        let days = delta.num_days() as i32;
+        let remaining = delta - TimeDelta::days(days as i64);
+        PgInterval {
+            months: 0,
+            days,
+            microseconds: remaining.num_microseconds().unwrap_or(0),
+        }
+    });
 
+    sqlx::query!(
+        r#"
+        INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration, moderator_username, target_username)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        "#,
+        guild_id.get() as i64,
+        user.map(|u| u.id.get() as i64),
+        moderator.id.get() as i64,
+        action,
+        reason,
+        pg_interval,
+        &moderator.name,
+        user.map(|u| u.name.as_str()),
+    )
+        .execute(db)
+        .await?;
     Ok(())
 }

@@ -2,6 +2,7 @@ use crate::core::config::get_settings;
 use crate::events::handlers::levels::text;
 use crate::events::handlers::message_logging::cache::cache_message_in_redis;
 use crate::events::handlers::message_logging::handlers::{message_log_delete, message_log_update};
+use crate::events::handlers::reaction_roles::{handle_reaction_role_add, handle_reaction_role_remove};
 use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
 use crate::events::handlers::{message_filter, starboard, tickets};
 use crate::types::{Data, Error};
@@ -72,10 +73,12 @@ pub async fn on_message_update(
 
 pub async fn on_reaction_add(ctx: &Context, add_reaction: &Reaction, data: &Data) -> Result<(), Error> {
     handle_starboard_reaction_add(ctx, add_reaction, data).await?;
+    handle_reaction_role_add(ctx, add_reaction, data).await?;
     Ok(())
 }
 
 pub async fn on_reaction_remove(ctx: &Context, removed_reaction: &Reaction, data: &Data) -> Result<(), Error> {
     handle_starboard_reaction_remove(ctx, removed_reaction, data).await?;
+    handle_reaction_role_remove(ctx, removed_reaction, data).await?;
     Ok(())
 }

@@ -26,7 +26,7 @@ export function StarboardCreateModal({
     const [modalChannelId, setModalChannelId] = useState("");
     const [modalThreshold, setModalThreshold] = useState(3);
 
-    const handleCreateSubmit = (e: React.FormEvent) => {
+    const handleCreateSubmit = (e: React.SubmitEvent) => {
         e.preventDefault();
         if (!modalChannelId) {
             alert("Please choose a channel first.");
@@ -40,12 +40,10 @@ export function StarboardCreateModal({
                     reaction_threshold: modalThreshold,
                 });
 
-                // Close modal and clean up states
                 onClose();
                 setModalChannelId("");
                 setModalThreshold(3);
 
-                // If the backend returns the generated config, redirect to select it
                 if (newConfig?.id) {
                     router.push(`/dashboard/${guildId}/starboard?id=${newConfig.id}`);
                 }

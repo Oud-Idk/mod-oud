@@ -53,7 +53,7 @@ export const Embed = ({ config, embed }: EmbedProps) => {
             <DiscordMessage>
                 <DiscordEmbed
                     slot="embeds"
-                    color={embed.color || "#2ecc71"}
+                    color={embed.color || "#ffffff"}
                     authorName={renderWithPlaceholders(embed.authorName)}
                     authorImage={renderWithPlaceholders(embed.authorIcon)}
                     embedTitle={renderWithPlaceholders(embed.title)}

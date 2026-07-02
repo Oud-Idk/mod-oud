@@ -1,7 +1,7 @@
 import { DiscordEmbed } from "@/types/embed";
 
 export interface StarboardConfig {
-    id: string; // BIGSERIAL returned as string in JS
+    id: string;
     guild_id: string;
     starboard_channel_id: string;
     emojis: string[];

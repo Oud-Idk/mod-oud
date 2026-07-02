@@ -1,3 +1,5 @@
+use crate::events::handlers::automod::cache::{cache_automod_name, invalidate_rule_cache};
+use crate::events::handlers::automod::on_automod;
 use crate::events::handlers::join_leave::{on_member_join, on_member_leave};
 use crate::events::handlers::levels::voice::on_voice_state_update;
 use crate::events::interact::on_interact;
@@ -52,6 +54,12 @@ pub async fn event_handler(
         FullEvent::VoiceStateUpdate { old, new } => {
             on_voice_state_update(ctx, old.as_ref(), new, data).await?;
         }
+        FullEvent::AutoModActionExecution { execution } => {
+            on_automod(ctx, execution, data).await?;
+        }
+        FullEvent::AutoModRuleCreate { rule } => { cache_automod_name(&data.redis, &rule.id, &rule).await?; }
+        FullEvent::AutoModRuleDelete { rule } => { invalidate_rule_cache(&data.redis, &rule.id).await?; }
+        FullEvent::AutoModRuleUpdate { rule } => { cache_automod_name(&data.redis, &rule.id, &rule).await?; }
         _ => {}
     }
     Ok(())

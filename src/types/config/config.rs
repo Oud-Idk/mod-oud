@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, serde_conv, DisplayFromStr};
 use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, sqlx::Type, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[sqlx(type_name = "message_format", rename_all = "lowercase")]
 pub enum Format {
     Embed,
     #[default]

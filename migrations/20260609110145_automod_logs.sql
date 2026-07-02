@@ -2,12 +2,12 @@
 CREATE TABLE IF NOT EXISTS automod_logs
 (
     id               BIGSERIAL PRIMARY KEY,
-    guild_id         BIGINT                                             NOT NULL,
-    user_id          BIGINT                                             NOT NULL,
-    channel_id       BIGINT                                             NOT NULL,
-    message_id       BIGINT, -- Nullable in case the event is not associated with a specific message (e.g., spam rate limits)
+    guild_id         VARCHAR(20)                                        NOT NULL,
+    user_id          VARCHAR(20)                                        NOT NULL,
+    username         VARCHAR(50)                                        NOT NULL,
+    channel_id       VARCHAR(20),
+    message_id       VARCHAR(20),
 
-    -- The category of the rule (e.g., 'bad_words', 'external_links', 'zalgo', 'excessive_caps')
     rule_type        VARCHAR(50)                                        NOT NULL,
 
     -- The specific word, pattern, or link that triggered the filter (can be null for things like zalgo)

@@ -69,7 +69,7 @@ export function WelcomeBody({
                         setConfig((prev) => ({
                             ...prev,
                             public: {
-                                enabled: updated.enabled,
+                                enabled: updated.enabled ?? false,
                                 channel_id: updated.channel_id || "",
                                 content: updated.content,
                                 embed: updated.embed,
@@ -98,7 +98,15 @@ export function WelcomeBody({
             {activeTab === "private" && (
                 <MessageConfigEditor
                     config={config.private}
-                    onChange={(updated) => setConfig((prev) => ({ ...prev, private: updated }))}
+                    onChange={(updated) =>
+                        setConfig((prev) => ({
+                            ...prev,
+                            private: {
+                                ...updated,
+                                enabled: updated.enabled ?? false
+                            }
+                        }))
+                    }
                     onEmbedChange={(embed) =>
                         setConfig((prev) => ({
                             ...prev,

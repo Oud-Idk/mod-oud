@@ -2,6 +2,7 @@
 
 import { db } from "@/utils/init/db";
 import { ReportedMessage } from "@/types/reports";
+import { auth } from "@/auth";
 
 export async function fetchInitialReports(guildId: string): Promise<ReportedMessage[]> {
     try {
@@ -71,6 +72,12 @@ export async function resolveReportStatus(
     status: "under_review" | "actioned" | "dismissed"
 ) {
     try {
+        const session = await auth();
+
+        if (!session || !session.accessToken) {
+            return { success: false, error: "Unauthorized" };
+        }
+
         const response = await fetch("http://localhost:8080/api/commands", {
             method: "POST",
             headers: {
@@ -80,6 +87,7 @@ export async function resolveReportStatus(
                 action: "resolve_report",
                 report_id: reportId,
                 status: status,
+                name: session.user?.name ?? ""
             }),
         });
 

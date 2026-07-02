@@ -10,7 +10,6 @@ use axum::http::StatusCode;
 use fred::prelude::Client;
 use serenity::all::{GuildId, UserId};
 use tracing::{error, info, instrument, warn};
-// Added tracing imports
 
 fn parse_id<T: std::str::FromStr>(val: &str, entity: &str) -> Result<T, WebError> {
     val.parse().map_err(|_| {
@@ -62,6 +61,8 @@ pub async fn handle_warn(
     guild_id: &GuildId,
     user_id: &UserId,
     redis: &Client,
+    moderator_username: &str,
+    target_username: &str,
 ) -> Result<StatusCode, WebError> {
     let moderator_id = getters::resolve_moderator_id(&state.http, mod_id_str).await?;
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
@@ -77,6 +78,8 @@ pub async fn handle_warn(
         *user_id,
         moderator_id,
         reason_str,
+        moderator_username,
+        target_username,
     )
         .await
         .map_err(|e| {

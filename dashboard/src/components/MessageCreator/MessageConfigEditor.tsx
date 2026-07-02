@@ -5,9 +5,10 @@ import { MessageModeSelector } from "@/components/MessageCreator/MessageModeSele
 import { PlaintextEditor } from "@/components/MessageCreator/PlaintextEditor";
 import EmbedBuilder from "@/components/Embed/EmbedBuilder";
 import { DiscordChannel } from "@/types";
+import { BuilderConfig } from "@/types/builder";
 
 export interface GenericMessageConfig {
-    enabled: boolean;
+    enabled?: boolean;
     channel_id?: string;
     content: string;
     embed: any;
@@ -17,10 +18,10 @@ export interface GenericMessageConfig {
 interface MessageConfigEditorProps {
     config: GenericMessageConfig;
     onChange: (updatedConfig: GenericMessageConfig) => void;
-    onEmbedChange: (embed: any) => void; // ← add this
+    onEmbedChange: (embed: any) => void;
     toggleLabel?: string;
     enableToggle?: boolean;
-    embedTemplateConfig: any;
+    embedTemplateConfig: BuilderConfig;
     channels?: DiscordChannel[];
     disabled?: boolean;
     resetKey?: string | number;
@@ -51,29 +52,39 @@ export function MessageConfigEditor({
     noChannels = false,
     customFields: CustomFields,
 }: MessageConfigEditorProps): JSX.Element {
-    if (!noChannels) {
-        useEffect(() => {
-            if (setTargetChannelIsEmpty) {
+    const isEnabled = config.enabled ?? true;
+
+    // Reset emptiness status when the message configuration is disabled
+    useEffect(() => {
+        if (!isEnabled) {
+            setIsEmpty(false);
+        }
+    }, [isEnabled, setIsEmpty]);
+
+    // Handle target channel emptiness validation
+    useEffect(() => {
+        if (!noChannels && setTargetChannelIsEmpty) {
+            if (!isEnabled) {
+                setTargetChannelIsEmpty(false);
+            } else {
                 const normalizedChannelId = config.channel_id || "";
                 setTargetChannelIsEmpty(normalizedChannelId.trim() === "");
             }
-        }, [config.channel_id]);
-    }
+        }
+    }, [config.channel_id, isEnabled, noChannels, setTargetChannelIsEmpty]);
 
     return (
         <>
             {enableToggle && (
-                <>
-                    <ToggleSwitch
-                        enabled={config.enabled}
-                        disabled={disabled}
-                        onChange={(checked) => onChange({ ...config, enabled: checked })}
-                        text={toggleLabel}
-                    />
-                </>
+                <ToggleSwitch
+                    enabled={isEnabled}
+                    disabled={disabled}
+                    onChange={(checked) => onChange({ ...config, enabled: checked })}
+                    text={toggleLabel}
+                />
             )}
 
-            {config.enabled && (
+            {isEnabled && (
                 <>
                     {!noChannels && channels && (
                         <ChannelSelector
@@ -104,6 +115,7 @@ export function MessageConfigEditor({
                         />
                     ) : (
                         <EmbedBuilder
+                            placeholderConfig={embedTemplateConfig}
                             key={`${resetKey}`}
                             setEmbedState={onEmbedChange}
                             config={embedTemplateConfig}

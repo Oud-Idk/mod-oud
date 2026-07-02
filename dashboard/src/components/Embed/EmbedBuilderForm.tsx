@@ -47,7 +47,8 @@ export const EmbedBuilderForm = ({
 
     return (
         <div
-            className={`p-4 rounded-lg space-y-4 border ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}>
+            className={`p-4 rounded-lg space-y-4 border ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+        >
             {isEmbedStateEmpty(embed) && (
                 <p className="text-red-500">Embed cannot be completely empty!</p>
             )}
@@ -152,7 +153,7 @@ export const EmbedBuilderForm = ({
                     <input
                         type="color"
                         name="color"
-                        value={embed.color || "#2ecc71"}
+                        value={embed.color || "#ffffff"}
                         onChange={handleChange}
                         className="w-10 h-10 p-0 border-0 bg-transparent cursor-pointer rounded"
                     />

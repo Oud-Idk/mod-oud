@@ -14,7 +14,6 @@ export async function Sidebar() {
     const session = await auth();
     let mutualGuilds: DiscordGuild[] = [];
 
-    // Fetch data securely on the server
     if (session?.accessToken) {
         const { mutualGuilds: fetchedGuilds } = await getGuildLists(session.accessToken);
         mutualGuilds = fetchedGuilds;

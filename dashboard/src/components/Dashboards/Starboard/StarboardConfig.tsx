@@ -161,25 +161,21 @@ export function StarboardConfig({
 
     return (
         <div className="space-y-6">
-            <div>
+            <div className="flex justify-between items-center">
                 <div>
                     <h3 className="text-lg font-medium">
-                        Configure #{channelMap[config.starboard_channel_id || ""] || "Starboard"}
+                        #{channelMap[config.starboard_channel_id || ""] || "Starboard"}
                     </h3>
-                    <p className="text-xs text-zinc-500">Edit guidelines, emojis, and access filters.</p>
                 </div>
 
                 {config.id && (
-                    <div className="pt-6 border-zinc-850 flex justify-end">
-                        <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => handleDelete(config.id as string)}
-                            className="px-4 py-2 text-sm cursor-pointer border-red-500 border hover:bg-red-300/10 rounded transition"
-                        >
-                            Delete Starboard
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => handleDelete(config.id as string)}
+                        className="px-4 py-2 text-sm cursor-pointer border-red-500 border hover:bg-red-300/10 rounded transition"
+                    >
+                        Delete Starboard </button>
                 )}
             </div>
 

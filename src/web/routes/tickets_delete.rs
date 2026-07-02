@@ -14,7 +14,7 @@ pub struct DeleteTicketMessagePayload {
     pub message_id: String,
 }
 
-fn is_unknown_message_error(err: &serenity::Error) -> bool {
+pub fn is_unknown_message_error(err: &serenity::Error) -> bool {
     if let serenity::Error::Http(http_err) = err {
         if let serenity::HttpError::UnsuccessfulRequest(error_response) = http_err {
             return error_response.error.code == 10008;

@@ -177,7 +177,7 @@ async fn send_welcome_message(
             "Hello <@{}>, welcome to your ticket. Please describe your issue. Support will be with you shortly.",
             member.user.id
         ))
-        .color(0x2ECC71);
+        .color(0xffffff);
 
     let mut message_builder = if let Some(cfg) = ticket_cfg.and_then(|c| c.welcome_message.as_ref()) {
         let is_embed = matches!(cfg.format, Format::Embed);

@@ -195,7 +195,7 @@ pub async fn execute_rule_actions(
     handle_automod(ctx, message, base, db, rule_name, should_warn, custom_dm_message).await;
 }
 
-async fn log_automod_event(
+pub async fn log_automod_event(
     db: &sqlx::PgPool,
     message: &Message,
     rule_name: &str,
@@ -212,10 +212,10 @@ async fn log_automod_event(
         guild_id,
         user_id,
         channel_id,
-        message_id,
+        Some(message_id),
         rule_name,
         trigger_content,
-        &message.content,
+        Some(&message.content),
         actions_taken,
     )
         .await

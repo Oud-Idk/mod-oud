@@ -14,7 +14,7 @@ export default async function Home() {
 
     return (
         <main
-            className="mx-auto p-2 md:p-4 font-sans min-h-screen"
+            className="mx-auto p-2 md:p-4 font-sans min-h-screen flex flex-col"
         >
             <div className="flex justify-between items-center border-b pb-2">
                 <h1 className="text-2xl font-extrabold tracking-tight">
@@ -33,22 +33,24 @@ export default async function Home() {
                     {inviteableGuilds.length > 0 && (<InviteableServers inviteableGuilds={inviteableGuilds}/>)}
                 </div>
             ) : (
-                <div className="mt-10 max-w-sm">
-                    <p className="text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
-                        Please sign in with Discord to view and configure your server settings. </p>
-                    <form
-                        action={async () => {
-                            "use server";
-                            await signIn("discord");
-                        }}
-                    >
-                        <button
-                            type="submit"
-                            className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3 px-6 rounded-lg font-bold transition-colors cursor-pointer shadow-sm text-center"
+                <div className="flex justify-center items-center w-full h-full flex-1">
+                    <div className="max-w-sm">
+                        <p className="mb-6 leading-relaxed text-center">
+                            Please sign in with Discord to view and configure your server settings. </p>
+                        <form
+                            action={async () => {
+                                "use server";
+                                await signIn("discord");
+                            }}
                         >
-                            Sign in with Discord
-                        </button>
-                    </form>
+                            <button
+                                type="submit"
+                                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3 px-6 rounded-lg font-bold transition-colors cursor-pointer shadow-sm text-center"
+                            >
+                                Sign in with Discord
+                            </button>
+                        </form>
+                    </div>
                 </div>
             )}
         </main>

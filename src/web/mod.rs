@@ -3,6 +3,7 @@ pub mod routes;
 use crate::types::config::config::GuildSettings;
 use crate::types::{Error, LogEvent};
 use crate::web::routes::commands::commands::handle_dashboard_command;
+use crate::web::routes::send_embed::handle_send_custom_embed;
 use crate::web::routes::tickets_delete::handle_delete_ticket_message;
 use crate::web::routes::tickets_send::handle_send_ticket_message;
 use crate::WebState;
@@ -11,6 +12,9 @@ use axum::routing::method_routing::get;
 use axum::routing::Router;
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
+use routes::reaction_role::reaction_role_delete::handle_delete_reaction_role_message;
+use routes::reaction_role::reaction_role_edit::handle_edit_reaction_role_message;
+use routes::reaction_role::reaction_role_send::handle_send_reaction_role_message;
 use routes::sse;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -103,6 +107,22 @@ pub async fn start_web_server(
         .route(
             "/api/guilds/{guild_id}/tickets/delete-message",
             axum::routing::post(handle_delete_ticket_message)
+        )
+        .route(
+            "/api/guilds/{guild_id}/reaction-roles/{config_id}/send",
+            axum::routing::post(handle_send_reaction_role_message)
+        )
+        .route(
+            "/api/guilds/{guild_id}/reaction-roles/{config_id}/edit",
+            axum::routing::post(handle_edit_reaction_role_message)
+        )
+        .route(
+            "/api/guilds/{guild_id}/reaction-roles/{config_id}/message",
+            axum::routing::delete(handle_delete_reaction_role_message)
+        )
+        .route(
+            "/api/guilds/{guild_id}/embeds/send",
+            axum::routing::post(handle_send_custom_embed)
         )
         .layer(cors)
         .layer(TraceLayer::new_for_http())

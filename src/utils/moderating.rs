@@ -1,17 +1,20 @@
 use crate::commands::moderation::warn::database::{delete_warn, update_warn};
 use crate::core::config::{get_guild_ctx, get_settings};
 use crate::types::config::config::{Format, GuildSettings};
-use crate::types::Error;
+use crate::types::{Context, Error};
 use crate::utils::custom_msg::build_custom_message;
-use crate::utils::logger::ActionType;
+use crate::utils::logger::{log_moderation_action, ActionType};
 use crate::utils::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
+use chrono::TimeDelta;
 use duration_str::HumanFormat;
 use fred::prelude::Client;
 use poise::serenity_prelude as serenity;
-use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage};
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http, Timestamp, User, UserId};
+use sqlx::postgres::types::PgInterval;
+use sqlx::PgPool;
 use std::sync::Arc;
-use std::time::Duration;
-use tracing::{debug, error, info, instrument, warn};
+use std::time::{Duration, Instant};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 const MODERATION_FOOTER: &str = "This is an automated moderation action. If you believe this was a mistake, please create a ticket on the server.";
 
@@ -88,14 +91,16 @@ macro_rules! send_mod_dm {
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user_id, moderator_id = %moderator_id
 ))]
 pub async fn issue_warning(
-    db: &sqlx::PgPool,
+    db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
-    http: &Arc<serenity::Http>,
-    guild_id: serenity::GuildId,
-    user_id: serenity::UserId,
-    moderator_id: serenity::UserId,
+    http: &Arc<Http>,
+    guild_id: GuildId,
+    user_id: UserId,
+    moderator_id: UserId,
     reason: &str,
+    moderator_username: &str,
+    target_username: &str,
 ) -> Result<i64, Error> {
     debug!("Inserting warning record into database");
     let warn_res = sqlx::query!(
@@ -104,7 +109,9 @@ pub async fn issue_warning(
     ).fetch_one(db).await?;
     let warn_id = warn_res.id;
 
-    debug!(warn_id, "Warning record inserted; retrieving moderation context");
+    debug!(warn_id, "Warning record inserted; logging action in moderation_logs");
+
+    debug!(warn_id, "Moderation log entry created; retrieving moderation context");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
     let moderator_user = http.get_user(moderator_id).await.unwrap_or_else(|_| member.user.clone());
 
@@ -125,6 +132,23 @@ pub async fn issue_warning(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
+    sqlx::query!(
+        r#"
+        INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration, moderator_username, target_username)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        "#,
+        guild_id.get() as i64,
+        user_id.get() as i64,
+        moderator_id.get() as i64,
+        "warn",
+        reason,
+        None::<PgInterval>,
+        moderator_username,
+        target_username,
+    )
+        .execute(db)
+        .await?; // inlining because the args are different af
+
     info!(warn_id, "Successfully issued warning to user");
     Ok(warn_id as i64)
 }
@@ -133,14 +157,14 @@ pub async fn issue_warning(
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_kick(
-    db: &sqlx::PgPool,
+    db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
-    http: &Arc<serenity::all::Http>,
-    guild_id: serenity::all::GuildId,
-    channel_id: serenity::all::ChannelId,
-    user: serenity::all::User,
-    moderator: serenity::all::User,
+    http: &Arc<Http>,
+    guild_id: GuildId,
+    channel_id: ChannelId,
+    user: User,
+    moderator: User,
     reason: &str,
 ) -> Result<(), Error> {
     debug!("Retrieving moderation context for kick");
@@ -195,6 +219,10 @@ pub async fn issue_kick(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
+    log_moderation_action(
+        db, guild_id, Some(&user), &moderator, Some(reason), "kick", None
+    ).await?;
+
     debug!("Executing kick via Discord HTTP API");
     guild_id.kick_with_reason(http, user.id, reason).await?;
 
@@ -202,16 +230,17 @@ pub async fn issue_kick(
     Ok(())
 }
 
+
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id, duration_label
 ))]
 pub async fn issue_ban(
-    db: &sqlx::PgPool,
+    db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
-    http: &Arc<serenity::all::Http>,
-    guild_id: serenity::all::GuildId,
-    user: serenity::all::User,
-    moderator: serenity::all::User,
+    http: &Arc<Http>,
+    guild_id: GuildId,
+    user: User,
+    moderator: User,
     reason: &str,
     dmd_time: u8,
     duration: Option<Duration>,
@@ -253,7 +282,12 @@ pub async fn issue_ban(
         )
             .execute(db)
             .await?;
+
+        log_moderation_action(
+            db, guild_id, Some(&user), &moderator, Some(reason), "ban", Some(chrono_dur)
+        ).await?;
     }
+
 
     info!("Successfully banned user from guild");
     Ok(())
@@ -262,16 +296,16 @@ pub async fn issue_ban(
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_mute(
-    db: &sqlx::PgPool,
+    db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
-    http: &Arc<serenity::all::Http>,
-    guild_id: serenity::all::GuildId,
-    user: serenity::all::User,
-    moderator: serenity::all::User,
+    http: &Arc<Http>,
+    guild_id: GuildId,
+    user: User,
+    moderator: User,
     reason: &str,
     duration: &Duration,
-    timestamp: serenity::all::Timestamp,
+    timestamp: Timestamp,
 ) -> Result<(), Error> {
     debug!("Retrieving moderation context for timeout");
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
@@ -296,6 +330,12 @@ pub async fn issue_mute(
     debug!(until = %timestamp, "Applying timeout via Discord HTTP API");
     member.disable_communication_until_datetime(http, timestamp).await?;
 
+    let timedelta = TimeDelta::from_std(*duration)?;
+
+    log_moderation_action(
+        db, guild_id, Some(&user), &moderator, Some(reason), "mute", Some(timedelta),
+    ).await?;
+
     info!("Successfully muted user in guild");
     Ok(())
 }
@@ -303,13 +343,13 @@ pub async fn issue_mute(
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_unmute(
-    db: &sqlx::PgPool,
+    db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
-    http: &Arc<serenity::all::Http>,
-    guild_id: serenity::all::GuildId,
-    user: serenity::all::User,
-    moderator: serenity::all::User,
+    http: &Arc<Http>,
+    guild_id: GuildId,
+    user: User,
+    moderator: User,
 ) -> Result<(), Error> {
     debug!("Retrieving moderation context for unmute");
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
@@ -331,6 +371,10 @@ pub async fn issue_unmute(
     debug!("Removing timeout via Discord HTTP API");
     member.enable_communication(http).await?;
 
+    log_moderation_action(
+        db, guild_id, Some(&user), &moderator, None, "unmute", None,
+    ).await?;
+
     info!("Successfully unmuted user in guild");
     Ok(())
 }
@@ -339,13 +383,13 @@ pub async fn issue_unmute(
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_softban(
-    db: &sqlx::PgPool,
+    db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
-    http: &Arc<serenity::all::Http>,
-    guild_id: serenity::all::GuildId,
-    user: serenity::all::User,
-    moderator: serenity::all::User,
+    http: &Arc<Http>,
+    guild_id: GuildId,
+    user: User,
+    moderator: User,
     reason: &str,
     dmd: u8,
 ) -> Result<(), Error> {
@@ -379,6 +423,10 @@ pub async fn issue_softban(
     debug!("Executing immediate unban for softban via Discord HTTP API");
     guild_id.unban(http, user.id).await?;
 
+    log_moderation_action(
+        db, guild_id, Some(&user), &moderator, Some(reason), "softban", None,
+    ).await?;
+
     info!("Successfully soft-banned user from guild");
     Ok(())
 }
@@ -388,13 +436,13 @@ pub async fn issue_softban(
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id_raw, warning_id = id, moderator_id = %author.id
 ))]
 pub async fn issue_delete_warning(
-    db: &sqlx::PgPool,
+    db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
-    http: &Arc<serenity::all::Http>,
-    guild_id_raw: serenity::all::GuildId,
+    http: &Arc<Http>,
+    guild_id_raw: GuildId,
     id: i32,
-    author: &serenity::all::User,
+    author: &User,
 ) -> Result<Option<(u64, String)>, Error> {
     let guild_id = guild_id_raw.get() as i64;
 
@@ -405,7 +453,7 @@ pub async fn issue_delete_warning(
     };
 
     let target_user_id = row.user_id as u64;
-    let user_id = serenity::UserId::new(target_user_id);
+    let user_id = UserId::new(target_user_id);
     let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
 
     debug!(target_user_id, "Record deleted; retrieving context for warning deletion message");
@@ -473,14 +521,14 @@ pub async fn issue_delete_warning(
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id_raw, warning_id = id, set_active, moderator_id = %author.id
 ))]
 pub async fn issue_warning_status_change(
-    db: &sqlx::PgPool,
+    db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
-    http: &Arc<serenity::all::Http>,
-    guild_id_raw: serenity::all::GuildId,
+    http: &Arc<Http>,
+    guild_id_raw: GuildId,
     id: i32,
     set_active: bool,
-    author: &serenity::all::User,
+    author: &User,
 ) -> Result<Option<(u64, String)>, Error> {
     let guild_id = guild_id_raw.get() as i64;
     let expected_current_state = !set_active;
@@ -492,7 +540,7 @@ pub async fn issue_warning_status_change(
     };
 
     let target_user_id = row.user_id as u64;
-    let user_id = serenity::UserId::new(target_user_id);
+    let user_id = UserId::new(target_user_id);
     let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
 
     debug!(target_user_id, "Warning updated; retrieving context for DM");
@@ -505,6 +553,10 @@ pub async fn issue_warning_status_change(
     } else {
         ("pardoned", ActionType::Pardon, 0x2AB83C)
     };
+
+    log_moderation_action(
+        db, guild_id_raw, Some(&user), &author, None, action_past_tense, None,
+    ).await?;
 
     let settings = get_settings(db, redis_conn, guild_configs, guild_id).await?;
     let dm_settings_opt = if set_active {
@@ -564,4 +616,24 @@ pub async fn issue_warning_status_change(
 
     info!(target_user_id, action = action_past_tense, "Successfully processed warning status update");
     Ok(Some((target_user_id, reason)))
+}
+
+/// Logs the action to the database and dispatches the log system's Discord embed.
+pub async fn log_action(
+    ctx: &Context<'_>,
+    guild_id: GuildId,
+    target_id: u64,
+    action: ActionType,
+    reason: Option<&str>,
+) -> Result<(), Error> {
+    trace!(
+        guild_id = guild_id.get(),
+        target_id,
+        action = ?action,
+        "Dispatching moderation log to database and Discord integration"
+    );
+    log_moderation_action(
+        &ctx.data().db, guild_id, None, &ctx.author(), None, reason.unwrap_or_default(), None,
+    ).await?;
+    Ok(())
 }

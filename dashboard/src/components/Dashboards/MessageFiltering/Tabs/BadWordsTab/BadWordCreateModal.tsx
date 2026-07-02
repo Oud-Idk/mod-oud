@@ -15,7 +15,7 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
 
     if (!isOpen) return null;
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.SubmitEvent) => {
         e.preventDefault();
         const trimmed = name.trim();
         if (!trimmed) return;

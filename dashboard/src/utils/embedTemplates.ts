@@ -373,3 +373,10 @@ export const TICKETS_WELCOME_CONFIG: BuilderConfig = {
         { key: "channel.id", mockValue: "1122334455667788991", label: "The unique ID of the ticket channel" },
     ],
 };
+
+export const REACTION_ROLES_CONFIG: BuilderConfig = {
+    id: "reaction_roles",
+    name: "Reaction Role Message Builder",
+    description: "Configure the message sent for this reaction role message.",
+    placeholders: [],
+};

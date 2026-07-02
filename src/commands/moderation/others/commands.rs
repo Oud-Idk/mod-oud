@@ -23,6 +23,7 @@ pub async fn kick(
         "Invoked kick command"
     );
 
+    ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(&ctx, user.id, "kick").await? else {
         debug!(target_id, "Kick pre-flight permissions check failed");
         return Ok(());
@@ -42,11 +43,6 @@ pub async fn kick(
     ).await?;
 
     send_ephemeral(&ctx, format!("{} is kicked for reason: \"{}\"", user.name, reason_str)).await?;
-
-    log_moderation_action(
-        &ctx, meta.id.get(), user.id.get(), meta.author_id.get(),
-        ActionType::Kick, Some(reason_str), None,
-    ).await?;
 
     info!(target_id, "User successfully kicked");
     Ok(())
@@ -72,6 +68,7 @@ pub async fn ban(
         "Invoked ban command"
     );
 
+    ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(&ctx, user.id, "ban").await? else {
         debug!(target_id, "Ban pre-flight permissions check failed");
         return Ok(());
@@ -115,16 +112,6 @@ pub async fn ban(
         reason_str
     );
     send_ephemeral(&ctx, conf_msg).await?;
-
-    log_moderation_action(
-        &ctx,
-        meta.id.get(),
-        user.id.get(),
-        meta.author_id.get(),
-        ActionType::Ban,
-        Some(reason_str),
-        duration.as_deref(),
-    ).await?;
 
     info!(target_id, duration = duration_label, "User successfully banned");
     Ok(())
@@ -201,6 +188,7 @@ pub async fn mute(
         "Invoked mute command"
     );
 
+    ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(&ctx, member.user.id, "mute").await? else {
         debug!(target_id, "Mute pre-flight permissions check failed");
         return Ok(());
@@ -243,11 +231,6 @@ pub async fn mute(
         format!("**{}** has been muted for {} (Reason: `{}`)", member.user.name, &duration, reason_str),
     ).await?;
 
-    log_moderation_action(
-        &ctx, meta.id.get(), member.user.id.get(), meta.author_id.get(),
-        ActionType::Mute, Some(reason_str), Some(&duration),
-    ).await?;
-
     info!(target_id, duration = %duration, "User successfully muted");
     Ok(())
 }
@@ -269,6 +252,7 @@ pub async fn unmute(
         "Invoked unmute command"
     );
 
+    ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(&ctx, member.user.id, "unmute").await? else {
         debug!(target_id, "Unmute pre-flight permissions check failed");
         return Ok(());
@@ -300,16 +284,6 @@ pub async fn unmute(
 
     send_ephemeral(&ctx, format!("**Successfully unmuted {}**.", member.user.name)).await?;
 
-    log_moderation_action(
-        &ctx,
-        meta.id.get(),
-        member.user.id.get(),
-        meta.author_id.get(),
-        ActionType::Unmute,
-        None,
-        None,
-    ).await?;
-
     info!(target_id, "User successfully unmuted");
     Ok(())
 }
@@ -333,6 +307,7 @@ pub async fn softban(
         "Invoked softban command"
     );
 
+    ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(&ctx, member.user.id, "softban").await? else {
         debug!(target_id, "Softban pre-flight permissions check failed");
         return Ok(());
@@ -353,20 +328,9 @@ pub async fn softban(
         dmd,
     ).await?;
 
-    // Ephemeral confirmation & Logging
     send_ephemeral(
         &ctx,
         format!("**Successfully soft-banned {}**", member.user.name),
-    ).await?;
-
-    log_moderation_action(
-        &ctx,
-        meta.id.get(),
-        member.user.id.get(),
-        meta.author_id.get(),
-        ActionType::Softban,
-        Some(reason_str),
-        None,
     ).await?;
 
     info!(target_id, "User successfully soft-banned");
@@ -387,6 +351,7 @@ pub async fn unban(
         "Invoked unban command"
     );
 
+    ctx.defer_ephemeral().await?;
     let meta = GuildMetadata::extract(&ctx)?;
     let reason_str = reason.unwrap_or_else(|| "No reason specified".to_string());
     let unban_result = meta.id.unban(ctx.http(), user.id).await;
@@ -394,15 +359,8 @@ pub async fn unban(
     match unban_result {
         Ok(_) => {
             log_moderation_action(
-                &ctx,
-                meta.id.get(),
-                user.id.get(),
-                meta.author_id.get(),
-                ActionType::Unban,
-                Some(&reason_str),
-                None,
-            )
-                .await?;
+                &ctx.data().db, meta.id, Some(&user), &ctx.author(), Some(&reason_str), "softban", None,
+            ).await?;
 
             ctx.say(format!(
                 "Successfully unbanned **{}** (ID: `{}`).",

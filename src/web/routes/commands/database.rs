@@ -6,9 +6,9 @@ use sqlx::{Error, PgPool};
 pub async fn fetch_target_report(
     pool: &PgPool,
     report_id: i32,
-) -> Result<(poise::serenity_prelude::GuildId, poise::serenity_prelude::UserId), (StatusCode, String)> {
+) -> Result<(poise::serenity_prelude::GuildId, poise::serenity_prelude::UserId, String), (StatusCode, String)> {
     let report = sqlx::query!(
-        "SELECT guild_id, author_id FROM reported_messages WHERE id = $1",
+        "SELECT guild_id, author_id, author_name FROM reported_messages WHERE id = $1",
         report_id
     )
         .fetch_optional(pool)
@@ -23,7 +23,7 @@ pub async fn fetch_target_report(
         report.author_id.parse().map_err(|_| (StatusCode::BAD_REQUEST, "Invalid user ID in DB".to_string()))?
     );
 
-    Ok((guild_id, user_id))
+    Ok((guild_id, user_id, report.author_name))
 }
 
 pub async fn update_reported_message(

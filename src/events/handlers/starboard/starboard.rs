@@ -13,19 +13,19 @@ pub enum StarboardOp {
     Remove,
 }
 
-#[instrument(skip(ctx, data), fields(reaction = ?add_reaction.emoji))]
+#[instrument(skip(ctx, data, add_reaction), fields(reaction = ?add_reaction.emoji))]
 pub async fn handle_starboard_reaction_add(ctx: &Context, add_reaction: &Reaction, data: &Data) -> Result<(), Error> {
     debug!("Handling reaction add event");
     handle_starboard_reaction(ctx, add_reaction, data, StarboardOp::Add).await
 }
 
-#[instrument(skip(ctx, data), fields(reaction = ?removed_reaction.emoji))]
+#[instrument(skip(ctx, data, removed_reaction), fields(reaction = ?removed_reaction.emoji))]
 pub async fn handle_starboard_reaction_remove(ctx: &Context, removed_reaction: &Reaction, data: &Data) -> Result<(), Error> {
     debug!("Handling reaction remove event");
     handle_starboard_reaction(ctx, removed_reaction, data, StarboardOp::Remove).await
 }
 
-#[instrument(skip(ctx, data), fields(op = ?op))]
+#[instrument(skip(ctx, data, reaction), fields(op = ?op))]
 async fn handle_starboard_reaction(
     ctx: &Context,
     reaction: &Reaction,
@@ -45,8 +45,6 @@ async fn handle_starboard_reaction(
     };
     let guild_id_str = guild_id.to_string();
 
-    // Note: You may want to update `utils::get_starboards` signature
-    // to accept `&fred::clients::Client` instead of the old `redis-rs` client type.
     let starboards = utils::get_starboards(&guild_id_str, db, redis).await?;
     if starboards.is_empty() {
         trace!("No starboards configured for guild {}", guild_id);

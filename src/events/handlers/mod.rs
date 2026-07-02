@@ -4,3 +4,5 @@ pub mod tickets;
 pub mod starboard;
 pub mod levels;
 pub mod message_logging;
+pub mod reaction_roles;
+pub mod automod;

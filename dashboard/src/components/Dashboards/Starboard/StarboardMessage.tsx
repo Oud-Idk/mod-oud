@@ -24,7 +24,6 @@ export const StarboardMessage = ({ config, embed, text }: EmbedProps) => {
         if (!text) return "";
         let parsed = text;
 
-        // Static placeholders
         config.placeholders.forEach((ph) => {
             parsed = parsed.replaceAll(`{${ph.key}}`, ph.mockValue);
         });
@@ -40,7 +39,7 @@ export const StarboardMessage = ({ config, embed, text }: EmbedProps) => {
                 <p>{renderWithPlaceholders(text)}</p>
                 <DiscordEmbed
                     slot="embeds"
-                    color={embed.color || "#2ecc71"}
+                    color={embed.color || "#ffffff"}
                     authorName={renderWithPlaceholders(embed.authorName)}
                     authorImage={renderWithPlaceholders(embed.authorIcon)}
                     embedTitle={renderWithPlaceholders(embed.title)}

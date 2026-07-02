@@ -15,12 +15,13 @@ interface Props {
     enablePlaceholderList?: boolean;
     customPreview?: ReactNode;
     setIsEmpty: (value: SetStateAction<boolean>) => void;
+    placeholderConfig?: BuilderConfig;
 }
 
 const emptyState: EmbedState = {
     title: "",
     description: "",
-    color: "#2ecc71",
+    color: "#ffffff",
     thumbnailUrl: "",
     imageUrl: "",
     authorName: "",
@@ -87,6 +88,7 @@ export default function EmbedBuilder({
     enablePlaceholderList = true,
     customPreview: CustomPreview,
     setIsEmpty,
+    placeholderConfig
 }: Props) {
     const embed = useMemo<EmbedState>(() => {
         const parsed = parseSavedEmbed(initialEmbedState, emptyState);
@@ -126,7 +128,9 @@ export default function EmbedBuilder({
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="flex flex-col space-y-4 pt-2">
-                    {enablePlaceholderList && (<PlaceholderList config={config}/>)}
+                    {(enablePlaceholderList && (placeholderConfig?.placeholders.length || 0 > 0)) && (
+                        <PlaceholderList config={config}/>)
+                    }
                     <EmbedBuilderForm
                         embed={embed}
                         handleChange={handleChange}

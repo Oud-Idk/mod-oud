@@ -6,10 +6,12 @@ import {
     DoorOpen,
     FileText,
     LayoutDashboard,
+    LayoutTemplate,
     Logs,
     Megaphone,
     MessageSquare,
     MessageSquareWarning,
+    ScrollTextIcon,
     Star,
     Ticket,
     TrendingUp
@@ -20,10 +22,8 @@ export function SidebarLinks() {
     const params = useParams();
     const pathname = usePathname();
 
-    // Retrieve the active guild_id from dynamic route parameters
     const guildId = params?.guild_id as string | undefined;
 
-    // If there is no active server selected, we can hide the links or render nothing
     if (!guildId) return null;
 
     const links = [
@@ -91,6 +91,18 @@ export function SidebarLinks() {
             name: "Tickets",
             href: `/dashboard/${guildId}/tickets`,
             icon: Ticket,
+            exact: false,
+        },
+        {
+            name: "Logs",
+            href: `/dashboard/${guildId}/logs`,
+            icon: ScrollTextIcon,
+            exact: false,
+        },
+        {
+            name: "Embed Builder",
+            href: `/dashboard/${guildId}/embed-builder`,
+            icon: LayoutTemplate,
             exact: false,
         }
     ];

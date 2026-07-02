@@ -1,7 +1,6 @@
 use crate::types::config::bad_words::BadWordRuleset;
 use crate::types::config::message_filter::{Pattern, RuleAction, RuleScope};
 use crate::types::{Data, Error};
-use fred::bytes_utils::Str;
 use fred::interfaces::FredResult;
 use fred::prelude::KeysInterface;
 use fred::types::Expiration;
@@ -38,11 +37,11 @@ pub async fn insert_automod_log(
     guild_id: i64,
     user_id: i64,
     channel_id: i64,
-    message_id: i64,
+    message_id: Option<i64>,
     rule_name: &str,
     trigger_content: Option<&str>,
-    original_content: &str,
-    actions_taken: &[&'static str], // Keep this slice of static string slices
+    original_content: Option<&str>,
+    actions_taken: &[&'static str],
 ) -> Result<(), sqlx::Error> {
     let actions_vec: Vec<String> = actions_taken
         .iter()
@@ -54,14 +53,14 @@ pub async fn insert_automod_log(
         INSERT INTO automod_logs (guild_id, user_id, channel_id, message_id, rule_type, trigger_content, original_content, actions_taken)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
-        guild_id,
-        user_id,
-        channel_id,
-        Some(message_id),
+        guild_id.to_string(),
+        user_id.to_string(),
+        channel_id.to_string(),
+        message_id.map(|v| v.to_string()),
         rule_name,
         trigger_content,
-        Some(original_content),
-        &actions_vec, // Bind the Vec<String>
+        original_content,
+        &actions_vec,
     )
         .execute(db)
         .await?;

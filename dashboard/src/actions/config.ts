@@ -28,23 +28,17 @@ import { ModerationDMsConfig } from "@/types/config/moderationDMs";
 export async function verifyGuildAccess(guildId: string) {
     const session = await auth();
 
-    // 1. Authenticate User
     if (!session || !session.user) {
         throw new Error("Unauthorized: Please sign in.");
     }
 
-    // Retrieve the access token from the session.
-    // Ensure your Auth.js config exposes this token in the session object.
     const accessToken = session.accessToken as string | undefined;
     if (!accessToken) {
         throw new Error("Unauthorized: Missing access token.");
     }
 
-    // 2. Authorize User
-    // Use your existing function to fetch the guilds the user can manage
     const { mutualGuilds } = await getGuildLists(accessToken);
 
-    // Check if the requested guild is in the mutual guilds list
     const hasAccess = mutualGuilds.some((guild) => guild.id === guildId);
     if (!hasAccess) {
         throw new Error("Forbidden: You do not have permission to manage this server or the bot is not present.");

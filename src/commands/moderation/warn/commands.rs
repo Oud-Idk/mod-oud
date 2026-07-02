@@ -1,7 +1,6 @@
 use crate::commands::moderation::perms::pre_flight_check;
 use crate::commands::moderation::warn::database::{fetch_warnings, search_warning_from_id, search_warnings_by_pattern};
 use crate::commands::moderation::warn::paginate;
-use crate::utils::logger::{log_moderation_action, ActionType};
 use crate::utils::moderating::{issue_delete_warning, issue_warning};
 
 use crate::commands::moderation::utils::send_ephemeral;
@@ -22,6 +21,7 @@ pub async fn warn(
     #[description = "The member to warn"] member: Member,
     #[description = "The reason"] reason: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
     let target_id = member.user.id.get();
     info!(
         caller_id = ctx.author().id.get(),
@@ -45,6 +45,8 @@ pub async fn warn(
         member.user.id,
         meta.author_id,
         &reason_str,
+        &ctx.author().name,
+        &member.user.name,
     ).await?;
 
     ctx.send(
@@ -67,6 +69,7 @@ pub async fn warn_history(
     ctx: Context<'_>,
     #[description = "The member to check"] member: Member,
 ) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
     let target_id = member.user.id.get();
     info!(
         caller_id = ctx.author().id.get(),
@@ -213,6 +216,7 @@ pub async fn delete_warning(
         "Invoked delete_warning command"
     );
 
+    ctx.defer_ephemeral().await?;
     let meta = GuildMetadata::extract(&ctx)?;
 
     let result = issue_delete_warning(
@@ -233,16 +237,6 @@ pub async fn delete_warning(
                     "**Warning #{}** for <@{}> has been permanently deleted.\n**Original Reason:** {}",
                     id, target_user_id, reason
                 ),
-            ).await?;
-
-            log_moderation_action(
-                &ctx,
-                meta.id.get(),
-                target_user_id,
-                meta.author_id.get(),
-                ActionType::DeleteWarning,
-                Some(&reason),
-                None,
             ).await?;
 
             info!(
@@ -278,6 +272,7 @@ pub async fn pardon_warning(
         warning_id = id,
         "Invoked pardon_warning command"
     );
+    ctx.defer_ephemeral().await?;
     set_warning_active_status(ctx, id, false).await
 }
 
@@ -296,5 +291,6 @@ pub async fn unpardon_warning(
         warning_id = id,
         "Invoked unpardon_warning command"
     );
+    ctx.defer_ephemeral().await?;
     set_warning_active_status(ctx, id, true).await
 }

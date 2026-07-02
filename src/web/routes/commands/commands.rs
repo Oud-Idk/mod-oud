@@ -33,7 +33,7 @@ pub async fn handle_dashboard_command(
 ) -> Result<StatusCode, WebError> {
     info!("Processing dashboard moderation command");
 
-    let (guild_id, user_id) = database::fetch_target_report(&state.pool, cmd.report_id)
+    let (guild_id, user_id, target_username) = database::fetch_target_report(&state.pool, cmd.report_id)
         .await
         .map_err(|(status, err_msg)| {
             error!(
@@ -46,6 +46,7 @@ pub async fn handle_dashboard_command(
     let mod_id_str = cmd.moderator_id.as_deref();
 
     let mut redis_conn = state.redis.clone();
+    let moderator_name = cmd.name.as_deref().unwrap_or("Web Dashboard");
 
     match &cmd.action {
         DashboardAction::ResolveReport { status } => {
@@ -55,7 +56,16 @@ pub async fn handle_dashboard_command(
             handlers::handle_delete_message(&state, &cmd, channel_id, message_id).await?;
         }
         DashboardAction::WarnUser => {
-            handlers::handle_warn(&state, &cmd, mod_id_str, &guild_id, &user_id, &mut redis_conn).await?;
+            handlers::handle_warn(
+                &state,
+                &cmd,
+                mod_id_str,
+                &guild_id,
+                &user_id,
+                &mut redis_conn,
+                &moderator_name,
+                &target_username
+            ).await?;
         }
         DashboardAction::TimeoutUser => {
             handlers::handle_timeout(&state, &cmd, mod_id_str, &guild_id, &user_id, &mut redis_conn).await?;

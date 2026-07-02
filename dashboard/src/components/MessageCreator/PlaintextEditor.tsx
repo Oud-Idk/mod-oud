@@ -1,11 +1,12 @@
 import { JSX, SetStateAction, useEffect } from "react";
 import { PlaceholderList } from "@/components/Embed/PlaceholderList";
 import { Pad } from "@/components/Pad";
+import { BuilderConfig } from "@/types/builder";
 
 interface PlaintextEditorProps {
     value: string;
     placeholder?: string; // Customizable helper text
-    placeholderConfig?: any; // The config for the PlaceholderList (e.g. WELCOME_CONFIG)
+    placeholderConfig?: BuilderConfig; // The config for the PlaceholderList (e.g. WELCOME_CONFIG)
     disabled?: boolean;
     onChange: (val: string) => void;
     setIsEmpty?: (value: SetStateAction<boolean>) => void;
@@ -30,7 +31,8 @@ export function PlaintextEditor({
     return (
         <div className="space-y-2">
             <Pad amount={0.5}/>
-            {placeholderConfig && <PlaceholderList config={placeholderConfig}/>}
+            {placeholderConfig && placeholderConfig.placeholders.length > 0 &&
+                <PlaceholderList config={placeholderConfig}/>}
             <textarea
                 value={value}
                 disabled={disabled}

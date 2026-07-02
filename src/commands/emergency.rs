@@ -1,6 +1,7 @@
 use crate::types::{Context, Error, GuildMetadata};
 use crate::utils::logger::log_moderation_action;
 use crate::utils::logger::ActionType;
+use crate::utils::moderating;
 use poise::serenity_prelude as serenity;
 use serenity::model::channel::GuildChannel;
 use serenity::{PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId};
@@ -56,33 +57,6 @@ fn calculate_lockdown_overwrite(
     }
 }
 
-/// Logs the action to the database and dispatches the log system's Discord embed.
-async fn log_action(
-    ctx: &Context<'_>,
-    guild_id: serenity::GuildId,
-    target_id: u64,
-    action: ActionType,
-    reason: Option<&str>,
-) -> Result<(), Error> {
-    trace!(
-        guild_id = guild_id.get(),
-        target_id,
-        action = ?action,
-        "Dispatching moderation log to database and Discord integration"
-    );
-    log_moderation_action(
-        ctx,
-        guild_id.get(),
-        target_id,
-        ctx.author().id.get(),
-        action,
-        reason,
-        None,
-    )
-        .await?;
-    Ok(())
-}
-
 /// Lock down a text channel, preventing members from sending messages.
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
 pub async fn lock(
@@ -114,7 +88,7 @@ pub async fn lock(
     ))
         .await?;
 
-    log_action(
+    moderating::log_action(
         &ctx,
         meta.id,
         target_channel_id,
@@ -151,7 +125,7 @@ pub async fn unlock(
     ctx.say(format!("🔓 <#{}> has been unlocked.", target_channel.id))
         .await?;
 
-    log_action(
+    moderating::log_action(
         &ctx,
         meta.id,
         target_channel_id,
@@ -212,7 +186,7 @@ pub async fn global_lock(
         .await?;
 
     let detailed_reason = format!("{} (Channels affected: {})", reason_str, locked_count);
-    log_action(
+    moderating::log_action(
         &ctx,
         meta.id,
         meta.id.get(),
@@ -273,7 +247,7 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
         .await?;
 
     let detailed_reason = format!("Channels affected: {}", unlocked_count);
-    log_action(
+    moderating::log_action(
         &ctx,
         meta.id,
         meta.id.get(),
