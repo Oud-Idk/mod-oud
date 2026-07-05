@@ -32,16 +32,17 @@ pub async fn insert_warning(
 }
 
 /// Logs an automod action execution event to the database.
-pub async fn insert_automod_log(
+pub async fn insert_automod_log<'a>(
     db: &sqlx::PgPool,
     guild_id: i64,
     user_id: i64,
-    channel_id: i64,
+    channel_id: Option<i64>,
     message_id: Option<i64>,
     rule_name: &str,
     trigger_content: Option<&str>,
     original_content: Option<&str>,
-    actions_taken: &[&'static str],
+    actions_taken: &[&'a str],
+    username: &str,
 ) -> Result<(), sqlx::Error> {
     let actions_vec: Vec<String> = actions_taken
         .iter()
@@ -50,17 +51,18 @@ pub async fn insert_automod_log(
 
     sqlx::query!(
         r#"
-        INSERT INTO automod_logs (guild_id, user_id, channel_id, message_id, rule_type, trigger_content, original_content, actions_taken)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO automod_logs (guild_id, user_id, channel_id, message_id, rule_type, trigger_content, original_content, actions_taken, username)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#,
         guild_id.to_string(),
         user_id.to_string(),
-        channel_id.to_string(),
+        channel_id.map(|v| v.to_string()),
         message_id.map(|v| v.to_string()),
         rule_name,
         trigger_content,
         original_content,
         &actions_vec,
+        username,
     )
         .execute(db)
         .await?;
@@ -87,7 +89,6 @@ pub async fn get_bad_word_rulesets(
     let rulesets = rows
         .into_iter()
         .map(|r| {
-            // Safely parse JSONB fields into typed Rust configurations
             let patterns: Vec<Pattern> = serde_json::from_value(r.patterns).unwrap_or_default();
             let actions: Vec<RuleAction> = serde_json::from_value(r.actions).unwrap_or_default();
             let scope: RuleScope = serde_json::from_value(r.scope).unwrap_or_default();

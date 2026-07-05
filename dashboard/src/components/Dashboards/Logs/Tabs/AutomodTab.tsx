@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AutomodLog, getAutomodLogs } from "@/actions/logs";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Dashboards/Logs/Table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Table";
 
 interface AutomodTabProps {
     guildId: string;

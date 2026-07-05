@@ -211,12 +211,13 @@ pub async fn log_automod_event(
         db,
         guild_id,
         user_id,
-        channel_id,
+        Some(channel_id),
         Some(message_id),
         rule_name,
         trigger_content,
         Some(&message.content),
         actions_taken,
+        &message.author.name,
     )
         .await
     {

@@ -3,7 +3,7 @@ use crate::commands::moderation::utils;
 use crate::commands::moderation::utils::{parse_duration, send_ephemeral};
 use crate::types::{Context, Error, GuildMetadata};
 use crate::utils::logger::{log_moderation_action, ActionType};
-use crate::utils::moderating::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};
+use crate::utils::moderation::actions::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};
 use poise::serenity_prelude as serenity;
 use serenity::all::{GetMessages, Member, MessageId, User};
 use std::time::{SystemTime, UNIX_EPOCH};

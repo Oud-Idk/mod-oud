@@ -69,7 +69,7 @@ pub async fn handle_warn(
 
     info!(moderator_id = %moderator_id, "Issuing warning to user");
 
-    crate::utils::moderating::issue_warning(
+    crate::utils::moderation::actions::issue_warning(
         &state.pool,
         redis,
         &state.guild_configs,
@@ -134,7 +134,7 @@ pub async fn handle_timeout(
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
 
-    crate::utils::moderating::issue_mute(
+    crate::utils::moderation::actions::issue_mute(
         &state.pool,
         redis,
         &state.guild_configs,
@@ -183,7 +183,7 @@ pub async fn handle_ban_user(
         None => "Permanent".to_string(),
     };
 
-    crate::utils::moderating::issue_ban(
+    crate::utils::moderation::actions::issue_ban(
         &state.pool,
         redis,
         &state.guild_configs,

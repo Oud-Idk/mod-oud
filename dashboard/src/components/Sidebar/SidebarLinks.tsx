@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import {
+    AlertTriangle,
     DoorOpen,
     FileText,
     LayoutDashboard,
@@ -103,6 +104,12 @@ export function SidebarLinks() {
             name: "Embed Builder",
             href: `/dashboard/${guildId}/embed-builder`,
             icon: LayoutTemplate,
+            exact: false,
+        },
+        {
+            name: "Warns",
+            href: `/dashboard/${guildId}/warns`,
+            icon: AlertTriangle,
             exact: false,
         }
     ];

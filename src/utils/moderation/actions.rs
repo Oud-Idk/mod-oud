@@ -1,92 +1,22 @@
 use crate::commands::moderation::warn::database::{delete_warn, update_warn};
 use crate::core::config::{get_guild_ctx, get_settings};
+use crate::events::handlers::message_filter::database::insert_automod_log;
 use crate::types::config::config::{Format, GuildSettings};
-use crate::types::{Context, Error};
+use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::logger::{log_moderation_action, ActionType};
+use crate::utils::moderation::database::{fetch_warn_threshold, fetch_warn_thresholds, get_warn_count, insert_warn, log_warning, ModerationAction, WarnThreshold};
+use crate::utils::moderation::{database, MODERATION_FOOTER};
 use crate::utils::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
+use crate::{fetch_mod_ctx, send_mod_dm};
 use chrono::TimeDelta;
 use duration_str::HumanFormat;
-use fred::prelude::Client;
-use poise::serenity_prelude as serenity;
-use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http, Timestamp, User, UserId};
-use sqlx::postgres::types::PgInterval;
+use fred::clients::Client;
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http, Member, RoleId, Timestamp, User, UserId};
 use sqlx::PgPool;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tracing::{debug, error, info, instrument, trace, warn};
-
-const MODERATION_FOOTER: &str = "This is an automated moderation action. If you believe this was a mistake, please create a ticket on the server.";
-
-/// Helper macro to fetch common moderation context (Guild Context, Member, Settings)
-macro_rules! fetch_mod_ctx {
-    ($db:expr, $redis_conn:expr, $config_cache:expr, $http:expr, $guild_id:expr, $user_id:expr) => {{
-        let gctx_fut = async {
-            get_guild_ctx($guild_id, $http.as_ref()).await
-                .map_err(|e| -> crate::types::Error { e.into() })
-        };
-
-        let member_fut = async {
-            $http.get_member($guild_id, $user_id).await
-                .map_err(|e| -> crate::types::Error { e.into() })
-        };
-
-        let settings_fut = async {
-            get_settings($db, $redis_conn, $config_cache, $guild_id.get() as i64).await
-                .map_err(|e| -> crate::types::Error { e.into() })
-        };
-
-        tokio::try_join!(gctx_fut, member_fut, settings_fut)?
-    }};
-}
-
-/// Helper macro to handle building, falling back, and sending moderation DMs
-macro_rules! send_mod_dm {
-    (
-        $http:expr,
-        $user_id:expr,
-        $dm_settings_opt:expr,
-        $action_name:expr,
-        $replace_closure:expr,
-        $default_embed_block:expr
-    ) => {{
-        let mut custom_msg_opt = None;
-
-        if let Some(dm_settings) = $dm_settings_opt {
-            if dm_settings.enabled {
-                let is_embed = matches!(dm_settings.format, Format::Embed);
-
-                custom_msg_opt = build_custom_message(
-                    is_embed,
-                    Some(&dm_settings.content),
-                    dm_settings.embed.as_ref(),
-                    $replace_closure,
-                ).unwrap_or_else(|e| {
-                    tracing::error!(error = %e, action = $action_name, "Failed to build custom moderation DM");
-                    None
-                });
-            }
-        }
-
-        let dm_message = custom_msg_opt.unwrap_or_else(|| {
-            CreateMessage::new().embed($default_embed_block)
-        });
-
-        match $user_id.dm($http, dm_message).await {
-            Ok(_) => {
-                tracing::debug!(user_id = %$user_id, action = $action_name, "Successfully sent moderation DM to user");
-            }
-            Err(e) => {
-                tracing::warn!(
-                    user_id = %$user_id,
-                    action = $action_name,
-                    error = ?e,
-                    "Failed to send moderation DM to user (DMs may be closed)"
-                );
-            }
-        }
-    }};
-}
+use std::time::Duration;
+use tracing::{debug, error, info, instrument, warn};
 
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user_id, moderator_id = %moderator_id
 ))]
@@ -103,16 +33,12 @@ pub async fn issue_warning(
     target_username: &str,
 ) -> Result<i64, Error> {
     debug!("Inserting warning record into database");
-    let warn_res = sqlx::query!(
-        r#"INSERT INTO warns (guild_id, user_id, moderator_id, reason) VALUES ($1, $2, $3, $4) RETURNING id"#,
-        guild_id.get() as i64, user_id.get() as i64, moderator_id.get() as i64, reason
-    ).fetch_one(db).await?;
-    let warn_id = warn_res.id;
 
-    debug!(warn_id, "Warning record inserted; logging action in moderation_logs");
+    let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason, moderator_username, target_username).await?;
 
-    debug!(warn_id, "Moderation log entry created; retrieving moderation context");
-    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
+    debug!(warn_id, warn_count, "Warning record inserted; logging action in moderation_logs");
+    debug!(warn_id, "Retrieving moderation context");
+    let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
     let moderator_user = http.get_user(moderator_id).await.unwrap_or_else(|_| member.user.clone());
 
     let warn_dm_settings_opt = settings.moderation_dms.and_then(|m| m.warn);
@@ -132,25 +58,90 @@ pub async fn issue_warning(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
-    sqlx::query!(
-        r#"
-        INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration, moderator_username, target_username)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        "#,
-        guild_id.get() as i64,
-        user_id.get() as i64,
-        moderator_id.get() as i64,
-        "warn",
-        reason,
-        None::<PgInterval>,
-        moderator_username,
-        target_username,
-    )
-        .execute(db)
-        .await?; // inlining because the args are different af
+    log_warning(db, guild_id, user_id, moderator_id, reason, moderator_username, target_username).await?;
+
+    let thresholds = fetch_warn_thresholds(&db, &redis_conn, &guild_id).await?;
+    let applicable_thresholds = thresholds
+        .iter()
+        .filter(|t| t.warn_count <= warn_count)
+        .collect::<Vec<&WarnThreshold>>();
+
+    apply_threshold_actions(&http, &db, &mut member, &applicable_thresholds).await?;
 
     info!(warn_id, "Successfully issued warning to user");
     Ok(warn_id as i64)
+}
+
+async fn apply_threshold_actions(
+    http: &Arc<Http>,
+    db: &PgPool,
+    member: &mut Member,
+    thresholds: &[&WarnThreshold],
+) -> Result<(), Error> {
+    for threshold in thresholds {
+        for action in &threshold.action_type {
+            match action {
+                ModerationAction::Ban => {
+                    debug!("Executing auto-ban");
+                    member.ban_with_reason(http, 7, "Reached warning threshold").await?;
+                    insert_threshold_automod_log(db, member, &threshold, "ban").await?;
+                }
+                ModerationAction::Kick => {
+                    debug!("Executing auto-kick");
+                    member.kick_with_reason(http, "Reached warning threshold").await?;
+                    insert_threshold_automod_log(db, member, &threshold, "kick").await?;
+                }
+                ModerationAction::Timeout => {
+                    if let Some(secs) = threshold.duration {
+                        debug!(secs, "Executing auto-timeout");
+                        let until = Timestamp::from_unix_timestamp(
+                            chrono::Utc::now().timestamp() + secs as i64
+                        )?;
+
+                        let mut builder = serenity::builder::EditMember::new();
+                        builder = builder.disable_communication_until(until.to_string());
+                        member.edit(http, builder).await?;
+                    }
+                }
+                ModerationAction::RoleAdd => {
+                    if let Some(ref roles) = threshold.roles_to_add {
+                        for role_id in roles {
+                            debug!(role_id, "Adding role from threshold");
+                            member.add_role(http, RoleId::new(role_id.parse::<u64>()?)).await?;
+                        }
+                    }
+                }
+                ModerationAction::RoleRemove => {
+                    if let Some(ref roles) = threshold.roles_to_remove {
+                        for role_id in roles {
+                            debug!(role_id, "Removing role from threshold");
+                            member.remove_role(http, RoleId::new(role_id.parse::<u64>()?)).await?;
+                        }
+                    }
+                }
+                ModerationAction::RoleRemoveAll => {
+                    debug!("Removing all roles from member");
+                    for role in &member.roles {
+                        member.remove_role(http, *role).await?;
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn insert_threshold_automod_log(db: &PgPool, member: &mut Member, threshold: &WarnThreshold, name: &str) -> Result<(), Error> {
+    insert_automod_log(
+        db,
+        member.guild_id.get() as i64,
+        member.user.id.get() as i64,
+        None, None,
+        &format!("Warn Threshold: {}", threshold.warn_count),
+        None, None,
+        &[name], &member.user.name,
+    ).await?;
+    Ok(())
 }
 
 /// Core logic for issuing a kick, fetching custom settings, and sending DMs
@@ -229,7 +220,6 @@ pub async fn issue_kick(
     info!("Successfully kicked user from guild");
     Ok(())
 }
-
 
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id, duration_label
 ))]
@@ -457,37 +447,33 @@ pub async fn issue_delete_warning(
     let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
 
     debug!(target_user_id, "Record deleted; retrieving context for warning deletion message");
-    let gctx = get_guild_ctx(guild_id_raw, http.as_ref()).await?;
-    let member = http.get_member(guild_id_raw, user_id).await?;
+
+    let (gctx, member, settings) = fetch_mod_ctx!(
+        db,
+        redis_conn,
+        guild_configs,
+        http,
+        guild_id_raw,
+        user_id
+    );
     let user = &member.user;
 
-    let settings = get_settings(db, redis_conn, guild_configs, guild_id).await?;
     let dm_settings_opt = settings.moderation_dms.and_then(|m| m.unpardon_delete_warn);
 
-    let mut custom_msg_opt = None;
-    if let Some(dm_settings) = dm_settings_opt {
-        let is_embed = matches!(dm_settings.format, Format::Embed);
-
-        custom_msg_opt = build_custom_message(
-            is_embed,
-            Some(&dm_settings.content),
-            dm_settings.embed.as_ref(),
-            |text| {
-                replace_basic_placeholder(
-                    text,
-                    &gctx,
-                    &member,
-                    author,
-                )
-            },
-        ).unwrap_or_else(|e| {
-            error!(error = %e, "Failed to build custom warning deletion message");
-            None
-        });
-    }
-
-    let message = custom_msg_opt.unwrap_or_else(|| {
-        let embed = CreateEmbed::new()
+    send_mod_dm!(
+        http,
+        user,
+        dm_settings_opt,
+        "delete_warning",
+        |text| {
+            replace_basic_placeholder(
+                text,
+                &gctx,
+                &member,
+                author,
+            )
+        },
+        CreateEmbed::new()
             .title(format!(
                 "Your warning at {} has been permanently deleted.",
                 gctx.name
@@ -495,22 +481,8 @@ pub async fn issue_delete_warning(
             .field("Warning Reason", &reason, false)
             .field("Warning ID", id.to_string(), false)
             .color(0x48F767)
-            .thumbnail(&gctx.icon_url);
-        CreateMessage::new().embed(embed)
-    });
-
-    match user.dm(http, message).await {
-        Ok(_) => {
-            debug!(target_user_id, "Successfully sent warning deletion DM to user");
-        }
-        Err(e) => {
-            warn!(
-                target_user_id,
-                error = ?e,
-                "Failed to send warning deletion DM to user (DMs may be closed)"
-            );
-        }
-    }
+            .thumbnail(&gctx.icon_url)
+    );
 
     info!(target_user_id, "Successfully processed warning deletion");
     Ok(Some((target_user_id, reason)))
@@ -544,8 +516,15 @@ pub async fn issue_warning_status_change(
     let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
 
     debug!(target_user_id, "Warning updated; retrieving context for DM");
-    let gctx = get_guild_ctx(guild_id_raw, http.as_ref()).await?;
-    let member = http.get_member(guild_id_raw, user_id).await?;
+
+    let (gctx, member, settings) = fetch_mod_ctx!(
+        db,
+        redis_conn,
+        guild_configs,
+        http,
+        guild_id_raw,
+        user_id
+    );
     let user = &member.user;
 
     let (action_past_tense, _, color) = if set_active {
@@ -558,37 +537,26 @@ pub async fn issue_warning_status_change(
         db, guild_id_raw, Some(&user), &author, None, action_past_tense, None,
     ).await?;
 
-    let settings = get_settings(db, redis_conn, guild_configs, guild_id).await?;
     let dm_settings_opt = if set_active {
         settings.moderation_dms.and_then(|m| m.unpardon_warn)
     } else {
         settings.moderation_dms.and_then(|m| m.pardon_warn)
     };
 
-    let mut custom_msg_opt = None;
-    if let Some(dm_settings) = dm_settings_opt {
-        let is_embed = matches!(dm_settings.format, Format::Embed);
-
-        custom_msg_opt = build_custom_message(
-            is_embed,
-            Some(&dm_settings.content),
-            dm_settings.embed.as_ref(),
-            |text| {
-                replace_basic_placeholder(
-                    text,
-                    &gctx,
-                    &member,
-                    author,
-                )
-            },
-        ).unwrap_or_else(|e| {
-            error!(error = %e, "Failed to build custom warning status message");
-            None
-        });
-    }
-
-    let message = custom_msg_opt.unwrap_or_else(|| {
-        let embed = CreateEmbed::new()
+    send_mod_dm!(
+        http,
+        user,
+        dm_settings_opt,
+        action_past_tense,
+        |text| {
+            replace_basic_placeholder(
+                text,
+                &gctx,
+                &member,
+                author,
+            )
+        },
+        CreateEmbed::new()
             .title(format!(
                 "Your warning at {} has been {}.",
                 gctx.name, action_past_tense
@@ -596,44 +564,9 @@ pub async fn issue_warning_status_change(
             .field("Warning Reason", &reason, false)
             .field("Warning ID", id.to_string(), false)
             .color(color)
-            .thumbnail(&gctx.icon_url);
-        CreateMessage::new().embed(embed)
-    });
-
-    match user.dm(http, message).await {
-        Ok(_) => {
-            debug!(target_user_id, action = action_past_tense, "Successfully sent warning status change DM");
-        }
-        Err(e) => {
-            warn!(
-                target_user_id,
-                action = action_past_tense,
-                error = ?e,
-                "Failed to send warning status change DM (DMs may be closed)"
-            );
-        }
-    }
+            .thumbnail(&gctx.icon_url)
+    );
 
     info!(target_user_id, action = action_past_tense, "Successfully processed warning status update");
     Ok(Some((target_user_id, reason)))
-}
-
-/// Logs the action to the database and dispatches the log system's Discord embed.
-pub async fn log_action(
-    ctx: &Context<'_>,
-    guild_id: GuildId,
-    target_id: u64,
-    action: ActionType,
-    reason: Option<&str>,
-) -> Result<(), Error> {
-    trace!(
-        guild_id = guild_id.get(),
-        target_id,
-        action = ?action,
-        "Dispatching moderation log to database and Discord integration"
-    );
-    log_moderation_action(
-        &ctx.data().db, guild_id, None, &ctx.author(), None, reason.unwrap_or_default(), None,
-    ).await?;
-    Ok(())
 }

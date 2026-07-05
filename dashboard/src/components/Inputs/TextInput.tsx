@@ -2,12 +2,12 @@ import React from "react";
 import { twMerge } from "tailwind-merge";
 
 interface TextInputProps {
-    // Changed: onSubmit no longer receives a FormEvent, just a simple callback
     onSubmit?: () => void;
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
     className?: string;
+    submitButtonText?: string;
     disableSubmitButton?: boolean;
 }
 
@@ -17,6 +17,7 @@ export function TextInput({
     onChange,
     placeholder,
     className,
+    submitButtonText = "Add",
     disableSubmitButton = false,
 }: TextInputProps) {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -42,7 +43,7 @@ export function TextInput({
                     onClick={onSubmit}
                     className="px-3 py-1.5 text-sm bg-gray-850 rounded cursor-pointer border hover:bg-neutral-300/10"
                 >
-                    Add </button>
+                    {submitButtonText} </button>
             )}
         </div>
     );

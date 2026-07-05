@@ -26,8 +26,11 @@ export function LeaderboardTab({
 
         setIsLoading(true);
         try {
-            // Using cumulative_xp to determine the offset for the next page
-            const lowestXp = displayedLevels[displayedLevels.length - 1].cumulative_xp;
+            // Safely fetch the last item's XP
+            const lastItem = displayedLevels[displayedLevels.length - 1];
+            if (!lastItem) return;
+
+            const lowestXp = lastItem.cumulative_xp;
             const newLevels = await fetchMoreLevels(lowestXp);
 
             if (newLevels.length === 0) {
@@ -45,7 +48,8 @@ export function LeaderboardTab({
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, hasMore, displayedLevels, fetchMoreLevels, displayedLevels[displayedLevels.length - 1].cumulative_xp]);
+        // Removed the unsafe property lookup from the dependency array below:
+    }, [isLoading, hasMore, displayedLevels, fetchMoreLevels]);
 
     const lastElementRef = useCallback(
         (node: HTMLDivElement | null) => {

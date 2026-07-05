@@ -37,7 +37,7 @@ export function MultiplierTab({
     // State to track bulk selections for active items
     const [selectedActiveIds, setSelectedActiveIds] = useState<string[]>([]);
 
-    // 1. Optimistic Updates hook
+    // Optimistic Updates hook
     const [optimisticMultipliers, setOptimisticMultipliers] = useOptimistic<
         XpMultiplier[],
         OptimisticAction
@@ -67,14 +67,13 @@ export function MultiplierTab({
         }));
 
         const optimisticPayload: XpMultiplier[] = selectedTargetIds.map((id) => ({
-            guild_id: guildId, // Now satisfies XpMultiplier interface
+            guild_id: guildId,
             target_id: id,
             target_type: targetType,
             multiplier: multiplierValue,
         }));
 
         startMutation(async () => {
-            // Apply updates instantly to the UI
             setOptimisticMultipliers({ type: "add", targets: optimisticPayload });
             setSelectedTargetIds([]); // Reset selection state
 
@@ -151,17 +150,13 @@ export function MultiplierTab({
 
     return (
         <div className="space-y-4">
-            <div>
-                <h3 className="text-xl">XP Multipliers</h3>
-                <p className="text-xs text-zinc-500 dark:text-neutral-400">
-                    Apply XP bonuses to specific roles or channels. </p>
-            </div>
+            <h3 className="text-xl">XP Multipliers</h3>
 
             <div className="p-3 rounded-lg border space-y-4">
                 <p className="text-lg m-0">Apply New Multipliers</p>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-neutral-400">Type</label>
+                        <label className="text-sm font-medium">Type</label>
                         <Dropdown
                             options={[
                                 { value: "role", label: "Role" },
@@ -173,13 +168,12 @@ export function MultiplierTab({
                         />
                     </div>
 
-                    {/* Target Selector supporting Multi-Select */}
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-neutral-400">
+                        <label className="text-sm font-medium">
                             {targetType === "role" ? "Roles" : "Channels"}
                         </label>
                         <Dropdown
-                            multiple // Assumed multi-select support
+                            multiple
                             options={filteredOptions}
                             value={selectedTargetIds}
                             onChange={(val) => setSelectedTargetIds(val as string[])}
@@ -188,7 +182,6 @@ export function MultiplierTab({
                         />
                     </div>
 
-                    {/* Numeric Multiplier Selection */}
                     <div className="space-y-1.5">
                         <NumberInput
                             value={+multiplierValue.toFixed(1)}
@@ -207,13 +200,12 @@ export function MultiplierTab({
                             onClick={handleAddMultipliers}
                             className="px-4 py-2 bg-neutral-300/10 hover:bg-neutral-300/15 border border-neutral-500 rounded text-sm font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isMutating ? "Saving..." : "Add Multiplier"}
+                            {isMutating ? "Saving..." : "Add"}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Listing Active Multipliers */}
             <div className="space-y-3">
                 <div className="flex justify-between items-center min-h-9">
                     <h4 className="text-sm font-semibold">Active Multipliers</h4>
@@ -232,17 +224,12 @@ export function MultiplierTab({
                     <p className="text-sm italic text-neutral-500">No custom multipliers configured.</p>
                 ) : (
                     <div className="border border-neutral-500/30 rounded-lg overflow-hidden">
-                        {/* Select All Header */}
-                        <div
-                            className="flex items-center gap-3 px-4 py-2.5 bg-neutral-300/10 border-b border-neutral-500/30"
-                        >
+                        <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-300/10 border-b border-neutral-500/30">
                             <input
                                 type="checkbox"
                                 checked={isAllSelected}
                                 ref={(el) => {
-                                    if (el) {
-                                        el.indeterminate = isSomeSelected;
-                                    }
+                                    if (el) el.indeterminate = isSomeSelected;
                                 }}
                                 onChange={handleToggleSelectAll}
                                 disabled={isMutating}
@@ -253,7 +240,6 @@ export function MultiplierTab({
                             </span>
                         </div>
 
-                        {/* Items list */}
                         <div className="divide-y divide-neutral-500/30">
                             {optimisticMultipliers.map((m) => {
                                 const displayName = m.target_type === "role"
@@ -273,18 +259,17 @@ export function MultiplierTab({
                                             className="h-4 w-4 rounded border-neutral-500 text-neutral-600 focus:ring-neutral-500 bg-transparent cursor-pointer disabled:opacity-50"
                                         />
                                         <div className="flex-1 flex justify-between items-center">
-                                            <div>
-                                                <span className="font-semibold text-sm">{displayName}</span>
-                                                <span
-                                                    className="text-xs ml-2.5 px-2 py-0.5 rounded bg-neutral-300/15 border border-neutral-500/20 uppercase tracking-wider text-neutral-400 font-mono"
-                                                >
+                                            <div className="flex items-center gap-4 flex-wrap">
+                                                <span className="font-semibold text-sm">
+                                                    {displayName}
+                                                </span>
+                                                {/* Clean Badge Style matching other tabs */}
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 uppercase tracking-wider font-mono">
                                                     {m.target_type}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-4">
-                                                <span
-                                                    className="font-mono text-sm font-bold text-neutral-900 dark:text-neutral-100"
-                                                >
+                                                <span className="font-mono text-sm font-bold text-neutral-900 dark:text-neutral-100">
                                                     {m.multiplier.toFixed(1)}x
                                                 </span>
                                                 <button
