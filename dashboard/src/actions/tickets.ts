@@ -1,7 +1,7 @@
 "use server";
 
 import { Pool } from 'pg';
-import { getTicketHistory, TicketHistory } from '@/utils/db/ticket_history'; // Assuming you placed the previous TS DB query here
+import { getTicketHistory, TicketHistory } from '@/utils/db/ticketHistory'; // Assuming you placed the previous TS DB query here
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,

@@ -41,8 +41,16 @@ pub struct WebState {
     pub guild_configs: moka::future::Cache<i64, types::config::config::GuildSettings>,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(2 * 1024 * 1024)
+        .build()?;
+
+    runtime.block_on(async_main())
+}
+
+async fn async_main() -> Result<(), Error> {
     dotenvy::dotenv().ok();
 
     tracing_subscriber::fmt()
@@ -174,7 +182,8 @@ async fn main() -> Result<(), Error> {
             | GatewayIntents::MESSAGE_CONTENT
             | GatewayIntents::GUILD_MEMBERS
             | GatewayIntents::GUILD_MESSAGE_REACTIONS
-            | GatewayIntents::GUILD_MODERATION;
+            | GatewayIntents::GUILD_MODERATION
+            | GatewayIntents::GUILD_VOICE_STATES;
 
         let active_names: Vec<&str> = intents
             .iter_names()

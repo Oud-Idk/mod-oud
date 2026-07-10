@@ -24,7 +24,7 @@ pub fn build_welcome_message(
 
     let custom_msg_opt = build_custom_message(
         is_embed,
-        settings.content.as_ref(),
+        settings.content.as_deref(),
         settings.embed.as_ref(),
         |text| replace_welcome_goodbye_placeholders(text, gctx, member, channel, None, Some(warning_text)),
     )?;
@@ -87,7 +87,7 @@ pub async fn build_goodbye_message(
 
             let custom = build_custom_message(
                 is_embed,
-                leave_cfg.content.as_ref(),
+                leave_cfg.content.as_deref(),
                 leave_cfg.embed.as_ref(),
                 |text| replace_welcome_goodbye_placeholders(text, &gctx, member, &context_channel, None, None),
             ).unwrap_or_else(|e| {

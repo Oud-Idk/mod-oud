@@ -2,6 +2,9 @@ use crate::core::config::get_guild_ctx;
 use crate::types::config::config::Format;
 use crate::types::embed::DiscordEmbed;
 use crate::utils::custom_msg::build_custom_message;
+use crate::web::helpers::embed;
+use crate::web::helpers::embed::ContentAndFormat;
+use crate::web::routes::send_temp_voice_interface::SendTempVoiceInterfacePayload;
 use crate::WebState;
 use axum::{
     extract::{Path, State},
@@ -10,6 +13,7 @@ use axum::{
 };
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
+use serenity::gateway::ShardRunnerInfo;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -25,6 +29,17 @@ pub struct SendCustomEmbedPayload {
 pub struct SendCustomEmbedResponse {
     pub message_id: String,
 }
+
+impl ContentAndFormat for SendCustomEmbedPayload {
+    fn content(&self) -> Option<&str> {
+        self.content.as_deref()
+    }
+
+    fn embed(&self) -> Option<&DiscordEmbed> {
+        self.embed.as_ref()
+    }
+}
+
 
 /// Generic handler to deliver custom embeds or messages directly to a channel.
 pub async fn handle_send_custom_embed(
@@ -44,28 +59,11 @@ pub async fn handle_send_custom_embed(
 
     let target_channel = serenity::ChannelId::new(channel_id_u64);
 
-    let is_embed = payload.format.map_or(true, |f| matches!(f, Format::Embed));
+    let is_embed = payload.format.as_ref().map_or(true, |f| matches!(f, Format::Embed));
 
-    let message_builder = match build_custom_message(
-        is_embed,
-        payload.content.as_ref(),
-        payload.embed.as_ref(),
-        |v| { v.to_string() }, // do nothing
-    ) {
-        Ok(Some(builder)) => builder,
-        Ok(None) => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "Cannot send an empty message. Please provide either text content or a populated embed.".to_string(),
-            ));
-        }
-        Err(e) => {
-            warn!(error = ?e, "Failed to parse custom embed format");
-            return Err((
-                StatusCode::BAD_REQUEST,
-                format!("Failed to compile embed: {}", e),
-            ));
-        }
+    let message_builder = match embed::create_embed_for_web(&payload, is_embed, None::<fn(&str) -> String>) {
+        Ok(value) => value,
+        Err(value) => return Err(value),
     };
 
     let message = target_channel

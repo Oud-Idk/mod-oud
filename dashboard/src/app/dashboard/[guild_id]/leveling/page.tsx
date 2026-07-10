@@ -11,7 +11,7 @@ import {
 } from "@/actions/levels";
 import Math from "@/components/Math";
 import { Pad } from "@/components/Pad";
-import { getChannelMap, getGuildChannels, getRoleMap } from "@/utils/discord";
+import { getGuildChannels, getRoleMap, getTextChannelMap } from "@/utils/discord";
 import { getLevels } from "@/utils/db/leaderboard";
 import { fetchMoreLevelsAction } from "@/actions/leaderboard";
 
@@ -34,7 +34,7 @@ export default async function LevelingPage({ params }: PageProps) {
         levels,
     ] = await Promise.all([
         getLevelingConfig(guild_id),
-        getChannelMap(guild_id),
+        getTextChannelMap(guild_id),
         getRoleMap(guild_id),
         getXpMultipliers(guild_id),
         getLevelRewards(guild_id),

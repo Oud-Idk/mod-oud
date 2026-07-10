@@ -154,7 +154,7 @@ fn resolve_moderator_placeholder(
 }
 
 // Internal helper to get or initialize the regex pattern
-fn get_placeholder_regex() -> &'static Regex {
+pub fn get_placeholder_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap())
 }

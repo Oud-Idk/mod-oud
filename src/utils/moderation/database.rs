@@ -82,33 +82,6 @@ pub async fn insert_warn(
 
     Ok((res.id, res.count as i32))
 }
-pub async fn get_warn_count(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<i64, sqlx::Error> {
-    sqlx::query_scalar!(
-        r#"SELECT COUNT(*) FROM warns WHERE guild_id = $1 AND user_id = $2"#,
-        guild_id.get() as i64,
-        user_id.get() as i64
-    )
-        .fetch_one(db)
-        .await
-        .map(|count| count.unwrap_or(0))
-}
-
-pub async fn fetch_warn_threshold(db: &PgPool, redis: &Client, guild_id: GuildId, warn_count: i32) -> Result<Option<WarnThreshold>, anyhow::Error> {
-    let maybe_warn_threshold = sqlx::query_as!(
-        WarnThreshold,
-        r#"
-        SELECT id, guild_id, warn_count, action_type as "action_type: Vec<ModerationAction>", roles_to_add, roles_to_remove, duration
-        FROM warn_thresholds
-        WHERE guild_id = $1 AND warn_count = $2
-        "#,
-        guild_id.get() as i64,
-        warn_count
-    )
-        .fetch_optional(db)
-        .await?;
-
-    Ok(maybe_warn_threshold)
-}
 
 pub async fn fetch_warn_thresholds(db: &PgPool, redis: &Client, guild_id: &GuildId) -> Result<Vec<WarnThreshold>, anyhow::Error> {
     let cache_key = format!("warn_thresholds:{}", guild_id.get());
@@ -125,7 +98,7 @@ pub async fn fetch_warn_thresholds(db: &PgPool, redis: &Client, guild_id: &Guild
             FROM warn_thresholds
             WHERE guild_id = $1
         "#,
-        guild_id.get() as i64,
+        guild_id.to_string(),
     ).fetch_all(db).await?;
 
     if let Ok(json_string) = serde_json::to_string(&thresholds) {

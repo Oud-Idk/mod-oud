@@ -1,6 +1,7 @@
 import redis from "@/utils/init/redis";
 import { DiscordChannel, DiscordGuildDetails } from "@/types";
 import { DiscordRole } from "@/components/Dashboards/Welcome/WelcomeBody";
+import { revalidateTag } from "next/cache";
 
 export async function getGuildChannels(guild_id: string): Promise<DiscordChannel[]> {
     const token = process.env.DISCORD_TOKEN;
@@ -106,7 +107,10 @@ async function getGuildResourceMap<T extends { id: string; name: string }>(
     try {
         const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/${endpoint}`, {
             headers: { Authorization: `Bot ${token}` },
-            next: { revalidate: 300 }
+            next: {
+                revalidate: 300,
+                tags: [`guild-${cacheSuffix}-${guildId}`]
+            }
         });
 
         if (!res.ok) throw new Error(`Discord API returned status ${res.status}`);
@@ -132,11 +136,19 @@ async function getGuildResourceMap<T extends { id: string; name: string }>(
     }
 }
 
-export async function getChannelMap(guildId: string): Promise<Record<string, string>> {
+export async function getTextChannelMap(guildId: string): Promise<Record<string, string>> {
     return getGuildResourceMap<DiscordChannel>(guildId, {
         cacheSuffix: "channels",
         endpoint: "channels",
         filter: (channel) => channel.type !== 4 && channel.type !== 2 && channel.type !== 13
+    });
+}
+
+export async function getVoiceChannelMap(guildId: string): Promise<Record<string, string>> {
+    return getGuildResourceMap<DiscordChannel>(guildId, {
+        cacheSuffix: "voice-channels",
+        endpoint: "channels",
+        filter: (channel) => channel.type === 2
     });
 }
 
@@ -153,4 +165,20 @@ export async function getCategoryMap(guildId: string): Promise<Record<string, st
         endpoint: "channels",
         filter: (channel) => channel.type === 4
     });
+}
+
+export async function invalidateGuildChannelCache(guildId: string): Promise<void> {
+    try {
+        const keysToDelete = [
+            `guild:${guildId}:categories`,
+            `guild:${guildId}:voice-channels`,
+            `guild:${guildId}:channels`
+        ];
+        await redis.del(keysToDelete);
+    } catch (redisError) {
+        console.error(`Failed to invalidate Redis cache for guild ${guildId}:`, redisError);
+    }
+
+    revalidateTag(`guild-voice-channels-${guildId}`, 'max');
+    revalidateTag(`guild-categories-${guildId}`, 'max');
 }

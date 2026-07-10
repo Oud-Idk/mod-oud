@@ -12,10 +12,11 @@ import {
     saveMessageFilteringConfig,
     saveModerationDMsConfig,
     saveReportConfig,
+    saveTempVoiceChannelConfig,
     saveTicketConfig,
     saveWelcomeConfig
 } from "@/utils/db/config";
-import { LeaveConfig, LevelingConfig, ReportConfig, TicketConfig } from "@/types/config";
+import { LeaveConfig, LevelingConfig, ReportConfig, TempVoiceConfig, TicketConfig } from "@/types/config";
 import { WelcomeConfig } from "@/types/config/welcome";
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { getGuildLists } from "@/utils/servers";
@@ -97,6 +98,17 @@ export async function saveMessageFilteringConfigAction(guildId: string, data: Me
         await verifyGuildAccess(guildId);
         await saveMessageFilteringConfig(guildId, data);
         revalidatePath(`/dashboard/${guildId}/message-filtering`);
+    } catch (error) {
+        console.error("Failed to save message filtering config:", error);
+        throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
+    }
+}
+
+export async function saveTempVoiceChannelConfigAction(guildId: string, data: TempVoiceConfig) {
+    try {
+        await verifyGuildAccess(guildId);
+        await saveTempVoiceChannelConfig(guildId, data);
+        revalidatePath(`/dashboard/${guildId}/temp-voice`);
     } catch (error) {
         console.error("Failed to save message filtering config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
@@ -194,7 +206,7 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
  */
 export async function saveBadWordRulesetAction(
     guildId: string,
-    ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId'> & { id?: string }
+    ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId' | 'id'> & { id?: string }
 ): Promise<BadWordRulesetRow> {
     try {
         const savedRow = await saveBadWordRuleset(guildId, ruleset);

@@ -48,7 +48,7 @@ export default function TicketingTab({
     const handleChange = useCallback((updated: GenericMessageConfig) => {
         setConfig((prev) => ({
             ...prev,
-            enabled: updated.enabled,
+            enabled: updated.enabled ?? false,
             channel_id: updated.channel_id || "",
             content: updated.content,
             embed: updated.embed,

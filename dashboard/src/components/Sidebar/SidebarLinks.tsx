@@ -15,7 +15,8 @@ import {
     ScrollTextIcon,
     Star,
     Ticket,
-    TrendingUp
+    TrendingUp,
+    Volume2Icon
 } from "lucide-react";
 import { FaceSmileIcon } from "@heroicons/react/24/outline";
 
@@ -110,6 +111,12 @@ export function SidebarLinks() {
             name: "Warns",
             href: `/dashboard/${guildId}/warns`,
             icon: AlertTriangle,
+            exact: false,
+        },
+        {
+            name: "Temporary Voice Channel",
+            href: `/dashboard/${guildId}/temp-voice`,
+            icon: Volume2Icon,
             exact: false,
         }
     ];

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { getTicketHistoryAction, getTicketsListAction, TicketSummary } from "@/actions/tickets";
-import { TicketHistory } from "@/utils/db/ticket_history";
+import { TicketHistory } from "@/utils/db/ticketHistory";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 
 interface HistoryTabProps {

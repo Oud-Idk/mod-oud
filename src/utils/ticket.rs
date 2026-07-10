@@ -44,7 +44,7 @@ pub async fn build_ticket_message_payload(
 
     let custom_msg_opt = build_custom_message(
         is_embed,
-        content,
+        content.map(String::as_str),
         embed_json,
         |text| {
             replace_ticket_panel_placeholders(

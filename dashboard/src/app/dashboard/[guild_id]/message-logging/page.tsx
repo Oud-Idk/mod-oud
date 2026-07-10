@@ -1,6 +1,6 @@
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
 import { MessageLoggingBody } from "@/components/Dashboards/MessageLogging/MessageLoggingBody";
-import { getChannelMap, getRoleMap } from "@/utils/discord";
+import { getRoleMap, getTextChannelMap } from "@/utils/discord";
 import { getMessageLoggingConfig } from "@/utils/db/config";
 import { getDeletedMessagesHistory, getEditedMessagesHistory } from "@/utils/db/messages";
 import {
@@ -26,7 +26,7 @@ export default async function MessageLoggingPage({ params }: PageProps) {
         getMessageLoggingConfig(guild_id),
         getDeletedMessagesHistory(guild_id),
         getEditedMessagesHistory(guild_id),
-        getChannelMap(guild_id),
+        getTextChannelMap(guild_id),
         getRoleMap(guild_id),
     ]);
 

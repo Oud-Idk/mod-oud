@@ -1,5 +1,6 @@
 "use server";
 
+import redis from "@/utils/init/redis";
 import { db } from "@/utils/init/db";
 import { QueryResult } from "pg";
 import { revalidatePath } from "next/cache";
@@ -41,7 +42,7 @@ export interface WarnThreshold {
     duration: number | null;
 }
 
-export async function saveWarnThresholds(
+export async function saveWarnThresholdsAction(
     guildId: string,
     thresholds: Array<{
         warnCount: number;
@@ -100,6 +101,7 @@ export async function saveWarnThresholds(
         }
 
         await client.query('COMMIT');
+        await redis.del(`warn_thresholds:${guildId}`);
     } catch (error) {
         await client.query('ROLLBACK');
         throw error;
@@ -124,7 +126,13 @@ export async function deleteWarnThresholds(guildId: string, ids: number[]) {
 
 export async function getWarnThresholds(guildId: string): Promise<WarnThreshold[]> {
     const query = `
-        SELECT id, guild_id, warn_count, action_type, roles_to_add, roles_to_remove, duration
+        SELECT id,
+               guild_id,
+               warn_count,
+               action_type::TEXT[]     AS action_type,
+               roles_to_add::TEXT[]    AS roles_to_add,
+               roles_to_remove::TEXT[] AS roles_to_remove,
+               duration
         FROM warn_thresholds
         WHERE guild_id = $1
         ORDER BY warn_count;
@@ -135,7 +143,6 @@ export async function getWarnThresholds(guildId: string): Promise<WarnThreshold[
         return res.rows;
     } catch (error) {
         console.error(`Error loading warn thresholds for guild ${guildId}:`, error);
-
         return [];
     }
 }

@@ -95,13 +95,33 @@ export interface TicketConfig {
     welcome_message: MessageLayout;
 }
 
+export interface TempVoiceConfig {
+    hub_channel_id: string;
+    category_id: string;
+    default_limit: number;
+    default_name: string;
+}
+
+export interface TempVoiceHub {
+    id: string;
+    guild_id: string;
+    name: string;
+    hub_channel_id: string;
+    category_id: string;
+    user_limit: number | null;
+    interface_channel_id?: string;
+    default_channel_name: string;
+}
+
+// Not used but made here for consistency
 export interface Config {
-    welcome: WelcomeConfig;
-    leave: LeaveConfig;
-    message_logging: MessageLoggingConfig;
-    message_filtering: MessageFilteringConfig;
-    leveling: LevelingConfig;
-    report: ReportConfig;
-    moderation_dms: ModerationDMsConfig;
-    tickets: TicketConfig;
+    welcome?: WelcomeConfig;
+    leave?: LeaveConfig;
+    message_logging?: MessageLoggingConfig;
+    message_filtering?: MessageFilteringConfig;
+    leveling?: LevelingConfig;
+    report?: ReportConfig;
+    moderation_dms?: ModerationDMsConfig;
+    tickets?: TicketConfig;
+    temp_voice?: TempVoiceConfig;
 }

@@ -47,20 +47,21 @@ const WELCOME_TABS: TabItem<TabValue>[] = [
     { value: "global_scope", label: "Global Scope" },
 ];
 
+type SaveableBadWordRuleset = Omit<BadWordRulesetRow, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+    id?: string;
+};
+
 interface MessageFilteringBodyProps {
     messageFilteringConfig: MessageFilteringConfig;
     badWordRulesets: BadWordRulesetRow[];
     activeRuleset: BadWordRulesetRow | null;
-    onSaveRuleset: (ruleset: Partial<BadWordRulesetRow>) => Promise<any>;
+    onSaveRuleset: (ruleset: SaveableBadWordRuleset) => Promise<any>;
     onDeleteRuleset: (id: string) => Promise<void>;
     channelMap?: Record<string, string>;
     roleMap?: Record<string, string>;
     onSave: (messageFilteringConfig: MessageFilteringConfig) => Promise<void>;
-    guildId: string;
 }
 
-// Notice that "bad_words" is omitted from the TAB_MAP.
-// We will handle rendering "bad_words" conditionally.
 const TAB_MAP: Record<Exclude<TabValue, "bad_words">, ComponentType<any>> = {
     offensive_messages: OffensiveMessagesTab,
     server_invites: ServerInvitesTab,
@@ -83,10 +84,8 @@ export function MessageFilteringBody({
     channelMap,
     roleMap,
     onSave,
-    guildId
 }: MessageFilteringBodyProps): JSX.Element {
     const [activeTab, setActiveTab] = useState<TabValue>("bad_words");
-    void guildId;
 
     const normalizedConfig = useMemo(() => {
         return {
@@ -114,7 +113,6 @@ export function MessageFilteringBody({
 
             <div className="tab-content">
                 {activeTab === "bad_words" ? (
-                    // 1. Relational Custom Tab
                     <BadWordTab
                         rulesets={badWordRulesets}
                         activeRuleset={activeRuleset}
@@ -124,7 +122,6 @@ export function MessageFilteringBody({
                         onDelete={onDeleteRuleset}
                     />
                 ) : (
-                    // 2. Standard Flat Tabs
                     ActiveTabComponent && (
                         <ActiveTabComponent
                             config={config} handleChange={handleChange} channelMap={channelMap} roleMap={roleMap}

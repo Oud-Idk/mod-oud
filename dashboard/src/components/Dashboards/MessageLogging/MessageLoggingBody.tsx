@@ -73,8 +73,7 @@ export function MessageLoggingBody({
         handleChange({ ...config, [key]: updated });
     };
 
-    const handleAddUserId = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleAddUserId = () => {
         const trimmed = userIdInput.trim();
         if (!trimmed) return;
 

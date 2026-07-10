@@ -54,7 +54,7 @@ pub async fn fetch_and_build_buttons(
 /// Compiles a custom layout configuration to a Serenity CreateMessage builder
 pub fn build_custom_msg(
     format: &Format,
-    content: Option<&String>,
+    content: Option<&str>,
     embed_str: Option<&str>,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
     let embed_data: Option<crate::types::embed::DiscordEmbed> = embed_str

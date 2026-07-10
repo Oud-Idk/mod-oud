@@ -12,7 +12,8 @@ use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildChannel, GuildId, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
 use tracing::{debug, info, instrument, trace, warn};
 
-#[instrument(skip(ctx, data), fields(guild_id = ?component.guild_id, user_id = %component.user.id))]
+#[instrument(skip(ctx, data, component), fields(guild_id = ?component.guild_id, user_id = %component.user.id
+))]
 pub async fn on_open_ticket(
     ctx: &Context,
     component: &ComponentInteraction,

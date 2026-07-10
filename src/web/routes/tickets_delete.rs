@@ -6,9 +6,8 @@ use poise::serenity_prelude as serenity;
 use serde::Deserialize;
 use std::sync::Arc;
 use tracing::{debug, error, instrument, warn};
-// Added tracing imports
 
-#[derive(Deserialize, Debug)] // Added Debug so tracing can inspect the payload
+#[derive(Deserialize, Debug)]
 pub struct DeleteTicketMessagePayload {
     pub channel_id: String,
     pub message_id: String,

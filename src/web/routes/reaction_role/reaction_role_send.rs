@@ -41,7 +41,7 @@ pub async fn handle_send_reaction_role_message(
 
     let custom_msg_opt = build_custom_msg(
         &config_row.format,
-        config_row.content.as_ref(),
+        config_row.content.as_deref(),
         config_row.embed.as_deref(),
     )?;
     let mut message_builder = custom_msg_opt.unwrap_or_else(|| {

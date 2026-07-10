@@ -3,10 +3,14 @@
 import React, { useState } from "react";
 import { BadWordRulesetRow } from "@/utils/db/config";
 
+type SaveableBadWordRuleset = Omit<BadWordRulesetRow, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+    id?: string;
+};
+
 interface BadWordCreateModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (ruleset: Partial<BadWordRulesetRow>) => Promise<any>;
+    onSave: (ruleset: SaveableBadWordRuleset) => Promise<any>;
 }
 
 export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateModalProps) {
@@ -15,7 +19,7 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
 
     if (!isOpen) return null;
 
-    const handleSubmit = async (e: React.SubmitEvent) => {
+    const handleSubmit = async (e: React.SyntheticEvent) => {
         e.preventDefault();
         const trimmed = name.trim();
         if (!trimmed) return;

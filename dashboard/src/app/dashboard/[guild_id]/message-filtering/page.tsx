@@ -1,6 +1,6 @@
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
 import { MessageFilteringBody } from "@/components/Dashboards/MessageFiltering/MessageFilteringBody";
-import { getChannelMap, getRoleMap } from "@/utils/discord";
+import { getRoleMap, getTextChannelMap } from "@/utils/discord";
 import { getBadWordRulesets, getMessageFilteringConfig } from "@/utils/db/config";
 import {
     deleteBadWordRulesetAction,
@@ -25,7 +25,7 @@ export default async function MessageFilteringPage({ params, searchParams }: Pag
     ] = await Promise.all([
         getMessageFilteringConfig(guild_id),
         getBadWordRulesets(guild_id),
-        getChannelMap(guild_id),
+        getTextChannelMap(guild_id),
         getRoleMap(guild_id),
     ]);
 
@@ -48,7 +48,6 @@ export default async function MessageFilteringPage({ params, searchParams }: Pag
                 channelMap={channelMap}
                 roleMap={roleMap}
                 onSave={onSave}
-                guildId={guild_id}
             />
         </div>
     );

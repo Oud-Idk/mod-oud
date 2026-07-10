@@ -24,13 +24,13 @@ pub fn start_level_flush_worker(
             trace!("Attempting to acquire lock for level flushing");
             match acquire_lock(&redis_client, lock_key, &lock_value, 10).await {
                 Ok(true) => {
-                    debug!("Lock acquired; starting pending level flush");
+                    trace!("Lock acquired; starting pending level flush");
                     if let Err(e) = flush_pending_levels(&db_pool, &redis_client).await {
                         error!(error = ?e, "Error flushing levels to database");
                     }
 
                     match release_lock(&redis_client, lock_key, &lock_value).await {
-                        Ok(true) => debug!("Lock released successfully"),
+                        Ok(true) => trace!("Lock released successfully"),
                         Ok(false) => warn!("Attempted to release lock, but it was already modified or expired"),
                         Err(e) => error!(error = ?e, "Failed to release lock due to a Redis error"),
                     }
@@ -51,7 +51,7 @@ async fn claim_if_exists(
     redis: &Client,
     src: &str,
     dst: &str,
-) -> Result<bool, fred::error::Error> {
+) -> Result<bool, Error> {
     let claimed: i32 = redis
         .eval(
             r#"
@@ -189,7 +189,7 @@ async fn flush_pending_levels(
     let dirty_guilds: Vec<String> = redis.smembers("levels:dirty_guilds").await?;
 
     if dirty_guilds.is_empty() {
-        debug!("No dirty guilds found to flush");
+        trace!("No dirty guilds found to flush");
         return Ok(());
     }
 
@@ -212,6 +212,6 @@ async fn flush_pending_levels(
         .collect::<Vec<()>>()
         .await;
 
-    debug!("Finished processing current batch of dirty guilds");
+    trace!("Finished processing current batch of dirty guilds");
     Ok(())
 }

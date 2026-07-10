@@ -8,6 +8,7 @@ import {
     MessageLoggingConfig,
     ReportConfig,
     Scope,
+    TempVoiceConfig,
     TicketConfig
 } from "@/types/config";
 import { WelcomeConfig } from "@/types/config/welcome";
@@ -226,6 +227,10 @@ export async function saveMessageFilteringConfig(guildId: string, config: Messag
     await saveGuildConfigField(guildId, 'message_filtering', config);
 }
 
+export async function saveTempVoiceChannelConfig(guildId: string, config: TempVoiceConfig): Promise<void> {
+    await saveGuildConfigField(guildId, 'temp_voice', config);
+}
+
 export async function getLevelingConfig(guildId: string): Promise<LevelingConfig> {
     const defaultConfig: LevelingConfig = {
         text: {
@@ -303,6 +308,23 @@ export async function getModerationDMsConfig(guildId: string): Promise<Moderatio
     };
 }
 
+export async function getTempVoiceChannelConfig(guildId: string): Promise<TempVoiceConfig> {
+    const default_template: TempVoiceConfig = {
+        hub_channel_id: "",
+        category_id: "",
+        default_limit: 30,
+        default_name: "{user.display_name}'s Temp Channel",
+    }
+
+    const dbConfig = await getGuildConfigField<any>(guildId, 'temp_voice');
+    if (!dbConfig) return default_template;
+
+    return {
+        ...default_template,
+        ...dbConfig,
+    };
+}
+
 export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
     const defaultConfig = {
         category_id: "",
@@ -376,7 +398,7 @@ export async function getBadWordRulesets(guildId: string): Promise<BadWordRulese
  */
 export async function saveBadWordRuleset(
     guildId: string,
-    ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId'> & { id?: string }
+    ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId' | 'id'> & { id?: string }
 ): Promise<BadWordRulesetRow> {
     const query = `
         INSERT INTO bad_word_rulesets (id, guild_id, name, enabled, patterns, actions, timeout_duration_seconds, scope)

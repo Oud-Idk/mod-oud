@@ -1,6 +1,6 @@
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
 import { EmbedBuilderBody } from "@/components/Dashboards/EmbedBuilder/EmbedBuilderBody";
-import { getChannelMap } from "@/utils/discord";
+import { getTextChannelMap } from "@/utils/discord";
 
 export interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -8,7 +8,7 @@ export interface PageProps {
 
 export default async function EmbedBuilderPage({ params }: PageProps) {
     const { guild_id } = await params;
-    const channelMap = await getChannelMap(guild_id);
+    const channelMap = await getTextChannelMap(guild_id);
 
     return <div>
         <DashboardHeader className="mb-2">Embed Builder</DashboardHeader>

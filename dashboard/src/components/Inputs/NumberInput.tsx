@@ -1,15 +1,18 @@
 import { Field, Label } from "@headlessui/react";
 import React from "react";
+import { twMerge } from "tailwind-merge";
 
 interface NumberInputProps {
-    value: number;
-    onChange: (value: number) => void;
+    value: number | "";
+    onChange: (value: number | "") => void;
     min?: number;
     max?: number;
     step?: number;
     label?: string;
     className?: string;
     disabled?: boolean;
+    required?: boolean;
+    placeholder?: string;
 }
 
 export function NumberInput({
@@ -21,20 +24,31 @@ export function NumberInput({
     label,
     className = "",
     disabled = false,
+    required = true,
+    placeholder = "",
 }: NumberInputProps) {
     const increment = () => {
         if (disabled) return;
-        onChange(Math.min(max, value + step));
+        const currentValue = value === "" ? min : value;
+        onChange(Math.min(max, currentValue + step));
     };
 
     const decrement = () => {
         if (disabled) return;
-        onChange(Math.max(min, value - step));
+        const currentValue = value === "" ? min : value;
+        onChange(Math.max(min, currentValue - step));
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (disabled) return;
-        const val = parseFloat(e.target.value);
+
+        const rawValue = e.target.value;
+        if (rawValue === "") {
+            onChange("");
+            return;
+        }
+
+        const val = parseFloat(rawValue);
         if (!isNaN(val)) {
             onChange(val);
         }
@@ -42,27 +56,30 @@ export function NumberInput({
 
     const handleBlur = () => {
         if (disabled) return;
+        if (value === "") return; // Allow empty state so the browser's required validation can trigger
+
         if (value < min) onChange(min);
         if (value > max) onChange(max);
     };
 
     return (
-        <Field className={`flex flex-col gap-1.5 w-full ${className}`}>
+        <Field className={twMerge(`flex flex-col gap-1.5 w-full`, className)}>
             {label && (
                 <Label className={`text-sm ${disabled ? "text-neutral-400" : ""}`}>
                     {label}
+                    {required && <span className="text-red-500 ml-1" aria-hidden="true">*</span>}
                 </Label>
             )}
 
             <div
-                className={`flex items-center border border-neutral-500 rounded-lg overflow-hidden bg-neutral-300/10 max-w-35 transition-opacity ${
+                className={twMerge(`flex items-center border border-neutral-500 rounded-lg overflow-hidden bg-neutral-300/10 max-w-35 transition-opacity ${
                     disabled ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                }`, className)}
             >
                 <button
                     type="button"
                     onClick={decrement}
-                    disabled={disabled || value <= min}
+                    disabled={disabled || (value !== "" && value <= min)}
                     className="px-3 py-2 hover:bg-neutral-300/30 disabled:opacity-50 disabled:hover:bg-transparent transition-colors border-r border-neutral-500 font-medium select-none cursor-pointer"
                 >
                     &minus;
@@ -77,13 +94,15 @@ export function NumberInput({
                     onChange={handleInputChange}
                     onBlur={handleBlur}
                     disabled={disabled}
+                    required={required}
+                    placeholder={placeholder}
                     className="w-full text-center bg-transparent border-0 py-2 focus:outline-0 dark:text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:cursor-not-allowed"
                 />
 
                 <button
                     type="button"
                     onClick={increment}
-                    disabled={disabled || value >= max}
+                    disabled={disabled || (value !== "" && value >= max)}
                     className="px-3 py-2 hover:bg-neutral-300/15 disabled:opacity-50 disabled:hover:bg-transparent transition-colors border-l border-neutral-500 font-medium select-none cursor-pointer"
                 >
                     +

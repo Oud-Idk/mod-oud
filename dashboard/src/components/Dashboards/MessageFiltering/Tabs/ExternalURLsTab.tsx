@@ -49,9 +49,7 @@ export function ExternalURLsTab({
         return trimmed;
     }
 
-    const handleAddAllowUrl = (e: React.SubmitEvent) => {
-        e.preventDefault();
-
+    const handleAddAllowUrl = () => {
         const url = validateUrl(inputUrl);
         if (!url) return;
         const current = filterConfig.allowed_domains || [];
@@ -61,9 +59,7 @@ export function ExternalURLsTab({
         setInputUrl("");
     };
 
-    const handleAddBlockedUrl = (e: React.SubmitEvent) => {
-        e.preventDefault();
-
+    const handleAddBlockedUrl = () => {
         const url = validateUrl(inputUrl);
         if (!url) return;
         const current = filterConfig.blocked_domains || [];

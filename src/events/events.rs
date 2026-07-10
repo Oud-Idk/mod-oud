@@ -1,9 +1,9 @@
 use crate::events::handlers::automod::cache::{cache_automod_name, invalidate_rule_cache};
 use crate::events::handlers::automod::on_automod;
 use crate::events::handlers::join_leave::{on_member_join, on_member_leave};
-use crate::events::handlers::levels::voice::on_voice_state_update;
 use crate::events::interact::on_interact;
 use crate::events::message::{on_message, on_message_delete, on_message_update, on_reaction_add, on_reaction_remove};
+use crate::events::voice::on_voice_state_update;
 use crate::types::{Data, Error};
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::FullEvent;

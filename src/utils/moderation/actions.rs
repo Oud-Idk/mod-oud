@@ -5,7 +5,7 @@ use crate::types::config::config::{Format, GuildSettings};
 use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::logger::{log_moderation_action, ActionType};
-use crate::utils::moderation::database::{fetch_warn_threshold, fetch_warn_thresholds, get_warn_count, insert_warn, log_warning, ModerationAction, WarnThreshold};
+use crate::utils::moderation::database::{fetch_warn_thresholds, insert_warn, log_warning, ModerationAction, WarnThreshold};
 use crate::utils::moderation::{database, MODERATION_FOOTER};
 use crate::utils::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
 use crate::{fetch_mod_ctx, send_mod_dm};
@@ -16,6 +16,7 @@ use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, Cre
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::field::debug;
 use tracing::{debug, error, info, instrument, warn};
 
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user_id, moderator_id = %moderator_id
@@ -63,7 +64,7 @@ pub async fn issue_warning(
     let thresholds = fetch_warn_thresholds(&db, &redis_conn, &guild_id).await?;
     let applicable_thresholds = thresholds
         .iter()
-        .filter(|t| t.warn_count <= warn_count)
+        .filter(|t| t.warn_count == warn_count)
         .collect::<Vec<&WarnThreshold>>();
 
     apply_threshold_actions(&http, &db, &mut member, &applicable_thresholds).await?;
@@ -102,6 +103,7 @@ async fn apply_threshold_actions(
                         builder = builder.disable_communication_until(until.to_string());
                         member.edit(http, builder).await?;
                     }
+                    insert_threshold_automod_log(db, member, &threshold, "mute").await?;
                 }
                 ModerationAction::RoleAdd => {
                     if let Some(ref roles) = threshold.roles_to_add {
@@ -110,6 +112,7 @@ async fn apply_threshold_actions(
                             member.add_role(http, RoleId::new(role_id.parse::<u64>()?)).await?;
                         }
                     }
+                    insert_threshold_automod_log(db, member, &threshold, "role_add").await?;
                 }
                 ModerationAction::RoleRemove => {
                     if let Some(ref roles) = threshold.roles_to_remove {
@@ -118,12 +121,14 @@ async fn apply_threshold_actions(
                             member.remove_role(http, RoleId::new(role_id.parse::<u64>()?)).await?;
                         }
                     }
+                    insert_threshold_automod_log(db, member, &threshold, "role_remove").await?;
                 }
                 ModerationAction::RoleRemoveAll => {
                     debug!("Removing all roles from member");
                     for role in &member.roles {
                         member.remove_role(http, *role).await?;
                     }
+                    insert_threshold_automod_log(db, member, &threshold, "role_remove_all").await?;
                 }
             }
         }
@@ -132,6 +137,7 @@ async fn apply_threshold_actions(
 }
 
 async fn insert_threshold_automod_log(db: &PgPool, member: &mut Member, threshold: &WarnThreshold, name: &str) -> Result<(), Error> {
+    debug("Inserting automod-log for threshold");
     insert_automod_log(
         db,
         member.guild_id.get() as i64,
@@ -330,7 +336,7 @@ pub async fn issue_mute(
     Ok(())
 }
 
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+#[instrument(skip(db, redis_conn, guild_configs, http, user), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_unmute(
     db: &PgPool,

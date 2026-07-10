@@ -10,7 +10,7 @@ use serenity::all::{
 use std::time::Duration;
 use tracing::{debug, info, instrument, trace, warn};
 
-#[instrument(skip(ctx, data), fields(channel_id = %component.channel_id, user_id = %component.user.id
+#[instrument(skip(ctx, data, component), fields(channel_id = %component.channel_id, user_id = %component.user.id
 ))]
 pub async fn on_close_ticket(
     ctx: &Context,

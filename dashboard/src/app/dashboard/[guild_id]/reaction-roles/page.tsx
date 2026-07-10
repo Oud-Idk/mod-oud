@@ -8,7 +8,7 @@ import {
     saveReactionMessageAction,
     sendReactionMessageAction
 } from "@/actions/reactionRoles";
-import { getChannelMap, getRoleMap } from "@/utils/discord";
+import { getRoleMap, getTextChannelMap } from "@/utils/discord";
 
 export interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -21,7 +21,7 @@ export default async function ReactionRolesPage({ params, searchParams }: PagePr
 
     const [reactionRoles, channelMap, roleMap] = await Promise.all([
         getReactionMessages(guild_id),
-        getChannelMap(guild_id),
+        getTextChannelMap(guild_id),
         getRoleMap(guild_id),
     ]);
 

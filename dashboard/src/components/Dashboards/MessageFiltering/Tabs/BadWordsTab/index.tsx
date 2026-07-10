@@ -2,18 +2,22 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BadWordRulesetRow } from "@/utils/db/config"; // Path where you exported the type
+import { BadWordRulesetRow } from "@/utils/db/config";
 import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayout";
 import { BadWordCreateModal } from "./BadWordCreateModal";
 import { BadWordRulesetConfig } from "./BadWordRulesetConfig";
 import { useConfigForm } from "@/hooks/useConfigForm";
+
+type SaveableBadWordRuleset = Omit<BadWordRulesetRow, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+    id?: string;
+};
 
 interface BadWordsBodyProps {
     rulesets: BadWordRulesetRow[];
     activeRuleset: BadWordRulesetRow | null;
     channelMap: Record<string, string>;
     roleMap?: Record<string, string>;
-    onSave: (ruleset: Partial<BadWordRulesetRow>) => Promise<any>;
+    onSave: (ruleset: SaveableBadWordRuleset) => Promise<any>;
     onDelete: (id: string) => Promise<void>;
 }
 
@@ -37,7 +41,7 @@ export function BadWordTab({
         handleSave,
         handleCancel,
         handleChange,
-    } = useConfigForm<Partial<BadWordRulesetRow> | null>({
+    } = useConfigForm<SaveableBadWordRuleset | null>({ // 👇 Applied type fix to the form hook
         initialConfig: activeRuleset,
         onSave: async (updatedConfig) => {
             if (updatedConfig) await onSave(updatedConfig);

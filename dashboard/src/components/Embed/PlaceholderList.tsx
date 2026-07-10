@@ -1,7 +1,11 @@
-import { BuilderConfig } from "@/types/builder";
+import { Placeholder } from "@/types/builder";
+
+interface PlaceholderBuilderConfig {
+    placeholders: Placeholder[];
+}
 
 interface PlaceholderListProps {
-    config: BuilderConfig;
+    config: PlaceholderBuilderConfig;
 }
 
 export const PlaceholderList = ({ config }: PlaceholderListProps) => {

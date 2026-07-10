@@ -23,7 +23,7 @@ export interface RuleConfigProps {
     onSave: (rulesToSave: RuleItem[]) => Promise<void>;
     onDelete: (ids: number[]) => Promise<void>;
     allActionOptions: Array<{ value: string; label: string }>;
-    roleMap?: Record<string, string>; // <-- Added optional roleMap prop
+    roleMap?: Record<string, string>;
 
     title: string;
     createTitle: string;
@@ -43,13 +43,34 @@ export interface RuleConfigProps {
     multiple?: boolean;
 }
 
+// Helper to safely parse action arrays in case they arrive from database serialization as strings or null
+function safeGetArray(value: any): string[] {
+    if (Array.isArray(value)) {
+        return value;
+    }
+    if (typeof value === "string") {
+        if (value.startsWith("[") && value.endsWith("]")) {
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) {
+                    return parsed.map(String);
+                }
+            } catch {
+                // fall through to comma-separated handling
+            }
+        }
+        return value.split(",").map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+}
+
 export function RuleConfig({
     guildId,
-    rules,
+    rules = [],
     onSave,
     onDelete,
     allActionOptions,
-    roleMap = {}, // Default to empty object
+    roleMap = {},
     title,
     createTitle,
     triggerLabel,
@@ -77,7 +98,6 @@ export function RuleConfig({
         return new Map(allActionOptions.map((opt) => [opt.value, opt.label]));
     }, [allActionOptions]);
 
-    // Format roles for the dropdowns
     const roleOptions = useMemo(() => {
         return Object.entries(roleMap).map(([id, name]) => ({
             value: id,
@@ -88,7 +108,7 @@ export function RuleConfig({
     const showRolesToAdd = selectedActionIds.includes("role_add");
     const showRolesToRemove = selectedActionIds.includes("role_remove");
 
-    // Optimistic state management
+    // Optimistic state management with array normalization
     const [optimisticRules, setOptimisticRules] = useOptimistic<
         RuleItem[],
         OptimisticAction
@@ -101,17 +121,19 @@ export function RuleConfig({
                         (r) => r.trigger === newRule.trigger
                     );
                     if (existingIndex > -1) {
-                        const mergedActions = multiple
-                            ? Array.from(new Set([...newState[existingIndex].actions, ...newRule.actions]))
-                            : newRule.actions;
+                        const existingActions = safeGetArray(newState[existingIndex].actions);
+                        const newActions = safeGetArray(newRule.actions);
 
-                        // Merge role lists if they already exist
-                        const existingToAdd = newState[existingIndex].rolesToAdd || [];
-                        const newToAdd = newRule.rolesToAdd || [];
+                        const mergedActions = multiple
+                            ? Array.from(new Set([...existingActions, ...newActions]))
+                            : newActions;
+
+                        const existingToAdd = safeGetArray(newState[existingIndex].rolesToAdd);
+                        const newToAdd = safeGetArray(newRule.rolesToAdd);
                         const mergedToAdd = Array.from(new Set([...existingToAdd, ...newToAdd]));
 
-                        const existingToRemove = newState[existingIndex].rolesToRemove || [];
-                        const newToRemove = newRule.rolesToRemove || [];
+                        const existingToRemove = safeGetArray(newState[existingIndex].rolesToRemove);
+                        const newToRemove = safeGetArray(newRule.rolesToRemove);
                         const mergedToRemove = Array.from(new Set([...existingToRemove, ...newToRemove]));
 
                         newState[existingIndex] = {
@@ -122,7 +144,12 @@ export function RuleConfig({
                             rolesToRemove: mergedToRemove.length > 0 ? mergedToRemove : null,
                         };
                     } else {
-                        newState.push(newRule);
+                        newState.push({
+                            ...newRule,
+                            actions: safeGetArray(newRule.actions),
+                            rolesToAdd: newRule.rolesToAdd ? safeGetArray(newRule.rolesToAdd) : null,
+                            rolesToRemove: newRule.rolesToRemove ? safeGetArray(newRule.rolesToRemove) : null,
+                        });
                     }
                 }
                 return newState;
@@ -150,21 +177,23 @@ export function RuleConfig({
             },
         ];
 
-        // Compute the new total array state to pass safely to our UPSERT-based save action
         const newState = [...optimisticRules];
         for (const newRule of optimisticPayload) {
             const existingIndex = newState.findIndex((r) => r.trigger === newRule.trigger);
             if (existingIndex > -1) {
-                const mergedActions = multiple
-                    ? Array.from(new Set([...newState[existingIndex].actions, ...newRule.actions]))
-                    : newRule.actions;
+                const existingActions = safeGetArray(newState[existingIndex].actions);
+                const newActions = safeGetArray(newRule.actions);
 
-                const existingToAdd = newState[existingIndex].rolesToAdd || [];
-                const newToAdd = newRule.rolesToAdd || [];
+                const mergedActions = multiple
+                    ? Array.from(new Set([...existingActions, ...newActions]))
+                    : newActions;
+
+                const existingToAdd = safeGetArray(newState[existingIndex].rolesToAdd);
+                const newToAdd = safeGetArray(newRule.rolesToAdd);
                 const mergedToAdd = Array.from(new Set([...existingToAdd, ...newToAdd]));
 
-                const existingToRemove = newState[existingIndex].rolesToRemove || [];
-                const newToRemove = newRule.rolesToRemove || [];
+                const existingToRemove = safeGetArray(newState[existingIndex].rolesToRemove);
+                const newToRemove = safeGetArray(newRule.rolesToRemove);
                 const mergedToRemove = Array.from(new Set([...existingToRemove, ...newToRemove]));
 
                 newState[existingIndex] = {
@@ -248,16 +277,15 @@ export function RuleConfig({
 
     const filteredOptions = useMemo(() => {
         const existingRule = optimisticRules.find((r) => r.trigger === triggerValue);
+        const existingActions = existingRule ? safeGetArray(existingRule.actions) : [];
 
-        if (!multiple && existingRule && existingRule.actions.length > 0) {
+        if (!multiple && existingRule && existingActions.length > 0) {
             return [];
         }
 
-        const excludedActionIds = existingRule ? existingRule.actions : [];
-        return allActionOptions.filter((opt) => !excludedActionIds.includes(opt.value));
+        return allActionOptions.filter((opt) => !existingActions.includes(opt.value));
     }, [optimisticRules, triggerValue, multiple, allActionOptions]);
 
-    // Validation: Don't allow submission if they've chosen add/remove roles but left the selection empty
     const isAddDisabled =
         selectedActionIds.length === 0 ||
         isMutating ||
@@ -332,7 +360,6 @@ export function RuleConfig({
                     </div>
                 </div>
 
-                {/* Dynamic Role Selection Fields */}
                 {(showRolesToAdd || showRolesToRemove) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-neutral-500/10 pt-4 mt-2">
                         {showRolesToAdd && (
@@ -404,6 +431,10 @@ export function RuleConfig({
                                         ? rule.id
                                         : `temp-rule-${rule.trigger}-${ruleIndex}`;
 
+                                const ruleActions = safeGetArray(rule.actions);
+                                const rolesToAdd = safeGetArray(rule.rolesToAdd);
+                                const rolesToRemove = safeGetArray(rule.rolesToRemove);
+
                                 return (
                                     <div
                                         key={rowKey}
@@ -423,18 +454,17 @@ export function RuleConfig({
                                                 </span>
                                                 <span className="text-neutral-400 text-sm">{"->"}</span>
                                                 <div className="flex flex-wrap gap-1 -mt-px">
-                                                    {rule.actions.map((actId, actIndex) => {
+                                                    {ruleActions.map((actId, actIndex) => {
                                                         const label = actionLabelMap.get(actId) || "Unknown";
 
-                                                        // Render associated role names if applicable
                                                         let extraRoleText = "";
-                                                        if (actId === "role_add" && rule.rolesToAdd && rule.rolesToAdd.length > 0) {
-                                                            const roleNames = rule.rolesToAdd
+                                                        if (actId === "role_add" && rolesToAdd.length > 0) {
+                                                            const roleNames = rolesToAdd
                                                                 .map((rId) => roleMap[rId] || rId)
                                                                 .join(", ");
                                                             extraRoleText = ` (${roleNames})`;
-                                                        } else if (actId === "role_remove" && rule.rolesToRemove && rule.rolesToRemove.length > 0) {
-                                                            const roleNames = rule.rolesToRemove
+                                                        } else if (actId === "role_remove" && rolesToRemove.length > 0) {
+                                                            const roleNames = rolesToRemove
                                                                 .map((rId) => roleMap[rId] || rId)
                                                                 .join(", ");
                                                             extraRoleText = ` (${roleNames})`;

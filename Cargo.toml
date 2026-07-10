@@ -34,3 +34,4 @@ uuid = { version = "1.23.3", features = ["v4", "serde"] }
 emojis = "0.9.0"
 sysinfo = "0.39.5"
 anyhow = "1.0.102"
+log = "0.4.33"

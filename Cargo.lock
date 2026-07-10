@@ -1719,6 +1719,7 @@ dependencies = [
  "futures",
  "futures-util",
  "linkify",
+ "log",
  "moka",
  "poise",
  "prost",

@@ -1,6 +1,6 @@
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
 import { getStarboardConfigs } from "@/utils/db/starboard";
-import { getChannelMap, getRoleMap } from "@/utils/discord";
+import { getRoleMap, getTextChannelMap } from "@/utils/discord";
 import { StarboardBody } from "@/components/Dashboards/Starboard/StarboardBody";
 import { deleteStarboardConfigAction, saveStarboardConfigAction } from "@/actions/starboard";
 
@@ -15,7 +15,7 @@ export default async function StarboardPage({ params, searchParams }: PageProps)
 
     const [starboardConfigs, channelMap, roleMap] = await Promise.all([
         getStarboardConfigs(guild_id),
-        getChannelMap(guild_id),
+        getTextChannelMap(guild_id),
         getRoleMap(guild_id),
     ]);
 

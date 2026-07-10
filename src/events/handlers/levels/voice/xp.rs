@@ -19,16 +19,13 @@ pub async fn award_vc_xp_for_session(
     join_time: i64,
     leave_time: i64,
     data: &Data,
+    leveling_config: &LevelingConfig,
 ) -> Result<(), Error> {
     let elapsed_seconds = leave_time - join_time;
 
     if session_too_short(guild_id, user_id, elapsed_seconds) {
         return Ok(());
     }
-
-    let Some(leveling_config) = database::load_leveling_config(data, guild_id).await? else {
-        return Ok(());
-    };
 
     let member = resolve_member(ctx, guild_id, user_id, member_opt).await?;
     let user_roles: Vec<u64> = member.roles.iter().map(|r| r.get()).collect();

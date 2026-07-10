@@ -1,6 +1,6 @@
 "use client";
 
-import { deleteWarnThresholds, ModerationAction, saveWarnThresholds, WarnThreshold } from "@/actions/warns";
+import { deleteWarnThresholds, ModerationAction, saveWarnThresholdsAction, WarnThreshold } from "@/actions/warns";
 import { RuleConfig, RuleItem } from "@/components/RuleConfig";
 
 export interface WarnThresholdTabProps {
@@ -43,7 +43,7 @@ export function WarnThresholdTab({
             duration: u.actions.includes("timeout") ? 60 : null,
         }));
 
-        await saveWarnThresholds(guildId, mapped);
+        await saveWarnThresholdsAction(guildId, mapped);
     };
 
     const handleDelete = async (ids: number[]) => {

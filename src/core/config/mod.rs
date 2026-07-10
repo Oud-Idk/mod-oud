@@ -58,8 +58,17 @@ pub async fn get_guild_ctx(
     })
 }
 
-/// Retrieves settings. Returns a default struct if none exists in the DB.
 pub async fn get_settings(
+    db: &PgPool,
+    redis: &Client,
+    cache: &moka::future::Cache<i64, GuildSettings>,
+    guild_id: i64,
+) -> anyhow::Result<GuildSettings> {
+    Box::pin(get_settings_inner(db, redis, cache, guild_id)).await
+}
+
+/// Retrieves settings. Returns a default struct if none exists in the DB.
+pub async fn get_settings_inner(
     db: &PgPool,
     redis: &Client,
     cache: &moka::future::Cache<i64, GuildSettings>,

@@ -1,13 +1,21 @@
 import React from "react";
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar/Sidebar";
 import { MobileNav } from "@/components/Sidebar/MobileNav";
 import 'katex/dist/katex.min.css';
+import { auth } from "@/auth";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const session = await auth();
+
+    if (!session) {
+        redirect("/");
+    }
+
     return (
         <div className="h-screen flex flex-col md:flex-row overflow-hidden antialiased">
             <MobileNav>

@@ -1,13 +1,17 @@
 pub mod routes;
+pub mod helpers;
 
 use crate::types::config::config::GuildSettings;
 use crate::types::{Error, LogEvent};
 use crate::web::routes::commands::commands::handle_dashboard_command;
+use crate::web::routes::create_temp_voice::handle_create_temp_category_and_hub;
+use crate::web::routes::delete_entire_category::handle_delete_entire_category;
 use crate::web::routes::send_embed::handle_send_custom_embed;
+use crate::web::routes::send_temp_voice_interface::handle_send_temp_voice_interface;
 use crate::web::routes::tickets_delete::handle_delete_ticket_message;
 use crate::web::routes::tickets_send::handle_send_ticket_message;
 use crate::WebState;
-use axum::http::{HeaderValue, Method};
+use axum::http::{HeaderValue, Method, StatusCode, Uri};
 use axum::routing::method_routing::get;
 use axum::routing::Router;
 use fred::clients::SubscriberClient;
@@ -27,6 +31,16 @@ use tracing::{debug, error, info, instrument, trace, warn};
 async fn health_check() -> &'static str {
     debug!("Health check endpoint called");
     "OK"
+}
+
+#[instrument]
+async fn handle_404(method: Method, uri: Uri) -> (StatusCode, &'static str) {
+    warn!(
+        method = %method,
+        uri = %uri,
+        "404 Not Found - Someone got lost!"
+    );
+    (StatusCode::NOT_FOUND, "Not Found")
 }
 
 #[instrument(skip(pool, http, redis_client, subscriber_client, guild_configs, tx))]
@@ -124,6 +138,19 @@ pub async fn start_web_server(
             "/api/guilds/{guild_id}/embeds/send",
             axum::routing::post(handle_send_custom_embed)
         )
+        .route(
+            "/api/guilds/{guild_id}/temp-voice/setup",
+            axum::routing::post(handle_create_temp_category_and_hub)
+        )
+        .route(
+            "/api/guilds/{guild_id}/temp-voice/interface/setup",
+            axum::routing::post(handle_send_temp_voice_interface)
+        )
+        .route(
+            "/api/guilds/{guild_id}/category/delete-entire",
+            axum::routing::delete(handle_delete_entire_category)
+        )
+        .fallback(handle_404)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(shared_state);

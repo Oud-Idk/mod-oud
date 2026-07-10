@@ -5,7 +5,7 @@ use serenity::builder::CreateMessage;
 /// A generic builder that takes your templates and a placeholder replacement closure.
 pub fn build_custom_message<F>(
     is_embed: bool,
-    content: Option<&String>,
+    content: Option<&str>,
     embed_template: Option<&DiscordEmbed>,
     replace_fn: F,
 ) -> Result<Option<CreateMessage>, Error>

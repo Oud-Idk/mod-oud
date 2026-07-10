@@ -1,6 +1,6 @@
 use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, trace};
 
 #[instrument(skip(client), fields(key = %key, value = %value))]
 pub async fn acquire_lock(
@@ -20,7 +20,7 @@ pub async fn acquire_lock(
         .await?;
 
     let success = res.is_some();
-    debug!(success, "Attempted to acquire Redis lock");
+    trace!(success, "Attempted to acquire Redis lock");
 
     Ok(success)
 }
@@ -42,7 +42,7 @@ pub async fn release_lock(
     let res: u32 = client.eval(script, key, value).await?;
     let success = res == 1;
 
-    debug!(success, "Attempted to release Redis lock");
+    trace!(success, "Attempted to release Redis lock");
 
     Ok(success)
 }
