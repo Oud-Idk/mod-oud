@@ -191,7 +191,7 @@ async fn flush_pending_levels(
     let dirty_guilds: Vec<String> = redis.smembers("levels:dirty_guilds").await?;
 
     if dirty_guilds.is_empty() {
-        trace!("No dirty guilds found to flush");
+        debug!("No dirty guilds found to flush");
         return Ok(());
     }
 

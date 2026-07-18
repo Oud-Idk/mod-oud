@@ -4,7 +4,7 @@ use crate::types::{Data, Error};
 use fred::interfaces::FredResult;
 use fred::prelude::KeysInterface;
 use fred::types::Expiration;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, instrument, trace, warn};
 
 /// Inserts a formal warning into the database and returns the generated warning ID.
 pub async fn insert_warning(
@@ -122,7 +122,7 @@ pub async fn get_active_bad_word_rulesets(
     let cache_key = format!("config:guild:{}:bad_words", guild_id);
     let conn = &data.redis;
 
-    debug!(cache_key = %cache_key, "Checking Redis cache for bad word rulesets");
+    trace!(cache_key = %cache_key, "Checking Redis cache for bad word rulesets");
 
     let res: FredResult<String> = conn.get(&cache_key).await;
     match res {
@@ -142,7 +142,6 @@ pub async fn get_active_bad_word_rulesets(
         }
     }
 
-    debug!("Fetching bad word rulesets from database");
     let rulesets = get_bad_word_rulesets(&data.db, guild_id).await?;
     debug!(rulesets_count = rulesets.len(), "Successfully fetched bad word rulesets from database");
 

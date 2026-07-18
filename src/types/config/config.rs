@@ -112,6 +112,11 @@ pub struct TicketConfig {
     pub welcome_message: Option<MessageLayout>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InviteTrackerConfig {
+    pub enabled: Option<bool>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct GuildSettings {
@@ -123,4 +128,5 @@ pub struct GuildSettings {
     pub moderation_dms: Option<ModerationDMsConfig>,
     pub leveling: Option<LevelingConfig>,
     pub tickets: Option<TicketConfig>,
+    pub invite_tracker: Option<InviteTrackerConfig>,
 }

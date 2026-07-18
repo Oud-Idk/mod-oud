@@ -1,37 +1,34 @@
+pub mod keys;
+pub mod utils;
+
+use crate::core::config::get_settings;
+use crate::events::handlers::invite_tracking::utils::collect_pairs;
+use crate::types::config::config::GuildSettings;
 use crate::types::{Data, Error};
+use fred::clients::Client;
 use fred::interfaces::{HashesInterface, KeysInterface};
-use log::warn;
-use serenity::all::{Context, Guild, GuildId, InviteCreateEvent, InviteDeleteEvent, Member};
+use moka::future::Cache;
+use serenity::all::{Context, Guild, GuildId, InviteCreateEvent, InviteDeleteEvent, Member, RichInvite};
+use sqlx::PgPool;
 use std::collections::HashMap;
-use tracing::debug;
-
-
-fn invites_key(guild_id: GuildId) -> String {
-    format!("guild:invites:{guild_id}")
-}
-
-fn inviters_key(guild_id: GuildId) -> String {
-    format!("guild:invite_inviters:{guild_id}")
-}
-
-fn invited_by_key(guild_id: GuildId) -> String {
-    format!("guild:invited_by:{guild_id}")
-}
-
-fn inviter_counts_key(guild_id: GuildId) -> String {
-    format!("guild:inviter_counts:{guild_id}")
-}
-
-fn codes_by_inviter_key(guild_id: GuildId) -> String {
-    format!("guild:codes_by_inviter:{guild_id}")
-}
-
+use tracing::{debug, warn};
 
 pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &Data) -> Result<(), Error> {
     let redis = &data.redis;
+    let db = &data.db;
+    let cache = &data.guild_configs;
+
+    let is_enabled = check_if_enabled(redis, db, cache, guild.id).await?;
+
+    if !is_enabled {
+        debug!("Invite tracking isn't enabled. Skipping.");
+        return Ok(())
+    }
+
+    // This is heavy so the check comes before
     let invites = guild.invites(&ctx).await?;
-    let cache_key = invites_key(guild.id);
-    let inv_key = inviters_key(guild.id);
+    let cache_key = keys::invites_key(guild.id);
+    let inv_key = keys::inviters_key(guild.id);
 
     let pipe = redis.pipeline();
     let _: () = pipe.del(&cache_key).await?; // Invalidate immediately in case cache is stale
@@ -42,30 +39,12 @@ pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &Data) ->
         return Ok(());
     }
 
-    // Collect (invite_code, uses) pairs.
-    let uses_items: Vec<(&str, u64)> = invites
-        .iter()
-        .map(|inv| (inv.code.as_str(), inv.uses))
-        .collect();
-
-    // Collect (invite_code, inviter_id) pairs, skipping vanity invites.
-    let inviter_items: Vec<(&str, u64)> = invites
-        .iter()
-        .filter_map(|inv| inv.inviter.as_ref().map(
-            |u| (inv.code.as_str(), u.id.get()))
-        )
-        .collect();
-
-    // Collect (inviter_id, invite_code), skipping vanity invites
-    let codes_by_inviter_items: Vec<(u64, &str)> = invites
-        .iter()
-        .filter_map(|inv| inv.inviter.as_ref().map(
-            |u| (u.id.get(), inv.code.as_str()))
-        )
-        .collect();
+    let (
+        uses_items, inviter_items, codes_by_inviter_items
+    ) = collect_pairs(&invites);
 
     if !codes_by_inviter_items.is_empty() {
-        let _: () = pipe.hset(&codes_by_inviter_key(guild.id), codes_by_inviter_items).await?;
+        let _: () = pipe.hset(&keys::codes_by_inviter_key(guild.id), codes_by_inviter_items).await?;
     }
 
     let _: () = pipe.hset(&cache_key, uses_items).await?;
@@ -75,27 +54,36 @@ pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &Data) ->
 
     let _: () = pipe.all().await?;
 
-    debug!(guild_id = guild.id.get(), "Stored all invite data for guild.");
+    debug!(guild_id = guild.id.get(), count = invites.len(), "Stored all invite data for guild");
 
     Ok(())
 }
 
 pub async fn store_invite(_: &Context, invite_data: &InviteCreateEvent, data: &Data) -> Result<(), Error> {
     let redis = &data.redis;
+    let db = &data.db;
+    let cache = &data.guild_configs;
+
     let Some(guild_id) = invite_data.guild_id else {
         debug!(guild_id = invite_data.code, "Couldn't get guild_id for invite");
         return Ok(())
     };
 
-    let cache_key = invites_key(guild_id);
-    let inv_key = inviters_key(guild_id);
+    let is_enabled = check_if_enabled(redis, db, cache, guild_id).await?;
+    if !is_enabled {
+        debug!("Invite tracking isn't enabled. Skipping.");
+        return Ok(())
+    }
+
+    let cache_key = keys::invites_key(guild_id);
+    let inv_key = keys::inviters_key(guild_id);
 
     let pipe = redis.pipeline();
     let _: () = pipe.hset(&cache_key, (invite_data.code.as_str(), invite_data.uses)).await?;
 
     if let Some(inviter) = &invite_data.inviter {
         let _: () = pipe.hset(&inv_key, (invite_data.code.as_str(), inviter.id.get())).await?;
-        let _: () = pipe.hset(&codes_by_inviter_key(guild_id), (inviter.id.get(), invite_data.code.as_str())).await?;
+        let _: () = pipe.hset(&keys::codes_by_inviter_key(guild_id), (inviter.id.get(), invite_data.code.as_str())).await?;
     }
 
     let _: () = pipe.all().await?;
@@ -106,13 +94,22 @@ pub async fn store_invite(_: &Context, invite_data: &InviteCreateEvent, data: &D
 
 pub async fn delete_invite(_: &Context, invite_data: &InviteDeleteEvent, data: &Data) -> Result<(), Error> {
     let redis = &data.redis;
+    let db = &data.db;
+    let cache = &data.guild_configs;
+
     let Some(guild_id) = invite_data.guild_id else {
         debug!(guild_id = invite_data.code, "Couldn't get guild_id for invite");
         return Ok(())
     };
 
-    let cache_key = invites_key(guild_id);
-    let inv_key = inviters_key(guild_id);
+    let is_enabled = check_if_enabled(redis, db, cache, guild_id).await?;
+    if !is_enabled {
+        debug!("Invite tracking isn't enabled. Skipping.");
+        return Ok(())
+    }
+
+    let cache_key = keys::invites_key(guild_id);
+    let inv_key = keys::inviters_key(guild_id);
 
     let pipe = redis.pipeline();
     let _: () = pipe.hdel(&cache_key, invite_data.code.as_str()).await?;
@@ -124,16 +121,32 @@ pub async fn delete_invite(_: &Context, invite_data: &InviteDeleteEvent, data: &
     Ok(())
 }
 
+async fn check_if_enabled(redis: &Client, db: &PgPool, cache: &Cache<i64, GuildSettings>, guild_id: GuildId) -> Result<bool, Error> {
+    Ok(get_settings(db, redis, cache, guild_id.get() as i64)
+        .await?
+        .invite_tracker
+        .and_then(|s| s.enabled)
+        .unwrap_or(false))
+}
+
 pub async fn store_member_invite(ctx: &Context, new_member: &Member, data: &Data) -> Result<(), Error> {
     let guild_id = new_member.guild_id;
     let redis = &data.redis;
+    let db = &data.db;
+    let cache = &data.guild_configs;
+
+    let is_enabled = check_if_enabled(redis, db, cache, guild_id).await?;
+    if !is_enabled {
+        debug!("Invite tracking isn't enabled. Skipping.");
+        return Ok(())
+    }
 
     let current_invites = guild_id.invites(&ctx.http).await.inspect_err(|err| {
         warn!("Failed to fetch invites for guild {}: {:?}", guild_id, err);
     })?;
 
-    let cache_key = invites_key(guild_id);
-    let inv_key = inviters_key(guild_id);
+    let cache_key = keys::invites_key(guild_id);
+    let inv_key = keys::inviters_key(guild_id);
 
     // Snapshot of uses counts as of the last time we cached them
     let old_uses: HashMap<String, u64> = redis.hgetall(&cache_key).await.unwrap_or_default();
@@ -146,10 +159,7 @@ pub async fn store_member_invite(ctx: &Context, new_member: &Member, data: &Data
 
     // Refresh the cache with the fresh counts regardless of whether we
     // could attribute this particular join, so future diffs stay accurate.
-    let uses_items: Vec<(&str, u64)> = current_invites
-        .iter()
-        .map(|inv| (inv.code.as_str(), inv.uses))
-        .collect();
+    let (uses_items, _, _) = collect_pairs(&current_invites);
 
     if !uses_items.is_empty() {
         let _: () = redis.hset(&cache_key, uses_items).await?;
@@ -190,13 +200,7 @@ pub async fn store_member_invite(ctx: &Context, new_member: &Member, data: &Data
         .await?;
 
     let new_count: i64 = sqlx::query_scalar!(
-        r#"
-        INSERT INTO inviter_counts (guild_id, inviter_id, count)
-        VALUES ($1, $2, 1)
-        ON CONFLICT (guild_id, inviter_id) DO UPDATE
-            SET count = inviter_counts.count + 1
-        RETURNING count
-        "#,
+        "SELECT count FROM inviter_counts WHERE guild_id = $1 AND inviter_id = $2",
         guild_id.get() as i64,
         inviter_id as i64,
     )
@@ -209,10 +213,10 @@ pub async fn store_member_invite(ctx: &Context, new_member: &Member, data: &Data
     // to avoid the two stores ever drifting apart).
     let pipe = redis.pipeline();
     let _: () = pipe
-        .hset(&invited_by_key(guild_id), (new_member.user.id.get(), inviter_id))
+        .hset(&keys::invited_by_key(guild_id), (new_member.user.id.get(), inviter_id))
         .await?;
     let _: () = pipe
-        .hset(&inviter_counts_key(guild_id), (inviter_id.to_string(), new_count))
+        .hset(&keys::inviter_counts_key(guild_id), (inviter_id.to_string(), new_count))
         .await?;
     let _: () = pipe.all().await?;
 

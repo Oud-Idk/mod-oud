@@ -1,4 +1,4 @@
-use crate::commands::{emergency, leveling, moderation, ticket};
+use crate::commands::{emergency, invites, leveling, moderation, ticket};
 use crate::core::setup::setup;
 use commands::{messages, ping};
 use fred::clients::SubscriberClient;
@@ -232,6 +232,9 @@ async fn async_main() -> Result<(), Error> {
             emergency::global_lock(),
             emergency::global_unlock(),
             ticket::setup_tickets(),
+            invites::invites(),
+            invites::inviter(),
+            invites::invites_leaderboard(),
             register(),
         ];
 
