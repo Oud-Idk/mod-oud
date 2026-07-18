@@ -3,7 +3,7 @@ use crate::types::config::config::Format;
 use crate::types::embed::DiscordEmbed;
 use crate::utils::custom_msg::build_custom_message;
 use crate::web::helpers::embed;
-use crate::web::helpers::embed::ContentAndFormat;
+use crate::web::helpers::embed::EmbedGetters;
 use crate::web::routes::send_temp_voice_interface::SendTempVoiceInterfacePayload;
 use crate::WebState;
 use axum::{
@@ -30,14 +30,14 @@ pub struct SendCustomEmbedResponse {
     pub message_id: String,
 }
 
-impl ContentAndFormat for SendCustomEmbedPayload {
+impl EmbedGetters for SendCustomEmbedPayload {
     fn content(&self) -> Option<&str> {
         self.content.as_deref()
     }
-
     fn embed(&self) -> Option<&DiscordEmbed> {
         self.embed.as_ref()
     }
+    fn format(&self) -> Option<&Format> { self.format.as_ref() }
 }
 
 
@@ -59,9 +59,7 @@ pub async fn handle_send_custom_embed(
 
     let target_channel = serenity::ChannelId::new(channel_id_u64);
 
-    let is_embed = payload.format.as_ref().map_or(true, |f| matches!(f, Format::Embed));
-
-    let message_builder = match embed::create_embed_for_web(&payload, is_embed, None::<fn(&str) -> String>) {
+    let message_builder = match embed::create_embed_for_web(&payload, None::<fn(&str) -> String>) {
         Ok(value) => value,
         Err(value) => return Err(value),
     };

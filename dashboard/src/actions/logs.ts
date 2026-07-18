@@ -1,4 +1,3 @@
-// app/actions/logs.ts
 "use server";
 
 import { db } from "@/utils/init/db";
@@ -129,7 +128,6 @@ export async function getJoinLeaveLogs(
     }
 }
 
-// Add this function to app/actions/logs.ts
 export async function getModerationLogs(
     guildId: string,
     limit: number = 20,
@@ -152,7 +150,6 @@ export async function getModerationLogs(
                    target_username
             FROM moderation_logs
             WHERE guild_id = $1
-              -- Cursor pagination matching both timestamp and case_id
               AND (
                 $2::TEXT IS NULL OR $3::INTEGER IS NULL OR
                 created_at < $2::TIMESTAMPTZ OR
@@ -169,7 +166,28 @@ export async function getModerationLogs(
             limit
         ]);
 
-        return result.rows;
+        return result.rows.map(row => {
+            let durationStr: string | null = null;
+
+            if (row.duration) {
+                const parts: string[] = [];
+                if (row.duration.years) parts.push(`${row.duration.years}y`);
+                if (row.duration.months) parts.push(`${row.duration.months}mo`);
+                if (row.duration.days) parts.push(`${row.duration.days}d`);
+                if (row.duration.hours) parts.push(`${row.duration.hours}h`);
+                if (row.duration.minutes) parts.push(`${row.duration.minutes}m`);
+                if (row.duration.seconds) parts.push(`${row.duration.seconds}s`);
+                durationStr = parts.length > 0 ? parts.join(" ") : null;
+            }
+
+            return {
+                ...row,
+                duration: durationStr,
+                created_at: row.created_at instanceof Date
+                    ? row.created_at.toISOString()
+                    : String(row.created_at)
+            };
+        });
     } catch (error) {
         console.error("Failed to query moderation_logs:", error);
         return [];

@@ -1,5 +1,5 @@
 use crate::types::leveling::UserLevel;
-use crate::utils::locking::{acquire_lock, release_lock};
+use crate::utils::locking::acquire_lock;
 use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
 use futures_util::StreamExt;
@@ -22,20 +22,22 @@ pub fn start_level_flush_worker(
             tokio::time::sleep(Duration::from_secs(15)).await;
 
             trace!("Attempting to acquire lock for level flushing");
-            match acquire_lock(&redis_client, lock_key, &lock_value, 10).await {
-                Ok(true) => {
+
+            match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
+                Ok(Some(guard)) => {
                     trace!("Lock acquired; starting pending level flush");
+
                     if let Err(e) = flush_pending_levels(&db_pool, &redis_client).await {
                         error!(error = ?e, "Error flushing levels to database");
                     }
 
-                    match release_lock(&redis_client, lock_key, &lock_value).await {
+                    match guard.release().await {
                         Ok(true) => trace!("Lock released successfully"),
-                        Ok(false) => warn!("Attempted to release lock, but it was already modified or expired"),
+                        Ok(false) => warn!("Attempted to release lock, but we no longer owned it"),
                         Err(e) => error!(error = ?e, "Failed to release lock due to a Redis error"),
                     }
                 }
-                Ok(false) => {
+                Ok(None) => {
                     trace!("Lock already held by another worker; skipping this iteration");
                 }
                 Err(e) => {
@@ -124,7 +126,7 @@ async fn process_flushing_key(
         sqlx::query!(
             r#"
             INSERT INTO levels (guild_id, user_id, username, cumulative_xp, current_level, current_xp)
-            SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], $4::integer[], $5::integer[], $6::integer[])
+            SELECT * FROM UNNEST($1::bigint[], $2::bigint[], $3::text[], $4::integer[], $5::integer[], $6::integer[])
             ON CONFLICT (guild_id, user_id) DO UPDATE SET
                 username = EXCLUDED.username,
                 cumulative_xp = EXCLUDED.cumulative_xp,

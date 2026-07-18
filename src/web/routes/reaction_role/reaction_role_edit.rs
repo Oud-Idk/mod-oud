@@ -33,17 +33,13 @@ pub async fn handle_edit_reaction_role_message(
     let config_id = parse_config_id(&config_id_str)?;
     let config_row = fetch_reaction_message(&state.pool, config_id, &guild_id_str).await?;
 
-    let channel_id_u64 = config_row.channel_id.parse::<u64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid discord channel ID format".to_string())
-    })?;
+    let channel_id_u64 = config_row.channel_id as u64;
     let channel_id = ChannelId::new(channel_id_u64);
 
-    let message_id_str = config_row.message_id.as_deref().ok_or_else(|| {
+    let message_id_i64 = config_row.message_id.ok_or_else(|| {
         (StatusCode::BAD_REQUEST, "Cannot edit a message that hasn't been sent yet!".to_string())
     })?;
-    let message_id_u64 = message_id_str.parse::<u64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid discord message ID format".to_string())
-    })?;
+    let message_id_u64 = message_id_i64 as u64;
     let message_id = MessageId::new(message_id_u64);
 
     let custom_msg_opt = build_custom_msg(
@@ -83,14 +79,14 @@ pub async fn handle_edit_reaction_role_message(
 
     info!(
         guild_id = guild_id_str,
-        message_id = message_id_str,
+        message_id = message_id_i64,
         "Reaction role layout successfully edited"
     );
 
     Ok((
         StatusCode::OK,
         Json(EditReactionMessageResponse {
-            message_id: message_id_str.to_string(),
+            message_id: message_id_i64.to_string(),
         }),
     ))
 }

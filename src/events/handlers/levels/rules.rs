@@ -40,12 +40,11 @@ pub fn should_exclude_from_level_up(
 
 fn calculate_multiplier(multipliers: Vec<XpMultiplier>, channel_id: u64, role_ids: Vec<u64>) -> f32 {
     let mut applied_multiplier = 1.0f32;
-    let channel_id_str = channel_id.to_string();
-    let role_ids_str: Vec<String> = role_ids.iter().map(|r| r.to_string()).collect();
+    let role_ids_i64: Vec<i64> = role_ids.iter().map(|r| *r as i64).collect();
 
     for mult in multipliers {
         match mult.target_type.as_str() {
-            "channel" if mult.target_id == channel_id_str => {
+            "channel" if mult.target_id == channel_id as i64 => {
                 trace!(
                     target_id = %mult.target_id,
                     multiplier = mult.multiplier,
@@ -53,7 +52,7 @@ fn calculate_multiplier(multipliers: Vec<XpMultiplier>, channel_id: u64, role_id
                 );
                 applied_multiplier = applied_multiplier.max(mult.multiplier);
             }
-            "role" if role_ids_str.contains(&mult.target_id) => {
+            "role" if role_ids_i64.contains(&mult.target_id) => {
                 trace!(
                     target_id = %mult.target_id,
                     multiplier = mult.multiplier,

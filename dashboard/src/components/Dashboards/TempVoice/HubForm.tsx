@@ -6,7 +6,7 @@ import { useConfigForm } from "@/hooks/useConfigForm";
 import { deleteTempVoiceHubAction, saveTempVoiceHubAction } from "@/actions/tempVoice";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { MainConfigTab } from "@/components/Dashboards/TempVoice/FormTabs/MainConfigTab";
-import { TabItem, Tabs } from "@/components/Tabs";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { InterfaceMessageTab } from "@/components/Dashboards/TempVoice/FormTabs/InterfaceMessageTab";
 
 interface HubFormProps {

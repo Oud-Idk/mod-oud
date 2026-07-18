@@ -4,7 +4,7 @@ import { LevelingConfig } from "@/types/config";
 import { LevelReward, XpMultiplier } from "@/utils/db/leveling";
 import { useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
-import { TabItem, Tabs } from "@/components/Tabs";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { TextTab } from "@/components/Dashboards/Leveling/Tabs/TextTab";
 import { VoiceTab } from "@/components/Dashboards/Leveling/Tabs/VoiceTab";
 import { GeneralTab } from "@/components/Dashboards/Leveling/Tabs/GeneralTab";

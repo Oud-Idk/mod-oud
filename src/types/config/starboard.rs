@@ -98,18 +98,19 @@ mod option_pg_interval_serde {
 #[derive(sqlx::FromRow)]
 pub struct StarboardRow {
     pub id: i64,
-    pub guild_id: String,
-    pub starboard_channel_id: String,
+    pub guild_id: i64,
+    pub starboard_channel_id: i64,
     pub emojis: Option<Vec<String>>,
     pub reaction_threshold: Option<i32>,
     pub min_message_age: Option<PgInterval>,
     pub max_message_age: Option<PgInterval>,
     pub prevent_self_star: Option<bool>,
     pub allow_bot_messages: Option<bool>,
+    pub keep_deleted_messages: Option<bool>,
     pub role_restriction_type: Option<RestrictionType>,
-    pub restricted_roles: Option<Vec<String>>,
+    pub restricted_roles: Option<Vec<i64>>,
     pub channel_restriction_type: Option<RestrictionType>,
-    pub restricted_channels: Option<Vec<String>>,
+    pub restricted_channels: Option<Vec<i64>>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
     pub embed_template: Option<Json<DiscordEmbed>>,
@@ -122,8 +123,8 @@ impl TryFrom<StarboardRow> for Starboard {
     fn try_from(row: StarboardRow) -> Result<Self, Self::Error> {
         Ok(Self {
             id: row.id,
-            guild_id: row.guild_id.parse::<u64>()?,
-            starboard_channel_id: row.starboard_channel_id.parse::<u64>()?,
+            guild_id: row.guild_id as u64,
+            starboard_channel_id: row.starboard_channel_id as u64,
             emojis: row.emojis,
             reaction_threshold: row.reaction_threshold,
             min_message_age: row.min_message_age,
@@ -132,12 +133,10 @@ impl TryFrom<StarboardRow> for Starboard {
             allow_bot_messages: row.allow_bot_messages,
             role_restriction_type: row.role_restriction_type,
             restricted_roles: row.restricted_roles
-                .map(|v| v.into_iter().map(|s| s.parse::<u64>()).collect::<Result<Vec<_>, _>>())
-                .transpose()?,
+                .map(|v| v.into_iter().map(|s| s as u64).collect()),
             channel_restriction_type: row.channel_restriction_type,
             restricted_channels: row.restricted_channels
-                .map(|v| v.into_iter().map(|s| s.parse::<u64>()).collect::<Result<Vec<_>, _>>())
-                .transpose()?,
+                .map(|v| v.into_iter().map(|s| s as u64).collect()),
             created_at: row.created_at,
             updated_at: row.updated_at,
             embed_template: row.embed_template.map(|json| json.0),

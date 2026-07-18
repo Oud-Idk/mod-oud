@@ -5,9 +5,9 @@ use tracing::{instrument, warn};
 #[instrument(skip(http))]
 pub async fn resolve_moderator_id(
     http: &poise::serenity_prelude::Http,
-    moderator_id: Option<&str>,
+    moderator_id: Option<i64>,
 ) -> Result<poise::serenity_prelude::UserId, (StatusCode, String)> {
-    let id_val = match moderator_id.and_then(|id| id.parse::<u64>().ok()) {
+    let id_val = match moderator_id.and_then(|id| Some(id as u64)) {
         Some(id) if id != 0 => id,
         _ => http
             .get_current_user()
@@ -27,7 +27,7 @@ pub async fn resolve_moderator_id(
 #[instrument(skip(http))]
 pub async fn resolve_moderator_user(
     http: &poise::serenity_prelude::Http,
-    moderator_id: Option<&str>,
+    moderator_id: Option<i64>,
 ) -> Result<poise::serenity_prelude::User, (StatusCode, String)> {
     let mod_id = resolve_moderator_id(http, moderator_id).await?;
     mod_id.to_user(http).await.map_err(|e| {

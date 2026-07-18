@@ -2,6 +2,11 @@
 
 import React, { useState } from "react";
 import { BadWordRulesetRow } from "@/utils/db/config";
+import { Modal } from "@/components/Modal";
+import SecondaryButton from "@/components/Inputs/Buttons/SecondaryButton";
+import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
+import { TextInput } from "@/components/Inputs/TextInput";
+import { InputLabel } from "@/components/Layout/InputLabel";
 
 type SaveableBadWordRuleset = Omit<BadWordRulesetRow, "createdAt" | "updatedAt" | "guildId" | "id"> & {
     id?: string;
@@ -44,44 +49,25 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50">
-            <form
-                onSubmit={handleSubmit}
-                className="bg-white dark:bg-black border border-neutral-500 p-6 rounded-lg w-full max-w-md space-y-4 shadow-xl"
-            >
-                <h3 className="text-base font-bold">Create Bad Words Ruleset</h3>
+        <Modal onClose={onClose} headerText="Create Bad Words Ruleset">
+            <div>
+                <InputLabel>
+                    Ruleset Name</InputLabel>
+                <TextInput
+                    placeholder="e.g. Hate Speech, Spam Keywords..."
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disableSubmitButton
+                    className="min-w-full"
+                />
+            </div>
 
-                <div className="space-y-2">
-                    <label className="block text-xs uppercase font-semibold tracking-wider">Ruleset
-                        Name</label>
-                    <input
-                        type="text"
-                        placeholder="e.g. Hate Speech, Spam Keywords..."
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-neutral-300/10 border-neutral-500 border rounded p-2 text-sm focus:outline-none focus:border-neutral-500"
-                        required
-                    />
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={isSaving}
-                        className="px-4 py-1.5 rounded text-sm hover:bg-neutral-300/10 transition cursor-pointer"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={isSaving || !name.trim()}
-                        className="px-4 py-1.5 disabled:border-0 border font-medium rounded text-sm transition disabled:opacity-50 cursor-pointer hover:bg-neutral-300/10"
-                    >
-                        {isSaving ? "Creating..." : "Create"}
-                    </button>
-                </div>
-            </form>
-        </div>
+            <div className="flex justify-end gap-3 pt-2">
+                <SecondaryButton onClick={onClose} disabled={isSaving}>Cancel</SecondaryButton>
+                <PrimaryButton disabled={isSaving || !name.trim()} onClick={handleSubmit}>
+                    {isSaving ? "Creating..." : "Create"}
+                </PrimaryButton>
+            </div>
+        </Modal>
     );
 }

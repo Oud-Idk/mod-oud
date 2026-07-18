@@ -100,7 +100,7 @@ export function MessageLoggingBody({
         <div className="space-y-6">
             <div className="space-y-4">
                 <ToggleSwitch
-                    enabled={config.enabled}
+                    checked={config.enabled}
                     onChange={(checked) => handleChange({ ...config, enabled: checked })}
                     disabled={false}
                     text="Enable Message Logging"
@@ -111,13 +111,13 @@ export function MessageLoggingBody({
                         <div className="space-y-4">
                             <h4 className="text-sm font-semibold uppercase tracking-wider">Logging Events</h4>
                             <ToggleSwitch
-                                enabled={config.events.message_delete} onChange={(checked) => handleChange({
+                                checked={config.events.message_delete} onChange={(checked) => handleChange({
                                 ...config,
                                 events: { ...config.events, message_delete: checked }
                             })} disabled={false} text="Log Deleted Messages"
                             />
                             <ToggleSwitch
-                                enabled={config.events.message_edit} onChange={(checked) => handleChange({
+                                checked={config.events.message_edit} onChange={(checked) => handleChange({
                                 ...config,
                                 events: { ...config.events, message_edit: checked }
                             })} disabled={false} text="Log Edited Messages"

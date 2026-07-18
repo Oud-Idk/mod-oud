@@ -40,7 +40,7 @@ export function ReportContent({
 
             {attachments.length > 0 && (
                 <div>
-                    <p className="text-xs text-neutral-500">Attachments:</p>
+                    <p>Attachments:</p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                         {attachments.map((url, idx) => (
                             <button

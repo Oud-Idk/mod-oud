@@ -2,11 +2,11 @@
 CREATE TABLE IF NOT EXISTS automod_logs
 (
     id               BIGSERIAL PRIMARY KEY,
-    guild_id         VARCHAR(20)                                        NOT NULL,
-    user_id          VARCHAR(20)                                        NOT NULL,
+    guild_id         BIGINT                                             NOT NULL,
+    user_id          BIGINT                                             NOT NULL,
     username         VARCHAR(50)                                        NOT NULL,
-    channel_id       VARCHAR(20),
-    message_id       VARCHAR(20),
+    channel_id       BIGINT,
+    message_id       BIGINT,
 
     rule_type        VARCHAR(50)                                        NOT NULL,
 

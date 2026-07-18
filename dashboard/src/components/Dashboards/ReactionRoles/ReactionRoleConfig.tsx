@@ -5,6 +5,7 @@ import { Dropdown } from "@/components/Inputs/Dropdown";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { REACTION_ROLES_CONFIG } from "@/utils/embedTemplates";
 import { TextInput } from "@/components/Inputs/TextInput";
+import SecondaryButton from "@/components/Inputs/Buttons/SecondaryButton";
 
 interface ReactionRoleConfigProps {
     config: ReactionMessage;
@@ -18,6 +19,7 @@ interface ReactionRoleConfigProps {
     guildId: string;
     setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
     onDeleteDiscordMessage: (id: number) => Promise<{ success: boolean }>;
+    isEmpty: boolean;
 }
 
 export function ReactionRoleConfig({
@@ -32,6 +34,7 @@ export function ReactionRoleConfig({
     onChange,
     setIsEmpty,
     onDeleteDiscordMessage,
+    isEmpty,
 }: ReactionRoleConfigProps) {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
@@ -129,7 +132,7 @@ export function ReactionRoleConfig({
     };
 
     const isDisabled = isPending || isDeleting || isSending;
-    const sendToDiscordIsDisabled = isPending || isDeleting || isSending || isDirty;
+    const sendToDiscordIsDisabled = isPending || isDeleting || isSending || isDirty || isEmpty;
     const isSent = !!config.message_id && config.message_id.trim() !== "";
 
     return (
@@ -394,13 +397,7 @@ export function ReactionRoleConfig({
                         ))}
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={handleAddReaction}
-                        className="text-xs px-3 py-1.5 border border-neutral-500 rounded transition cursor-pointer flex items-center gap-1 hover:bg-neutral-300/15"
-                    >
-                        <span className="text-sm font-semibold">+</span> Add Mapping
-                    </button>
+                    <SecondaryButton onClick={handleAddReaction}>+ Add Mapping</SecondaryButton>
                 </div>
             )}
 

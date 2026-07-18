@@ -15,7 +15,7 @@ export function TextTab({
     return (
         <div>
             <ToggleSwitch
-                enabled={config.text.enabled}
+                checked={config.text.enabled}
                 onChange={(v) => handleChange({ text: { ...config.text, enabled: v } })}
                 disabled={false}
                 text="Enable Text Leveling"
@@ -42,7 +42,7 @@ export function TextTab({
                         />
                     </div>
                     <ToggleSwitch
-                        enabled={config.text.xp_on_tickets}
+                        checked={config.text.xp_on_tickets}
                         onChange={(v) => handleChange({ text: { ...config.text, xp_on_tickets: v } })}
                         disabled={false}
                         text="Allow XP on Ticket"

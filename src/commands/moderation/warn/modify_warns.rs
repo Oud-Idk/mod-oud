@@ -7,7 +7,7 @@ use tracing::{debug, info, trace};
 /// Helper function to handle both pardoning and unpardoning warnings.
 pub async fn set_warning_active_status(
     ctx: Context<'_>,
-    id: i32,
+    id: i64,
     set_active: bool,
 ) -> Result<(), Error> {
     trace!(

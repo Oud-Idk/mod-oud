@@ -7,6 +7,7 @@ import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfig } from "./StarboardConfig";
 import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayout";
 import { useConfigForm } from "@/hooks/useConfigForm";
+import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
 
 interface StarboardBodyProps {
     starboardConfigs: StarboardConfigType[];
@@ -80,12 +81,9 @@ export function StarboardBody({
                 noActivePlaceholder={
                     <>
                         <p className="text-sm">Select an active starboard, or create a new one to begin.</p>
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="text-xs px-3.5 py-1.5 bg-zinc-850 rounded transition border border-neutral-500 hover:bg-neutral-300/10 cursor-pointer"
-                        >
+                        <PrimaryButton onClick={() => setIsCreateModalOpen(true)}>
                             Create Your First Starboard
-                        </button>
+                        </PrimaryButton>
                     </>
                 }
             >

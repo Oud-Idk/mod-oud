@@ -32,8 +32,10 @@ pub fn start_ticket_inactivity_worker(
             tokio::time::sleep(Duration::from_secs(60)).await;
 
             trace!("Attempting to acquire lock for ticket inactivity checks");
-            match locking::acquire_lock(&redis_client, lock_key, &lock_value, 50).await {
-                Ok(true) => {
+
+            // Set a 3-second heartbeat. The watchdog keeps it alive for both tasks!
+            match locking::acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
+                Ok(Some(guard)) => {
                     debug!("Acquired lock; running inactivity evaluations");
 
                     if let Err(e) = warn_inactive_tickets(&pool, &redis_client, &http, &guild_config).await {
@@ -44,13 +46,14 @@ pub fn start_ticket_inactivity_worker(
                         error!(error = ?e, "Error closing abandoned tickets");
                     }
 
-                    if let Err(e) = locking::release_lock(&redis_client, lock_key, &lock_value).await {
+                    // Release using the guard
+                    if let Err(e) = guard.release().await {
                         warn!(error = ?e, "Failed to release inactivity lock");
                     } else {
                         debug!("Released inactivity lock successfully");
                     }
                 }
-                Ok(false) => {
+                Ok(None) => {
                     trace!("Lock busy; skipping this iteration");
                 }
                 Err(e) => {
@@ -203,6 +206,21 @@ async fn warn_inactive_tickets(
 }
 
 /// Helper function to close completely abandoned tickets
+use serenity::all::HttpError;
+use serenity::Error as SerenityError;
+
+
+/// Helper to check if the error is Discord's "10003 Unknown Channel"
+fn is_unknown_channel_error(err: &SerenityError) -> bool {
+    match err {
+        SerenityError::Http(HttpError::UnsuccessfulRequest(resp)) => {
+            resp.error.code == 10003
+        }
+        _ => false,
+    }
+}
+
+/// Helper function to close completely abandoned tickets
 #[instrument(skip_all)]
 async fn close_abandoned_tickets(
     pool: &sqlx::PgPool,
@@ -264,12 +282,12 @@ async fn close_abandoned_tickets(
 
     if !tickets_to_close.is_empty() {
         sqlx::query!(
-            "UPDATE tickets SET warned = TRUE WHERE channel_id = ANY($1)",
+            "UPDATE tickets SET status = 'CLOSE' WHERE channel_id = ANY($1)",
             &tickets_to_close
         )
             .execute(pool)
             .await?;
-        debug!(updated_count = tickets_to_close.len(), "Set closed/warned flags in database for abandoned tickets");
+        debug!(updated_count = tickets_to_close.len(), "Set closed status in database for abandoned tickets");
     }
 
     for channel_id in tickets_to_close {
@@ -280,11 +298,19 @@ async fn close_abandoned_tickets(
                 info!(channel_id = %chan, "Successfully deleted abandoned ticket channel");
             }
             Err(e) => {
-                warn!(
-                    channel_id = %chan,
-                    error = ?e,
-                    "Failed to delete inactive ticket channel on close"
-                );
+                // FIX 2: Gracefully handle manually deleted channels (Error 10003)
+                if is_unknown_channel_error(&e) {
+                    debug!(
+                        channel_id = %chan,
+                        "Ticket channel was already deleted from Discord manually"
+                    );
+                } else {
+                    warn!(
+                        channel_id = %chan,
+                        error = ?e,
+                        "Failed to delete inactive ticket channel on close"
+                    );
+                }
             }
         }
     }

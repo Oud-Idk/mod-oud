@@ -149,7 +149,7 @@ pub async fn fetch_dist_edit_details(
 }
 
 pub async fn publish_delete_event(redis: Client, payload_json: String) -> FredResult<()> {
-    redis.publish("discord:delete", payload_json).await
+    redis.publish("discord:deletes", payload_json).await
 }
 
 pub async fn publish_edit_event(redis: &Client, payload_json: String) -> FredResult<()> {

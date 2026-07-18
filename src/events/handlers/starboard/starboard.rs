@@ -43,9 +43,8 @@ async fn handle_starboard_reaction(
         trace!("Reaction has no user_id, ignoring");
         return Ok(())
     };
-    let guild_id_str = guild_id.to_string();
 
-    let starboards = utils::get_starboards(&guild_id_str, db, redis).await?;
+    let starboards = utils::get_starboards(guild_id.get() as i64, db, redis).await?;
     if starboards.is_empty() {
         trace!("No starboards configured for guild {}", guild_id);
         return Ok(());

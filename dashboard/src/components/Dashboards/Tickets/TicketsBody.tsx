@@ -4,7 +4,7 @@ import { TicketConfig } from "@/types/config";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { DiscordChannel } from "@/types";
 import { useConfigForm } from "@/hooks/useConfigForm";
-import { TabItem, Tabs } from "@/components/Tabs";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import TicketingTab from "@/components/Dashboards/Tickets/Tabs/TicketingTab";
 import InitialMessageTab from "@/components/Dashboards/Tickets/Tabs/InitialMessageTab";
 import GeneralsTab from "@/components/Dashboards/Tickets/Tabs/GeneralsTab";

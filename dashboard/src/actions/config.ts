@@ -200,10 +200,6 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
     }
 }
 
-/**
- * Saves or updates a bad word ruleset row in the database,
- * then revalidates the message filtering page.
- */
 export async function saveBadWordRulesetAction(
     guildId: string,
     ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId' | 'id'> & { id?: string }
@@ -219,10 +215,6 @@ export async function saveBadWordRulesetAction(
     }
 }
 
-/**
- * Deletes a bad word ruleset row from the database,
- * then revalidates the message filtering page.
- */
 export async function deleteBadWordRulesetAction(
     guildId: string,
     id: string

@@ -9,6 +9,7 @@ use fred::prelude::{FredResult, PubsubInterface};
 use poise::serenity_prelude as serenity;
 use serenity::all::{audit_log, MessageAction};
 use std::sync::Arc;
+use tracing::field::debug;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 #[instrument(
@@ -25,7 +26,7 @@ async fn determine_deleter(
     channel_id: serenity::ChannelId,
     author_id: u64,
     audit_cache: &moka::future::Cache<u64, Arc<CachedAuditLogs>>,
-) -> Option<(String, String)> {
+) -> Option<(u64, String)> {
     let guild_id_u64 = guild_id.get();
 
     let cached_logs = audit_cache.get(&guild_id_u64).await;
@@ -82,12 +83,12 @@ async fn determine_deleter(
         if target_matches && channel_matches {
             if let Some(user) = audit_data.users.get(&entry.user_id) {
                 debug!(deleter_id = %entry.user_id, deleter_name = %user.name, "Found matching deleter in cached users list");
-                return Some((entry.user_id.to_string(), user.name.clone()));
+                return Some((entry.user_id.get(), user.name.clone()));
             }
 
             debug!(deleter_id = %entry.user_id, "User details not found in audit payload; resolving via API");
             if let Ok(user) = entry.user_id.to_user(&ctx.http).await {
-                return Some((entry.user_id.to_string(), user.name));
+                return Some((entry.user_id.get(), user.name));
             }
         }
     }
@@ -157,6 +158,8 @@ pub async fn message_log_delete(
         };
 
         let joined_image_urls = msg_clone.image_urls.join(",");
+        // Possible bottleneck here because not batching the queries
+        // But, who deleted messages every 0.1 seconds anyway
         let db_res = database::insert_deleted_message(
             &pool,
             &msg_clone,
@@ -170,18 +173,19 @@ pub async fn message_log_delete(
         }
 
         let payload = DeletedMessagePayload {
-            id: msg_clone.msg_id.to_string(),
-            guild_id: g_id.to_string(),
+            id: msg_clone.msg_id,
+            guild_id: g_id,
             author_name: msg_clone.author_name.clone(),
             content: msg_clone.content.clone(),
-            channel_id: msg_clone.chan_id.to_string(),
+            channel_id: msg_clone.chan_id,
             deleted_at: chrono::Utc::now().to_rfc3339(),
             attachment_url: joined_image_urls,
-            deleted_by_id: deleted_by.clone().map(|id| id.0),
-            deleted_by_name: deleted_by.map(|id| id.1),
+            deleted_by_id: deleted_by.as_ref().map(|by| by.0 as i64),
+            deleted_by_name: deleted_by.map(|by| by.1),
         };
 
         if let Ok(payload_json) = serde_json::to_string(&payload) {
+            debug!("Publishing delete event");
             let res: FredResult<()> = cache::publish_delete_event(redis, payload_json).await;
             if let Err(err) = res {
                 warn!(error = %err, "Failed to publish delete message event!");
@@ -252,10 +256,10 @@ pub async fn message_log_update(
     database::insert_modified_messages(&data.db, &details, g_id).await?;
 
     let payload = ModifiedMessagePayload {
-        id: details.msg_id.to_string(),
-        guild_id: g_id.to_string(),
+        id: details.msg_id,
+        guild_id: g_id,
         author_name: details.author_name.clone(),
-        channel_id: details.chan_id.to_string(),
+        channel_id: details.chan_id,
         old_content: details.old_content.clone(),
         new_content: details.new_content.clone(),
         updated_at: chrono::Utc::now().to_rfc3339(),

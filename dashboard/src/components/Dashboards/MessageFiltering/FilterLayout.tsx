@@ -35,7 +35,7 @@ export function FilterLayout({
     return (
         <div className="space-y-6">
             <ToggleSwitch
-                enabled={enabled} onChange={onToggle} disabled={false} text={toggleText} shrink={true}
+                checked={enabled} onChange={onToggle} disabled={false} text={toggleText} shrink={true}
             />
 
             {enabled && (

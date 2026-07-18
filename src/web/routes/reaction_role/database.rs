@@ -1,4 +1,5 @@
-use crate::web::routes::reaction_role::types::{ButtonRole, ReactionMessage, ReactionRole};
+use crate::types::config::config::Format;
+use crate::web::routes::reaction_role::types::{ButtonRole, ButtonStyle, InteractionMode, ReactionMessage, ReactionRole};
 use crate::WebState;
 use axum::http::StatusCode;
 use sqlx::postgres::PgQueryResult;
@@ -8,16 +9,25 @@ use tracing::warn;
 
 pub async fn fetch_reaction_message(
     pool: &PgPool,
-    config_id: i32,
+    config_id: i64,
     guild_id: &str,
 ) -> Result<ReactionMessage, (StatusCode, String)> {
-    sqlx::query_as::<_, ReactionMessage>(
-        "SELECT id, message_id, name, channel_id, guild_id, mode, format, embed, content
-         FROM reaction_messages
-         WHERE id = $1 AND guild_id = $2"
+    let guild_id: i64 = guild_id.parse().map_err(|e| {
+        warn!(error = ?e, guild_id, "Invalid guild_id format");
+        (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
+    })?;
+
+    sqlx::query_as!(
+        ReactionMessage,
+        r#"
+        SELECT id, message_id, name, channel_id, guild_id, mode as "mode: InteractionMode",
+               format as "format: Format", embed, content
+        FROM reaction_messages
+        WHERE id = $1 AND guild_id = $2
+        "#,
+        config_id,
+        guild_id,
     )
-        .bind(config_id)
-        .bind(guild_id)
         .fetch_optional(pool)
         .await
         .map_err(|e| {
@@ -30,14 +40,17 @@ pub async fn fetch_reaction_message(
 /// Fetches associated reaction roles configuration from the database
 pub async fn fetch_active_reactions(
     pool: &PgPool,
-    reaction_message_id: i32,
+    reaction_message_id: i64,
 ) -> Result<Vec<ReactionRole>, (StatusCode, String)> {
-    sqlx::query_as::<_, ReactionRole>(
-        "SELECT id, reaction_message_id, emoji, role_id
-         FROM reaction_roles
-         WHERE reaction_message_id = $1"
+    sqlx::query_as!(
+        ReactionRole,
+        r#"
+        SELECT id, reaction_message_id, emoji, role_id
+        FROM reaction_roles
+        WHERE reaction_message_id = $1
+        "#,
+        reaction_message_id
     )
-        .bind(reaction_message_id)
         .fetch_all(pool)
         .await
         .map_err(|e| {
@@ -46,13 +59,16 @@ pub async fn fetch_active_reactions(
         })
 }
 
-pub async fn fetch_buttons(pool: &PgPool, reaction_message_id: i32) -> Result<Vec<ButtonRole>, (StatusCode, String)> {
-    sqlx::query_as::<_, ButtonRole>(
-        "SELECT id, reaction_message_id, role_id, custom_id, label, style, emoji
-         FROM button_roles
-         WHERE reaction_message_id = $1"
+pub async fn fetch_buttons(pool: &PgPool, reaction_message_id: i64) -> Result<Vec<ButtonRole>, (StatusCode, String)> {
+    sqlx::query_as!(
+        ButtonRole,
+        r#"
+        SELECT id, reaction_message_id, role_id, custom_id, label, style as "style: ButtonStyle", emoji
+        FROM button_roles
+        WHERE reaction_message_id = $1
+        "#,
+        reaction_message_id,
     )
-        .bind(reaction_message_id)
         .fetch_all(pool)
         .await
         .map_err(|e| {
@@ -61,7 +77,7 @@ pub async fn fetch_buttons(pool: &PgPool, reaction_message_id: i32) -> Result<Ve
         })
 }
 
-pub async fn delete_message_from_db(state: &Arc<WebState>, config_id: i32) -> Result<(), (StatusCode, String)> {
+pub async fn delete_message_from_db(state: &Arc<WebState>, config_id: i64) -> Result<(), (StatusCode, String)> {
     sqlx::query!(
         "UPDATE reaction_messages SET message_id = NULL WHERE id = $1",
         config_id
@@ -75,10 +91,10 @@ pub async fn delete_message_from_db(state: &Arc<WebState>, config_id: i32) -> Re
     Ok(())
 }
 
-pub async fn add_message_to_db(state: &Arc<WebState>, config_row: ReactionMessage, message_id_str: &String) -> Result<PgQueryResult, Error> {
+pub async fn add_message_to_db(state: &Arc<WebState>, config_row: ReactionMessage, message_id: i64) -> Result<PgQueryResult, Error> {
     sqlx::query!(
         "UPDATE reaction_messages SET message_id = $1 WHERE id = $2",
-        message_id_str,
+        message_id,
         config_row.id
     )
         .execute(&state.pool)

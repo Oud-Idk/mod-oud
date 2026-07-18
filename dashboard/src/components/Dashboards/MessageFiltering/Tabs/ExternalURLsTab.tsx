@@ -80,7 +80,7 @@ export function ExternalURLsTab({
             <div className="space-y-4">
                 <div className="space-y-4">
                     <ToggleSwitch
-                        enabled={filterConfig.block_only_malicious}
+                        checked={filterConfig.block_only_malicious}
                         onChange={() => updateFilter({ block_only_malicious: !filterConfig.block_only_malicious })}
                         disabled={false}
                         text="Block only Malicious URLs (Google Safe Browsing)"

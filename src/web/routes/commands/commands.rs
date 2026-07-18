@@ -16,7 +16,7 @@ use tracing::{error, info, instrument};
 async fn broadcast_report_update(
     pool: &PgPool,
     redis_conn: &Client,
-    report_id: i32,
+    report_id: i64,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let sse_update = database::get_reported_message_by_id(pool, report_id).await?;
     let sse_payload = serde_json::to_string(&sse_update)?;
@@ -31,8 +31,6 @@ pub async fn handle_dashboard_command(
     State(state): State<Arc<WebState>>,
     Json(cmd): Json<DashboardCommand>,
 ) -> Result<StatusCode, WebError> {
-    info!("Processing dashboard moderation command");
-
     let (guild_id, user_id, target_username) = database::fetch_target_report(&state.pool, cmd.report_id)
         .await
         .map_err(|(status, err_msg)| {
@@ -43,14 +41,16 @@ pub async fn handle_dashboard_command(
             );
             (status, err_msg)
         })?;
-    let mod_id_str = cmd.moderator_id.as_deref();
 
-    let mut redis_conn = state.redis.clone();
+    let redis_conn = state.redis.clone();
     let moderator_name = cmd.name.as_deref().unwrap_or("Web Dashboard");
+    let moderator_id = cmd.moderator_id;
+
+    info!(moderator_name = moderator_name, "Processing dashboard moderation command");
 
     match &cmd.action {
         DashboardAction::ResolveReport { status } => {
-            handlers::handle_resolve_report(&state, &cmd, status, &guild_id, &mut redis_conn).await?;
+            handlers::handle_resolve_report(&state, &cmd, status, &guild_id, &redis_conn).await?;
         }
         DashboardAction::DeleteMessage { channel_id, message_id } => {
             handlers::handle_delete_message(&state, &cmd, channel_id, message_id).await?;
@@ -59,23 +59,23 @@ pub async fn handle_dashboard_command(
             handlers::handle_warn(
                 &state,
                 &cmd,
-                mod_id_str,
+                moderator_id,
                 &guild_id,
                 &user_id,
-                &mut redis_conn,
+                &redis_conn,
                 &moderator_name,
                 &target_username
             ).await?;
         }
         DashboardAction::TimeoutUser => {
-            handlers::handle_timeout(&state, &cmd, mod_id_str, &guild_id, &user_id, &mut redis_conn).await?;
+            handlers::handle_timeout(&state, &cmd, moderator_id, &guild_id, &user_id, &redis_conn).await?;
         }
         DashboardAction::BanUser => {
-            handlers::handle_ban_user(&state, &cmd, mod_id_str, &guild_id, &user_id, &mut redis_conn).await?;
+            handlers::handle_ban_user(&state, &cmd, moderator_id, &guild_id, &user_id, &redis_conn).await?;
         }
     }
 
-    if let Err(e) = broadcast_report_update(&state.pool, &mut redis_conn, cmd.report_id).await {
+    if let Err(e) = broadcast_report_update(&state.pool, &redis_conn, cmd.report_id).await {
         error!(error = ?e, "Failed to broadcast report update after moderation action");
         return Err(WebError::Internal(e.to_string()));
     }

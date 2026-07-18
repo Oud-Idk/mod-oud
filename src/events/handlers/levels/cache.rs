@@ -34,7 +34,7 @@ pub async fn cache_aside_multipliers(
         }
         None => {
             debug!(key = %multiplier_key, "Cache miss; fetching multipliers from database");
-            let db_multipliers = database::get_multipliers(db, &guild_id.get().to_string()).await?;
+            let db_multipliers = database::get_multipliers(db, guild_id.get() as i64).await?;
 
             debug!(key = %multiplier_key, "Serializing and caching multipliers in Redis");
             let serialized = serde_json::to_string(&db_multipliers)?;

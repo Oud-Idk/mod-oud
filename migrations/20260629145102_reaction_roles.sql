@@ -4,35 +4,28 @@ CREATE TYPE BUTTON_STYLE AS ENUM ('primary', 'secondary', 'success', 'danger');
 
 CREATE TABLE reaction_messages
 (
-    id         SERIAL PRIMARY KEY,
-    message_id TEXT UNIQUE,
+    id         BIGSERIAL PRIMARY KEY,
+    message_id BIGINT UNIQUE,
     name       TEXT             NOT NULL,
-    channel_id TEXT             NOT NULL,
-    guild_id   TEXT             NOT NULL,
+    channel_id BIGINT           NOT NULL,
+    guild_id   BIGINT           NOT NULL,
     mode       INTERACTION_MODE NOT NULL DEFAULT 'reaction',
 
     format     MESSAGE_FORMAT   NOT NULL,
     embed      TEXT,
-    content    TEXT,
-
-    CONSTRAINT ids_not_empty CHECK (
-        TRIM(message_id) <> '' AND
-        TRIM(channel_id) <> '' AND
-        TRIM(guild_id) <> ''
-        )
+    content    TEXT
 );
 
 CREATE TABLE reaction_roles
 (
-    id                  SERIAL PRIMARY KEY,
-    reaction_message_id INTEGER REFERENCES reaction_messages (id) ON DELETE CASCADE,
+    id                  BIGSERIAL PRIMARY KEY,
+    reaction_message_id BIGINT REFERENCES reaction_messages (id) ON DELETE CASCADE,
 
-    emoji               TEXT NOT NULL,
-    role_id             TEXT NOT NULL,
+    emoji               TEXT   NOT NULL,
+    role_id             BIGINT NOT NULL,
 
     CONSTRAINT reaction_data_check CHECK (
-        TRIM(emoji) <> '' AND
-        TRIM(role_id) <> ''
+        TRIM(emoji) <> ''
         ),
 
     UNIQUE (reaction_message_id, emoji)
@@ -41,17 +34,15 @@ CREATE TABLE reaction_roles
 CREATE TABLE button_roles
 (
     id                  SERIAL PRIMARY KEY,
-    reaction_message_id INTEGER REFERENCES reaction_messages (id) ON DELETE CASCADE,
+    reaction_message_id BIGINT REFERENCES reaction_messages (id) ON DELETE CASCADE,
 
-    role_id             TEXT         NOT NULL,
-    custom_id           TEXT         NOT NULL,
+    role_id             BIGINT       NOT NULL,
+    custom_id           BIGINT       NOT NULL,
     label               TEXT,
     style               BUTTON_STYLE NOT NULL DEFAULT 'primary',
     emoji               TEXT,
 
     CONSTRAINT button_data_check CHECK (
-        TRIM(role_id) <> '' AND
-        TRIM(custom_id) <> '' AND
         (TRIM(label) <> '' OR TRIM(emoji) <> '')
         ),
 

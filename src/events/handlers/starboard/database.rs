@@ -2,6 +2,12 @@ use crate::types::Error;
 use serenity::all::{ChannelId, Context, GuildId, MessageId, UserId};
 use sqlx::PgPool;
 
+pub struct SimpleStarboard {
+    pub(crate) keep_deleted_messages: Option<bool>,
+    pub(crate) starboard_message_id: Option<i64>,
+    pub(crate) starboard_channel_id: i64,
+}
+
 /// Helper to fetch the existing starboard message ID from the database
 pub async fn fetch_starboard_message_id(
     db: &PgPool,
@@ -10,7 +16,7 @@ pub async fn fetch_starboard_message_id(
 ) -> Result<Option<MessageId>, Error> {
     let existing_post_id = sqlx::query_scalar!(
         "SELECT starboard_message_id FROM starred_messages WHERE original_message_id = $1 AND starboard_id = $2",
-        orig_msg_id.to_string(),
+        orig_msg_id.get() as i64,
         starboard_id
     )
         .fetch_optional(db)
@@ -18,7 +24,7 @@ pub async fn fetch_starboard_message_id(
         .flatten();
 
     Ok(existing_post_id
-        .and_then(|id| id.parse::<u64>().ok())
+        .and_then(|id| Some(id as u64))
         .map(MessageId::new))
 }
 
@@ -35,7 +41,7 @@ pub async fn handle_starboard_demotion(
 
     sqlx::query!(
         "DELETE FROM starred_messages WHERE original_message_id = $1 AND starboard_id = $2",
-        orig_msg_id.to_string(),
+        orig_msg_id.get() as i64,
         starboard_id
     )
         .execute(db)
@@ -53,7 +59,7 @@ pub async fn update_starred_message_count(
     sqlx::query!(
         "UPDATE starred_messages SET star_count = $1 WHERE original_message_id = $2 AND starboard_id = $3",
         emoji_count as i32,
-        orig_msg_id.to_string(),
+        orig_msg_id.get() as i64,
         starboard_id
     )
         .execute(db)
@@ -81,16 +87,45 @@ pub async fn insert_starred_message(
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
-        orig_msg_id.to_string(),
-        starboard_msg_id.to_string(),
+        orig_msg_id.get() as i64,
+        starboard_msg_id.get() as i64,
         starboard_id,
-        guild_id.to_string(),
-        channel_id.to_string(),
-        author_id.to_string(),
+        guild_id.get() as i64,
+        channel_id.get() as i64,
+        author_id.get() as i64,
         emoji_count as i32
     )
         .execute(db)
         .await?;
 
     Ok(())
+}
+
+pub async fn delete_starboard(db: &PgPool, id: i64) -> Result<(), Error> {
+    sqlx::query!(
+        r#"
+        DELETE FROM starred_messages
+        WHERE original_message_id = $1
+        "#,
+        id
+    )
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn fetch_starboard(db: &PgPool, id: i64) -> Result<Vec<SimpleStarboard>, Error> {
+    let rows = sqlx::query_as!(
+        SimpleStarboard,
+        r#"
+        SELECT sm.starboard_message_id, s.starboard_channel_id, s.keep_deleted_messages
+        FROM starred_messages sm
+        JOIN starboards s ON sm.starboard_id = s.id
+        WHERE sm.original_message_id = $1
+        "#,
+        id
+    )
+        .fetch_all(db)
+        .await?;
+    Ok(rows)
 }

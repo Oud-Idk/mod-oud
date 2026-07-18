@@ -14,7 +14,7 @@ export function VoiceTab({
     return (
         <div>
             <ToggleSwitch
-                enabled={config.voice.enabled}
+                checked={config.voice.enabled}
                 onChange={(v) => handleChange({ voice: { ...config.voice, enabled: v, } })}
                 disabled={false}
                 text="Enable Voice Leveling"

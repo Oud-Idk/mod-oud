@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { LogViewer } from "./LogViewer";
-import { ImageModal } from "@/components/Dashboards/General/ImageModal"; // Import the modal
+import { Modal } from "@/components/Modal";
+import Image from "next/image";
 
 interface DeletedMessage {
     id: number;
@@ -101,7 +102,9 @@ export function DeletedMessageLogViewer({
             />
 
             {activeImageUrl && (
-                <ImageModal src={activeImageUrl} onClose={() => setActiveImageUrl(null)}/>
+                <Modal onClose={() => setActiveImageUrl(null)} headerText="Image">
+                    <Image src={activeImageUrl} alt="The Attached Image"/>
+                </Modal>
             )}
         </>
     );

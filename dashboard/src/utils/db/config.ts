@@ -370,9 +370,7 @@ export async function saveModerationDMsConfig(guildId: string, config: Moderatio
     await saveGuildConfigField(guildId, 'moderation_dms', config);
 }
 
-/**
- * Fetch all bad word rulesets for a specific guild
- */
+
 export async function getBadWordRulesets(guildId: string): Promise<BadWordRulesetRow[]> {
     const query = `
         SELECT id,
@@ -393,9 +391,6 @@ export async function getBadWordRulesets(guildId: string): Promise<BadWordRulese
     return res.rows;
 }
 
-/**
- * Upsert a bad word ruleset (Insert or Update)
- */
 export async function saveBadWordRuleset(
     guildId: string,
     ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId' | 'id'> & { id?: string }
@@ -466,5 +461,59 @@ export async function deleteBadWordRuleset(guildId: string, id: string): Promise
         await redis.publish("config_updates", `invalidate:${guildId}`);
     } catch (redisError) {
         console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
+    }
+}
+
+export interface InviteTrackerConfig {
+    enabled: boolean;
+}
+
+export interface LeaderboardEntry {
+    inviterId: string;
+    count: number;
+}
+
+/**
+ * Retrieves the invite tracker settings from the JSONB settings object
+ */
+export async function getInviteTrackerConfig(guildId: string): Promise<InviteTrackerConfig> {
+    const defaultConfig: InviteTrackerConfig = {
+        enabled: false,
+    };
+
+    const dbConfig = await getGuildConfigField<Partial<InviteTrackerConfig>>(guildId, "invite_tracker");
+    if (!dbConfig) return defaultConfig;
+
+    return {
+        ...defaultConfig,
+        ...dbConfig,
+    };
+}
+
+/**
+ * Saves the invite tracker settings to the JSONB settings object
+ */
+export async function saveInviteTrackerConfig(guildId: string, config: InviteTrackerConfig): Promise<void> {
+    await saveGuildConfigField(guildId, "invite_tracker", config);
+}
+
+/**
+ * Fetches the top inviters from the inviter_counts table
+ */
+export async function getInviteLeaderboard(guildId: string, limit = 10): Promise<LeaderboardEntry[]> {
+    try {
+        const query = `
+            SELECT inviter_id::TEXT AS "inviterId",
+                   count::INTEGER   AS "count"
+            FROM inviter_counts
+            WHERE guild_id = $1
+            ORDER BY count DESC
+            LIMIT $2
+        `;
+        const res = await db.query(query, [guildId, limit]);
+        return res.rows;
+    } catch (error) {
+        console.error("Failed to fetch invite leaderboard:", error);
+        return [];
     }
 }

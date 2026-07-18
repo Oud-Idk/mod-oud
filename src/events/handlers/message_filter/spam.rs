@@ -12,7 +12,7 @@ async fn handle_spam(ctx: &serenity::all::Context, message: &Message, data: &Dat
 
     actions::execute_rule_actions(
         ctx,
-        &data.db,
+        data,
         message,
         &anti_spam_rule.base,
         "Anti Spam",

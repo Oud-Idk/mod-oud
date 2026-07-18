@@ -1,7 +1,7 @@
 use crate::types::WarningInfo;
 use sqlx::{Error, PgPool};
 
-pub async fn fetch_warnings(db: &PgPool, guild_id: i64, user_id: i64) -> Result<Vec<WarningInfo>, sqlx::Error> {
+pub async fn fetch_warnings(db: &PgPool, guild_id: i64, user_id: i64) -> Result<Vec<WarningInfo>, Error> {
     sqlx::query_as!(
         WarningInfo,
         r#"
@@ -19,7 +19,7 @@ pub async fn fetch_warnings(db: &PgPool, guild_id: i64, user_id: i64) -> Result<
         .await
 }
 
-pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: i64, target_user_id: Option<i64>, pattern: &str) -> Result<Vec<WarningInfo>, sqlx::Error> {
+pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: i64, target_user_id: Option<i64>, pattern: &str) -> Result<Vec<WarningInfo>, Error> {
     sqlx::query_as!(
         WarningInfo,
         r#"
@@ -39,7 +39,7 @@ pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: i64, target_user_
         .await
 }
 
-pub async fn search_warning_from_id(db: &PgPool, guild_id: i64, id: i32) -> Option<WarningInfo> {
+pub async fn search_warning_from_id(db: &PgPool, guild_id: i64, id: i64) -> Option<WarningInfo> {
     sqlx::query_as!(
         WarningInfo,
         r#"
@@ -61,7 +61,7 @@ pub struct PartialWarning {
     pub(crate) reason: Option<String>,
 }
 
-pub async fn update_warn(db: &PgPool, set_active: bool, id: i32, guild_id: i64, expected_current_state: bool) -> Result<Option<PartialWarning>, Error> {
+pub async fn update_warn(db: &PgPool, set_active: bool, id: i64, guild_id: i64, expected_current_state: bool) -> Result<Option<PartialWarning>, Error> {
     sqlx::query_as!(
         PartialWarning,
         r#"
@@ -79,7 +79,7 @@ pub async fn update_warn(db: &PgPool, set_active: bool, id: i32, guild_id: i64, 
         .await
 }
 
-pub async fn delete_warn(db: &PgPool, id: i32, guild_id: i64) -> Result<Option<PartialWarning>, Error> {
+pub async fn delete_warn(db: &PgPool, id: i64, guild_id: i64) -> Result<Option<PartialWarning>, Error> {
     sqlx::query_as!(
         PartialWarning,
         r#"

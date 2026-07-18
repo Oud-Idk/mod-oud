@@ -2,18 +2,12 @@ use crate::types::leveling::LevelReward;
 use serenity::all::{Context, GuildId, RoleId, UserId};
 use tracing::{debug, trace, warn};
 
-pub fn parse_role_ids(roles_opt: &Option<Vec<String>>) -> Vec<RoleId> {
+pub fn parse_role_ids(roles_opt: &Option<Vec<i64>>) -> Vec<RoleId> {
     roles_opt
         .as_ref()
         .map(|roles| {
             roles.iter()
-                .filter_map(|r| match r.parse::<u64>() {
-                    Ok(val) => Some(RoleId::new(val)),
-                    Err(_) => {
-                        warn!("Failed to parse role ID: {}", r);
-                        None
-                    }
-                })
+                .filter_map(|r| Some(RoleId::new(*r as u64)))
                 .collect()
         })
         .unwrap_or_default()

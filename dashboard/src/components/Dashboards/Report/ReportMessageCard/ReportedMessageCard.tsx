@@ -41,7 +41,7 @@ export function ReportedMessageCard({
             <ReportContent
                 authorName={log.author_name}
                 reporterName={log.reporter_name}
-                messageContent={log.message_content}
+                messageContent={log.content}
                 reason={log.reason}
                 attachmentUrl={log.attachment_url}
                 onImageClick={onImageClick}

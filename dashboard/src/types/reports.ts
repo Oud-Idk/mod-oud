@@ -5,7 +5,7 @@ export interface ReportedMessage {
     message_id: string;
     author_name: string;
     reporter_name: string;
-    message_content: string;
+    content: string;
     attachment_url: string | null;
     reason: string;
     status: 'under_review' | 'actioned' | 'dismissed';

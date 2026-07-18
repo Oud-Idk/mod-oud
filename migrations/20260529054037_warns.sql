@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS warns
 (
-    id             SERIAL PRIMARY KEY,
+    id             BIGSERIAL PRIMARY KEY,
     guild_id       BIGINT      NOT NULL,
 
     moderator_id   BIGINT      NOT NULL,

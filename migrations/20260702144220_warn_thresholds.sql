@@ -2,12 +2,12 @@ CREATE TYPE MODERATION_ACTION AS ENUM ('timeout', 'kick', 'ban', 'role_remove', 
 
 CREATE TABLE warn_thresholds
 (
-    id              SERIAL PRIMARY KEY,
-    guild_id        VARCHAR(20)         NOT NULL,
+    id              BIGSERIAL PRIMARY KEY,
+    guild_id        BIGINT              NOT NULL,
     warn_count      INT                 NOT NULL,
     action_type     MODERATION_ACTION[] NOT NULL,
-    roles_to_add    VARCHAR(20)[],
-    roles_to_remove VARCHAR(20)[],
+    roles_to_add    BIGINT[],
+    roles_to_remove BIGINT[],
     duration        INT DEFAULT NULL,
 
     -- Ensure a server doesn't have two conflicting rules for the same warning count

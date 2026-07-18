@@ -1,3 +1,4 @@
+use crate::events::guild::{on_guild_create, on_invite_create, on_invite_delete};
 use crate::events::handlers::automod::cache::{cache_automod_name, invalidate_rule_cache};
 use crate::events::handlers::automod::on_automod;
 use crate::events::handlers::join_leave::{on_member_join, on_member_leave};
@@ -56,6 +57,15 @@ pub async fn event_handler(
         }
         FullEvent::AutoModActionExecution { execution } => {
             on_automod(ctx, execution, data).await?;
+        }
+        FullEvent::GuildCreate { guild, .. } => {
+            on_guild_create(ctx, guild, data).await?;
+        }
+        FullEvent::InviteCreate { data: invite_data } => {
+            on_invite_create(ctx, invite_data, data).await?;
+        }
+        FullEvent::InviteDelete { data: invite_data } => {
+            on_invite_delete(ctx, invite_data, data).await?;
         }
         FullEvent::AutoModRuleCreate { rule } => { cache_automod_name(&data.redis, &rule.id, &rule).await?; }
         FullEvent::AutoModRuleDelete { rule } => { invalidate_rule_cache(&data.redis, &rule.id).await?; }

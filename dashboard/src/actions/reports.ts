@@ -106,6 +106,12 @@ export async function resolveReportStatus(
 
 export async function timeoutUser(reportId: number, durationMins: number, reason?: string) {
     try {
+        const session = await auth();
+
+        if (!session || !session.accessToken) {
+            return { success: false, error: "Unauthorized" };
+        }
+
         console.log(`[Next.js Action] Requesting timeout for Report #${reportId} (${durationMins}m)`);
 
         const response = await fetch("http://localhost:8080/api/commands", {
@@ -118,6 +124,7 @@ export async function timeoutUser(reportId: number, durationMins: number, reason
                 report_id: reportId,
                 duration_mins: durationMins,
                 reason: reason || undefined,
+                name: session.user?.name ?? "",
             }),
         });
 
@@ -138,6 +145,12 @@ export async function warnUser(reportId: number, reason?: string) {
     try {
         console.log(`[Next.js Action] Requesting warning for Report #${reportId}`);
 
+        const session = await auth();
+
+        if (!session || !session.accessToken) {
+            return { success: false, error: "Unauthorized" };
+        }
+
         const response = await fetch("http://localhost:8080/api/commands", {
             method: "POST",
             headers: {
@@ -147,6 +160,7 @@ export async function warnUser(reportId: number, reason?: string) {
                 action: "warn_user",
                 report_id: reportId,
                 reason: reason || undefined,
+                name: session.user?.name ?? "",
             }),
         });
 
@@ -165,7 +179,11 @@ export async function warnUser(reportId: number, reason?: string) {
 
 export async function banUser(reportId: number, durationMins?: number, reason?: string) {
     try {
-        console.log(`[Next.js Action] Requesting ban for Report #${reportId}`);
+        const session = await auth();
+
+        if (!session || !session.accessToken) {
+            return { success: false, error: "Unauthorized" };
+        }
 
         const response = await fetch("http://localhost:8080/api/commands", {
             method: "POST",
@@ -177,6 +195,7 @@ export async function banUser(reportId: number, durationMins?: number, reason?: 
                 report_id: reportId,
                 duration_mins: durationMins || undefined,
                 reason: reason || undefined,
+                name: session.user?.name ?? "",
             }),
         });
 

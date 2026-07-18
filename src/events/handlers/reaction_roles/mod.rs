@@ -9,7 +9,7 @@ use tracing::{debug, error, info, trace, warn};
 /// Retrieves the Role ID associated with a message and emoji, utilizing Redis caching.
 async fn get_reaction_role(
     data: &Data,
-    message_id: &str,
+    message_id: i64,
     emoji: &str,
 ) -> Result<Option<RoleId>, Error> {
     let cache_key = format!("reaction_role:{}:{}", message_id, emoji);
@@ -47,17 +47,11 @@ async fn get_reaction_role(
         .await?;
 
     if let Some(record) = row {
-        let role_id_u64 = match record.role_id.parse::<u64>() {
-            Ok(id) => id,
-            Err(e) => {
-                error!("Invalid role ID format in database: {}", e);
-                return Ok(None);
-            }
-        };
+        let role_id_u64 = record.role_id as u64;
 
         if let Err(e) = data
             .redis
-            .set::<(), _, _>(&cache_key, &record.role_id, None, None, false)
+            .set::<(), _, _>(&cache_key, role_id_u64, None, None, false)
             .await
         {
             warn!("Failed to write reaction role to Redis: {}", e);
@@ -97,10 +91,9 @@ pub async fn handle_reaction_role_add(
         return Ok(());
     }
 
-    let message_id_str = reaction.message_id.to_string();
     let emoji_str = reaction.emoji.to_string();
 
-    if let Some(role_id) = get_reaction_role(data, &message_id_str, &emoji_str).await? {
+    if let Some(role_id) = get_reaction_role(data, reaction.message_id.get() as i64, &emoji_str).await? {
         if let Err(err) = ctx.http.add_member_role(guild_id, user_id, role_id, Some("Reaction Role Add")).await {
             warn!("Failed to add role {} to user {}: {}", role_id, user_id, err);
         } else {
@@ -130,10 +123,9 @@ pub async fn handle_reaction_role_remove(
         return Ok(());
     }
 
-    let message_id_str = reaction.message_id.to_string();
     let emoji_str = reaction.emoji.to_string();
 
-    if let Some(role_id) = get_reaction_role(data, &message_id_str, &emoji_str).await? {
+    if let Some(role_id) = get_reaction_role(data, reaction.message_id.get() as i64, &emoji_str).await? {
         if let Err(err) = ctx.http.remove_member_role(guild_id, user_id, role_id, Some("Reaction Role Remove")).await {
             warn!("Failed to remove role {} from user {}: {}", role_id, user_id, err);
         } else {

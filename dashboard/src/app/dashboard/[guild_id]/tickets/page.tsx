@@ -1,4 +1,4 @@
-import { getCategoryMap, getGuildChannels, getRoleMap } from "@/utils/discord"; // Added getRoleMap import
+import { getCategoryMap, getGuildChannels, getRoleMap } from "@/utils/discord";
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
 import { TicketsBody } from "@/components/Dashboards/Tickets/TicketsBody";
 import { getTicketConfig } from "@/utils/db/config";
@@ -27,7 +27,7 @@ export default async function TicketsPage({ params }: PageProps) {
             <DashboardHeader>Tickets Settings</DashboardHeader>
             <TicketsBody
                 categoryMap={categoryMap}
-                roleMap={roleMap} // Pass the roleMap down to the client component
+                roleMap={roleMap}
                 channels={channels}
                 ticketConfig={ticketConfig}
                 onSave={onSave}

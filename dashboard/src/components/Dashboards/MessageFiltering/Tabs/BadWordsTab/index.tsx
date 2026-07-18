@@ -7,6 +7,7 @@ import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayo
 import { BadWordCreateModal } from "./BadWordCreateModal";
 import { BadWordRulesetConfig } from "./BadWordRulesetConfig";
 import { useConfigForm } from "@/hooks/useConfigForm";
+import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
 
 type SaveableBadWordRuleset = Omit<BadWordRulesetRow, "createdAt" | "updatedAt" | "guildId" | "id"> & {
     id?: string;
@@ -41,7 +42,7 @@ export function BadWordTab({
         handleSave,
         handleCancel,
         handleChange,
-    } = useConfigForm<SaveableBadWordRuleset | null>({ // 👇 Applied type fix to the form hook
+    } = useConfigForm<SaveableBadWordRuleset | null>({
         initialConfig: activeRuleset,
         onSave: async (updatedConfig) => {
             if (updatedConfig) await onSave(updatedConfig);
@@ -94,13 +95,12 @@ export function BadWordTab({
                 }}
                 noActivePlaceholder={
                     <>
-                        <p className="text-sm">Select an active ruleset, or create a new one to begin.</p>
-                        <button
+                        <p className="mb-1">Select an active ruleset, or create a new one to begin.</p>
+                        <PrimaryButton
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="text-xs px-3.5 py-1.5 bg-zinc-850 rounded transition border border-neutral-500 hover:bg-neutral-300/10 cursor-pointer"
                         >
                             Create Your First Ruleset
-                        </button>
+                        </PrimaryButton>
                     </>
                 }
             >

@@ -18,19 +18,12 @@ pub async fn handle_delete_reaction_role_message(
     let record = fetch_reaction_message(&state.pool, config_id, &guild_id_str).await?;
 
     let message_id_str = match record.message_id {
-        Some(id) if !id.trim().is_empty() => id,
+        Some(id) if !id == 0 => id,
         _ => return Ok(StatusCode::NO_CONTENT),
     };
 
-    let channel_id_u64 = record.channel_id.parse::<u64>().map_err(|e| {
-        warn!(error = %e, "Failed to parse channel ID");
-        (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string())
-    })?;
-
-    let message_id_u64 = message_id_str.parse::<u64>().map_err(|e| {
-        warn!(error = %e, "Failed to parse message ID");
-        (StatusCode::BAD_REQUEST, "Invalid Message ID format".to_string())
-    })?;
+    let channel_id_u64 = record.channel_id as u64;
+    let message_id_u64 = message_id_str as u64;
 
     let channel = serenity::ChannelId::new(channel_id_u64);
     let message_id = serenity::MessageId::new(message_id_u64);

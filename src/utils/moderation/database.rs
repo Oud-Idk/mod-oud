@@ -20,12 +20,12 @@ pub enum ModerationAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WarnThreshold {
-    pub id: i32,
-    pub guild_id: String,
+    pub id: i64,
+    pub guild_id: i64,
     pub warn_count: i32,
     pub action_type: Vec<ModerationAction>,
-    pub roles_to_add: Option<Vec<String>>,
-    pub roles_to_remove: Option<Vec<String>>,
+    pub roles_to_add: Option<Vec<i64>>,
+    pub roles_to_remove: Option<Vec<i64>>,
     pub duration: Option<i32>,
 }
 
@@ -57,7 +57,7 @@ pub async fn insert_warn(
     reason: &str,
     moderator_username: &str,
     target_username: &str
-) -> Result<(i32, i32), sqlx::Error> {
+) -> Result<(i64, i32), sqlx::Error> {
     let res = sqlx::query!(
         r#"
         WITH inserted AS (
@@ -98,7 +98,7 @@ pub async fn fetch_warn_thresholds(db: &PgPool, redis: &Client, guild_id: &Guild
             FROM warn_thresholds
             WHERE guild_id = $1
         "#,
-        guild_id.to_string(),
+        guild_id.get() as i64,
     ).fetch_all(db).await?;
 
     if let Ok(json_string) = serde_json::to_string(&thresholds) {

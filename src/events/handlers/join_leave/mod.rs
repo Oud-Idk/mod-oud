@@ -4,6 +4,7 @@ pub mod message;
 pub mod send;
 
 use crate::core::config::{get_guild_ctx, get_settings, GuildCtx};
+use crate::events::handlers::invite_tracking;
 use crate::types::config::config::LeaveConfig;
 use crate::types::config::welcome::WelcomeConfig;
 use crate::types::{Data, Error};
@@ -43,6 +44,7 @@ pub async fn on_member_join(
 
     trace!(guild_id, user_id, "Logging member join record to the database");
     database::log_join_to_db(user_id as i64, guild_id as i64, data).await?;
+    invite_tracking::store_member_invite(ctx, member, data).await?; // Store invite data
 
     Ok(())
 }

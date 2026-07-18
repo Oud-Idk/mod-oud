@@ -13,7 +13,7 @@ import {
     UNPARDON_WARN_CONFIG,
     WARN_CONFIG
 } from "@/utils/embedTemplates";
-import { TabItem, Tabs } from "@/components/Tabs";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { ModerationDMsConfig } from "@/types/config/moderationDMs";
 import { BuilderConfig } from "@/types/builder";

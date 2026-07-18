@@ -47,7 +47,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                 />
             </div>
             <ToggleSwitch
-                enabled={config.keep_level_on_leave}
+                checked={config.keep_level_on_leave}
                 onChange={(v) => handleChange({ keep_level_on_leave: v })}
                 disabled={false}
                 text="Preserve Level on user Leave"

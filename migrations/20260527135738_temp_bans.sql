@@ -1,7 +1,8 @@
-CREATE TABLE IF NOT EXISTS temp_bans (
-    id SERIAL PRIMARY KEY,
-    guild_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
+CREATE TABLE IF NOT EXISTS temp_bans
+(
+    id       BIGSERIAL PRIMARY KEY,
+    guild_id BIGINT      NOT NULL,
+    user_id  BIGINT      NOT NULL,
     unban_at TIMESTAMPTZ NOT NULL
 );
 

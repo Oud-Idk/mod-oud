@@ -77,7 +77,7 @@ export function MessageConfigEditor({
         <>
             {enableToggle && (
                 <ToggleSwitch
-                    enabled={isEnabled}
+                    checked={isEnabled}
                     disabled={disabled}
                     onChange={(checked) => onChange({ ...config, enabled: checked })}
                     text={toggleLabel}
@@ -92,7 +92,7 @@ export function MessageConfigEditor({
                             value={config.channel_id || ""}
                             disabled={disabled}
                             onChange={(value) => onChange({ ...config, channel_id: value })}
-                            className={targetChannelIsEmpty ? "ring-2 ring-red-500 rounded-md" : ""}
+                            className={targetChannelIsEmpty ? "border-red-700 dark:border-red-300" : ""}
                         />
                     )}
                     {CustomFields}

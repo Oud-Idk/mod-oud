@@ -1,6 +1,6 @@
 CREATE TABLE moderation_logs
 (
-    case_id            SERIAL PRIMARY KEY,
+    case_id            BIGSERIAL PRIMARY KEY,
     guild_id           BIGINT      NOT NULL,
     target_id          BIGINT,
     target_username    VARCHAR(50),

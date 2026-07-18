@@ -110,7 +110,7 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
                             message_id: parsed.message_id,
                             author_id: parsed.author_id,
                             reporter_id: parsed.reporter_id,
-                            message_content: parsed.content || parsed.message_content,
+                            message_content: parsed.content || parsed.message_content, // cmon man
                             attachment_url: parsed.attachment_url || null,
                             reason: parsed.reason,
                             status: parsed.status || 'under_review',

@@ -71,7 +71,7 @@ pub enum LogEvent {
 
 /// Intermediate representation of warning data used for unified display.
 pub struct WarningInfo {
-    pub id: i32,
+    pub id: i64,
     pub user_id: i64,
     pub moderator_id: i64,
     pub reason: Option<String>,

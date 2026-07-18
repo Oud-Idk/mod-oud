@@ -109,7 +109,7 @@ async fn apply_threshold_actions(
                     if let Some(ref roles) = threshold.roles_to_add {
                         for role_id in roles {
                             debug!(role_id, "Adding role from threshold");
-                            member.add_role(http, RoleId::new(role_id.parse::<u64>()?)).await?;
+                            member.add_role(http, RoleId::new(*role_id as u64)).await?;
                         }
                     }
                     insert_threshold_automod_log(db, member, &threshold, "role_add").await?;
@@ -118,7 +118,7 @@ async fn apply_threshold_actions(
                     if let Some(ref roles) = threshold.roles_to_remove {
                         for role_id in roles {
                             debug!(role_id, "Removing role from threshold");
-                            member.remove_role(http, RoleId::new(role_id.parse::<u64>()?)).await?;
+                            member.remove_role(http, RoleId::new(*role_id as u64)).await?;
                         }
                     }
                     insert_threshold_automod_log(db, member, &threshold, "role_remove").await?;
@@ -289,7 +289,7 @@ pub async fn issue_ban(
     Ok(())
 }
 
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+#[instrument(skip(db, redis_conn, guild_configs, http, user), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_mute(
     db: &PgPool,
@@ -437,7 +437,7 @@ pub async fn issue_delete_warning(
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<Http>,
     guild_id_raw: GuildId,
-    id: i32,
+    id: i64,
     author: &User,
 ) -> Result<Option<(u64, String)>, Error> {
     let guild_id = guild_id_raw.get() as i64;
@@ -504,7 +504,7 @@ pub async fn issue_warning_status_change(
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
     http: &Arc<Http>,
     guild_id_raw: GuildId,
-    id: i32,
+    id: i64,
     set_active: bool,
     author: &User,
 ) -> Result<Option<(u64, String)>, Error> {

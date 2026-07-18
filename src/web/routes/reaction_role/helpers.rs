@@ -9,8 +9,8 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::warn;
 
-pub fn parse_config_id(config_id_str: &str) -> Result<i32, (StatusCode, String)> {
-    config_id_str.parse::<i32>().map_err(|_| {
+pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
+    config_id_str.parse::<i64>().map_err(|_| {
         (StatusCode::BAD_REQUEST, "Invalid Configuration ID format".to_string())
     })
 }
@@ -18,13 +18,13 @@ pub fn parse_config_id(config_id_str: &str) -> Result<i32, (StatusCode, String)>
 /// Fetches buttons and builds their Serenity layout elements
 pub async fn fetch_and_build_buttons(
     pool: &PgPool,
-    reaction_message_id: i32,
+    reaction_message_id: i64,
 ) -> Result<Vec<CreateButton>, (StatusCode, String)> {
     let buttons = database::fetch_buttons(pool, reaction_message_id).await?;
 
     let mut button_components = Vec::new();
     for b in buttons {
-        let mut btn = CreateButton::new(b.custom_id).style(match b.style {
+        let mut btn = CreateButton::new(b.custom_id.to_string()).style(match b.style {
             ButtonStyle::Secondary => serenity::all::ButtonStyle::Secondary,
             ButtonStyle::Success => serenity::all::ButtonStyle::Success,
             ButtonStyle::Danger => serenity::all::ButtonStyle::Danger,

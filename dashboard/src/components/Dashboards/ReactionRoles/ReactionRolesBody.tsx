@@ -38,6 +38,7 @@ export function ReactionRolesBody({
         config,
         isPending,
         isDirty,
+        isEmpty,
         setIsEmpty,
         handleSave,
         handleCancel,
@@ -97,6 +98,7 @@ export function ReactionRolesBody({
                 guildId={guildId}
                 onChange={handleChange}
                 setIsEmpty={setIsEmpty}
+                isEmpty={isEmpty}
                 onDeleteDiscordMessage={onDeleteDiscordMessage}
             />
         </ConfigListLayout>

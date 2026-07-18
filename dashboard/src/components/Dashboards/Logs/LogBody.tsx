@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { TabItem, Tabs } from "@/components/Tabs";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { AutomodTab } from "./Tabs/AutomodTab";
 import { MemberActivityTab } from "./Tabs/MemberActivityTab";
 import { ModerationTab } from "./Tabs/ModerationTab"; // <-- Added import

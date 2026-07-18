@@ -114,7 +114,7 @@ pub async fn report_message(
 
     let caller_id = ctx.author().id.get();
     let message_id = message.id.get();
-    let guild_id = ctx.guild_id().unwrap().get();
+    let guild_id = ctx.guild_id().unwrap().get() as i64;
 
     info!(
         caller_id,
@@ -147,7 +147,7 @@ pub async fn report_message(
         debug!(caller_id, message_id, "Report modal submitted; issuing report");
         let result = issue_report(
             db, &ctx.data().redis,
-            guild_id, message.channel_id.get(),
+            guild_id, message.channel_id.get() as i64,
             &message, ctx.author(), modal.reason,
         ).await?;
 

@@ -41,14 +41,14 @@ export async function getReactionMessages(guildId: string): Promise<ReactionMess
                COALESCE(rm.embed, '')                 AS embed,
                COALESCE(rm.content, '')               AS content,
                (SELECT COALESCE(
-                               JSON_AGG(JSON_BUILD_OBJECT('emoji', rr.emoji, 'role_id', rr.role_id)),
+                               JSON_AGG(JSON_BUILD_OBJECT('emoji', rr.emoji, 'role_id', rr.role_id::TEXT)),
                                '[]'
                        )
                 FROM reaction_roles rr
                 WHERE rr.reaction_message_id = rm.id) AS reactions,
                (SELECT COALESCE(
                                JSON_AGG(JSON_BUILD_OBJECT(
-                                       'role_id', br.role_id,
+                                       'role_id', br.role_id::TEXT,
                                        'custom_id', br.custom_id,
                                        'label', br.label,
                                        'style', br.style,

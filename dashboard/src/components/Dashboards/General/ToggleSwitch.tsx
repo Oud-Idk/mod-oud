@@ -4,16 +4,16 @@ import { Switch } from "@headlessui/react";
 import { twMerge } from "tailwind-merge";
 
 interface EnableSwitchProps {
-    enabled: boolean;
+    checked: boolean;
     onChange: (value: boolean) => void;
-    disabled: boolean;
+    disabled?: boolean;
     text?: string;
     className?: string;
     shrink?: boolean;
 }
 
 export function ToggleSwitch({
-    enabled,
+    checked,
     onChange: setEnabled,
     disabled,
     text,
@@ -21,10 +21,10 @@ export function ToggleSwitch({
     shrink,
 }: EnableSwitchProps) {
     return (
-        <div className={twMerge("text-xl flex flex-row gap-4 items-center text-wrap mb-2", className)}>
+        <div className={twMerge("text-xl flex flex-row gap-4 items-center text-wrap", className)}>
             {text && (<p>{text}</p>)}
             <Switch
-                checked={enabled}
+                checked={checked}
                 onChange={setEnabled}
                 disabled={disabled}
                 className={`group inline-flex h-6 w-11 items-center rounded-full bg-neutral-500 transition data-checked:bg-blue-500 ${!shrink ? "shrink-0" : ""}`}

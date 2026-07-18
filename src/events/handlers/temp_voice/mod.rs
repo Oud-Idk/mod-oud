@@ -18,7 +18,7 @@ pub mod interface;
 pub struct TempVoiceHub {
     id: uuid::Uuid,
     name: String,
-    category_id: String,
+    category_id: i64,
     user_limit: Option<i32>,
     default_channel_name: String,
 }

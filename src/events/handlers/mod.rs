@@ -7,3 +7,4 @@ pub mod message_logging;
 pub mod reaction_roles;
 pub mod automod;
 pub mod temp_voice;
+pub mod invite_tracking;

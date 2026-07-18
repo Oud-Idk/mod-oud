@@ -156,7 +156,7 @@ pub async fn search_warnings(
 )]
 pub async fn search_warning_by_id(
     ctx: Context<'_>,
-    #[description = "The ID of the warning to look up"] id: i32,
+    #[description = "The ID of the warning to look up"] id: i64,
 ) -> Result<(), Error> {
     info!(
         caller_id = ctx.author().id.get(),
@@ -207,7 +207,7 @@ pub async fn search_warning_by_id(
 )]
 pub async fn delete_warning(
     ctx: Context<'_>,
-    #[description = "The warning ID"] id: i32,
+    #[description = "The warning ID"] id: i64,
 ) -> Result<(), Error> {
     info!(
         caller_id = ctx.author().id.get(),
@@ -264,7 +264,7 @@ pub async fn delete_warning(
 )]
 pub async fn pardon_warning(
     ctx: Context<'_>,
-    #[description = "The warning ID"] id: i32,
+    #[description = "The warning ID"] id: i64,
 ) -> Result<(), Error> {
     info!(
         caller_id = ctx.author().id.get(),
@@ -283,7 +283,7 @@ pub async fn pardon_warning(
 )]
 pub async fn unpardon_warning(
     ctx: Context<'_>,
-    #[description = "The warning ID"] id: i32,
+    #[description = "The warning ID"] id: i64,
 ) -> Result<(), Error> {
     info!(
         caller_id = ctx.author().id.get(),

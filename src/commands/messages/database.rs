@@ -6,7 +6,7 @@ use serenity::all::{Message, User};
 use sqlx::{Error, PgPool};
 
 pub struct Id {
-    pub(crate) id: i32,
+    pub(crate) id: i64,
 }
 
 pub struct PartialDeletedMessage {
@@ -25,8 +25,8 @@ pub struct PartialEditedMessage {
 
 pub async fn insert_reported_message(
     db: &PgPool,
-    guild_id: &str,
-    channel_id: &str,
+    guild_id: i64,
+    channel_id: i64,
     attachment_url: &str,
     reason: &str,
     reporter_name: &str,
@@ -34,12 +34,13 @@ pub async fn insert_reported_message(
     message: &Message,
     reporter: &User,
 ) -> Result<Option<Id>, Error> {
-    let message_id = &message.id.to_string();
     let author = &message.author;
     let message_content = &message.content;
-    let author_id = &author.id.to_string();
     let author_name = &author.name;
-    let reporter_id = &reporter.id.to_string();
+
+    let message_id = message.id.get() as i64;
+    let author_id = author.id.get() as i64;
+    let reporter_id = reporter.id.get() as i64;
 
     sqlx::query_as!(
         Id,

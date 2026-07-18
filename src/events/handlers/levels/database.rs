@@ -16,8 +16,8 @@ pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Resul
         "SELECT *
         FROM levels
         WHERE user_id = $1 AND guild_id = $2",
-        user_id.to_string(),
-        guild_id.to_string(),
+        user_id.get() as i64,
+        guild_id.get() as i64,
     ).fetch_optional(db).await
 }
 
@@ -27,8 +27,8 @@ pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId, usern
         "INSERT INTO levels (user_id, guild_id, username)
          VALUES ($1, $2, $3)
          RETURNING *",
-        user_id.to_string(),
-        guild_id.to_string(),
+        user_id.get() as i64,
+        guild_id.get() as i64,
         username,
     )
         .fetch_one(db)
@@ -50,7 +50,7 @@ pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQuery
         .await
 }
 
-pub async fn get_multipliers(db: &PgPool, guild_id: &str) -> Result<Vec<XpMultiplier>, Error> {
+pub async fn get_multipliers(db: &PgPool, guild_id: i64) -> Result<Vec<XpMultiplier>, Error> {
     let multipliers = sqlx::query_as!(
         XpMultiplier,
         r#"
@@ -69,7 +69,7 @@ pub async fn get_multipliers(db: &PgPool, guild_id: &str) -> Result<Vec<XpMultip
 /// Fetches all level rewards for a specific guild
 pub async fn fetch_level_rewards(
     db: &PgPool,
-    guild_id: &str,
+    guild_id: i64,
 ) -> Result<Vec<LevelReward>, sqlx::Error> {
     sqlx::query_as!(
         LevelReward,

@@ -5,6 +5,8 @@ import EmbedBuilder from "@/components/Embed/EmbedBuilder";
 import { BuilderConfig } from "@/types/builder";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { sendEmbedAction } from "@/actions/customEmbed";
+import { InputLabel } from "@/components/Layout/InputLabel";
+import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
 
 interface EmbedBuilderBodyProps {
     channelMap: Record<string, string>;
@@ -73,9 +75,9 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
             <div className="flex flex-col my-4 rounded-lg">
                 <div className="flex flex-wrap items-end gap-4">
                     <div className="flex flex-col space-y-2 w-64">
-                        <label className="text-xs font-medium">
+                        <InputLabel>
                             Select Channel
-                        </label>
+                        </InputLabel>
                         <Dropdown
                             value={selectedChannel}
                             onChange={(val: string) => setSelectedChannel(val)}
@@ -83,17 +85,11 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                         />
                     </div>
 
-                    <button
-                        onClick={handleSendEmbed}
-                        disabled={!canSend}
-                        className={`px-5 py-2.5 rounded font-medium text-sm transition-all ${
-                            canSend
-                                ? "border border-blue-500 hover:bg-blue-300/15 cursor-pointer"
-                                : "border border-neutral-500 text-neutral-500 bg-neutral-300/10 cursor-not-allowed"
-                        }`}
+                    <PrimaryButton
+                        onClick={handleSendEmbed} disabled={!canSend}
                     >
                         {isSending ? "Sending Embed..." : "Send Embed"}
-                    </button>
+                    </PrimaryButton>
                 </div>
 
                 {statusMessage && (

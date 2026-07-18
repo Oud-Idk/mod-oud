@@ -1,14 +1,14 @@
 CREATE TABLE IF NOT EXISTS temp_voice_hubs
 (
     id                   UUID PRIMARY KEY         DEFAULT gen_random_uuid(),
-    guild_id             VARCHAR(64)  NOT NULL,
+    guild_id             BIGINT       NOT NULL,
     name                 VARCHAR(100) NOT NULL    DEFAULT 'Default Hub',
     default_channel_name TEXT         NOT NULL    DEFAULT '{user.display_name}''s Lounge',
-    hub_channel_id       VARCHAR(64)  NOT NULL,
-    category_id          VARCHAR(64)  NOT NULL,
+    hub_channel_id       BIGINT       NOT NULL,
+    category_id          BIGINT       NOT NULL,
     user_limit           INTEGER                  DEFAULT NULL,
     created_at           TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    interface_channel_id VARCHAR(64),
+    interface_channel_id BIGINT,
 
     CONSTRAINT user_limit_limit CHECK (user_limit BETWEEN 0 AND 99)
 );

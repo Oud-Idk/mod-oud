@@ -10,7 +10,7 @@ import {
     saveRewardsAction
 } from "@/actions/levels";
 import Math from "@/components/Math";
-import { Pad } from "@/components/Pad";
+import { Pad } from "@/components/Layout/Pad";
 import { getGuildChannels, getRoleMap, getTextChannelMap } from "@/utils/discord";
 import { getLevels } from "@/utils/db/leaderboard";
 import { fetchMoreLevelsAction } from "@/actions/leaderboard";

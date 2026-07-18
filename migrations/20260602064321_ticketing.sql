@@ -2,7 +2,7 @@ CREATE TYPE ticket_status AS ENUM ('OPEN', 'CLOSE');
 
 CREATE TABLE tickets
 (
-    id                     SERIAL PRIMARY KEY,
+    id                     BIGSERIAL PRIMARY KEY,
     guild_id               BIGINT        NOT NULL,
     channel_id             BIGINT        NOT NULL UNIQUE,
     opener_id              BIGINT        NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE tickets
 
 CREATE TABLE ticket_messages
 (
-    id                SERIAL PRIMARY KEY,
+    id                BIGSERIAL PRIMARY KEY,
     ticket_channel_id BIGINT NOT NULL REFERENCES tickets (channel_id) ON DELETE CASCADE,
     message_id        BIGINT NOT NULL UNIQUE,
     author_id         BIGINT NOT NULL,

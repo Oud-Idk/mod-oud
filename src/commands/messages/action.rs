@@ -10,36 +10,34 @@ use tracing::{debug, trace, warn};
 pub async fn issue_report(
     db: &sqlx::PgPool,
     redis_conn: &Client,
-    guild_id_u64: u64,
-    channel_id_u64: u64,
+    guild_id: i64,
+    channel_id: i64,
     message: &serenity::all::Message,
     reporter: &serenity::all::User,
     reason: String,
-) -> Result<Option<i32>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<i64>, Box<dyn std::error::Error + Send + Sync>> {
     trace!(
-        guild_id = guild_id_u64,
-        channel_id = channel_id_u64,
+        guild_id = guild_id,
+        channel_id = channel_id,
         message_id = message.id.get(),
         reporter_id = reporter.id.get(),
         "Starting issue_report process"
     );
 
     let author = &message.author;
-    let message_id = message.id.to_string();
-    let channel_id = channel_id_u64.to_string();
-    let guild_id = guild_id_u64.to_string();
+    let message_id = message.id.get() as i64;
     let content = message.content.clone();
     let attachment_url = utils::extract_image_urls(message).join(",");
 
     let author_name = author.name.clone();
-    let author_id = author.id.to_string();
+    let author_id = author.id.get() as i64;
     let reporter_name = reporter.name.clone();
 
     trace!("Attempting to insert reported message into the database");
     let Some(row) = insert_reported_message(
         db,
-        &guild_id,
-        &channel_id,
+        guild_id,
+        channel_id,
         &attachment_url,
         &reason,
         &reporter_name,
@@ -76,7 +74,7 @@ pub async fn issue_report(
         user_warned: false,
         user_timed_out: false,
         user_banned: false,
-        reporter_id: "".to_string(),
+        reporter_id: 0,
     };
 
     trace!(report_id = id, "Serializing report payload to JSON");

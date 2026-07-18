@@ -57,14 +57,14 @@ pub async fn handle_delete_message(
 pub async fn handle_warn(
     state: &WebState,
     cmd: &DashboardCommand,
-    mod_id_str: Option<&str>,
+    mod_id: Option<i64>,
     guild_id: &GuildId,
     user_id: &UserId,
     redis: &Client,
     moderator_username: &str,
     target_username: &str,
 ) -> Result<StatusCode, WebError> {
-    let moderator_id = getters::resolve_moderator_id(&state.http, mod_id_str).await?;
+    let moderator_id = getters::resolve_moderator_id(&state.http, mod_id).await?;
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
 
     info!(moderator_id = %moderator_id, "Issuing warning to user");
@@ -96,7 +96,7 @@ pub async fn handle_warn(
 pub async fn handle_timeout(
     state: &WebState,
     cmd: &DashboardCommand,
-    mod_id_str: Option<&str>,
+    mod_id: Option<i64>,
     guild_id: &GuildId,
     user_id: &UserId,
     redis: &Client,
@@ -110,7 +110,7 @@ pub async fn handle_timeout(
 
     let (user, moderator) = tokio::try_join!(
         getters::resolve_target_user(&state.http, *user_id),
-        getters::resolve_moderator_user(&state.http, mod_id_str)
+        getters::resolve_moderator_user(&state.http, mod_id)
     )?;
 
     let reason_str = cmd.reason.as_deref().unwrap_or("Timeout applied via Moderation Dashboard");
@@ -161,7 +161,7 @@ pub async fn handle_timeout(
 pub async fn handle_ban_user(
     state: &WebState,
     cmd: &DashboardCommand,
-    mod_id_str: Option<&str>,
+    mod_id: Option<i64>,
     guild_id: &GuildId,
     user_id: &UserId,
     redis: &Client,
@@ -170,7 +170,7 @@ pub async fn handle_ban_user(
 
     let (user, moderator) = tokio::try_join!(
         getters::resolve_target_user(&state.http, *user_id),
-        getters::resolve_moderator_user(&state.http, mod_id_str)
+        getters::resolve_moderator_user(&state.http, mod_id)
     )?;
 
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
@@ -229,7 +229,7 @@ pub async fn handle_resolve_report(
         return Ok(StatusCode::BAD_REQUEST);
     };
 
-    let reporter_id_str: String = sqlx::query_scalar!(
+    let reporter_id: i64 = sqlx::query_scalar!(
         "SELECT reporter_id FROM reported_messages WHERE id = $1",
         cmd.report_id
     )
@@ -240,13 +240,7 @@ pub async fn handle_resolve_report(
             WebError::Internal(format!("Failed to fetch reporter ID: {}", e))
         })?;
 
-    let reporter_id_u64: u64 = reporter_id_str
-        .parse()
-        .map_err(|e| {
-            error!(error = %e, raw_reporter_id = %reporter_id_str, "Reporter ID in database is not a valid u64");
-            WebError::Internal("Invalid reporter ID format in database".to_string())
-        })?;
-
+    let reporter_id_u64: u64 = reporter_id as u64;
     let reporter_id = UserId::new(reporter_id_u64);
 
     database::update_reported_message(

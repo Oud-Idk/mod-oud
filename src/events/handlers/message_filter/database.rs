@@ -13,17 +13,21 @@ pub async fn insert_warning(
     user_id: i64,
     moderator_id: i64,
     reason: &str,
-) -> Result<Option<i32>, sqlx::Error> {
+    moderator_name: &str,
+    user_name: &str,
+) -> Result<Option<i64>, sqlx::Error> {
     let row = sqlx::query!(
         r#"
-        INSERT INTO warns (guild_id, user_id, moderator_id, reason)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO warns (guild_id, user_id, moderator_id, reason, moderator_name, user_name)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id
         "#,
         guild_id,
         user_id,
         moderator_id,
         reason,
+        moderator_name,
+        user_name,
     )
         .fetch_optional(db)
         .await?;
@@ -54,10 +58,10 @@ pub async fn insert_automod_log<'a>(
         INSERT INTO automod_logs (guild_id, user_id, channel_id, message_id, rule_type, trigger_content, original_content, actions_taken, username)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#,
-        guild_id.to_string(),
-        user_id.to_string(),
-        channel_id.map(|v| v.to_string()),
-        message_id.map(|v| v.to_string()),
+        guild_id,
+        user_id,
+        channel_id,
+        message_id,
         rule_name,
         trigger_content,
         original_content,
@@ -81,7 +85,7 @@ pub async fn get_bad_word_rulesets(
         FROM bad_word_rulesets
         WHERE guild_id = $1 AND enabled = true
         "#,
-        guild_id.to_string(),
+        guild_id,
     )
         .fetch_all(db)
         .await?;

@@ -21,10 +21,10 @@ export async function Sidebar() {
 
     return (
         <aside
-            className="w-64 h-screen border-r bg-neutral-100 dark:bg-black flex flex-col"
+            className="w-64 h-screen border-r bg-white dark:bg-black flex flex-col"
         >
             <div
-                className="h-16 border-b flex justify-between items-center px-4 bg-white dark:bg-black"
+                className="h-16 flex justify-between items-center px-2 pl-4 bg-white dark:bg-black"
             >
                 <Link href="/" className="font-bold">Mod Oud</Link>
                 <div className="hidden md:block">
@@ -32,7 +32,7 @@ export async function Sidebar() {
                 </div>
             </div>
             <div
-                className="h-14 border-b flex justify-start items-center bg-white dark:bg-black"
+                className="h-14 flex justify-start items-center bg-white dark:bg-black"
             >
                 <ServerList guilds={mutualGuilds}/>
             </div>

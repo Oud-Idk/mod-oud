@@ -1,5 +1,10 @@
 import { EmbedState } from "@/types/builder";
 import { ChangeEvent, SetStateAction, useEffect } from "react";
+import { InputLabel } from "@/components/Layout/InputLabel";
+import { LongTextInput } from "@/components/Inputs/LongTextInput";
+import { TextInput } from "@/components/Inputs/TextInput";
+import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
+import AlertButton from "@/components/Inputs/Buttons/AlertButton";
 
 interface EmbedBuilderProps {
     embed: EmbedState;
@@ -47,108 +52,85 @@ export const EmbedBuilderForm = ({
 
     return (
         <div
-            className={`p-4 rounded-lg space-y-4 border ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+            className={`p-4 rounded-lg space-y-2 border ${isEmbedStateEmpty(embed) ? "border-red-700 dark:border-red-300" : ""}`}
         >
             {isEmbedStateEmpty(embed) && (
-                <p className="text-red-500">Embed cannot be completely empty!</p>
+                <p className="text-red-700 dark:text-red-300">Embed cannot be completely empty!</p>
             )}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="text-xs font-bold uppercase tracking-wider">Author Title</label>
-                    <input
-                        type="text"
+                    <InputLabel>Author Title</InputLabel>
+                    <TextInput
                         name="authorName"
                         value={embed.authorName || ""}
                         onChange={handleChange}
-                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+                        parentClassName="max-w-none"
+                        disableSubmitButton
                     />
                 </div>
                 <div>
-                    <label className="text-xs font-bold uppercase tracking-wider">Author Icon URL</label>
-                    <input
-                        type="text"
+                    <InputLabel>Author Icon URL</InputLabel>
+                    <TextInput
                         name="authorIcon"
                         value={embed.authorIcon || ""}
                         onChange={handleChange}
-                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+                        parentClassName="max-w-none"
+                        disableSubmitButton
                     />
                 </div>
             </div>
 
-            {/* ── Main Embed Content ── */}
             <div>
-                <label className="text-xs font-bold uppercase tracking-wider">Title</label>
-                <input
-                    type="text"
+                <InputLabel>Title</InputLabel>
+                <TextInput
                     name="title"
                     value={embed.title || ""}
                     onChange={handleChange}
-                    className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+                    disableSubmitButton
+                    className="min-w-full"
+                    parentClassName="max-w-none"
                 />
             </div>
 
             <div>
-                <label className="text-xs font-bold uppercase tracking-wider">Description Body</label>
-                <textarea
-                    name="description"
-                    rows={5}
-                    value={embed.description || ""}
-                    onChange={handleChange}
-                    className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 resize-none font-mono ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+                <InputLabel>Description Body</InputLabel>
+                <LongTextInput
+                    name="description" rows={5} value={embed.description || ""} onChange={handleChange}
                 />
             </div>
 
-            {/* ── Images Block ── */}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="text-xs font-bold uppercase tracking-wider">Thumbnail URL</label>
-                    <input
-                        type="text"
-                        name="thumbnailUrl"
-                        value={embed.thumbnailUrl || ""}
-                        onChange={handleChange}
-                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+                    <InputLabel>Thumbnail URL</InputLabel>
+                    <TextInput
+                        name="thumbnailUrl" value={embed.thumbnailUrl || ""} onChange={handleChange} disableSubmitButton
                     />
                 </div>
                 <div>
-                    <label className="text-xs font-bold uppercase tracking-wider">Embed Image URL</label>
-                    <input
-                        type="text"
-                        name="imageUrl"
-                        value={embed.imageUrl || ""}
-                        onChange={handleChange}
-                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+                    <InputLabel>Embed Image URL</InputLabel>
+                    <TextInput
+                        name="imageUrl" value={embed.imageUrl || ""} onChange={handleChange} disableSubmitButton
                     />
                 </div>
             </div>
 
-            {/* ── Footer Block ── */}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="text-xs font-bold uppercase tracking-wider">Footer Text</label>
-                    <input
-                        type="text"
-                        name="footerText"
-                        value={embed.footerText || ""}
-                        onChange={handleChange}
-                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+                    <InputLabel>Footer Text</InputLabel>
+                    <TextInput
+                        name="footerText" value={embed.footerText || ""} onChange={handleChange} disableSubmitButton
                     />
                 </div>
                 <div>
-                    <label className="text-xs font-bold uppercase tracking-wider">Footer Icon URL</label>
-                    <input
-                        type="text"
-                        name="footerIcon"
-                        value={embed.footerIcon || ""}
-                        onChange={handleChange}
-                        className={`w-full mt-1 p-2 bg-neutral-300/5 border border-neutral-700 rounded text-sm focus:outline-none focus:ring-2 ${isEmbedStateEmpty(embed) ? "border-red-500 ring-red-500" : ""}`}
+                    <InputLabel>Footer Icon URL</InputLabel>
+                    <TextInput
+                        name="footerIcon" value={embed.footerIcon || ""} onChange={handleChange} disableSubmitButton
                     />
                 </div>
             </div>
 
-            {/* ── Color Picker ── */}
             <div>
-                <label className="text-xs font-bold uppercase tracking-wider">Accent Color</label>
+                <InputLabel>Accent Color</InputLabel>
                 <div className="flex items-center mt-1 space-x-3">
                     <input
                         type="color"
@@ -157,22 +139,15 @@ export const EmbedBuilderForm = ({
                         onChange={handleChange}
                         className="w-10 h-10 p-0 border-0 bg-transparent cursor-pointer rounded"
                     />
-                    <span className="text-xs font-mono uppercase text-white">{embed.color}</span>
+                    <span className="font-mono uppercase">{embed.color}</span>
                 </div>
             </div>
 
-            {/* ── Fields Section ── */}
             <div className="space-y-3 border-t pt-4">
                 <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold uppercase tracking-wider">Embed Fields
-                        ({embed.fields?.length || 0})</label>
-                    <button
-                        type="button"
-                        onClick={addField}
-                        className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded transition font-semibold"
-                    >
-                        + Add Field
-                    </button>
+                    <InputLabel>Embed Fields
+                        ({embed.fields?.length || 0})</InputLabel>
+                    <PrimaryButton onClick={addField}>+ Add Field</PrimaryButton>
                 </div>
 
                 <div className="space-y-3">
@@ -180,47 +155,44 @@ export const EmbedBuilderForm = ({
                         <div
                             key={idx} className="p-3 border space-y-2 relative"
                         >
-                            <button
-                                type="button"
-                                onClick={() => removeField(idx)}
-                                className="absolute top-3 right-3 text-xs text-rose-500 hover:text-rose-400 font-semibold"
-                            >
-                                Remove
-                            </button>
                             <div className="grid grid-cols-2 gap-3 pr-16">
                                 <div>
-                                    <label className="text-[10px] uppercase font-bold">Field Name</label>
-                                    <input
-                                        type="text"
+                                    <InputLabel>Field Name</InputLabel>
+                                    <TextInput
                                         value={field.name}
                                         onChange={(e) => handleFieldChange(idx, "name", e.target.value)}
-                                        className="w-full mt-1 p-1.5 bg-neutral-300/5 border border-neutral-700 rounded text-xs focus:outline-none"
+                                        disableSubmitButton
+                                        className="p-1"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] uppercase font-bold">Field Value</label>
-                                    <input
-                                        type="text"
+                                    <InputLabel>Field Value</InputLabel>
+                                    <TextInput
                                         value={field.value}
                                         onChange={(e) => handleFieldChange(idx, "value", e.target.value)}
-                                        className="w-full mt-1 p-1.5 bg-neutral-300/5 border border-neutral-700 rounded text-xs focus:outline-none"
+                                        disableSubmitButton
+                                        className="p-1"
                                     />
                                 </div>
                             </div>
-                            <div className="flex items-center space-x-2 pt-1">
-                                <input
-                                    type="checkbox"
-                                    id={`inline-${idx}`}
-                                    checked={field.inline || false}
-                                    onChange={(e) => handleFieldChange(idx, "inline", e.target.checked)}
-                                    className="rounded bg-neutral-300/5 border-neutral-700"
-                                />
-                                <label
-                                    htmlFor={`inline-${idx}`}
-                                    className="text-[10px] uppercase font-bold text-neutral-400 select-none cursor-pointer"
+                            <div className="flex items-center justify-between space-x-2 pt-1">
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id={`inline-${idx}`}
+                                        checked={field.inline || false}
+                                        onChange={(e) => handleFieldChange(idx, "inline", e.target.checked)}
+                                        className="rounded bg-neutral-300/5 border-neutral-700"
+                                    />
+                                    <InputLabel>
+                                        Display Inline
+                                    </InputLabel>
+                                </div>
+                                <AlertButton
+                                    onClick={() => removeField(idx)} className="py-1 px-2 text-sm"
                                 >
-                                    Display Inline
-                                </label>
+                                    Remove
+                                </AlertButton>
                             </div>
                         </div>
                     ))}

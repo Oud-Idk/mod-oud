@@ -1,8 +1,9 @@
 "use client";
 
 import React, { ReactNode } from "react";
-import { Pad } from "@/components/Pad";
+import { Pad } from "@/components/Layout/Pad";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
+import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
 
 interface ConfigListLayoutProps<T> {
     title: string;
@@ -44,12 +45,7 @@ export function ConfigListLayout<T>({
             <div className="md:col-span-1 flex flex-col min-h-70 max-h-70 p-4 rounded-lg border overflow-hidden">
                 <div className="flex justify-between items-center pb-2 border-b">
                     <span className="text-sm font-semibold uppercase tracking-wider">{title}</span>
-                    <button
-                        onClick={onCreateClick}
-                        className="text-xs px-2.5 py-1 bg-zinc-850 bg-neutral-300/10 hover:bg-neutral-300/30 transition border rounded-md cursor-pointer"
-                    >
-                        {createButtonText}
-                    </button>
+                    <PrimaryButton onClick={onCreateClick}>{createButtonText}</PrimaryButton>
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 mt-4">

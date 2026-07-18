@@ -4,7 +4,7 @@ import { DiscordChannel } from "@/types";
 import { JSX, useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { DEFAULT_CONFIG } from "@/utils/embedTemplates";
-import { TabItem, Tabs } from "@/components/Tabs";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { AutoAssignRole } from "@/components/Dashboards/Welcome/AutoAssignRole";
 import { WelcomeConfig } from "@/types/config/welcome";

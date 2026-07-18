@@ -2,7 +2,7 @@ use crate::events::handlers::message_logging::types::{EditDetails, MessageDetail
 use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
 
-pub async fn insert_deleted_message(db: &PgPool, msg: &MessageDetails, g_id: i64, joined_image_urls: &str, deleted_by: &Option<(String, String)>) -> Result<PgQueryResult, sqlx::Error> {
+pub async fn insert_deleted_message(db: &PgPool, msg: &MessageDetails, g_id: i64, joined_image_urls: &str, deleted_by: &Option<(u64, String)>) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO deleted_messages (message_id, author_id, author_name, channel_id, guild_id, content, attachment_url, deleted_by_name, deleted_by_id)
@@ -15,8 +15,8 @@ pub async fn insert_deleted_message(db: &PgPool, msg: &MessageDetails, g_id: i64
         g_id,
         msg.content,
         joined_image_urls,
-        deleted_by.clone().map(|id| id.0),
         deleted_by.clone().map(|id| id.1),
+        deleted_by.clone().map(|id| id.0 as i64),
     )
         .execute(db)
         .await

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug)]
 pub struct BadWordRuleset {
     pub id: uuid::Uuid,
-    pub guild_id: String,
+    pub guild_id: i64,
     pub name: String,
     pub enabled: bool,
     pub patterns: Vec<Pattern>,

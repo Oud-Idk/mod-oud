@@ -2,6 +2,7 @@ use crate::types::payloads::{DeletedMessagePayload, ModifiedMessagePayload, Repo
 use crate::types::LogEvent;
 use crate::WebState;
 use axum::extract::{Query, State};
+use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive};
 use axum::response::Sse;
 use futures::Stream;
@@ -13,6 +14,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, instrument, warn};
 
+
 #[derive(Deserialize, Debug)]
 pub struct SseQuery {
     pub guild_id: String,
@@ -22,18 +24,28 @@ pub struct SseQuery {
 pub async fn sse_handler(
     State(state): State<Arc<WebState>>,
     Query(params): Query<SseQuery>,
-) -> Sse<impl Stream<Item=Result<Event, Infallible>>> {
+) -> Result<Sse<impl Stream<Item=Result<Event, Infallible>>>, StatusCode> {
     debug!("New SSE subscription request received");
 
+    let target_guild_id = match params.guild_id.parse::<i64>() {
+        Ok(id) => id,
+        Err(e) => {
+            warn!(
+                error = %e,
+                invalid_guild_id = %params.guild_id,
+                "Rejecting SSE request: invalid guild_id"
+            );
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    };
+
     let rx = state.tx.subscribe();
-    let target_guild_id = params.guild_id;
 
     let stream = BroadcastStream::new(rx)
         .filter_map(|msg| {
             match msg {
                 Ok(event) => Some(event),
                 Err(e) => {
-                    // Log when a client's stream lags behind the global broadcast sender
                     warn!(error = %e, "SSE connection lagged and missed broadcast events");
                     None
                 }
@@ -59,11 +71,11 @@ pub async fn sse_handler(
             Ok(event)
         });
 
-    Sse::new(stream).keep_alive(
+    Ok(Sse::new(stream).keep_alive(
         KeepAlive::new()
             .interval(Duration::from_secs(15))
             .text("keep-alive"),
-    )
+    ))
 }
 
 impl LogEvent {
@@ -117,11 +129,11 @@ impl LogEvent {
         }
     }
 
-    pub fn guild_id(&self) -> Option<&str> {
+    pub fn guild_id(&self) -> Option<i64> {
         match self {
-            LogEvent::MessageDelete(payload) => Some(&payload.guild_id),
-            LogEvent::MessageEdit(payload) => Some(&payload.guild_id),
-            LogEvent::MessageReport(payload) => Some(&payload.guild_id),
+            LogEvent::MessageDelete(payload) => Some(payload.guild_id),
+            LogEvent::MessageEdit(payload) => Some(payload.guild_id),
+            LogEvent::MessageReport(payload) => Some(payload.guild_id),
         }
     }
 }

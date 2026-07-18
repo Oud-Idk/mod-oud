@@ -1,6 +1,7 @@
 "use client";
 
 import { ReportedMessage } from "@/types/reports";
+import { ReportActionButton } from "@/components/Dashboards/Report/ReportActionButton";
 
 interface ReportActionsProps {
     log: ReportedMessage;
@@ -30,7 +31,8 @@ export function ReportActions({
     if (isResolved) {
         return (
             <div
-                className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end">
+                className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end"
+            >
                 <span className="text-xs text-emerald-500 font-semibold flex items-center gap-1">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -51,70 +53,45 @@ export function ReportActions({
 
     return (
         <div
-            className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end gap-2">
+            className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/50 flex items-center justify-end gap-2"
+        >
             {isMessageDeleted ? (
                 <span className="text-xs text-neutral-500 font-semibold mr-auto">
                     Message Deleted
                 </span>
             ) : (
-                <button
-                    type="button"
+                <ReportActionButton
                     onClick={() => onDelete(log.id, log.channel_id, log.message_id)}
                     disabled={isInteractionDisabled}
-                    className="px-2 py-0.5 text-sm rounded text-rose-500 border border-rose-500 hover:text-rose-400 hover:border-rose-400 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                    {isDeleting ? "Deleting..." : "Delete Message"}
-                </button>
+                    color="rose"
+                >Delete Message</ReportActionButton>
             )}
 
             {!log.user_banned && (
-                <button
-                    type="button"
-                    onClick={() => onBanClick(log.id)}
-                    disabled={isInteractionDisabled}
-                    className="px-2 py-0.5 text-sm rounded text-red-500 border border-red-500 hover:text-red-400 hover:border-red-400 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                    Ban User </button>
+                <ReportActionButton
+                    onClick={() => onBanClick(log.id)} disabled={isInteractionDisabled} color="red"
+                >Ban User</ReportActionButton>
             )}
 
             {!log.user_timed_out && (
-                <button
-                    type="button"
-                    onClick={() => onTimeoutClick(log.id)}
-                    disabled={isInteractionDisabled}
-                    className="px-2 py-0.5 text-sm rounded text-orange-500 border border-orange-500 hover:text-orange-400 hover:border-orange-400 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                    Timeout User </button>
+                <ReportActionButton
+                    onClick={() => onTimeoutClick(log.id)} disabled={isInteractionDisabled} color="orange"
+                >Timeout User</ReportActionButton>
             )}
-
 
             {!log.user_warned && (
-                <button
-                    type="button"
-                    onClick={() => onWarnClick(log.id)}
-                    disabled={isInteractionDisabled}
-                    className="px-2 py-0.5 text-sm rounded text-yellow-500 border border-yellow-500 hover:text-yellow-400 hover:border-yellow-400 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                    Warn User </button>
+                <ReportActionButton
+                    onClick={() => onWarnClick(log.id)} disabled={isInteractionDisabled} color="yellow"
+                >Warn User</ReportActionButton>
             )}
 
-            <button
-                type="button"
-                onClick={() => onResolve(log.id, "actioned")}
-                disabled={isInteractionDisabled}
-                className="px-2 py-0.5 text-sm rounded text-blue-500 border border-blue-500 hover:text-blue-400 hover:border-blue-400 transition-all disabled:opacity-50 cursor-pointer"
-            >
-                {isResolving ? "Resolving..." : "Mark as Actioned"}
-            </button>
+            <ReportActionButton
+                onClick={() => onResolve(log.id, "actioned")} disabled={isInteractionDisabled} color="blue"
+            >{isResolving ? "Resolving..." : "Mark as Actioned"}</ReportActionButton>
 
-            <button
-                type="button"
-                onClick={() => onResolve(log.id, "dismissed")}
-                disabled={isInteractionDisabled}
-                className="px-2 py-0.5 text-sm rounded text-neutral-500 border border-neutral-500 hover:text-neutral-400 hover:border-neutral-400 transition-all disabled:opacity-50 cursor-pointer"
-            >
-                {isResolving ? "Resolving..." : "Mark as Dismissed"}
-            </button>
+            <ReportActionButton
+                onClick={() => onResolve(log.id, "dismissed")} disabled={isInteractionDisabled} color="neutral"
+            >{isResolving ? "Resolving..." : "Mark as Dismissed"}</ReportActionButton>
         </div>
     );
 }

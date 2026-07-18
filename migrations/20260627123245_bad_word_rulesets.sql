@@ -1,7 +1,7 @@
 CREATE TABLE bad_word_rulesets
 (
     id                       UUID PRIMARY KEY         DEFAULT gen_random_uuid(),
-    guild_id                 VARCHAR(255) NOT NULL,
+    guild_id                 BIGINT       NOT NULL,
     name                     VARCHAR(255) NOT NULL,
     enabled                  BOOLEAN      NOT NULL    DEFAULT true,
 

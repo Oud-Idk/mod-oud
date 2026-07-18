@@ -103,12 +103,12 @@ pub async fn execute_verdict(
         trigger_content,
         custom_dm_message,
     } = verdict else {
-        return Ok(false); // No violation occurred, message can pass
+        return Ok(false);
     };
 
     actions::execute_rule_actions(
         ctx,
-        &data.db,
+        &data,
         message,
         base_rule.as_ref(),
         rule_name.as_ref(),

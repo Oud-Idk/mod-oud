@@ -34,7 +34,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "node_modules/preact/src/internal.d.ts"
   ],
   "exclude": [
     "node_modules"

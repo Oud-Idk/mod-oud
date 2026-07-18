@@ -1,11 +1,11 @@
 use crate::events::handlers::message_filter::database;
+use crate::types::config::config::GuildSettings;
 use crate::types::config::message_filter::{BaseRule, RuleAction};
-use serenity::all::{
-    ChannelId, CreateEmbed, CreateEmbedFooter, CreateMessage, EditMember, Mentionable, Message, Timestamp,
-};
+use crate::types::Data;
+use crate::utils::moderation::actions::{issue_mute, issue_warning};
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateMessage, EditMember, Mentionable, Message, Timestamp, User};
 use std::time::Duration;
 use tracing::{debug, error, info, instrument, trace, warn};
-// Added tracing imports
 
 /// Helper function to send a message that deletes itself after a set duration.
 #[instrument(skip(ctx, channel_id))]
@@ -32,7 +32,7 @@ async fn send_temp_warning(
 }
 
 #[instrument(
-    skip(ctx, message, db),
+    skip(ctx, message, db, redis_conn, guild_configs),
     fields(
         user_id = %message.author.id.get(),
         rule = rule_name
@@ -43,72 +43,101 @@ pub async fn apply_warning(
     rule_name: &str,
     message: &Message,
     db: &sqlx::PgPool,
+    redis_conn: &fred::clients::Client,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
 ) {
+    let Some(guild_id) = message.guild_id else {
+        trace!("Skipping automated warning: Message was not sent in a guild.");
+        return;
+    };
+
+    let user_id = message.author.id;
+
+    let (moderator_id, moderator_username) = {
+        let bot_user = ctx.cache.current_user();
+        (bot_user.id, bot_user.name.clone())
+    };
+
+    let target_username = message.author.name.clone();
     let reason_str = format!("Automated Filter: {}", rule_name);
 
-    let guild_id = message.guild_id.unwrap_or_default().get() as i64;
-    let user_id = message.author.id.get() as i64;
-    let bot_id = ctx.cache.current_user().id.get() as i64;
+    let http = ctx.http.clone();
 
-    match database::insert_warning(db, guild_id, user_id, bot_id, &reason_str).await {
-        Ok(Some(warn_id)) => {
-            info!(warn_id, "Recorded warning log in database successfully");
-
-            let guild_name = message
-                .guild_id
-                .and_then(|id| id.name(&ctx.cache));
-
-            // Avoid allocating "the server".to_string() for the fallback case
-            let guild_name_ref = guild_name.as_deref().unwrap_or("the server");
-
-            let embed = CreateEmbed::new()
-                .title(format!("You have been formally warned from {}", guild_name_ref))
-                .color(0xFF4747)
-                .field("Reason", &reason_str, false)
-                .field("ID", warn_id.to_string(), false)
-                .footer(CreateEmbedFooter::new(
-                    "This is an automated moderation action. If you believe this was a mistake, please create a ticket on the server.",
-                ));
-
-            let dm = CreateMessage::new().embed(embed);
-            if let Err(err) = message.author.dm(&ctx.http, dm).await {
-                warn!(error = %err, "Could not deliver warning DM notification to user");
-            }
+    match issue_warning(
+        db,
+        redis_conn,
+        guild_configs,
+        &http,
+        guild_id,
+        user_id,
+        moderator_id,
+        &reason_str,
+        &moderator_username,
+        &target_username,
+    )
+        .await
+    {
+        Ok(warn_id) => {
+            info!(warn_id, "Automated filter successfully issued warning and executed threshold actions");
         }
         Err(err) => {
-            error!(error = %err, "Database write failure on warning record insertion");
-        }
-        Ok(None) => {
-            trace!("Warning assertion completed with empty database outcome");
+            error!(error = %err, "Failed to apply automated warning via issue_warning");
         }
     }
 }
 
 #[instrument(
-    skip(ctx, message, base),
+    skip(ctx, message, base, db, redis_conn, guild_configs),
     fields(
         user_id = %message.author.id.get()
     )
 )]
 pub async fn apply_mute(
     ctx: &serenity::all::Context,
+    rule_name: &str,
     message: &Message,
     base: &BaseRule,
+    db: &sqlx::PgPool,
+    redis_conn: &fred::clients::Client,
+    guild_configs: &moka::future::Cache<i64, GuildSettings>,
 ) {
-    // Clean up nesting using modern let-else syntax
     let Some(guild_id) = message.guild_id else { return; };
     let Some(duration_secs) = base.timeout_duration_seconds else { return; };
 
-    // Calculate timeout natively with Serenity's Timestamp type
+    let duration = std::time::Duration::from_secs(duration_secs as u64);
     let now_secs = Timestamp::now().unix_timestamp();
-    if let Ok(timeout_until) = Timestamp::from_unix_timestamp(now_secs + duration_secs as i64) {
-        let builder = EditMember::new().disable_communication_until_datetime(timeout_until);
 
-        // Directly edit the member on the guild, saving a GET HTTP request
-        if let Err(err) = guild_id.edit_member(&ctx.http, message.author.id, builder).await {
-            error!(error = %err, "Failed to apply timeout restriction on member API call");
-        } else {
-            info!(duration_secs, "Successfully timed out user");
+    let Some(timeout_until) = Timestamp::from_unix_timestamp(now_secs + duration_secs as i64).ok() else {
+        error!("Could not calculate a valid mute timestamp");
+        return;
+    };
+
+    let user = message.author.clone();
+
+    let moderator: User = ctx.cache.current_user().clone().into();
+
+    let reason_str = format!("Automated Filter: {}", rule_name);
+    let http = ctx.http.clone();
+
+    match issue_mute(
+        db,
+        redis_conn,
+        guild_configs,
+        &http,
+        guild_id,
+        user,
+        moderator,
+        &reason_str,
+        &duration,
+        timeout_until,
+    )
+        .await
+    {
+        Ok(()) => {
+            info!(duration_secs, "Successfully timed out user via automated mute");
+        }
+        Err(err) => {
+            error!(error = %err, "Failed to apply automated timeout");
         }
     }
 }
@@ -177,7 +206,7 @@ pub async fn apply_private_reminder(
 )]
 pub async fn execute_rule_actions(
     ctx: &serenity::all::Context,
-    db: &sqlx::PgPool,
+    data: &Data,
     message: &Message,
     base: &BaseRule,
     rule_name: &str,
@@ -191,8 +220,10 @@ pub async fn execute_rule_actions(
         .collect();
 
     debug!(?actions_taken, "Executing configured actions for matched rule");
-    log_automod_event(db, message, rule_name, trigger_content, &actions_taken).await;
-    handle_automod(ctx, message, base, db, rule_name, should_warn, custom_dm_message).await;
+    if should_warn.unwrap_or(true) {
+        log_automod_event(&data.db, message, rule_name, trigger_content, &actions_taken).await;
+    } // This if statement is to prevent spamming the shit out of my poor database
+    handle_automod(ctx, message, base, data, rule_name, should_warn, custom_dm_message).await;
 }
 
 pub async fn log_automod_event(
@@ -229,7 +260,7 @@ async fn handle_automod(
     ctx: &serenity::all::Context,
     message: &Message,
     base: &BaseRule,
-    db: &sqlx::PgPool,
+    data: &Data,
     rule_name: &str,
     should_warn: Option<bool>,
     custom_dm_message: Option<&str>,
@@ -245,10 +276,10 @@ async fn handle_automod(
                 }
             }
             RuleAction::Warn => {
-                apply_warning(ctx, rule_name, message, db).await;
+                apply_warning(ctx, rule_name, message, &data.db, &data.redis, &data.guild_configs).await;
             }
             RuleAction::Timeout => {
-                apply_mute(ctx, message, base).await;
+                apply_mute(ctx, rule_name, message, base, &data.db, &data.redis, &data.guild_configs).await;
             }
             RuleAction::RemindPublicly => {
                 if warn_enabled {

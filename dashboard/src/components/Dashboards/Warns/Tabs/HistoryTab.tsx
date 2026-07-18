@@ -1,8 +1,8 @@
 import { TextInput } from "@/components/Inputs/TextInput";
 import { ChangeEvent, useState } from "react";
 import { searchWarns, Warn } from "@/actions/warns";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Table";
-import { Pad } from "@/components/Pad";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Layout/Table";
+import { Pad } from "@/components/Layout/Pad";
 import { X } from "lucide-react";
 
 export function HistoryTab({ guildId }: { guildId: string }) {

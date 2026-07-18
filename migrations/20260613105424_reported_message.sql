@@ -7,14 +7,13 @@ CREATE TYPE report_status AS ENUM (
 
 CREATE TABLE reported_messages
 (
-    id              SERIAL PRIMARY KEY,
+    id              BIGSERIAL PRIMARY KEY,
 
-    -- Discord Snowflakes (stored as VARCHAR(20) to prevent JS integer truncation)
-    guild_id        VARCHAR(20)   NOT NULL,
-    channel_id      VARCHAR(20)   NOT NULL,
-    message_id      VARCHAR(20)   NOT NULL,
-    author_id       VARCHAR(20)   NOT NULL, -- The person who sent the bad message
-    reporter_id     VARCHAR(20)   NOT NULL, -- The person who reported it
+    guild_id        BIGINT        NOT NULL,
+    channel_id      BIGINT        NOT NULL,
+    message_id      BIGINT        NOT NULL,
+    author_id       BIGINT        NOT NULL, -- The person who sent the bad message
+    reporter_id     BIGINT        NOT NULL, -- The person who reported it
 
     -- States
     message_deleted BOOLEAN       NOT NULL   DEFAULT FALSE,

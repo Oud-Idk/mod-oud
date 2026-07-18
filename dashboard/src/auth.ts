@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Discord from "next-auth/providers/discord";
-import { JWT } from "next-auth/jwt"; // This will NOT be deleted now, as it is used below!
+import { JWT } from "next-auth/jwt";
 
 declare module "next-auth" {
     interface Session {
@@ -36,10 +36,9 @@ const globalForAuth = global as unknown as {
  * Includes concurrency debouncing to prevent single-use token collisions.
  */
 async function refreshAccessToken(token: JWT) {
-    // 1. Extract to a local variable to enable TypeScript control flow narrowing
     const refreshToken = token.refreshToken;
 
-    // SAFEGUARD: If no refresh token exists, do not call Discord.
+    // If no refresh token exists, do not call Discord.
     if (!refreshToken) {
         console.warn("[Auth] No refresh token found in current session. Forcing re-authentication.");
         return {
@@ -50,7 +49,7 @@ async function refreshAccessToken(token: JWT) {
 
     const now = Date.now();
 
-    // 2. If another request is currently refreshing the token (started < 10 seconds ago),
+    // If another request is currently refreshing the token (started < 10 seconds ago),
     // wait for its result instead of firing a concurrent duplicate request.
     if (globalForAuth.inFlightRefresh && (now - globalForAuth.inFlightRefresh.timestamp < 10000)) {
         console.log("[Auth] Parallel token refresh detected. Joining in-flight request...");
@@ -70,7 +69,7 @@ async function refreshAccessToken(token: JWT) {
         }
     }
 
-    // 3. We are the first request (the leader). Initiate the refresh request to Discord.
+    // We are the first request (the leader). Initiate the refresh request to Discord.
     const refreshPromise = (async () => {
         const url = "https://discord.com/api/oauth2/token";
         const response = await fetch(url, {
@@ -89,6 +88,7 @@ async function refreshAccessToken(token: JWT) {
         const refreshedTokens = await response.json();
 
         if (!response.ok) {
+            console.error("[Auth] Discord refresh failed:", JSON.stringify(refreshedTokens));
             throw refreshedTokens;
         }
 
@@ -99,7 +99,7 @@ async function refreshAccessToken(token: JWT) {
         };
     })();
 
-    // 4. Store the promise in the global context so parallel threads can attach to it
+    // Store the promise in the global context so parallel threads can attach to it
     globalForAuth.inFlightRefresh = {
         promise: refreshPromise,
         timestamp: now,
@@ -119,7 +119,6 @@ async function refreshAccessToken(token: JWT) {
             error: "RefreshAccessTokenError",
         };
     } finally {
-        // Clean up the global promise tracker once resolved
         globalForAuth.inFlightRefresh = undefined;
     }
 }
@@ -147,16 +146,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 };
             }
 
-            // Typecasted to number to resolve TS2365
             if (token.accessTokenExpires && Date.now() < (token.accessTokenExpires as number)) {
                 return token;
             }
 
-            console.log("[Auth] Access token expired. Initiating token rotation...");
             return refreshAccessToken(token);
         },
         async session({ session, token }) {
-            // Typecasted to string | undefined to resolve TS2322
             session.accessToken = token.accessToken as string | undefined;
             session.error = token.error as string | undefined;
             return session;
@@ -164,5 +160,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 });
 
-// @ts-ignore
-export { GET, POST } from "@/auth";
+export const { GET, POST } = handlers;

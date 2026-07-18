@@ -33,4 +33,6 @@ pub fn start_jobs(pool: &Pool<Postgres>, redis_client: &Client, subscriber_clien
     );
 
     jobs::ticket_logger::start_ticket_logger(rx, pool.clone());
+
+    jobs::reminder::start_reminder_worker(pool.clone(), ctx.http.clone(), redis_client.clone());
 }

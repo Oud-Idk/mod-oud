@@ -34,9 +34,7 @@ pub async fn handle_send_reaction_role_message(
     let config_id = parse_config_id(&config_id_str)?;
     let config_row = fetch_reaction_message(&state.pool, config_id, &guild_id_str).await?;
 
-    let channel_id_u64 = config_row.channel_id.parse::<u64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid discord channel ID format".to_string())
-    })?;
+    let channel_id_u64 = config_row.channel_id as u64;
     let channel = serenity::ChannelId::new(channel_id_u64);
 
     let custom_msg_opt = build_custom_msg(
@@ -79,19 +77,19 @@ pub async fn handle_send_reaction_role_message(
         }
     }
 
-    let message_id_str = message.id.to_string();
-    let _ = database::add_message_to_db(&state, config_row, &message_id_str).await;
+    let message_id = message.id.get();
+    let _ = database::add_message_to_db(&state, config_row, message_id as i64).await;
 
     info!(
         guild_id = guild_id_str,
-        message_id = message_id_str,
+        message_id = message_id,
         "Reaction role layout successfully processed"
     );
 
     Ok((
         StatusCode::OK,
         Json(SendReactionMessageResponse {
-            message_id: message_id_str,
+            message_id: message_id.to_string(),
         }),
     ))
 }

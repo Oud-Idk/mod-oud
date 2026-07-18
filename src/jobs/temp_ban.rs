@@ -1,4 +1,4 @@
-use crate::utils::locking::{acquire_lock, release_lock};
+use crate::utils::locking::acquire_lock;
 use fred::prelude::*;
 use futures_util::StreamExt;
 use poise::serenity_prelude as serenity;
@@ -31,20 +31,22 @@ pub fn start_temp_ban_worker(
             let now = chrono::Utc::now();
 
             trace!("Attempting to acquire lock for temp ban processing");
-            match acquire_lock(&redis_client, lock_key, &lock_value, 50).await {
-                Ok(true) => {
-                    debug!("Acquired lock; processing expired temp bans");
+
+            match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
+                Ok(Some(guard)) => {
+                    trace!("Acquired lock; processing expired temp bans");
                     if let Err(e) = process_expired_temp_bans(&db_pool, &http, now).await {
                         error!(error = ?e, "Error processing expired temp bans");
                     }
 
-                    if let Err(e) = release_lock(&redis_client, lock_key, &lock_value).await {
-                        warn!(error = ?e, "Failed to release temp ban lock");
-                    } else {
-                        debug!("Released lock successfully");
+                    // Release using the guard
+                    match guard.release().await {
+                        Ok(true) => debug!("Released lock successfully"),
+                        Ok(false) => warn!("Attempted to release temp ban lock, but we no longer owned it"),
+                        Err(e) => error!(error = ?e, "Failed to release temp ban lock due to a Redis error"),
                     }
                 }
-                Ok(false) => {
+                Ok(None) => {
                     trace!("Lock busy; skipping this iteration");
                 }
                 Err(e) => {
@@ -122,12 +124,12 @@ async fn process_expired_temp_bans(
         }
     });
 
-    let results: Vec<Result<i32, i32>> = futures_util::stream::iter(unban_futures)
+    let results: Vec<Result<i64, i64>> = futures_util::stream::iter(unban_futures)
         .buffer_unordered(10)
         .collect()
         .await;
 
-    let successful_ids: Vec<i32> = results
+    let successful_ids: Vec<i64> = results
         .into_iter()
         .filter_map(|r| r.ok())
         .collect();

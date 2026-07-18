@@ -8,6 +8,8 @@ import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import ScopeSettings from "@/components/Dashboards/MessageFiltering/General/ScopeSettings";
 import { TextInput } from "@/components/Inputs/TextInput";
 import ActionsSettings from "@/components/Dashboards/MessageFiltering/General/ActionsSettings";
+import { InputLabel } from "@/components/Layout/InputLabel";
+import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
 
 type StrategyType = "exact" | "substring" | "regex";
 
@@ -62,37 +64,37 @@ export function BadWordRulesetConfig({
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center pb-4 border-b border-zinc-800">
-                <div className="space-y-1">
-                    <label className="block text-xs uppercase text-zinc-500 font-semibold tracking-wider">Ruleset
-                        Name</label>
-                    <input
-                        type="text"
+                <div className="flex flex-row items-center gap-2">
+                    <InputLabel>
+                        Ruleset Name
+                    </InputLabel>
+                    <TextInput
                         value={config.name}
                         onChange={(e) => onChange({ name: e.target.value })}
-                        className="bg-transparent text-lg font-bold border-none focus:outline-none p-0 focus:ring-0 max-w-sm"
+                        disableSubmitButton
+                        className="p-1"
                     />
                 </div>
-                <button
-                    onClick={() => onDelete(config.id)}
-                    disabled={isPending}
-                    className="text-xs border border-red-500 hover:bg-red-500/10 px-3 py-1.5 rounded transition disabled:opacity-50 cursor-pointer"
+                <PrimaryButton
+                    onClick={() => onDelete(config.id)} disabled={isPending}
                 >
                     Delete Ruleset
-                </button>
+                </PrimaryButton>
             </div>
 
             <ToggleSwitch
-                enabled={config.enabled}
+                checked={config.enabled}
                 onChange={(checked) => onChange({ enabled: checked })}
                 disabled={false}
                 text="Enable Ruleset Filter"
+                className="mb-2"
                 shrink={true}
             />
 
             {config.enabled && (
                 <div className="space-y-4">
                     <div>
-                        <label className="block font-medium">Configure Custom Patterns</label>
+                        <InputLabel>Configure Custom Patterns</InputLabel>
                         <TextInput
                             value={wordInput}
                             onChange={(e) => setWordInput(e.target.value)}

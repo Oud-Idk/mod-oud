@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import {
     AlertTriangle,
+    BellIcon,
     DoorOpen,
     FileText,
     LayoutDashboard,
@@ -16,6 +17,7 @@ import {
     Star,
     Ticket,
     TrendingUp,
+    UserPlus,
     Volume2Icon
 } from "lucide-react";
 import { FaceSmileIcon } from "@heroicons/react/24/outline";
@@ -117,6 +119,18 @@ export function SidebarLinks() {
             name: "Temporary Voice Channel",
             href: `/dashboard/${guildId}/temp-voice`,
             icon: Volume2Icon,
+            exact: false,
+        },
+        {
+            name: 'Reminders',
+            href: `/dashboard/${guildId}/reminders`,
+            icon: BellIcon,
+            exact: false,
+        },
+        {
+            name: 'Invite Tracking',
+            href: `/dashboard/${guildId}/invite-tracking`,
+            icon: UserPlus,
             exact: false,
         }
     ];

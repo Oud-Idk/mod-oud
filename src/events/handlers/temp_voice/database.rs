@@ -29,8 +29,8 @@ pub async fn get_hub_from_db(guild_id: GuildId, db: &PgPool, target_channel_id: 
         FROM temp_voice_hubs
         WHERE guild_id = $1 AND hub_channel_id = $2
         "#,
-        guild_id.to_string(),
-        target_channel_id.to_string(),
+        guild_id.get() as i64,
+        target_channel_id.get() as i64,
     )
         .fetch_optional(db)
         .await?;
@@ -65,8 +65,8 @@ pub async fn get_hub_from_db_by_category(
         FROM temp_voice_hubs
         WHERE guild_id = $1 AND category_id = $2
         "#,
-        guild_id.to_string(),
-        category_id.to_string(),
+        guild_id.get() as i64,
+        category_id.get() as i64,
     )
         .fetch_optional(db)
         .await?;

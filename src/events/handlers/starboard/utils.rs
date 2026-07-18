@@ -1,11 +1,14 @@
 use crate::core::config::get_guild_ctx;
-use crate::types::config::starboard::{Starboard, StarboardRow};
+use crate::types::config::starboard::{RestrictionType, Starboard, StarboardRow};
+use crate::types::embed::DiscordEmbed;
 use crate::types::Error;
 use crate::utils::placeholders::replace_starboard_placeholders;
 use fred::bytes_utils::Str;
 use fred::interfaces::KeysInterface;
 use fred::prelude::{Client, Expiration, FredResult};
 use serenity::all::{Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId, Reaction, ReactionType, UserId};
+use sqlx::postgres::types::PgInterval;
+use sqlx::types::Json;
 use sqlx::PgPool;
 use tracing::{debug, instrument, trace, warn};
 
@@ -94,7 +97,7 @@ pub async fn build_starboard_message(
 
 #[instrument(skip(db, redis))]
 pub async fn get_starboards(
-    guild_id: &str,
+    guild_id: i64,
     db: &PgPool,
     redis: &Client,
 ) -> Result<Vec<Starboard>, Error> {
@@ -111,8 +114,33 @@ pub async fn get_starboards(
     }
 
     debug!("Cache miss; fetching starboard configs from database");
-    let rows = sqlx::query_as::<_, StarboardRow>("SELECT * FROM starboards WHERE guild_id = $1")
-        .bind(guild_id)
+    let rows = sqlx::query_as!(
+        StarboardRow,
+        r#"
+        SELECT
+            id,
+            guild_id,
+            starboard_channel_id,
+            emojis,
+            reaction_threshold,
+            min_message_age as "min_message_age: PgInterval",
+            max_message_age as "max_message_age: PgInterval",
+            prevent_self_star,
+            allow_bot_messages,
+            keep_deleted_messages,
+            role_restriction_type as "role_restriction_type: RestrictionType",
+            restricted_roles,
+            channel_restriction_type as "channel_restriction_type: RestrictionType",
+            restricted_channels,
+            created_at,
+            updated_at,
+            embed_template as "embed_template: Json<DiscordEmbed>",
+            plaintext_template
+        FROM starboards
+        WHERE guild_id = $1
+        "#,
+        guild_id,
+    )
         .fetch_all(db)
         .await?;
 

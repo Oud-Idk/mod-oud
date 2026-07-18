@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getModerationLogs, ModerationLog } from "@/actions/logs";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Layout/Table";
 
 interface ModerationTabProps {
     guildId: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { TabItem, Tabs } from "@/components/Tabs";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { useState } from "react";
 import { HistoryTab } from "@/components/Dashboards/Warns/Tabs/HistoryTab";
 import { WarnThresholdTab } from "@/components/Dashboards/Warns/Tabs/WarnThresholdsTab";

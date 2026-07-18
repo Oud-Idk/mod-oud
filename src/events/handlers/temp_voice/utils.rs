@@ -4,8 +4,8 @@ use serenity::all::{ChannelId, ChannelType, Context, CreateChannel, GuildChannel
 use std::str::FromStr;
 use tracing::debug;
 
-pub async fn create_temp_vc(ctx: &&Context, guild_id: &GuildId, member: &&Member, hub_info: &TempVoiceHub) -> Result<GuildChannel, Error> {
-    let category_id = ChannelId::from_str(&hub_info.category_id)?;
+pub async fn create_temp_vc(ctx: &Context, guild_id: &GuildId, member: &Member, hub_info: &TempVoiceHub) -> Result<GuildChannel, Error> {
+    let category_id = ChannelId::new(hub_info.category_id as u64);
     let channel_name = placeholder::replace_channel_placeholders(hub_info.default_channel_name.as_str(), &guild_id, &ctx, &member).await?;
 
     let mut channel_builder = CreateChannel::new(channel_name)

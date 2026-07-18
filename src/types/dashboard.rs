@@ -1,4 +1,5 @@
 use crate::types::payloads::ReportStatus;
+use crate::utils::string_i64;
 use serde::Deserialize;
 
 #[derive(Debug)]
@@ -14,8 +15,9 @@ pub enum ReportUpdate {
 pub struct DashboardCommand {
     #[serde(flatten)]
     pub action: DashboardAction,
-    pub report_id: i32,
-    pub moderator_id: Option<String>,
+    #[serde(with = "string_i64")]
+    pub report_id: i64,
+    pub moderator_id: Option<i64>,
     pub reason: Option<String>,
     pub duration_mins: Option<u64>,
     pub name: Option<String>,

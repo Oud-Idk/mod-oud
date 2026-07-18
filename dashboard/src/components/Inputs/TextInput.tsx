@@ -1,5 +1,6 @@
 import React from "react";
 import { twMerge } from "tailwind-merge";
+import SecondaryButton from "@/components/Inputs/Buttons/SecondaryButton";
 
 interface TextInputProps {
     onSubmit?: () => void;
@@ -7,8 +8,10 @@ interface TextInputProps {
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
     className?: string;
+    parentClassName?: string;
     submitButtonText?: string;
     disableSubmitButton?: boolean;
+    name?: string;
 }
 
 export function TextInput({
@@ -17,6 +20,8 @@ export function TextInput({
     onChange,
     placeholder,
     className,
+    parentClassName,
+    name,
     submitButtonText = "Add",
     disableSubmitButton = false,
 }: TextInputProps) {
@@ -28,22 +33,26 @@ export function TextInput({
     };
 
     return (
-        <div className={twMerge("flex gap-2 max-w-xs", className)}>
+        <div className={twMerge("flex gap-2 max-w-xs", parentClassName)}>
             <input
+                name={name}
                 type="text"
                 placeholder={placeholder}
                 value={value}
                 onChange={onChange}
                 onKeyDown={handleKeyDown}
-                className="border rounded px-3 py-2 text-sm focus:outline-none flex-1 placeholder-neutral-500 bg-neutral-300/10 border-neutral-500"
+                className={
+                    twMerge(
+                        "border rounded px-3 py-2 text-sm focus:outline-none flex-1 placeholder-neutral-500 bg-neutral-300/10 border-neutral-500 min-w-0",
+                        className,
+                    )
+                }
             />
             {!disableSubmitButton && (
-                <button
-                    type="button"
-                    onClick={onSubmit}
-                    className="px-3 py-1.5 text-sm bg-gray-850 rounded cursor-pointer border hover:bg-neutral-300/10"
+                <SecondaryButton
+                    onClick={() => onSubmit ? onSubmit() : undefined} className="h-full"
                 >
-                    {submitButtonText} </button>
+                    {submitButtonText} </SecondaryButton>
             )}
         </div>
     );

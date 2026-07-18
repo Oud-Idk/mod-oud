@@ -110,7 +110,7 @@ export default function TicketingTab({
                                 value={config.category_id}
                                 onChange={handleCategoryChange}
                                 options={categoryOptions}
-                                className={targetCategoryIsEmpty ? `ring-red-500 ring-2 rounded-md` : ''}
+                                className={targetCategoryIsEmpty ? `border-red-700 dark:border-red-300` : ''}
                             />
                         </div>
 
@@ -120,7 +120,7 @@ export default function TicketingTab({
                                 value={config.ticket_role_id || ""}
                                 onChange={handleRoleChange}
                                 options={roleOptions}
-                                className={targetRoleIsEmpty ? `ring-red-500 ring-2 rounded-md` : ''}
+                                className={targetRoleIsEmpty ? `border-red-700 dark:border-red-300` : ''}
                             />
                         </div>
                     </div>

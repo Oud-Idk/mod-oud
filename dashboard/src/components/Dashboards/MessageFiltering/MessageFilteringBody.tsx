@@ -1,6 +1,6 @@
 "use client";
 
-import { TabItem, Tabs } from "@/components/Tabs";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { ComponentType, JSX, useMemo, useState } from "react";
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";

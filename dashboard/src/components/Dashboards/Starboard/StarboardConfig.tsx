@@ -10,7 +10,7 @@ import EmbedBuilder, { convertToEmbedState } from "@/components/Embed/EmbedBuild
 import { STARBOARD_CONFIG } from "@/utils/embedTemplates";
 import { StarboardMessage } from "@/components/Dashboards/Starboard/StarboardMessage";
 import { PlaceholderList } from "@/components/Embed/PlaceholderList";
-import { Pad } from "@/components/Pad";
+import { Pad } from "@/components/Layout/Pad";
 import { PlaintextEditor } from "@/components/MessageCreator/PlaintextEditor";
 
 function validateIntervalFormat(value: string | null): boolean {
@@ -307,19 +307,19 @@ export function StarboardConfig({
                 {/* Switch Options */}
                 <div className="space-y-3 pt-2">
                     <ToggleSwitch
-                        enabled={config.prevent_self_star || false}
+                        checked={config.prevent_self_star || false}
                         onChange={(checked) => onChange({ ...config, prevent_self_star: checked })}
                         disabled={false}
                         text="Prevent Self-Starring"
                     />
                     <ToggleSwitch
-                        enabled={config.allow_bot_messages || false}
+                        checked={config.allow_bot_messages || false}
                         onChange={(checked) => onChange({ ...config, allow_bot_messages: checked })}
                         disabled={false}
                         text="Allow Bot Messages to be Starred"
                     />
                     <ToggleSwitch
-                        enabled={config.keep_deleted_messages || false}
+                        checked={config.keep_deleted_messages || false}
                         onChange={(checked) => onChange({ ...config, keep_deleted_messages: checked })}
                         disabled={false}
                         text="Keep Starred Messages even when Deleted"
