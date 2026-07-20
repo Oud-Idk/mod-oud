@@ -1,15 +1,39 @@
 import React, { useMemo, useState } from "react";
 import { sendInterfaceMessageAction } from "@/actions/customEmbed";
-import { BuilderConfig } from "@/types/builder";
+import { BuilderConfig, Placeholder } from "@/types/builder";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import EmbedBuilder from "@/components/Embed/EmbedBuilder";
 import { TempVoiceHub } from "@/types/config";
+import { PlaceholderList } from "@/components/Embed/PlaceholderList";
 
 interface InterfaceMessageTabProps {
     channelMap: Record<string, string>;
     guildId: string;
     voiceConfig: TempVoiceHub;
 }
+
+const CHANNEL_NAME_PLACEHOLDERS: Placeholder[] = [
+    {
+        key: "user.display_name",
+        mockValue: "John Doe",
+        label: "The user's server nickname, falling back to their global display name"
+    },
+    {
+        key: "user.username",
+        mockValue: "johndoe",
+        label: "The unique Discord username of the creator"
+    },
+    {
+        key: "user.id",
+        mockValue: "123456789012345678",
+        label: "The unique Discord Snowflake ID of the user"
+    },
+    {
+        key: "guild.name",
+        mockValue: "My Discord Server",
+        label: "The name of the Discord server (guild) where the channel is created"
+    },
+];
 
 export function InterfaceMessageTab({ channelMap, guildId, voiceConfig }: InterfaceMessageTabProps) {
     const [embedState, setEmbedState] = useState<object>({
@@ -110,6 +134,8 @@ export function InterfaceMessageTab({ channelMap, guildId, voiceConfig }: Interf
                     </div>
                 )}
             </div>
+
+            <PlaceholderList config={{ placeholders: CHANNEL_NAME_PLACEHOLDERS }}/>
 
             <EmbedBuilder
                 config={config}

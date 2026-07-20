@@ -7,9 +7,10 @@ use crate::web::routes::commands::commands::handle_dashboard_command;
 use crate::web::routes::create_temp_voice::handle_create_temp_category_and_hub;
 use crate::web::routes::delete_entire_category::handle_delete_entire_category;
 use crate::web::routes::send_embed::handle_send_custom_embed;
-use crate::web::routes::send_temp_voice_interface::handle_send_temp_voice_interface;
+use crate::web::routes::send_voice_interface::handle_send_temp_voice_interface;
 use crate::web::routes::tickets_delete::handle_delete_ticket_message;
 use crate::web::routes::tickets_send::handle_send_ticket_message;
+use crate::web::routes::verification::undo_verify::handle_verification_teardown;
 use crate::WebState;
 use axum::http::{HeaderValue, Method, StatusCode, Uri};
 use axum::routing::method_routing::get;
@@ -20,6 +21,9 @@ use routes::reaction_role::reaction_role_delete::handle_delete_reaction_role_mes
 use routes::reaction_role::reaction_role_edit::handle_edit_reaction_role_message;
 use routes::reaction_role::reaction_role_send::handle_send_reaction_role_message;
 use routes::sse;
+use routes::verification::setup_verify::handle_verification_setup;
+use routes::verification::verify::handle_verify;
+use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -35,17 +39,17 @@ async fn health_check() -> &'static str {
 
 #[instrument]
 async fn handle_404(method: Method, uri: Uri) -> (StatusCode, &'static str) {
-    warn!(
+    debug!(
         method = %method,
         uri = %uri,
-        "404 Not Found - Someone got lost!"
+        "404 Not Found"
     );
-    (StatusCode::NOT_FOUND, "Not Found")
+    (StatusCode::NOT_FOUND, "Not Found. Meow :3")
 }
 
-#[instrument(skip(pool, http, redis_client, subscriber_client, guild_configs, tx))]
+#[instrument(skip(db, http, redis_client, subscriber_client, guild_configs, tx))]
 pub async fn start_web_server(
-    pool: sqlx::PgPool,
+    db: sqlx::PgPool,
     http: Arc<poise::serenity_prelude::Http>,
     redis_client: Client,
     subscriber_client: SubscriberClient,
@@ -102,12 +106,19 @@ pub async fn start_web_server(
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
+    let reqwest_client = reqwest::Client::new();
+    let shared_secret = env::var("VERIFICATION_SECRET").ok();
+    let cf_secret_key = env::var("TURNSTILE_SECRET").ok();
+
     let shared_state = Arc::new(WebState {
         tx,
-        pool,
+        db,
         http,
         redis: redis_client,
         guild_configs,
+        req_client: reqwest_client,
+        shared_secret,
+        cf_secret_key,
     });
 
     let app = Router::new()
@@ -149,6 +160,18 @@ pub async fn start_web_server(
         .route(
             "/api/guilds/{guild_id}/category/delete-entire",
             axum::routing::delete(handle_delete_entire_category)
+        )
+        .route(
+            "/api/guilds/{guild_id}/verification",
+            axum::routing::post(handle_verification_setup),
+        )
+        .route(
+            "/api/guilds/{guild_id}/verification",
+            axum::routing::delete(handle_verification_teardown),
+        )
+        .route(
+            "/api/verify",
+            axum::routing::post(handle_verify)
         )
         .fallback(handle_404)
         .layer(cors)

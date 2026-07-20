@@ -14,6 +14,7 @@ import {
     MessageSquare,
     MessageSquareWarning,
     ScrollTextIcon,
+    Skull,
     Star,
     Ticket,
     TrendingUp,
@@ -131,6 +132,12 @@ export function SidebarLinks() {
             name: 'Invite Tracking',
             href: `/dashboard/${guildId}/invite-tracking`,
             icon: UserPlus,
+            exact: false,
+        },
+        {
+            name: 'Honeypot Channel',
+            href: `/dashboard/${guildId}/honeypot`,
+            icon: Skull,
             exact: false,
         }
     ];

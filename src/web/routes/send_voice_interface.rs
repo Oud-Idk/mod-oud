@@ -43,13 +43,11 @@ pub async fn handle_send_temp_voice_interface(
 ) -> Result<(StatusCode, Json<SendTempVoiceInterfaceResponse>), (StatusCode, String)> {
     debug!(guild_id = guild_id_str, "Received request to dispatch generic embed");
 
-    let channel_id_u64 = payload.channel_id.parse::<u64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string())
-    })?;
+    let channel_id_u64 = payload.channel_id.parse::<u64>()
+        .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to parse channel ID"))
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string()))?;
 
     let target_channel = serenity::ChannelId::new(channel_id_u64);
-
-    let is_embed = payload.format.as_ref().map_or(true, |f| matches!(f, Format::Embed));
 
     let rename_btn = CreateButton::new("temp_voice_rename")
         .style(serenity::ButtonStyle::Secondary)
@@ -70,7 +68,6 @@ pub async fn handle_send_temp_voice_interface(
     let unlock_btn = CreateButton::new("temp_voice_unlock")
         .style(serenity::ButtonStyle::Secondary)
         .label("Unlock");
-
 
     let trust_btn = CreateButton::new("temp_voice_trust")
         .style(serenity::ButtonStyle::Secondary)
@@ -127,20 +124,14 @@ pub async fn handle_send_temp_voice_interface(
     let message = target_channel
         .send_message(&state.http, message_builder)
         .await
-        .map_err(|e| {
-            warn!(error = ?e, channel_id = channel_id_u64, "Failed to deliver interface");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Discord API error: {}", e),
-            )
-        })?;
+        .inspect_err(|e| warn!(error = ?e, channel_id = channel_id_u64, "Failed to deliver interface"))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Discord API error: {}", e)))?;
 
     info!(
         channel_id = channel_id_u64,
         message_id = %message.id,
         "Interface successfully delivered"
     );
-
 
     Ok((
         StatusCode::OK,

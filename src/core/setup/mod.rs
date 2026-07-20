@@ -10,6 +10,7 @@ use fred::prelude::SetsInterface;
 use moka::future::Cache;
 use serenity::all::{Context, Ready};
 use sqlx::{Pool, Postgres};
+use std::env;
 use std::pin::Pin;
 use tracing::{debug, info};
 
@@ -46,6 +47,8 @@ pub fn setup<'a>(
         let spam_tracker = SpamTracker::new(redis_client.clone());
         let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
         let audit_log_cache = Cache::new(5000);
+        let shared_secret = env::var("VERIFICATION_SECRET").ok();
+        let domain = env::var("DOMAIN").unwrap_or("localhost:3000".to_string());
 
         Ok(Data {
             db: pool,
@@ -56,6 +59,8 @@ pub fn setup<'a>(
             guild_configs: guild_configs_cache,
             ticket_log_tx: tx,
             audit_log_cache,
+            shared_secret,
+            domain,
         })
     })
 }

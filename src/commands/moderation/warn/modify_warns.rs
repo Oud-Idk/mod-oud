@@ -1,7 +1,7 @@
 use crate::commands::moderation::utils::send_ephemeral;
 use crate::types::{Context, Error, GuildMetadata};
 use crate::utils::logger::ActionType;
-use crate::utils::moderation::actions::issue_warning_status_change;
+use crate::utils::moderation::issuing::issue_warning_status_change;
 use tracing::{debug, info, trace};
 
 /// Helper function to handle both pardoning and unpardoning warnings.

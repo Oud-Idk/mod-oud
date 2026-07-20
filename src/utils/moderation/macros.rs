@@ -34,10 +34,8 @@
 
         if let Some(dm_settings) = $dm_settings_opt {
             if dm_settings.enabled {
-                let is_embed = matches!(dm_settings.format, Format::Embed);
-
                 custom_msg_opt = build_custom_message(
-                    is_embed,
+                    &dm_settings.format,
                     Some(&dm_settings.content),
                     dm_settings.embed.as_ref(),
                     $replace_closure,

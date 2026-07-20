@@ -1,9 +1,12 @@
 use crate::events::handlers::temp_voice::interface;
+use crate::events::handlers::temp_voice::interface::preflight_button_check;
+use crate::events::handlers::temp_voice::interface::utils::create_ephemeral_msg;
 use crate::events::handlers::tickets;
 use crate::types::{Data, Error};
+use crate::utils::verification::generate_verification_link;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ComponentInteractionDataKind, Interaction};
-use tracing::debug;
+use tracing::{debug, warn};
 
 pub async fn on_interact(
     ctx: &serenity::Context,
@@ -51,6 +54,28 @@ pub async fn on_interact(
                     if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
                         interface::unblock::handle_unblock_temp_vc_submit(ctx, component, data, values.clone()).await?;
                     }
+                }
+
+                "verify" => {
+                    let Some(guild_id) = component.guild_id else {
+                        return Ok(());
+                    };
+                    let Some(shared_secret) = data.shared_secret.as_deref() else {
+                        warn!("Shared secret not set up for verification");
+                        return Ok(());
+                    };
+                    let verification_link = generate_verification_link(
+                        component.user.id.get(), guild_id.get(),
+                        shared_secret.as_bytes(), data.domain.as_str(),
+                    );
+
+                    component.create_response(
+                        &ctx,
+                        create_ephemeral_msg(&format!("Please go to this link to verify: {}", verification_link)),
+                    )
+                        .await?;
+
+                    return Ok(());
                 }
 
                 _ => {}

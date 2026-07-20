@@ -6,4 +6,5 @@ pub mod reaction_role;
 pub mod send_embed;
 pub mod create_temp_voice;
 pub mod delete_entire_category;
-pub mod send_temp_voice_interface;
+pub mod send_voice_interface;
+pub mod verification;

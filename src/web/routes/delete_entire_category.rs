@@ -1,3 +1,4 @@
+use crate::utils::moderation::actions::delete_entire_category;
 use crate::WebState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -18,75 +19,33 @@ pub struct DeleteCategoryResponse {
     pub deleted_children_count: usize,
 }
 
-/// Handler to delete a category and all of its nested channels.
 pub async fn handle_delete_entire_category(
     State(state): State<Arc<WebState>>,
     Path(guild_id_str): Path<String>,
     Json(payload): Json<DeleteCategoryPayload>,
 ) -> Result<(StatusCode, Json<DeleteCategoryResponse>), (StatusCode, String)> {
-    debug!(guild_id = guild_id_str, category_id = payload.category_id, "Request to delete category and children");
+    debug!(guild_id = guild_id_str, category_id = payload.category_id, "Request to delete category and children via API");
 
     // Parse IDs
-    let guild_id_u64 = guild_id_str.parse::<u64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string())
-    })?;
-    let category_id_u64 = payload.category_id.parse::<u64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid Category ID format".to_string())
-    })?;
+    let guild_id_u64 = guild_id_str.parse::<u64>()
+        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string()))?;
+    let category_id_u64 = payload.category_id.parse::<u64>()
+        .inspect_err(|e| warn!(error = ?e, category_id = payload.category_id, "Failed to parse category ID"))
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Category ID format".to_string()))?;
 
     let guild_id = serenity::GuildId::new(guild_id_u64);
     let category_id = serenity::ChannelId::new(category_id_u64);
-
-    let channels = guild_id.channels(&state.http).await.map_err(|e| {
-        warn!(error = ?e, guild_id = guild_id_u64, "Failed to fetch guild channels");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to retrieve guild channels: {}", e),
-        )
-    })?;
-
-    let child_channels: Vec<serenity::ChannelId> = channels
-        .values()
-        .filter(|channel| channel.parent_id == Some(category_id))
-        .map(|channel| channel.id)
-        .collect();
-
-    info!(
-        guild_id = guild_id_u64,
-        category_id = category_id_u64,
-        count = child_channels.len(),
-        "Found child channels to delete"
-    );
-
-    let mut deleted_count = 0;
-    for channel_id in &child_channels {
-        match channel_id.delete(&state.http).await {
-            Ok(_) => {
-                deleted_count += 1;
-            }
-            Err(e) => {
-                warn!(
-                    error = ?e,
-                    channel_id = %channel_id,
-                    "Failed to delete child channel inside category"
-                );
-            }
-        }
-    }
-
-    category_id.delete(&state.http).await.map_err(|e| {
-        warn!(error = ?e, category_id = category_id_u64, "Failed to delete the category channel");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to delete the category channel: {}", e),
-        )
-    })?;
+    
+    let deleted_count = delete_entire_category(&state.http, guild_id, category_id).await
+        .inspect_err(|e| warn!(error = ?e, "Failed to delete category through API"))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to delete category: {}", e)))?;
 
     info!(
         guild_id = guild_id_u64,
         category_id = category_id_u64,
         deleted_children = deleted_count,
-        "Successfully deleted category and nested channels"
+        "Successfully deleted category and nested channels via API"
     );
 
     Ok((

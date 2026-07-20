@@ -7,8 +7,8 @@ use crate::types::{Data, Error};
 use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
 use serenity::all::{Channel, ChannelId, ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse, CreateModal, EditChannel, InputTextStyle, ModalInteraction};
-use tracing::log::warn;
-use tracing::{debug, trace};
+
+use tracing::{debug, trace, warn};
 
 pub(crate) async fn handle_rename_temp_vc(
     ctx: &Context,

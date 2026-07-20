@@ -20,10 +20,8 @@ pub fn build_welcome_message(
     let guild_id = member.guild_id.get();
     trace!(guild_id, user_id, is_dm, "Compiling welcome notification message template");
 
-    let is_embed = settings.format.as_deref().unwrap_or("embed") == "embed";
-
     let custom_msg_opt = build_custom_message(
-        is_embed,
+        &settings.format.unwrap_or_default(),
         settings.content.as_deref(),
         settings.embed.as_ref(),
         |text| replace_welcome_goodbye_placeholders(text, gctx, member, channel, None, Some(warning_text)),
@@ -83,10 +81,8 @@ pub async fn build_goodbye_message(
 
     match (gctx_res, context_ch_res) {
         (Ok(gctx), Ok(context_channel)) => {
-            let is_embed = leave_cfg.format.as_deref().unwrap_or("embed") == "embed";
-
             let custom = build_custom_message(
-                is_embed,
+                &leave_cfg.format.unwrap_or_default(),
                 leave_cfg.content.as_deref(),
                 leave_cfg.embed.as_ref(),
                 |text| replace_welcome_goodbye_placeholders(text, &gctx, member, &context_channel, None, None),

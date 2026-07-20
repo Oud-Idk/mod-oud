@@ -29,11 +29,10 @@ pub async fn send_voice_level_up_message(
         "Compiling custom voice level up message"
     );
 
-    let is_embed = matches!(config.notify.format, Format::Embed);
     let gctx = get_guild_ctx(*guild_id, ctx.http.as_ref()).await?;
 
     let custom_message_opt = build_custom_message(
-        is_embed,
+        &config.notify.format,
         Some(&config.notify.content),
         embed,
         |text| {

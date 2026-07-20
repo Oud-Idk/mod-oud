@@ -68,9 +68,8 @@ pub fn build_custom_msg(
                 .ok()
         });
 
-    let is_embed = matches!(format, Format::Embed);
     crate::utils::custom_msg::build_custom_message(
-        is_embed,
+        &format,
         content,
         embed_data.as_ref(),
         |text| text.to_string(),
@@ -110,7 +109,7 @@ pub fn convert_create_to_edit_message(
 }
 
 pub async fn edit_reactions(state: &Arc<WebState>, config_row: &ReactionMessage, channel_id: &ChannelId, message_id: &MessageId) -> Result<(), (StatusCode, String)> {
-    let reactions = fetch_active_reactions(&state.pool, config_row.id).await?;
+    let reactions = fetch_active_reactions(&state.db, config_row.id).await?;
 
     if let Ok(message) = channel_id.message(&state.http, message_id).await {
         for existing_reaction in message.reactions {

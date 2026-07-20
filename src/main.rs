@@ -1,4 +1,4 @@
-use crate::commands::{emergency, invites, leveling, moderation, ticket};
+use crate::commands::{emergency, invites, leveling, moderation, test_verif, ticket};
 use crate::core::setup::setup;
 use commands::{messages, ping};
 use fred::clients::SubscriberClient;
@@ -35,10 +35,13 @@ impl serenity::prelude::TypeMapKey for ShardManagerContainer {
 #[derive(Clone)]
 pub struct WebState {
     pub tx: broadcast::Sender<LogEvent>,
-    pub pool: sqlx::PgPool,
+    pub db: sqlx::PgPool,
     pub http: Arc<poise::serenity_prelude::Http>,
     pub redis: Client,
     pub guild_configs: moka::future::Cache<i64, types::config::config::GuildSettings>,
+    pub req_client: reqwest::Client,
+    pub shared_secret: Option<String>,
+    pub cf_secret_key: Option<String>,
 }
 
 fn main() -> Result<(), Error> {
@@ -235,6 +238,7 @@ async fn async_main() -> Result<(), Error> {
             invites::invites(),
             invites::inviter(),
             invites::invites_leaderboard(),
+            test_verif::test_verif(),
             register(),
         ];
 

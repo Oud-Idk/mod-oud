@@ -21,7 +21,7 @@ export interface ReactionMessage {
     guild_id: string;
     format: "text" | "embed";
     mode: "reaction" | "button";
-    embed: string;
+    embed: DiscordEmbed;
     content: string;
     reactions?: ReactionRole[];
     buttons?: ButtonRole[];

@@ -5,8 +5,7 @@ use crate::events::handlers::temp_voice::interface::preflight_modal_check;
 use crate::events::handlers::temp_voice::interface::utils::{create_ephemeral_msg, get_input_value};
 use crate::types::{Data, Error};
 use serenity::all::{ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse, CreateModal, EditChannel, InputTextStyle, ModalInteraction};
-use tracing::log::trace;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 pub(crate) async fn handle_set_limit_vc(
     ctx: &Context,

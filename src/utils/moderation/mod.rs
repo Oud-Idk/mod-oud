@@ -6,6 +6,7 @@ use tracing::trace;
 pub mod database;
 pub mod macros;
 pub mod actions;
+pub mod issuing;
 
 pub const MODERATION_FOOTER: &str = "If you believe this was a mistake, please create a ticket on the server.";
 

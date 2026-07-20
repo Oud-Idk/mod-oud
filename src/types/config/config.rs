@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, serde_conv, DisplayFromStr};
 use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, sqlx::Type, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, sqlx::Type, PartialEq, Copy)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(type_name = "message_format", rename_all = "lowercase")]
 pub enum Format {
-    Embed,
     #[default]
+    Embed,
     Text,
 }
 
@@ -22,7 +22,7 @@ pub enum Format {
 pub struct LeaveConfig {
     pub enabled: Option<bool>,
     pub channel_id: Option<String>,
-    pub format: Option<String>,
+    pub format: Option<Format>,
     #[serde(default, deserialize_with = "ok_or_none")]
     pub embed: Option<DiscordEmbed>,
     pub content: Option<String>,

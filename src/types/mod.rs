@@ -34,6 +34,8 @@ pub struct Data {
     pub guild_configs: moka::future::Cache<i64, GuildSettings>,
     pub audit_log_cache: moka::future::Cache<u64, Arc<CachedAuditLogs>>,
     pub ticket_log_tx: UnboundedSender<TicketLogPayload>,
+    pub shared_secret: Option<String>,
+    pub domain: String,
 }
 
 #[derive(Clone, PartialEq, Message)]

@@ -2,7 +2,7 @@ use crate::events::handlers::message_filter::database;
 use crate::types::config::config::GuildSettings;
 use crate::types::config::message_filter::{BaseRule, RuleAction};
 use crate::types::Data;
-use crate::utils::moderation::actions::{issue_mute, issue_warning};
+use crate::utils::moderation::issuing::{issue_mute, issue_warning};
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateMessage, EditMember, Mentionable, Message, Timestamp, User};
 use std::time::Duration;
 use tracing::{debug, error, info, instrument, trace, warn};

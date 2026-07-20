@@ -40,10 +40,9 @@ pub async fn build_ticket_message_payload(
 
     trace!(guild_id = guild_id_u64, "Fetching guild context for placeholder evaluation");
     let gctx = get_guild_ctx(guild_id, http).await?;
-    let is_embed = format.map_or(true, |f| matches!(f, Format::Embed));
 
     let custom_msg_opt = build_custom_message(
-        is_embed,
+        format.unwrap_or(&Format::Embed),
         content.map(String::as_str),
         embed_json,
         |text| {

@@ -69,32 +69,31 @@ export async function saveGuildConfigField<T>(guildId: string, key: string, valu
 
 export async function getWelcomeConfig(guildId: string): Promise<WelcomeConfig> {
     const default_config: WelcomeConfig = {
-        public: { enabled: false, channel_id: "", format: "embed", content: "", embed: "" },
-        private: { enabled: false, format: "embed", content: "", embed: "" },
+        public: { enabled: false, channel_id: "", format: "embed", content: "", embed: {} },
+        private: { enabled: false, format: "embed", content: "", embed: {} },
+        verification: {
+            enabled: false,
+            verification_message_id: "",
+            verification_channel_id: "",
+            verification_role_id: "",
+            content: "Please complete the verification below to gain access to the server.",
+            embed: {
+                title: "Server Verification Required",
+                description: "Click the verification button below to verify your account and gain full access.",
+                color: 0x55EE77
+            },
+            format: "embed"
+        },
         join_role_ids: []
     };
 
     const dbWelcome = await getGuildConfigField<any>(guildId, 'welcome');
     if (!dbWelcome) return default_config;
 
-    // Legacy fallback mapping
-    if ("send_public_message" in dbWelcome || "channel_id" in dbWelcome) {
-        return {
-            public: {
-                enabled: !!dbWelcome.send_public_message,
-                channel_id: dbWelcome.channel_id || "",
-                format: dbWelcome.format || "embed",
-                content: dbWelcome.content || "",
-                embed: dbWelcome.embed || "",
-            },
-            private: { enabled: false, format: "embed", content: "", embed: "" },
-            join_role_ids: dbWelcome.join_role_ids || []
-        };
-    }
-
     return {
         public: { ...default_config.public, ...(dbWelcome.public || {}) },
         private: { ...default_config.private, ...(dbWelcome.private || {}) },
+        verification: { ...default_config.verification, ...(dbWelcome.verification || {}) },
         join_role_ids: dbWelcome.join_role_ids || []
     };
 }
@@ -109,7 +108,7 @@ export async function getLeaveConfig(guildId: string): Promise<LeaveConfig> {
         channel_id: "",
         format: "embed",
         content: "",
-        embed: "",
+        embed: {},
     };
 
     const dbLeave = await getGuildConfigField<any>(guildId, 'leave');
@@ -127,7 +126,7 @@ export async function getReportConfig(guildId: string): Promise<ReportConfig> {
         enabled: false,
         format: "text",
         content: "",
-        embed: "",
+        embed: {},
     }
 
     const default_config: ReportConfig = {
@@ -255,7 +254,7 @@ export async function getLevelingConfig(guildId: string): Promise<LevelingConfig
             scope: "none",
             format: "text",
             content: "",
-            embed: "",
+            embed: {},
         }
     }
 
@@ -332,7 +331,7 @@ export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
         channel_id: "",
         format: "text",
         content: "",
-        embed: "",
+        embed: {},
         posted_message_id: "",
         ticket_role_id: "",
         warn_threshold: 30,
@@ -344,7 +343,7 @@ export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
         enabled: false,
         format: "text",
         content: "",
-        embed: "",
+        embed: {},
     }
 
     const dbConfig = await getGuildConfigField<any>(guildId, 'tickets');

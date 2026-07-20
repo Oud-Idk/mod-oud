@@ -66,8 +66,6 @@ fn get_memory_usage() -> String {
 }
 
 
-// --- MAIN COMMAND ---
-
 /// Pong!
 #[poise::command(slash_command)]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {

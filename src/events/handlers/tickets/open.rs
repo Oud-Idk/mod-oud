@@ -181,10 +181,8 @@ async fn send_welcome_message(
         .color(0xffffff);
 
     let mut message_builder = if let Some(cfg) = ticket_cfg.and_then(|c| c.welcome_message.as_ref()) {
-        let is_embed = matches!(cfg.format, Format::Embed);
-
         let custom_layout = build_custom_message(
-            is_embed,
+            &cfg.format,
             Some(&cfg.content),
             cfg.embed.as_ref(),
             |text| {

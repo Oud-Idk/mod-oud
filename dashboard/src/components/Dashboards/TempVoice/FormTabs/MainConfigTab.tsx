@@ -3,8 +3,6 @@ import { TextInput } from "@/components/Inputs/TextInput";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { NumberInput } from "@/components/Inputs/NumberInput";
 import { TempVoiceHub } from "@/types/config";
-import { PlaceholderList } from "@/components/Embed/PlaceholderList";
-import { Placeholder } from "@/types/builder";
 
 export interface MainConfigTabProps {
     config: TempVoiceHub;
@@ -12,29 +10,6 @@ export interface MainConfigTabProps {
     channels: Record<string, string>;
     categories: Record<string, string>;
 }
-
-const CHANNEL_NAME_PLACEHOLDERS: Placeholder[] = [
-    {
-        key: "user.display_name",
-        mockValue: "John Doe",
-        label: "The user's server nickname, falling back to their global display name"
-    },
-    {
-        key: "user.username",
-        mockValue: "johndoe",
-        label: "The unique Discord username of the creator"
-    },
-    {
-        key: "user.id",
-        mockValue: "123456789012345678",
-        label: "The unique Discord Snowflake ID of the user"
-    },
-    {
-        key: "guild.name",
-        mockValue: "My Discord Server",
-        label: "The name of the Discord server (guild) where the channel is created"
-    },
-];
 
 export const MainConfigTab: React.FC<MainConfigTabProps> = ({
     config,
@@ -111,7 +86,6 @@ export const MainConfigTab: React.FC<MainConfigTabProps> = ({
                 onChange={(e) => handleChange({ name: e.target.value })}
                 className="max-w-none mb-2"
             />
-            <PlaceholderList config={{ placeholders: CHANNEL_NAME_PLACEHOLDERS }}/>
         </div>
     </div>;
 }

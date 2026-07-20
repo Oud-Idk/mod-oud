@@ -29,12 +29,11 @@ pub async fn send_message(
         "Initiating level up notification sequence"
     );
 
-    let is_embed = matches!(config.notify.format, Format::Embed);
     let gctx = get_guild_ctx(*guild_id, ctx.http.as_ref()).await?;
     let author = &message.author;
 
     let custom_message_opt = build_custom_message(
-        is_embed,
+        &config.notify.format,
         Some(&config.notify.content),
         embed,
         |text| {

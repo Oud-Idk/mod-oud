@@ -1,6 +1,7 @@
 import { MessageFilteringConfig } from "@/types/config/messageFiltering";
 import { WelcomeConfig } from "@/types/config/welcome";
 import { ModerationDMsConfig } from "@/types/config/moderationDMs";
+import { DiscordEmbed } from "@/types/embed";
 
 export interface Scope {
     mode: "exempt" | "enforced";
@@ -13,7 +14,7 @@ export interface LeaveConfig {
     channel_id: string;
     format: "embed" | "text";
     content: string;
-    embed: string;
+    embed: DiscordEmbed;
 }
 
 export interface MessageLoggingConfig {
@@ -50,7 +51,7 @@ export interface NotificationSettings {
 
     format: "embed" | "text";
     content: string;
-    embed: string;
+    embed: DiscordEmbed;
 }
 
 export interface LevelingConfig {
@@ -74,7 +75,7 @@ export interface MessageLayout {
     enabled: boolean;
     format: "embed" | "text";
     content: string;
-    embed: string;
+    embed: DiscordEmbed;
 }
 
 export interface TicketConfig {
@@ -86,7 +87,7 @@ export interface TicketConfig {
     enabled: boolean;
     format: "embed" | "text";
     content: string;
-    embed: string;
+    embed: DiscordEmbed;
 
     warn_threshold: number;
     delete_threshold: number;

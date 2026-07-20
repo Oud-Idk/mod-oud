@@ -4,7 +4,7 @@ use crate::types::embed::DiscordEmbed;
 use crate::utils::custom_msg::build_custom_message;
 use crate::web::helpers::embed;
 use crate::web::helpers::embed::EmbedGetters;
-use crate::web::routes::send_temp_voice_interface::SendTempVoiceInterfacePayload;
+use crate::web::routes::send_voice_interface::SendTempVoiceInterfacePayload;
 use crate::WebState;
 use axum::{
     extract::{Path, State},
@@ -49,13 +49,12 @@ pub async fn handle_send_custom_embed(
 ) -> Result<(StatusCode, Json<SendCustomEmbedResponse>), (StatusCode, String)> {
     debug!(guild_id = guild_id_str, "Received request to dispatch generic embed");
 
-    let guild_id = guild_id_str.parse::<i64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string())
-    })?;
-
-    let channel_id_u64 = payload.channel_id.parse::<u64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string())
-    })?;
+    let guild_id_u64 = guild_id_str.parse::<u64>()
+        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string()))?;
+    let channel_id_u64 = payload.channel_id.parse::<u64>()
+        .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to parse channel ID"))
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string()))?;
 
     let target_channel = serenity::ChannelId::new(channel_id_u64);
 
@@ -67,16 +66,11 @@ pub async fn handle_send_custom_embed(
     let message = target_channel
         .send_message(&state.http, message_builder)
         .await
-        .map_err(|e| {
-            warn!(error = ?e, channel_id = channel_id_u64, "Failed to deliver Discord message");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Discord API error: {}", e),
-            )
-        })?;
+        .inspect_err(|e| warn!(error = ?e, channel_id = channel_id_u64, "Failed to deliver Discord message"))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Discord API error: {}", e),))?;
 
     info!(
-        guild_id,
+        guild_id = guild_id_u64,
         channel_id = channel_id_u64,
         message_id = %message.id,
         "Custom message successfully delivered"

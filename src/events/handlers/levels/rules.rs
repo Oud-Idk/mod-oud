@@ -85,9 +85,8 @@ pub async fn get_multiplier(
     trace!("Fetching multipliers");
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             error!(error = %err, "Failed to retrieve XP multipliers from cache/database");
-            err
         })?;
 
     let channel_id = message.channel_id.get();
@@ -119,9 +118,8 @@ pub async fn get_voice_multiplier(
     trace!("Fetching voice multipliers");
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             error!(error = %err, "Failed to retrieve voice XP multipliers from cache/database");
-            err
         })?;
 
     let roles = member_roles.iter().map(|r| r.get()).collect();

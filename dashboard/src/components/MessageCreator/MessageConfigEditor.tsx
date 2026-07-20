@@ -6,19 +6,20 @@ import { PlaintextEditor } from "@/components/MessageCreator/PlaintextEditor";
 import EmbedBuilder from "@/components/Embed/EmbedBuilder";
 import { DiscordChannel } from "@/types";
 import { BuilderConfig } from "@/types/builder";
+import { DiscordEmbed } from "@/types/embed";
 
 export interface GenericMessageConfig {
     enabled?: boolean;
     channel_id?: string;
-    content: string;
-    embed: any;
+    content?: string | undefined;
+    embed?: DiscordEmbed;
     format: "text" | "embed";
 }
 
 interface MessageConfigEditorProps {
     config: GenericMessageConfig;
     onChange: (updatedConfig: GenericMessageConfig) => void;
-    onEmbedChange: (embed: any) => void;
+    onEmbedChange?: (embed: DiscordEmbed) => void;
     toggleLabel?: string;
     enableToggle?: boolean;
     embedTemplateConfig: BuilderConfig;
@@ -117,7 +118,7 @@ export function MessageConfigEditor({
                         <EmbedBuilder
                             placeholderConfig={embedTemplateConfig}
                             key={`${resetKey}`}
-                            setEmbedState={onEmbedChange}
+                            setEmbedState={embed => onChange({ ...config, embed: embed })}
                             config={embedTemplateConfig}
                             initialEmbedState={config.embed}
                             setIsEmpty={setIsEmpty}

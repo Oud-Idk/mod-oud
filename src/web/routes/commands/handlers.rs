@@ -48,7 +48,7 @@ pub async fn handle_delete_message(
         }
     }
 
-    database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::MessageDeleted).await?;
+    database::update_reported_message(&state.db, cmd.report_id, ReportUpdate::MessageDeleted).await?;
     Ok(StatusCode::OK)
 }
 
@@ -69,8 +69,8 @@ pub async fn handle_warn(
 
     info!(moderator_id = %moderator_id, "Issuing warning to user");
 
-    crate::utils::moderation::actions::issue_warning(
-        &state.pool,
+    crate::utils::moderation::issuing::issue_warning(
+        &state.db,
         redis,
         &state.guild_configs,
         &state.http,
@@ -87,7 +87,7 @@ pub async fn handle_warn(
             WebError::Internal(e.to_string())
         })?;
 
-    database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::UserWarned).await?;
+    database::update_reported_message(&state.db, cmd.report_id, ReportUpdate::UserWarned).await?;
     Ok(StatusCode::OK)
 }
 
@@ -134,8 +134,8 @@ pub async fn handle_timeout(
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
 
-    crate::utils::moderation::actions::issue_mute(
-        &state.pool,
+    crate::utils::moderation::issuing::issue_mute(
+        &state.db,
         redis,
         &state.guild_configs,
         &state.http,
@@ -152,7 +152,7 @@ pub async fn handle_timeout(
             WebError::Internal(format!("Failed to issue mute: {}", e))
         })?;
 
-    database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::UserTimedOut).await?;
+    database::update_reported_message(&state.db, cmd.report_id, ReportUpdate::UserTimedOut).await?;
     Ok(StatusCode::OK)
 }
 
@@ -183,8 +183,8 @@ pub async fn handle_ban_user(
         None => "Permanent".to_string(),
     };
 
-    crate::utils::moderation::actions::issue_ban(
-        &state.pool,
+    crate::utils::moderation::issuing::issue_ban(
+        &state.db,
         redis,
         &state.guild_configs,
         &state.http,
@@ -202,7 +202,7 @@ pub async fn handle_ban_user(
             WebError::Internal(format!("Failed to issue ban: {}", e))
         })?;
 
-    database::update_reported_message(&state.pool, cmd.report_id, ReportUpdate::UserBanned).await?;
+    database::update_reported_message(&state.db, cmd.report_id, ReportUpdate::UserBanned).await?;
     Ok(StatusCode::OK)
 }
 
@@ -217,7 +217,7 @@ pub async fn handle_resolve_report(
 ) -> Result<StatusCode, WebError> {
     info!("Resolving report status and notifying reporter");
 
-    let config = get_settings(&state.pool, redis, &state.guild_configs, guild_id.get() as i64)
+    let config = get_settings(&state.db, redis, &state.guild_configs, guild_id.get() as i64)
         .await
         .map_err(|e| {
             error!(error = %e, "Failed to resolve guild config");
@@ -233,7 +233,7 @@ pub async fn handle_resolve_report(
         "SELECT reporter_id FROM reported_messages WHERE id = $1",
         cmd.report_id
     )
-        .fetch_one(&state.pool)
+        .fetch_one(&state.db)
         .await
         .map_err(|e| {
             error!(error = %e, "Failed to retrieve reporter ID from database");
@@ -244,7 +244,7 @@ pub async fn handle_resolve_report(
     let reporter_id = UserId::new(reporter_id_u64);
 
     database::update_reported_message(
-        &state.pool,
+        &state.db,
         cmd.report_id,
         ReportUpdate::Status(status.clone()),
     )
@@ -277,7 +277,7 @@ pub async fn handle_resolve_report(
 
     let custom_msg_builder = if let Some(layout) = layout_opt {
         build_custom_message(
-            matches!(layout.format, Format::Embed),
+            &layout.format,
             Some(&layout.content),
             layout.embed.as_ref(),
             replace_fn,

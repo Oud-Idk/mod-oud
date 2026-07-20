@@ -45,7 +45,7 @@ BEGIN
 
     RETURN NULL;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER trg_sync_inviter_counts
     AFTER INSERT OR UPDATE OR DELETE

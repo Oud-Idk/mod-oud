@@ -1,10 +1,11 @@
+use crate::types::config::config::Format;
 use crate::types::embed::DiscordEmbed;
 use crate::types::Error;
 use serenity::builder::CreateMessage;
 
 /// A generic builder that takes your templates and a placeholder replacement closure.
 pub fn build_custom_message<F>(
-    is_embed: bool,
+    format: &Format,
     content: Option<&str>,
     embed_template: Option<&DiscordEmbed>,
     replace_fn: F,
@@ -15,7 +16,7 @@ where
     let mut builder = CreateMessage::new();
     let mut has_payload = false;
 
-    if !is_embed {
+    if matches!(format, Format::Text) {
         if let Some(text) = content {
             builder = builder.content(replace_fn(text));
             has_payload = true;

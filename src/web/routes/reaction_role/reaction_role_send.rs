@@ -32,7 +32,7 @@ pub async fn handle_send_reaction_role_message(
     );
 
     let config_id = parse_config_id(&config_id_str)?;
-    let config_row = fetch_reaction_message(&state.pool, config_id, &guild_id_str).await?;
+    let config_row = fetch_reaction_message(&state.db, config_id, &guild_id_str).await?;
 
     let channel_id_u64 = config_row.channel_id as u64;
     let channel = serenity::ChannelId::new(channel_id_u64);
@@ -48,7 +48,7 @@ pub async fn handle_send_reaction_role_message(
 
     match config_row.mode {
         InteractionMode::Button => {
-            let button_components = fetch_and_build_buttons(&state.pool, config_row.id).await?;
+            let button_components = fetch_and_build_buttons(&state.db, config_row.id).await?;
             if !button_components.is_empty() {
                 message_builder = message_builder.components(vec![
                     serenity::CreateActionRow::Buttons(button_components),
@@ -67,7 +67,7 @@ pub async fn handle_send_reaction_role_message(
         })?;
 
     if matches!(config_row.mode, InteractionMode::Reaction) {
-        let reactions = fetch_active_reactions(&state.pool, config_row.id).await?;
+        let reactions = fetch_active_reactions(&state.db, config_row.id).await?;
         for r in reactions {
             if let Ok(emoji) = r.emoji.parse::<serenity::ReactionType>() {
                 if let Err(err) = message.react(&state.http, emoji).await {

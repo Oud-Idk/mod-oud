@@ -6,6 +6,7 @@ pub mod ticket;
 pub mod placeholders;
 pub mod moderation;
 pub mod reminder;
+pub mod verification;
 
 pub mod string_i64 {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};

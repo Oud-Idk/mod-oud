@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth"; // Your Auth.js/NextAuth configuration
+import { auth } from "@/auth";
 import {
     BadWordRulesetRow,
     deleteBadWordRuleset,

@@ -15,7 +15,7 @@ pub async fn handle_delete_reaction_role_message(
     Path((guild_id_str, config_id_str)): Path<(String, String)>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let config_id = parse_config_id(&config_id_str)?;
-    let record = fetch_reaction_message(&state.pool, config_id, &guild_id_str).await?;
+    let record = fetch_reaction_message(&state.db, config_id, &guild_id_str).await?;
 
     let message_id_str = match record.message_id {
         Some(id) if !id == 0 => id,

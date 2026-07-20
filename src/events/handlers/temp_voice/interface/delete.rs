@@ -28,11 +28,10 @@ pub(crate) async fn handle_delete_temp_vc(
     };
 
     if !is_owner {
-        interaction
-            .create_response(
-                &ctx,
-                create_ephemeral_msg("You don't own this channel! Only the channel owner can delete it."),
-            )
+        interaction.create_response(
+            &ctx,
+            create_ephemeral_msg("You don't own this channel! Only the channel owner can delete it."),
+        )
             .await?;
         return Ok(());
     }
@@ -41,11 +40,10 @@ pub(crate) async fn handle_delete_temp_vc(
 
     if let Err(e) = channel_id.delete(&ctx.http).await {
         error!("Failed to delete temp VC {}: {:?}", channel_id, e);
-        interaction
-            .create_response(
-                &ctx,
-                create_ephemeral_msg("Could not delete the channel. Do I have the 'Manage Channels' permission?"),
-            )
+        interaction.create_response(
+            &ctx,
+            create_ephemeral_msg("Could not delete the channel. Do I have the 'Manage Channels' permission?"),
+        )
             .await?;
         return Ok(());
     }
@@ -64,11 +62,10 @@ pub(crate) async fn handle_delete_temp_vc(
         warn!("Failed to delete owner reverse index mapping from cache: {:?}", e);
     }
 
-    interaction
-        .create_response(
-            &ctx,
-            create_ephemeral_msg("Your voice channel has been deleted."),
-        )
+    interaction.create_response(
+        &ctx,
+        create_ephemeral_msg("Your voice channel has been deleted."),
+    )
         .await?;
 
     Ok(())

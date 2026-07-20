@@ -27,47 +27,30 @@ pub async fn sse_handler(
 ) -> Result<Sse<impl Stream<Item=Result<Event, Infallible>>>, StatusCode> {
     debug!("New SSE subscription request received");
 
-    let target_guild_id = match params.guild_id.parse::<i64>() {
-        Ok(id) => id,
-        Err(e) => {
-            warn!(
-                error = %e,
-                invalid_guild_id = %params.guild_id,
-                "Rejecting SSE request: invalid guild_id"
-            );
-            return Err(StatusCode::BAD_REQUEST);
-        }
-    };
+    let guild_id_i64 = params.guild_id.parse::<i64>()
+        .inspect_err(|e| warn!(error = ?e, guild_id = params.guild_id, "Failed to parse guild ID"))
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let rx = state.tx.subscribe();
 
     let stream = BroadcastStream::new(rx)
         .filter_map(|msg| {
-            match msg {
-                Ok(event) => Some(event),
-                Err(e) => {
-                    warn!(error = %e, "SSE connection lagged and missed broadcast events");
-                    None
-                }
-            }
+            msg.inspect_err(|e| warn!(error = %e, "SSE connection lagged and missed broadcast events"))
+                .ok()
         })
         .filter(move |msg| {
-            match msg.guild_id() {
-                Some(g_id) => {
-                    let is_match = g_id == target_guild_id;
-                    if is_match {
-                        debug!(guild_id = %g_id, "Routing matching event to client");
-                    }
-                    is_match
+            msg.guild_id().is_some_and(|g_id| {
+                let is_match = g_id == guild_id_i64;
+                if is_match {
+                    debug!(guild_id = %g_id, "Routing matching event to client");
                 }
-                None => false,
-            }
+                is_match
+            })
         })
         .map(|msg| {
-            let event = msg.to_sse_event().unwrap_or_else(|e| {
-                error!(error = %e, "Failed to serialize event payload to SSE");
-                Event::default().data("serialization error")
-            });
+            let event = msg.to_sse_event()
+                .inspect_err(|e| error!(error = %e, "Failed to serialize event payload to SSE"))
+                .unwrap_or_else(|_| Event::default().data("serialization error"));
             Ok(event)
         });
 
@@ -85,31 +68,22 @@ impl LogEvent {
         "discord:reports",
     ];
 
-    pub fn from_redis(channel: &mut String, payload: &str) -> Option<Self> {
-        match channel.as_str() {
-            "discord:deletes" => match serde_json::from_str::<DeletedMessagePayload>(payload) {
-                Ok(parsed) => Some(Self::MessageDelete(parsed)),
-                Err(e) => {
-                    warn!(error = %e, channel = "discord:deletes", "Failed to deserialize DeletedMessagePayload");
-                    None
-                }
-            }
-            "discord:updates" => match serde_json::from_str::<ModifiedMessagePayload>(payload) {
-                Ok(parsed) => Some(Self::MessageEdit(parsed)),
-                Err(e) => {
-                    warn!(error = %e, channel = "discord:updates", "Failed to deserialize ModifiedMessagePayload");
-                    None
-                }
-            }
-            "discord:reports" => match serde_json::from_str::<ReportedMessagePayload>(payload) {
-                Ok(parsed) => Some(Self::MessageReport(parsed)),
-                Err(e) => {
-                    warn!(error = %e, channel = "discord:reports", "Failed to deserialize ReportedMessagePayload");
-                    None
-                }
-            }
+    pub fn from_redis(channel: &str, payload: &str) -> Option<Self> {
+        match channel {
+            "discord:deletes" => serde_json::from_str::<DeletedMessagePayload>(payload)
+                .inspect_err(|e| warn!(error = %e, %channel, "Failed to deserialize DeletedMessagePayload"))
+                .ok().map(Self::MessageDelete),
+
+            "discord:updates" => serde_json::from_str::<ModifiedMessagePayload>(payload)
+                .inspect_err(|e| warn!(error = %e, %channel, "Failed to deserialize ModifiedMessagePayload"))
+                .ok().map(Self::MessageEdit),
+
+            "discord:reports" => serde_json::from_str::<ReportedMessagePayload>(payload)
+                .inspect_err(|e| warn!(error = %e, %channel, "Failed to deserialize ReportedMessagePayload"))
+                .ok().map(Self::MessageReport),
+
             _ => {
-                warn!(channel = %channel, "Received subscription data from an unexpected channel");
+                warn!(%channel, "Received subscription data from an unexpected channel");
                 None
             }
         }

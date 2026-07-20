@@ -3,9 +3,10 @@ use crate::commands::moderation::utils;
 use crate::commands::moderation::utils::{parse_duration, send_ephemeral};
 use crate::types::{Context, Error, GuildMetadata};
 use crate::utils::logger::{log_moderation_action, ActionType};
-use crate::utils::moderation::actions::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};
+use crate::utils::moderation::actions::delete_entire_category;
+use crate::utils::moderation::issuing::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};
 use poise::serenity_prelude as serenity;
-use serenity::all::{GetMessages, Member, MessageId, User};
+use serenity::all::{GetMessages, GuildChannel, Member, MessageId, User};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, trace, warn};
 
@@ -376,6 +377,36 @@ pub async fn unban(
             ctx.say(format!("Failed to unban user: {}", err)).await?;
         }
     }
+
+    Ok(())
+}
+
+/// Deletes an entire category and its channels recursively
+#[poise::command(slash_command, default_member_permissions = "MANAGE_CHANNELS", guild_only)]
+pub async fn delete_category(
+    ctx: Context<'_>,
+    #[description = "The category to delete"]
+    #[channel_types("Category")]
+    category: GuildChannel,
+) -> Result<(), Error> {
+    ctx.defer().await?;
+
+    let Some(guild_id) = ctx.guild_id() else {
+        ctx.say("This command can only be used inside a server.").await?;
+        debug!("Command ran in a server.");
+        return Ok(());
+    };
+
+    let category_name = category.name.clone();
+
+    let deleted_count = delete_entire_category(ctx.http(), guild_id, category.id).await?;
+    
+    debug!(category_name, deleted_count, "Purged channels and category");
+    let success_msg = format!(
+        "**Category Purged!**\nSuccessfully deleted **{}** along with all `{}` nested channels.",
+        category_name, deleted_count
+    );
+    ctx.say(success_msg).await?;
 
     Ok(())
 }
