@@ -8,7 +8,7 @@ import { TextInput } from "@/components/Inputs/TextInput";
 import { InputLabel } from "@/components/Layout/InputLabel";
 import { BadWordRuleset } from "@/types/db";
 
-type SaveableBadWordRuleset = Omit<BadWordRuleset, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {
     id?: string;
 };
 
@@ -36,7 +36,7 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
                 enabled: true,
                 patterns: [],
                 actions: ["DELETE"],
-                timeoutDurationSeconds: null,
+                timeout_duration_seconds: null,
                 scope: { mode: "EXEMPT", roles: [], channels: [] },
             });
             setName("");

@@ -9,7 +9,7 @@ import { useConfigForm } from "@/hooks/useConfigForm";
 import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
 import { BadWordRuleset } from "@/types/db";
 
-type SaveableBadWordRuleset = Omit<BadWordRuleset, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {
     id?: string;
 };
 

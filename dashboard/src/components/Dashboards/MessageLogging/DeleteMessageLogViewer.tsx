@@ -48,14 +48,14 @@ export function DeletedMessageLogViewer({
                         <div key={log.id} className="p-3 border border-red-900/50 rounded">
                             <div className="flex justify-between mb-1">
                                 <span className="font-semibold">
-                                    Message Deleted | {log.author_name}
+                                    Message Deleted | {log.author_id}
                                     <span className="text-neutral-500 ml-2">in {channelName}</span>
                                 </span>
                                 <span>{new Date(log.deleted_at).toLocaleString()}</span>
                             </div>
 
-                            {log.deleted_by_name && (
-                                <p className="text-sm wrap-break-word">Deleted By: {log.deleted_by_name}</p>
+                            {log.deleted_by_id && (
+                                <p className="text-sm wrap-break-word">Deleted By: {log.deleted_by_id}</p>
                             )}
 
                             {log.content && (

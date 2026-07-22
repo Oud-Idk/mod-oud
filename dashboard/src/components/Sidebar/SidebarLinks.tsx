@@ -18,6 +18,7 @@ import {
     Star,
     Ticket,
     TrendingUp,
+    User,
     UserPlus,
     Volume2Icon
 } from "lucide-react";
@@ -138,6 +139,12 @@ export function SidebarLinks() {
             name: 'Honeypot Channel',
             href: `/dashboard/${guildId}/honeypot`,
             icon: Skull,
+            exact: false,
+        },
+        {
+            name: "Member Counter",
+            href: `/dashboard/${guildId}/member-counter`,
+            icon: User,
             exact: false,
         }
     ];

@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageLoggingConfig {
-    pub enabled: Option<bool>,
     pub ignored_channels: Option<Vec<String>>,
     pub ignored_roles: Option<Vec<String>>,
     pub ignored_users: Option<Vec<String>>,

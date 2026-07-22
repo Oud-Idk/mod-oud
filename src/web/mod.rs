@@ -6,6 +6,7 @@ use crate::types::{Error, LogEvent};
 use crate::web::routes::commands::commands::handle_dashboard_command;
 use crate::web::routes::create_temp_voice::handle_create_temp_category_and_hub;
 use crate::web::routes::delete_entire_category::handle_delete_entire_category;
+use crate::web::routes::member_counter_setup::handle_setup_member_counter;
 use crate::web::routes::send_embed::handle_send_custom_embed;
 use crate::web::routes::send_voice_interface::handle_send_temp_voice_interface;
 use crate::web::routes::setup_honeypot_channel::setup_honeypot_channel;
@@ -177,6 +178,10 @@ pub async fn start_web_server(
         .route(
             "/api/guilds/{guild_id}/honeypot",
             axum::routing::post(setup_honeypot_channel),
+        )
+        .route(
+            "/api/guilds/{guild_id}/member-counter/setup",
+            axum::routing::post(handle_setup_member_counter),
         )
         .route(
             "/api/verify",

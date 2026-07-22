@@ -9,3 +9,4 @@ pub mod delete_entire_category;
 pub mod send_voice_interface;
 pub mod verification;
 pub mod setup_honeypot_channel;
+pub mod member_counter_setup;

@@ -47,7 +47,7 @@ const WELCOME_TABS: TabItem<TabValue>[] = [
     { value: "global_scope", label: "Global Scope" },
 ];
 
-type SaveableBadWordRuleset = Omit<BadWordRuleset, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {
     id?: string;
 };
 

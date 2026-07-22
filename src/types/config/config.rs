@@ -137,9 +137,45 @@ pub struct HoneypotConfig {
     pub duration: Option<u64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CounterType {
+    TotalMembers,
+    HumansOnly,
+    BotsOnly,
+    OnlineMembers,
+    RoleCount,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CounterChannel {
+    pub id: String,
+    pub channel_id: String,
+    pub counter_type: CounterType,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role_id: Option<String>,
+    pub name_template: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MemberCounterConfig {
+    pub enabled: bool,
+    #[serde(default = "default_interval")]
+    pub update_interval_minutes: u32,
+    #[serde(default)]
+    pub counters: Vec<CounterChannel>,
+}
+
+fn default_interval() -> u32 {
+    15
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
-#[serde(rename_all = "camelCase")]
+// #[serde(rename_all = "camelCase")]
 pub struct GuildSettings {
     pub welcome: Option<WelcomeConfig>,
     pub leave: Option<LeaveConfig>,
@@ -150,5 +186,17 @@ pub struct GuildSettings {
     pub leveling: Option<LevelingConfig>,
     pub tickets: Option<TicketConfig>,
     pub invite_tracker: Option<InviteTrackerConfig>,
-    pub honeypot: Option<HoneypotConfig>
+    pub honeypot: Option<HoneypotConfig>,
+    pub member_counter: Option<MemberCounterConfig>,
+}
+
+impl GuildSettings {
+    pub fn is_message_logging_enabled(&self) -> bool {
+        self.message_logging
+            .as_ref()
+            .and_then(|l| l.events.as_ref())
+            .map_or(false, |e| {
+                e.message_delete.unwrap_or(false) || e.message_edit.unwrap_or(false)
+            })
+    }
 }

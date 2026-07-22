@@ -100,7 +100,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                             {filteredTickets.map((ticket) => (
                                 <tr key={ticket.id} className="hover:bg-neutral-300/10">
                                     <td className="py-3">#{ticket.id}</td>
-                                    <td className="py-3 font-mono text-xs">{ticket.opener_name}</td>
+                                    <td className="py-3 font-mono text-xs">{ticket.opener_id}</td>
                                     <td className="py-3">
                                         <span
                                             className={`py-0.5 rounded text-xs font-semibold ${

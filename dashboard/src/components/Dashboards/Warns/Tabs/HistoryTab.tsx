@@ -54,8 +54,8 @@ export function HistoryTab({ guildId }: { guildId: string }) {
                             return (
                                 <TableRow key={warn.id}>
                                     <TableCell className="font-mono">{warn.id}</TableCell>
-                                    <TableCell>{warn.moderator_name}</TableCell>
-                                    <TableCell>{warn.user_name}</TableCell>
+                                    <TableCell>{warn.moderator_id}</TableCell>
+                                    <TableCell>{warn.user_id}</TableCell>
                                     <TableCell>{warn.reason.length < 50 ? warn.reason :
                                         <span
                                             className="cursor-pointer dark:hover:text-blue-200 hover:text-blue-800"

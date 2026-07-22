@@ -122,8 +122,7 @@ pub async fn message_log_delete(
         return Ok(());
     };
 
-    let is_enabled = logging_config.enabled.unwrap_or(false)
-        && logging_config.events.as_ref().and_then(|ev| ev.message_delete).unwrap_or(false);
+    let is_enabled = logging_config.events.as_ref().and_then(|ev| ev.message_delete).unwrap_or(false);
 
     if !is_enabled {
         return Ok(());
@@ -226,8 +225,7 @@ pub async fn message_log_update(
         return Ok(());
     };
 
-    let is_enabled = logging_config.enabled.unwrap_or(false)
-        && logging_config.events.as_ref().and_then(|ev| ev.message_edit).unwrap_or(false);
+    let is_enabled = logging_config.events.as_ref().and_then(|ev| ev.message_edit).unwrap_or(false);
 
     if !is_enabled {
         return Ok(());

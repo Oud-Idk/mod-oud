@@ -8,3 +8,4 @@ pub mod reaction_roles;
 pub mod automod;
 pub mod temp_voice;
 pub mod invite_tracking;
+pub mod honeypot;

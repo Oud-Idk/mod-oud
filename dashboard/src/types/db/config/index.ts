@@ -2,7 +2,7 @@ import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { WelcomeConfig } from "@/types/db/config/welcome";
 import { ModerationDMsConfig } from "@/types/db/config/moderationDMs";
 import { DiscordEmbed } from "@/types/embed";
-import { Format, NotificationScope, ScopeActionMode } from "@/types/db";
+import { CounterType, Format, NotificationScope, ScopeActionMode } from "@/types/db";
 
 export interface Scope {
     mode: ScopeActionMode;
@@ -19,7 +19,6 @@ export interface LeaveConfig {
 }
 
 export interface MessageLoggingConfig {
-    enabled: boolean;
     ignored_channels: string[];
     ignoredRoles: string[];
     ignoredUsers: string[];
@@ -123,4 +122,18 @@ export interface Config {
     moderationDms?: ModerationDMsConfig;
     tickets?: TicketConfig;
     tempVoice?: TempVoiceConfig;
+}
+
+export interface CounterChannel {
+    id: string;
+    channelId: string;
+    counterType: CounterType;
+    roleId?: string;
+    nameTemplate: string;
+}
+
+export interface MemberCounterConfig {
+    enabled: boolean;
+    updateIntervalMinutes: number;
+    counters: CounterChannel[];
 }

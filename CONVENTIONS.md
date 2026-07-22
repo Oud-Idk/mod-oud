@@ -33,6 +33,8 @@ Any struct that gets serialized into a Postgres `jsonb` column (or parsed from o
   expects `camelCase`. Storing raw `snake_case` inside JSONB is a trap that leads to floating-point rounding or manual
   key-translation nightmares.
 
+### 3. Before `map`ping error for any web errors, `inspect_err` and log first!
+
 ---
 
 ## 🗺️ Top-Level Layout

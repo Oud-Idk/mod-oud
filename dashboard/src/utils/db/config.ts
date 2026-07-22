@@ -5,6 +5,7 @@ import {
     HoneypotConfig,
     LeaveConfig,
     LevelingConfig,
+    MemberCounterConfig,
     MessageLayout,
     MessageLoggingConfig,
     ReportConfig,
@@ -137,7 +138,6 @@ export async function saveReportConfig(guildId: string, config: ReportConfig): P
 
 export async function getMessageLoggingConfig(guildId: string): Promise<MessageLoggingConfig> {
     const default_config: MessageLoggingConfig = {
-        enabled: false,
         ignored_channels: [],
         ignoredRoles: [],
         ignoredUsers: [],
@@ -408,7 +408,7 @@ export async function getBadWordRulesets(guildId: string): Promise<BadWordRulese
 
 export async function saveBadWordRuleset(
     guildId: string,
-    ruleset: Omit<BadWordRuleset, 'createdAt' | 'updatedAt' | 'guildId' | 'id'> & { id?: string }
+    ruleset: Omit<BadWordRuleset, 'created_at' | 'updated_at' | 'guild_id' | 'id'> & { id?: string }
 ): Promise<BadWordRuleset> {
     const query = `
         INSERT INTO bad_word_rulesets (id, guild_id, name, enabled, patterns, actions, timeout_duration_seconds, scope)
@@ -440,7 +440,7 @@ export async function saveBadWordRuleset(
         ruleset.enabled,
         JSON.stringify(ruleset.patterns),
         JSON.stringify(ruleset.actions),
-        ruleset.timeoutDurationSeconds,
+        ruleset.timeout_duration_seconds,
         JSON.stringify(ruleset.scope)
     ];
 
@@ -531,4 +531,24 @@ export async function getInviteLeaderboard(guildId: string, limit = 10): Promise
         console.error("Failed to fetch invite leaderboard:", error);
         return [];
     }
+}
+
+export async function getMemberCountereConfig(guildId: string): Promise<MemberCounterConfig> {
+    const defaultConfig: MemberCounterConfig = {
+        enabled: false,
+        updateIntervalMinutes: 15,
+        counters: [],
+    };
+
+    const dbConfig = await getGuildConfigField<Partial<MemberCounterConfig>>(guildId, "member_counter");
+    if (!dbConfig) return defaultConfig;
+
+    return {
+        ...defaultConfig,
+        ...dbConfig,
+    };
+}
+
+export async function saveMemberCounterConfig(guildId: string, config: MemberCounterConfig): Promise<void> {
+    await saveGuildConfigField(guildId, 'member_counter', config);
 }

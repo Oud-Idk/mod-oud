@@ -1,5 +1,5 @@
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { EmbedBuilderBody } from "@/components/Dashboards/EmbedBuilder/EmbedBuilderBody";
+import { EmbedBuilderBody } from "@/components/EmbedBuilder/EmbedBuilderBody";
 import { getTextChannelMap } from "@/utils/discord";
 
 export interface PageProps {

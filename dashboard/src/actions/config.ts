@@ -9,6 +9,7 @@ import {
     saveHoneypotConfig,
     saveLeaveConfig,
     saveLevelingConfig,
+    saveMemberCounterConfig,
     saveMessageFilteringConfig,
     saveModerationDMsConfig,
     saveReportConfig,
@@ -20,6 +21,7 @@ import {
     HoneypotConfig,
     LeaveConfig,
     LevelingConfig,
+    MemberCounterConfig,
     ReportConfig,
     TempVoiceConfig,
     TicketConfig
@@ -210,7 +212,7 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
 
 export async function saveBadWordRulesetAction(
     guildId: string,
-    ruleset: Omit<BadWordRuleset, 'createdAt' | 'updatedAt' | 'guildId' | 'id'> & { id?: string }
+    ruleset: Omit<BadWordRuleset, 'created_at' | 'updated_at' | 'guild_id' | 'id'> & { id?: string }
 ): Promise<BadWordRuleset> {
     try {
         const savedRow = await saveBadWordRuleset(guildId, ruleset);
@@ -244,6 +246,20 @@ export async function saveHoneypotConfigAction(
         await verifyGuildAccess(guildId);
         await saveHoneypotConfig(guildId, data);
         revalidatePath(`/dashboard/${guildId}/honeypot`);
+    } catch (error) {
+        console.error("Failed to save honeypot config:", error);
+        throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
+    }
+}
+
+export async function saveMemberCounterConfigAction(
+    guildId: string,
+    data: MemberCounterConfig
+) {
+    try {
+        await verifyGuildAccess(guildId);
+        await saveMemberCounterConfig(guildId, data);
+        revalidatePath(`/dashboard/${guildId}/member-counter`);
     } catch (error) {
         console.error("Failed to save honeypot config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");

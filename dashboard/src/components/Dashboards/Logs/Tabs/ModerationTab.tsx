@@ -114,8 +114,8 @@ export function ModerationTab({ guildId }: ModerationTabProps) {
                                     {log.action_type.toUpperCase()}
                                 </span>
                             </TableCell>
-                            <TableCell className="font-mono text-xs">{log.target_username ?? "-"}</TableCell>
-                            <TableCell className="font-mono text-xs">{log.moderator_username}</TableCell>
+                            <TableCell className="font-mono text-xs">{log.target_id ?? "-"}</TableCell>
+                            <TableCell className="font-mono text-xs">{log.moderator_id}</TableCell>
                             <TableCell className="max-w-xs truncate">
                                 {log.reason || <span className="text-gray-400 italic">No reason provided</span>}
                             </TableCell>

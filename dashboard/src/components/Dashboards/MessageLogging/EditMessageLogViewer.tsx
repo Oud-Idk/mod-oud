@@ -35,7 +35,7 @@ export function EditedMessageLogViewer({
                     <div key={log.id} className="p-3 border border-yellow-900/50 rounded">
                         <div className="flex justify-between mb-1">
                             <span className="font-semibold">
-                                Message Edited | {log.author_name}
+                                Message Edited | {log.author_id}
                                 <span className="text-neutral-500 ml-2">in {channelName}</span>
                             </span>
                             <span>{new Date(log.updated_at).toLocaleString()}</span>

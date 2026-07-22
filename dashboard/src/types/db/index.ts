@@ -28,6 +28,8 @@ export interface ReportedMessage {
     guild_id: string;
     channel_id: string;
     message_id: string;
+    author_id: string;
+    reporter_id: string;
     content: string;
     attachment_url: string | null;
     reason: string;
@@ -55,15 +57,15 @@ export interface TempVoiceHub {
 
 export interface BadWordRuleset {
     id: string;
-    guildId: string;
+    guild_id: string;
     name: string;
     enabled: boolean;
     patterns: Pattern[];
     actions: RuleAction[];
-    timeoutDurationSeconds: number | null;
+    timeout_duration_seconds: number | null;
     scope: Scope;
-    createdAt: Date;
-    updatedAt: Date;
+    created_at: Date;
+    updated_at: Date;
 }
 
 export interface WarnThreshold {
@@ -100,3 +102,9 @@ export type ScopeListMode = "ALLOWLIST" | "DENYLIST";
 export type ScopeActionMode = "EXEMPT" | "ENFORCED";
 export type NotificationScope = "CURRENT_CHANNEL" | "SPECIFIED_CHANNEL" | "DM" | "NONE";
 export type CaptchaType = 'TURNSTILE' | 'HCAPTCHA';
+export type CounterType =
+    | 'TOTAL_MEMBERS'
+    | 'HUMANS_ONLY'
+    | 'BOTS_ONLY'
+    | 'ONLINE_MEMBERS'
+    | 'ROLE_COUNT';
