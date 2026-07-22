@@ -1,6 +1,5 @@
 import { db } from "@/utils/init/db";
-
-export type TicketStatus = 'OPEN' | 'CLOSE';
+import { TicketStatus } from "@/types/db";
 
 export interface TicketMessage {
     message_id: string;

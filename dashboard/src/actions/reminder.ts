@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { deleteReminder, ReminderRow, SaveableReminder, saveReminder } from "@/utils/db/reminder";
+import { deleteReminder, saveReminder } from "@/utils/db/reminder";
+import { ReminderRow, SaveableReminder } from "@/types/db/reminder";
 
 export async function saveReminderAction(
     guildId: string,

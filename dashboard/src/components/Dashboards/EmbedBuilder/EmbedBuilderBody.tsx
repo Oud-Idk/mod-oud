@@ -7,6 +7,7 @@ import { Dropdown } from "@/components/Inputs/Dropdown";
 import { sendEmbedAction } from "@/actions/customEmbed";
 import { InputLabel } from "@/components/Layout/InputLabel";
 import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
+import { Status } from "@/types";
 
 interface EmbedBuilderBodyProps {
     channelMap: Record<string, string>;
@@ -19,7 +20,7 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
     const [selectedChannel, setSelectedChannel] = useState<string>("");
 
     const [isSending, setIsSending] = useState<boolean>(false);
-    const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const [statusMessage, setStatusMessage] = useState<{ type: Status; text: string } | null>(null);
 
     const channelOptions = useMemo(() => {
         return Object.entries(channelMap).map(([id, name]) => ({
@@ -44,18 +45,18 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
 
             if (result.success) {
                 setStatusMessage({
-                    type: "success",
+                    type: "SUCCESS",
                     text: `Embed dispatched successfully. Message ID: ${result.messageId}`,
                 });
             } else {
                 setStatusMessage({
-                    type: "error",
+                    type: "ERROR",
                     text: result.error || "An error occurred while sending.",
                 });
             }
         } catch (error: any) {
             setStatusMessage({
-                type: "error",
+                type: "ERROR",
                 text: error.message || "An unexpected error occurred.",
             });
         } finally {
@@ -95,7 +96,7 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                 {statusMessage && (
                     <div
                         className={`text-sm mt-2 font-medium ${
-                            statusMessage.type === "error" ? "text-red-500" : "text-green-500"
+                            statusMessage.type === "ERROR" ? "text-red-500" : "text-green-500"
                         }`}
                     >
                         {statusMessage.text}

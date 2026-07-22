@@ -1,8 +1,8 @@
 "use client";
 
-import { LevelReward } from "@/utils/db/leveling";
 import { getAvailableRoleOptions } from "@/utils/utils";
 import { RuleConfig, RuleItem } from "@/components/RuleConfig";
+import { LevelReward } from "@/types/db/multipliers";
 
 export interface LevelRewardsTabProps {
     guildId: string;

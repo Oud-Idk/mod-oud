@@ -24,7 +24,7 @@ export async function Sidebar() {
             className="w-64 h-screen border-r bg-white dark:bg-black flex flex-col"
         >
             <div
-                className="h-16 flex justify-between items-center px-2 pl-4 bg-white dark:bg-black"
+                className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 bg-white dark:bg-black"
             >
                 <Link href="/" className="font-bold">Mod Oud</Link>
                 <div className="hidden md:block">

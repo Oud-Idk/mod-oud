@@ -5,11 +5,11 @@ import { verifyGuildAccess } from "@/actions/config";
 import {
     deleteReactionMessage,
     getReactionMessages,
-    ReactionMessage,
     saveReactionMessage,
     SaveReactionMessageData
 } from "@/utils/db/reactionRoles";
 import { revalidatePath } from "next/cache";
+import { ReactionMessage } from "@/types/db/reactionRole";
 
 /**
  * Safely invalidates all cached emoji mappings associated with a specific Discord message ID.

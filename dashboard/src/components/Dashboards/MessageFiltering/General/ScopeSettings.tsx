@@ -5,11 +5,11 @@ import { Radio, RadioGroup } from "@headlessui/react";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { getAvailableRoleOptions } from "@/utils/utils";
-
-export type ScopeMode = "exempt" | "enforced";
+import { ScopeActionMode } from "@/types/db";
+import { ScopeItem } from "@/types";
 
 export interface ScopeShape {
-    mode: ScopeMode;
+    mode: ScopeActionMode;
     channels: string[];
     roles: string[];
 }
@@ -23,11 +23,11 @@ interface ScopeSettingsProps {
 
 export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSettingsProps): JSX.Element {
     // local helpers mirror the previous implementation so callers don't need to manage low-level toggles
-    const handleModeChange = (mode: ScopeMode) => {
+    const handleModeChange = (mode: ScopeActionMode) => {
         onChange({ mode, channels: [], roles: [] });
     };
 
-    const toggleScopeItem = (key: "channels" | "roles", id: string) => {
+    const toggleScopeItem = (key: ScopeItem, id: string) => {
         const currentList = (scope as any)[key] || [];
         const updatedList = currentList.includes(id) ? currentList.filter((item: string) => item !== id) : [...currentList, id];
         onChange({ ...scope, [key]: updatedList });
@@ -40,7 +40,7 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
             <div className="space-y-2">
                 <label className="block text-sm font-medium">Filter Behavior</label>
                 <RadioGroup
-                    value={scope.mode} onChange={(v) => handleModeChange(v as ScopeMode)} className="flex gap-4"
+                    value={scope.mode} onChange={(v) => handleModeChange(v as ScopeActionMode)} className="flex gap-4"
                 >
                     <Radio
                         value="exempt"
@@ -50,8 +50,7 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
                             <>
                                 <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
                                     {checked ? <span
-                                        className="w-2 h-2 rounded-full bg-black dark:bg-white"
-                                        aria-hidden
+                                        className="w-2 h-2 rounded-full bg-black dark:bg-white" aria-hidden
                                     /> : null}
                                 </span>
                                 <span>Run everywhere except selected (Exempt)</span>
@@ -78,12 +77,12 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
             </div>
 
             <div className="space-y-2">
-                <label className="block text-sm font-medium">{scope.mode === "exempt" ? "Exempt Channels" : "Enforced Channels"}</label>
+                <label className="block text-sm font-medium">{scope.mode === "EXEMPT" ? "Exempt Channels" : "Enforced Channels"}</label>
                 <MultiSelectViewer
                     selectedList={scope.channels || []}
-                    onDelete={(id) => toggleScopeItem("channels", id)}
+                    onDelete={(id) => toggleScopeItem("CHANNEL", id)}
                     map={channelMap}
-                    placeholder={scope.mode === "exempt" ? "No channels exempted" : "No channels enforced"}
+                    placeholder={scope.mode === "EXEMPT" ? "No channels exempted" : "No channels enforced"}
                     prefix="#"
                 />
                 <Dropdown
@@ -93,29 +92,29 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
                     }))}
                     value={""}
                     onChange={(val) => {
-                        if (val) toggleScopeItem("channels", val);
+                        if (val) toggleScopeItem("CHANNEL", val);
                     }}
-                    placeholder={scope.mode === "exempt" ? "Choose a channel to exempt..." : "Choose a channel to enforce..."}
+                    placeholder={scope.mode === "EXEMPT" ? "Choose a channel to exempt..." : "Choose a channel to enforce..."}
                     className="max-w-xs"
                 />
             </div>
 
             <div className="space-y-2">
-                <label className="block text-sm font-medium">{scope.mode === "exempt" ? "Exempt Roles" : "Enforced Roles"}</label>
+                <label className="block text-sm font-medium">{scope.mode === "EXEMPT" ? "Exempt Roles" : "Enforced Roles"}</label>
                 <MultiSelectViewer
                     selectedList={scope.roles || []}
-                    onDelete={(id) => toggleScopeItem("roles", id)}
+                    onDelete={(id) => toggleScopeItem("ROLES", id)}
                     map={roleMap}
-                    placeholder={scope.mode === "exempt" ? "No roles exempted" : "No roles enforced"}
+                    placeholder={scope.mode === "EXEMPT" ? "No roles exempted" : "No roles enforced"}
                     prefix="@"
                 />
                 <Dropdown
                     options={getAvailableRoleOptions(roleMap, scope?.roles)}
                     value={""}
                     onChange={(val) => {
-                        if (val) toggleScopeItem("roles", val);
+                        if (val) toggleScopeItem("ROLES", val);
                     }}
-                    placeholder={scope.mode === "exempt" ? "Choose a role to exempt..." : "Choose a role to enforce..."}
+                    placeholder={scope.mode === "EXEMPT" ? "Choose a role to exempt..." : "Choose a role to enforce..."}
                     className="max-w-xs"
                 />
             </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { banUser, deleteReportedMessage, resolveReportStatus, timeoutUser, warnUser } from "@/actions/reports";
+import { SimpleReportStatus } from "@/types/db";
 
 export function useReportActions() {
     // UI Loading & Interaction States
@@ -33,7 +34,7 @@ export function useReportActions() {
         });
     };
 
-    const handleResolveReport = async (reportId: number, targetStatus: "actioned" | "dismissed") => {
+    const handleResolveReport = async (reportId: number, targetStatus: SimpleReportStatus) => {
         if (resolvingIds.has(reportId)) return;
 
         setResolvingIds((prev) => {

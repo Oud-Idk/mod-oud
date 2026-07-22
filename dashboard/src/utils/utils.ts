@@ -5,7 +5,7 @@ interface RoleOption {
 
 export function getAvailableRoleOptions(
     roleMap: Record<string, string> | null | undefined,
-    scopeRoles: string[] | null | undefined
+    scopeRoles?: string[]
 ): RoleOption[] {
     const roles = scopeRoles || [];
     const map = roleMap || {};

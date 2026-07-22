@@ -9,7 +9,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use serenity::all::{ButtonStyle, ChannelId, ChannelType, CreateActionRow, CreateButton, CreateChannel, EditRole, GuildChannel, GuildId, Http, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, Role, RoleId};
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{trace, warn};
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct SetupVerificationRequest {
@@ -150,6 +150,13 @@ async fn execute_setup(
         }
     };
 
+    let http_clone = Arc::clone(http);
+    let role_id_to_grant = verify_role.id;
+
+    tokio::spawn(async move {
+        grant_role_to_existing_members(http_clone, guild_id, role_id_to_grant).await;
+    });
+
     Ok(SetupVerificationResponse {
         verification_role_id: verify_role.id.get().to_string(),
         verification_channel_id: verify_channel.id.get().to_string(),
@@ -243,4 +250,53 @@ async fn remove_perms_from_everyone(
     let edit_builder = EditRole::new().permissions(new_permissions);
     guild_id.edit_role(http, everyone_role_id, edit_builder).await?;
     Ok(())
+}
+
+async fn grant_role_to_existing_members(
+    http: Arc<Http>,
+    guild_id: GuildId,
+    role_id: RoleId,
+) {
+    let mut after = None;
+
+    loop {
+        match guild_id.members(&http, Some(1000), after).await {
+            Ok(members) => {
+                if members.is_empty() {
+                    break;
+                }
+
+                after = Some(members.last().unwrap().user.id);
+
+                for member in members {
+                    if member.user.bot {
+                        continue;
+                    }
+
+                    if member.roles.contains(&role_id) {
+                        continue;
+                    }
+
+                    if let Err(e) = http.add_member_role(
+                        guild_id,
+                        member.user.id,
+                        role_id,
+                        Some("Verification setup: adding role to existing members"),
+                    ).await {
+                        warn!(
+                            error = ?e,
+                            user_id = member.user.id.get(),
+                            "Failed to add verification role to existing user"
+                        );
+                    } else {
+                        trace!(user_id = member.user.id.get(), "Successfully added verification role to existing user");
+                    }
+                }
+            }
+            Err(e) => {
+                warn!(error = ?e, guild_id = guild_id.get(), "Failed to fetch chunk of members for role granting");
+                break;
+            }
+        }
+    }
 }

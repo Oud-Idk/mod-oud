@@ -10,6 +10,7 @@ use crate::types::config::welcome::WelcomeConfig;
 use crate::types::{Data, Error};
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::placeholders::replace_welcome_goodbye_placeholders;
+use crate::utils::store_username_relation;
 use poise::serenity_prelude as serenity;
 use serenity::all::{EditMember, GuildChannel, RoleId};
 use serenity::{ChannelId, CreateEmbed, CreateMessage};
@@ -24,6 +25,8 @@ pub async fn on_member_join(
     let guild_id = member.guild_id.get();
     let user_id = member.user.id.get();
     info!(guild_id, user_id, user_name = %member.user.name, "Member joined the guild");
+
+    store_username_relation(&data.db, &data.redis, user_id, &member.user.name).await?;
 
     let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id as i64).await?;
 
@@ -56,6 +59,8 @@ pub async fn on_member_leave(
     member_data_if_available: &Option<serenity::Member>,
     data: &Data,
 ) -> Result<(), Error> {
+    store_username_relation(&data.db, &data.redis, user.id.get(), &user.name).await?;
+
     let guild_id = _guild_id.get();
     let user_id = user.id.get();
     info!(guild_id, user_id, user_name = %user.name, "Member left the guild");

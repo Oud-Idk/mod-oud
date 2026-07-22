@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
 import { PercentSlider } from "@/components/Inputs/PercentSlider";
@@ -16,9 +16,9 @@ export function ExcessiveSpoilersTab({
     roleMap,
     handleChange,
 }: ExcessiveSpoilersTabProp) {
-    const filterConfig = config.excessive_spoilers;
+    const filterConfig = config.excessiveSpoilers;
 
-    const updateFilter = createFilterUpdater(config, handleChange, "excessive_spoilers");
+    const updateFilter = createFilterUpdater(config, handleChange, "excessiveSpoilers");
 
     return (
         <FilterLayoutWrapper

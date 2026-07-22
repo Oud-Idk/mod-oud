@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactionMessage, SaveReactionMessageData } from "@/utils/db/reactionRoles";
+import { SaveReactionMessageData } from "@/utils/db/reactionRoles";
 import React, { ReactNode, useState } from "react";
 import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayout";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import { useConfigForm } from "@/hooks/useConfigForm";
 import { ReactionRoleCreateModal } from "@/components/Dashboards/ReactionRoles/ReactionRoleCreateModal";
 import { ReactionRoleConfig } from "@/components/Dashboards/ReactionRoles/ReactionRoleConfig";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
+import { ReactionMessage } from "@/types/db/reactionRole";
 
 interface ReactionRolesBodyProps {
     reactionRoles: ReactionMessage[];
@@ -107,11 +108,11 @@ export function ReactionRolesBody({
             isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSave={(v) => onSave({
             channel_id: v.channel_id || "",
             guild_id: guildId,
-            format: 'text',
+            format: 'TEXT',
             name: v.name || "",
-            embed: "",
+            embed: {},
             content: "",
-            mode: v.mode || "reaction",
+            mode: v.mode || "REACTION",
         })} channelMap={channelMap}
         />
 

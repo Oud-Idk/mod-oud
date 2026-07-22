@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
 import { NumberInput } from "@/components/Inputs/NumberInput";
@@ -16,9 +16,9 @@ export function ExcessiveEmojisTab({
     roleMap,
     handleChange,
 }: ExcessiveEmojisTabProp) {
-    const filterConfig = config.excessive_emojis;
+    const filterConfig = config.excessiveEmojis;
 
-    const updateFilter = createFilterUpdater(config, handleChange, "excessive_emojis");
+    const updateFilter = createFilterUpdater(config, handleChange, "excessiveEmojis");
 
     return (
         <FilterLayoutWrapper
@@ -29,8 +29,8 @@ export function ExcessiveEmojisTab({
             toggleText="Enable Excessive Emojis Filter"
         >
             <NumberInput
-                value={filterConfig.max_emojis}
-                onChange={(v) => updateFilter({ max_emojis: v })}
+                value={filterConfig.maxEmojis}
+                onChange={(v) => updateFilter({ maxEmojis: v })}
                 label="Maximum Absolute Emojis per Message"
             />
         </FilterLayoutWrapper>

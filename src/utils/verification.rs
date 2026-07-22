@@ -1,4 +1,6 @@
 use hmac::{Hmac, KeyInit, Mac};
+use reqwest::Client;
+use serde::Deserialize;
 use sha2::Sha256;
 use std::time::SystemTime;
 use tracing::debug;
@@ -41,4 +43,32 @@ pub fn generate_verification_link(user_id: u64, guild_id: u64, secret_key: &[u8]
         "https://{}/verify/?user_id={}&guild_id={}&expires={}&sig={}",
         domain, user_id, guild_id, expires, signature
     )
+}
+
+#[derive(Deserialize)]
+struct HCaptchaResponse {
+    success: bool,
+    #[serde(rename = "error-codes")]
+    error_codes: Option<Vec<String>>,
+}
+
+pub async fn verify_hcaptcha_token(token: &str, ip: &str, client: &Client, secret: &str, site_key: &str) -> anyhow::Result<(bool, Vec<String>)> {
+    let form = [
+        ("secret", secret),
+        ("response", token),
+        ("remoteip", ip),
+        ("sitekey", site_key),
+    ];
+
+    let response: HCaptchaResponse = client
+        .post("https://api.hcaptcha.com/siteverify")
+        .form(&form)
+        .send().await?
+        .json().await?;
+
+    if response.success {
+        return Ok((true, vec![]));
+    }
+
+    Ok((false, response.error_codes.unwrap_or_default()))
 }

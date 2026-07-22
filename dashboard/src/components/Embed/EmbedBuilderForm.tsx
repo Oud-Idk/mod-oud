@@ -5,11 +5,12 @@ import { LongTextInput } from "@/components/Inputs/LongTextInput";
 import { TextInput } from "@/components/Inputs/TextInput";
 import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
 import AlertButton from "@/components/Inputs/Buttons/AlertButton";
+import { FieldKey } from "@/types";
 
 interface EmbedBuilderProps {
     embed: EmbedState;
     handleChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-    handleFieldChange: (index: number, key: "name" | "value" | "inline", value: string | boolean) => void;
+    handleFieldChange: (index: number, key: FieldKey, value: string | boolean) => void;
     addField: () => void;
     removeField: (index: number) => void;
     setIsEmpty: (value: SetStateAction<boolean>) => void;
@@ -160,7 +161,7 @@ export const EmbedBuilderForm = ({
                                     <InputLabel>Field Name</InputLabel>
                                     <TextInput
                                         value={field.name}
-                                        onChange={(e) => handleFieldChange(idx, "name", e.target.value)}
+                                        onChange={(e) => handleFieldChange(idx, "NAME", e.target.value)}
                                         disableSubmitButton
                                         className="p-1"
                                     />
@@ -169,7 +170,7 @@ export const EmbedBuilderForm = ({
                                     <InputLabel>Field Value</InputLabel>
                                     <TextInput
                                         value={field.value}
-                                        onChange={(e) => handleFieldChange(idx, "value", e.target.value)}
+                                        onChange={(e) => handleFieldChange(idx, "VALUE", e.target.value)}
                                         disableSubmitButton
                                         className="p-1"
                                     />
@@ -181,7 +182,7 @@ export const EmbedBuilderForm = ({
                                         type="checkbox"
                                         id={`inline-${idx}`}
                                         checked={field.inline || false}
-                                        onChange={(e) => handleFieldChange(idx, "inline", e.target.checked)}
+                                        onChange={(e) => handleFieldChange(idx, "INLINE", e.target.checked)}
                                         className="rounded bg-neutral-300/5 border-neutral-700"
                                     />
                                     <InputLabel>

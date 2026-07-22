@@ -2,7 +2,8 @@ import React from "react";
 import { TextInput } from "@/components/Inputs/TextInput";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { NumberInput } from "@/components/Inputs/NumberInput";
-import { TempVoiceHub } from "@/types/config";
+
+import { TempVoiceHub } from "@/types/db";
 
 export interface MainConfigTabProps {
     config: TempVoiceHub;
@@ -69,7 +70,7 @@ export const MainConfigTab: React.FC<MainConfigTabProps> = ({
                 Default User Limit (Optional)
             </label>
             <NumberInput
-                value={config.user_limit ?? 0 !== 0 ? config.user_limit ?? 0 : ""}
+                value={config.user_limit}
                 onChange={(e) => handleChange({ user_limit: typeof e === "string" ? Number.isNaN(parseInt(e)) ? 0 : parseInt(e) : e })}
                 placeholder="None"
                 className="max-w-none"

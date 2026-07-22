@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ConnectingStatus } from "@/types";
 
 export interface UseMessageLogViewerProps<T> {
     sseUrl: string;
@@ -16,7 +17,7 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
     eventName,
 }: UseMessageLogViewerProps<T>) {
     const [logs, setLogs] = useState<T[]>(initialHistory);
-    const [status, setStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+    const [status, setStatus] = useState<ConnectingStatus>("CONNECTING");
     const [hasMore, setHasMore] = useState(initialHistory.length >= 10);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -80,7 +81,7 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
         const eventSource = new EventSource(sseUrl);
 
         eventSource.onopen = () => {
-            setStatus("connected");
+            setStatus("CONNECTED");
         };
 
         const handleEvent = (event: MessageEvent) => {
@@ -128,7 +129,7 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
 
         eventSource.onerror = (err) => {
             console.error(`SSE ${eventName} channel error:`, err);
-            setStatus("disconnected");
+            setStatus("DISCONNECTED");
         };
 
         return () => {

@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
-import { TicketConfig } from "@/types/config";
+import { TicketConfig } from "@/types/db/config";
 import { GenericMessageConfig, MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
-import { DiscordChannel } from "@/types";
+import { DiscordChannel, Status } from "@/types";
 import { TICKETS_PANEL_CONFIG } from "@/utils/embedTemplates";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 
@@ -20,7 +20,7 @@ interface TicketingTabProps {
     onPostPanel: () => Promise<void>;
     isProcessing: boolean;
     isDirty: boolean;
-    status: { type: "success" | "error"; message: string } | null,
+    status: { type: Status; message: string } | null,
     isEmpty: boolean,
 }
 
@@ -42,16 +42,16 @@ export default function TicketingTab({
     status,
     isEmpty,
 }: TicketingTabProps) {
-    const targetCategoryIsEmpty = config.category_id.trim() === "";
-    const targetRoleIsEmpty = !config.ticket_role_id || config.ticket_role_id.trim() === "";
+    const targetCategoryIsEmpty = config.categoryId.trim() === "";
+    const targetRoleIsEmpty = !config.ticketRoleId || config.ticketRoleId.trim() === "";
 
     const handleChange = useCallback((updated: GenericMessageConfig) => {
         setConfig((prev) => ({
             ...prev,
             enabled: updated.enabled ?? false,
-            channel_id: updated.channel_id || "",
-            content: updated.content,
-            embed: updated.embed,
+            channelId: updated.channel_id ?? "",
+            content: updated.content ?? "",
+            embed: updated.embed ?? {},
             format: updated.format,
         }));
     }, [setConfig]);
@@ -61,11 +61,11 @@ export default function TicketingTab({
     }, [setConfig]);
 
     const handleCategoryChange = useCallback((v: string) => {
-        setConfig((prev) => ({ ...prev, category_id: v }));
+        setConfig((prev) => ({ ...prev, categoryId: v }));
     }, [setConfig]);
 
     const handleRoleChange = useCallback((v: string) => {
-        setConfig((prev) => ({ ...prev, ticket_role_id: v }));
+        setConfig((prev) => ({ ...prev, ticketRoleId: v }));
     }, [setConfig]);
 
     const categoryOptions = useMemo(() => {
@@ -84,7 +84,7 @@ export default function TicketingTab({
         return [{ value: "", label: "Select a support role..." }, ...transformedArray];
     }, [roleMap]);
 
-    const actionButtonDisabled = !(!isDirty && config.channel_id && config.enabled && !targetChannelIsEmpty && !isEmpty);
+    const actionButtonDisabled = !(!isDirty && config.channelId && config.enabled && !targetChannelIsEmpty && !isEmpty);
 
     return (
         <div className="flex flex-col gap-3 mt-4">
@@ -107,7 +107,7 @@ export default function TicketingTab({
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-medium">Ticket Destination Category</label>
                             <Dropdown
-                                value={config.category_id}
+                                value={config.categoryId}
                                 onChange={handleCategoryChange}
                                 options={categoryOptions}
                                 className={targetCategoryIsEmpty ? `border-red-700 dark:border-red-300` : ''}
@@ -117,7 +117,7 @@ export default function TicketingTab({
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-medium">Support Staff Role</label>
                             <Dropdown
-                                value={config.ticket_role_id || ""}
+                                value={config.ticketRoleId || ""}
                                 onChange={handleRoleChange}
                                 options={roleOptions}
                                 className={targetRoleIsEmpty ? `border-red-700 dark:border-red-300` : ''}
@@ -135,7 +135,7 @@ export default function TicketingTab({
                             Send or delete your saved custom embed and/or text content down to the selected Discord
                             channel. </p>
                     </div>
-                    {config.posted_message_id ? (
+                    {config.postedMessageId ? (
                         <button
                             onClick={onDeletePanel}
                             disabled={actionButtonDisabled}
@@ -160,7 +160,7 @@ export default function TicketingTab({
                     )}
 
                     {status && (
-                        <p className={`text-sm ${status.type === "success" ? "text-green-600" : "text-red-600"}`}>
+                        <p className={`text-sm ${status.type === "SUCCESS" ? "text-green-600" : "text-red-600"}`}>
                             {status.message}
                         </p>
                     )}

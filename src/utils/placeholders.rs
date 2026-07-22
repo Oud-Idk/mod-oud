@@ -338,3 +338,15 @@ pub fn replace_ticket_welcome_placeholders(
         ..Default::default()
     })
 }
+
+pub fn replace_user_placeholders(
+    text: &str,
+    gctx: &GuildCtx,
+    user: &serenity::all::User,
+) -> String {
+    replace_all(text, &ReplacementCtx {
+        gctx: Some(gctx),
+        user: Some(user),
+        ..Default::default()
+    })
+}

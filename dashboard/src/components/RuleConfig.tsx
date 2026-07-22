@@ -301,7 +301,7 @@ export function RuleConfig({
                     <div className="space-y-1.5">
                         <NumberInput
                             value={triggerValue} onChange={(val) => {
-                            setTriggerValue(Math.max(minTrigger, Math.round(val)));
+                            setTriggerValue(Math.max(minTrigger, Math.round(val ?? 0)));
                             setSelectedActionIds([]);
                             setSelectedRolesToAdd([]);
                             setSelectedRolesToRemove([]);

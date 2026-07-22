@@ -1,8 +1,8 @@
 "use client";
 
 import { JSX } from "react";
-import { RuleAction } from "@/types/config/messageFiltering";
 import { Dropdown, DropdownOption } from "@/components/Inputs/Dropdown";
+import { RuleAction } from "@/types/db";
 
 interface ActionsSettingsProps {
     actions: RuleAction[];
@@ -11,12 +11,12 @@ interface ActionsSettingsProps {
 }
 
 // Map RuleAction options to DropdownOption format
-const ACTION_OPTIONS: DropdownOption[] = [
-    { value: "delete", label: "Delete" },
-    { value: "warn", label: "Warn" },
-    { value: "timeout", label: "Timeout" },
-    { value: "remind_publicly", label: "Remind Publicly" },
-    { value: "remind_privately", label: "Remind Privately" },
+const ACTION_OPTIONS: DropdownOption<RuleAction>[] = [
+    { value: "DELETE", label: "Delete" },
+    { value: "WARN", label: "Warn" },
+    { value: "TIMEOUT", label: "Timeout" },
+    { value: "REMIND_PUBLICLY", label: "Remind Publicly" },
+    { value: "REMIND_PRIVATELY", label: "Remind Privately" },
 ];
 
 export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsSettingsProps): JSX.Element {
@@ -32,12 +32,12 @@ export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsS
                 className="max-w-xs"
                 onChange={(selected) => {
                     const selectedActions = selected as RuleAction[];
-                    const hasTimeout = selectedActions.includes("timeout");
+                    const hasTimeout = selectedActions.includes("TIMEOUT");
                     onChange(selectedActions, hasTimeout ? timeoutDuration : undefined);
                 }}
             />
 
-            {actions.includes("timeout") && (
+            {actions.includes("TIMEOUT") && (
                 <div className="mt-2">
                     <label className="text-sm block">Timeout duration (seconds)</label>
                     <input

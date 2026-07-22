@@ -109,7 +109,7 @@ pub async fn close_session(
     data: &Data,
     guild_id: GuildId,
     user_id: UserId,
-    member_opt: Option<Member>,
+    member_opt: Option<&Member>,
     redis: &Client,
     session_key: &str,
     now: i64,

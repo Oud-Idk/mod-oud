@@ -94,7 +94,6 @@ async fn process_flushing_key(
 
     let mut guild_ids = Vec::with_capacity(records_count);
     let mut user_ids = Vec::with_capacity(records_count);
-    let mut usernames = Vec::with_capacity(records_count);
     let mut cumulative_xps = Vec::with_capacity(records_count);
     let mut current_levels = Vec::with_capacity(records_count);
     let mut current_xps = Vec::with_capacity(records_count);
@@ -104,7 +103,6 @@ async fn process_flushing_key(
             Ok(user_level) => {
                 guild_ids.push(user_level.guild_id);
                 user_ids.push(user_level.user_id);
-                usernames.push(user_level.username);
                 cumulative_xps.push(user_level.cumulative_xp);
                 current_levels.push(user_level.current_level);
                 current_xps.push(user_level.current_xp);
@@ -125,17 +123,15 @@ async fn process_flushing_key(
 
         sqlx::query!(
             r#"
-            INSERT INTO levels (guild_id, user_id, username, cumulative_xp, current_level, current_xp)
-            SELECT * FROM UNNEST($1::bigint[], $2::bigint[], $3::text[], $4::integer[], $5::integer[], $6::integer[])
+            INSERT INTO levels (guild_id, user_id, cumulative_xp, current_level, current_xp)
+            SELECT * FROM UNNEST($1::bigint[], $2::bigint[], $3::integer[], $4::integer[], $5::integer[])
             ON CONFLICT (guild_id, user_id) DO UPDATE SET
-                username = EXCLUDED.username,
                 cumulative_xp = EXCLUDED.cumulative_xp,
                 current_level = EXCLUDED.current_level,
                 current_xp = EXCLUDED.current_xp;
             "#,
             &guild_ids,
             &user_ids,
-            &usernames,
             &cumulative_xps,
             &current_levels,
             &current_xps

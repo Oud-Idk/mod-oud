@@ -4,6 +4,7 @@ use crate::events::handlers::temp_voice;
 use crate::events::handlers::temp_voice::refresh_temp_vc_ttl;
 use crate::types::{Data, Error};
 use crate::utils::placeholders::get_placeholder_regex;
+use crate::utils::store_username_relation;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
@@ -24,6 +25,10 @@ pub async fn on_voice_state_update(
 
     let Some(guild_id) = new.guild_id else { return Ok(()) };
     let user_id = new.user_id;
+
+    if let Some(member) = &new.member {
+        store_username_relation(&data.db, &data.redis, member.user.id.get(), &member.user.name).await?;
+    }
 
     if let Some(channel_id) = new.channel_id {
         refresh_temp_vc_ttl(data, guild_id, channel_id).await?;

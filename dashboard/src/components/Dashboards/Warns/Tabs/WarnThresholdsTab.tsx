@@ -1,7 +1,9 @@
 "use client";
 
-import { deleteWarnThresholds, ModerationAction, saveWarnThresholdsAction, WarnThreshold } from "@/actions/warns";
+import { deleteWarnThresholds, saveWarnThresholdsAction } from "@/actions/warns";
 import { RuleConfig, RuleItem } from "@/components/RuleConfig";
+import { WarnThreshold } from "@/types/db";
+import { ModerationAction } from "@/types";
 
 export interface WarnThresholdTabProps {
     guildId: string;

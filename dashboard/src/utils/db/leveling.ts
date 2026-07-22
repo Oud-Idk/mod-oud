@@ -1,19 +1,6 @@
 import { db } from "@/utils/init/db";
-
-export interface XpMultiplier {
-    guild_id: string;
-    target_id: string;
-    target_type: "channel" | "role";
-    multiplier: number;
-}
-
-export interface LevelReward {
-    id: number;
-    guild_id: string;
-    level_requirement: number;
-    roles_to_add: string[];
-    remove_previous_roles: boolean;
-}
+import { LevelReward, XpMultiplier } from "@/types/db/multipliers";
+import { TargetType } from "@/types/db";
 
 export async function getXpMultipliers(guildId: string): Promise<XpMultiplier[]> {
     const { rows } = await db.query(
@@ -69,7 +56,7 @@ export async function deleteXpMultipliers(guildId: string, targetIds: string[]) 
 
 export async function saveXpMultipliers(
     guildId: string,
-    targets: Array<{ targetId: string; targetType: "channel" | "role"; multiplier: number }>
+    targets: Array<{ targetId: string; targetType: TargetType; multiplier: number }>
 ) {
     if (targets.length === 0) return;
 

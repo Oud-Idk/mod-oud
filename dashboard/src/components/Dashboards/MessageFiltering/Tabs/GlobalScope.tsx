@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { createFilterUpdater } from "@/types";
 import ScopeSettings from "@/components/Dashboards/MessageFiltering/General/ScopeSettings";
 
@@ -15,9 +15,9 @@ export function GlobalScopeTab({
     roleMap,
     handleChange,
 }: GlobalScopeTab) {
-    const filterConfig = config.global_settings;
+    const filterConfig = config.globalSettings;
 
-    const updateFilter = createFilterUpdater(config, handleChange, "global_settings");
+    const updateFilter = createFilterUpdater(config, handleChange, "globalSettings");
 
     return (
         <ScopeSettings

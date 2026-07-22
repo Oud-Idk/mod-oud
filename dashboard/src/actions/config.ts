@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import {
-    BadWordRulesetRow,
     deleteBadWordRuleset,
     getTicketConfig,
     saveBadWordRuleset,
+    saveHoneypotConfig,
     saveLeaveConfig,
     saveLevelingConfig,
     saveMessageFilteringConfig,
@@ -16,11 +16,19 @@ import {
     saveTicketConfig,
     saveWelcomeConfig
 } from "@/utils/db/config";
-import { LeaveConfig, LevelingConfig, ReportConfig, TempVoiceConfig, TicketConfig } from "@/types/config";
-import { WelcomeConfig } from "@/types/config/welcome";
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import {
+    HoneypotConfig,
+    LeaveConfig,
+    LevelingConfig,
+    ReportConfig,
+    TempVoiceConfig,
+    TicketConfig
+} from "@/types/db/config";
+import { WelcomeConfig } from "@/types/db/config/welcome";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { getGuildLists } from "@/utils/servers";
-import { ModerationDMsConfig } from "@/types/config/moderationDMs";
+import { ModerationDMsConfig } from "@/types/db/config/moderationDMs";
+import { BadWordRuleset } from "@/types/db";
 
 /**
  * Authenticates the user and verifies if they have management permissions
@@ -160,7 +168,7 @@ export async function sendTicketMessageAction(guildId: string, channelId: string
         const currentConfig = await getTicketConfig(guildId);
         await saveTicketConfig(guildId, {
             ...currentConfig,
-            posted_message_id: data.message_id,
+            postedMessageId: data.message_id,
         });
 
         revalidatePath(`/dashboard/${guildId}/tickets`);
@@ -190,7 +198,7 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
         }
 
         const currentConfig = await getTicketConfig(guildId);
-        const { posted_message_id, ...rest } = currentConfig;
+        const { postedMessageId, ...rest } = currentConfig;
         await saveTicketConfig(guildId, rest);
 
         revalidatePath(`/dashboard/${guildId}/tickets`);
@@ -202,8 +210,8 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
 
 export async function saveBadWordRulesetAction(
     guildId: string,
-    ruleset: Omit<BadWordRulesetRow, 'createdAt' | 'updatedAt' | 'guildId' | 'id'> & { id?: string }
-): Promise<BadWordRulesetRow> {
+    ruleset: Omit<BadWordRuleset, 'createdAt' | 'updatedAt' | 'guildId' | 'id'> & { id?: string }
+): Promise<BadWordRuleset> {
     try {
         const savedRow = await saveBadWordRuleset(guildId, ruleset);
         revalidatePath(`/dashboard/${guildId}/message-filtering`);
@@ -225,5 +233,19 @@ export async function deleteBadWordRulesetAction(
     } catch (error) {
         console.error(`Failed to delete bad word ruleset ${id} for guild ${guildId}:`, error);
         throw new Error("Could not delete ruleset. Please try again.");
+    }
+}
+
+export async function saveHoneypotConfigAction(
+    guildId: string,
+    data: HoneypotConfig
+) {
+    try {
+        await verifyGuildAccess(guildId);
+        await saveHoneypotConfig(guildId, data);
+        revalidatePath(`/dashboard/${guildId}/honeypot`);
+    } catch (error) {
+        console.error("Failed to save honeypot config:", error);
+        throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }

@@ -1,6 +1,6 @@
 import { db } from "@/utils/init/db"
-import { StarboardConfig, StarboardConfigInput } from '@/types/config/starboard';
 import redis from "@/utils/init/redis";
+import { StarboardConfig, StarboardConfigInput } from "@/types/db/starboard";
 
 function formatInterval(interval: any): string | null {
     if (!interval) return null;
@@ -105,9 +105,9 @@ export async function upsertStarboardConfig(
             config.max_message_age || null,
             config.prevent_self_star ?? true,
             config.allow_bot_messages ?? false,
-            config.role_restriction_type || 'none',
+            config.role_restriction_type || 'NONE',
             config.restricted_roles || [],
-            config.channel_restriction_type || 'none',
+            config.channel_restriction_type || 'NONE',
             config.restricted_channels || [],
             config.embed_template || {},
             config.plaintext_template || '',
@@ -155,9 +155,9 @@ export async function upsertStarboardConfig(
             config.max_message_age || null,
             config.prevent_self_star ?? true,
             config.allow_bot_messages ?? false,
-            config.role_restriction_type || 'none',
+            config.role_restriction_type || 'NONE',
             config.restricted_roles || [],
-            config.channel_restriction_type || 'none',
+            config.channel_restriction_type || 'NONE',
             config.restricted_channels || [],
             config.embed_template || {},
             config.plaintext_template || '',

@@ -1,6 +1,5 @@
 "use client";
 
-import { DeletedMessage, EditedMessage } from "@/types";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import React, { useMemo, useState } from "react";
@@ -8,9 +7,11 @@ import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { DeletedMessageLogViewer } from "@/components/Dashboards/MessageLogging/DeleteMessageLogViewer";
 import { EditedMessageLogViewer } from "@/components/Dashboards/MessageLogging/EditMessageLogViewer";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
-import { MessageLoggingConfig } from "@/types/config";
+import { MessageLoggingConfig } from "@/types/db/config";
 import { TextInput } from "@/components/Inputs/TextInput";
 import { useConfigForm } from "@/hooks/useConfigForm";
+import { DeletedMessage, EditedMessage } from "@/types/db/deletedEditedMessages";
+import { IgnoredSelection } from "@/types";
 
 interface MessageLoggingBodyProps {
     messageLoggingConfig: MessageLoggingConfig;
@@ -39,8 +40,8 @@ export function MessageLoggingBody({
         return {
             ...messageLoggingConfig,
             ignored_channels: messageLoggingConfig.ignored_channels || [],
-            ignored_roles: messageLoggingConfig.ignored_roles || [],
-            ignored_users: messageLoggingConfig.ignored_users || [],
+            ignored_roles: messageLoggingConfig.ignoredRoles || [],
+            ignored_users: messageLoggingConfig.ignoredUsers || [],
         };
     }, [messageLoggingConfig]);
 
@@ -65,8 +66,13 @@ export function MessageLoggingBody({
         setUserIdInput("");
     };
 
-    const toggleSelection = (key: "ignored_channels" | "ignored_roles", id: string) => {
-        const current = config[key] || [];
+    const toggleSelection = (key: IgnoredSelection, id: string) => {
+        const TAB_TO_DB_KEY = {
+            IGNORED_CHANNELS: "ignored_channels",
+            IGNORED_ROLES: "ignored_roles",
+        } as const;
+
+        const current = config[TAB_TO_DB_KEY[key]] || [];
         const updated = current.includes(id)
             ? current.filter((item) => item !== id)
             : [...current, id];
@@ -94,7 +100,7 @@ export function MessageLoggingBody({
         handleChange({ ...config, ignored_users: current.filter((item) => item !== id) });
     };
 
-    const showViewers = config.enabled && (config.events?.message_delete || config.events?.message_edit);
+    const showViewers = config.enabled && (config.events?.messageDelete || config.events?.messageEdit);
 
     return (
         <div className="space-y-6">
@@ -111,15 +117,15 @@ export function MessageLoggingBody({
                         <div className="space-y-4">
                             <h4 className="text-sm font-semibold uppercase tracking-wider">Logging Events</h4>
                             <ToggleSwitch
-                                checked={config.events.message_delete} onChange={(checked) => handleChange({
+                                checked={config.events.messageDelete} onChange={(checked) => handleChange({
                                 ...config,
-                                events: { ...config.events, message_delete: checked }
+                                events: { ...config.events, messageDelete: checked }
                             })} disabled={false} text="Log Deleted Messages"
                             />
                             <ToggleSwitch
-                                checked={config.events.message_edit} onChange={(checked) => handleChange({
+                                checked={config.events.messageEdit} onChange={(checked) => handleChange({
                                 ...config,
-                                events: { ...config.events, message_edit: checked }
+                                events: { ...config.events, messageEdit: checked }
                             })} disabled={false} text="Log Edited Messages"
                             />
                         </div>
@@ -130,7 +136,7 @@ export function MessageLoggingBody({
                                 <label className="block text-sm font-medium">Ignored Channels</label>
                                 <MultiSelectViewer
                                     selectedList={config.ignored_channels}
-                                    onDelete={(id) => toggleSelection("ignored_channels", id)}
+                                    onDelete={(id) => toggleSelection("IGNORED_CHANNELS", id)}
                                     map={channelMap}
                                     placeholder="No channels ignored"
                                     prefix="#"
@@ -141,7 +147,7 @@ export function MessageLoggingBody({
                                         .map(([id, name]) => ({ value: id, label: `#${name}` }))}
                                     value={channelDropdownValue}
                                     onChange={(val) => {
-                                        if (val) toggleSelection("ignored_channels", val);
+                                        if (val) toggleSelection("IGNORED_CHANNELS", val);
                                         setChannelDropdownValue("");
                                     }}
                                     placeholder="Choose a channel to ignore..."
@@ -153,7 +159,7 @@ export function MessageLoggingBody({
                                 <label className="block text-sm font-medium">Ignored Roles</label>
                                 <MultiSelectViewer
                                     selectedList={config.ignored_roles}
-                                    onDelete={(id) => toggleSelection("ignored_roles", id)}
+                                    onDelete={(id) => toggleSelection("IGNORED_ROLES", id)}
                                     map={roleMap}
                                     placeholder="No roles ignored"
                                     prefix="@"
@@ -164,7 +170,7 @@ export function MessageLoggingBody({
                                         .map(([id, name]) => ({ value: id, label: `@${name.replace("@", "")}` }))}
                                     value={roleDropdownValue}
                                     onChange={(val) => {
-                                        if (val) toggleSelection("ignored_roles", val);
+                                        if (val) toggleSelection("IGNORED_ROLES", val);
                                         setRoleDropdownValue("");
                                     }}
                                     placeholder="Choose a role to ignore..."
@@ -193,7 +199,7 @@ export function MessageLoggingBody({
 
             {showViewers && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 items-start">
-                    {config.events?.message_delete && (
+                    {config.events?.messageDelete && (
                         <DeletedMessageLogViewer
                             sseUrl={`http://localhost:8080/api/sse/events?guild_id=${guildId}`}
                             initialHistory={deletedMessagesHistory}
@@ -203,7 +209,7 @@ export function MessageLoggingBody({
                         />
                     )}
 
-                    {config.events?.message_edit && (
+                    {config.events?.messageEdit && (
                         <EditedMessageLogViewer
                             sseUrl={`http://localhost:8080/api/sse/events?guild_id=${guildId}`}
                             initialHistory={editedMessagesHistory}

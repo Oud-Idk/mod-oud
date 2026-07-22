@@ -1,6 +1,6 @@
 import { db } from "@/utils/init/db";
 import { QueryResult } from "pg";
-import { DeletedMessage, EditedMessage } from "@/types";
+import { DeletedMessage, EditedMessage } from "@/types/db/deletedEditedMessages";
 
 export async function getEditedMessagesHistory(guildId: string): Promise<EditedMessage[]> {
     const query = `
@@ -95,6 +95,7 @@ export async function getDeletedMessagesHistory(guildId: string): Promise<Delete
         content: row.content,
         attachment_url: row.attachment_url || "",
         deleted_at: row.deleted_at instanceof Date ? row.deleted_at.toISOString() : row.deleted_at,
+        deleted_by_id: row.deleted_by_id,
     }));
 }
 
@@ -127,6 +128,7 @@ export async function fetchMoreDeletedMessages(guildId: string, beforeId: number
             content: row.content,
             attachment_url: row.attachment_url || "",
             deleted_at: row.deleted_at instanceof Date ? row.deleted_at.toISOString() : row.deleted_at,
+            deleted_by_id: row.deleted_by_id,
         }));
     } catch (err) {
         console.error("Failed to fetch older logs:", err);

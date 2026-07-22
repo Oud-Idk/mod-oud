@@ -3,7 +3,9 @@
 import React from "react";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
-import { ReminderRow } from "@/utils/db/reminder";
+
+import { ReminderRow } from "@/types/db/reminder";
+import { ReminderType } from "@/types/db";
 
 interface ReminderConfigProps {
     config: ReminderRow;
@@ -37,14 +39,13 @@ export function ReminderConfig({
     }));
 
     const formatOptions = [
-        { value: "text", label: "Plain Text" },
-        { value: "embed", label: "Discord Rich Embed" },
-        { value: "both", label: "Both (Text & Embed)" },
+        { value: "TEXT", label: "Plain Text" },
+        { value: "EMBED", label: "Discord Rich Embed" },
     ];
 
     const typeOptions = [
-        { value: "single", label: "One-Time (Single)" },
-        { value: "recurring", label: "Recurring Schedule" },
+        { value: "SINGLE", label: "One-Time (Single)" },
+        { value: "RECURRING", label: "Recurring Schedule" },
     ];
 
     const handleDayToggle = (dayValue: number) => {
@@ -56,12 +57,10 @@ export function ReminderConfig({
     };
 
     const handleTimeChange = (field: "timeStart" | "timeEnd", value: string) => {
-        if (!value) {
-            onChange({ [field]: null });
-            return;
-        }
-        // Ensure time includes seconds (HH:MM:SS) for reliable Rust NaiveTime parsing
-        const formattedTime = value.split(":").length === 2 ? `${value}:00` : value;
+        const formattedTime = !value
+            ? null
+            : (value.split(":").length === 2 ? `${value}:00` : value);
+
         onChange({ [field]: formattedTime });
     };
 
@@ -92,7 +91,7 @@ export function ReminderConfig({
                         Reminder Configuration
                     </span>
                     <h2 className="text-lg font-bold text-zinc-150">
-                        {config.rType === "recurring" ? "Recurring Schedule" : "One-Time Reminder"}
+                        {config.rType === "RECURRING" ? "Recurring Schedule" : "One-Time Reminder"}
                     </h2>
                 </div>
                 <button
@@ -134,7 +133,7 @@ export function ReminderConfig({
                 </div>
             </div>
 
-            {(config.format === "text" || config.format === "both") && (
+            {(config.format === "TEXT" && (
                 <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-zinc-300">Message Content</label>
                     <textarea
@@ -145,18 +144,17 @@ export function ReminderConfig({
                         className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
                     />
                 </div>
-            )}
+            ))}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-zinc-800">
                 <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-zinc-300">Reminder Type</label>
                     <Dropdown
                         options={typeOptions} value={config.rType} onChange={(val) => {
-                        const nextType = val as "single" | "recurring";
+                        const nextType = val as ReminderType;
                         onChange({
                             rType: nextType,
-                            // Automatically prime the next trigger to run immediately and register itself
-                            nextTriggerAt: nextType === "recurring" ? new Date().toISOString() : config.nextTriggerAt
+                            nextTriggerAt: nextType === "RECURRING" ? new Date().toISOString() : config.nextTriggerAt
                         });
                     }} placeholder="Select type"
                     />
@@ -164,7 +162,7 @@ export function ReminderConfig({
 
                 <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-zinc-300">Next Scheduled Trigger</label>
-                    {config.rType === "recurring" ? (
+                    {config.rType === "RECURRING" ? (
                         <div className="bg-zinc-950/40 border border-zinc-800/80 rounded px-3 py-2 text-xs text-zinc-500">
                             Managed and calculated automatically by the scheduling worker based on your recurrence
                             rules. </div>
@@ -183,7 +181,7 @@ export function ReminderConfig({
                 </div>
             </div>
 
-            {config.rType === "recurring" && (
+            {config.rType === "RECURRING" && (
                 <div className="space-y-5 pt-4 border-t border-zinc-800">
                     <div>
                         <h3 className="font-semibold text-sm text-zinc-300">Recurrence Details</h3>

@@ -5,6 +5,7 @@ import { Modal } from "@/components/Modal";
 import { LongTextInput } from "@/components/Inputs/LongTextInput";
 import { NumberInput } from "@/components/Inputs/NumberInput";
 import { Dropdown } from "@/components/Inputs/Dropdown";
+import { TimeUnit } from "@/types";
 
 interface TimeoutModalProps {
     isOpen: boolean;
@@ -14,8 +15,8 @@ interface TimeoutModalProps {
 }
 
 export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: TimeoutModalProps) {
-    const [duration, setDuration] = useState<number>(10);
-    const [unit, setUnit] = useState<"minutes" | "hours" | "days">("minutes");
+    const [duration, setDuration] = useState<number | undefined>(10);
+    const [unit, setUnit] = useState<TimeUnit>("MINUTES");
     const [reason, setReason] = useState<string>("");
 
     if (!isOpen) return null;
@@ -24,10 +25,10 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
         e.preventDefault();
 
         let factor = 1;
-        if (unit === "hours") factor = 60;
-        if (unit === "days") factor = 1440;
+        if (unit === "HOURS") factor = 60;
+        if (unit === "DAYS") factor = 1440;
 
-        const durationMins = duration * factor;
+        const durationMins = (duration ?? 0) * factor;
         onSubmit(durationMins, reason);
     };
 
@@ -37,20 +38,22 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
                 <div className="space-y-1">
                     <label>Reason</label>
                     <LongTextInput
-                        onChange={r => setReason(r)} placeholder="Provide a reason for the timeout" value={reason}
+                        onChange={r => setReason(r.target.value)}
+                        placeholder="Provide a reason for the timeout"
+                        value={reason}
                     />
                 </div>
                 <div className="space-y-1">
                     <label>Duration</label>
                     <div className="flex gap-2">
                         <NumberInput
-                            value={duration} onChange={v => setDuration(v === "" ? 1 : v)} min={1} className="h-10"
+                            value={duration} onChange={v => setDuration(v)} min={1} className="h-10"
                         />
                         <Dropdown
-                            value={unit} onChange={v => setUnit(v as "minutes" | "hours" | "days")} options={[
-                            { value: "minutes", label: "Minutes" },
-                            { value: "hours", label: "Hours" },
-                            { value: "days", label: "Days" },
+                            value={unit} onChange={v => setUnit(v)} options={[
+                            { value: "MINUTES", label: "Minutes" },
+                            { value: "HOURS", label: "Hours" },
+                            { value: "DAYS", label: "Days" },
                         ]} className="max-w-50 h-10"
                         />
                     </div>

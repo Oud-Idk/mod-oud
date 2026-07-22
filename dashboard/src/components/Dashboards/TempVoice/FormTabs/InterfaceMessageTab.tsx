@@ -3,8 +3,9 @@ import { sendInterfaceMessageAction } from "@/actions/customEmbed";
 import { BuilderConfig, Placeholder } from "@/types/builder";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import EmbedBuilder from "@/components/Embed/EmbedBuilder";
-import { TempVoiceHub } from "@/types/config";
 import { PlaceholderList } from "@/components/Embed/PlaceholderList";
+import { TempVoiceHub } from "@/types/db";
+import { Status } from "@/types";
 
 interface InterfaceMessageTabProps {
     channelMap: Record<string, string>;
@@ -45,7 +46,7 @@ export function InterfaceMessageTab({ channelMap, guildId, voiceConfig }: Interf
     const [selectedChannel, setSelectedChannel] = useState<string>(voiceConfig.interface_channel_id ?? "");
 
     const [isSending, setIsSending] = useState<boolean>(false);
-    const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const [statusMessage, setStatusMessage] = useState<{ type: Status; text: string } | null>(null);
 
     const channelOptions = useMemo(() => {
         return Object.entries(channelMap).map(([id, name]) => ({
@@ -70,18 +71,18 @@ export function InterfaceMessageTab({ channelMap, guildId, voiceConfig }: Interf
 
             if (result.success) {
                 setStatusMessage({
-                    type: "success",
+                    type: "SUCCESS",
                     text: `Interface dispatched successfully. Message ID: ${result.messageId}`,
                 });
             } else {
                 setStatusMessage({
-                    type: "error",
+                    type: "ERROR",
                     text: result.error || "An error occurred while sending.",
                 });
             }
         } catch (error: any) {
             setStatusMessage({
-                type: "error",
+                type: "ERROR",
                 text: error.message || "An unexpected error occurred.",
             });
         } finally {
@@ -127,7 +128,7 @@ export function InterfaceMessageTab({ channelMap, guildId, voiceConfig }: Interf
                 {statusMessage && (
                     <div
                         className={`text-sm mt-2 font-medium ${
-                            statusMessage.type === "error" ? "text-red-500" : "text-green-500"
+                            statusMessage.type === "ERROR" ? "text-red-500" : "text-green-500"
                         }`}
                     >
                         {statusMessage.text}

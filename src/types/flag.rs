@@ -44,11 +44,8 @@ impl fmt::Display for ThreatType {
 #[serde(rename_all = "UPPERCASE")]
 #[sqlx(type_name = "flag_severity", rename_all = "UPPERCASE")]
 pub enum FlagSeverity {
-    #[name = "MILD"]
     Mild,
-    #[name = "MODERATE"]
     Moderate,
-    #[name = "SEVERE"]
     Severe,
 }
 

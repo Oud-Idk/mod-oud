@@ -2,20 +2,20 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BadWordRulesetRow } from "@/utils/db/config";
 import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayout";
 import { BadWordCreateModal } from "./BadWordCreateModal";
 import { BadWordRulesetConfig } from "./BadWordRulesetConfig";
 import { useConfigForm } from "@/hooks/useConfigForm";
 import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
+import { BadWordRuleset } from "@/types/db";
 
-type SaveableBadWordRuleset = Omit<BadWordRulesetRow, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+type SaveableBadWordRuleset = Omit<BadWordRuleset, "createdAt" | "updatedAt" | "guildId" | "id"> & {
     id?: string;
 };
 
 interface BadWordsBodyProps {
-    rulesets: BadWordRulesetRow[];
-    activeRuleset: BadWordRulesetRow | null;
+    rulesets: BadWordRuleset[];
+    activeRuleset: BadWordRuleset | null;
     channelMap: Record<string, string>;
     roleMap?: Record<string, string>;
     onSave: (ruleset: SaveableBadWordRuleset) => Promise<any>;
@@ -53,7 +53,7 @@ export function BadWordTab({
 
     return (
         <>
-            <ConfigListLayout<BadWordRulesetRow> title="Rulesets"
+            <ConfigListLayout<BadWordRuleset> title="Rulesets"
                 onCreateClick={() => setIsCreateModalOpen(true)}
                 items={rulesets}
                 emptyMessage="No rulesets configured yet."
@@ -105,7 +105,7 @@ export function BadWordTab({
                 }
             >
                 <BadWordRulesetConfig
-                    config={config as BadWordRulesetRow}
+                    config={config as BadWordRuleset}
                     channelMap={channelMap}
                     roleMap={roleMap}
                     isPending={isPending}

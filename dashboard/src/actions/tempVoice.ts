@@ -3,8 +3,8 @@
 import { verifyGuildAccess } from "@/actions/config";
 import { invalidateGuildChannelCache } from "@/utils/discord";
 import { db } from "@/utils/init/db";
-import { TempVoiceHub } from "@/types/config";
 import { revalidatePath } from "next/cache";
+import { TempVoiceHub } from "@/types/db";
 
 export interface SetupTempVoicePayload {
     categoryName: string;

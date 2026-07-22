@@ -8,6 +8,7 @@ use crate::events::handlers::levels::utils::clamp_to_level_cap;
 use crate::events::handlers::levels::{cache, calculation, rules};
 use crate::types::config::leveling::LevelingConfig;
 use crate::types::{Data, Error};
+use crate::utils::store_username_relation;
 use serenity::all::{Context, Message};
 use tracing::{debug, info, trace};
 
@@ -30,8 +31,7 @@ pub async fn handle_leveling(
     let author_id = message.author.id.get();
     let author = &message.author;
     let db = &data.db;
-
-    let redis = data.redis.clone();
+    let redis = &data.redis;
 
     let cooldown_key = format!("cooldown:{}:{}", guild_id, author.id);
     let set_cooldown = cache::create_redis_cooldown(&cooldown_key, &leveling_config, &redis).await?;
@@ -79,7 +79,7 @@ pub async fn handle_leveling(
         );
     }
 
-    levels::cache::save_leveling_cache(
+    cache::save_leveling_cache(
         &redis,
         &stats_key,
         &user_level,

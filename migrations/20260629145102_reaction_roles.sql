@@ -1,6 +1,6 @@
-CREATE TYPE MESSAGE_FORMAT AS ENUM ('embed', 'text');
-CREATE TYPE INTERACTION_MODE AS ENUM ('reaction', 'button');
-CREATE TYPE BUTTON_STYLE AS ENUM ('primary', 'secondary', 'success', 'danger');
+CREATE TYPE MESSAGE_FORMAT AS ENUM ('EMBED', 'TEXT');
+CREATE TYPE INTERACTION_MODE AS ENUM ('REACTION', 'BUTTON');
+CREATE TYPE BUTTON_STYLE AS ENUM ('PRIMARY', 'SECONDARY', 'SUCCESS', 'DANGER');
 
 CREATE TABLE reaction_messages
 (
@@ -9,7 +9,7 @@ CREATE TABLE reaction_messages
     name       TEXT             NOT NULL,
     channel_id BIGINT           NOT NULL,
     guild_id   BIGINT           NOT NULL,
-    mode       INTERACTION_MODE NOT NULL DEFAULT 'reaction',
+    mode       INTERACTION_MODE NOT NULL DEFAULT 'REACTION',
 
     format     MESSAGE_FORMAT   NOT NULL,
     embed      TEXT,
@@ -39,7 +39,7 @@ CREATE TABLE button_roles
     role_id             BIGINT       NOT NULL,
     custom_id           BIGINT       NOT NULL,
     label               TEXT,
-    style               BUTTON_STYLE NOT NULL DEFAULT 'primary',
+    style               BUTTON_STYLE NOT NULL DEFAULT 'PRIMARY',
     emoji               TEXT,
 
     CONSTRAINT button_data_check CHECK (

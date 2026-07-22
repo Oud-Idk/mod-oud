@@ -2,6 +2,7 @@ use crate::events::handlers::starboard::cache::{acquire_starboard_lock, apply_st
 use crate::events::handlers::starboard::{database, permissions, utils};
 use crate::types::config::starboard::Starboard;
 use crate::types::{Data, Error};
+use crate::utils::store_username_relation;
 use fred::prelude::*;
 use serenity::all::{ChannelId, Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction};
 use sqlx::PgPool;
@@ -33,7 +34,7 @@ async fn handle_starboard_reaction(
     op: StarboardOp,
 ) -> Result<(), Error> {
     let db = &data.db;
-    let redis = &data.redis; // Type is fred::clients::Client
+    let redis = &data.redis;
 
     let Some(guild_id) = reaction.guild_id else {
         trace!("Reaction has no guild_id, ignoring");
@@ -57,6 +58,9 @@ async fn handle_starboard_reaction(
 
     debug!("Fetching original message...");
     let message = reaction.message(&ctx.http).await?;
+
+    store_username_relation(db, redis, member.user.id.get(), &member.user.name).await?;
+    store_username_relation(db, redis, message.author.id.get(), &message.author.name).await?;
 
     for starboard in starboards {
         let span = tracing::info_span!("processing_starboard", starboard_id = starboard.id);

@@ -23,7 +23,7 @@ async function sendMessage(endpoint: string, payload: SendEmbedPayload) {
             channel_id: payload.channelId,
             content: null,
             embed: payload.embedState,
-            format: "embed",
+            format: "EMBED",
         }),
     });
 

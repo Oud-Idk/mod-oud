@@ -7,13 +7,14 @@ import EmbedBuilder from "@/components/Embed/EmbedBuilder";
 import { DiscordChannel } from "@/types";
 import { BuilderConfig } from "@/types/builder";
 import { DiscordEmbed } from "@/types/embed";
+import { Format } from "@/types/db";
 
 export interface GenericMessageConfig {
     enabled?: boolean;
     channel_id?: string;
     content?: string | undefined;
     embed?: DiscordEmbed;
-    format: "text" | "embed";
+    format: Format;
 }
 
 interface MessageConfigEditorProps {
@@ -105,7 +106,7 @@ export function MessageConfigEditor({
                         onChange={(format) => onChange({ ...config, format })}
                     />
 
-                    {config.format === "text" ? (
+                    {config.format === "TEXT" ? (
                         <PlaintextEditor
                             value={config.content || ""}
                             placeholder={placeholderText}

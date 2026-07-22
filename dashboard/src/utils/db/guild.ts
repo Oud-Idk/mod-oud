@@ -18,15 +18,15 @@ export async function getGuildStats(guildId: string): Promise<GuildStats> {
             SELECT (SELECT COUNT(*)
                     FROM moderation_logs
                     WHERE created_at >= NOW() - INTERVAL '7 days'
-                      AND guild_id = $1)                   AS weekly_moderation,
+                      AND guild_id = $1)                    AS weekly_moderation,
                    (SELECT COUNT(*)
                     FROM tickets
                     WHERE guild_id = $1
-                      AND status = 'CLOSE'::TICKET_STATUS) AS weekly_resolved,
+                      AND status = 'CLOSED'::TICKET_STATUS) AS weekly_resolved,
                    (SELECT COUNT(*)
                     FROM tickets
                     WHERE guild_id = $1
-                      AND status = 'OPEN'::TICKET_STATUS)  AS open_tickets;
+                      AND status = 'OPEN'::TICKET_STATUS)   AS open_tickets;
         `;
 
         const result = await db.query(query, [guildId]);

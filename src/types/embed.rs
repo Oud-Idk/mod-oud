@@ -3,16 +3,16 @@ use serde::{Deserialize, Serialize};
 use serenity::all::CreateEmbed;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[serde(default)] // If a field is missing in JSON, use the Default impl
+#[serde(default)]
 pub struct EmbedThumbnail {
-    #[serde(alias = "thumbnailUrl")] // Graceful fallback for flat keys
+    #[serde(alias = "thumbnailUrl")]
     pub url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct EmbedImage {
-    #[serde(alias = "imageUrl")]     // Graceful fallback for flat keys
+    #[serde(alias = "imageUrl")]
     pub url: String,
 }
 

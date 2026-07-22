@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { Radio, RadioGroup } from "@headlessui/react";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
@@ -22,18 +22,18 @@ export function ExternalURLsTab({
     roleMap,
 }: ExternalURLsTabProps) {
     const [inputUrl, setInputUrl] = useState<string>("");
-    const filterConfig = config.external_links;
+    const filterConfig = config.externalLinks;
 
-    const updateFilter = createFilterUpdater(config, handleChange, "external_links");
+    const updateFilter = createFilterUpdater(config, handleChange, "externalLinks");
 
     const handleRemoveAllowedDomain = (d: string) => {
-        const current = filterConfig.allowed_domains || [];
-        updateFilter({ ...filterConfig, allowed_domains: current.filter((item) => item !== d) });
+        const current = filterConfig.allowedDomains || [];
+        updateFilter({ ...filterConfig, allowedDomains: current.filter((item) => item !== d) });
     };
 
     const handleRemoveBlockedDomain = (d: string) => {
-        const current = filterConfig.blocked_domains || [];
-        updateFilter({ ...filterConfig, blocked_domains: current.filter((item) => item !== d) });
+        const current = filterConfig.blockedDomains || [];
+        updateFilter({ ...filterConfig, blockedDomains: current.filter((item) => item !== d) });
     };
 
     const validateUrl = (url: string) => {
@@ -52,9 +52,9 @@ export function ExternalURLsTab({
     const handleAddAllowUrl = () => {
         const url = validateUrl(inputUrl);
         if (!url) return;
-        const current = filterConfig.allowed_domains || [];
+        const current = filterConfig.allowedDomains || [];
         if (!current.includes(url)) {
-            updateFilter({ ...filterConfig, allowed_domains: [...current, url] });
+            updateFilter({ ...filterConfig, allowedDomains: [...current, url] });
         }
         setInputUrl("");
     };
@@ -62,9 +62,9 @@ export function ExternalURLsTab({
     const handleAddBlockedUrl = () => {
         const url = validateUrl(inputUrl);
         if (!url) return;
-        const current = filterConfig.blocked_domains || [];
+        const current = filterConfig.blockedDomains || [];
         if (!current.includes(url)) {
-            updateFilter({ ...filterConfig, blocked_domains: [...current, url] });
+            updateFilter({ ...filterConfig, blockedDomains: [...current, url] });
         }
         setInputUrl("");
     };
@@ -80,14 +80,14 @@ export function ExternalURLsTab({
             <div className="space-y-4">
                 <div className="space-y-4">
                     <ToggleSwitch
-                        checked={filterConfig.block_only_malicious}
-                        onChange={() => updateFilter({ block_only_malicious: !filterConfig.block_only_malicious })}
+                        checked={filterConfig.blockOnlyMalicious}
+                        onChange={() => updateFilter({ blockOnlyMalicious: !filterConfig.blockOnlyMalicious })}
                         disabled={false}
                         text="Block only Malicious URLs (Google Safe Browsing)"
                         className="text-sm"
                     />
 
-                    {!filterConfig.block_only_malicious && (
+                    {!filterConfig.blockOnlyMalicious && (
                         <div className="space-y-4">
                             <RadioGroup
                                 value={filterConfig.mode}
@@ -95,7 +95,7 @@ export function ExternalURLsTab({
                                 className="flex gap-4"
                             >
                                 <Radio
-                                    value="allowlist"
+                                    value="ALLOWLIST"
                                     className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
                                 >
                                     {({ checked }) => (
@@ -111,7 +111,7 @@ export function ExternalURLsTab({
                                 </Radio>
 
                                 <Radio
-                                    value="denylist"
+                                    value="ScopeMode"
                                     className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
                                 >
                                     {({ checked }) => (
@@ -126,13 +126,13 @@ export function ExternalURLsTab({
                                     )}
                                 </Radio>
                             </RadioGroup>
-                            {filterConfig.mode === "allowlist" && (
+                            {filterConfig.mode === "ALLOWLIST" && (
                                 <div>
                                     <p>Please type your domain to allow (e.g. google.com)</p>
                                     <div className="space-y-2">
                                         <label className="block text-sm font-medium mt-2 mb-0">Allowed domains</label>
                                         <MultiSelectViewer
-                                            selectedList={filterConfig.allowed_domains || []}
+                                            selectedList={filterConfig.allowedDomains || []}
                                             onDelete={(d) => handleRemoveAllowedDomain(d)}
                                             placeholder="No domains allowed"
                                         />
@@ -145,13 +145,13 @@ export function ExternalURLsTab({
                                     </div>
                                 </div>
                             )}
-                            {filterConfig.mode === "denylist" && (
+                            {filterConfig.mode === "DENYLIST" && (
                                 <div>
                                     <p>Please type your domain to block (e.g. 888casino.com)</p>
                                     <div className="space-y-2">
                                         <label className="block text-sm font-medium mt-2 mb-0">Blocked domains</label>
                                         <MultiSelectViewer
-                                            selectedList={filterConfig.blocked_domains || []}
+                                            selectedList={filterConfig.blockedDomains || []}
                                             onDelete={(d) => handleRemoveBlockedDomain(d)}
                                             placeholder="No domains blocked"
                                         />

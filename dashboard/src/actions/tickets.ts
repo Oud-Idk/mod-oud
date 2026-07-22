@@ -3,25 +3,16 @@
 import { Pool } from 'pg';
 import { getTicketHistory, TicketHistory } from '@/utils/db/ticketHistory';
 
+import { Ticket } from "@/types/db";
+
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
 });
 
-export interface TicketSummary {
-    id: number;
-    channel_id: string;
-    opener_id: string;
-    status: 'OPEN' | 'CLOSE';
-    created_at: string;
-    closed_at: string | null;
-    message_count: number;
-    opener_name: string;
-}
-
 /**
  * Fetches a list of tickets for a specific guild
  */
-export async function getTicketsListAction(guildId: string): Promise<TicketSummary[]> {
+export async function getTicketsListAction(guildId: string): Promise<Ticket[]> {
     try {
         const query = `
             SELECT id,

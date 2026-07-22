@@ -41,7 +41,7 @@ pub fn start_temp_ban_worker(
 
                     // Release using the guard
                     match guard.release().await {
-                        Ok(true) => debug!("Released lock successfully"),
+                        Ok(true) => trace!("Released lock successfully"),
                         Ok(false) => warn!("Attempted to release temp ban lock, but we no longer owned it"),
                         Err(e) => error!(error = ?e, "Failed to release temp ban lock due to a Redis error"),
                     }

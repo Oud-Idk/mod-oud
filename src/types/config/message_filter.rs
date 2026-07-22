@@ -9,29 +9,15 @@ mod types {
 use crate::types::flag::FlagSeverity;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ScopeMode {
     #[default]
     Exempt,
     Enforced,
 }
 
-#[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct RuleScope {
-    pub mode: ScopeMode,
-
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    #[serde_as(as = "Vec<DisplayFromStr>")]
-    pub roles: Vec<u64>,
-
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    #[serde_as(as = "Vec<DisplayFromStr>")]
-    pub channels: Vec<u64>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RuleAction {
     Delete,
     Warn,
@@ -52,7 +38,23 @@ impl RuleAction {
     }
 }
 
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleScope {
+    pub mode: ScopeMode,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde_as(as = "Vec<DisplayFromStr>")]
+    pub roles: Vec<u64>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde_as(as = "Vec<DisplayFromStr>")]
+    pub channels: Vec<u64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BaseRule {
     pub enabled: bool,
     pub action: Vec<RuleAction>,
@@ -64,14 +66,22 @@ pub struct BaseRule {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MatchStrategy {
     Exact,
     Substring,
     Regex,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Modes {
+    Allowlist,
+    Denylist,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Pattern {
     pub strategy: MatchStrategy,
     pub value: String,
@@ -105,6 +115,7 @@ impl Clone for Pattern {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BadWordsRule {
     #[serde(flatten)]
     pub base: BaseRule,
@@ -112,6 +123,7 @@ pub struct BadWordsRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExcessiveCapsRule {
     #[serde(flatten)]
     pub base: BaseRule,
@@ -120,6 +132,7 @@ pub struct ExcessiveCapsRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExcessiveEmojisRule {
     #[serde(flatten)]
     pub base: BaseRule,
@@ -127,6 +140,7 @@ pub struct ExcessiveEmojisRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExcessiveSpoilersRule {
     #[serde(flatten)]
     pub base: BaseRule,
@@ -134,6 +148,7 @@ pub struct ExcessiveSpoilersRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExcessiveMentionsRule {
     #[serde(flatten)]
     pub base: BaseRule,
@@ -141,6 +156,7 @@ pub struct ExcessiveMentionsRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AntiSpamRule {
     #[serde(flatten)]
     pub base: BaseRule,
@@ -149,13 +165,7 @@ pub struct AntiSpamRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Modes {
-    Allowlist,
-    Denylist,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExternalLinksRule {
     #[serde(flatten)]
     pub base: BaseRule,
@@ -170,6 +180,7 @@ pub struct ExternalLinksRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OffensiveMessagesRule {
     #[serde(flatten)]
     pub base: BaseRule,
@@ -213,6 +224,7 @@ impl_has_base!(
 );
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageFilteringConfig {
     pub bad_words: Option<BadWordsRule>,
     pub server_invites: Option<ServerInvitesRule>,

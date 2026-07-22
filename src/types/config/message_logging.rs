@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageLoggingConfig {
     pub enabled: Option<bool>,
     pub ignored_channels: Option<Vec<String>>,
@@ -12,6 +13,7 @@ pub struct MessageLoggingConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageEventsConfig {
     pub message_delete: Option<bool>,
     pub message_edit: Option<bool>,

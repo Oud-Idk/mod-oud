@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
 import { PercentSlider } from "@/components/Inputs/PercentSlider";
@@ -17,9 +17,9 @@ export function ExcessiveCapsTab({
     roleMap,
     handleChange,
 }: ExcessiveCapsProps) {
-    const filterConfig = config.excessive_caps;
+    const filterConfig = config.excessiveCaps;
 
-    const updateFilter = createFilterUpdater(config, handleChange, "excessive_caps");
+    const updateFilter = createFilterUpdater(config, handleChange, "excessiveCaps");
 
     return (
         <FilterLayoutWrapper
@@ -35,8 +35,8 @@ export function ExcessiveCapsTab({
                 label="Threshold Percentage"
             />
             <NumberInput
-                value={filterConfig.min_length}
-                onChange={(v) => updateFilter({ min_length: v })}
+                value={filterConfig.minLength}
+                onChange={(v) => updateFilter({ minLength: v })}
                 label="Minimum Character Length"
             />
         </FilterLayoutWrapper>

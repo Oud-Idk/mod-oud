@@ -2,6 +2,7 @@ use crate::types::config::message_filter::{BaseRule, Pattern, RuleAction, RuleSc
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct BadWordRuleset {
     pub id: uuid::Uuid,
     pub guild_id: i64,

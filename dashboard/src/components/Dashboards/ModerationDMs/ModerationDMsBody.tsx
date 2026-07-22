@@ -4,6 +4,7 @@ import { JSX, useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import {
     BAN_CONFIG,
+    HONEYPOT_CONFIG,
     KICK_CONFIG,
     MUTE_CONFIG,
     PARDON_WARN_CONFIG,
@@ -15,9 +16,10 @@ import {
 } from "@/utils/embedTemplates";
 import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
-import { ModerationDMsConfig } from "@/types/config/moderationDMs";
+import { ModerationDMsConfig } from "@/types/db/config/moderationDMs";
 import { BuilderConfig } from "@/types/builder";
 import { useConfigForm } from "@/hooks/useConfigForm";
+import { isDeepEqual } from "@/utils/embed";
 
 interface ModerationDMsBodyProps {
     moderationDMsConfig: ModerationDMsConfig;
@@ -33,7 +35,8 @@ type TabValue =
     | "unmute"
     | "kick"
     | "ban"
-    | "softban";
+    | "softban"
+    | "honeypot";
 
 const MODERATION_DM_TABS: TabItem<TabValue>[] = [
     { value: "warn", label: "Warn" },
@@ -45,6 +48,7 @@ const MODERATION_DM_TABS: TabItem<TabValue>[] = [
     { value: "kick", label: "Kick" },
     { value: "ban", label: "Ban" },
     { value: "softban", label: "Softban" },
+    { value: "honeypot", label: "Honeypot" },
 ];
 
 const PLACEHOLDERS: Record<TabValue, string> = {
@@ -57,6 +61,7 @@ const PLACEHOLDERS: Record<TabValue, string> = {
     kick: "You have been kicked from {server.name}. Reason: {reason}",
     ban: "You have been banned from {server.name}. Reason: {reason} | Appeal: {appeal_link}",
     softban: "You have been softbanned from {server.name}. Reason: {reason}",
+    honeypot: "You have been banned from the {server.name} due to sending a message in a honeypot channel",
 };
 
 const MODERATION_DM_CONFIGS: Record<TabValue, BuilderConfig> = {
@@ -69,6 +74,7 @@ const MODERATION_DM_CONFIGS: Record<TabValue, BuilderConfig> = {
     kick: KICK_CONFIG,
     ban: BAN_CONFIG,
     softban: SOFTBAN_CONFIG,
+    honeypot: HONEYPOT_CONFIG,
 };
 
 export function ModerationDMsBody({
@@ -82,15 +88,44 @@ export function ModerationDMsBody({
         config,
         setConfig,
         isPending,
-        isDirty,
         resetKey,
-        setIsEmpty,
+        setIsEmpty, // Handled but overridden locally below
         handleSave,
         handleCancel,
     } = useConfigForm({
         initialConfig: normalizedConfig,
         onSave,
     });
+
+    // Check if ANY enabled tab in the entire configuration contains an empty message
+    const hasAnyEnabledEmptyTab = useMemo(() => {
+        return Object.values(config).some((tabConfig) => {
+            // Disabled tabs are not validated since they will not be sent
+            if (!tabConfig || tabConfig.enabled === false) return false;
+
+            // Plaintext validation
+            if (tabConfig.format === "TEXT") {
+                return !tabConfig.content || tabConfig.content.trim() === "";
+            }
+
+            // Embed validation (checking if all main fields are empty)
+            const embed = tabConfig.embed;
+            if (!embed) return true;
+
+            const hasTitle = !!embed.title?.trim();
+            const hasDesc = !!embed.description?.trim();
+            const hasFields = Array.isArray(embed.fields) && embed.fields.length > 0;
+            const hasAuthor = !!embed.author?.name?.trim();
+            const hasFooter = !!embed.footer?.text?.trim();
+            const hasImage = !!embed.image?.url?.trim();
+            const hasThumbnail = !!embed.thumbnail?.url?.trim();
+
+            return !(hasTitle || hasDesc || hasFields || hasAuthor || hasFooter || hasImage || hasThumbnail);
+        });
+    }, [config]);
+
+    // Dirty state is only true if things have changed AND there are absolutely no invalid (empty) enabled tabs
+    const isDirty = !isDeepEqual(config, normalizedConfig) && !hasAnyEnabledEmptyTab;
 
     return (
         <div>

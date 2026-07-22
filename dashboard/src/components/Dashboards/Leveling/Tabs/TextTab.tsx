@@ -1,7 +1,7 @@
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { RangeSlider } from "@/components/Inputs/RangeSlider";
 import { NumberInput } from "@/components/Inputs/NumberInput";
-import { LevelingConfig } from "@/types/config";
+import { LevelingConfig } from "@/types/db/config";
 
 interface TextTabProps {
     config: LevelingConfig;
@@ -25,25 +25,25 @@ export function TextTab({
                     <div>
                         <p className="text-lg">XP Range</p>
                         <RangeSlider
-                            valMin={config.text.xp_range.min}
-                            valMax={config.text.xp_range.max}
+                            valMin={config.text.xpRange.min}
+                            valMax={config.text.xpRange.max}
                             min={5}
                             max={50}
                             onChange={(val) => {
-                                handleChange({ text: { ...config.text, xp_range: { min: val[0], max: val[1] } } })
+                                handleChange({ text: { ...config.text, xpRange: { min: val[0], max: val[1] } } })
                             }}
                         />
                     </div>
                     <div>
                         <p className="text-lg">Cooldown (Seconds)</p>
                         <NumberInput
-                            value={config.text.xp_cooldown}
-                            onChange={v => handleChange({ text: { ...config.text, xp_cooldown: v } })}
+                            value={config.text.xpCooldown}
+                            onChange={v => handleChange({ text: { ...config.text, xpCooldown: v ?? 0 } })}
                         />
                     </div>
                     <ToggleSwitch
-                        checked={config.text.xp_on_tickets}
-                        onChange={(v) => handleChange({ text: { ...config.text, xp_on_tickets: v } })}
+                        checked={config.text.xpOnTickets}
+                        onChange={(v) => handleChange({ text: { ...config.text, xpOnTickets: v } })}
                         disabled={false}
                         text="Allow XP on Ticket"
                     />

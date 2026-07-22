@@ -1,6 +1,6 @@
 "use client";
 
-import { TicketConfig } from "@/types/config";
+import { TicketConfig } from "@/types/db/config";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { DiscordChannel } from "@/types";
 import { useConfigForm } from "@/hooks/useConfigForm";
@@ -23,13 +23,13 @@ interface TicketsBodyProps {
     onDeleteTicketMessage: (channelId: string, messageId: string) => Promise<void>;
 }
 
-type TabValue = "ticketing" | "welcome" | "general" | "history";
+type TabValue = "TICKETING" | "WELCOME" | "GENERAL" | "HISTORY";
 
 const MODERATION_DM_TABS: TabItem<TabValue>[] = [
-    { value: "ticketing", label: "Ticketing" },
-    { value: "welcome", label: "Initial Message" },
-    { value: "general", label: "General" },
-    { value: "history", label: "History" },
+    { value: "TICKETING", label: "Ticketing" },
+    { value: "WELCOME", label: "Initial Message" },
+    { value: "GENERAL", label: "General" },
+    { value: "HISTORY", label: "History" },
 ];
 
 export function TicketsBody({
@@ -68,20 +68,18 @@ export function TicketsBody({
         handleCancel,
         handleWelcomeChange,
         handleWelcomeEmbedChange,
-        handleWarnThresholdChange,
-        handleDeleteThresholdChange,
-        handleBumpEveryChange,
+        handleTicketConfigChange,
         handleSendLiveMessage,
         handleDeleteLiveMessage
     } = useTicketing(config, ticketConfig, isEmpty, targetChannelIsEmpty, hookHandleSave, hookHandleCancel, setConfig, onSendTicketMessage, onDeleteTicketMessage);
 
-    const [activeTab, setActiveTab] = useState<TabValue>("ticketing");
+    const [activeTab, setActiveTab] = useState<TabValue>("TICKETING");
 
     return (
         <div>
             <Tabs tabs={MODERATION_DM_TABS} activeTab={activeTab} onChange={setActiveTab}/>
 
-            {activeTab === "ticketing" && (
+            {activeTab === "TICKETING" && (
                 <TicketingTab
                     status={status}
                     config={config}
@@ -101,7 +99,7 @@ export function TicketsBody({
                     isDirty={isDirty}
                 />
             )}
-            {activeTab === "welcome" && (
+            {activeTab === "WELCOME" && (
                 <InitialMessageTab
                     config={config}
                     onChange={handleWelcomeChange}
@@ -111,16 +109,12 @@ export function TicketsBody({
                     isEmpty={setIsWelcomeEmpty}
                 />
             )}
-            {activeTab === "general" && (
+            {activeTab === "GENERAL" && (
                 <GeneralsTab
-                    config={config}
-                    onChange={handleWarnThresholdChange}
-                    warnThresholdInvalid={isWarnThresholdInvalid}
-                    onChange1={handleDeleteThresholdChange}
-                    onChange2={handleBumpEveryChange}
+                    config={config} onChange={handleTicketConfigChange} warnThresholdInvalid={isWarnThresholdInvalid}
                 />
             )}
-            {activeTab === "history" && (
+            {activeTab === "HISTORY" && (
                 <HistoryTab guildId={guildId}/> // Mount HistoryTab here
             )}
 

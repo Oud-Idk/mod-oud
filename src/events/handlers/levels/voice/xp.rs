@@ -6,6 +6,7 @@ use crate::events::handlers::levels::{calculation, database, effects, rules, uti
 use crate::types::config::leveling::{LevelingConfig, NotificationScope};
 use crate::types::leveling::UserLevel;
 use crate::types::{Data, Error};
+use crate::utils::store_username_relation;
 use fred::prelude::{Expiration, KeysInterface};
 use serenity::all::{ChannelId, Context, GuildId, Member, RoleId, User, UserId};
 use tracing::{debug, info, trace};
@@ -14,7 +15,7 @@ pub async fn award_vc_xp_for_session(
     ctx: &Context,
     guild_id: GuildId,
     user_id: UserId,
-    member_opt: Option<Member>,
+    member_opt: Option<&Member>,
     channel_id: ChannelId,
     join_time: i64,
     leave_time: i64,
@@ -27,8 +28,13 @@ pub async fn award_vc_xp_for_session(
         return Ok(());
     }
 
-    let member = resolve_member(ctx, guild_id, user_id, member_opt).await?;
+    let redis = &data.redis;
+    let db = &data.db;
+
+    let member = &resolve_member(ctx, guild_id, user_id, member_opt).await?;
     let user_roles: Vec<u64> = member.roles.iter().map(|r| r.get()).collect();
+
+    store_username_relation(db, redis, member.user.id.get(), &member.user.name).await?;
 
     if rules::should_exclude_from_level_up(&leveling_config, &user_roles, channel_id.get()) {
         trace!(
@@ -41,9 +47,8 @@ pub async fn award_vc_xp_for_session(
 
     let stats_key = format!("member:{}:{}", guild_id, user_id);
 
-    let redis = &data.redis;
     let multiplier_key = format!("multipliers:{}", guild_id.get());
-    let multiplier = rules::get_voice_multiplier(redis, &multiplier_key, &data.db, &guild_id, channel_id, &member.roles)
+    let multiplier = rules::get_voice_multiplier(redis, &multiplier_key, db, &guild_id, channel_id, &member.roles)
         .await?;
 
     let elapsed_minutes = elapsed_seconds / 60;
@@ -122,10 +127,10 @@ async fn resolve_member(
     ctx: &Context,
     guild_id: GuildId,
     user_id: UserId,
-    member_opt: Option<Member>,
+    member_opt: Option<&Member>,
 ) -> Result<Member, Error> {
     if let Some(member) = member_opt {
-        return Ok(member);
+        return Ok(member.clone());
     }
 
     if let Some(cached) = ctx.cache.member(guild_id, user_id).map(|m| m.clone()) {

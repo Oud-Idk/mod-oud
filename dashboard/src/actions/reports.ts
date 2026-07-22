@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/utils/init/db";
-import { ReportedMessage } from "@/types/reports";
 import { auth } from "@/auth";
+import { ReportedMessage, ReportStatus } from "@/types/db";
 
 export async function fetchInitialReports(guildId: string): Promise<ReportedMessage[]> {
     try {
@@ -69,7 +69,7 @@ export async function deleteReportedMessage(reportId: number, channelId: string,
 
 export async function resolveReportStatus(
     reportId: number,
-    status: "under_review" | "actioned" | "dismissed"
+    status: ReportStatus
 ) {
     try {
         const session = await auth();

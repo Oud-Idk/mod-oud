@@ -9,7 +9,7 @@ pub async fn fetch_target_report(
     report_id: i64,
 ) -> Result<(poise::serenity_prelude::GuildId, poise::serenity_prelude::UserId, String), (StatusCode, String)> {
     let report = sqlx::query!(
-        "SELECT guild_id, author_id, author_name FROM reported_messages WHERE id = $1",
+        "SELECT guild_id, author_id FROM reported_messages WHERE id = $1",
         report_id
     )
         .fetch_optional(pool)
@@ -20,7 +20,7 @@ pub async fn fetch_target_report(
     let guild_id = serenity::GuildId::new(report.guild_id as u64);
     let user_id = serenity::UserId::new(report.author_id as u64);
 
-    Ok((guild_id, user_id, report.author_name))
+    Ok((guild_id, user_id, "sample username".to_string()))
 }
 
 pub async fn update_reported_message(
@@ -88,7 +88,7 @@ pub async fn get_reported_message_by_id(pool: &PgPool, id: i64) -> Result<Option
         r#"
         SELECT
             id, guild_id, channel_id, message_id, author_id, reporter_id,
-            content, attachment_url, reason, author_name, reporter_name,
+            content, attachment_url, reason,
             status as "status!: ReportStatus", message_deleted,
             user_warned, user_timed_out, user_banned
         FROM reported_messages

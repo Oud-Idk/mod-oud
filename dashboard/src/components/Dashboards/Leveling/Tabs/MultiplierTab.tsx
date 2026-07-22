@@ -1,16 +1,17 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { XpMultiplier } from "@/utils/db/leveling";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { NumberInput } from "@/components/Inputs/NumberInput";
 import { getAvailableRoleOptions } from "@/utils/utils";
+import { XpMultiplier } from "@/types/db/multipliers";
+import { TargetType } from "@/types/db";
 
 export interface MultiplierTabProps {
     guildId: string;
     multipliers: XpMultiplier[];
     onSave: (
-        targets: Array<{ targetId: string; targetType: "channel" | "role"; multiplier: number }>
+        targets: Array<{ targetId: string; targetType: TargetType; multiplier: number | undefined }>
     ) => Promise<void>;
     onDelete: (targetIds: string[]) => Promise<void>;
     channelMap: Record<string, string>;
@@ -29,9 +30,9 @@ export function MultiplierTab({
     channelMap,
     roleMap,
 }: MultiplierTabProps) {
-    const [targetType, setTargetType] = useState<"channel" | "role">("role");
+    const [targetType, setTargetType] = useState<TargetType>("ROLE");
     const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
-    const [multiplierValue, setMultiplierValue] = useState(1.5);
+    const [multiplierValue, setMultiplierValue] = useState<number | undefined>(1.5);
     const [isMutating, startMutation] = useTransition();
 
     // State to track bulk selections for active items
@@ -70,7 +71,7 @@ export function MultiplierTab({
             guild_id: guildId,
             target_id: id,
             target_type: targetType,
-            multiplier: multiplierValue,
+            multiplier: multiplierValue ?? 0,
         }));
 
         startMutation(async () => {
@@ -142,7 +143,7 @@ export function MultiplierTab({
     // Filter out options that already have active multipliers applied (using optimistic array)
     const excludedIds = (optimisticMultipliers || []).map((m) => m.target_id);
 
-    const filteredOptions = targetType === "role"
+    const filteredOptions = targetType === "ROLE"
         ? getAvailableRoleOptions(roleMap, excludedIds)
         : Object.entries(channelMap)
             .filter(([id]) => !optimisticMultipliers.some((m) => m.target_id === id))
@@ -159,10 +160,10 @@ export function MultiplierTab({
                         <label className="text-sm font-medium">Type</label>
                         <Dropdown
                             options={[
-                                { value: "role", label: "Role" },
-                                { value: "channel", label: "Channel" },
+                                { value: "ROLE", label: "Role" },
+                                { value: "CHANNEL", label: "Channel" },
                             ]} value={targetType} onChange={(val) => {
-                            setTargetType(val as "channel" | "role");
+                            setTargetType(val as TargetType);
                             setSelectedTargetIds([]);
                         }}
                         />
@@ -170,21 +171,21 @@ export function MultiplierTab({
 
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium">
-                            {targetType === "role" ? "Roles" : "Channels"}
+                            {targetType === "ROLE" ? "Roles" : "Channels"}
                         </label>
                         <Dropdown
                             multiple
                             options={filteredOptions}
                             value={selectedTargetIds}
                             onChange={(val) => setSelectedTargetIds(val as string[])}
-                            placeholder={targetType === "role" ? "Choose roles..." : "Choose channels..."}
+                            placeholder={targetType === "ROLE" ? "Choose roles..." : "Choose channels..."}
                             disabled={filteredOptions.length === 0}
                         />
                     </div>
 
                     <div className="space-y-1.5">
                         <NumberInput
-                            value={+multiplierValue.toFixed(1)}
+                            value={+(multiplierValue ?? 0).toFixed(1)}
                             onChange={setMultiplierValue}
                             min={0.1}
                             max={10.0}
@@ -242,7 +243,7 @@ export function MultiplierTab({
 
                         <div className="divide-y divide-neutral-500/30">
                             {optimisticMultipliers.map((m) => {
-                                const displayName = m.target_type === "role"
+                                const displayName = m.target_type === "ROLE"
                                     ? (roleMap[m.target_id] ? `@${roleMap[m.target_id]}` : `@Unknown Role`)
                                     : (channelMap[m.target_id] ? `#${channelMap[m.target_id]}` : `#Unknown Channel`);
 

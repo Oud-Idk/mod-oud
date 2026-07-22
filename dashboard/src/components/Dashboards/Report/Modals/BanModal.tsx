@@ -6,6 +6,7 @@ import { LongTextInput } from "@/components/Inputs/LongTextInput";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { NumberInput } from "@/components/Inputs/NumberInput";
 import { Dropdown } from "@/components/Inputs/Dropdown";
+import { TimeUnit } from "@/types";
 
 interface BanModalProps {
     isOpen: boolean;
@@ -16,8 +17,8 @@ interface BanModalProps {
 
 export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalProps) {
     const [isTemporary, setIsTemporary] = useState<boolean>(false);
-    const [duration, setDuration] = useState<number>(7);
-    const [unit, setUnit] = useState<"minutes" | "hours" | "days">("days");
+    const [duration, setDuration] = useState<number | undefined>(7);
+    const [unit, setUnit] = useState<TimeUnit>("DAYS");
     const [reason, setReason] = useState<string>("");
 
     if (!isOpen) return null;
@@ -29,9 +30,9 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
 
         if (isTemporary) {
             let factor = 1;
-            if (unit === "hours") factor = 60;
-            if (unit === "days") factor = 1440;
-            durationMins = duration * factor;
+            if (unit === "HOURS") factor = 60;
+            if (unit === "DAYS") factor = 1440;
+            durationMins = (duration ?? 0) * factor;
         }
 
         onSubmit(durationMins, reason);
@@ -43,7 +44,9 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
                 <div className="space-y-1">
                     <label>Reason</label>
                     <LongTextInput
-                        placeholder="Provide a reason for the ban..." value={reason} onChange={(r) => setReason(r)}
+                        placeholder="Provide a reason for the ban..."
+                        value={reason}
+                        onChange={(r) => setReason(r.target.value)}
                     />
                 </div>
 
@@ -56,16 +59,13 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
                         <label>Duration</label>
                         <div className="flex gap-2">
                             <NumberInput
-                                value={duration}
-                                onChange={n => setDuration(n == "" ? 1 : n)}
-                                min={1}
-                                className="h-10"
+                                value={duration} onChange={n => setDuration(n)} min={1} className="h-10"
                             />
                             <Dropdown
-                                value={unit} onChange={v => setUnit(v as "minutes" | "hours" | "days")} options={[
-                                { value: "minutes", label: "Minutes" },
-                                { value: "hours", label: "Hours" },
-                                { value: "days", label: "Days" },
+                                value={unit} onChange={v => setUnit(v)} options={[
+                                { value: "MINUTES", label: "Minutes" },
+                                { value: "HOURS", label: "Hours" },
+                                { value: "DAYS", label: "Days" },
                             ]} className="max-w-50 h-10"
                             />
                         </div>

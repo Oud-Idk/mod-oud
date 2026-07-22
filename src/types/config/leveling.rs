@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Range {
     pub min: i32,
     pub max: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct TextSettings {
     pub enabled: bool,
     pub xp_cooldown: u32,
@@ -20,13 +22,14 @@ pub struct TextSettings {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct VoiceSettings {
     pub enabled: bool,
     pub xp_range: Range,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NotificationScope {
     #[default]
     None,
@@ -37,6 +40,7 @@ pub enum NotificationScope {
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct NotificationSettings {
     pub scope: NotificationScope,
     #[serde_as(as = "DefaultOnError<Option<DisplayFromStr>>")]
@@ -48,6 +52,7 @@ pub struct NotificationSettings {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct LevelingConfig {
     pub text: TextSettings,
     pub voice: VoiceSettings,

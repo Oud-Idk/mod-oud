@@ -1,4 +1,4 @@
-CREATE TYPE REMINDER_TYPE AS ENUM ('single', 'recurring');
+CREATE TYPE REMINDER_TYPE AS ENUM ('SINGLE', 'RECURRING');
 
 CREATE TABLE reminders
 (
@@ -9,7 +9,7 @@ CREATE TABLE reminders
     embed            JSONB,
     content          TEXT,
 
-    r_type           REMINDER_TYPE            NOT NULL DEFAULT 'single',
+    r_type           REMINDER_TYPE            NOT NULL DEFAULT 'SINGLE',
 
     -- Used for both single reminders and the "next run" of recurring ones
     next_trigger_at  TIMESTAMP WITH TIME ZONE NOT NULL,

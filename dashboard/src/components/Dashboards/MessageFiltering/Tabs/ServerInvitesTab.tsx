@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
 
@@ -15,9 +15,9 @@ export function ServerInvitesTab({
     channelMap,
     roleMap,
 }: ServerInvitesTabProps) {
-    const filterConfig = config.server_invites;
+    const filterConfig = config.serverInvites;
 
-    const updateFilter = createFilterUpdater(config, handleChange, "server_invites");
+    const updateFilter = createFilterUpdater(config, handleChange, "serverInvites");
 
     return (
         <FilterLayoutWrapper

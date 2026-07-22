@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 
 export interface DiscordGuild {
     id: string;
@@ -27,30 +27,6 @@ export interface DiscordChannel {
     type: number;
 }
 
-export interface DeletedMessage {
-    id: number;
-    message_id: string;
-    author_id: string;
-    author_name: string;
-    channel_id: string;
-    guild_id: string;
-    content: string;
-    attachment_url: string;
-    deleted_at: string;
-}
-
-export interface EditedMessage {
-    id: number;
-    message_id: string;
-    author_id: string;
-    author_name: string;
-    channel_id: string;
-    guild_id: string;
-    old_content: string | null;
-    new_content: string | null;
-    updated_at: string;
-}
-
 export function createFilterUpdater<K extends keyof MessageFilteringConfig>(
     config: MessageFilteringConfig,
     handleChange: (data: MessageFilteringConfig) => void,
@@ -66,3 +42,12 @@ export function createFilterUpdater<K extends keyof MessageFilteringConfig>(
         });
     };
 }
+
+export type ConnectingStatus = "CONNECTING" | "CONNECTED" | "DISCONNECTED";
+export type VerificationStatus = 'IDLE' | 'VERIFYING' | 'SUCCESS' | 'ERROR';
+export type TimeUnit = "MINUTES" | "HOURS" | "DAYS";
+export type Status = "SUCCESS" | "ERROR";
+export type FieldKey = "NAME" | "VALUE" | "INLINE";
+export type IgnoredSelection = "IGNORED_CHANNELS" | "IGNORED_ROLES";
+export type ScopeItem = "CHANNEL" | "ROLES";
+export type ModerationAction = 'TIMEOUT' | 'KICK' | 'BAN' | 'ROLE_REMOVE' | 'ROLE_ADD' | 'ROLE_REMOVE_ALL';

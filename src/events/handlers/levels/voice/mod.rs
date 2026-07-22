@@ -1,5 +1,6 @@
 use crate::events::handlers::levels::database;
 use crate::types::{Data, Error};
+use crate::utils::store_username_relation;
 use fred::interfaces::KeysInterface;
 use serenity::all::{Context, GuildId, UserId, VoiceState};
 use tracing::{debug, trace};
@@ -23,7 +24,7 @@ pub async fn handle_voice_leveling(ctx: &Context, old: Option<&VoiceState>, new:
         return Ok(());
     };
 
-    let member = new.member.clone();
+    let member = new.member.as_ref();
     let redis = &data.redis;
     let session_key = session::session_key(guild_id, user_id);
     let now = chrono::Utc::now().timestamp();
@@ -51,7 +52,7 @@ pub async fn handle_voice_leveling(ctx: &Context, old: Option<&VoiceState>, new:
                 "Closing voice session (member disconnected, deafened, or switched channels)"
             );
 
-            session::close_session(ctx, data, guild_id, user_id, member.clone(), redis, &session_key, now, &leveling_config).await?;
+            session::close_session(ctx, data, guild_id, user_id, member, redis, &session_key, now, &leveling_config).await?;
 
             let remaining = occupancy::remove_occupant(redis, guild_id, old_ch, user_id).await?;
             if remaining < 2 {

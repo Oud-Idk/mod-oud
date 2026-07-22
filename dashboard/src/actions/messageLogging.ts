@@ -1,6 +1,6 @@
 "use server";
 
-import { MessageLoggingConfig } from "@/types/config";
+import { MessageLoggingConfig } from "@/types/db/config";
 import { saveMessageLoggingConfig } from "@/utils/db/config";
 import { revalidatePath } from "next/cache";
 import { fetchMoreDeletedMessages, fetchMoreEditedMessages } from "@/utils/db/messages";

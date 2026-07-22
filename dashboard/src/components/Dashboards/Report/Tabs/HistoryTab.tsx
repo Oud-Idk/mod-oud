@@ -1,16 +1,17 @@
 import React, { Dispatch, SetStateAction } from "react";
-import { ReportedMessage } from "@/types/reports";
 import { ReportedMessageCard } from "@/components/Dashboards/Report/ReportMessageCard/ReportedMessageCard";
+import { ReportedMessage, SimpleReportStatus, ViewTicketStatus } from "@/types/db";
+import { ConnectingStatus } from "@/types";
 
 interface HistoryTabProps {
-    status: "connecting" | "connected" | "disconnected";
-    setStatusFilter: Dispatch<SetStateAction<"all" | "opened" | "closed">>;
-    statusFilter: "all" | "opened" | "closed";
+    status: ConnectingStatus;
+    setStatusFilter: Dispatch<SetStateAction<ViewTicketStatus>>;
+    statusFilter: ViewTicketStatus;
     filteredLogs: ReportedMessage[];
     deletingIds: Set<number>;
     resolvingIds: Set<number>;
     handleDeleteMessage: (reportId: number, channelId: string, messageId: string) => Promise<void>;
-    handleResolveReport: (reportId: number, targetStatus: "actioned" | "dismissed") => Promise<void>;
+    handleResolveReport: (reportId: number, targetStatus: SimpleReportStatus) => Promise<void>;
     setTimeoutReportId: Dispatch<SetStateAction<number | null>>;
     setBanReportId: Dispatch<SetStateAction<number | null>>;
     setWarnReportId: Dispatch<SetStateAction<number | null>>;
@@ -42,8 +43,8 @@ export function HistoryTab({
                 <div className="flex items-center space-x-1.5">
                     <span
                         className={`h-2 w-2 rounded-full ${
-                            status === "connected" ? "bg-emerald-500" :
-                                status === "connecting" ? "bg-amber-500 animate-pulse" : "bg-rose-500"
+                            status === "CONNECTED" ? "bg-emerald-500" :
+                                status === "CONNECTING" ? "bg-amber-500 animate-pulse" : "bg-rose-500"
                         }`}
                     />
                     <span className="text-[10px] uppercase tracking-wider text-zinc-400">{status}</span>
@@ -53,9 +54,9 @@ export function HistoryTab({
             <div className="flex items-center space-x-1 bg-neutral-200/50 dark:bg-neutral-800/50 p-1 rounded-lg text-xs self-start sm:self-auto border border-neutral-300 dark:border-neutral-700">
                 <button
                     type="button"
-                    onClick={() => setStatusFilter("all")}
+                    onClick={() => setStatusFilter("ALL")}
                     className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
-                        statusFilter === "all"
+                        statusFilter === "ALL"
                             ? "bg-white dark:bg-zinc-700 shadow text-neutral-900 dark:text-white"
                             : "text-zinc-500 dark:text-zinc-400 hover:text-neutral-900 dark:hover:text-neutral-200"
                     }`}
@@ -64,9 +65,9 @@ export function HistoryTab({
                 </button>
                 <button
                     type="button"
-                    onClick={() => setStatusFilter("opened")}
+                    onClick={() => setStatusFilter("OPEN")}
                     className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
-                        statusFilter === "opened"
+                        statusFilter === "OPEN"
                             ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                             : "text-zinc-500 dark:text-zinc-400 hover:text-neutral-900 dark:hover:text-neutral-200 border border-transparent"
                     }`}
@@ -75,9 +76,9 @@ export function HistoryTab({
                 </button>
                 <button
                     type="button"
-                    onClick={() => setStatusFilter("closed")}
+                    onClick={() => setStatusFilter("CLOSED")}
                     className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
-                        statusFilter === "closed"
+                        statusFilter === "CLOSED"
                             ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                             : "text-zinc-500 dark:text-zinc-400 hover:text-neutral-900 dark:hover:text-neutral-200 border border-transparent"
                     }`}
@@ -90,9 +91,9 @@ export function HistoryTab({
         <div className="space-y-4 max-h-125 overflow-y-auto scrollbar-thin p-2 rounded-xl">
             {filteredLogs.length === 0 ? (
                 <p className="text-sm text-zinc-500 py-12 text-center">
-                    {statusFilter === "opened"
+                    {statusFilter === "OPEN"
                         ? "No open reports."
-                        : statusFilter === "closed"
+                        : statusFilter === "CLOSED"
                             ? "No closed reports."
                             : "No reports recorded yet."}
                 </p>

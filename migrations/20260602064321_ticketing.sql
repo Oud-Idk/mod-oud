@@ -1,4 +1,4 @@
-CREATE TYPE ticket_status AS ENUM ('OPEN', 'CLOSE');
+CREATE TYPE TICKET_STATUS AS ENUM ('OPEN', 'CLOSED');
 
 CREATE TABLE tickets
 (
@@ -6,8 +6,7 @@ CREATE TABLE tickets
     guild_id               BIGINT        NOT NULL,
     channel_id             BIGINT        NOT NULL UNIQUE,
     opener_id              BIGINT        NOT NULL,
-    opener_name            TEXT          NOT NULL,
-    status                 ticket_status NOT NULL DEFAULT 'OPEN',
+    status                 TICKET_STATUS NOT NULL DEFAULT 'OPEN',
     created_at             TIMESTAMPTZ            DEFAULT NOW(),
     closed_at              TIMESTAMPTZ,
     last_activity          TIMESTAMPTZ            DEFAULT NOW(),
@@ -23,7 +22,6 @@ CREATE TABLE ticket_messages
     message_id        BIGINT NOT NULL UNIQUE,
     author_id         BIGINT NOT NULL,
     content           TEXT   NOT NULL,
-    sender_name       TEXT   NOT NULL,
     is_ticket_manger  BOOL   NOT NULL,
     created_at        TIMESTAMPTZ DEFAULT NOW()
 );

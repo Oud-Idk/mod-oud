@@ -2,8 +2,8 @@
 
 import { deleteStarboardConfig, upsertStarboardConfig } from "@/utils/db/starboard";
 import { revalidatePath } from "next/cache";
-import { StarboardConfigInput } from "@/types/config/starboard";
 import { verifyGuildAccess } from "@/actions/config";
+import { StarboardConfigInput } from "@/types/db/starboard";
 
 export async function saveStarboardConfigAction(guildId: string, data: StarboardConfigInput) {
     try {

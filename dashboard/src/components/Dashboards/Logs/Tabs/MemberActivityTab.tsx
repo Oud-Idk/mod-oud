@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getJoinLeaveLogs, JoinLeaveLog } from "@/actions/logs";
+import { getJoinLeaveLogs } from "@/actions/logs";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Layout/Table";
+import { JoinLeaveLog } from "@/types/db/logs";
 
 interface MemberActivityTabProps {
     guildId: string;

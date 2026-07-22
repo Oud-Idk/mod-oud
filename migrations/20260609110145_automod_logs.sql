@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS automod_logs
     id               BIGSERIAL PRIMARY KEY,
     guild_id         BIGINT                                             NOT NULL,
     user_id          BIGINT                                             NOT NULL,
-    username         VARCHAR(50)                                        NOT NULL,
     channel_id       BIGINT,
     message_id       BIGINT,
 
@@ -22,7 +21,7 @@ CREATE TABLE IF NOT EXISTS automod_logs
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
--- Index for the main dashboard view (paginated logs sorted by newest first)
+-- Index for the main dashboard view
 CREATE INDEX IF NOT EXISTS idx_automod_logs_guild_created
     ON automod_logs (guild_id, created_at DESC);
 

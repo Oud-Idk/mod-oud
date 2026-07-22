@@ -4,35 +4,36 @@ import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headless
 import { Check, ChevronsUpDown } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
-export interface DropdownOption {
-    value: string;
+// 1. Make the option generic
+export interface DropdownOption<T extends string> {
+    value: T;
     label: string;
 }
 
-interface BaseDropdownProps {
-    options: DropdownOption[];
+interface BaseDropdownProps<T extends string> {
+    options: DropdownOption<T>[];
     placeholder?: string;
     disabled?: boolean;
     className?: string;
 }
 
-// Props signature when multiple-selection is disabled
-interface SingleDropdownProps extends BaseDropdownProps {
+// 2. Ensure value and onChange use the generic type T
+interface SingleDropdownProps<T extends string> extends BaseDropdownProps<T> {
     multiple?: false;
-    value: string;
-    onChange: (value: string) => void;
+    value: T;
+    onChange: (value: T) => void;
 }
 
-// Props signature when multiple-selection is enabled
-interface MultiDropdownProps extends BaseDropdownProps {
+interface MultiDropdownProps<T extends string> extends BaseDropdownProps<T> {
     multiple: true;
-    value: string[];
-    onChange: (value: string[]) => void;
+    value: T[];
+    onChange: (value: T[]) => void;
 }
 
-export type DropdownProps = SingleDropdownProps | MultiDropdownProps;
+export type DropdownProps<T extends string> = SingleDropdownProps<T> | MultiDropdownProps<T>;
 
-export function Dropdown({
+// 3. Declare the component as a generic function
+export function Dropdown<T extends string>({
     options,
     value,
     onChange,
@@ -40,13 +41,14 @@ export function Dropdown({
     disabled,
     className = "",
     multiple = false,
-}: DropdownProps) {
-    // Resolve which labels to display depending on select mode
-    const selectedLabels = multiple
+}: DropdownProps<T>) {
+
+    // Type guards/assertions inside the component keep the internal render logic happy
+    const selectedLabels = multiple && Array.isArray(value)
         ? options
-            .filter((opt) => Array.isArray(value) && value.includes(opt.value))
+            .filter((opt) => value.includes(opt.value))
             .map((opt) => opt.label)
-        : [options.find((opt) => opt.value === value)?.label].filter(Boolean) as string[];
+        : [options.find((opt) => opt.value === (value as T))?.label].filter((l): l is string => !!l);
 
     const hasSelection = selectedLabels.length > 0;
     const displayText = hasSelection ? selectedLabels.join(", ") : placeholder;

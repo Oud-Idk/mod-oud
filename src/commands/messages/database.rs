@@ -30,7 +30,6 @@ pub async fn insert_reported_message(
     attachment_url: &str,
     reason: &str,
     reporter_name: &str,
-
     message: &Message,
     reporter: &User,
 ) -> Result<Option<Id>, Error> {
@@ -45,8 +44,8 @@ pub async fn insert_reported_message(
     sqlx::query_as!(
         Id,
         r#"
-        INSERT INTO reported_messages (guild_id, channel_id, message_id, author_id, reporter_id, content, attachment_url, reason, author_name, reporter_name)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO reported_messages (guild_id, channel_id, message_id, author_id, reporter_id, content, attachment_url, reason)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT (message_id, reporter_id) DO NOTHING
         RETURNING id
         "#,
@@ -58,8 +57,6 @@ pub async fn insert_reported_message(
         message_content,
         attachment_url,
         reason,
-        author_name,
-        reporter_name,
     )
         .fetch_optional(db)
         .await

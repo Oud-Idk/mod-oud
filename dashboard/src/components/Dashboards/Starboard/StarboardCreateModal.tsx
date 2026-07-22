@@ -76,7 +76,7 @@ export function StarboardCreateModal({
                     <div className="space-y-2">
                         <label className="block text-sm font-medium">Initial Star Threshold</label>
                         <NumberInput
-                            value={modalThreshold} onChange={(v) => setModalThreshold(v)} min={1}
+                            value={modalThreshold} onChange={(v) => setModalThreshold(v ?? 0)} min={1}
                         />
                     </div>
 

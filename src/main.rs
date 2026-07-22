@@ -42,6 +42,8 @@ pub struct WebState {
     pub req_client: reqwest::Client,
     pub shared_secret: Option<String>,
     pub cf_secret_key: Option<String>,
+    pub hc_secret_key: Option<String>,
+    pub hc_site_key: Option<String>,
 }
 
 fn main() -> Result<(), Error> {

@@ -2,7 +2,7 @@ import { DiscordRole } from "@/components/Dashboards/Welcome/WelcomeBody";
 import { JSX, SetStateAction } from "react";
 
 
-import { WelcomeConfig } from "@/types/config/welcome";
+import { WelcomeConfig } from "@/types/db/config/welcome";
 
 interface AutoAssignRoleProps {
     roles: DiscordRole[];
@@ -31,7 +31,7 @@ export function AutoAssignRole({
                     <p className="text-sm text-zinc-500">No assignable roles found.</p>
                 ) : (
                     roles.map((role) => {
-                        const isSelected = config.join_role_ids?.includes(role.id) ?? false;
+                        const isSelected = config.joinRoleIds?.includes(role.id) ?? false;
                         const roleColorHex = role.color ? `#${role.color.toString(16).padStart(6, "0")}` : undefined;
 
                         return (
@@ -46,13 +46,13 @@ export function AutoAssignRole({
                                     onChange={(e) => {
                                         const checked = e.target.checked;
                                         setConfig((prev) => {
-                                            const currentIds = prev.join_role_ids || [];
+                                            const currentIds = prev.joinRoleIds || [];
                                             const nextIds = checked
                                                 ? [...currentIds, role.id]
                                                 : currentIds.filter((id) => id !== role.id);
                                             return {
                                                 ...prev,
-                                                join_role_ids: nextIds,
+                                                joinRoleIds: nextIds,
                                             };
                                         });
                                     }}

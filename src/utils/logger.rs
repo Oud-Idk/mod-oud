@@ -36,8 +36,8 @@ pub(crate) async fn log_moderation_action(db: &PgPool, guild_id: GuildId, user: 
 
     sqlx::query!(
         r#"
-        INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration, moderator_username, target_username)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration)
+        VALUES ($1, $2, $3, $4, $5, $6)
         "#,
         guild_id.get() as i64,
         user.map(|u| u.id.get() as i64),
@@ -45,8 +45,6 @@ pub(crate) async fn log_moderation_action(db: &PgPool, guild_id: GuildId, user: 
         action,
         reason,
         pg_interval,
-        &moderator.name,
-        user.map(|u| u.name.as_str()),
     )
         .execute(db)
         .await?;

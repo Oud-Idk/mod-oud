@@ -2,7 +2,6 @@
 
 import React, { SetStateAction, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { StarboardConfigInput } from "@/types/config/starboard";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
@@ -12,6 +11,8 @@ import { StarboardMessage } from "@/components/Dashboards/Starboard/StarboardMes
 import { PlaceholderList } from "@/components/Embed/PlaceholderList";
 import { Pad } from "@/components/Layout/Pad";
 import { PlaintextEditor } from "@/components/MessageCreator/PlaintextEditor";
+import { StarboardConfigInput } from "@/types/db/starboard";
+import { RestrictionType } from "@/types/db";
 
 function validateIntervalFormat(value: string | null): boolean {
     if (!value || value.trim() === "") return true; // Empty is valid
@@ -346,7 +347,7 @@ export function StarboardConfig({
                             })
                         } className="max-w-xs"
                         />
-                        {config.role_restriction_type !== "none" && (
+                        {config.role_restriction_type !== "NONE" && (
                             <div className="space-y-2 mt-2">
                                 <MultiSelectViewer
                                     selectedList={config.restricted_roles || []}
@@ -378,14 +379,14 @@ export function StarboardConfig({
                                 { value: "none", label: "No Restrictions" },
                                 { value: "all_except", label: "Ignore (Blacklist)" },
                                 { value: "only_these", label: "Allow Only (Whitelist)" },
-                            ]} value={config.channel_restriction_type || "none"} onChange={(val) =>
+                            ]} value={config.channel_restriction_type || "NONE"} onChange={(val) =>
                             onChange({
                                 ...config,
-                                channel_restriction_type: val as any,
+                                channel_restriction_type: val as RestrictionType,
                             })
                         } className="max-w-xs"
                         />
-                        {config.channel_restriction_type !== "none" && (
+                        {config.channel_restriction_type !== "NONE" && (
                             <div className="space-y-2 mt-2">
                                 <MultiSelectViewer
                                     selectedList={config.restricted_channels || []}

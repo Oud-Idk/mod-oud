@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { BaseRule } from "@/types/config/messageFiltering";
+import { BaseRule } from "@/types/db/config/messageFiltering";
 import { FilterLayout } from "@/components/Dashboards/MessageFiltering/FilterLayout";
 
 interface FilterLayoutWrapperProps<T extends BaseRule> {

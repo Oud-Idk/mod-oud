@@ -1,18 +1,7 @@
 "use client";
 
-import { LogViewer } from "./LogViewer"; // Adjust path as necessary
-
-interface EditedMessage {
-    id: number;
-    message_id: string;
-    author_id: string;
-    author_name: string;
-    channel_id: string;
-    guild_id: string;
-    old_content: string | null;
-    new_content: string | null;
-    updated_at: string;
-}
+import { LogViewer } from "./LogViewer";
+import { EditedMessage } from "@/types/db/deletedEditedMessages";
 
 interface EditedMessageLogViewerProps {
     sseUrl: string;

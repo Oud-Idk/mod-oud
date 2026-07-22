@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { BadWordRulesetRow } from "@/utils/db/config";
 import { Modal } from "@/components/Modal";
 import SecondaryButton from "@/components/Inputs/Buttons/SecondaryButton";
 import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
 import { TextInput } from "@/components/Inputs/TextInput";
 import { InputLabel } from "@/components/Layout/InputLabel";
+import { BadWordRuleset } from "@/types/db";
 
-type SaveableBadWordRuleset = Omit<BadWordRulesetRow, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+type SaveableBadWordRuleset = Omit<BadWordRuleset, "createdAt" | "updatedAt" | "guildId" | "id"> & {
     id?: string;
 };
 
@@ -35,9 +35,9 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
                 name: trimmed,
                 enabled: true,
                 patterns: [],
-                actions: ["delete"],
+                actions: ["DELETE"],
                 timeoutDurationSeconds: null,
-                scope: { mode: "exempt", roles: [], channels: [] },
+                scope: { mode: "EXEMPT", roles: [], channels: [] },
             });
             setName("");
             onClose();

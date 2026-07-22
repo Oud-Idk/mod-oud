@@ -282,7 +282,7 @@ async fn close_abandoned_tickets(
 
     if !tickets_to_close.is_empty() {
         sqlx::query!(
-            "UPDATE tickets SET status = 'CLOSE' WHERE channel_id = ANY($1)",
+            "UPDATE tickets SET status = 'CLOSED' WHERE channel_id = ANY($1)",
             &tickets_to_close
         )
             .execute(pool)

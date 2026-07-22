@@ -2,12 +2,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserLevel {
-    pub(crate) guild_id: i64,
-    pub(crate) user_id: i64,
-    pub(crate) cumulative_xp: i32,
-    pub(crate) current_level: i32,
-    pub(crate) current_xp: i32,
-    pub(crate) username: String,
+    pub guild_id: i64,
+    pub user_id: i64,
+    pub cumulative_xp: i32,
+    pub current_level: i32,
+    pub current_xp: i32,
 }
 
 #[derive(Debug, Clone)]

@@ -2,7 +2,9 @@
 
 import React, { FormEvent, useState } from "react";
 import { Dropdown } from "@/components/Inputs/Dropdown";
-import { SaveableReminder } from "@/utils/db/reminder";
+
+import { SaveableReminder } from "@/types/db/reminder";
+import { ReminderType } from "@/types/db";
 
 interface ReminderCreateModalProps {
     isOpen: boolean;
@@ -20,7 +22,7 @@ export function ReminderCreateModal({
     const [submitting, setSubmitting] = useState(false);
     const [channelId, setChannelId] = useState("");
     const [content, setContent] = useState("");
-    const [rType, setRType] = useState<"single" | "recurring">("single");
+    const [rType, setRType] = useState<ReminderType>("SINGLE");
 
     if (!isOpen) return null;
 
@@ -37,7 +39,7 @@ export function ReminderCreateModal({
         try {
             await onSave({
                 channelId,
-                format: "text",
+                format: "TEXT",
                 content: content.trim() || "New reminder scheduled",
                 embed: null,
                 rType,
@@ -46,7 +48,7 @@ export function ReminderCreateModal({
                 daysOfWeek: null,
                 timeStart: null,
                 timeEnd: null,
-                intervalSeconds: rType === "recurring" ? 3600 : null,
+                intervalSeconds: rType === "RECURRING" ? 3600 : null,
                 isActive: true,
             });
             onClose();
@@ -93,11 +95,11 @@ export function ReminderCreateModal({
                         <label className="text-xs font-semibold uppercase text-zinc-400">Schedule Style</label>
                         <Dropdown
                             options={[
-                                { value: "single", label: "One-Time (Single)" },
-                                { value: "recurring", label: "Recurring Interval" },
+                                { value: "SINGLE", label: "One-Time (Single)" },
+                                { value: "RECURRING", label: "Recurring Interval" },
                             ]}
                             value={rType}
-                            onChange={(val) => setRType(val as "single" | "recurring")}
+                            onChange={(val) => setRType(val as ReminderType)}
                             placeholder="Select schedule type"
                         />
                     </div>

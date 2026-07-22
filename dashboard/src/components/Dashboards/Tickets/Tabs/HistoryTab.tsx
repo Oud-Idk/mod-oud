@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { getTicketHistoryAction, getTicketsListAction, TicketSummary } from "@/actions/tickets";
+import { getTicketHistoryAction, getTicketsListAction } from "@/actions/tickets";
 import { TicketHistory } from "@/utils/db/ticketHistory";
 import { Dropdown } from "@/components/Inputs/Dropdown";
+
+import { Ticket, ViewTicketStatus } from "@/types/db";
 
 interface HistoryTabProps {
     guildId: string;
 }
 
 export default function HistoryTab({ guildId }: HistoryTabProps) {
-    const [tickets, setTickets] = useState<TicketSummary[]>([]);
-    const [filteredTickets, setFilteredTickets] = useState<TicketSummary[]>([]);
+    const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<TicketHistory | null>(null);
-    const [statusFilter, setStatusFilter] = useState<"ALL" | "OPEN" | "CLOSE">("ALL");
+    const [statusFilter, setStatusFilter] = useState<ViewTicketStatus>("ALL");
     const [isPending, startTransition] = useTransition();
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
@@ -57,7 +59,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                 <div className="flex items-center gap-2 w-full">
                     <span className="text-sm">Status:</span>
                     <Dropdown
-                        value={statusFilter} onChange={(v) => setStatusFilter(v as "ALL" | "OPEN" | "CLOSE")} options={[
+                        value={statusFilter} onChange={(v) => setStatusFilter(v as ViewTicketStatus)} options={[
                         {
                             value: "ALL",
                             label: "All",
@@ -67,7 +69,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                             label: "Open",
                         },
                         {
-                            value: "CLOSE",
+                            value: "CLOSED",
                             label: "Closed",
                         }
                     ]} className="max-w-40"

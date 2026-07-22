@@ -46,8 +46,6 @@ pub struct ReportedMessagePayload {
     pub author_id: i64,
     #[serde(with = "string_i64")]
     pub reporter_id: i64,
-    pub reporter_name: String,
-    pub author_name: String,
     pub reason: String,
     pub content: String,
     pub attachment_url: Option<String>,
@@ -59,8 +57,8 @@ pub struct ReportedMessagePayload {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
-#[sqlx(type_name = "report_status", rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "report_status", rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ReportStatus {
     UnderReview,
     Actioned,

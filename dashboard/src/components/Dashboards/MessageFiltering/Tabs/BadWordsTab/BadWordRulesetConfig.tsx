@@ -3,23 +3,22 @@
 import React, { FormEvent, useState } from "react";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { MultiSelectViewer } from "@/components/MultiSelectViewer";
-import { BadWordRulesetRow } from "@/utils/db/config";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import ScopeSettings from "@/components/Dashboards/MessageFiltering/General/ScopeSettings";
 import { TextInput } from "@/components/Inputs/TextInput";
 import ActionsSettings from "@/components/Dashboards/MessageFiltering/General/ActionsSettings";
 import { InputLabel } from "@/components/Layout/InputLabel";
 import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
+import { BadWordRuleset, StrategyType } from "@/types/db";
 
-type StrategyType = "exact" | "substring" | "regex";
 
 interface BadWordRulesetConfigProps {
-    config: BadWordRulesetRow;
+    config: BadWordRuleset;
     channelMap: Record<string, string>;
     roleMap?: Record<string, string>;
     isPending: boolean;
     onDelete: (id: string) => Promise<void>;
-    onChange: (config: Partial<BadWordRulesetRow>) => void;
+    onChange: (config: Partial<BadWordRuleset>) => void;
     setIsEmpty: (isEmpty: boolean) => void;
 }
 
@@ -32,7 +31,7 @@ export function BadWordRulesetConfig({
     onChange,
 }: BadWordRulesetConfigProps) {
     const [wordInput, setWordInput] = useState("");
-    const [strategyInput, setStrategyInput] = useState<StrategyType>("exact");
+    const [strategyInput, setStrategyInput] = useState<StrategyType>("EXACT");
 
     const patterns = config.patterns || [];
     const displayList = patterns.map((p) => `${p.value} [${p.strategy}]`);
@@ -104,9 +103,9 @@ export function BadWordRulesetConfig({
                         />
                         <Dropdown
                             options={[
-                                { value: "exact", label: "Exact match" },
-                                { value: "substring", label: "Substring" },
-                                { value: "regex", label: "Regex" },
+                                { value: "EXACT", label: "Exact match" },
+                                { value: "SUBSTRING", label: "Substring" },
+                                { value: "REGEX", label: "Regex" },
                             ]}
                             value={strategyInput}
                             onChange={(strategy) => setStrategyInput(strategy as StrategyType)}

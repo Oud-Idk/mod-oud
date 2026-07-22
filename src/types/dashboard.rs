@@ -24,7 +24,7 @@ pub struct DashboardCommand {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(tag = "action", rename_all = "snake_case")]
+#[serde(tag = "action", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DashboardAction {
     ResolveReport { status: ReportStatus },
     DeleteMessage { channel_id: String, message_id: String },

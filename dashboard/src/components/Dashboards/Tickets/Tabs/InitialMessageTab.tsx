@@ -1,4 +1,4 @@
-import { TicketConfig } from "@/types/config";
+import { TicketConfig } from "@/types/db/config";
 import { GenericMessageConfig, MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { TICKETS_WELCOME_CONFIG } from "@/utils/embedTemplates";
 
@@ -13,7 +13,7 @@ export default function InitialMessageTab(props: {
     return <div className="flex flex-col gap-3">
         <div className="mt-2">
             <MessageConfigEditor
-                config={props.config.welcome_message}
+                config={props.config.welcomeMessage}
                 onChange={props.onChange}
                 onEmbedChange={props.onEmbedChange}
                 channels={[]}

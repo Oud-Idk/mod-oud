@@ -1,24 +1,6 @@
 import { db } from "@/utils/init/db";
 import redis from "@/utils/init/redis";
-
-export interface ReminderRow {
-    id: string;
-    channelId: string;
-    format: "text" | "embed" | "both";
-    embed: any | null;
-    content: string | null;
-    rType: "single" | "recurring";
-    nextTriggerAt: string; // ISO DateTime string
-    daysOfWeek: number[] | null;
-    timeStart: string | null;
-    timeEnd: string | null;
-    intervalSeconds: number | null;
-    isActive: boolean;
-}
-
-export type SaveableReminder = Omit<ReminderRow, "id"> & {
-    id?: string;
-};
+import { ReminderRow, SaveableReminder } from "@/types/db/reminder";
 
 // This was ported in Rust smh
 export function calculateNextTriggerJS(
@@ -150,7 +132,7 @@ export async function saveReminder(
 
     // 👇 Calculate the next trigger time immediately upon saving if recurring
     let finalNextTrigger = reminder.nextTriggerAt;
-    if (reminder.rType === "recurring") {
+    if (reminder.rType === "RECURRING") {
         const computedDate = calculateNextTriggerJS(new Date(), {
             daysOfWeek: reminder.daysOfWeek,
             timeStart: reminder.timeStart,

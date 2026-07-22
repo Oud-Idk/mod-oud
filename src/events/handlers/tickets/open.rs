@@ -1,5 +1,6 @@
 use crate::core::config::{get_guild_ctx, get_settings, GuildCtx};
 use crate::events::handlers::tickets::cache::initialize_redis_state;
+use crate::events::handlers::tickets::database::save_ticket_to_db;
 use crate::events::handlers::tickets::utils::{send_disabled_error, send_missing_config_error};
 use crate::events::handlers::tickets::{cache, database};
 use crate::types::config::config::{Format, TicketConfig};
@@ -220,28 +221,3 @@ async fn send_welcome_message(
     Ok(message)
 }
 
-#[instrument(skip(data))]
-async fn save_ticket_to_db(
-    data: &Data,
-    guild_id: GuildId,
-    channel_id: ChannelId,
-    user_id: UserId,
-    welcome_msg_id: serenity::all::MessageId,
-    username: &str,
-) -> Result<(), Error> {
-    trace!("Executing database write for ticket registration");
-    sqlx::query!(
-        r#"
-        INSERT INTO tickets (guild_id, channel_id, opener_id, last_button_message_id, opener_name)
-        VALUES ($1, $2, $3, $4, $5)
-        "#,
-        guild_id.get() as i64,
-        channel_id.get() as i64,
-        user_id.get() as i64,
-        welcome_msg_id.get() as i64,
-        username,
-    )
-        .execute(&data.db)
-        .await?;
-    Ok(())
-}

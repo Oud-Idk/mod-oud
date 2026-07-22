@@ -5,7 +5,7 @@ import { JSX, useCallback, useMemo } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { DEFAULT_CONFIG } from "@/utils/embedTemplates";
-import { LeaveConfig } from "@/types/config";
+import { LeaveConfig } from "@/types/db/config";
 import { useConfigForm } from "@/hooks/useConfigForm";
 
 interface LeaveBodyProps {
@@ -41,7 +41,7 @@ export function LeaveBody({
     const handleEditorChange = useCallback((updated: any) => {
         handleChange({
             enabled: updated.enabled,
-            channel_id: updated.channel_id || "",
+            channelId: updated.channel_id || "",
             content: updated.content,
             embed: updated.embed,
             format: updated.format,

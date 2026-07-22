@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
 import { NumberInput } from "@/components/Inputs/NumberInput";
@@ -16,9 +16,9 @@ export function AntiSpamFilterTab({
     roleMap,
     handleChange,
 }: AntiSpamFilterTabProps) {
-    const filterConfig = config.anti_spam;
+    const filterConfig = config.antiSpam;
 
-    const updateFilter = createFilterUpdater(config, handleChange, "anti_spam");
+    const updateFilter = createFilterUpdater(config, handleChange, "antiSpam");
 
     return (
         <FilterLayoutWrapper
@@ -30,13 +30,13 @@ export function AntiSpamFilterTab({
         >
             <p>Uses a sliding window system to keep track of messages over time.</p>
             <NumberInput
-                value={filterConfig.messages_per_window}
-                onChange={(v) => updateFilter({ messages_per_window: v })}
+                value={filterConfig.messagesPerWindow}
+                onChange={(v) => updateFilter({ messagesPerWindow: v })}
                 label="Maximum Allowed Messages in Window"
             />
             <NumberInput
-                value={filterConfig.window_seconds}
-                onChange={(v) => updateFilter({ window_seconds: v })}
+                value={filterConfig.windowSeconds}
+                onChange={(v) => updateFilter({ windowSeconds: v })}
                 label="Window Duration (seconds)"
             />
         </FilterLayoutWrapper>

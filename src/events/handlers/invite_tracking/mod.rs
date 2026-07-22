@@ -5,6 +5,7 @@ use crate::core::config::get_settings;
 use crate::events::handlers::invite_tracking::utils::collect_pairs;
 use crate::types::config::config::GuildSettings;
 use crate::types::{Data, Error};
+use crate::utils::store_username_relation;
 use fred::clients::Client;
 use fred::interfaces::{HashesInterface, KeysInterface};
 use moka::future::Cache;
@@ -25,8 +26,14 @@ pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &Data) ->
         return Ok(())
     }
 
-    // This is heavy so the check comes before
     let invites = guild.invites(&ctx).await?;
+
+    for invite in &invites {
+        if let Some(inviter) = &invite.inviter {
+            store_username_relation(db, redis, inviter.id.get(), &inviter.name).await?;
+        }
+    }
+
     let cache_key = keys::invites_key(guild.id);
     let inv_key = keys::inviters_key(guild.id);
 

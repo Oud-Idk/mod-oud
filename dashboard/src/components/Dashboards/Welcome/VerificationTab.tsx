@@ -4,7 +4,7 @@ import Turnstile from "react-turnstile";
 import { InputLabel } from "@/components/Layout/InputLabel";
 import { TextInput } from "@/components/Inputs/TextInput";
 import React, { useState } from "react";
-import { WelcomeConfig } from "@/types/config/welcome";
+import { WelcomeConfig } from "@/types/db/config/welcome";
 import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import Emphasis from "@/components/Layout/Emphasis";
 import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
@@ -15,6 +15,8 @@ import Footer from "@/components/Layout/Footer";
 import AlertButton from "@/components/Inputs/Buttons/AlertButton";
 import { DiscordRole } from "@/components/Dashboards/Welcome/WelcomeBody";
 import { Dropdown } from "@/components/Inputs/Dropdown";
+import { Status } from "@/types";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 interface VerificationTabProps {
     config: WelcomeConfig;
@@ -26,11 +28,11 @@ interface VerificationTabProps {
     channelMap: Record<string, string>;
 }
 
-type TabValue = "general" | "setup";
+type TabValue = "GENERAL" | "SETUP";
 
 const VERIFICATION_TABS: TabItem<TabValue>[] = [
-    { value: "general", label: "General" },
-    { value: "setup", label: "Setup" },
+    { value: "GENERAL", label: "General" },
+    { value: "SETUP", label: "Setup" },
 ];
 
 export function VerificationTab({
@@ -42,8 +44,8 @@ export function VerificationTab({
     roles,
     channelMap,
 }: VerificationTabProps) {
-    const [activeTab, setActiveTab] = useState<TabValue>("general");
-    const [setupStatus, setSetupStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const [activeTab, setActiveTab] = useState<TabValue>("GENERAL");
+    const [setupStatus, setSetupStatus] = useState<{ type: Status; text: string } | null>(null);
     const [isProcessingSetup, setIsProcessingSetup] = useState<boolean>(false);
     const [empty, setEmpty] = useState<boolean>(false);
 
@@ -69,7 +71,7 @@ export function VerificationTab({
 
             if (res.success) {
                 setSetupStatus({
-                    type: "success",
+                    type: "SUCCESS",
                     text: `Verification environment dispatched successfully.`,
                 });
                 setConfig(prev => ({
@@ -77,20 +79,20 @@ export function VerificationTab({
                     verification: {
                         ...prev.verification,
                         enabled: true,
-                        verification_channel_id: res.verificationChannelId,
-                        verification_role_id: res.verificationRoleId,
-                        verification_message_id: res.verificationMessageId,
+                        verificationChannelId: res.verificationChannelId,
+                        verificationRoleId: res.verificationRoleId,
+                        verificationMessageId: res.verificationMessageId,
                     }
                 }));
             } else {
                 setSetupStatus({
-                    type: "error",
+                    type: "ERROR",
                     text: res.error || "Could not complete manual verification environment setup.",
                 });
             }
         } catch (err: any) {
             setSetupStatus({
-                type: "error",
+                type: "ERROR",
                 text: err.message || "An unexpected error occurred during execution.",
             });
         } finally {
@@ -99,8 +101,8 @@ export function VerificationTab({
     };
 
     const handleRunTeardown = async () => {
-        if (!config.verification.verification_channel_id || !config.verification.verification_role_id) {
-            setSetupStatus({ type: "error", text: "Missing active components to complete teardown execution." });
+        if (!config.verification.verificationChannelId || !config.verification.verificationRoleId) {
+            setSetupStatus({ type: "ERROR", text: "Missing active components to complete teardown execution." });
             return;
         }
 
@@ -108,13 +110,13 @@ export function VerificationTab({
         setSetupStatus(null);
         try {
             const res = await teardownVerificationAction(guildId, {
-                verification_channel_id: config.verification.verification_channel_id,
-                verification_role_id: config.verification.verification_role_id,
+                verification_channel_id: config.verification.verificationChannelId,
+                verification_role_id: config.verification.verificationRoleId,
             });
 
             if (res.success) {
                 setSetupStatus({
-                    type: "success",
+                    type: "SUCCESS",
                     text: "Verification channels and roles deleted successfully.",
                 });
                 setConfig(prev => ({
@@ -122,21 +124,21 @@ export function VerificationTab({
                     verification: {
                         ...prev.verification,
                         enabled: false,
-                        verification_channel_id: "",
-                        verification_role_id: "",
-                        verification_message_id: "",
+                        verificationChannelId: "",
+                        verificationRoleId: "",
+                        verificationMessageId: "",
                     }
                 }));
             } else {
                 setSetupStatus({
-                    type: "error",
+                    type: "ERROR",
                     text: res.error || "The removal execution was rejected by the server.",
                 });
             }
         } catch (err: any) {
             setSetupStatus({
-                type: "error",
-                text: err.message || "An unexpected error occurred during database cleanup.",
+                type: "ERROR",
+                text: err.message || "An unexpected ERROR occurred during database cleanup.",
             });
         } finally {
             setIsProcessingSetup(false);
@@ -148,7 +150,7 @@ export function VerificationTab({
     return <div>
         <Tabs tabs={VERIFICATION_TABS} activeTab={activeTab} onChange={setActiveTab}/>
 
-        {activeTab === "general" && (
+        {activeTab === "GENERAL" && (
             <>
                 <ToggleSwitch
                     checked={config.verification.enabled} onChange={b => setConfig({
@@ -159,15 +161,46 @@ export function VerificationTab({
 
                 {config.verification.enabled && (
                     <div className="space-y-4">
+                        <ToggleSwitch
+                            checked={config.verification.useOauth} onChange={b => setConfig({
+                            ...config,
+                            verification: { ...config.verification, useOauth: b }
+                        })} text="Use OAuth to verify"
+                        />
+
                         <div>
                             <p>
                                 This system uses <Link
                                 href="https://developers.cloudflare.com/turnstile/"
                                 className="hover:underline text-blue-500"
                                 target="_blank"
-                            >Cloudflare Turnstile</Link> to verify humans against bots.</p>
+                            >Cloudflare Turnstile</Link> or <Link
+                                href="https://www.hcaptcha.com/"
+                                className="hover:underline text-blue-500"
+                                target="_blank"
+                            >hCaptcha</Link> to verify humans against bots.</p>
+                            <Dropdown
+                                value={config.verification.captchaType} onChange={t => setConfig(prev => ({
+                                ...prev,
+                                verification: {
+                                    ...prev.verification,
+                                    captchaType: t,
+                                }
+                            }))} options={[
+                                {
+                                    value: "TURNSTILE",
+                                    label: "Turnstile",
+                                },
+                                {
+                                    value: "HCAPTCHA",
+                                    label: "hCaptcha",
+                                }
+                            ]} className="max-w-xs"
+                            />
                             <Emphasis className="mt-2">Sample Widget Box</Emphasis>
-                            <Turnstile sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""}/>
+                            {config.verification.captchaType == "TURNSTILE" ?
+                                <Turnstile sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""}/> :
+                                <HCaptcha sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? ""}/>}
                         </div>
 
                         <div>
@@ -177,12 +210,12 @@ export function VerificationTab({
                                     <InputLabel>Verification Role</InputLabel>
                                     <Dropdown
                                         options={roleOptions}
-                                        value={config.verification.verification_role_id || ""}
+                                        value={config.verification.verificationRoleId || ""}
                                         onChange={(val) => setConfig(prev => ({
                                             ...prev,
                                             verification: {
                                                 ...prev.verification,
-                                                verification_role_id: val
+                                                verificationRoleId: val
                                             }
                                         }))}
                                         placeholder="Uncreated"
@@ -195,12 +228,12 @@ export function VerificationTab({
 
                                     <Dropdown
                                         options={channelOptions}
-                                        value={config.verification.verification_channel_id || ""}
+                                        value={config.verification.verificationChannelId || ""}
                                         onChange={(val) => setConfig(prev => ({
                                             ...prev,
                                             verification: {
                                                 ...prev.verification,
-                                                verification_channel_id: val
+                                                verificationChannelId: val
                                             }
                                         }))}
                                         placeholder="Uncreated"
@@ -211,12 +244,12 @@ export function VerificationTab({
                                 <div>
                                     <InputLabel>Interaction Message ID</InputLabel>
                                     <TextInput
-                                        value={config.verification.verification_message_id || ""}
+                                        value={config.verification.verificationMessageId || ""}
                                         onChange={(e) => setConfig(prev => ({
                                             ...prev,
                                             verification: {
                                                 ...prev.verification,
-                                                verification_message_id: e.target.value
+                                                verificationMessageId: e.target.value
                                             }
                                         }))}
                                         placeholder="Uncreated"
@@ -232,17 +265,23 @@ export function VerificationTab({
             </>
         )}
 
-        {activeTab === "setup" && (
+        {activeTab === "SETUP" && (
             <div className="space-y-4">
                 <div className="max-w-5xl">
                     <Emphasis>Build Your Verification Panel Message </Emphasis>
-                    <p className="mb-4">
-                        The automatic setup script will construct
-                        a <code>#verify</code> text channel at the top of your
-                        server list. It restricts viewing permissions
-                        for <code className="text-neutral-300">@everyone</code> and establishes structured view
-                        access for members who acquire
-                        the <code className="text-neutral-300">verified</code> role. </p>
+                    {isSystemConfigured ? (
+                        <p className="my-2">
+                            The verification system is currently active. Dismantling the setup will delete the
+                            designated verification text channel and role, and restore viewing access to the rest of the
+                            server for the <code>@everyone</code> role.
+                        </p>
+                    ) : (
+                        <p className="my-2">
+                            The automatic setup script will construct a <code>#verify</code> text channel at the top of
+                            your server list, restrict global viewing permissions for the <code>@everyone</code> role,
+                            and establish structured view access for members who acquire the <code>verified</code> role.
+                        </p>
+                    )}
 
                     {config.verification.enabled ? (
                         <>
@@ -258,7 +297,7 @@ export function VerificationTab({
 
                     {setupStatus && (
                         <div
-                            className={`text-xs mt-3 font-semibold ${setupStatus.type === "error" ? "text-red-500" : "text-green-500"}`}
+                            className={`text-xs mt-3 font-semibold ${setupStatus.type === "ERROR" ? "text-red-500" : "text-green-500"}`}
                         >
                             {setupStatus.text}
                         </div>

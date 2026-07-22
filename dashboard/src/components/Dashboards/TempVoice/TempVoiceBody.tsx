@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { TempVoiceHub } from "@/types/config";
 import { saveTempVoiceHubAction, setupTempVoiceAction } from "@/actions/tempVoice";
 import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayout";
 import { HubForm } from "@/components/Dashboards/TempVoice/HubForm";
+import { TempVoiceHub } from "@/types/db";
 
 interface TempVoiceBodyProps {
     guildId: string;

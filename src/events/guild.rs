@@ -1,5 +1,6 @@
 use crate::events::handlers::invite_tracking::{delete_invite, fetch_current_invites, store_invite};
 use crate::types::{Data, Error};
+use crate::utils::store_username_relation;
 use serenity::all::{Context, Guild, InviteCreateEvent, InviteDeleteEvent};
 
 pub async fn on_guild_create(ctx: &Context, guild: &Guild, data: &Data) -> Result<(), Error> {
@@ -9,6 +10,10 @@ pub async fn on_guild_create(ctx: &Context, guild: &Guild, data: &Data) -> Resul
 }
 
 pub async fn on_invite_create(ctx: &Context, invite_data: &InviteCreateEvent, data: &Data) -> Result<(), Error> {
+    if let Some(inviter) = &invite_data.inviter {
+        store_username_relation(&data.db, &data.redis, inviter.id.get(), &inviter.name).await?;
+    }
+
     store_invite(ctx, invite_data, data).await?;
 
     Ok(())

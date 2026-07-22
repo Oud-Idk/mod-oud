@@ -2,41 +2,8 @@
 
 import { db } from "@/utils/init/db";
 import { verifyGuildAccess } from "@/actions/config";
-
-export interface AutomodLog {
-    id: string;
-    guild_id: string;
-    user_id: string;
-    channel_id: string | null;
-    message_id: string | null;
-    rule_type: string;
-    trigger_content: string | null;
-    original_content: string | null;
-    actions_taken: string[];
-    created_at: string;
-}
-
-export interface JoinLeaveLog {
-    id: string;
-    user_id: string;
-    guild_id: string;
-    action: "JOIN" | "LEAVE";
-    created_at: string;
-}
-
-// Add this interface to app/actions/logs.ts
-export interface ModerationLog {
-    case_id: string; // Cast to string to stay safe
-    guild_id: string;
-    target_id?: string;
-    target_username?: string;
-    moderator_id: string;
-    moderator_username: string;
-    action_type: string;
-    reason: string | null;
-    duration: string | null;
-    created_at: string;
-}
+import { AutomodLog, JoinLeaveLog, ModerationLog } from "@/types/db/logs";
+import { JoinLeaveAction } from "@/types/db";
 
 export async function getAutomodLogs(
     guildId: string,
@@ -48,7 +15,7 @@ export async function getAutomodLogs(
         await verifyGuildAccess(guildId);
 
         const query = `
-            SELECT id::TEXT, -- Cast BIGINT to text to prevent precision loss in JS
+            SELECT id::TEXT,
                    guild_id,
                    user_id,
                    channel_id,
@@ -60,7 +27,6 @@ export async function getAutomodLogs(
                    created_at
             FROM automod_logs
             WHERE guild_id = $1
-              -- Compound cursor comparison for robust pagination
               AND (
                 $2::TEXT IS NULL OR $3::BIGINT IS NULL OR
                 created_at < $2::TIMESTAMPTZ OR
@@ -87,7 +53,7 @@ export async function getAutomodLogs(
 
 export async function getJoinLeaveLogs(
     guildId: string,
-    action?: "JOIN" | "LEAVE" | null,
+    action?: JoinLeaveAction | null,
     limit: number = 20,
     cursorCreatedAt?: string | null,
     cursorId?: string | null

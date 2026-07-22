@@ -300,6 +300,16 @@ export const SOFTBAN_CONFIG: BuilderConfig = {
     ],
 };
 
+export const HONEYPOT_CONFIG: BuilderConfig = {
+    id: "honeypot",
+    name: "Honeypot Actioned Message Builder",
+    description: "Configure direct messages sent to users when they are banned from messaging in a honeypot.",
+    placeholders: [
+        ...COMMON_PLACEHOLDERS,
+    ],
+};
+
+
 export const LEVEL_NOTIFY_CONFIG: BuilderConfig = {
     id: "levels",
     name: "Level Up Message Builder",

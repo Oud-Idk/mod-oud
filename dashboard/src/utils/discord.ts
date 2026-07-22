@@ -181,4 +181,5 @@ export async function invalidateGuildChannelCache(guildId: string): Promise<void
 
     revalidateTag(`guild-voice-channels-${guildId}`, 'max');
     revalidateTag(`guild-categories-${guildId}`, 'max');
+    revalidateTag(`guild-channels-${guildId}`, 'max');
 }

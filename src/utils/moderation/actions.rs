@@ -5,7 +5,7 @@ use crate::types::config::config::{Format, GuildSettings};
 use crate::types::Error;
 use crate::utils::custom_msg::build_custom_message;
 use crate::utils::logger::{log_moderation_action, ActionType};
-use crate::utils::moderation::database::{fetch_warn_thresholds, insert_warn, log_warning, ModerationAction, WarnThreshold};
+use crate::utils::moderation::database::{fetch_warn_thresholds, insert_warn, ModerationAction, WarnThreshold};
 use crate::utils::moderation::{database, MODERATION_FOOTER};
 use crate::utils::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
 use crate::{fetch_mod_ctx, send_mod_dm};

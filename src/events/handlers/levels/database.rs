@@ -21,15 +21,14 @@ pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Resul
     ).fetch_optional(db).await
 }
 
-pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId, username: &str) -> Result<UserLevel, sqlx::Error> {
+pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<UserLevel, sqlx::Error> {
     sqlx::query_as!(
         UserLevel,
-        "INSERT INTO levels (user_id, guild_id, username)
-         VALUES ($1, $2, $3)
+        "INSERT INTO levels (user_id, guild_id)
+         VALUES ($1, $2)
          RETURNING *",
         user_id.get() as i64,
         guild_id.get() as i64,
-        username,
     )
         .fetch_one(db)
         .await
@@ -97,7 +96,7 @@ pub async fn get_user_level(redis: &Client, db: &PgPool, guild_id: &GuildId, aut
             let user = match db_user {
                 Some(user) => user,
                 None => {
-                    insert_level(db, *guild_id, *author_id, username).await?
+                    insert_level(db, *guild_id, *author_id).await?
                 }
             };
 

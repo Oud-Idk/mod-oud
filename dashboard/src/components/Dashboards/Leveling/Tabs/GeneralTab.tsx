@@ -1,12 +1,13 @@
 import { NumberInput } from "@/components/Inputs/NumberInput";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
-import { LevelingConfig } from "@/types/config";
+import { LevelingConfig } from "@/types/db/config";
 import ScopeSettings from "@/components/Dashboards/MessageFiltering/General/ScopeSettings";
 import { Dropdown, DropdownOption } from "@/components/Inputs/Dropdown";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { LEVEL_NOTIFY_CONFIG } from "@/utils/embedTemplates";
 import { DiscordChannel } from "@/types";
 import { SetStateAction } from "react";
+import { NotificationScope } from "@/types/db";
 
 export interface GeneralTabProps {
     config: LevelingConfig;
@@ -18,21 +19,21 @@ export interface GeneralTabProps {
 }
 
 export function GeneralTab({ config, handleChange, channelMap, roleMap, channels, setIsEmpty }: GeneralTabProps) {
-    const options: DropdownOption[] = [
+    const options: DropdownOption<NotificationScope>[] = [
         {
-            value: "none",
+            value: "NONE",
             label: "Off",
         },
         {
-            value: "current_channel",
+            value: "CURRENT_CHANNEL",
             label: "Message's Current Channel",
         },
         {
-            value: "specified_channel",
+            value: "SPECIFIED_CHANNEL",
             label: "Specified Channel",
         },
         {
-            value: "dm",
+            value: "DM",
             label: "DMs",
         },
     ]
@@ -43,12 +44,12 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                 <p className="text-lg">Level Cap</p>
                 <p className="text-sm">Set 0 to remove cap</p>
                 <NumberInput
-                    value={config.level_cap} onChange={v => handleChange({ level_cap: v })}
+                    value={config.levelCap} onChange={v => handleChange({ levelCap: v })}
                 />
             </div>
             <ToggleSwitch
-                checked={config.keep_level_on_leave}
-                onChange={(v) => handleChange({ keep_level_on_leave: v })}
+                checked={config.keepLevelOnLeave}
+                onChange={(v) => handleChange({ keepLevelOnLeave: v })}
                 disabled={false}
                 text="Preserve Level on user Leave"
             />
@@ -59,28 +60,28 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                     if (val) handleChange({
                         notify: {
                             ...config.notify,
-                            scope: val as "current_channel" | "specified_channel" | "dm" | "none"
+                            scope: val
                         }
                     })
                 }} placeholder={"Choose where to send your level up message"} className="max-w-xs"
                 />
             </div>
-            {config.notify.scope !== "none" && (
+            {config.notify.scope !== "NONE" && (
                 <MessageConfigEditor
                     config={{ ...config.notify, enabled: true }} // assumed true cuz this is case of not none
                     onChange={updatedConfig => handleChange({
                         notify: {
                             ...config.notify,
-                            content: updatedConfig.content,
+                            content: updatedConfig.content ?? "",
                             format: updatedConfig.format,
-                            embed: updatedConfig.embed,
-                            channel_id: updatedConfig.channel_id
+                            embed: updatedConfig.embed ?? {},
+                            channelId: updatedConfig.channel_id
                         },
                     })}
                     onEmbedChange={embed => handleChange({ notify: { ...config.notify, embed } })}
                     enableToggle={false}
                     embedTemplateConfig={LEVEL_NOTIFY_CONFIG}
-                    channels={config.notify.scope === "specified_channel" ? channels : undefined}
+                    channels={config.notify.scope === "SPECIFIED_CHANNEL" ? channels : undefined}
                     setIsEmpty={setIsEmpty}
                 />
             )}

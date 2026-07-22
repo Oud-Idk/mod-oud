@@ -1,16 +1,16 @@
 "use client";
 
-import { ReportedMessage } from "@/types/reports";
 import { ReportHeader } from "./ReportHeader";
 import { ReportContent } from "./ReportContent";
 import { ReportActions } from "./ReportActions";
+import { ReportedMessage, SimpleReportStatus } from "@/types/db";
 
 interface ReportedMessageCardProps {
     log: ReportedMessage;
     isDeleting: boolean;
     isResolving: boolean;
     onDelete: (reportId: number, channelId: string, messageId: string) => Promise<void>;
-    onResolve: (reportId: number, status: "actioned" | "dismissed") => Promise<void>;
+    onResolve: (reportId: number, status: SimpleReportStatus) => Promise<void>;
     onTimeoutClick: (reportId: number) => void;
     onWarnClick: (reportId: number) => void;
     onBanClick: (reportId: number) => void;

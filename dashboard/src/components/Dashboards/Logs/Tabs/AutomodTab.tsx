@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AutomodLog, getAutomodLogs } from "@/actions/logs";
+import { getAutomodLogs } from "@/actions/logs";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Layout/Table";
+import { AutomodLog } from "@/types/db/logs";
 
 interface AutomodTabProps {
     guildId: string;

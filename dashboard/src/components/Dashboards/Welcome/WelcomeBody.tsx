@@ -7,7 +7,7 @@ import { DEFAULT_CONFIG } from "@/utils/embedTemplates";
 import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { AutoAssignRole } from "@/components/Dashboards/Welcome/AutoAssignRole";
-import { WelcomeConfig } from "@/types/config/welcome";
+import { WelcomeConfig } from "@/types/db/config/welcome";
 import { useConfigForm } from "@/hooks/useConfigForm";
 import { VerificationTab } from "@/components/Dashboards/Welcome/VerificationTab";
 
@@ -28,13 +28,13 @@ interface WelcomeBodyProps {
     channelMap: Record<string, string>;
 }
 
-type TabValue = "public" | "private" | "roles" | "verification";
+type TabValue = "PUBLIC" | "PRIVATE" | "ROLES" | "VERIFICATION";
 
 const WELCOME_TABS: TabItem<TabValue>[] = [
-    { value: "public", label: "Public Message" },
-    { value: "private", label: "Private Message (DM)" },
-    { value: "roles", label: "Welcome Roles" },
-    { value: "verification", label: "Verification" },
+    { value: "PUBLIC", label: "Public Message" },
+    { value: "PRIVATE", label: "Private Message (DM)" },
+    { value: "ROLES", label: "Welcome Roles" },
+    { value: "VERIFICATION", label: "Verification" },
 ];
 
 export function WelcomeBody({
@@ -46,7 +46,7 @@ export function WelcomeBody({
     channelMap
 }: WelcomeBodyProps): JSX.Element {
     const normalizedWelcomeConfig = useMemo(() => welcomeConfig, [welcomeConfig]);
-    const [activeTab, setActiveTab] = useState<TabValue>("public");
+    const [activeTab, setActiveTab] = useState<TabValue>("PUBLIC");
 
     const {
         config,
@@ -65,8 +65,8 @@ export function WelcomeBody({
     });
 
     const isSystemConfigured = !!(
-        config.verification?.verification_channel_id &&
-        config.verification?.verification_role_id
+        config.verification?.verificationChannelId &&
+        config.verification?.verificationRoleId
     );
 
     return (
@@ -74,7 +74,7 @@ export function WelcomeBody({
             <Tabs tabs={WELCOME_TABS} activeTab={activeTab} onChange={setActiveTab}/>
 
             <div className="mt-4">
-                {activeTab === "public" && (
+                {activeTab === "PUBLIC" && (
                     <MessageConfigEditor
                         config={config.public}
                         onChange={(updated) =>
@@ -108,7 +108,7 @@ export function WelcomeBody({
                     />
                 )}
 
-                {activeTab === "private" && (
+                {activeTab === "PRIVATE" && (
                     <MessageConfigEditor
                         config={config.private}
                         onChange={(updated) =>
@@ -138,11 +138,11 @@ export function WelcomeBody({
                     />
                 )}
 
-                {activeTab === "roles" && (
+                {activeTab === "ROLES" && (
                     <AutoAssignRole roles={roles} config={config} isPending={isPending} setConfig={setConfig}/>
                 )}
 
-                {activeTab === "verification" && (
+                {activeTab === "VERIFICATION" && (
                     <VerificationTab
                         config={config}
                         setConfig={setConfig}

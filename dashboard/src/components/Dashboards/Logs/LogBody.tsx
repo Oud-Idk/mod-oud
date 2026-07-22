@@ -1,18 +1,17 @@
-// LogBody.tsx
 "use client";
 
 import { useState } from "react";
 import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { AutomodTab } from "./Tabs/AutomodTab";
 import { MemberActivityTab } from "./Tabs/MemberActivityTab";
-import { ModerationTab } from "./Tabs/ModerationTab"; // <-- Added import
+import { ModerationTab } from "./Tabs/ModerationTab";
 
-type TabValue = "automod" | "activity" | "moderation"; // <-- Added "moderation"
+type TabValue = "AUTOMOD" | "ACTIVITY" | "MODERATION";
 
 const LOG_TABS: TabItem<TabValue>[] = [
-    { value: "automod", label: "Automod" },
-    { value: "activity", label: "Member Activity" },
-    { value: "moderation", label: "Moderation" }, // <-- Added tab item
+    { value: "AUTOMOD", label: "Automod" },
+    { value: "ACTIVITY", label: "Member Activity" },
+    { value: "MODERATION", label: "Moderation" }, // <-- Added tab item
 ];
 
 interface LogBodyProps {
@@ -20,7 +19,7 @@ interface LogBodyProps {
 }
 
 export function LogBody({ guildId }: LogBodyProps) {
-    const [activeTab, setActiveTab] = useState<TabValue>("automod");
+    const [activeTab, setActiveTab] = useState<TabValue>("AUTOMOD");
 
     return (
         <div className="space-y-4">
@@ -29,9 +28,9 @@ export function LogBody({ guildId }: LogBodyProps) {
             />
 
             <div className="mt-4">
-                {activeTab === "automod" && <AutomodTab guildId={guildId}/>}
-                {activeTab === "activity" && <MemberActivityTab guildId={guildId}/>}
-                {activeTab === "moderation" && <ModerationTab guildId={guildId}/>} {/* <-- Added condition */}
+                {activeTab === "AUTOMOD" && <AutomodTab guildId={guildId}/>}
+                {activeTab === "ACTIVITY" && <MemberActivityTab guildId={guildId}/>}
+                {activeTab === "MODERATION" && <ModerationTab guildId={guildId}/>} {/* <-- Added condition */}
             </div>
         </div>
     );

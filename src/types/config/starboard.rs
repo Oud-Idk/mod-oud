@@ -5,7 +5,7 @@ use sqlx::postgres::types::PgInterval;
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::types::Json;
 
-#[serde_as] // Required to enable the serde_as processing
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Starboard {
     pub id: i64,
@@ -43,21 +43,16 @@ pub struct Starboard {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "VARCHAR", rename_all = "snake_case")]
+#[sqlx(type_name = "RESTRICTION_TYPE", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RestrictionType {
-    #[sqlx(rename = "none")]
     None,
-    #[sqlx(rename = "all_except")]
     AllExcept,
-    #[sqlx(rename = "only_these")]
     OnlyThese,
 }
 
-// Serialization helper module for Option<PgInterval>
 mod option_pg_interval_serde {
     use super::*;
 
-    // A helper struct matching PgInterval's internal structure that derives Serde traits.
     #[derive(Serialize, Deserialize)]
     struct PgIntervalDef {
         months: i32,

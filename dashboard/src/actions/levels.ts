@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { deleteLevelRewards, deleteXpMultipliers, saveLevelRewards, saveXpMultipliers } from "@/utils/db/leveling";
 import { verifyGuildAccess } from "@/actions/config";
+import { TargetType } from "@/types/db";
 
 export async function deleteMultipliersAction(guildId: string, targetIds: string[]) {
     try {
@@ -17,7 +18,7 @@ export async function deleteMultipliersAction(guildId: string, targetIds: string
 
 export async function saveMultipliersAction(
     guildId: string,
-    targets: Array<{ targetId: string; targetType: "channel" | "role"; multiplier: number }>
+    targets: Array<{ targetId: string; targetType: TargetType; multiplier: number }>
 ) {
     try {
         await verifyGuildAccess(guildId);

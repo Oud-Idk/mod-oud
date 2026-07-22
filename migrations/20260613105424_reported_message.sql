@@ -1,7 +1,7 @@
-CREATE TYPE report_status AS ENUM (
-    'under_review',
-    'actioned',
-    'dismissed'
+CREATE TYPE REPORT_STATUS AS ENUM (
+    'UNDER_REVIEW',
+    'ACTIONED',
+    'DISMISSED'
     );
 
 
@@ -21,10 +21,6 @@ CREATE TABLE reported_messages
     user_timed_out  BOOLEAN       NOT NULL   DEFAULT FALSE,
     user_banned     BOOLEAN       NOT NULL   DEFAULT FALSE,
 
-    -- Friendly Names
-    author_name     TEXT          NOT NULL,
-    reporter_name   TEXT          NOT NULL,
-
     -- Evidence preservation
     content         TEXT          NOT NULL,
     attachment_url  TEXT,
@@ -33,7 +29,7 @@ CREATE TABLE reported_messages
     reason          TEXT          NOT NULL,
 
     -- Moderation State
-    status          report_status NOT NULL   DEFAULT 'under_review',
+    status          REPORT_STATUS NOT NULL   DEFAULT 'UNDER_REVIEW',
     moderator_id    VARCHAR(20),
     moderator_notes TEXT,
 

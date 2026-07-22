@@ -2,7 +2,7 @@
 
 import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { ComponentType, JSX, useMemo, useState } from "react";
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { OffensiveMessagesTab } from "@/components/Dashboards/MessageFiltering/Tabs/OffensiveMessagesTab";
 import { ServerInvitesTab } from "@/components/Dashboards/MessageFiltering/Tabs/ServerInvitesTab";
@@ -17,8 +17,8 @@ import { GlobalScopeTab } from "@/components/Dashboards/MessageFiltering/Tabs/Gl
 import { useConfigForm } from "@/hooks/useConfigForm";
 
 // Import your custom Bad Words components
-import { BadWordRulesetRow } from "@/utils/db/config";
 import { BadWordTab } from "@/components/Dashboards/MessageFiltering/Tabs/BadWordsTab";
+import { BadWordRuleset } from "@/types/db";
 
 type TabValue =
     | "bad_words"
@@ -47,14 +47,14 @@ const WELCOME_TABS: TabItem<TabValue>[] = [
     { value: "global_scope", label: "Global Scope" },
 ];
 
-type SaveableBadWordRuleset = Omit<BadWordRulesetRow, "createdAt" | "updatedAt" | "guildId" | "id"> & {
+type SaveableBadWordRuleset = Omit<BadWordRuleset, "createdAt" | "updatedAt" | "guildId" | "id"> & {
     id?: string;
 };
 
 interface MessageFilteringBodyProps {
     messageFilteringConfig: MessageFilteringConfig;
-    badWordRulesets: BadWordRulesetRow[];
-    activeRuleset: BadWordRulesetRow | null;
+    badWordRulesets: BadWordRuleset[];
+    activeRuleset: BadWordRuleset | null;
     onSaveRuleset: (ruleset: SaveableBadWordRuleset) => Promise<any>;
     onDeleteRuleset: (id: string) => Promise<void>;
     channelMap?: Record<string, string>;

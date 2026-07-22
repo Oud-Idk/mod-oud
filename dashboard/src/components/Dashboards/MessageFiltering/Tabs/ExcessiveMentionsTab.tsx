@@ -1,4 +1,4 @@
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
 import { NumberInput } from "@/components/Inputs/NumberInput";
@@ -16,9 +16,9 @@ export function ExcessiveMentionsTab({
     roleMap,
     handleChange,
 }: ExcessiveMentionsTabProp) {
-    const filterConfig = config.excessive_mentions;
+    const filterConfig = config.excessiveMentions;
 
-    const updateFilter = createFilterUpdater(config, handleChange, "excessive_mentions");
+    const updateFilter = createFilterUpdater(config, handleChange, "excessiveMentions");
 
     return (
         <FilterLayoutWrapper
@@ -29,8 +29,8 @@ export function ExcessiveMentionsTab({
             toggleText="Enable Excessive Mentions Filter"
         >
             <NumberInput
-                value={filterConfig.max_mentions}
-                onChange={(v) => updateFilter({ max_mentions: v })}
+                value={filterConfig.maxMentions}
+                onChange={(v) => updateFilter({ maxMentions: v })}
                 label="Maximum Absolute Mentions per Message"
             />
         </FilterLayoutWrapper>

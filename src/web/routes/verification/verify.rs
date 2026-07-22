@@ -1,13 +1,15 @@
 use crate::core::config::get_settings;
-use crate::utils::verification::verify_sig;
+use crate::types::config::welcome::CaptchaType;
+use crate::utils::verification::{verify_hcaptcha_token, verify_sig};
 use crate::WebState;
-use axum::extract::State;
-use axum::http::StatusCode;
+use axum::extract::{ConnectInfo, State};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::Deserialize;
 use serenity::all::{GuildId, RoleId, UserId};
 use std::env;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::{debug, error};
 use tracing::{info, warn};
@@ -18,7 +20,10 @@ pub struct VerifyRequestPayload {
     guild_id_str: String,
     expires: u64,
     sig: String,
-    turnstile_token: String,
+    access_token: Option<String>,
+
+    captcha_token: String,
+    captcha_type: CaptchaType,
 }
 
 #[derive(Deserialize, Debug)]
@@ -28,58 +33,128 @@ struct CloudflareResponse {
     error_codes: Option<Vec<String>>,
 }
 
+#[derive(Deserialize)]
+struct DiscordUser {
+    id: String,
+}
+
 pub async fn handle_verify(
-    State(state): State<Arc<WebState>>, Json(payload): Json<VerifyRequestPayload>,
+    State(state): State<Arc<WebState>>,
+    headers: HeaderMap,
+    Json(payload): Json<VerifyRequestPayload>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let Some(shared_secret) = state.shared_secret.as_deref() else {
-        error!("VERIFICATION_SECRET environment variable is not set!");
+    let guild_id_str = &payload.guild_id_str;
+    let guild_id_u64 = guild_id_str.parse::<u64>()
+        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string()))?;
 
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Server configuration error. Please contact an administrator.".to_string()
-        ));
-    };
+    let client_ip = headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "127.0.0.1".to_string());
 
-    let Some(cf_secret_key) = state.cf_secret_key.as_deref() else {
-        error!("TURNSTILE_SECRET environment variable is not set!");
 
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Server configuration error. Please contact an administrator.".to_string()
-        ))
-    };
+    let (shared_secret, cf_secret_key, hc_secret_key, hc_site_key) = get_secrets(&state)?;
 
     debug!(user_id = payload.user_id_str, "Verifying user with payload {:?}", payload);
 
     if !verify_sig(
-        &payload.user_id_str, &payload.guild_id_str, payload.expires, &payload.sig, shared_secret.as_bytes()
+        &payload.user_id_str, guild_id_str, payload.expires, &payload.sig, shared_secret.as_bytes()
     ) {
         info!(user_id = payload.user_id_str, "User failed to verify!");
         return Err((StatusCode::BAD_REQUEST, "Invalid or expired link.".to_string()));
     }
 
-    let cf_verify_result = state.req_client
-        .post("https://challenges.cloudflare.com/turnstile/v0/siteverify")
-        .form(&[
-            ("secret", cf_secret_key),
-            ("response", payload.turnstile_token.as_str()),
-        ]).send().await;
+    let settings = get_settings(&state.db, &state.redis, &state.guild_configs, guild_id_u64 as i64).await
+        .inspect_err(|e| warn!(error = ?e, "Failed to get settings!"))
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Couldn't get settings.".to_string()))?;
 
-    match cf_verify_result {
-        Ok(response) => {
-            let cf_response: CloudflareResponse = response.json().await.unwrap_or(CloudflareResponse {
-                success: false,
-                error_codes: None,
-            });
+    let maybe_verification = settings.welcome
+        .as_ref()
+        .and_then(|w| w.verification.as_ref());
 
-            if !cf_response.success {
-                warn!("Turnstile rejected token. Errors: {:?}", cf_response.error_codes);
-                return Err((StatusCode::BAD_REQUEST, "Turnstile verification failed.".to_string()));
+    let captcha_type = maybe_verification.and_then(
+        |t| t.captcha_type.as_ref()
+    );
+
+    if Some(&payload.captcha_type) != captcha_type {
+        warn!("Captcha type does not match! Expected {:?}, got {:?}", Some(&payload.captcha_type), &captcha_type);
+        return Err((StatusCode::BAD_REQUEST, "Captcha type does not match.".to_string()));
+    }
+
+    let use_auth = maybe_verification
+        .and_then(|v| v.use_oauth)
+        .unwrap_or(false);
+
+    if use_auth {
+        let Some(token) = &payload.access_token else {
+            debug!(use_auth, user_id = payload.user_id_str, "User tried to verify without authentication");
+            return Err((StatusCode::UNAUTHORIZED, "Discord authentication required.".to_string()));
+        };
+
+        let discord_res = state.req_client
+            .get("https://discord.com/api/users/@me")
+            .bearer_auth(token)
+            .send()
+            .await;
+
+        match discord_res {
+            Ok(resp) if resp.status().is_success() => {
+                let discord_user: DiscordUser = resp.json().await
+                    .map_err(|e| {
+                        warn!(error = ?e, "Failed to parse Discord user JSON");
+                        (StatusCode::INTERNAL_SERVER_ERROR, "Discord API error".to_string())
+                    })?;
+                if discord_user.id != payload.user_id_str {
+                    warn!("User ID mismatch! URL ID: {}, Auth ID: {}", payload.user_id_str, discord_user.id);
+                    return Err((StatusCode::FORBIDDEN, "You logged into the wrong Discord account!".to_string()));
+                }
+            }
+            _ => {
+                return Err((StatusCode::UNAUTHORIZED, "Invalid or expired Discord session. Please log in again.".to_string()));
             }
         }
-        Err(e) => {
-            warn!(error = ?e, "Cannot connect to Cloudflare");
-            return Err((StatusCode::INTERNAL_SERVER_ERROR, "Failed to connect to Cloudflare.".to_string()));
+    }
+
+
+    match payload.captcha_type {
+        CaptchaType::Turnstile => {
+            let cf_verify_result = state.req_client
+                .post("https://challenges.cloudflare.com/turnstile/v0/siteverify")
+                .form(&[
+                    ("secret", cf_secret_key),
+                    ("response", payload.captcha_token.as_str()),
+                ]).send().await;
+
+            match cf_verify_result {
+                Ok(response) => {
+                    let cf_response: CloudflareResponse = response.json().await.unwrap_or(CloudflareResponse {
+                        success: false,
+                        error_codes: None,
+                    });
+
+                    if !cf_response.success {
+                        debug!(errors = ? cf_response.error_codes, "Turnstile rejected token");
+                        return Err((StatusCode::BAD_REQUEST, "Turnstile verification failed.".to_string()));
+                    }
+                }
+                Err(e) => {
+                    warn!(error = ? e, "Cannot connect to Cloudflare");
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, "Failed to connect to Cloudflare.".to_string()));
+                }
+            }
+        }
+        CaptchaType::HCaptcha => {
+            let (verified, reject_reasons) = verify_hcaptcha_token(&payload.captcha_token, &client_ip, &state.req_client, hc_secret_key, hc_site_key).await
+                .inspect_err(|e| warn!(error = ?e, "Failed to verify using hCaptcha"))
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to verify using hCaptcha.".to_string()))?;
+
+            if !verified {
+                debug!(user_id = payload.user_id_str, reject_reasons = ?reject_reasons, "Captcha failed");
+                return Err((StatusCode::BAD_REQUEST, "hCaptcha verification failed.".to_string()));
+            }
         }
     }
 
@@ -87,23 +162,12 @@ pub async fn handle_verify(
 
     // User has verified. Add role
     // I will put the getters after the verification to save HTTP requests.
-    let db = &state.db;
-    let redis = &state.redis;
-    let cache = &state.guild_configs;
-    let guild_id_u64 = payload.guild_id_str.parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, guild_id_str = payload.guild_id_str, "Failed to parse guild ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string()))?;
     let user_id_u64 = payload.user_id_str.parse::<u64>()
         .inspect_err(|e| warn!(error = ?e, user_id_str = payload.user_id_str, "Failed to parse user ID"))
         .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid user ID".to_string()))?;
 
-    let settings = get_settings(db, redis, cache, guild_id_u64 as i64).await
-        .inspect_err(|e| warn!(error = ?e, "Failed to get guild config"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch config".to_string()))?;
-
-    let Some(role_id_string) = settings.welcome
-        .and_then(|w| w.verification)
-        .and_then(|v| v.verification_role_id)
+    let Some(role_id_string) = maybe_verification
+        .and_then(|v| v.verification_role_id.as_deref())
     else {
         warn!("Endpoint is fetched, but verification Role ID is empty");
         return Err((StatusCode::INTERNAL_SERVER_ERROR, "Verification Role ID is empty".to_string()));
@@ -132,4 +196,43 @@ pub async fn handle_verify(
     info!(user_id = payload.user_id_str, role_id = role_id_u64, "Added role to user");
 
     Ok(StatusCode::OK)
+}
+
+fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (StatusCode, String)> {
+    let Some(shared_secret) = state.shared_secret.as_deref() else {
+        error!("VERIFICATION_SECRET environment variable is not set!");
+
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Server configuration error. Please contact an administrator.".to_string()
+        ));
+    };
+
+    let Some(cf_secret_key) = state.cf_secret_key.as_deref() else {
+        error!("TURNSTILE_SECRET environment variable is not set!");
+
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Server configuration error. Please contact an administrator.".to_string()
+        ))
+    };
+
+    let Some(hc_secret_key) = state.hc_secret_key.as_deref() else {
+        error!("HCAPTCHA_SECRET environment variable is not set!");
+
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Server configuration error. Please contact an administrator.".to_string()
+        ))
+    };
+
+    let Some(hc_site_key) = state.hc_site_key.as_deref() else {
+        error!("HCAPTCHA_SITE_KEY environment variable is not set!");
+
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Server configuration error. Please contact an administrator.".to_string()
+        ))
+    };
+    Ok((shared_secret, cf_secret_key, hc_secret_key, hc_site_key))
 }

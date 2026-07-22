@@ -4,20 +4,7 @@ import { useState } from "react";
 import { LogViewer } from "./LogViewer";
 import { Modal } from "@/components/Modal";
 import Image from "next/image";
-
-interface DeletedMessage {
-    id: number;
-    message_id: string;
-    author_id: string;
-    author_name: string;
-    channel_id: string;
-    guild_id: string;
-    content: string;
-    attachment_url: string;
-    deleted_at: string;
-    deleted_by_name?: string;
-    deleted_by_id?: string;
-}
+import { DeletedMessage } from "@/types/db/deletedEditedMessages";
 
 interface DeletedMessageLogViewerProps {
     sseUrl: string;

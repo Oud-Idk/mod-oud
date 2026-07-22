@@ -40,7 +40,7 @@ export function LogViewer<T extends { id: number }>({
                 </div>
                 <span
                     className={`text-sm px-1 py-0.5 rounded text-white ${
-                        status === "connected" ? "bg-green-500" : "bg-red-500"
+                        status === "CONNECTED" ? "bg-green-500" : "bg-red-500"
                     }`}
                 >
                     {status}

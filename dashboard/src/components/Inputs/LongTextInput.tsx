@@ -2,7 +2,7 @@ import React, { ChangeEvent } from "react";
 import { twMerge } from "tailwind-merge";
 
 interface LongTextInputProps {
-    name: string;
+    name?: string;
     onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
     placeholder?: string;
     value: string;

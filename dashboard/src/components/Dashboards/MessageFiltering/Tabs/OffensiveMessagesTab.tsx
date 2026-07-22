@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Dropdown, DropdownOption } from "@/components/Inputs/Dropdown";
-import { MessageFilteringConfig } from "@/types/config/messageFiltering";
+import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { FilterLayoutWrapper } from "@/components/Dashboards/MessageFiltering/FilterLayoutWrapper";
 import { createFilterUpdater } from "@/types";
 import Link from "next/link";
+import { FlagThreshold } from "@/types/db";
 
 interface OffensiveMessagesTabProps {
     config: MessageFilteringConfig;
@@ -12,26 +13,24 @@ interface OffensiveMessagesTabProps {
     roleMap?: Record<string, string>;
 }
 
-type ThresholdOption = "MILD" | "MODERATE" | "SEVERE";
-
 export function OffensiveMessagesTab({
     config,
     handleChange,
     channelMap,
     roleMap,
 }: OffensiveMessagesTabProps) {
-    const filterConfig = config.offensive_messages;
-    const [selected, setSelected] = useState<ThresholdOption>(filterConfig.flag_threshold);
+    const filterConfig = config.offensiveMessages;
+    const [selected, setSelected] = useState<FlagThreshold>(filterConfig.flagThreshold);
 
-    const updateFilter = createFilterUpdater(config, handleChange, "offensive_messages");
+    const updateFilter = createFilterUpdater(config, handleChange, "offensiveMessages");
 
     const handleThresholdChange = (v: string) => {
-        const val = v as ThresholdOption;
+        const val = v as FlagThreshold;
         setSelected(val);
-        updateFilter({ flag_threshold: val });
+        updateFilter({ flagThreshold: val });
     };
 
-    const options: DropdownOption[] = [
+    const options: DropdownOption<FlagThreshold>[] = [
         { value: "MILD", label: "Mild" },
         { value: "MODERATE", label: "Moderate" },
         { value: "SEVERE", label: "Severe" },

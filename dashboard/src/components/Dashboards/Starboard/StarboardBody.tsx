@@ -2,12 +2,12 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { StarboardConfig as StarboardConfigType, StarboardConfigInput } from "@/types/config/starboard";
 import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfig } from "./StarboardConfig";
 import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayout";
 import { useConfigForm } from "@/hooks/useConfigForm";
 import PrimaryButton from "@/components/Inputs/Buttons/PrimaryButton";
+import { StarboardConfig as StarboardConfigType, StarboardConfigInput } from "@/types/db/starboard";
 
 interface StarboardBodyProps {
     starboardConfigs: StarboardConfigType[];

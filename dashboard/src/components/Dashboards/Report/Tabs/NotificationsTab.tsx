@@ -1,12 +1,12 @@
 import React, { Dispatch, SetStateAction } from "react";
-import { ReportConfig } from "@/types/config";
+import { ReportConfig } from "@/types/db/config";
 import { TabItem, Tabs } from "@/components/Layout/Tabs";
 import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEditor";
 import { BuilderConfig } from "@/types/builder";
 
 interface NotificationsTabProps {
-    activeDmTab: "resolved_dm" | "dismissed_dm";
-    setActiveDmTab: Dispatch<SetStateAction<"resolved_dm" | "dismissed_dm">>;
+    activeDmTab: ReportTabValue; // Keep using SCREAMING_SNAKE_CASE!
+    setActiveDmTab: Dispatch<SetStateAction<ReportTabValue>>;
     config: ReportConfig;
     handleChange: (updated: Partial<ReportConfig> | ReportConfig) => void;
     isPending: boolean;
@@ -14,18 +14,17 @@ interface NotificationsTabProps {
     setIsEmpty: Dispatch<SetStateAction<boolean>>;
 }
 
+export type ReportTabValue = "resolvedDm" | "dismissedDm";
+
 const REPORT_PLACEHOLDER_TEXTS: Record<ReportTabValue, string> = {
-    resolved_dm: "Your report regarding message ID {report.id} has been reviewed and action has been taken. Thank you for helping keep the server safe!",
-    dismissed_dm: "Your report regarding message ID {report.id} has been reviewed and dismissed.",
+    resolvedDm: "Your report regarding message ID {report.id} has been reviewed and action has been taken. Thank you for helping keep the server safe!",
+    dismissedDm: "Your report regarding message ID {report.id} has been reviewed and dismissed.",
 };
 
-
 const REPORT_DM_TABS: TabItem<ReportTabValue>[] = [
-    { value: "resolved_dm", label: "Report Actioned" },
-    { value: "dismissed_dm", label: "Report Dismissed" },
+    { value: "resolvedDm", label: "Report Actioned" },
+    { value: "dismissedDm", label: "Report Dismissed" },
 ];
-
-export type ReportTabValue = "resolved_dm" | "dismissed_dm";
 
 const REPORT_PLACEHOLDER_METADATA = [
     {
@@ -51,13 +50,13 @@ const REPORT_PLACEHOLDER_METADATA = [
 ];
 
 export const REPORT_DM_CONFIGS: Record<ReportTabValue, BuilderConfig> = {
-    resolved_dm: {
+    resolvedDm: {
         id: "report_resolved",
         name: "Report Actioned",
         description: "Sent to the reporting user when a moderator takes action on their report.",
         placeholders: REPORT_PLACEHOLDER_METADATA,
     },
-    dismissed_dm: {
+    dismissedDm: {
         id: "report_dismissed",
         name: "Report Dismissed",
         description: "Sent to the reporting user when a moderator reviews and dismisses their report.",
@@ -108,10 +107,10 @@ export function NotificationsTab({
                     })
                 }
                 disabled={isPending}
-                toggleLabel={`Enable DM when Report is ${activeDmTab === "resolved_dm" ? "Actioned" : "Dismissed"}`}
+                toggleLabel={`Enable DM when Report is ${activeDmTab === "resolvedDm" ? "Actioned" : "Dismissed"}`}
                 embedTemplateConfig={REPORT_DM_CONFIGS[activeDmTab]}
                 resetKey={`${resetKey}_${activeDmTab}`}
-                modeLabel={`Message Mode (${activeDmTab === "resolved_dm" ? "Actioned" : "Dismissed"})`}
+                modeLabel={`Message Mode (${activeDmTab === "resolvedDm" ? "Actioned" : "Dismissed"})`}
                 placeholderText={REPORT_PLACEHOLDER_TEXTS[activeDmTab]}
                 setIsEmpty={setIsEmpty}
                 noChannels

@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ReminderRow, SaveableReminder } from "@/utils/db/reminder";
 import { ConfigListLayout } from "@/components/Dashboards/General/ConfigListLayout";
 import { ReminderCreateModal } from "./ReminderCreateModal";
 import { ReminderConfig } from "./ReminderConfig";
 import { useConfigForm } from "@/hooks/useConfigForm";
+import { ReminderRow, SaveableReminder } from "@/types/db/reminder";
 
 interface RemindersBodyProps {
     reminders: ReminderRow[];
@@ -69,9 +69,9 @@ export function RemindersBody({
                     const isCurrent = activeReminder?.id === reminder.id;
                     const channelName = channelMap[reminder.channelId] || `#${reminder.channelId}`;
 
-                    const typeLabel = reminder.rType === "recurring" ? "Recurring" : "Single";
+                    const typeLabel = reminder.rType === "RECURRING" ? "Recurring" : "Single";
                     let scheduleText = "";
-                    if (reminder.rType === "recurring") {
+                    if (reminder.rType === "RECURRING") {
                         if (reminder.daysOfWeek && reminder.daysOfWeek.length > 0) {
                             const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                             scheduleText = reminder.daysOfWeek.map(d => days[d]).join(", ");

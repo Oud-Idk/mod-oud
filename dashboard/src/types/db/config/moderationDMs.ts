@@ -1,10 +1,11 @@
 import { DiscordEmbed } from "@/types/embed";
+import { Format } from "@/types/db";
 
 export interface DMTemplateSetting {
     enabled: boolean;
     content: string;
     embed: DiscordEmbed;
-    format: "embed" | "text";
+    format: Format;
 }
 
 export interface ModerationDMsConfig {
@@ -17,4 +18,5 @@ export interface ModerationDMsConfig {
     kick: DMTemplateSetting;
     ban: DMTemplateSetting;
     softban: DMTemplateSetting;
+    honeypot: DMTemplateSetting;
 }

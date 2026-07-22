@@ -1,4 +1,5 @@
 import { DiscordEmbed } from "@/types/embed";
+import { RestrictionType } from "@/types/db/index";
 
 export interface StarboardConfig {
     id: string;
@@ -11,9 +12,9 @@ export interface StarboardConfig {
     prevent_self_star: boolean;
     allow_bot_messages: boolean;
     keep_deleted_messages: boolean;
-    role_restriction_type: 'none' | 'all_except' | 'only_these';
+    role_restriction_type: RestrictionType;
     restricted_roles: string[];
-    channel_restriction_type: 'none' | 'all_except' | 'only_these';
+    channel_restriction_type: RestrictionType;
     restricted_channels: string[];
     created_at?: Date;
     updated_at?: Date;

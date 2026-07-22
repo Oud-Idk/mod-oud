@@ -18,16 +18,14 @@ pub async fn insert_warning(
 ) -> Result<Option<i64>, sqlx::Error> {
     let row = sqlx::query!(
         r#"
-        INSERT INTO warns (guild_id, user_id, moderator_id, reason, moderator_name, user_name)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO warns (guild_id, user_id, moderator_id, reason)
+        VALUES ($1, $2, $3, $4)
         RETURNING id
         "#,
         guild_id,
         user_id,
         moderator_id,
         reason,
-        moderator_name,
-        user_name,
     )
         .fetch_optional(db)
         .await?;
@@ -55,8 +53,8 @@ pub async fn insert_automod_log<'a>(
 
     sqlx::query!(
         r#"
-        INSERT INTO automod_logs (guild_id, user_id, channel_id, message_id, rule_type, trigger_content, original_content, actions_taken, username)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO automod_logs (guild_id, user_id, channel_id, message_id, rule_type, trigger_content, original_content, actions_taken)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
         guild_id,
         user_id,
@@ -66,7 +64,6 @@ pub async fn insert_automod_log<'a>(
         trigger_content,
         original_content,
         &actions_vec,
-        username,
     )
         .execute(db)
         .await?;

@@ -1,8 +1,8 @@
-import { ReactionMessage } from "@/utils/db/reactionRoles";
 import React, { useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { TextInput } from "@/components/Inputs/TextInput";
+import { ReactionMessage } from "@/types/db/reactionRole";
 
 interface ReactionRoleCreateModalProps {
     isOpen: boolean;

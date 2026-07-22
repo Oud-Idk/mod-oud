@@ -29,11 +29,11 @@ pub struct WarnThreshold {
     pub duration: Option<i32>,
 }
 
-pub async fn log_warning(db: &PgPool, guild_id: GuildId, user_id: UserId, moderator_id: UserId, reason: &str, moderator_username: &str, target_username: &str) -> Result<(), Error> {
+pub async fn log_warning(db: &PgPool, guild_id: GuildId, user_id: UserId, moderator_id: UserId, reason: &str) -> Result<(), Error> {
     sqlx::query!(
         r#"
-        INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration, moderator_username, target_username)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration)
+        VALUES ($1, $2, $3, $4, $5, $6)
         "#,
         guild_id.get() as i64,
         user_id.get() as i64,
@@ -41,8 +41,6 @@ pub async fn log_warning(db: &PgPool, guild_id: GuildId, user_id: UserId, modera
         "warn",
         reason,
         None::<PgInterval>,
-        moderator_username,
-        target_username,
     )
         .execute(db)
         .await?;
@@ -55,14 +53,12 @@ pub async fn insert_warn(
     user_id: UserId,
     moderator_id: UserId,
     reason: &str,
-    moderator_username: &str,
-    target_username: &str
 ) -> Result<(i64, i32), sqlx::Error> {
     let res = sqlx::query!(
         r#"
         WITH inserted AS (
-            INSERT INTO warns (guild_id, user_id, moderator_id, reason, moderator_name, user_name)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO warns (guild_id, user_id, moderator_id, reason)
+            VALUES ($1, $2, $3, $4)
             RETURNING id
         )
         SELECT
@@ -74,8 +70,6 @@ pub async fn insert_warn(
         user_id.get() as i64,
         moderator_id.get() as i64,
         reason,
-        moderator_username,
-        target_username,
     )
         .fetch_one(db)
         .await?;

@@ -1,10 +1,11 @@
 import { JSX } from "react";
+import { Format } from "@/types/db";
 
 interface MessageModeSelectorProps {
-    format: "text" | "embed";
+    format: Format;
     label?: string; // Accepts any custom label string (e.g., "Message Mode", "Message Mode (Public)")
     disabled?: boolean;
-    onChange: (format: "text" | "embed") => void;
+    onChange: (format: Format) => void;
 }
 
 export function MessageModeSelector({
@@ -22,9 +23,9 @@ export function MessageModeSelector({
                 <button
                     type="button"
                     disabled={disabled}
-                    onClick={() => onChange("text")}
+                    onClick={() => onChange("TEXT")}
                     className={`px-3 py-1.5 rounded text-xs font-semibold transition select-none ${
-                        format === "text"
+                        format === "TEXT"
                             ? "dark:bg-neutral-800 bg-neutral-200"
                             : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
                     }`}
@@ -34,9 +35,9 @@ export function MessageModeSelector({
                 <button
                     type="button"
                     disabled={disabled}
-                    onClick={() => onChange("embed")}
+                    onClick={() => onChange("EMBED")}
                     className={`px-3 py-1.5 rounded text-xs font-semibold transition select-none ${
-                        format === "embed"
+                        format === "EMBED"
                             ? "dark:bg-neutral-800 bg-neutral-200"
                             : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
                     }`}

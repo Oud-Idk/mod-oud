@@ -1,8 +1,8 @@
 use crate::events::handlers::temp_voice::interface;
-use crate::events::handlers::temp_voice::interface::preflight_button_check;
 use crate::events::handlers::temp_voice::interface::utils::create_ephemeral_msg;
 use crate::events::handlers::tickets;
 use crate::types::{Data, Error};
+use crate::utils::store_username_relation;
 use crate::utils::verification::generate_verification_link;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ComponentInteractionDataKind, Interaction};
@@ -15,7 +15,10 @@ pub async fn on_interact(
 ) -> Result<(), Error> {
     match interaction {
         Interaction::Component(component) => {
+            // TODO add button reaction roles here
             debug!(id = component.data.custom_id.as_str(), "Got component interaction");
+
+            store_username_relation(&data.db, &data.redis, component.user.id.get(), &component.user.name).await?;
 
             match component.data.custom_id.as_str() {
                 "open_ticket" => tickets::on_open_ticket(ctx, component, data).await?,

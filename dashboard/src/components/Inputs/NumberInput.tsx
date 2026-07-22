@@ -1,10 +1,10 @@
-import { Field, Label } from "@headlessui/react";
+import { Button, Field, Input, Label } from "@headlessui/react";
 import React from "react";
 import { twMerge } from "tailwind-merge";
 
 interface NumberInputProps {
-    value: number | "";
-    onChange: (value: number | "") => void;
+    value: number | undefined | null; // Accepts undefined or null from DB/parent
+    onChange: (value: number | undefined) => void; // Emits number or undefined
     min?: number;
     max?: number;
     step?: number;
@@ -27,15 +27,21 @@ export function NumberInput({
     required = true,
     placeholder = "",
 }: NumberInputProps) {
+    // Helper to check if the value is empty
+    const isEmpty = value === undefined || value === null;
+
+    // The raw string value used purely by the HTML input element
+    const displayValue = isEmpty ? "" : value;
+
     const increment = () => {
         if (disabled) return;
-        const currentValue = value === "" ? min : value;
+        const currentValue = isEmpty ? min : value;
         onChange(Math.min(max, currentValue + step));
     };
 
     const decrement = () => {
         if (disabled) return;
-        const currentValue = value === "" ? min : value;
+        const currentValue = isEmpty ? min : value;
         onChange(Math.max(min, currentValue - step));
     };
 
@@ -44,7 +50,7 @@ export function NumberInput({
 
         const rawValue = e.target.value;
         if (rawValue === "") {
-            onChange("");
+            onChange(undefined); // Emit undefined back to parent
             return;
         }
 
@@ -56,7 +62,7 @@ export function NumberInput({
 
     const handleBlur = () => {
         if (disabled) return;
-        if (value === "") return; // Allow empty state so the browser's required validation can trigger
+        if (isEmpty) return; // Allow empty state so the browser's required validation can trigger
 
         if (value < min) onChange(min);
         if (value > max) onChange(max);
@@ -76,21 +82,21 @@ export function NumberInput({
                     disabled ? "opacity-50 cursor-not-allowed" : ""
                 }`, className)}
             >
-                <button
+                <Button
                     type="button"
                     onClick={decrement}
-                    disabled={disabled || (value !== "" && value <= min)}
+                    disabled={disabled || (!isEmpty && value <= min)}
                     className="px-3 py-2 hover:bg-neutral-300/30 disabled:opacity-50 disabled:hover:bg-transparent transition-colors border-r border-neutral-500 font-medium select-none cursor-pointer"
                 >
                     &minus;
-                </button>
+                </Button>
 
-                <input
+                <Input
                     type="number"
                     min={min}
                     max={max}
                     step={step}
-                    value={value}
+                    value={displayValue}
                     onChange={handleInputChange}
                     onBlur={handleBlur}
                     disabled={disabled}
@@ -99,14 +105,14 @@ export function NumberInput({
                     className="w-full text-center bg-transparent border-0 py-2 focus:outline-0 dark:text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:cursor-not-allowed"
                 />
 
-                <button
+                <Button
                     type="button"
                     onClick={increment}
-                    disabled={disabled || (value !== "" && value >= max)}
+                    disabled={disabled || (!isEmpty && value >= max)}
                     className="px-3 py-2 hover:bg-neutral-300/15 disabled:opacity-50 disabled:hover:bg-transparent transition-colors border-l border-neutral-500 font-medium select-none cursor-pointer"
                 >
                     +
-                </button>
+                </Button>
             </div>
         </Field>
     );

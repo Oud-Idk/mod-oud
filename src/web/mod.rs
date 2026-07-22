@@ -8,6 +8,7 @@ use crate::web::routes::create_temp_voice::handle_create_temp_category_and_hub;
 use crate::web::routes::delete_entire_category::handle_delete_entire_category;
 use crate::web::routes::send_embed::handle_send_custom_embed;
 use crate::web::routes::send_voice_interface::handle_send_temp_voice_interface;
+use crate::web::routes::setup_honeypot_channel::setup_honeypot_channel;
 use crate::web::routes::tickets_delete::handle_delete_ticket_message;
 use crate::web::routes::tickets_send::handle_send_ticket_message;
 use crate::web::routes::verification::undo_verify::handle_verification_teardown;
@@ -109,6 +110,8 @@ pub async fn start_web_server(
     let reqwest_client = reqwest::Client::new();
     let shared_secret = env::var("VERIFICATION_SECRET").ok();
     let cf_secret_key = env::var("TURNSTILE_SECRET").ok();
+    let hc_secret_key = env::var("HCAPTCHA_SECRET").ok();
+    let hc_site_key = env::var("HCAPTCHA_SITE_KEY").ok();
 
     let shared_state = Arc::new(WebState {
         tx,
@@ -119,6 +122,8 @@ pub async fn start_web_server(
         req_client: reqwest_client,
         shared_secret,
         cf_secret_key,
+        hc_secret_key,
+        hc_site_key
     });
 
     let app = Router::new()
@@ -168,6 +173,10 @@ pub async fn start_web_server(
         .route(
             "/api/guilds/{guild_id}/verification",
             axum::routing::delete(handle_verification_teardown),
+        )
+        .route(
+            "/api/guilds/{guild_id}/honeypot",
+            axum::routing::post(setup_honeypot_channel),
         )
         .route(
             "/api/verify",

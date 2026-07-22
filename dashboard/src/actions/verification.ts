@@ -4,8 +4,9 @@ import { verifyGuildAccess } from "@/actions/config";
 import { invalidateGuildChannelCache } from "@/utils/discord";
 import { getWelcomeConfig, saveWelcomeConfig } from "@/utils/db/config";
 import { revalidatePath } from "next/cache";
-import { WelcomeConfig } from "@/types/config/welcome";
+import { WelcomeConfig } from "@/types/db/config/welcome";
 import { DiscordEmbed } from "@/types/embed";
+import { Format } from "@/types/db";
 
 export interface SetupVerificationResponse {
     success: boolean;
@@ -17,7 +18,7 @@ export interface SetupVerificationResponse {
 
 export async function setupVerificationAction(
     guildId: string,
-    payload: { content?: string; embed?: DiscordEmbed; format: "embed" | "text" }
+    payload: { content?: string; embed?: DiscordEmbed; format: Format }
 ): Promise<SetupVerificationResponse> {
     try {
         await verifyGuildAccess(guildId);
@@ -25,7 +26,7 @@ export async function setupVerificationAction(
         const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
 
         let parsedEmbed = null;
-        if (payload.format === "embed" && payload.embed) {
+        if (payload.format === "EMBED" && payload.embed) {
             try {
                 parsedEmbed = typeof payload.embed === "string" ? JSON.parse(payload.embed) : payload.embed;
             } catch (err) {
@@ -70,9 +71,9 @@ export async function setupVerificationAction(
             verification: {
                 ...currentConfig.verification,
                 enabled: true,
-                verification_message_id: data.verification_message_id,
-                verification_channel_id: data.verification_channel_id,
-                verification_role_id: data.verification_role_id,
+                verificationMessageId: data.verification_message_id,
+                verificationChannelId: data.verification_channel_id,
+                verificationRoleId: data.verification_role_id,
                 content: payload.content || currentConfig.verification.content,
                 embed: payload.embed || currentConfig.verification.embed,
                 format: payload.format,
@@ -137,9 +138,9 @@ export async function teardownVerificationAction(
             verification: {
                 ...currentConfig.verification,
                 enabled: false,
-                verification_message_id: "",
-                verification_channel_id: "",
-                verification_role_id: "",
+                verificationMessageId: "",
+                verificationChannelId: "",
+                verificationRoleId: "",
             }
         };
 

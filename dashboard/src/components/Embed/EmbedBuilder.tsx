@@ -7,6 +7,7 @@ import { Embed } from "@/components/Embed/Embed";
 import { EmbedBuilderForm } from "@/components/Embed/EmbedBuilderForm";
 import { PlaceholderList } from "@/components/Embed/PlaceholderList";
 import { hexToDecimal, parseSavedEmbed } from "@/utils/embed";
+import { FieldKey } from "@/types";
 
 interface Props {
     config: BuilderConfig;
@@ -101,7 +102,7 @@ export default function EmbedBuilder({
         setEmbedState(convertToDiscordEmbed(updated));
     };
 
-    const handleFieldChange = (index: number, key: "name" | "value" | "inline", value: string | boolean) => {
+    const handleFieldChange = (index: number, key: FieldKey, value: string | boolean) => {
         const updatedFields = [...(embed.fields || [])];
         updatedFields[index] = { ...updatedFields[index], [key]: value };
         const updated = { ...embed, fields: updatedFields };

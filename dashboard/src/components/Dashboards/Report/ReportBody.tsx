@@ -1,8 +1,7 @@
 "use client";
 
-import { ReportConfig } from "@/types/config";
+import { ReportConfig } from "@/types/db/config";
 import { DiscordChannel } from "@/types";
-import { ReportedMessage } from "@/types/reports";
 import React, { useMemo, useState } from "react";
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
@@ -17,6 +16,7 @@ import { Modal } from "@/components/Modal";
 import { HistoryTab } from "@/components/Dashboards/Report/Tabs/HistoryTab";
 import { NotificationsTab, ReportTabValue } from "@/components/Dashboards/Report/Tabs/NotificationsTab";
 import { TabItem, Tabs } from "@/components/Layout/Tabs";
+import { ReportedMessage, ViewTicketStatus } from "@/types/db";
 
 interface ReportBodyConfig {
     reportConfig: ReportConfig;
@@ -26,11 +26,11 @@ interface ReportBodyConfig {
     onSave: (config: ReportConfig) => Promise<void>;
 }
 
-export type ReportMainTab = "history" | "notifications";
+export type ReportMainTab = "HISTORY" | "NOTIFICATIONS";
 
 const MAIN_REPORT_TABS: TabItem<ReportMainTab>[] = [
-    { value: "history", label: "Report History" },
-    { value: "notifications", label: "Reporter Notifications" },
+    { value: "HISTORY", label: "Report History" },
+    { value: "NOTIFICATIONS", label: "Reporter Notifications" },
 ];
 
 export function ReportBody({
@@ -57,11 +57,11 @@ export function ReportBody({
     });
 
     const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
-    const [statusFilter, setStatusFilter] = useState<"all" | "opened" | "closed">("all");
-    const [activeDmTab, setActiveDmTab] = useState<ReportTabValue>("resolved_dm");
+    const [statusFilter, setStatusFilter] = useState<ViewTicketStatus>("OPEN");
+    const [activeDmTab, setActiveDmTab] = useState<ReportTabValue>("resolvedDm");
 
     // This state controls which main sub-tab is currently active
-    const [activeMainTab, setActiveMainTab] = useState<ReportMainTab>("history");
+    const [activeMainTab, setActiveMainTab] = useState<ReportMainTab>("HISTORY");
 
     const {
         deletingIds,
@@ -93,11 +93,11 @@ export function ReportBody({
     const filteredLogs = useMemo(() => {
         return logs.filter((log) => {
             const currentStatus = log.status?.toLowerCase();
-            if (statusFilter === "opened") {
-                return currentStatus === "under_review";
+            if (statusFilter === "OPEN") {
+                return currentStatus === "UNDER_REVIEW";
             }
-            if (statusFilter === "closed") {
-                return currentStatus === "actioned" || currentStatus === "dismissed";
+            if (statusFilter === "CLOSED") {
+                return currentStatus === "ACTIONED" || currentStatus === "DISMISSED";
             }
             return true;
         });
@@ -120,7 +120,7 @@ export function ReportBody({
             )}
 
             {/* Conditionally render the active tab view */}
-            {config.enabled && activeMainTab === "notifications" && (
+            {config.enabled && activeMainTab === "NOTIFICATIONS" && (
                 <NotificationsTab
                     activeDmTab={activeDmTab}
                     setActiveDmTab={setActiveDmTab}
@@ -132,7 +132,7 @@ export function ReportBody({
                 />
             )}
 
-            {config.enabled && activeMainTab === "history" && (
+            {config.enabled && activeMainTab === "HISTORY" && (
                 <HistoryTab
                     status={status}
                     setStatusFilter={setStatusFilter}

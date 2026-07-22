@@ -4,18 +4,8 @@ import redis from "@/utils/init/redis";
 import { db } from "@/utils/init/db";
 import { QueryResult } from "pg";
 import { revalidatePath } from "next/cache";
-
-export interface Warn {
-    id: string;
-    user_id: string;
-    user_name: string,
-    guild_id: string;
-    moderator_id: string;
-    moderator_name: string,
-    reason: string;
-    created_at: Date;
-    isActive: boolean;
-}
+import { Warn, WarnThreshold } from "@/types/db";
+import { ModerationAction } from "@/types";
 
 export async function searchWarns(guild_id: string, user_id: string) {
     const query = `
@@ -28,18 +18,6 @@ export async function searchWarns(guild_id: string, user_id: string) {
     const res: QueryResult<Warn> = await db.query(query, [guild_id, user_id]);
 
     return res.rows;
-}
-
-export type ModerationAction = 'timeout' | 'kick' | 'ban' | 'role_remove' | 'role_add' | 'role_remove_all';
-
-export interface WarnThreshold {
-    id: number;
-    guild_id: string;
-    warn_count: number;
-    action_type: ModerationAction[];
-    roles_to_add?: string[];
-    roles_to_remove?: string[];
-    duration: number | null;
 }
 
 export async function saveWarnThresholdsAction(

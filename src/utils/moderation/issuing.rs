@@ -8,10 +8,12 @@ use crate::utils::logger::{log_moderation_action, ActionType};
 use crate::utils::moderation::database::{fetch_warn_thresholds, insert_warn, log_warning, WarnThreshold};
 use crate::utils::moderation::{actions, MODERATION_FOOTER};
 use crate::utils::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
+use crate::utils::store_username_relation;
 use crate::{fetch_mod_ctx, send_mod_dm};
 use chrono::TimeDelta;
 use duration_str::HumanFormat;
 use fred::clients::Client;
+use humantime::format_duration;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http, Timestamp, User, UserId};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -33,8 +35,10 @@ pub async fn issue_warning(
     target_username: &str,
 ) -> Result<i64, Error> {
     debug!("Inserting warning record into database");
+    store_username_relation(db, redis_conn, user_id.get(), target_username).await?;
+    store_username_relation(db, redis_conn, moderator_id.get(), moderator_username).await?;
 
-    let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason, moderator_username, target_username).await?;
+    let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason).await?;
 
     debug!(warn_id, warn_count, "Warning record inserted; logging action in moderation_logs");
     debug!(warn_id, "Retrieving moderation context");
@@ -58,7 +62,7 @@ pub async fn issue_warning(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
-    log_warning(db, guild_id, user_id, moderator_id, reason, moderator_username, target_username).await?;
+    log_warning(db, guild_id, user_id, moderator_id, reason).await?;
 
     let thresholds = fetch_warn_thresholds(&db, &redis_conn, &guild_id).await?;
     let applicable_thresholds = thresholds
@@ -85,6 +89,9 @@ pub async fn issue_kick(
     moderator: User,
     reason: &str,
 ) -> Result<(), Error> {
+    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
+    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
+
     debug!("Retrieving moderation context for kick");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -163,10 +170,13 @@ pub async fn issue_ban(
     duration: Option<Duration>,
     duration_label: &str,
 ) -> Result<(), Error> {
+    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
+    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
+
     debug!("Retrieving moderation context for ban");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
-
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
+    let duration_label = duration.map(|d| format_duration(d).to_string()).unwrap_or("Permanent".to_string());
 
     send_mod_dm!(
         http,
@@ -186,28 +196,36 @@ pub async fn issue_ban(
     debug!("Executing ban via Discord HTTP API");
     guild_id.ban_with_reason(http, user.id, dmd_time, reason).await?;
 
-    if let Some(dur) = duration {
-        debug!("Ban is scheduled; registering unban timeout in database");
-        let chrono_dur = chrono::Duration::from_std(dur)?;
-        let unban_at = chrono::Utc::now() + chrono_dur;
+    let mut dur: Option<TimeDelta> = None;
 
-        sqlx::query!(
+    if let Some(duration) = duration {
+        debug!("Ban is scheduled; registering unban timeout in database");
+
+        dur = Some(schedule_unban(db, guild_id, &user, duration).await?);
+    }
+
+    log_moderation_action(
+        db, guild_id, Some(&user), &moderator, Some(reason), "ban", dur
+    ).await?;
+
+
+    info!("Successfully banned user from guild");
+    Ok(())
+}
+
+pub async fn schedule_unban(db: &PgPool, guild_id: GuildId, user: &User, dur: Duration) -> Result<TimeDelta, Error> {
+    let chrono_dur = chrono::Duration::from_std(dur)?;
+    let unban_at = chrono::Utc::now() + chrono_dur;
+
+    sqlx::query!(
             "INSERT INTO temp_bans (guild_id, user_id, unban_at) VALUES ($1, $2, $3)",
             guild_id.get() as i64,
             user.id.get() as i64,
             unban_at
         )
-            .execute(db)
-            .await?;
-
-        log_moderation_action(
-            db, guild_id, Some(&user), &moderator, Some(reason), "ban", Some(chrono_dur)
-        ).await?;
-    }
-
-
-    info!("Successfully banned user from guild");
-    Ok(())
+        .execute(db)
+        .await?;
+    Ok(chrono_dur)
 }
 
 #[instrument(skip(db, redis_conn, guild_configs, http, user), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
@@ -224,6 +242,9 @@ pub async fn issue_mute(
     duration: &Duration,
     timestamp: Timestamp,
 ) -> Result<(), Error> {
+    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
+    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
+
     debug!("Retrieving moderation context for timeout");
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -268,6 +289,9 @@ pub async fn issue_unmute(
     user: User,
     moderator: User,
 ) -> Result<(), Error> {
+    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
+    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
+
     debug!("Retrieving moderation context for unmute");
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -310,6 +334,9 @@ pub async fn issue_softban(
     reason: &str,
     dmd: u8,
 ) -> Result<(), Error> {
+    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
+    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
+
     debug!("Retrieving moderation context for softban");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 

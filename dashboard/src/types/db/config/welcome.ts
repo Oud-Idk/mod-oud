@@ -1,33 +1,36 @@
 import { DiscordEmbed } from "@/types/embed";
+import { CaptchaType, Format } from "@/types/db";
 
 export interface PublicWelcomeConfig {
     enabled: boolean;
     channel_id: string;
     content?: string;
     embed?: DiscordEmbed;
-    format: "embed" | "text";
+    format: Format;
 }
 
 export interface PrivateWelcomeConfig {
     enabled: boolean;
     content?: string;
     embed?: DiscordEmbed;
-    format: "embed" | "text";
+    format: Format;
 }
 
 export interface VerificationConfig {
     enabled: boolean;
-    verification_message_id?: string;
-    verification_channel_id?: string;
-    verification_role_id?: string;
+    useOauth: boolean;
+    captchaType: CaptchaType;
+    verificationMessageId?: string;
+    verificationChannelId?: string;
+    verificationRoleId?: string;
     content?: string;
     embed?: DiscordEmbed;
-    format: "embed" | "text";
+    format: Format;
 }
 
 export interface WelcomeConfig {
     public: PublicWelcomeConfig;
     private: PrivateWelcomeConfig;
-    join_role_ids?: string[];
+    joinRoleIds?: string[];
     verification: VerificationConfig;
 }

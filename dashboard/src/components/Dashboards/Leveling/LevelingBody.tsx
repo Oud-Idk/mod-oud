@@ -1,7 +1,6 @@
 "use client";
 
-import { LevelingConfig } from "@/types/config";
-import { LevelReward, XpMultiplier } from "@/utils/db/leveling";
+import { LevelingConfig } from "@/types/db/config";
 import { useMemo, useState } from "react";
 import { SavePopup } from "@/components/Dashboards/General/SavePopup";
 import { TabItem, Tabs } from "@/components/Layout/Tabs";
@@ -14,6 +13,7 @@ import { DiscordChannel } from "@/types";
 import { useConfigForm } from "@/hooks/useConfigForm";
 import { UserLevel } from "@/utils/db/leaderboard";
 import { LeaderboardTab } from "@/components/Dashboards/Leveling/Tabs/LeaderboardTab";
+import { LevelReward, XpMultiplier } from "@/types/db/multipliers";
 
 interface LevelingBodyProps {
     guildId: string;
@@ -32,15 +32,15 @@ interface LevelingBodyProps {
     fetchMoreLevels: (currentLowestXp: number) => Promise<UserLevel[]>;
 }
 
-type TabValue = "text" | "voice" | "general" | "multipliers" | "rewards" | "leaderboard";
+type TabValue = "TEXT" | "VOICE" | "GENERAL" | "MULTIPLIERS" | "REWARDS" | "LEADERBOARD";
 
 const LEVEL_TABS: TabItem<TabValue>[] = [
-    { value: "text", label: "Text" },
-    { value: "voice", label: "Voice" },
-    { value: "general", label: "General" },
-    { value: "multipliers", label: "Multipliers" },
-    { value: "rewards", label: "Rewards" },
-    { value: "leaderboard", label: "Leaderboard" },
+    { value: "TEXT", label: "Text" },
+    { value: "VOICE", label: "Voice" },
+    { value: "GENERAL", label: "General" },
+    { value: "MULTIPLIERS", label: "Multipliers" },
+    { value: "REWARDS", label: "Rewards" },
+    { value: "LEADERBOARD", label: "Leaderboard" },
 ];
 
 export function LevelingBody({
@@ -60,7 +60,7 @@ export function LevelingBody({
     fetchMoreLevels,
 }: LevelingBodyProps) {
     const normalizedLevelingConfig = useMemo(() => levelingConfig, [levelingConfig]);
-    const [activeTab, setActiveTab] = useState<TabValue>("text");
+    const [activeTab, setActiveTab] = useState<TabValue>("TEXT");
 
     const {
         config,
@@ -78,9 +78,9 @@ export function LevelingBody({
     return (
         <div>
             <Tabs tabs={LEVEL_TABS} activeTab={activeTab} onChange={setActiveTab}/>
-            {activeTab === "text" && <TextTab config={config} handleChange={handleChange}/>}
-            {activeTab === "voice" && <VoiceTab config={config} handleChange={handleChange}/>}
-            {activeTab === "general" && (
+            {activeTab === "TEXT" && <TextTab config={config} handleChange={handleChange}/>}
+            {activeTab === "VOICE" && <VoiceTab config={config} handleChange={handleChange}/>}
+            {activeTab === "GENERAL" && (
                 <GeneralTab
                     config={config}
                     handleChange={handleChange}
@@ -90,7 +90,7 @@ export function LevelingBody({
                     setIsEmpty={setIsEmpty}
                 />
             )}
-            {activeTab === "multipliers" && (
+            {activeTab === "MULTIPLIERS" && (
                 <MultiplierTab
                     guildId={guildId}
                     multipliers={multipliers}
@@ -100,7 +100,7 @@ export function LevelingBody({
                     roleMap={roleMap}
                 />
             )}
-            {activeTab === "rewards" && (
+            {activeTab === "REWARDS" && (
                 <RewardTab
                     guildId={guildId}
                     rewards={rewards}
@@ -110,7 +110,7 @@ export function LevelingBody({
                 />
             )}
 
-            {activeTab === "leaderboard" && (
+            {activeTab === "LEADERBOARD" && (
                 <LeaderboardTab
                     levels={levels} fetchMoreLevels={fetchMoreLevels}
                 />

@@ -1,14 +1,14 @@
 "use client";
 
-import { ReportedMessage } from "@/types/reports";
 import { ReportActionButton } from "@/components/Dashboards/Report/ReportActionButton";
+import { ReportedMessage, SimpleReportStatus } from "@/types/db";
 
 interface ReportActionsProps {
     log: ReportedMessage;
     isDeleting: boolean;
     isResolving: boolean;
     onDelete: (reportId: number, channelId: string, messageId: string) => Promise<void>;
-    onResolve: (reportId: number, status: "actioned" | "dismissed") => Promise<void>;
+    onResolve: (reportId: number, status: SimpleReportStatus) => Promise<void>;
     onTimeoutClick: (reportId: number) => void;
     onWarnClick: (reportId: number) => void;
     onBanClick: (reportId: number) => void;
@@ -25,7 +25,7 @@ export function ReportActions({
     onWarnClick,
 }: ReportActionsProps) {
     const statusLower = log.status?.toLowerCase();
-    const isResolved = statusLower === "actioned" || statusLower === "dismissed";
+    const isResolved = statusLower === "ACTIONED" || statusLower === "DISMISSED";
     const isMessageDeleted = log.message_deleted;
 
     if (isResolved) {
@@ -86,11 +86,11 @@ export function ReportActions({
             )}
 
             <ReportActionButton
-                onClick={() => onResolve(log.id, "actioned")} disabled={isInteractionDisabled} color="blue"
+                onClick={() => onResolve(log.id, "ACTIONED")} disabled={isInteractionDisabled} color="blue"
             >{isResolving ? "Resolving..." : "Mark as Actioned"}</ReportActionButton>
 
             <ReportActionButton
-                onClick={() => onResolve(log.id, "dismissed")} disabled={isInteractionDisabled} color="neutral"
+                onClick={() => onResolve(log.id, "DISMISSED")} disabled={isInteractionDisabled} color="neutral"
             >{isResolving ? "Resolving..." : "Mark as Dismissed"}</ReportActionButton>
         </div>
     );

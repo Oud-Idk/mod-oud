@@ -1,31 +1,5 @@
 import { db } from "@/utils/init/db";
-
-export interface ReactionRole {
-    emoji: string;
-    role_id: string;
-}
-
-export interface ButtonRole {
-    role_id: string;
-    custom_id: string;
-    label?: string;
-    style: "primary" | "secondary" | "success" | "danger";
-    emoji?: string;
-}
-
-export interface ReactionMessage {
-    id: number;
-    name: string;
-    message_id?: string;
-    channel_id: string;
-    guild_id: string;
-    format: "text" | "embed";
-    mode: "reaction" | "button";
-    embed: DiscordEmbed;
-    content: string;
-    reactions?: ReactionRole[];
-    buttons?: ButtonRole[];
-}
+import { ReactionMessage } from "@/types/db/reactionRole";
 
 export type SaveReactionMessageData = Omit<ReactionMessage, 'id'> & { id?: number };
 
@@ -137,7 +111,7 @@ export async function saveReactionMessage(data: SaveReactionMessageData): Promis
         await client.query("DELETE FROM button_roles WHERE reaction_message_id = $1", [internalId]);
 
         // Insert new relations depending on the selected mode
-        if (data.mode === "reaction" && data.reactions && data.reactions.length > 0) {
+        if (data.mode === "REACTION" && data.reactions && data.reactions.length > 0) {
             const values: any[] = [];
             const valueStrings = data.reactions.map((r, i) => {
                 const offset = i * 3;
@@ -153,7 +127,7 @@ export async function saveReactionMessage(data: SaveReactionMessageData): Promis
                 DO UPDATE SET role_id = EXCLUDED.role_id;
             `;
             await client.query(insertRolesQuery, values);
-        } else if (data.mode === "button" && data.buttons && data.buttons.length > 0) {
+        } else if (data.mode === "BUTTON" && data.buttons && data.buttons.length > 0) {
             const values: any[] = [];
             const valueStrings = data.buttons.map((b, i) => {
                 const offset = i * 6;
@@ -162,7 +136,7 @@ export async function saveReactionMessage(data: SaveReactionMessageData): Promis
                     b.role_id,
                     b.custom_id,
                     b.label || null,
-                    b.style || "primary",
+                    b.style || "PRIMARY",
                     b.emoji || null
                 );
                 return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;

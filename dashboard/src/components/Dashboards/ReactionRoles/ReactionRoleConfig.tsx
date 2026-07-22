@@ -1,4 +1,3 @@
-import { ButtonRole, ReactionMessage, ReactionRole } from "@/utils/db/reactionRoles";
 import React, { SetStateAction, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/Inputs/Dropdown";
@@ -6,6 +5,8 @@ import { MessageConfigEditor } from "@/components/MessageCreator/MessageConfigEd
 import { REACTION_ROLES_CONFIG } from "@/utils/embedTemplates";
 import { TextInput } from "@/components/Inputs/TextInput";
 import SecondaryButton from "@/components/Inputs/Buttons/SecondaryButton";
+import { ButtonRole, ReactionMessage, ReactionRole } from "@/types/db/reactionRole";
+import { ReactionRoleMode } from "@/types/db";
 
 interface ReactionRoleConfigProps {
     config: ReactionMessage;
@@ -97,7 +98,7 @@ export function ReactionRoleConfig({
         const uniqueId = `btn_${Math.random().toString(36).substr(2, 9)}`;
         const updatedButtons: ButtonRole[] = [
             ...buttons,
-            { role_id: "", custom_id: uniqueId, label: "Get Role", style: "primary" }
+            { role_id: "", custom_id: uniqueId, label: "Get Role", style: "PRIMARY" }
         ];
         onChange({ ...config, buttons: updatedButtons });
     };
@@ -198,18 +199,18 @@ export function ReactionRoleConfig({
                     <label className="block text-sm font-medium">Interaction Mode</label>
                     <Dropdown
                         options={[
-                            { value: "reaction", label: "Reaction Emojis" },
-                            { value: "button", label: "Buttons" },
+                            { value: "REACTION", label: "Reaction Emojis" },
+                            { value: "BUTTON", label: "Buttons" },
                         ]}
                         value={config.mode || "reaction"}
-                        onChange={(val) => onChange({ ...config, mode: val as "reaction" | "button" })}
+                        onChange={(val) => onChange({ ...config, mode: val as ReactionRoleMode })}
                         placeholder="Select mode..."
                         className="w-full"
                     />
                 </div>
             </div>
 
-            {config.mode === "button" ? (
+            {config.mode === "BUTTON" ? (
                 <div className="space-y-3 pt-4 border-t border-neutral-800">
                     <div>
                         <h3 className="text-md font-semibold">Button Mappings</h3>
@@ -267,12 +268,12 @@ export function ReactionRoleConfig({
                                         <label className="block text-xs font-medium mb-1">Style</label>
                                         <Dropdown
                                             options={[
-                                                { value: "primary", label: "Primary (Blue)" },
-                                                { value: "secondary", label: "Secondary (Gray)" },
-                                                { value: "success", label: "Success (Green)" },
-                                                { value: "danger", label: "Danger (Red)" },
+                                                { value: "PRIMARY", label: "Primary (Blue)" },
+                                                { value: "SECONDARY", label: "Secondary (Gray)" },
+                                                { value: "SUCCESS", label: "Success (Green)" },
+                                                { value: "DANGER", label: "Danger (Red)" },
                                             ]}
-                                            value={button.style || "primary"}
+                                            value={button.style || "PRIMARY"}
                                             onChange={(val) => handleUpdateButton(index, "style", val)}
                                         />
                                     </div>
@@ -406,8 +407,8 @@ export function ReactionRoleConfig({
                     config={config} onChange={(v) => onChange({
                     ...config,
                     channel_id: v.channel_id || "",
-                    content: v.content,
-                    embed: v.embed,
+                    content: v.content ?? "",
+                    embed: v.embed ?? {},
                     format: v.format,
                 })} onEmbedChange={(v) => onChange({
                     ...config,

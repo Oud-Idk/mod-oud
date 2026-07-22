@@ -9,8 +9,8 @@ use serde_with::{serde_as, serde_conv, DisplayFromStr};
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, sqlx::Type, PartialEq, Copy)]
-#[serde(rename_all = "lowercase")]
-#[sqlx(type_name = "message_format", rename_all = "lowercase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[sqlx(type_name = "message_format", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Format {
     #[default]
     Embed,
@@ -19,6 +19,7 @@ pub enum Format {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct LeaveConfig {
     pub enabled: Option<bool>,
     pub channel_id: Option<String>,
@@ -31,6 +32,7 @@ pub struct LeaveConfig {
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct ReportConfig {
     pub enabled: bool,
     pub resolved_dm: Option<MessageLayout>,
@@ -38,6 +40,7 @@ pub struct ReportConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DMTemplateSetting {
     pub enabled: bool,
     pub content: String,
@@ -47,6 +50,7 @@ pub struct DMTemplateSetting {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ModerationDMsConfig {
     #[serde(default, deserialize_with = "ok_or_none")]
     pub warn: Option<DMTemplateSetting>,
@@ -66,10 +70,13 @@ pub struct ModerationDMsConfig {
     pub ban: Option<DMTemplateSetting>,
     #[serde(default, deserialize_with = "ok_or_none")]
     pub softban: Option<DMTemplateSetting>,
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub honeypot: Option<DMTemplateSetting>,
 }
 
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageLayout {
     pub enabled: bool,
     pub format: Format,
@@ -89,6 +96,7 @@ serde_conv!(
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TicketConfig {
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub category_id: Option<u64>,
@@ -113,12 +121,25 @@ pub struct TicketConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct InviteTrackerConfig {
     pub enabled: Option<bool>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct HoneypotConfig {
+    pub enabled: Option<bool>,
+    pub channel_id: Option<String>,
+    pub exempt_roles: Option<Vec<String>>,
+    pub dmd: Option<u8>,
+    pub reason: Option<String>,
+    pub duration: Option<u64>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct GuildSettings {
     pub welcome: Option<WelcomeConfig>,
     pub leave: Option<LeaveConfig>,
@@ -129,4 +150,5 @@ pub struct GuildSettings {
     pub leveling: Option<LevelingConfig>,
     pub tickets: Option<TicketConfig>,
     pub invite_tracker: Option<InviteTrackerConfig>,
+    pub honeypot: Option<HoneypotConfig>
 }

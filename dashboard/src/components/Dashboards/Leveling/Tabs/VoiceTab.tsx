@@ -1,5 +1,5 @@
 import { ToggleSwitch } from "@/components/Dashboards/General/ToggleSwitch";
-import { LevelingConfig } from "@/types/config";
+import { LevelingConfig } from "@/types/db/config";
 import { RangeSlider } from "@/components/Inputs/RangeSlider";
 
 interface VoiceTabProps {
@@ -26,12 +26,12 @@ export function VoiceTab({
                     <div>
                         <p className="text-lg">XP Range per Minute</p>
                         <RangeSlider
-                            valMin={config.voice.xp_range.min}
-                            valMax={config.voice.xp_range.max}
+                            valMin={config.voice.xpRange.min}
+                            valMax={config.voice.xpRange.max}
                             min={15}
                             max={100}
                             onChange={(val) => {
-                                handleChange({ voice: { ...config.voice, xp_range: { min: val[0], max: val[1] } } })
+                                handleChange({ voice: { ...config.voice, xpRange: { min: val[0], max: val[1] } } })
                             }}
                         />
                     </div>

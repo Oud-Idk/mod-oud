@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getModerationLogs, ModerationLog } from "@/actions/logs";
+import { getModerationLogs } from "@/actions/logs";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/Layout/Table";
+import { ModerationLog } from "@/types/db/logs";
 
 interface ModerationTabProps {
     guildId: string;

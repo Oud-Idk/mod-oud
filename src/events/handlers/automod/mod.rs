@@ -4,18 +4,25 @@ pub mod cache;
 
 use crate::events::handlers::automod::getters::get_rule_name;
 use crate::events::handlers::message_filter::database::insert_automod_log;
-use crate::types::Data;
+use crate::types::{Data, Error};
+use crate::utils::store_username_relation;
 use serenity::all::{ActionExecution, Context};
 use types::LoggedAction;
 
-pub async fn on_automod(ctx: &Context, execution: &ActionExecution, data: &Data) -> Result<(), sqlx::Error> {
+pub async fn on_automod(ctx: &Context, execution: &ActionExecution, data: &Data) -> Result<(), Error> {
+    let db = &data.db;
+    let redis = &data.redis;
+
     let action = LoggedAction::from(&execution.action).as_str();
-    let rule_name = get_rule_name(&ctx, &data.redis, &execution.guild_id, &execution.rule_id).await;
+    let rule_name = get_rule_name(&ctx, redis, &execution.guild_id, &execution.rule_id).await;
 
     let cached_username = ctx.cache.user(execution.user_id).map(|user| user.name.clone());
 
     let username = match cached_username {
-        Some(name) => name,
+        Some(name) => {
+            store_username_relation(db, redis, execution.user_id.get(), &name).await?;
+            name
+        },
         None => {
             match ctx.http.get_user(execution.user_id).await {
                 Ok(user) => user.name,
@@ -25,7 +32,7 @@ pub async fn on_automod(ctx: &Context, execution: &ActionExecution, data: &Data)
     };
 
     insert_automod_log(
-        &data.db,
+        db,
         execution.guild_id.get() as i64,
         execution.user_id.get() as i64,
         Some(execution.channel_id.map(|v| v.get() as i64).unwrap_or(0)),
