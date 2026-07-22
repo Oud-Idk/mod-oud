@@ -1,6 +1,6 @@
+use crate::shared::embed::build_custom_message;
 use crate::types::config::config::Format;
 use crate::types::embed::DiscordEmbed;
-use crate::utils::custom_msg::build_custom_message;
 use crate::web::helpers::embed;
 use crate::web::helpers::embed::EmbedGetters;
 use crate::WebState;

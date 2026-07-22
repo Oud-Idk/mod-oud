@@ -1,12 +1,12 @@
 use crate::core::config::get_guild_ctx;
 use crate::events::handlers::levels::effects;
+use crate::shared::embed::build_custom_message;
+use crate::shared::placeholders::replace_level_notify_placeholder;
 use crate::types::config::config::Format;
 use crate::types::config::leveling::LevelingConfig;
 use crate::types::embed::DiscordEmbed;
 use crate::types::leveling::UserLevel;
 use crate::types::Error;
-use crate::utils::custom_msg::build_custom_message;
-use crate::utils::placeholders::replace_level_notify_placeholder;
 use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User};
 use tracing::{debug, trace, warn};
 

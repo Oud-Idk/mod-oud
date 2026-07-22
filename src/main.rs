@@ -26,6 +26,8 @@ mod models;
 mod types;
 mod utils;
 pub mod web;
+pub mod shared;
+pub mod features;
 
 pub struct ShardManagerContainer;
 impl serenity::prelude::TypeMapKey for ShardManagerContainer {
@@ -256,7 +258,7 @@ async fn async_main() -> Result<(), Error> {
                     ..Default::default()
                 },
                 commands: commands_to_register,
-                on_error: |error| Box::pin(utils::error::on_error(error)),
+                on_error: |error| Box::pin(core::error::on_error(error)),
                 event_handler: |ctx, event, framework, data| {
                     Box::pin(events::events::event_handler(ctx, event, framework, data))
                 },

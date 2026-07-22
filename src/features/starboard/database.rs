@@ -1,19 +1,14 @@
-use crate::types::Error;
+use crate::features::starboard::types::SimpleStarboard;
+use anyhow::Result;
 use serenity::all::{ChannelId, Context, GuildId, MessageId, UserId};
 use sqlx::PgPool;
-
-pub struct SimpleStarboard {
-    pub(crate) keep_deleted_messages: Option<bool>,
-    pub(crate) starboard_message_id: Option<i64>,
-    pub(crate) starboard_channel_id: i64,
-}
 
 /// Helper to fetch the existing starboard message ID from the database
 pub async fn fetch_starboard_message_id(
     db: &PgPool,
     orig_msg_id: MessageId,
     starboard_id: i64,
-) -> Result<Option<MessageId>, Error> {
+) -> Result<Option<MessageId>> {
     let existing_post_id = sqlx::query_scalar!(
         "SELECT starboard_message_id FROM starred_messages WHERE original_message_id = $1 AND starboard_id = $2",
         orig_msg_id.get() as i64,
@@ -36,7 +31,7 @@ pub async fn handle_starboard_demotion(
     starboard_msg_id: MessageId,
     orig_msg_id: MessageId,
     starboard_id: i64,
-) -> Result<(), Error> {
+) -> Result<()> {
     let _ = starboard_channel.delete_message(&ctx.http, starboard_msg_id).await;
 
     sqlx::query!(
@@ -55,7 +50,7 @@ pub async fn update_starred_message_count(
     orig_msg_id: MessageId,
     starboard_id: i64,
     emoji_count: u64,
-) -> Result<(), sqlx::Error> {
+) -> Result<()> {
     sqlx::query!(
         "UPDATE starred_messages SET star_count = $1 WHERE original_message_id = $2 AND starboard_id = $3",
         emoji_count as i32,
@@ -78,7 +73,7 @@ pub async fn insert_starred_message(
     channel_id: ChannelId,
     author_id: UserId,
     emoji_count: u64,
-) -> Result<(), sqlx::Error> {
+) -> Result<()> {
     sqlx::query!(
         r#"
         INSERT INTO starred_messages (
@@ -101,7 +96,7 @@ pub async fn insert_starred_message(
     Ok(())
 }
 
-pub async fn delete_starboard(db: &PgPool, id: i64) -> Result<(), Error> {
+pub async fn delete_starboard(db: &PgPool, id: i64) -> Result<()> {
     sqlx::query!(
         r#"
         DELETE FROM starred_messages
@@ -114,7 +109,7 @@ pub async fn delete_starboard(db: &PgPool, id: i64) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn fetch_starboard(db: &PgPool, id: i64) -> Result<Vec<SimpleStarboard>, Error> {
+pub async fn fetch_starboard(db: &PgPool, id: i64) -> Result<Vec<SimpleStarboard>> {
     let rows = sqlx::query_as!(
         SimpleStarboard,
         r#"

@@ -1,7 +1,7 @@
+use crate::shared::locking::acquire_lock;
 use crate::types;
 use crate::types::config::config::Format;
 use crate::types::embed::DiscordEmbed;
-use crate::utils::locking::acquire_lock;
 use crate::utils::reminder::{calculate_next_trigger, RecurrenceRule};
 use crate::web::helpers::embed::{create_basic_embed, EmbedGetters};
 use chrono::{DateTime, NaiveTime, Utc};

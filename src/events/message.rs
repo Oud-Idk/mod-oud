@@ -7,13 +7,13 @@ use crate::events::handlers::message_logging::handlers::{message_log_delete, mes
 use crate::events::handlers::reaction_roles::{handle_reaction_role_add, handle_reaction_role_remove};
 use crate::events::handlers::starboard::starboard::{handle_starboard_reaction_add, handle_starboard_reaction_remove};
 use crate::events::handlers::{honeypot, message_filter, starboard, tickets};
+use crate::features::moderation::issuing::{issue_ban, schedule_unban};
 use crate::send_mod_dm;
+use crate::shared::embed::build_custom_message;
+use crate::shared::placeholders::replace_user_placeholders;
 use crate::types::config::config::GuildSettings;
 use crate::types::{Data, Error};
-use crate::utils::custom_msg::build_custom_message;
-use crate::utils::moderation::issuing::{issue_ban, schedule_unban};
 use crate::utils::moderation::MODERATION_FOOTER;
-use crate::utils::placeholders::replace_user_placeholders;
 use crate::utils::store_username_relation;
 use serenity::all::{ChannelId, Context, CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, Message, MessageId, MessageUpdateEvent, Reaction, Role, RoleId};
 use std::collections::HashSet;

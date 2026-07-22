@@ -1,5 +1,5 @@
+use crate::shared::locking::acquire_lock;
 use crate::types::leveling::UserLevel;
-use crate::utils::locking::acquire_lock;
 use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
 use futures_util::StreamExt;

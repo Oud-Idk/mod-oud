@@ -1,6 +1,6 @@
 use crate::core::config::get_settings;
+use crate::shared::locking;
 use crate::types::config::config::GuildSettings;
-use crate::utils::locking;
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
 use fred::prelude::*;

@@ -1,4 +1,4 @@
-use crate::types::config::starboard::{RestrictionType, Starboard};
+use crate::features::starboard::types::{RestrictionType, Starboard};
 use chrono::Utc;
 use serenity::all::{ChannelId, Member, Message, Reaction, RoleId, UserId};
 

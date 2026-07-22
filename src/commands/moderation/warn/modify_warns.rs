@@ -1,7 +1,7 @@
 use crate::commands::moderation::utils::send_ephemeral;
+use crate::features::moderation::types::ActionType;
+use crate::features::warning::issuing::issue_warning_status_change;
 use crate::types::{Context, Error, GuildMetadata};
-use crate::utils::logger::ActionType;
-use crate::utils::moderation::issuing::issue_warning_status_change;
 use tracing::{debug, info, trace};
 
 /// Helper function to handle both pardoning and unpardoning warnings.
@@ -29,11 +29,7 @@ pub async fn set_warning_active_status(
         ctx.author(),
     ).await?;
 
-    let (action_past_tense, action_type) = if set_active {
-        ("unpardoned", ActionType::Unpardon)
-    } else {
-        ("pardoned", ActionType::Pardon)
-    };
+    let action_past_tense = if set_active { "unpardoned" } else { "pardoned" };
 
     match result {
         Some((target_user_id, reason)) => {

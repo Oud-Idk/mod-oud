@@ -5,11 +5,11 @@ pub mod send;
 
 use crate::core::config::{get_guild_ctx, get_settings, GuildCtx};
 use crate::events::handlers::invite_tracking;
+use crate::shared::embed::build_custom_message;
+use crate::shared::placeholders::replace_welcome_goodbye_placeholders;
 use crate::types::config::config::LeaveConfig;
 use crate::types::config::welcome::WelcomeConfig;
 use crate::types::{Data, Error};
-use crate::utils::custom_msg::build_custom_message;
-use crate::utils::placeholders::replace_welcome_goodbye_placeholders;
 use crate::utils::store_username_relation;
 use poise::serenity_prelude as serenity;
 use serenity::all::{EditMember, GuildChannel, RoleId};

@@ -1,12 +1,11 @@
 use crate::core::config::get_guild_ctx;
 use crate::events::handlers::message_filter::database::insert_automod_log;
+use crate::features::moderation::issuing::schedule_unban;
 use crate::send_mod_dm;
+use crate::shared::embed::build_custom_message;
 use crate::types::config::config::GuildSettings;
 use crate::types::{Data, Error};
-use crate::utils::custom_msg::build_custom_message;
-use crate::utils::moderation::issuing::schedule_unban;
 use crate::utils::moderation::MODERATION_FOOTER;
-use crate::utils::placeholders::replace_user_placeholders;
 use serenity::all::{Context, CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, Message};
 use std::time::Duration;
 

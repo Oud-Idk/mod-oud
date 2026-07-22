@@ -1,7 +1,7 @@
+use crate::shared::embed::build_custom_message;
 use crate::types::config::config::Format;
 use crate::types::embed::DiscordEmbed;
 use crate::types::Error;
-use crate::utils::custom_msg::build_custom_message;
 use crate::web::routes::send_voice_interface::{SendTempVoiceInterfacePayload, SendTempVoiceInterfaceResponse};
 use axum::http::StatusCode;
 use serenity::all::CreateMessage;

@@ -1,6 +1,6 @@
 use crate::core::config::{get_guild_ctx, GuildCtx};
+use crate::shared::placeholders::get_placeholder_regex;
 use crate::types::Error;
-use crate::utils::placeholders::get_placeholder_regex;
 use regex::Captures;
 use serenity::all::{Context, GuildId, Member};
 

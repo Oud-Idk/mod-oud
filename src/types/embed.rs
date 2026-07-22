@@ -1,4 +1,3 @@
-use crate::types::Error;
 use serde::{Deserialize, Serialize};
 use serenity::all::CreateEmbed;
 
@@ -56,7 +55,7 @@ impl DiscordEmbed {
     }
 
     /// Builds a serenity CreateEmbed using a custom placeholder replacement function.
-    pub fn to_embed<F>(&self, mut replace: F) -> Result<CreateEmbed, Error>
+    pub fn to_embed<F>(&self, mut replace: F) -> Result<CreateEmbed, anyhow::Error>
     where
         F: FnMut(&str) -> String,
     {

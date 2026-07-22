@@ -1,10 +1,10 @@
 use crate::core::config::{get_guild_ctx, GuildCtx};
 use crate::events::handlers::join_leave::utils;
+use crate::shared::embed::build_custom_message;
+use crate::shared::placeholders::replace_welcome_goodbye_placeholders;
 use crate::types::config::config::LeaveConfig;
 use crate::types::config::welcome::WelcomeMessageSettings;
 use crate::types::Error;
-use crate::utils::custom_msg::build_custom_message;
-use crate::utils::placeholders::replace_welcome_goodbye_placeholders;
 use serenity::all::{CreateEmbed, CreateMessage, Mentionable};
 use tracing::{debug, trace, warn};
 

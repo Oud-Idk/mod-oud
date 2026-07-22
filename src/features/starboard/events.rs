@@ -1,27 +1,62 @@
-use crate::events::handlers::starboard::cache::{acquire_starboard_lock, apply_starboard_op_if_exists, release_starboard_lock};
-use crate::events::handlers::starboard::{database, permissions, utils};
-use crate::types::config::starboard::Starboard;
-use crate::types::{Data, Error};
-use crate::utils::store_username_relation;
+use crate::features::starboard::builder::{build_starboard_message, count_emoji_and_cache};
+use crate::features::starboard::cache::{apply_starboard_op_if_exists, get_starboards};
+use crate::features::starboard::types::{Starboard, StarboardOp};
+use crate::features::starboard::{builder, database, perms};
+use crate::shared::locking::acquire_lock;
+use crate::types::Data;
+use anyhow::Result;
 use fred::prelude::*;
 use serenity::all::{ChannelId, Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction};
 use sqlx::PgPool;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum StarboardOp {
-    Add,
-    Remove,
+#[instrument(skip(ctx, db, orig_msg_id), fields(orig_msg_id = orig_msg_id.get()))]
+pub async fn handle_cleanup_if_starboard(
+    ctx: &Context,
+    db: &PgPool,
+    orig_msg_id: &MessageId,
+) -> Result<()> {
+    let id = orig_msg_id.get() as i64;
+    debug!("Starting starboard cleanup check for original message");
+
+    let rows = database::fetch_starboard(db, id).await?;
+    debug!(rows_found = rows.len(), "Fetched linked starboard messages");
+
+    for row in rows {
+        if row.keep_deleted_messages.unwrap_or(false) {
+            debug!(
+                channel_id = row.starboard_channel_id,
+                "Skipping Discord message deletion because 'keep_deleted_messages' is enabled"
+            );
+            continue;
+        }
+
+        let channel_id = ChannelId::new(row.starboard_channel_id as u64);
+
+        if let Some(msg_id_val) = row.starboard_message_id.map(|id| id as u64) {
+            let msg_id = MessageId::new(msg_id_val);
+            debug!(channel_id = %channel_id, msg_id = %msg_id, "Attempting to delete message from starboard channel");
+            if let Err(e) = channel_id.delete_message(&ctx.http, msg_id).await {
+                warn!(error = %e, channel_id = %channel_id, msg_id = %msg_id, "Could not delete message from Discord");
+            }
+        }
+    }
+
+    debug!("Deleting message mappings from database");
+    database::delete_starboard(db, id).await?;
+
+    info!("Cleanup successfully completed");
+    Ok(())
 }
 
 #[instrument(skip(ctx, data, add_reaction), fields(reaction = ?add_reaction.emoji))]
-pub async fn handle_starboard_reaction_add(ctx: &Context, add_reaction: &Reaction, data: &Data) -> Result<(), Error> {
+pub async fn handle_reaction_add(ctx: &Context, add_reaction: &Reaction, data: &Data) -> Result<()> {
     debug!("Handling reaction add event");
     handle_starboard_reaction(ctx, add_reaction, data, StarboardOp::Add).await
 }
 
 #[instrument(skip(ctx, data, removed_reaction), fields(reaction = ?removed_reaction.emoji))]
-pub async fn handle_starboard_reaction_remove(ctx: &Context, removed_reaction: &Reaction, data: &Data) -> Result<(), Error> {
+pub async fn handle_reaction_remove(ctx: &Context, removed_reaction: &Reaction, data: &Data) -> Result<()> {
     debug!("Handling reaction remove event");
     handle_starboard_reaction(ctx, removed_reaction, data, StarboardOp::Remove).await
 }
@@ -32,41 +67,31 @@ async fn handle_starboard_reaction(
     reaction: &Reaction,
     data: &Data,
     op: StarboardOp,
-) -> Result<(), Error> {
+) -> Result<()> {
     let db = &data.db;
     let redis = &data.redis;
 
-    let Some(guild_id) = reaction.guild_id else {
-        trace!("Reaction has no guild_id, ignoring");
-        return Ok(())
-    };
-    let Some(user_id) = reaction.user_id else {
-        trace!("Reaction has no user_id, ignoring");
-        return Ok(())
-    };
+    let Some(guild_id) = reaction.guild_id else { return Ok(()) };
+    let Some(user_id) = reaction.user_id else { return Ok(()) };
 
-    let starboards = utils::get_starboards(guild_id.get() as i64, db, redis).await?;
+    let starboards = get_starboards(guild_id.get() as i64, db, redis).await?;
     if starboards.is_empty() {
-        trace!("No starboards configured for guild {}", guild_id);
         return Ok(());
     }
 
-    let Some(member) = utils::resolve_member(ctx, guild_id, user_id, reaction).await else {
+    let Some(member) = builder::resolve_member(ctx, guild_id, user_id, reaction).await else {
         warn!(guild_id = %guild_id, user_id = %user_id, "Could not resolve reacting member");
-        return Ok(())
+        return Ok(());
     };
 
     debug!("Fetching original message...");
     let message = reaction.message(&ctx.http).await?;
 
-    store_username_relation(db, redis, member.user.id.get(), &member.user.name).await?;
-    store_username_relation(db, redis, message.author.id.get(), &message.author.name).await?;
-
     for starboard in starboards {
         let span = tracing::info_span!("processing_starboard", starboard_id = starboard.id);
         let _enter = span.enter();
 
-        if !permissions::is_event_allowed(&starboard, reaction, &message, &member, user_id) {
+        if !perms::is_event_allowed(&starboard, reaction, &message, &member, user_id) {
             trace!("Event not allowed under starboard permissions");
             continue;
         }
@@ -89,30 +114,27 @@ async fn handle_starboard_reaction(
         debug!(key = %cached_key, "Attempting redis operation");
         let maybe_count = apply_starboard_op_if_exists(redis, &cached_key, op).await?;
 
-        let emoji_count = utils::count_emoji_and_cache(ctx, maybe_count, &message, reaction, &starboard, redis, &cached_key).await?;
+        let emoji_count = count_emoji_and_cache(ctx, maybe_count, &message, reaction, &starboard, redis, &cached_key).await?;
         debug!(count = emoji_count, "Determined current emoji count");
 
         let lock_key = format!("lock:starboard:{}:{}", guild_id, reaction.message_id.get());
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
         debug!(lock_key = %lock_key, "Attempting to acquire lock");
-        let lock_acquired = acquire_starboard_lock(redis, &lock_key, &lock_value).await?;
+        let maybe_lock = acquire_lock(redis, &lock_key, &lock_value, 5).await?;
 
-        if lock_acquired.is_some() {
+        if let Some(guard) = maybe_lock {
             info!("Lock acquired, spawning async updates loop");
             let ctx_clone = ctx.clone();
             let db_clone = data.db.clone();
-            let redis_clone = redis.clone(); // Incredibly cheap clone on fred clients!
+            let redis_clone = redis.clone();
             let starboard_clone = starboard.clone();
             let reaction_clone = reaction.clone();
             let member_clone = member.clone();
             let cached_key_clone = cached_key.clone();
-            let lock_key_clone = lock_key.clone();
-            let lock_value_clone = lock_value.clone();
 
             let worker_span = tracing::info_span!(
                 "starboard_worker_loop",
-                lock_key = %lock_key_clone,
                 starboard_id = starboard_clone.id,
                 msg_id = %reaction_clone.message_id
             );
@@ -124,7 +146,8 @@ async fn handle_starboard_reaction(
                 let mut loop_count = 0;
 
                 loop {
-                    let final_count: u64 = redis_clone.get(&cached_key_clone)
+                    let final_count: u64 = redis_clone
+                        .get(&cached_key_clone)
                         .await
                         .unwrap_or(None)
                         .unwrap_or(current_processed);
@@ -137,15 +160,18 @@ async fn handle_starboard_reaction(
                         &starboard_clone,
                         &reaction_clone,
                         &member_clone,
-                        final_count
-                    ).await {
+                        final_count,
+                    )
+                        .await
+                    {
                         error!(error = %e, "Error occurred during background starboard upsert");
                     }
 
                     current_processed = final_count;
                     loop_count += 1;
 
-                    let latest_count: u64 = redis_clone.get(&cached_key_clone)
+                    let latest_count: u64 = redis_clone
+                        .get(&cached_key_clone)
                         .await
                         .unwrap_or(None)
                         .unwrap_or(final_count);
@@ -159,13 +185,7 @@ async fn handle_starboard_reaction(
                 }
 
                 debug!("Releasing lock");
-                let release_res = release_starboard_lock(&redis_clone, &lock_key_clone, &lock_value_clone).await;
-
-                match release_res {
-                    Ok(1) => debug!("Lock successfully released"),
-                    Ok(other) => warn!(status = other, "Failed to release lock, might have expired or been overwritten"),
-                    Err(e) => error!(error = %e, "Error executing lock release script"),
-                }
+                let _ = guard.release().await;
             }.instrument(worker_span));
         } else {
             debug!("Lock busy, skipping spawn");
@@ -184,9 +204,9 @@ pub async fn upsert_starboard(
     reaction: &Reaction,
     member: &Member,
     emoji_count: u64,
-) -> Result<(), Error> {
+) -> Result<()> {
     let Some(_guild_id) = reaction.guild_id else { return Ok(()) };
-    let starboard_channel = ChannelId::new(starboard.starboard_channel_id);
+    let starboard_channel = ChannelId::new(starboard.starboard_channel_id as u64);
     let threshold = starboard.reaction_threshold.unwrap_or(10) as u64;
     let orig_msg_id = reaction.message_id;
 
@@ -208,7 +228,7 @@ pub async fn upsert_starboard(
 
     debug!("Building starboard message formatting");
     let Some((text_message, embedded_message, origin_message)) =
-        utils::build_starboard_message(ctx, starboard, reaction, member, emoji_count, starboard_channel).await?
+        build_starboard_message(ctx, starboard, reaction, member, emoji_count, starboard_channel).await?
     else {
         warn!("Could not build starboard message components");
         return Ok(());
@@ -245,26 +265,22 @@ async fn create_or_update_post(
     embedded_message: CreateEmbed,
     origin_message: &Message,
     emoji_count: u64,
-) -> Result<(), Error> {
+) -> Result<()> {
     let Some(guild_id) = reaction.guild_id else { return Ok(()) };
-    let starboard_channel = ChannelId::new(starboard.starboard_channel_id);
+    let starboard_channel = ChannelId::new(starboard.starboard_channel_id as u64);
     let orig_msg_id = reaction.message_id;
 
     match starboard_msg_id {
         Some(post_id) => {
             info!(channel_id = %starboard_channel, post_id = %post_id, "Editing existing starboard message");
-            let builder = EditMessage::new()
-                .content(text_message)
-                .embed(embedded_message);
+            let builder = EditMessage::new().content(text_message).embed(embedded_message);
 
             starboard_channel.edit_message(&ctx.http, post_id, builder).await?;
             database::update_starred_message_count(db, orig_msg_id, starboard.id, emoji_count).await?;
         }
         None => {
             info!(channel_id = %starboard_channel, "Creating brand new starboard message");
-            let builder = CreateMessage::new()
-                .content(text_message)
-                .embed(embedded_message);
+            let builder = CreateMessage::new().content(text_message).embed(embedded_message);
 
             let sent_msg = starboard_channel.send_message(&ctx.http, builder).await?;
 

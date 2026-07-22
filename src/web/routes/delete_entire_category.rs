@@ -1,4 +1,4 @@
-use crate::utils::moderation::actions::delete_entire_category;
+use crate::features::moderation::channels::delete_entire_category;
 use crate::WebState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -36,7 +36,7 @@ pub async fn handle_delete_entire_category(
 
     let guild_id = serenity::GuildId::new(guild_id_u64);
     let category_id = serenity::ChannelId::new(category_id_u64);
-    
+
     let deleted_count = delete_entire_category(&state.http, guild_id, category_id).await
         .inspect_err(|e| warn!(error = ?e, "Failed to delete category through API"))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to delete category: {}", e)))?;

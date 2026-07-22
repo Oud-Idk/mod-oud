@@ -1,11 +1,11 @@
+use crate::features::moderation::database::log_moderation_action;
+use crate::features::moderation::types::ActionType;
 use crate::types::{Context, Error};
-use crate::utils::logger::{log_moderation_action, ActionType};
 use serenity::all::GuildId;
 use tracing::trace;
 
 pub mod database;
 pub mod macros;
-pub mod actions;
 pub mod issuing;
 
 pub const MODERATION_FOOTER: &str = "If you believe this was a mistake, please create a ticket on the server.";

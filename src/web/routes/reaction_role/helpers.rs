@@ -68,7 +68,7 @@ pub fn build_custom_msg(
                 .ok()
         });
 
-    crate::utils::custom_msg::build_custom_message(
+    crate::shared::embed::build_custom_message(
         &format,
         content,
         embed_data.as_ref(),

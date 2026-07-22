@@ -1,8 +1,8 @@
 use crate::core::config::GuildCtx;
+use crate::shared::embed::build_custom_message;
+use crate::shared::placeholders::replace_welcome_goodbye_placeholders;
 use crate::types::config::welcome::WelcomeMessageSettings;
 use crate::types::Error;
-use crate::utils::custom_msg::build_custom_message;
-use crate::utils::placeholders::replace_welcome_goodbye_placeholders;
 use serenity::all::{ChannelId, CreateMessage, Mentionable};
 use tracing::{debug, trace, warn};
 

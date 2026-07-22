@@ -1,5 +1,5 @@
+use crate::features::moderation::types::ActionType;
 use crate::types::{Context, Error, GuildMetadata};
-use crate::utils::logger::ActionType;
 use crate::utils::moderation;
 use poise::serenity_prelude as serenity;
 use serenity::model::channel::GuildChannel;

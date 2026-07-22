@@ -1,20 +1,36 @@
 use crate::core::config::get_guild_ctx;
-use crate::types::config::starboard::{RestrictionType, Starboard, StarboardRow};
-use crate::types::embed::DiscordEmbed;
-use crate::types::Error;
-use crate::utils::placeholders::replace_starboard_placeholders;
-use fred::bytes_utils::Str;
-use fred::interfaces::KeysInterface;
-use fred::prelude::{Client, Expiration, FredResult};
-use serenity::all::{Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId, Reaction, ReactionType, UserId};
-use sqlx::postgres::types::PgInterval;
-use sqlx::types::Json;
-use sqlx::PgPool;
+use crate::features::starboard::types::Starboard;
+use crate::shared::placeholders::{render, DiscordCtx, PlaceholderResolver, ResolverChain};
+use fred::prelude::*;
+use serenity::all::{
+    Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId, Reaction, ReactionType, UserId,
+};
 use tracing::{debug, instrument, trace, warn};
 
+pub struct StarboardCtx<'a> {
+    pub starboard: Option<&'a Starboard>,
+    pub star_count: Option<u64>,
+}
+
+impl PlaceholderResolver for StarboardCtx<'_> {
+    fn resolve(&self, key: &str) -> Option<String> {
+        if key.starts_with("starboard") {
+            let sb = self.starboard?;
+            return Some(match key {
+                "starboard.emojis" => sb.emojis.as_ref().map(|e| e.join(", ")).unwrap_or_default(),
+                "starboard.first_emoji" => sb.emojis.as_ref().and_then(|v| v.first().cloned()).unwrap_or_default(),
+                _ => return None,
+            });
+        }
+        if key == "message.stars_count" {
+            return Some(self.star_count.unwrap_or_default().to_string());
+        }
+        None
+    }
+}
+
 pub async fn get_channel(ctx: &Context, guild_id: GuildId, channel_id: ChannelId) -> Option<GuildChannel> {
-    let cached_channel = ctx.cache.guild(guild_id)
-        .and_then(|g| g.channels.get(&channel_id).cloned());
+    let cached_channel = ctx.cache.guild(guild_id).and_then(|g| g.channels.get(&channel_id).cloned());
 
     if let Some(channel) = cached_channel {
         Some(channel)
@@ -25,6 +41,7 @@ pub async fn get_channel(ctx: &Context, guild_id: GuildId, channel_id: ChannelId
         }
     }
 }
+
 pub fn is_emoji_match(a: &ReactionType, b: &ReactionType) -> bool {
     match (a, b) {
         (ReactionType::Custom { id: id_a, .. }, ReactionType::Custom { id: id_b, .. }) => id_a == id_b,
@@ -49,7 +66,7 @@ pub async fn has_user_reacted(
     message_id: MessageId,
     emoji: &ReactionType,
     user_id: UserId,
-) -> Result<bool, Error> {
+) -> Result<bool, anyhow::Error> {
     let users = channel_id
         .reaction_users(&ctx.http, message_id, emoji.clone(), Some(100), None)
         .await?;
@@ -64,7 +81,7 @@ pub async fn build_starboard_message(
     member: &Member,
     emoji_count: u64,
     starboard_channel: ChannelId,
-) -> Result<Option<(String, CreateEmbed, Message)>, Error> {
+) -> Result<Option<(String, CreateEmbed, Message)>, anyhow::Error> {
     debug!("Building message structures from templates");
     let Some(guild_id) = reaction.guild_id else { return Ok(None) };
     let Some(guild_starboard_channel) = get_channel(ctx, guild_id, starboard_channel).await else { return Ok(None) };
@@ -75,86 +92,33 @@ pub async fn build_starboard_message(
 
     let Some(embed_template) = &starboard.embed_template else {
         warn!("Missing embed template for starboard config");
-        return Ok(None)
+        return Ok(None);
     };
     let Some(text_template) = &starboard.plaintext_template else {
         warn!("Missing text template for starboard config");
-        return Ok(None)
+        return Ok(None);
     };
 
-    let embedded_message = embed_template.to_embed(|text| {
-        replace_starboard_placeholders(
-            text, &gctx, member, &guild_starboard_channel, &origin_channel, &origin_message, starboard, &emoji_count,
-        )
-    })?;
+    let discord_ctx = DiscordCtx {
+        gctx: Some(&gctx),
+        member: Some(member),
+        channel: Some(&guild_starboard_channel),
+        source_channel: Some(&origin_channel),
+        message: Some(&origin_message),
+        ..Default::default()
+    };
 
-    let text_message = replace_starboard_placeholders(
-        text_template, &gctx, member, &guild_starboard_channel, &origin_channel, &origin_message, starboard, &emoji_count,
-    );
+    let sb_ctx = StarboardCtx {
+        starboard: Some(starboard),
+        star_count: Some(emoji_count),
+    };
+
+    let resolver = ResolverChain(vec![&discord_ctx, &sb_ctx]);
+
+    let embedded_message = embed_template.to_embed(|text| render(text, &resolver))?;
+    let text_message = render(text_template, &resolver);
 
     Ok(Some((text_message, embedded_message, origin_message)))
-}
-
-#[instrument(skip(db, redis))]
-pub async fn get_starboards(
-    guild_id: i64,
-    db: &PgPool,
-    redis: &Client,
-) -> Result<Vec<Starboard>, Error> {
-    let cache_key = format!("starboard:config:{}", guild_id);
-    trace!(cache_key = %cache_key, "Fetching starboards config");
-
-    let maybe_starboard_config: FredResult<Option<String>> = redis.get(&cache_key).await;
-
-    if let Ok(Some(cached_data)) = maybe_starboard_config {
-        if let Ok(configs) = serde_json::from_str::<Vec<Starboard>>(&cached_data) {
-            trace!("Cache hit for starboard configs");
-            return Ok(configs);
-        }
-    }
-
-    debug!("Cache miss; fetching starboard configs from database");
-    let rows = sqlx::query_as!(
-        StarboardRow,
-        r#"
-        SELECT
-            id,
-            guild_id,
-            starboard_channel_id,
-            emojis,
-            reaction_threshold,
-            min_message_age as "min_message_age: PgInterval",
-            max_message_age as "max_message_age: PgInterval",
-            prevent_self_star,
-            allow_bot_messages,
-            keep_deleted_messages,
-            role_restriction_type as "role_restriction_type: RestrictionType",
-            restricted_roles,
-            channel_restriction_type as "channel_restriction_type: RestrictionType",
-            restricted_channels,
-            created_at,
-            updated_at,
-            embed_template as "embed_template: Json<DiscordEmbed>",
-            plaintext_template
-        FROM starboards
-        WHERE guild_id = $1
-        "#,
-        guild_id,
-    )
-        .fetch_all(db)
-        .await?;
-
-    let starboards = rows.into_iter()
-        .map(Starboard::try_from)
-        .collect::<Result<Vec<Starboard>, _>>()
-        .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-    if let Ok(serialized) = serde_json::to_string(&starboards) {
-        trace!("Caching starboard configs back to Redis");
-        let _: Result<(), _> = redis.set(&cache_key, serialized, Some(Expiration::EX(86400)), None, false).await;
-    }
-
-    Ok(starboards)
 }
 
 #[instrument(
@@ -186,7 +150,9 @@ pub async fn count_emoji_and_cache(
 
             if starboard.prevent_self_star.unwrap_or(false) {
                 trace!("Self-star prevention active; checking reaction authors");
-                let has_author_reacted = has_user_reacted(ctx, removed_reaction.channel_id, removed_reaction.message_id, &removed_reaction.emoji, msg.author.id).await.unwrap_or(false);
+                let has_author_reacted = has_user_reacted(ctx, removed_reaction.channel_id, removed_reaction.message_id, &removed_reaction.emoji, msg.author.id)
+                    .await
+                    .unwrap_or(false);
                 if has_author_reacted && count > 0 {
                     debug!("Self-star detected; decrementing official reaction count");
                     count -= 1;

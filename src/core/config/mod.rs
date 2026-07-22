@@ -21,7 +21,7 @@ pub struct GuildCtx {
 pub async fn get_guild_ctx(
     guild_id: serenity::GuildId,
     cache_http: impl serenity::CacheHttp,
-) -> Result<GuildCtx, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<GuildCtx, anyhow::Error> {
     let guild_id_u64 = guild_id.get();
     trace!(guild_id = guild_id_u64, "Fetching guild context details");
 

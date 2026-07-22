@@ -1,8 +1,8 @@
 use crate::core::config::get_settings;
+use crate::shared::embed::build_custom_message;
 use crate::types::config::config::Format;
 use crate::types::dashboard::{DashboardCommand, ReportUpdate};
 use crate::types::payloads::ReportStatus;
-use crate::utils::custom_msg::build_custom_message;
 use crate::web::routes::commands::error::WebError;
 use crate::web::routes::commands::{database, getters};
 use crate::WebState;
@@ -69,7 +69,7 @@ pub async fn handle_warn(
 
     info!(moderator_id = %moderator_id, "Issuing warning to user");
 
-    crate::utils::moderation::issuing::issue_warning(
+    crate::features::warning::issuing::issue_warning(
         &state.db,
         redis,
         &state.guild_configs,
@@ -134,7 +134,7 @@ pub async fn handle_timeout(
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
 
-    crate::utils::moderation::issuing::issue_mute(
+    crate::features::moderation::issuing::issue_mute(
         &state.db,
         redis,
         &state.guild_configs,
@@ -183,7 +183,7 @@ pub async fn handle_ban_user(
         None => "Permanent".to_string(),
     };
 
-    crate::utils::moderation::issuing::issue_ban(
+    crate::features::moderation::issuing::issue_ban(
         &state.db,
         redis,
         &state.guild_configs,
