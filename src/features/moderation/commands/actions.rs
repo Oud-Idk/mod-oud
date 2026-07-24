@@ -1,11 +1,13 @@
-use crate::commands::moderation::utils;
-use crate::commands::moderation::utils::{parse_duration, send_ephemeral};
+use crate::features::moderation::ActionType;
 use crate::features::moderation::channels::delete_entire_category;
+use crate::features::moderation::commands::helpers::parse_duration;
 use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::issuing::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};
 use crate::features::moderation::perms::pre_flight_check;
-use crate::types::{Context, Error, GuildMetadata};
-use serenity::all::{GetMessages, GuildChannel, Member, MessageId, User};
+use crate::shared::command_context::GuildMetadata;
+use crate::shared::embed::send_ephemeral;
+use crate::{Context, Error};
+use serenity::all::{GetMessages, Member, Message, MessageId, User};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, trace, warn};
 
@@ -146,7 +148,7 @@ pub async fn purge(
         .await?;
 
     trace!(fetched_count = messages.len(), "Retrieved messages from channel for purging");
-    let message_ids: Vec<MessageId> = utils::get_to_be_deleted_message_ids(&messages);
+    let message_ids: Vec<MessageId> = get_to_be_deleted_message_ids(&messages);
 
     if !message_ids.is_empty() {
         channel_id
@@ -359,7 +361,7 @@ pub async fn unban(
     match unban_result {
         Ok(_) => {
             log_moderation_action(
-                &ctx.data().db, meta.id, Some(&user), &ctx.author(), Some(&reason_str), "softban", None,
+                &ctx.data().db, meta.id, Some(&user), &ctx.author(), Some(&reason_str), ActionType::Unban, None,
             ).await?;
 
             ctx.say(format!(
@@ -380,3 +382,15 @@ pub async fn unban(
     Ok(())
 }
 
+pub fn get_to_be_deleted_message_ids(messages: &Vec<Message>) -> Vec<MessageId> {
+    let now = serenity::model::Timestamp::now();
+
+    messages
+        .iter()
+        .filter(|m| {
+            let age = now.unix_timestamp() - m.timestamp.unix_timestamp();
+            age < (14 * 24 * 60 * 60) - 60
+        })
+        .map(|m| m.id)
+        .collect()
+}

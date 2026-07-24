@@ -1,5 +1,5 @@
-use crate::core::config::GuildCtx;
-use crate::shared::placeholders::{render, DiscordCtx, PlaceholderResolver, ResolverChain};
+use crate::core::config::guild_ctx::GuildCtx;
+use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver, ResolverChain, render};
 use duration_str::HumanFormat;
 use serenity::all::{Member, User};
 use std::time::Duration;
@@ -134,5 +134,16 @@ pub fn replace_basic_placeholder(
         moderator: Some(moderator),
         ..Default::default()
     };
+    render(text, &ResolverChain(vec![&discord, &modctx]))
+}
+
+pub fn replace_system_ban_placeholders(
+    text: &str,
+    gctx: &GuildCtx,
+    user: &User,
+    duration: Option<Duration>,
+) -> String {
+    let discord = DiscordCtx { gctx: Some(gctx), user: Some(user), ..Default::default() };
+    let modctx = ModerationCtx { duration, ..Default::default() };
     render(text, &ResolverChain(vec![&discord, &modctx]))
 }

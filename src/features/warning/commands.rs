@@ -1,11 +1,12 @@
-use crate::commands::moderation::utils::send_ephemeral;
-use crate::commands::moderation::warn::modify_warns::set_warning_active_status;
-use crate::commands::moderation::warn::paginate;
 use crate::features::moderation::pre_flight_check;
 use crate::features::warning::database::{fetch_warnings, search_warning_from_id, search_warnings_by_pattern};
 use crate::features::warning::issuing::issue_delete_warning;
 use crate::features::warning::issuing::issue_warning;
-use crate::types::{Context, Error, GuildMetadata};
+use crate::features::warning::modify_warns::set_warning_active_status;
+use crate::features::warning::pagination;
+use crate::shared::command_context::GuildMetadata;
+use crate::shared::embed::send_ephemeral;
+use crate::{Context, Error};
 use serenity::all::{Member, User};
 use tracing::{debug, info, trace};
 
@@ -91,7 +92,7 @@ pub async fn warn_history(
     let title = format!("Warning History for {}", member.user.name);
     let avatar_url = Some(member.user.face());
 
-    paginate::paginate_warnings(ctx, &warnings, title, avatar_url).await?;
+    pagination::paginate_warnings(ctx, &warnings, title, avatar_url).await?;
 
     Ok(())
 }
@@ -143,7 +144,7 @@ pub async fn search_warnings(
     let title = format!("Search Results for \"{}\"", query);
     let avatar_url = user.as_ref().map(|u| u.face());
 
-    paginate::paginate_warnings(ctx, &warnings, title, avatar_url).await?;
+    pagination::paginate_warnings(ctx, &warnings, title, avatar_url).await?;
 
     Ok(())
 }

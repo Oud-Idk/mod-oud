@@ -1,13 +1,16 @@
-use crate::commands::{emergency, invites, leveling, moderation, test_verif, ticket};
-use crate::core::setup::setup;
-use commands::{messages, ping};
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
+use mod_oud::core::config;
+use mod_oud::core::error::on_error;
+use mod_oud::core::setup::{ShardManagerContainer, setup};
+use mod_oud::features::live_feed::LogEvent;
+use mod_oud::features::{general, invite_tracking, leveling, moderation, reporting, tickets, warning};
+use mod_oud::web::server::start_web_server;
+use mod_oud::{Data, Error, events};
 use poise::serenity_prelude as serenity;
-use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
-use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::ConnectOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -15,43 +18,11 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use tracing::log::LevelFilter;
 use tracing::{debug, info, trace, warn};
-use types::{Data, Error, LogEvent};
-use web::start_web_server;
-
-mod commands;
-mod core;
-mod events;
-mod jobs;
-mod models;
-mod types;
-mod utils;
-pub mod web;
-pub mod shared;
-pub mod features;
-
-pub struct ShardManagerContainer;
-impl serenity::prelude::TypeMapKey for ShardManagerContainer {
-    type Value = Arc<ShardManager>;
-}
-
-#[derive(Clone)]
-pub struct WebState {
-    pub tx: broadcast::Sender<LogEvent>,
-    pub db: sqlx::PgPool,
-    pub http: Arc<poise::serenity_prelude::Http>,
-    pub redis: Client,
-    pub guild_configs: moka::future::Cache<i64, types::config::config::GuildSettings>,
-    pub req_client: reqwest::Client,
-    pub shared_secret: Option<String>,
-    pub cf_secret_key: Option<String>,
-    pub hc_secret_key: Option<String>,
-    pub hc_site_key: Option<String>,
-}
 
 fn main() -> Result<(), Error> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .thread_stack_size(2 * 1024 * 1024)
+        .thread_stack_size(4 * 1024 * 1024)
         .build()?;
 
     runtime.block_on(async_main())
@@ -165,7 +136,7 @@ async fn async_main() -> Result<(), Error> {
     let http = Arc::new(serenity::Http::new(&token));
 
     let guild_configs = moka::future::Cache::new(5000);
-    jobs::sync_configs::sync_configs(&subscriber_client, &guild_configs);
+    config::sync::sync_configs(&subscriber_client, &guild_configs);
 
     if run_web {
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
@@ -215,34 +186,32 @@ async fn async_main() -> Result<(), Error> {
         );
 
         let commands_to_register = vec![
-            ping::ping(),
-            moderation::others::commands::purge(),
-            moderation::others::commands::kick(),
-            moderation::others::commands::ban(),
-            moderation::others::commands::mute(),
-            moderation::others::commands::unmute(),
-            moderation::others::commands::softban(),
-            moderation::others::commands::unban(),
-            moderation::warn::commands::warn(),
-            moderation::warn::commands::warn_history(),
-            moderation::warn::commands::search_warnings(),
-            moderation::warn::commands::search_warning_by_id(),
-            moderation::warn::commands::pardon_warning(),
-            moderation::warn::commands::unpardon_warning(),
-            moderation::warn::commands::delete_warning(),
-            messages::commands::deleted_history(),
-            messages::commands::edit_history(),
-            messages::commands::report_message(),
+            general::ping(),
+            moderation::purge(),
+            moderation::kick(),
+            moderation::ban(),
+            moderation::mute(),
+            moderation::unmute(),
+            moderation::softban(),
+            moderation::unban(),
+            moderation::delete_category(),
+            warning::warn(),
+            warning::warn_history(),
+            warning::search_warnings(),
+            warning::search_warning_by_id(),
+            warning::pardon_warning(),
+            warning::unpardon_warning(),
+            warning::delete_warning(),
+            reporting::report_message(),
             leveling::level(),
-            emergency::lock(),
-            emergency::unlock(),
-            emergency::global_lock(),
-            emergency::global_unlock(),
-            ticket::setup_tickets(),
-            invites::invites(),
-            invites::inviter(),
-            invites::invites_leaderboard(),
-            test_verif::test_verif(),
+            moderation::lock(),
+            moderation::unlock(),
+            moderation::global_lock(),
+            moderation::global_unlock(),
+            tickets::setup_tickets(),
+            invite_tracking::invites(),
+            invite_tracking::inviter(),
+            invite_tracking::invites_leaderboard(),
             register(),
         ];
 
@@ -258,9 +227,9 @@ async fn async_main() -> Result<(), Error> {
                     ..Default::default()
                 },
                 commands: commands_to_register,
-                on_error: |error| Box::pin(core::error::on_error(error)),
+                on_error: |error| Box::pin(on_error(error)),
                 event_handler: |ctx, event, framework, data| {
-                    Box::pin(events::events::event_handler(ctx, event, framework, data))
+                    Box::pin(events::dispatch::dispatch_events(ctx, event, framework, data))
                 },
                 ..Default::default()
             })

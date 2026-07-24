@@ -3,17 +3,17 @@
     ($db:expr, $redis_conn:expr, $config_cache:expr, $http:expr, $guild_id:expr, $user_id:expr) => {{
         let gctx_fut = async {
             get_guild_ctx($guild_id, $http.as_ref()).await
-                .map_err(|e| -> crate::types::Error { e.into() })
+                .map_err(|e| -> anyhow::Error { e.into() })
         };
 
         let member_fut = async {
             $http.get_member($guild_id, $user_id).await
-                .map_err(|e| -> crate::types::Error { e.into() })
+                .map_err(|e| -> anyhow::Error { e.into() })
         };
 
         let settings_fut = async {
             get_settings($db, $redis_conn, $config_cache, $guild_id.get() as i64).await
-                .map_err(|e| -> crate::types::Error { e.into() })
+                .map_err(|e| -> anyhow::Error { e.into() })
         };
 
         tokio::try_join!(gctx_fut, member_fut, settings_fut)?

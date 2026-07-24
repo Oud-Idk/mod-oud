@@ -1,4 +1,4 @@
-use crate::types::embed::DiscordEmbed;
+use crate::shared::embed::DiscordEmbed;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;

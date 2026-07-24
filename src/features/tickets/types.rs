@@ -1,0 +1,51 @@
+use crate::core::config::settings::MessageLayout;
+use crate::shared::embed::{DiscordEmbed, Format};
+use crate::shared::ok_or_none;
+use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as, serde_conv};
+use std::time::Duration;
+
+#[derive(Debug)]
+pub struct TicketLogPayload {
+    pub ticket_channel_id: i64,
+    pub message_id: i64,
+    pub author_id: i64,
+    pub content: String,
+    pub sender_name: String,
+    pub is_ticket_manager: bool,
+}
+
+serde_conv!(
+    DurationMinutes,
+    Duration,
+    |duration: &Duration| duration.as_secs() / 60,
+    |mins: u64| -> Result<_, std::convert::Infallible> {
+        Ok(Duration::from_secs(mins * 60))
+    }
+);
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TicketConfig {
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub category_id: Option<u64>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub ticket_role_id: Option<u64>,
+    pub enabled: Option<bool>,
+    pub posted_message_id: Option<String>,
+    pub channel_id: Option<String>,
+
+    pub content: Option<String>,
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub embed: Option<DiscordEmbed>,
+    pub format: Format,
+
+    #[serde_as(as = "DurationMinutes")]
+    pub warn_threshold: Duration,
+    #[serde_as(as = "DurationMinutes")]
+    pub delete_threshold: Duration,
+    pub bump_every: i32,
+
+    pub welcome_message: Option<MessageLayout>,
+}

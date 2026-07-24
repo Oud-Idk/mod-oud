@@ -1,6 +1,6 @@
-use crate::events::handlers::message_filter::database::insert_automod_log;
-use crate::types::Error;
-use crate::utils::moderation::database::{ModerationAction, WarnThreshold};
+use crate::Error;
+use crate::features::automod::insert_automod_row;
+use crate::features::warning::types::{WarnAction, WarnThreshold};
 use serenity::all::{Http, Member, RoleId, Timestamp};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -16,17 +16,17 @@ pub(crate) async fn apply_threshold_actions(
     for threshold in thresholds {
         for action in &threshold.action_type {
             match action {
-                ModerationAction::Ban => {
+                WarnAction::Ban => {
                     debug!("Executing auto-ban");
                     member.ban_with_reason(http, 7, "Reached warning threshold").await?;
                     insert_threshold_automod_log(db, member, &threshold, "ban").await?;
                 }
-                ModerationAction::Kick => {
+                WarnAction::Kick => {
                     debug!("Executing auto-kick");
                     member.kick_with_reason(http, "Reached warning threshold").await?;
                     insert_threshold_automod_log(db, member, &threshold, "kick").await?;
                 }
-                ModerationAction::Timeout => {
+                WarnAction::Timeout => {
                     if let Some(secs) = threshold.duration {
                         debug!(secs, "Executing auto-timeout");
                         let until = Timestamp::from_unix_timestamp(
@@ -39,7 +39,7 @@ pub(crate) async fn apply_threshold_actions(
                     }
                     insert_threshold_automod_log(db, member, &threshold, "mute").await?;
                 }
-                ModerationAction::RoleAdd => {
+                WarnAction::RoleAdd => {
                     if let Some(ref roles) = threshold.roles_to_add {
                         for role_id in roles {
                             debug!(role_id, "Adding role from threshold");
@@ -48,7 +48,7 @@ pub(crate) async fn apply_threshold_actions(
                     }
                     insert_threshold_automod_log(db, member, &threshold, "role_add").await?;
                 }
-                ModerationAction::RoleRemove => {
+                WarnAction::RoleRemove => {
                     if let Some(ref roles) = threshold.roles_to_remove {
                         for role_id in roles {
                             debug!(role_id, "Removing role from threshold");
@@ -57,7 +57,7 @@ pub(crate) async fn apply_threshold_actions(
                     }
                     insert_threshold_automod_log(db, member, &threshold, "role_remove").await?;
                 }
-                ModerationAction::RoleRemoveAll => {
+                WarnAction::RoleRemoveAll => {
                     debug!("Removing all roles from member");
                     for role in &member.roles {
                         member.remove_role(http, *role).await?;
@@ -72,7 +72,7 @@ pub(crate) async fn apply_threshold_actions(
 
 async fn insert_threshold_automod_log(db: &PgPool, member: &mut Member, threshold: &WarnThreshold, name: &str) -> Result<(), Error> {
     debug("Inserting automod-log for threshold");
-    insert_automod_log(
+    insert_automod_row(
         db,
         member.guild_id.get() as i64,
         member.user.id.get() as i64,

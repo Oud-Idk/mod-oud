@@ -1,0 +1,171 @@
+use crate::core::config::guild_ctx::get_guild_ctx;
+use crate::features::leveling;
+use crate::features::leveling::calculation::clamp_to_level_cap;
+use crate::features::leveling::calculation::process_level_ups;
+use crate::features::leveling::database::get_user_level;
+use crate::features::leveling::types::UserLevel;
+use crate::features::leveling::types::{LevelingConfig, NotificationScope};
+use crate::features::leveling::{cache, notifications, rewards, rules};
+use crate::shared::embed::DiscordEmbed;
+use crate::shared::embed::build_custom_message;
+use crate::{Data, Error};
+use serenity::all::{Context, CreateMessage, GuildId, Message};
+use tracing::{debug, info, trace, warn};
+use crate::core::config::settings::get_settings;
+
+pub async fn handle_text_leveling(
+    ctx: &Context,
+    message: &Message,
+    data: &Data,
+) -> Result<(), Error> {
+    if message.author.bot { return Ok(()); }
+
+    let Some(guild_id) = &message.guild_id else { return Ok(()) };
+
+    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+    let config_maybe = settings.leveling;
+    let Some(leveling_config) = config_maybe else { return Ok(()) };
+    if !leveling_config.text.enabled { return Ok(()) };
+
+    if should_skip_leveling(message, data, &leveling_config) {
+        return Ok(());
+    }
+
+    let guild_id_u64 = guild_id.get();
+    let author_id = message.author.id.get();
+    let author = &message.author;
+    let db = &data.db;
+    let redis = &data.redis;
+
+    let cooldown_key = format!("cooldown:{}:{}", guild_id, author.id);
+    let set_cooldown = cache::create_redis_cooldown(&cooldown_key, &leveling_config, &redis).await?;
+
+    if !set_cooldown {
+        trace!(guild_id = guild_id_u64, author_id, "Skipping leveling XP: user is on XP cooldown");
+        return Ok(());
+    }
+
+    let stats_key = format!("member:{}:{}", guild_id, author.id);
+    let multiplier_key = format!("multipliers:{}", guild_id.get());
+
+    let (applied_multiplier, mut user_level) = tokio::try_join!(
+        rules::get_multiplier(&redis, &multiplier_key, db, guild_id, message),
+        get_user_level(&redis, db, guild_id, &author.id, &stats_key, &author.name)
+    )?;
+
+    let should_be_clamped = clamp_to_level_cap(&leveling_config, &redis, db, &stats_key, &mut user_level).await?;
+    if should_be_clamped {
+        debug!(guild_id = guild_id_u64, author_id, "Skipping leveling XP: user has already reached the leveling cap");
+        return Ok(());
+    }
+
+    let (previous_level, add_level) = leveling::calculation::calculate_level_up(&leveling_config, applied_multiplier, &mut user_level);
+    user_level.current_xp += add_level;
+
+    let leveled_up = process_level_ups(&mut user_level, leveling_config.level_cap as i32);
+
+    if leveled_up {
+        info!(
+            guild_id = guild_id_u64,
+            author_id,
+            old_level = previous_level,
+            new_level = user_level.current_level,
+            "User has leveled up!"
+        );
+
+        spawn_level_up_effects(
+            ctx.clone(),
+            &db,
+            message.clone(),
+            user_level.clone(),
+            leveling_config.clone(),
+            previous_level,
+        );
+    }
+
+    cache::save_leveling_cache(
+        &redis,
+        &stats_key,
+        &user_level,
+        &guild_id.get().to_string(),
+        &author.id.get().to_string(),
+    ).await?;
+
+    Ok(())
+}
+
+pub fn should_skip_leveling(
+    message: &Message,
+    data: &Data,
+    config: &LevelingConfig,
+) -> bool {
+    let guild_id = message.guild_id.map(|g| g.get()).unwrap_or(0);
+    let channel_id_u64 = message.channel_id.get();
+
+    if data.active_tickets.contains_key(&channel_id_u64) {
+        trace!(guild_id, channel_id = %channel_id_u64, "Skipping leveling XP: channel is marked as a ticket");
+        return true;
+    }
+
+    let user_roles: Vec<u64> = message.member.as_ref()
+        .map(|m| m.roles.iter().map(|r| r.get()).collect())
+        .unwrap_or_default();
+
+    if rules::should_exclude_from_level_up(config, &user_roles, channel_id_u64) {
+        trace!(guild_id, author_id = message.author.id.get(), "Skipping leveling XP: member or channel is excluded");
+        return true;
+    }
+
+    false
+}
+
+pub fn spawn_level_up_effects(
+    ctx: Context,
+    db: &sqlx::PgPool,
+    message: Message,
+    user_level: UserLevel,
+    leveling_config: LevelingConfig,
+    previous_level: i32,
+) {
+    let guild_id_val = message.guild_id.unwrap_or_default();
+    let author_id_val = message.author.id;
+    let current_level_val = user_level.current_level;
+    let db_lvl_up = db.clone();
+
+    tokio::spawn(async move {
+        if !matches!(leveling_config.notify.scope, NotificationScope::None) {
+            let embed = &leveling_config.notify.embed;
+            trace!(guild_id = guild_id_val.get(), author_id = author_id_val.get(), "Initiating level-up notification");
+
+            if let Err(e) = notifications::send_message(
+                &ctx,
+                embed.as_ref(),
+                &message,
+                &user_level,
+                &leveling_config,
+                &guild_id_val,
+                previous_level
+            ).await {
+                warn!(error = ?e, "Failed to send level-up notification");
+            }
+        }
+
+        trace!(guild_id = guild_id_val.get(), author_id = author_id_val.get(), level = current_level_val, "Evaluating reward assignments");
+        if let Err(e) = rewards::apply_level_rewards(
+            &ctx,
+            &db_lvl_up,
+            &guild_id_val,
+            author_id_val,
+            current_level_val
+        ).await {
+            warn!(
+                error = ?e,
+                guild_id = guild_id_val.get(),
+                author_id = author_id_val.get(),
+                level = current_level_val,
+                "Failed to apply leveling role rewards to member"
+            );
+        }
+    });
+}
+

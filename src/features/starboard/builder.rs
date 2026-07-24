@@ -1,6 +1,6 @@
-use crate::core::config::get_guild_ctx;
+use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::features::starboard::types::Starboard;
-use crate::shared::placeholders::{render, DiscordCtx, PlaceholderResolver, ResolverChain};
+use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver, ResolverChain, render};
 use fred::prelude::*;
 use serenity::all::{
     Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId, Reaction, ReactionType, UserId,

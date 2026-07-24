@@ -1,5 +1,5 @@
-use crate::commands::moderation::utils;
-use crate::types::{Context, Data, Error, GuildMetadata};
+use crate::shared::command_context::GuildMetadata;
+use crate::{Context, Data, Error};
 use serenity::all::{Member, PartialGuild, UserId};
 use tracing::{debug, trace, warn};
 

@@ -1,9 +1,10 @@
-use crate::features::moderation::TempBanRecord;
-use crate::types::Error;
+use anyhow::Result;
 use chrono::TimeDelta;
 use serenity::all::{GuildId, User};
 use sqlx::postgres::types::PgInterval;
 use sqlx::PgPool;
+use crate::features::moderation::ActionType;
+use crate::features::moderation::types::TempBanRecord;
 
 trait ToPgInterval {
     fn to_pg_interval(&self) -> PgInterval;
@@ -21,8 +22,16 @@ impl ToPgInterval for TimeDelta {
     }
 }
 
-pub async fn log_moderation_action(db: &PgPool, guild_id: GuildId, user: Option<&User>, moderator: &User, reason: Option<&str>, action: &str, interval: Option<TimeDelta>) -> Result<(), Error> {
-    let pg_interval = interval.map(|delta| { delta.to_pg_interval() });
+pub async fn log_moderation_action(
+    db: &PgPool,
+    guild_id: GuildId,
+    user: Option<&User>,
+    moderator: &User,
+    reason: Option<&str>,
+    action: ActionType,
+    interval: Option<TimeDelta>,
+) -> Result<()> {
+    let pg_interval = interval.map(|delta| delta.to_pg_interval());
 
     sqlx::query!(
         r#"
@@ -32,7 +41,7 @@ pub async fn log_moderation_action(db: &PgPool, guild_id: GuildId, user: Option<
         guild_id.get() as i64,
         user.map(|u| u.id.get() as i64),
         moderator.id.get() as i64,
-        action,
+        action as ActionType,
         reason,
         pg_interval,
     )
@@ -45,8 +54,8 @@ pub async fn log_moderation_action(db: &PgPool, guild_id: GuildId, user: Option<
 pub async fn fetch_expired_temp_bans(
     db: &PgPool,
     now: chrono::DateTime<chrono::Utc>,
-) -> Result<Vec<TempBanRecord>, sqlx::Error> {
-    sqlx::query_as!(
+) -> Result<Vec<TempBanRecord>> {
+    Ok(sqlx::query_as!(
         TempBanRecord,
         r#"
         SELECT id, guild_id, user_id FROM temp_bans
@@ -56,7 +65,7 @@ pub async fn fetch_expired_temp_bans(
         now
     )
         .fetch_all(db)
-        .await
+        .await?)
 }
 
 /// Deletes processed temp ban records by ID.

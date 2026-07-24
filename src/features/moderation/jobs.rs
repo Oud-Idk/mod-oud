@@ -1,5 +1,6 @@
 use crate::features::moderation::database;
 use crate::shared::locking::acquire_lock;
+use anyhow::Result;
 use fred::prelude::*;
 use futures_util::StreamExt;
 use poise::serenity_prelude as serenity;
@@ -63,7 +64,7 @@ async fn process_expired_temp_bans(
     db_pool: &PgPool,
     http: &serenity::Http,
     now: chrono::DateTime<chrono::Utc>,
-) -> Result<(), sqlx::Error> {
+) -> Result<()> {
     let expired_bans = database::fetch_expired_temp_bans(db_pool, now).await?;
 
     if expired_bans.is_empty() {

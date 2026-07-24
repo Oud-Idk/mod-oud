@@ -1,12 +1,12 @@
 use crate::features::starboard::types::{RestrictionType, Starboard, StarboardOp};
-use crate::types::embed::DiscordEmbed;
+use crate::shared::embed::DiscordEmbed;
 use anyhow::{Context, Result};
 use fred::clients::Client;
 use fred::interfaces::{KeysInterface, LuaInterface};
 use fred::types::Expiration;
+use sqlx::PgPool;
 use sqlx::postgres::types::PgInterval;
 use sqlx::types::Json;
-use sqlx::PgPool;
 use tracing::instrument;
 
 pub async fn get_starboards(

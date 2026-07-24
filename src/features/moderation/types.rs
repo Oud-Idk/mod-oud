@@ -22,3 +22,5 @@ pub struct TempBanRecord {
     pub guild_id: i64,
     pub user_id: i64,
 }
+
+pub const MODERATION_FOOTER: &str = "If you believe this was a mistake, please contact an administrator.";

@@ -1,12 +1,14 @@
-use crate::core::config::{get_guild_ctx, get_settings};
+use crate::core::config::guild_ctx::get_guild_ctx;
+use crate::core::config::settings::GuildSettings;
+use crate::core::config::settings::get_settings;
+use crate::features::moderation::ActionType;
 use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
+use crate::features::moderation::types::MODERATION_FOOTER;
 use crate::shared::embed::build_custom_message;
-use crate::types::config::config::GuildSettings;
-use crate::types::Error;
-use crate::utils::moderation::MODERATION_FOOTER;
-use crate::utils::store_username_relation;
+use crate::shared::store_username_relation;
 use crate::{fetch_mod_ctx, send_mod_dm};
+use anyhow::Result;
 use chrono::TimeDelta;
 use duration_str::HumanFormat;
 use fred::clients::Client;
@@ -29,7 +31,7 @@ pub async fn issue_kick(
     user: User,
     moderator: User,
     reason: &str,
-) -> Result<(), Error> {
+) -> Result<()> {
     store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
     store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
 
@@ -86,7 +88,7 @@ pub async fn issue_kick(
     );
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, Some(reason), "kick", None
+        db, guild_id, Some(&user), &moderator, Some(reason), ActionType::Kick, None
     ).await?;
 
     debug!("Executing kick via Discord HTTP API");
@@ -110,7 +112,7 @@ pub async fn issue_ban(
     dmd_time: u8,
     duration: Option<Duration>,
     duration_label: &str,
-) -> Result<(), Error> {
+) -> Result<()> {
     store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
     store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
 
@@ -146,7 +148,7 @@ pub async fn issue_ban(
     }
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, Some(reason), "ban", dur
+        db, guild_id, Some(&user), &moderator, Some(reason), ActionType::Ban, dur
     ).await?;
 
 
@@ -154,7 +156,7 @@ pub async fn issue_ban(
     Ok(())
 }
 
-pub async fn schedule_unban(db: &PgPool, guild_id: GuildId, user: &User, dur: Duration) -> Result<TimeDelta, Error> {
+pub async fn schedule_unban(db: &PgPool, guild_id: GuildId, user: &User, dur: Duration) -> Result<TimeDelta> {
     let chrono_dur = chrono::Duration::from_std(dur)?;
     let unban_at = chrono::Utc::now() + chrono_dur;
 
@@ -182,7 +184,7 @@ pub async fn issue_mute(
     reason: &str,
     duration: &Duration,
     timestamp: Timestamp,
-) -> Result<(), Error> {
+) -> Result<()> {
     store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
     store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
 
@@ -212,7 +214,7 @@ pub async fn issue_mute(
     let timedelta = TimeDelta::from_std(*duration)?;
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, Some(reason), "mute", Some(timedelta),
+        db, guild_id, Some(&user), &moderator, Some(reason), ActionType::Mute, Some(timedelta),
     ).await?;
 
     info!("Successfully muted user in guild");
@@ -229,7 +231,7 @@ pub async fn issue_unmute(
     guild_id: GuildId,
     user: User,
     moderator: User,
-) -> Result<(), Error> {
+) -> Result<()> {
     store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
     store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
 
@@ -254,7 +256,7 @@ pub async fn issue_unmute(
     member.enable_communication(http).await?;
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, None, "unmute", None,
+        db, guild_id, Some(&user), &moderator, None, ActionType::Unmute, None,
     ).await?;
 
     info!("Successfully unmuted user in guild");
@@ -274,7 +276,7 @@ pub async fn issue_softban(
     moderator: User,
     reason: &str,
     dmd: u8,
-) -> Result<(), Error> {
+) -> Result<()> {
     store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
     store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
 
@@ -309,7 +311,7 @@ pub async fn issue_softban(
     guild_id.unban(http, user.id).await?;
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, Some(reason), "softban", None,
+        db, guild_id, Some(&user), &moderator, Some(reason), ActionType::Softban, None,
     ).await?;
 
     info!("Successfully soft-banned user from guild");

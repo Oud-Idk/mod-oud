@@ -1,14 +1,13 @@
-use crate::core::config::get_guild_ctx;
-use crate::core::config::get_settings;
-use crate::features::moderation::{log_moderation_action, replace_basic_placeholder, replace_reason_placeholders, ActionType};
-use crate::features::warning::database::{delete_warn, update_warn};
+use crate::Error;
+use crate::core::config::guild_ctx::get_guild_ctx;
+use crate::core::config::settings::GuildSettings;
+use crate::core::config::settings::get_settings;
+use crate::features::moderation::{ActionType, log_moderation_action, replace_basic_placeholder, replace_reason_placeholders};
+use crate::features::warning::database::{delete_warn, fetch_warn_thresholds, insert_warn, log_warning, update_warn};
 use crate::features::warning::thresholds;
+use crate::features::warning::types::{MODERATION_FOOTER, WarnThreshold};
 use crate::shared::embed::build_custom_message;
-use crate::types::config::config::GuildSettings;
-use crate::types::Error;
-use crate::utils::moderation::database::{fetch_warn_thresholds, insert_warn, log_warning, WarnThreshold};
-use crate::utils::moderation::MODERATION_FOOTER;
-use crate::utils::store_username_relation;
+use crate::shared::store_username_relation;
 use crate::{fetch_mod_ctx, send_mod_dm};
 use fred::clients::Client;
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, Http, User, UserId};
@@ -58,7 +57,7 @@ pub async fn issue_warning(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
-    log_warning(db, guild_id, user_id, moderator_id, reason).await?;
+    log_warning(db, guild_id, &member.user, &moderator_user, reason).await?;
 
     let thresholds = fetch_warn_thresholds(&db, &redis_conn, &guild_id).await?;
     let applicable_thresholds = thresholds
@@ -111,14 +110,14 @@ pub async fn issue_warning_status_change(
     );
     let user = &member.user;
 
-    let (action_past_tense, _, color) = if set_active {
+    let (action_past_tense, action_type, color) = if set_active {
         ("unpardoned", ActionType::Unpardon, 0xFF5757)
     } else {
         ("pardoned", ActionType::Pardon, 0x2AB83C)
     };
 
     log_moderation_action(
-        db, guild_id_raw, Some(&user), &author, None, action_past_tense, None,
+        db, guild_id_raw, Some(&user), &author, None, action_type, None,
     ).await?;
 
     let dm_settings_opt = if set_active {

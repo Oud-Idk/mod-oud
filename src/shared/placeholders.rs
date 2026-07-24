@@ -1,15 +1,14 @@
-use crate::core::config::GuildCtx;
+use crate::core::config::guild_ctx::GuildCtx;
 use rand::RngExt;
 use regex::{Captures, Regex};
 use serenity::all::{GuildChannel, Member, Message, User};
 use std::sync::OnceLock;
 
-// shared/placeholders.rs
-pub trait PlaceholderResolver {
+pub trait PlaceholderResolver: Send + Sync {
     fn resolve(&self, key: &str) -> Option<String>;
 }
 
-pub struct ResolverChain<'a>(pub Vec<&'a dyn PlaceholderResolver>);
+pub struct ResolverChain<'a>(pub Vec<&'a (dyn PlaceholderResolver + Send + Sync)>);
 
 impl PlaceholderResolver for ResolverChain<'_> {
     fn resolve(&self, key: &str) -> Option<String> {
