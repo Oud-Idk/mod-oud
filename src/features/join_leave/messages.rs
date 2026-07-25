@@ -76,7 +76,7 @@ pub async fn build_goodbye_message(
     );
 
     let gctx_res = get_guild_ctx(guild_id, ctx).await;
-    let context_ch_res = get_context_channel(ctx, member, leave_cfg.channel_id.as_deref()).await;
+    let context_ch_res = get_context_channel(ctx, member, leave_cfg.channel_id).await;
 
     match (gctx_res, context_ch_res) {
         (Ok(gctx), Ok(context_channel)) => {
@@ -130,19 +130,17 @@ pub fn format_member_roles(member_data: &Option<serenity::all::Member>) -> Strin
 pub async fn get_context_channel(
     ctx: &serenity::all::Context,
     member: &serenity::all::Member,
-    public_channel_id_str: Option<&str>,
+    public_channel_id_u64: Option<u64>,
 ) -> Result<serenity::all::GuildChannel, Error> {
     let guild_id = member.guild_id.get();
     trace!(guild_id, "Resolving text channel context for placeholder evaluation");
 
-    if let Some(ch_str) = public_channel_id_str {
-        if let Ok(id_u64) = ch_str.parse::<u64>() {
-            let channel_id = ChannelId::new(id_u64);
-            if let Ok(channel) = channel_id.to_channel(ctx).await {
-                if let Some(guild_ch) = channel.guild() {
-                    trace!(guild_id, channel_id = id_u64, "Resolved configured target channel context");
-                    return Ok(guild_ch);
-                }
+    if let Some(ch_u64) = public_channel_id_u64 {
+        let channel_id = ChannelId::new(ch_u64);
+        if let Ok(channel) = channel_id.to_channel(ctx).await {
+            if let Some(guild_ch) = channel.guild() {
+                trace!(guild_id, channel_id = ch_u64, "Resolved configured target channel context");
+                return Ok(guild_ch);
             }
         }
     }

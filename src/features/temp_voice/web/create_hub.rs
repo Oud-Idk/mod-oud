@@ -4,6 +4,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::{debug, info, warn};
 
 #[derive(Deserialize)]
@@ -12,11 +13,15 @@ pub struct CreateTempHubPayload {
     pub hub_channel_name: String,
 }
 
+#[serde_as]
 #[derive(Serialize)]
 pub struct CreateTempHubResponse {
-    pub category_id: String,
-    pub hub_channel_id: String,
-    pub interface_channel_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub category_id: u64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub hub_channel_id: u64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub interface_channel_id: u64,
 }
 
 /// Handler to spin up a temporary category and its main "hub" voice channel.
@@ -80,9 +85,9 @@ pub async fn handle_create_temp_category_and_hub(
     Ok((
         StatusCode::CREATED,
         Json(CreateTempHubResponse {
-            category_id: category.id.to_string(),
-            hub_channel_id: voice_channel.id.to_string(),
-            interface_channel_id: interface_channel.id.to_string(),
+            category_id: category.id.get(),
+            hub_channel_id: voice_channel.id.get(),
+            interface_channel_id: interface_channel.id.get(),
         }),
     ))
 }

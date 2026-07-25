@@ -3,25 +3,30 @@ use crate::shared::embed::DiscordEmbed;
 use crate::shared::embed::Format;
 use crate::shared::ok_or_none;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct LeaveConfig {
     pub enabled: Option<bool>,
-    pub channel_id: Option<String>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub channel_id: Option<u64>,
     pub format: Option<Format>,
     #[serde(default, deserialize_with = "ok_or_none")]
     pub embed: Option<DiscordEmbed>,
     pub content: Option<String>,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[serde(default)]
 pub struct WelcomeMessageSettings {
     pub enabled: Option<bool>,
-    pub channel_id: Option<String>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub channel_id: Option<u64>,
     pub format: Option<Format>,
     pub embed: Option<DiscordEmbed>,
     pub content: Option<String>,

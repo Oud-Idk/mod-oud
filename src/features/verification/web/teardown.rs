@@ -5,12 +5,16 @@ use axum::http::StatusCode;
 use serde::Deserialize;
 use serenity::all::{ChannelId, EditRole, GuildId, Permissions, RoleId};
 use std::sync::Arc;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::warn;
 
+#[serde_as]
 #[derive(Deserialize, Clone, Debug)]
 pub struct TeardownVerificationRequest {
-    verification_channel_id: String,
-    verification_role_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    verification_channel_id: u64,
+    #[serde_as(as = "DisplayFromStr")]
+    verification_role_id: u64,
 }
 
 pub async fn handle_verification_teardown(
@@ -26,17 +30,8 @@ pub async fn handle_verification_teardown(
         .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string()))?;
     let guild_id = GuildId::from(guild_id_u64);
 
-    let channel_id_u64 = payload.verification_channel_id
-        .parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, id = payload.verification_channel_id, "Failed to parse channel ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid channel ID".to_string()))?;
-    let channel_id = ChannelId::from(channel_id_u64);
-
-    let role_id_u64 = payload.verification_role_id
-        .parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, id = payload.verification_role_id, "Failed to parse role ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid role ID".to_string()))?;
-    let role_id = RoleId::from(role_id_u64);
+    let channel_id = ChannelId::from(payload.verification_channel_id);
+    let role_id = RoleId::from(payload.verification_role_id);
 
     let mut execution_errors = Vec::new();
 

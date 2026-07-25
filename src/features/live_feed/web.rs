@@ -12,13 +12,16 @@ use std::sync::Arc;
 use std::time::Duration;
 use axum::Router;
 use axum::routing::get;
+use serde_with::{serde_as, DisplayFromStr};
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::{debug, error, instrument, warn};
 
+#[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct SseQuery {
-    pub guild_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub guild_id: u64,
 }
 
 #[instrument(skip(state))]
@@ -27,10 +30,6 @@ pub async fn sse_handler(
     Query(params): Query<SseQuery>,
 ) -> Result<Sse<impl Stream<Item=Result<Event, Infallible>>>, StatusCode> {
     debug!("New SSE subscription request received");
-
-    let guild_id_i64 = params.guild_id.parse::<i64>()
-        .inspect_err(|e| warn!(error = ?e, guild_id = params.guild_id, "Failed to parse guild ID"))
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let rx = state.tx.subscribe();
 
@@ -41,7 +40,7 @@ pub async fn sse_handler(
         })
         .filter(move |msg| {
             msg.guild_id().is_some_and(|g_id| {
-                let is_match = g_id == guild_id_i64;
+                let is_match = g_id as u64 == params.guild_id;
                 if is_match {
                     debug!(guild_id = %g_id, "Routing matching event to client");
                 }

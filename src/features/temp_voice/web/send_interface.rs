@@ -9,11 +9,14 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serenity::all::CreateButton;
 use std::sync::Arc;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::{debug, info, warn};
 
+#[serde_as]
 #[derive(Deserialize)]
 pub struct SendTempVoiceInterfacePayload {
-    pub channel_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: u64,
     pub content: Option<String>,
     pub embed: Option<DiscordEmbed>,
     pub format: Option<Format>,
@@ -29,9 +32,11 @@ impl EmbedGetters for SendTempVoiceInterfacePayload {
     fn format(&self) -> Option<&Format> { self.format.as_ref() }
 }
 
+#[serde_as]
 #[derive(Serialize)]
 pub struct SendTempVoiceInterfaceResponse {
-    pub message_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub message_id: u64,
 }
 
 pub async fn handle_send_temp_voice_interface(
@@ -41,56 +46,41 @@ pub async fn handle_send_temp_voice_interface(
 ) -> Result<(StatusCode, Json<SendTempVoiceInterfaceResponse>), (StatusCode, String)> {
     debug!(guild_id = guild_id_str, "Received request to dispatch generic embed");
 
-    let channel_id_u64 = payload.channel_id.parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to parse channel ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string()))?;
-
-    let target_channel = serenity::all::ChannelId::new(channel_id_u64);
+    let target_channel = serenity::all::ChannelId::new(payload.channel_id);
 
     let rename_btn = CreateButton::new("temp_voice_rename")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Rename");
-
     let limit_btn = CreateButton::new("temp_voice_limit")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Limit");
-
     let kick_btn = CreateButton::new("temp_voice_kick")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Kick");
-
     let lock_btn = CreateButton::new("temp_voice_lock")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Lock");
-
     let unlock_btn = CreateButton::new("temp_voice_unlock")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Unlock");
-
     let trust_btn = CreateButton::new("temp_voice_trust")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Trust");
-
     let untrust_btn = CreateButton::new("temp_voice_untrust")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Untrust");
-
     let block_btn = CreateButton::new("temp_voice_block")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Block");
-
     let unblock_btn = CreateButton::new("temp_voice_unblock")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Unblock");
-
     let delete_btn = CreateButton::new("temp_voice_delete")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Delete");
-
     let transfer_btn = CreateButton::new("temp_voice_transfer")
         .style(serenity::all::ButtonStyle::Secondary)
         .label("Transfer Ownership");
-
 
     let channel_row = serenity::all::CreateActionRow::Buttons(vec![
         rename_btn,
@@ -122,11 +112,11 @@ pub async fn handle_send_temp_voice_interface(
     let message = target_channel
         .send_message(&state.http, message_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, channel_id = channel_id_u64, "Failed to deliver interface"))
+        .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to deliver interface"))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Discord API error: {}", e)))?;
 
     info!(
-        channel_id = channel_id_u64,
+        channel_id = payload.channel_id,
         message_id = %message.id,
         "Interface successfully delivered"
     );
@@ -134,7 +124,7 @@ pub async fn handle_send_temp_voice_interface(
     Ok((
         StatusCode::OK,
         Json(SendTempVoiceInterfaceResponse {
-            message_id: message.id.to_string(),
+            message_id: message.id.get(),
         }),
     ))
 }

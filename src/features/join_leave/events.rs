@@ -28,7 +28,7 @@ pub async fn send_leave_message(
         return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.db).await;
     };
 
-    let Some(channel_id) = leave_cfg.channel_id.as_ref().and_then(|id| id.parse::<u64>().ok().map(ChannelId::new)) else {
+    let Some(channel_id) = leave_cfg.channel_id.map(|id| ChannelId::new(id)) else {
         warn!(guild_id, user_id, "Leave notifications are enabled, but target channel ID is missing or invalid");
         return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.db).await;
     };
@@ -46,8 +46,8 @@ pub async fn send_leave_message(
 }
 
 async fn apply_join_roles(
-    ctx: &serenity::all::Context,
-    member: &serenity::all::Member,
+    ctx: &Context,
+    member: &Member,
     role_ids: &[String],
 ) -> Result<(), Error> {
     let guild_id = member.guild_id.get();
@@ -85,8 +85,8 @@ pub async fn handle_member_welcome(
     let warning_text = check_alt_status(&member.user);
     let gctx = get_guild_ctx(member.guild_id, ctx).await?;
 
-    let public_channel_id_str = config.public.as_ref().and_then(|p| p.channel_id.as_deref());
-    let context_channel = messages::get_context_channel(ctx, member, public_channel_id_str).await?;
+    let public_channel_id_u64 = config.public.as_ref().and_then(|p| p.channel_id);
+    let context_channel = messages::get_context_channel(ctx, member, public_channel_id_u64).await?;
 
     if let Some(ref role_ids) = config.join_role_ids {
         if let Err(e) = apply_join_roles(ctx, member, role_ids).await {
@@ -100,7 +100,7 @@ pub async fn handle_member_welcome(
     Ok(())
 }
 
-pub fn check_alt_status(user: &serenity::all::User) -> String {
+pub fn check_alt_status(user: &User) -> String {
     let user_id = user.id.get();
     trace!(user_id, "Evaluating account age for alt-status tracking");
     let created_timestamp = user.id.created_at().unix_timestamp();

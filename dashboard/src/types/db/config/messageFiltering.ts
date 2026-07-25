@@ -52,6 +52,7 @@ export interface OffensiveMessages extends BaseRule {
 
 export type ServerInvitesRule = BaseRule;
 export type ZalgoRule = BaseRule;
+export type CryptoAddress = BaseRule;
 
 export interface MessageFilteringConfig {
     badWords: BadWordsRule;
@@ -64,5 +65,6 @@ export interface MessageFilteringConfig {
     zalgo: ZalgoRule;
     antiSpam: AntiSpamRule;
     offensiveMessages: OffensiveMessages;
+    cryptoAddress: CryptoAddress;
     globalSettings: Scope;
 }

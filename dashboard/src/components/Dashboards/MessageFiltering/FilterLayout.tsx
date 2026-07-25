@@ -5,6 +5,7 @@ import ScopeSettings from "@/components/Dashboards/MessageFiltering/General/Scop
 import { ReactNode } from "react";
 import { Scope } from "@/types/db/config";
 import { RuleAction } from "@/types/db";
+import { Pad } from "@/components/Layout/Pad";
 
 interface FilterLayoutProps {
     enabled: boolean;
@@ -34,18 +35,19 @@ export function FilterLayout({
     children,
 }: FilterLayoutProps) {
     return (
-        <div className="space-y-6">
+        <div className="space-y-0">
             <ToggleSwitch
                 checked={enabled} onChange={onToggle} disabled={false} text={toggleText} shrink={true}
             />
 
             {enabled && (
-                <div className="space-y-6">
+                <div className="space-y-1">
                     {children}
 
                     <ActionsSettings
                         actions={actions} timeoutDuration={timeoutDuration} onChange={onActionsChange}
                     />
+                    <Pad amount={1}/>
 
                     <ScopeSettings
                         scope={scope} channelMap={channelMap} roleMap={roleMap} onChange={onScopeChange}

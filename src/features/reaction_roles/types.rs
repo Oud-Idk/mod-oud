@@ -1,14 +1,14 @@
 use crate::shared::embed::Format;
 
 #[derive(Debug, Clone, Copy, PartialEq, sqlx::Type, serde::Deserialize, serde::Serialize)]
-#[sqlx(type_name = "interaction_mode", rename_all = "lowercase")]
+#[sqlx(type_name = "interaction_mode", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum InteractionMode {
     Reaction,
     Button,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, sqlx::Type, serde::Deserialize, serde::Serialize)]
-#[sqlx(type_name = "button_style", rename_all = "lowercase")]
+#[sqlx(type_name = "button_style", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ButtonStyle {
     Primary,
     Secondary,
@@ -42,7 +42,7 @@ pub struct ButtonRole {
     pub id: i64,
     pub reaction_message_id: Option<i64>,
     pub role_id: i64,
-    pub custom_id: i64,
+    pub custom_id: String,
     pub label: Option<String>,
     pub style: ButtonStyle,
     pub emoji: Option<String>,

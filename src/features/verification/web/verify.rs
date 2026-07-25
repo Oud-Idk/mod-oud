@@ -23,6 +23,7 @@ pub struct VerifyRequestPayload {
     captcha_type: CaptchaType,
 }
 
+// Not converting to u64 because there are only string operations
 #[derive(Deserialize)]
 struct DiscordUser {
     id: String,
@@ -137,17 +138,11 @@ pub async fn handle_verify(
         .inspect_err(|e| warn!(error = ?e, user_id_str = payload.user_id_str, "Failed to parse user ID"))
         .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid user ID".to_string()))?;
 
-    let Some(role_id_string) = maybe_verification
-        .and_then(|v| v.verification_role_id.as_deref())
+    let Some(role_id_u64) = maybe_verification
+        .and_then(|v| v.verification_role_id)
     else {
         warn!("Endpoint is fetched, but verification Role ID is empty");
         return Err((StatusCode::INTERNAL_SERVER_ERROR, "Verification Role ID is empty".to_string()));
-    };
-
-    let Ok(role_id_u64) = role_id_string.parse::<u64>().inspect_err(|e| {
-        warn!(error = ?e, role_id_string = %role_id_string, "Verification Role ID is invalid");
-    }) else {
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, "Verification Role ID is invalid".to_string()));
     };
 
     let role_id = RoleId::from(role_id_u64);

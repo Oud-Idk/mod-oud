@@ -42,7 +42,7 @@ export default function TicketingTab({
     status,
     isEmpty,
 }: TicketingTabProps) {
-    const targetCategoryIsEmpty = config.categoryId.trim() === "";
+    const targetCategoryIsEmpty = (config.categoryId ?? "").trim() === "";
     const targetRoleIsEmpty = !config.ticketRoleId || config.ticketRoleId.trim() === "";
 
     const handleChange = useCallback((updated: GenericMessageConfig) => {
@@ -107,7 +107,7 @@ export default function TicketingTab({
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-medium">Ticket Destination Category</label>
                             <Dropdown
-                                value={config.categoryId}
+                                value={(config.categoryId ?? "")}
                                 onChange={handleCategoryChange}
                                 options={categoryOptions}
                                 className={targetCategoryIsEmpty ? `border-red-700 dark:border-red-300` : ''}

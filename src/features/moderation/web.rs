@@ -7,16 +7,21 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use axum::routing::delete;
 use tracing::{debug, info, warn};
+use serde_with::{serde_as, DisplayFromStr};
 use crate::features::moderation::channels::delete_entire_category;
 
+#[serde_as]
 #[derive(Deserialize)]
 pub struct DeleteCategoryPayload {
-    pub category_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub category_id: u64,
 }
 
+#[serde_as]
 #[derive(Serialize)]
 pub struct DeleteCategoryResponse {
-    pub category_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub category_id: u64,
     pub deleted_children_count: usize,
 }
 
@@ -31,12 +36,9 @@ pub async fn handle_delete_entire_category(
     let guild_id_u64 = guild_id_str.parse::<u64>()
         .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
         .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string()))?;
-    let category_id_u64 = payload.category_id.parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, category_id = payload.category_id, "Failed to parse category ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Category ID format".to_string()))?;
 
     let guild_id = serenity::GuildId::new(guild_id_u64);
-    let category_id = serenity::ChannelId::new(category_id_u64);
+    let category_id = serenity::ChannelId::new(payload.category_id);
 
     let deleted_count = delete_entire_category(&state.http, guild_id, category_id).await
         .inspect_err(|e| warn!(error = ?e, "Failed to delete category through API"))
@@ -44,7 +46,7 @@ pub async fn handle_delete_entire_category(
 
     info!(
         guild_id = guild_id_u64,
-        category_id = category_id_u64,
+        category_id = payload.category_id,
         deleted_children = deleted_count,
         "Successfully deleted category and nested channels via API"
     );

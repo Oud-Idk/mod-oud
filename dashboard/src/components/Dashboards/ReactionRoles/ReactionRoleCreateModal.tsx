@@ -61,7 +61,8 @@ export function ReactionRoleCreateModal({
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-black border border-zinc-800 p-6 rounded-lg w-full max-w-md shadow-2xl space-y-6">
+            <div
+                className="bg-white dark:bg-black border border-zinc-800 p-6 rounded-lg w-full max-w-md shadow-2xl space-y-6">
                 <div>
                     <h3 className="text-lg font-medium">Create New Reaction Role</h3>
                     <p className="text-xs">Select target destination channel.</p>
@@ -83,7 +84,7 @@ export function ReactionRoleCreateModal({
                             value={modalName}
                             onChange={e => setModalName(e.target.value)}
                             placeholder="Enter Reaction Role Name"
-                            className="max-w-none"
+                            parentClassName="max-w-none"
                         />
                     </div>
 

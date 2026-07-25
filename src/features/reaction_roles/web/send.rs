@@ -8,11 +8,14 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::Serialize;
 use std::sync::Arc;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::{debug, info, warn};
 
+#[serde_as]
 #[derive(Serialize)]
 pub struct SendReactionMessageResponse {
-    pub message_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub message_id: u64,
 }
 
 pub async fn handle_send_reaction_role_message(
@@ -82,8 +85,6 @@ pub async fn handle_send_reaction_role_message(
 
     Ok((
         StatusCode::OK,
-        Json(SendReactionMessageResponse {
-            message_id: message_id.to_string(),
-        }),
+        Json(SendReactionMessageResponse { message_id, }),
     ))
 }

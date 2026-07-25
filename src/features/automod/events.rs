@@ -9,6 +9,7 @@ mod excessive_spoilers;
 mod external_urls;
 mod spam;
 mod native_rules;
+mod crypto_address;
 
 use crate::core::config::settings::{get_settings, GuildSettings};
 use crate::features::automod::types::FilterVerdict;
@@ -103,7 +104,8 @@ pub async fn check_for_filter(
                     .or_else(|| excessive_emojis::filter_excessive_emojis(message, filtering))
                     .or_else(|| excessive_spoilers::filter_excessive_spoilers(message, filtering))
                     .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
-                    .or_else(|| zalgo::filter_zalgo(message, filtering));
+                    .or_else(|| zalgo::filter_zalgo(message, filtering))
+                    .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
             } else {
                 trace!("Global scope not found; skipping configuration-dependent filters");
             }

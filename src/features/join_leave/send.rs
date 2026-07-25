@@ -21,19 +21,20 @@ pub async fn send_public_welcome(
         return Ok(());
     };
 
-    let Some(ch_str) = public.channel_id.as_ref().and_then(|id| id.parse::<u64>().ok()) else {
+    let Some(channel_id_u64) = public.channel_id else {
+        warn!("Channel ID for welcome is somehow empty!");
         return Ok(());
     };
 
-    let channel_id = ChannelId::new(ch_str);
-    trace!(guild_id, user_id, target_channel = ch_str, "Assembling public welcome message layout");
+    let channel_id = ChannelId::new(channel_id_u64);
+    trace!(guild_id, user_id, target_channel = channel_id_u64, "Assembling public welcome message layout");
 
     match messages::build_welcome_message(public, member, context_channel, gctx, warning_text, false) {
         Ok(builder) => {
             if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
-                warn!(error = ?e, guild_id, user_id, target_channel = ch_str, "Failed to send public welcome message to channel");
+                warn!(error = ?e, guild_id, user_id, target_channel = channel_id_u64, "Failed to send public welcome message to channel");
             } else {
-                debug!(guild_id, user_id, target_channel = ch_str, "Public welcome message sent successfully");
+                debug!(guild_id, user_id, target_channel = channel_id_u64, "Public welcome message sent successfully");
             }
         }
         Err(e) => {

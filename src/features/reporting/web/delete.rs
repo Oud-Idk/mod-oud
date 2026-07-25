@@ -10,18 +10,11 @@ use tracing::{error, info, instrument, warn};
 pub async fn handle_delete_message(
     state: &WebState,
     cmd: &DashboardCommand,
-    channel_id: &str,
-    message_id: &str,
+    channel_id: &u64,
+    message_id: &u64,
 ) -> Result<StatusCode, WebError> {
-    let channel_id_u64 = channel_id.parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, channel_id = channel_id, "Failed to parse channel ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string()))?;
-    let message_id_u64 = channel_id.parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, channel_id = channel_id, "Failed to parse message ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Message ID format".to_string()))?;
-
-    let ch_id = ChannelId::from(channel_id_u64);
-    let msg_id = MessageId::from(message_id_u64);
+    let ch_id = ChannelId::from(*channel_id);
+    let msg_id = MessageId::from(*message_id);
 
     info!(channel_id = %ch_id, message_id = %msg_id, "Attempting message deletion");
 

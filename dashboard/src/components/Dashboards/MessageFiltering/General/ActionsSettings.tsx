@@ -3,6 +3,7 @@
 import { JSX } from "react";
 import { Dropdown, DropdownOption } from "@/components/Inputs/Dropdown";
 import { RuleAction } from "@/types/db";
+import { InputLabel } from "@/components/Layout/InputLabel";
 
 interface ActionsSettingsProps {
     actions: RuleAction[];
@@ -22,7 +23,7 @@ const ACTION_OPTIONS: DropdownOption<RuleAction>[] = [
 export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsSettingsProps): JSX.Element {
     return (
         <div className="space-y-2">
-            <label className="block font-medium">Actions</label>
+            <InputLabel>Actions</InputLabel>
 
             <Dropdown
                 multiple
@@ -39,7 +40,7 @@ export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsS
 
             {actions.includes("TIMEOUT") && (
                 <div className="mt-2">
-                    <label className="text-sm block">Timeout duration (seconds)</label>
+                    <InputLabel>Timeout duration (seconds)</InputLabel>
                     <input
                         type="number"
                         min={1}

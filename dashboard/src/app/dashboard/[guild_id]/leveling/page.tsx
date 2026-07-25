@@ -75,11 +75,11 @@ export default async function LevelingPage({ params }: PageProps) {
                 </summary>
 
                 <div className="mt-2 space-y-4">
-                    <p className="text-sm dark:text-neutral-400">
+                    <p className="text-sm">
                         The polynomial used to find out how much XP the user needs to level up in each level is: </p>
                     <Math tex={formula} display/>
 
-                    <p className="text-sm dark:text-neutral-400">
+                    <p className="text-sm">
                         Fun fact: To achieve <Math tex="\mathcal{O}(1)"/> time complexity when
                         calculating cumulative XP,
                         we can avoid a loop over every level by using the sum of powers formula to calculate the total

@@ -31,8 +31,6 @@ pub async fn handle_honeypot(
     // Fast exit if this channel is NOT the honeypot channel
     let is_honeypot_channel = honeypot
         .channel_id
-        .as_ref()
-        .and_then(|id_str| id_str.parse::<u64>().ok())
         .map(ChannelId::new) == Some(message.channel_id);
 
     if !is_honeypot_channel {

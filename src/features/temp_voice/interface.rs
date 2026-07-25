@@ -84,6 +84,12 @@ pub async fn handle_interaction(
                 "temp_voice_transfer_accept" => transfer_action::handle_accept_transfer(ctx, component, data).await?,
                 "temp_voice_transfer_decline" => transfer_action::handle_decline_transfer(ctx, component, data).await?,
 
+                "temp_voice_trust_select" => {
+                    if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
+                        trust::handle_trust_temp_vc_submit(ctx, component, data, values.clone()).await?;
+                    }
+                }
+
                 "temp_voice_transfer_select" => {
                     if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
                         transfer::handle_transfer_temp_vc_submit(ctx, component, data, values.clone()).await?;

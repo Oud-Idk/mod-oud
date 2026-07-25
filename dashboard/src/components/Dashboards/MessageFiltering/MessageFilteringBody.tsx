@@ -19,6 +19,7 @@ import { useConfigForm } from "@/hooks/useConfigForm";
 // Import your custom Bad Words components
 import { BadWordTab } from "@/components/Dashboards/MessageFiltering/Tabs/BadWordsTab";
 import { BadWordRuleset } from "@/types/db";
+import { CryptoAddressTab } from "@/components/Dashboards/MessageFiltering/Tabs/CryptoAddressTab";
 
 type TabValue =
     | "bad_words"
@@ -31,6 +32,7 @@ type TabValue =
     | "excessive_mentions"
     | "zalgo"
     | "anti_spam"
+    | "crypto_addresses"
     | "global_scope";
 
 const WELCOME_TABS: TabItem<TabValue>[] = [
@@ -44,6 +46,7 @@ const WELCOME_TABS: TabItem<TabValue>[] = [
     { value: "excessive_mentions", label: "Excessive Mentions" },
     { value: "zalgo", label: "Zalgo" },
     { value: "anti_spam", label: "Anti Spam" },
+    { value: "crypto_addresses", label: "Crypto Addresses" },
     { value: "global_scope", label: "Global Scope" },
 ];
 
@@ -72,6 +75,7 @@ const TAB_MAP: Record<Exclude<TabValue, "bad_words">, ComponentType<any>> = {
     excessive_mentions: ExcessiveMentionsTab,
     zalgo: ZalgoTab,
     anti_spam: AntiSpamFilterTab,
+    crypto_addresses: CryptoAddressTab,
     global_scope: GlobalScopeTab,
 };
 

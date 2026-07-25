@@ -6,7 +6,6 @@ import { MultiSelectViewer } from "@/components/MultiSelectViewer";
 import { Dropdown } from "@/components/Inputs/Dropdown";
 import { getAvailableRoleOptions } from "@/utils/utils";
 import { ScopeActionMode } from "@/types/db";
-import { ScopeItem } from "@/types";
 
 export interface ScopeShape {
     mode: ScopeActionMode;
@@ -15,43 +14,81 @@ export interface ScopeShape {
 }
 
 interface ScopeSettingsProps {
-    scope: ScopeShape;
+    scope?: Partial<ScopeShape> | null; // 👈 Now optional!
     channelMap?: Record<string, string>;
     roleMap?: Record<string, string>;
     onChange: (scope: ScopeShape) => void;
 }
 
-export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSettingsProps): JSX.Element {
-    // local helpers mirror the previous implementation so callers don't need to manage low-level toggles
+// Fallback default scope in case it's missing
+const DEFAULT_SCOPE: ScopeShape = {
+    mode: "EXEMPT" as ScopeActionMode,
+    channels: [],
+    roles: [],
+};
+
+export function ScopeSettings({
+    scope: rawScope,
+    channelMap = {},
+    roleMap = {},
+    onChange,
+}: ScopeSettingsProps): JSX.Element {
+    // Fill in defaults so we don't crash on undefined/null scope
+    const scope: ScopeShape = {
+        mode: rawScope?.mode ?? DEFAULT_SCOPE.mode,
+        channels: rawScope?.channels ?? DEFAULT_SCOPE.channels,
+        roles: rawScope?.roles ?? DEFAULT_SCOPE.roles,
+    };
+
+    // Normalize mode to uppercase just in case ScopeActionMode uses uppercase string literals
+    const currentMode = String(scope.mode).toUpperCase();
+    const isExempt = currentMode === "EXEMPT";
+
     const handleModeChange = (mode: ScopeActionMode) => {
         onChange({ mode, channels: [], roles: [] });
     };
 
-    const toggleScopeItem = (key: ScopeItem, id: string) => {
-        const currentList = (scope as any)[key] || [];
-        const updatedList = currentList.includes(id) ? currentList.filter((item: string) => item !== id) : [...currentList, id];
+    // Fixed key type to match ScopeShape keys directly ("channels" | "roles")
+    const toggleScopeItem = (key: "channels" | "roles", id: string) => {
+        const currentList = scope[key] || [];
+        const updatedList = currentList.includes(id)
+            ? currentList.filter((item) => item !== id)
+            : [...currentList, id];
+
         onChange({ ...scope, [key]: updatedList });
     };
 
     return (
         <div className="space-y-4 pt-4 border-t">
-            <h4 className="text-sm font-semibold uppercase tracking-wider">Scope Settings</h4>
+            <h4 className="text-sm font-semibold uppercase tracking-wider">
+                Scope Settings </h4>
 
             <div className="space-y-2">
                 <label className="block text-sm font-medium">Filter Behavior</label>
                 <RadioGroup
-                    value={scope.mode} onChange={(v) => handleModeChange(v as ScopeActionMode)} className="flex gap-4"
+                    value={isExempt ? "EXEMPT" : "ENFORCED"}
+                    onChange={(v) => handleModeChange(v as ScopeActionMode)}
+                    className="flex gap-4"
                 >
                     <Radio
-                        value="exempt"
-                        className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
+                        value="EXEMPT" className={({ checked }) =>
+                        `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${
+                            checked ? "bg-neutral-300/10" : ""
+                        }`
+                    }
                     >
                         {({ checked }) => (
                             <>
-                                <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
-                                    {checked ? <span
-                                        className="w-2 h-2 rounded-full bg-black dark:bg-white" aria-hidden
-                                    /> : null}
+                                <span
+                                    className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${
+                                        checked ? "bg-primary-600" : "bg-transparent"
+                                    }`}
+                                >
+                                    {checked ? (
+                                        <span
+                                            className="w-2 h-2 rounded-full bg-black dark:bg-white" aria-hidden
+                                        />
+                                    ) : null}
                                 </span>
                                 <span>Run everywhere except selected (Exempt)</span>
                             </>
@@ -59,15 +96,24 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
                     </Radio>
 
                     <Radio
-                        value="enforced"
-                        className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
+                        value="ENFORCED" className={({ checked }) =>
+                        `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${
+                            checked ? "bg-neutral-300/10" : ""
+                        }`
+                    }
                     >
                         {({ checked }) => (
                             <>
-                                <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
-                                    {checked ? <span
-                                        className="w-2 h-2 rounded-full bg-black dark:bg-white" aria-hidden
-                                    /> : null}
+                                <span
+                                    className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${
+                                        checked ? "bg-primary-600" : "bg-transparent"
+                                    }`}
+                                >
+                                    {checked ? (
+                                        <span
+                                            className="w-2 h-2 rounded-full bg-black dark:bg-white" aria-hidden
+                                        />
+                                    ) : null}
                                 </span>
                                 <span>Run only on selected (Enforced)</span>
                             </>
@@ -76,46 +122,58 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
                 </RadioGroup>
             </div>
 
+            {/* Channels Section */}
             <div className="space-y-2">
-                <label className="block text-sm font-medium">{scope.mode === "EXEMPT" ? "Exempt Channels" : "Enforced Channels"}</label>
+                <label className="block text-sm font-medium">
+                    {isExempt ? "Exempt Channels" : "Enforced Channels"}
+                </label>
                 <MultiSelectViewer
-                    selectedList={scope.channels || []}
-                    onDelete={(id) => toggleScopeItem("CHANNEL", id)}
+                    selectedList={scope.channels}
+                    onDelete={(id) => toggleScopeItem("channels", id)}
                     map={channelMap}
-                    placeholder={scope.mode === "EXEMPT" ? "No channels exempted" : "No channels enforced"}
+                    placeholder={
+                        isExempt ? "No channels exempted" : "No channels enforced"
+                    }
                     prefix="#"
                 />
                 <Dropdown
-                    options={Object.entries(channelMap || {}).filter(([id]) => !(scope.channels || []).includes(id)).map(([id, name]) => ({
-                        value: id,
-                        label: `#${name}`
-                    }))}
-                    value={""}
-                    onChange={(val) => {
-                        if (val) toggleScopeItem("CHANNEL", val);
-                    }}
-                    placeholder={scope.mode === "EXEMPT" ? "Choose a channel to exempt..." : "Choose a channel to enforce..."}
-                    className="max-w-xs"
+                    options={Object.entries(channelMap)
+                        .filter(([id]) => !scope.channels.includes(id))
+                        .map(([id, name]) => ({
+                            value: id,
+                            label: `#${name}`,
+                        }))} value={""} onChange={(val) => {
+                    if (val) toggleScopeItem("channels", val);
+                }} placeholder={
+                    isExempt
+                        ? "Choose a channel to exempt..."
+                        : "Choose a channel to enforce..."
+                } className="max-w-xs"
                 />
             </div>
 
+            {/* Roles Section */}
             <div className="space-y-2">
-                <label className="block text-sm font-medium">{scope.mode === "EXEMPT" ? "Exempt Roles" : "Enforced Roles"}</label>
+                <label className="block text-sm font-medium">
+                    {isExempt ? "Exempt Roles" : "Enforced Roles"}
+                </label>
                 <MultiSelectViewer
-                    selectedList={scope.roles || []}
-                    onDelete={(id) => toggleScopeItem("ROLES", id)}
+                    selectedList={scope.roles}
+                    onDelete={(id) => toggleScopeItem("roles", id)}
                     map={roleMap}
-                    placeholder={scope.mode === "EXEMPT" ? "No roles exempted" : "No roles enforced"}
+                    placeholder={
+                        isExempt ? "No roles exempted" : "No roles enforced"
+                    }
                     prefix="@"
                 />
                 <Dropdown
-                    options={getAvailableRoleOptions(roleMap, scope?.roles)}
-                    value={""}
-                    onChange={(val) => {
-                        if (val) toggleScopeItem("ROLES", val);
-                    }}
-                    placeholder={scope.mode === "EXEMPT" ? "Choose a role to exempt..." : "Choose a role to enforce..."}
-                    className="max-w-xs"
+                    options={getAvailableRoleOptions(roleMap, scope.roles)} value={""} onChange={(val) => {
+                    if (val) toggleScopeItem("roles", val);
+                }} placeholder={
+                    isExempt
+                        ? "Choose a role to exempt..."
+                        : "Choose a role to enforce..."
+                } className="max-w-xs"
                 />
             </div>
         </div>
@@ -123,4 +181,3 @@ export function ScopeSettings({ scope, channelMap, roleMap, onChange }: ScopeSet
 }
 
 export default ScopeSettings;
-

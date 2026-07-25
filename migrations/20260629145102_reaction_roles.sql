@@ -37,7 +37,7 @@ CREATE TABLE button_roles
     reaction_message_id BIGINT REFERENCES reaction_messages (id) ON DELETE CASCADE,
 
     role_id             BIGINT       NOT NULL,
-    custom_id           BIGINT       NOT NULL,
+    custom_id           TEXT         NOT NULL,
     label               TEXT,
     style               BUTTON_STYLE NOT NULL DEFAULT 'PRIMARY',
     emoji               TEXT,

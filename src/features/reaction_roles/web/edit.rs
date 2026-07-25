@@ -9,11 +9,14 @@ use axum::http::StatusCode;
 use serde::Serialize;
 use serenity::all::{ChannelId, MessageId};
 use std::sync::Arc;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::{debug, info, warn};
 
+#[serde_as]
 #[derive(Serialize)]
 pub struct EditReactionMessageResponse {
-    pub message_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub message_id: u64,
 }
 
 pub async fn handle_edit_reaction_role_message(
@@ -82,7 +85,7 @@ pub async fn handle_edit_reaction_role_message(
     Ok((
         StatusCode::OK,
         Json(EditReactionMessageResponse {
-            message_id: message_id_i64.to_string(),
+            message_id: message_id_u64,
         }),
     ))
 }

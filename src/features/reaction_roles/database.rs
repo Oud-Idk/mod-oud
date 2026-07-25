@@ -9,6 +9,7 @@ use serenity::all::RoleId;
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use std::sync::Arc;
+use fred::bytes_utils::Str;
 use tracing::{error, trace, warn};
 use crate::shared::embed::Format;
 
@@ -150,4 +151,51 @@ pub async fn add_message_to_db(state: &Arc<WebState>, config_row: ReactionMessag
     )
         .execute(&state.db)
         .await
+}
+
+pub async fn get_button_role(
+    data: &Data,
+    custom_id: &str,
+) -> Result<Option<RoleId>, Error> {
+    let cache_key = format!("button_role:{}", custom_id);
+
+    match data.redis.get::<Option<String>, _>(&cache_key).await {
+        Ok(Some(cached_val)) => {
+            if cached_val == "none" {
+                return Ok(None);
+            }
+            if let Ok(role_id_u64) = cached_val.parse::<u64>() {
+                return Ok(Some(RoleId::new(role_id_u64)));
+            } else {
+                error!("Invalid role ID format in Redis cache: {}", cached_val);
+            }
+        }
+        Ok(None) => trace!("Cache miss when finding button role. Querying from database."),
+        Err(e) => warn!("Redis read error (falling back to database): {}", e),
+    }
+
+    let row = sqlx::query!(
+        r#"
+        SELECT role_id
+        FROM button_roles
+        WHERE custom_id = $1
+        "#,
+        custom_id
+    )
+        .fetch_optional(&data.db)
+        .await?;
+
+    if let Some(record) = row {
+        let role_id_u64 = record.role_id as u64;
+        if let Err(e) = data.redis.set::<(), _, _>(&cache_key, role_id_u64, None, None, false).await {
+            warn!("Failed to write button role to Redis: {}", e);
+        }
+        Ok(Some(RoleId::new(role_id_u64)))
+    } else {
+        let expiration = Expiration::EX(300);
+        if let Err(e) = data.redis.set::<(), _, _>(&cache_key, "none", Some(expiration), None, false).await {
+            warn!("Failed to write negative cache result to Redis: {}", e);
+        }
+        Ok(None)
+    }
 }

@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, NoneAsEmptyString, DisplayFromStr};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -10,15 +12,19 @@ pub enum CounterType {
     RoleCount,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CounterChannel {
-    pub id: String,
-    pub channel_id: String,
-    pub counter_type: CounterType,
+    #[serde_as(as = "DisplayFromStr")]
+    pub id: Uuid,
+    #[serde_as(as = "NoneAsEmptyString")]
     #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub role_id: Option<String>,
+    pub channel_id: Option<u64>,
+    pub counter_type: CounterType,
+    #[serde_as(as = "NoneAsEmptyString")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role_id: Option<u64>,
     pub name_template: String,
 }
 

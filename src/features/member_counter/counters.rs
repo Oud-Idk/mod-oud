@@ -43,8 +43,8 @@ pub async fn update_guild_counters(
         };
 
     for counter in &config.counters {
-        let channel_id_u64 = match counter.channel_id.trim().parse::<u64>() {
-            Ok(id) if id > 0 => id,
+        let channel_id_u64 = match counter.channel_id {
+            Some(id) => id,
             _ => continue, // Skip empty/invalid channel IDs
         };
 
@@ -54,8 +54,8 @@ pub async fn update_guild_counters(
             CounterType::BotsOnly => bots_count,
             CounterType::OnlineMembers => online_count,
             CounterType::RoleCount => {
-                let role_id_str = counter.role_id.as_deref().unwrap_or_default();
-                count_members_with_role(serenity_cache, serenity_guild_id, role_id_str)
+                let role_id = counter.role_id.unwrap_or_default();
+                count_members_with_role(serenity_cache, serenity_guild_id, role_id)
             }
         };
 
@@ -110,12 +110,9 @@ pub async fn update_guild_counters(
 fn count_members_with_role(
     serenity_cache: &serenity::all::Cache,
     guild_id: serenity::all::GuildId,
-    role_id_str: &str,
+    role_id: u64,
 ) -> u64 {
-    let Ok(role_id_u64) = role_id_str.parse::<u64>() else {
-        return 0;
-    };
-    let role_id = serenity::all::RoleId::new(role_id_u64);
+    let role_id = serenity::all::RoleId::new(role_id);
 
     if let Some(guild) = serenity_cache.guild(guild_id) {
         guild

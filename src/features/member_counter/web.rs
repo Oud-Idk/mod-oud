@@ -47,7 +47,7 @@ pub async fn handle_setup_member_counter(
     let mut updated_counters = payload.counters;
 
     // Check if any counter actually requires a channel to be created
-    let needs_creation = updated_counters.iter().any(|c| c.channel_id.trim().is_empty());
+    let needs_creation = updated_counters.iter().any(|c| c.channel_id.is_none());
 
     if !needs_creation {
         return Ok((
@@ -72,7 +72,7 @@ pub async fn handle_setup_member_counter(
 
     // Iterate through counters and create voice channels for any missing channel_id
     for counter in updated_counters.iter_mut() {
-        if counter.channel_id.trim().is_empty() {
+        if counter.channel_id.is_none() {
             // Render template default count placeholder for initial channel creation
             let channel_name = counter
                 .name_template
@@ -95,7 +95,7 @@ pub async fn handle_setup_member_counter(
                 .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create voice channel"))
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create counter channel: {}", e)))?;
 
-            counter.channel_id = voice_channel.id.to_string();
+            counter.channel_id = Some(voice_channel.id.get());
         }
     }
 

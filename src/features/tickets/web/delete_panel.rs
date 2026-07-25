@@ -5,12 +5,17 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use serde::Deserialize;
 use std::sync::Arc;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::{debug, error, instrument, warn};
 
+
+#[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct DeleteTicketMessagePayload {
-    pub channel_id: String,
-    pub message_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: u64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub message_id: u64,
 }
 
 #[instrument(skip(state))]
@@ -18,15 +23,8 @@ pub async fn handle_delete_ticket_message(
     State(state): State<Arc<WebState>>,
     Json(payload): Json<DeleteTicketMessagePayload>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let channel_id_u64 = payload.channel_id.parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to parse channel ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string()))?;
-    let message_id_u64 = payload.message_id.parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, raw_message_id = payload.message_id, "Failed to parse message ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Message ID format".to_string()))?;
-
-    let channel = serenity::all::ChannelId::new(channel_id_u64);
-    let message_id = serenity::all::MessageId::new(message_id_u64);
+    let channel = serenity::all::ChannelId::new(payload.channel_id);
+    let message_id = serenity::all::MessageId::new(payload.message_id);
 
     channel.delete_message(&state.http, message_id)
         .await

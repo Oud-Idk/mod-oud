@@ -1,8 +1,10 @@
-use super::database::get_reaction_role;
+use super::database::{get_button_role, get_reaction_role};
 use crate::{Data, Error};
+use fred::interfaces::KeysInterface;
+use fred::prelude::Expiration;
 use poise::serenity_prelude as serenity;
-use serenity::all::{Context, Reaction};
-use tracing::{info, warn};
+use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, Reaction, RoleId};
+use tracing::{error, info, warn};
 
 pub async fn handle_reaction_role_add(ctx: &Context, reaction: &Reaction, data: &Data) -> Result<(), Error> {
     let Some(guild_id) = reaction.guild_id else { return Ok(()); };
@@ -37,5 +39,77 @@ pub async fn handle_reaction_role_remove(ctx: &Context, reaction: &Reaction, dat
             info!("Removed role {} from user {}", role_id, user_id);
         }
     }
+    Ok(())
+}
+
+pub async fn handle_button_interaction(
+    ctx: &Context,
+    component: &ComponentInteraction,
+    data: &Data,
+) -> Result<(), Error> {
+    // Parse custom_id string into i64
+    let custom_id = component.data.custom_id.as_str();
+
+    let Some(guild_id) = component.guild_id else {
+        return Ok(());
+    };
+
+    // Lookup role ID from Redis / DB
+    let Some(role_id) = get_button_role(data, custom_id).await? else {
+        return Ok(());
+    };
+
+    let user_id = component.user.id;
+
+    // Check if member already has the role directly from component payload (0 HTTP requests!)
+    let has_role = component
+        .member
+        .as_ref()
+        .map_or(false, |member| member.roles.contains(&role_id));
+
+    let response_content = if has_role {
+        match ctx
+            .http
+            .remove_member_role(guild_id, user_id, role_id, Some("Button Role Remove"))
+            .await
+        {
+            Ok(_) => {
+                info!("Removed button role {} from user {}", role_id, user_id);
+                format!("Removed the <@&{}> role from you.", role_id)
+            }
+            Err(err) => {
+                warn!("Failed to remove button role {} from user {}: {}", role_id, user_id, err);
+                "Failed to remove role. Please check my bot role permissions.".to_string()
+            }
+        }
+    } else {
+        match ctx
+            .http
+            .add_member_role(guild_id, user_id, role_id, Some("Button Role Add"))
+            .await
+        {
+            Ok(_) => {
+                info!("Assigned button role {} to user {}", role_id, user_id);
+                format!("Gave you the <@&{}> role!", role_id)
+            }
+            Err(err) => {
+                warn!("Failed to add button role {} to user {}: {}", role_id, user_id, err);
+                "Failed to add role. Please check my bot role permissions.".to_string()
+            }
+        }
+    };
+
+    // Send ephemeral response to user
+    component
+        .create_response(
+            &ctx.http,
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content(response_content)
+                    .ephemeral(true),
+            ),
+        )
+        .await?;
+
     Ok(())
 }

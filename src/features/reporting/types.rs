@@ -1,7 +1,7 @@
 use crate::core::config::settings::MessageLayout;
 use crate::shared::string_i64;
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
+use serde_with::{serde_as, DisplayFromStr};
 
 #[derive(Debug)]
 pub enum ReportUpdate {
@@ -12,11 +12,15 @@ pub enum ReportUpdate {
     UserBanned,
 }
 
+#[serde_as]
 #[derive(Deserialize, Debug)]
 #[serde(tag = "action", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DashboardAction {
     ResolveReport { status: ReportStatus },
-    DeleteMessage { channel_id: String, message_id: String },
+    DeleteMessage {
+        #[serde_as(as = "DisplayFromStr")] channel_id: u64,
+        #[serde_as(as = "DisplayFromStr")] message_id: u64,
+    },
     WarnUser,
     TimeoutUser,
     BanUser,

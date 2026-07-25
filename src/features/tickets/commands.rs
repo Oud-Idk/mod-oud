@@ -33,17 +33,15 @@ pub async fn setup_tickets(
     let settings = get_settings(&ctx.data().db, &ctx.data().redis, &ctx.data().guild_configs, guild_id).await?;
 
     if let Some(ref ticket_cfg) = settings.tickets {
-        if let Some(ref posted_id) = ticket_cfg.posted_message_id {
-            if !posted_id.trim().is_empty() {
-                debug!(guild_id, "Ticket setup blocked: active ticket panel already exists");
-                ctx.send(
-                    CreateReply::default()
-                        .content("A ticket panel is already active. Please delete the existing panel before setting up a new one.")
-                        .ephemeral(true),
-                )
-                    .await?;
-                return Ok(());
-            }
+        if let None = ticket_cfg.posted_message_id {
+            debug!(guild_id, "Ticket setup blocked: active ticket panel already exists");
+            ctx.send(
+                CreateReply::default()
+                    .content("A ticket panel is already active. Please delete the existing panel before setting up a new one.")
+                    .ephemeral(true),
+            )
+                .await?;
+            return Ok(());
         }
     }
 

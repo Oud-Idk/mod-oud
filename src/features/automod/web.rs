@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serenity::all::{CreateChannel, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId};
 use std::sync::Arc;
 use axum::routing::post;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::{debug, warn};
 use crate::core::config::state::WebState;
 
@@ -13,9 +14,11 @@ pub struct SetupHoneypotPayload {
     pub channel_name: String,
 }
 
+#[serde_as]
 #[derive(Serialize)]
 pub struct SetupHoneypotResponse {
-    pub channel_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: u64,
 }
 
 pub async fn setup_honeypot_channel(
@@ -44,7 +47,7 @@ pub async fn setup_honeypot_channel(
     debug!("Created honeypot channel: {:?}", channel.id);
 
     Ok((StatusCode::OK, Json(SetupHoneypotResponse {
-        channel_id: channel.id.to_string()
+        channel_id: channel.id.get(),
     })))
 }
 

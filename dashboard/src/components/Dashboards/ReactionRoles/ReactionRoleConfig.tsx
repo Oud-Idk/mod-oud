@@ -310,7 +310,7 @@ export function ReactionRoleConfig({
                                         type="button"
                                         className="text-[10px] text-neutral-400 hover:underline cursor-pointer"
                                         onClick={() => {
-                                            const newCustomId = prompt("Enter a unique custom ID for this button:", button.custom_id);
+                                            const newCustomId = prompt("Enter a unique custom ID for this button (must start with `btn_`):", button.custom_id);
                                             if (newCustomId && newCustomId.trim()) {
                                                 handleUpdateButton(index, "custom_id", newCustomId.trim());
                                             }

@@ -238,12 +238,14 @@ pub struct OffensiveMessagesRule {
 
 pub type ServerInvitesRule = BaseRule;
 pub type ZalgoRule = BaseRule;
+pub type CryptoAddressRule = BaseRule;
+
 
 pub trait HasBaseRule {
     fn base(&self) -> &BaseRule;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageFilteringConfig {
     pub server_invites: Option<ServerInvitesRule>,
@@ -255,6 +257,7 @@ pub struct MessageFilteringConfig {
     pub zalgo: Option<ZalgoRule>,
     pub anti_spam: Option<AntiSpamRule>,
     pub offensive_messages: Option<OffensiveMessagesRule>,
+    pub crypto_address: Option<CryptoAddressRule>,
     pub global_settings: Option<RuleScope>,
 }
 
@@ -333,11 +336,13 @@ impl fmt::Display for LoggedAction {
     }
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct HoneypotConfig {
     pub enabled: Option<bool>,
-    pub channel_id: Option<String>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub channel_id: Option<u64>,
     pub exempt_roles: Option<Vec<String>>,
     pub dmd: Option<u8>,
     pub reason: Option<String>,

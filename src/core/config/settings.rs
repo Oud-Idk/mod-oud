@@ -14,6 +14,7 @@ use fred::prelude::{Expiration, KeysInterface};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tracing::{debug, error, trace, warn};
+use anyhow::Context;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
@@ -43,6 +44,7 @@ impl GuildSettings {
     }
 }
 
+
 /// Retrieves settings. Returns a default struct if none exists in the DB.
 pub async fn get_settings_inner(
     db: &PgPool,
@@ -62,28 +64,47 @@ pub async fn get_settings_inner(
         return Ok(settings);
     }
 
-    debug!(guild_id, key = cache_key, "Settings cache miss; querying DB");
-    let settings_db = get_settings_from_database(db, guild_id).await?;
+    debug!(guild_id, key = %cache_key, "Settings cache miss; querying DB");
+
+    let settings_db = get_settings_from_database(db, guild_id)
+        .await
+        .with_context(|| format!("Failed to query settings from DB for guild_id {guild_id}"))?;
 
     let settings: GuildSettings = match settings_db {
-        Some(v) => match serde_json::from_value::<GuildSettings>(v.clone()) {
-            Ok(s) => {
-                debug!("Found config from DB.");
-                s
+        Some(raw_json) => {
+            match serde_path_to_error::deserialize::<_, GuildSettings>(raw_json.clone()) {
+                Ok(s) => {
+                    debug!(guild_id, "Found config from DB.");
+                    s
+                }
+                Err(err) => {
+                    let path = err.path().to_string(); // e.g. "member_counter.counters[0].id"
+                    let inner_error = err.into_inner(); // The actual Serde error
+
+                    error!(
+                    error = %inner_error,
+                    field_path = %path,
+                    guild_id,
+                    raw_json = %raw_json,
+                    "Failed to deserialize database JSON; falling back to default settings"
+                );
+                    GuildSettings::default()
+                }
             }
-            Err(e) => {
-                error!(error = ?e, guild_id, "Failed to deserialize database JSON; using default");
-                GuildSettings::default()
-            }
-        },
+        }
         None => {
             trace!(guild_id, "No config found in database; using default settings");
             GuildSettings::default()
         }
     };
 
-    if let Err(e) = set_setting_to_redis(&redis, &settings, &cache_key).await {
-        warn!("Redis failed to cache: {:?}", e);
+    if let Err(e) = set_setting_to_redis(redis, &settings, &cache_key).await {
+        warn!(
+            error = %e,
+            guild_id,
+            key = %cache_key,
+            "Failed to write settings to Redis cache"
+        );
     }
 
     cache.insert(guild_id, settings.clone()).await;

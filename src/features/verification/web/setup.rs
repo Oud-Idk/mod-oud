@@ -9,6 +9,7 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serenity::all::{ButtonStyle, ChannelId, ChannelType, CreateActionRow, CreateButton, CreateChannel, EditRole, GuildChannel, GuildId, Http, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, Role, RoleId};
 use std::sync::Arc;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::{trace, warn};
 
 #[derive(Deserialize, Clone, Debug)]
@@ -18,11 +19,16 @@ pub struct SetupVerificationRequest {
     format: Format,
 }
 
+
+#[serde_as]
 #[derive(Serialize, Clone, Debug)]
 pub struct SetupVerificationResponse {
-    verification_message_id: String,
-    verification_channel_id: String,
-    verification_role_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    verification_message_id: u64,
+    #[serde_as(as = "DisplayFromStr")]
+    verification_channel_id: u64,
+    #[serde_as(as = "DisplayFromStr")]
+    verification_role_id: u64,
 }
 
 struct RollbackState {
@@ -158,9 +164,9 @@ async fn execute_setup(
     });
 
     Ok(SetupVerificationResponse {
-        verification_role_id: verify_role.id.get().to_string(),
-        verification_channel_id: verify_channel.id.get().to_string(),
-        verification_message_id: verify_message.id.get().to_string(),
+        verification_role_id: verify_role.id.get(),
+        verification_channel_id: verify_channel.id.get(),
+        verification_message_id: verify_message.id.get(),
     })
 }
 

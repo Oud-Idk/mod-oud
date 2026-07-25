@@ -1,8 +1,8 @@
 use crate::features::verification::generate_verification_link;
 use crate::shared::store_username_relation;
 
-use crate::features::temp_voice;
-use crate::features::tickets;
+use crate::features::{reaction_roles, tickets};
+use crate::features::{temp_voice};
 
 use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
@@ -23,6 +23,11 @@ pub async fn on_interact(
 
             if custom_id.starts_with("temp_voice_") {
                 temp_voice::handle_interaction(ctx, interaction, data).await?;
+                return Ok(());
+            }
+
+            if custom_id.starts_with("btn_") {
+                reaction_roles::handle_button_interaction(ctx, component, data).await?;
                 return Ok(());
             }
 

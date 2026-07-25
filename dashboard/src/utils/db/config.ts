@@ -188,6 +188,7 @@ export async function getMessageFilteringConfig(guildId: string): Promise<Messag
         excessiveSpoilers: { ...default_base, threshold: 0.5 },
         excessiveMentions: { ...default_base, maxMentions: 5 },
         zalgo: default_base,
+        cryptoAddress: default_base,
         antiSpam: { ...default_base, messagesPerWindow: 8, windowSeconds: 5 },
         offensiveMessages: { ...default_base, flagThreshold: "MODERATE" },
         globalSettings: { ...default_scope }
@@ -206,6 +207,7 @@ export async function getMessageFilteringConfig(guildId: string): Promise<Messag
         excessiveSpoilers: { ...default_config.excessiveSpoilers, ...(dbConfig.excessive_spoilers || {}) },
         excessiveMentions: { ...default_config.excessiveMentions, ...(dbConfig.excessive_mentions || {}) },
         zalgo: { ...default_config.zalgo, ...(dbConfig.zalgo || {}) },
+        cryptoAddress: { ...default_config.cryptoAddress, ...(dbConfig.cryptoAddress || {}) },
         antiSpam: { ...default_config.antiSpam, ...(dbConfig.anti_spam || {}) },
         offensiveMessages: { ...default_config.offensiveMessages, ...(dbConfig.offensive_messages || {}) },
         globalSettings: { ...default_scope, ...(dbConfig.global_settings || {}) },
@@ -342,17 +344,17 @@ export async function getTempVoiceChannelConfig(guildId: string): Promise<TempVo
 
 export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
     const defaultConfig = {
-        category_id: "",
+        categoryId: "",
         enabled: false,
-        channel_id: "",
+        channelId: "",
         format: "TEXT",
         content: "",
         embed: {},
-        posted_message_id: "",
-        ticket_role_id: "",
-        warn_threshold: 30,
-        delete_threshold: 45,
-        bump_every: 20,
+        postedMessageId: "",
+        ticketRoleId: "",
+        warnThreshold: 30,
+        deleteThreshold: 45,
+        bumpEvery: 20,
     }
 
     const defaultMessageConfig: MessageLayout = {

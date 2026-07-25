@@ -2,7 +2,7 @@ use crate::core::config::settings::MessageLayout;
 use crate::shared::embed::{DiscordEmbed, Format};
 use crate::shared::ok_or_none;
 use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, serde_as, serde_conv};
+use serde_with::{DisplayFromStr, NoneAsEmptyString, serde_as, serde_conv};
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -33,19 +33,18 @@ pub struct TicketConfig {
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub ticket_role_id: Option<u64>,
     pub enabled: Option<bool>,
-    pub posted_message_id: Option<String>,
-    pub channel_id: Option<String>,
-
+    #[serde_as(as = "NoneAsEmptyString")]
+    pub posted_message_id: Option<u64>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub channel_id: Option<u64>,
     pub content: Option<String>,
     #[serde(default, deserialize_with = "ok_or_none")]
     pub embed: Option<DiscordEmbed>,
     pub format: Format,
-
     #[serde_as(as = "DurationMinutes")]
     pub warn_threshold: Duration,
     #[serde_as(as = "DurationMinutes")]
     pub delete_threshold: Duration,
     pub bump_every: i32,
-
     pub welcome_message: Option<MessageLayout>,
 }

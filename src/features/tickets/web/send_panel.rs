@@ -6,16 +6,21 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::{debug, info, instrument, warn};
 
+#[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct SendTicketMessagePayload {
-    pub channel_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: u64,
 }
 
+#[serde_as]
 #[derive(Serialize)]
 pub struct SendTicketMessageResponse {
-    pub message_id: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub message_id: u64,
 }
 
 #[instrument(skip(state))]
@@ -29,9 +34,6 @@ pub async fn handle_send_ticket_message(
     let guild_id = guild_id_str.parse::<i64>()
         .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string()))?;
 
-    let channel_id_u64 = payload.channel_id.parse::<u64>()
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Channel ID format".to_string()))?;
-
     let settings = get_settings(&state.db, &state.redis.clone(), &state.guild_configs, guild_id)
         .await
         .inspect_err(|e| warn!(error = ?e, guild_id, "Failed to load guild configuration settings"))
@@ -43,7 +45,7 @@ pub async fn handle_send_ticket_message(
     })?;
 
     let serenity_guild_id = serenity::all::GuildId::new(guild_id as u64);
-    let channel = serenity::all::ChannelId::new(channel_id_u64);
+    let channel = serenity::all::ChannelId::new(payload.channel_id);
 
     let message_builder = build_ticket_message_payload(
         &state.http,
@@ -62,10 +64,10 @@ pub async fn handle_send_ticket_message(
 
     let message = channel
         .send_message(&state.http, message_builder).await
-        .inspect_err(|e| warn!(error = ?e, guild_id, channel_id = channel_id_u64, "Failed to send Discord panel message"))
+        .inspect_err(|e| warn!(error = ?e, guild_id, channel_id = payload.channel_id, "Failed to send Discord panel message"))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed...: {e}")))?;
 
-    info!(guild_id, channel_id = channel_id_u64, message_id = message.id.get(), "Ticket panel message dispatched successfully via Web API!");
+    info!(guild_id, channel_id = payload.channel_id, message_id = message.id.get(), "Ticket panel message dispatched successfully via Web API!");
 
-    Ok((StatusCode::OK, Json(SendTicketMessageResponse { message_id: message.id.to_string() })))
+    Ok((StatusCode::OK, Json(SendTicketMessageResponse { message_id: message.id.get() })))
 }

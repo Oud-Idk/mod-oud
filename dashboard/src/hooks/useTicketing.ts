@@ -20,7 +20,7 @@ export function useTicketing(
     const [isWelcomeEmpty, setIsWelcomeEmpty] = useState(false);
 
     // Kept in parent because they are required to compute isDirty for SavePopup
-    const targetCategoryIsEmpty = config.categoryId.trim() === "";
+    const targetCategoryIsEmpty = (config.categoryId ?? "").trim() === "";
     const targetRoleIsEmpty = !config.ticketRoleId || config.ticketRoleId.trim() === "";
     const isWarnThresholdInvalid = config.warnThreshold > config.deleteThreshold;
 
