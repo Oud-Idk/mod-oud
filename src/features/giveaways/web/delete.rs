@@ -5,7 +5,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serenity::all::{ChannelId, MessageId};
 use std::sync::Arc;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 use crate::features::giveaways;
 
 pub async fn handle_delete_giveaway_message(
@@ -13,7 +13,11 @@ pub async fn handle_delete_giveaway_message(
     Path((guild_id_str, config_id_str)): Path<(String, String)>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let config_id = parse_config_id(&config_id_str)?;
-    let record = giveaways::database::fetch_giveaway(&state.db, config_id, &guild_id_str).await?;
+    let guild_id: i64 = guild_id_str.parse().map_err(|e| {
+        warn!(error = ?e, guild_id_str, "Invalid guild_id format");
+        (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
+    })?;
+    let record = giveaways::database::fetch_giveaway(&state.db, config_id, guild_id).await?;
 
     let Some(channel_id) = record.channel_id else {
         return Err((StatusCode::BAD_REQUEST, "Tried to delete a message that doesn't exist".to_string()));

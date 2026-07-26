@@ -59,15 +59,15 @@ impl PlaceholderResolver for DiscordCtx<'_> {
         }
 
         // Member / User-related (resolves user or member)
-        if ["user", "member", "player"].iter().any(|prefix| key.starts_with(prefix)) {
+        if ["user", "member", "player", "host"].iter().any(|prefix| key.starts_with(prefix)) {
             let user = self.user()?;
             return Some(match key {
-                "user" | "user.mention" | "member" | "member.mention" | "player" => format!("<@{}>", user.id),
-                "user.name" | "member.username" => user.name.clone(),
-                "user.id" | "member.id" => user.id.to_string(),
-                "user.avatar" | "member.avatar" => user.avatar.map(|h| h.to_string()).unwrap_or_default(),
-                "user.avatar_url" | "member.avatar_url" | "member.profile_picture" => user.face(),
-                "user.bot" | "member.bot" => user.bot.to_string(),
+                "user" | "user.mention" | "member" | "member.mention" | "player" | "host" | "host.mention" => format!("<@{}>", user.id),
+                "user.name" | "member.username" | "host.name" | "host.username" => user.name.clone(),
+                "user.id" | "member.id" | "host.id" => user.id.to_string(),
+                "user.avatar" | "member.avatar" | "host.avatar" => user.avatar.map(|h| h.to_string()).unwrap_or_default(),
+                "user.avatar_url" | "member.avatar_url" | "member.profile_picture" | "host.avatar_url" | "host.profile_picture" => user.face(),
+                "user.bot" | "member.bot" | "host.bot" => user.bot.to_string(),
                 _ => return None,
             });
         }

@@ -14,13 +14,8 @@ use tracing::{error, trace, warn};
 pub async fn fetch_giveaway(
     pool: &PgPool,
     config_id: i64,
-    guild_id: &str,
+    guild_id: i64,
 ) -> Result<Giveaway, (StatusCode, String)> {
-    let guild_id: i64 = guild_id.parse().map_err(|e| {
-        warn!(error = ?e, guild_id, "Invalid guild_id format");
-        (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
-    })?;
-
     sqlx::query_as!(
         Giveaway,
         r#"

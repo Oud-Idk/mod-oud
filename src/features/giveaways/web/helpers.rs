@@ -1,9 +1,12 @@
+use std::sync::Arc;
 use crate::core::config::state::WebState;
 use crate::shared::embed::{DiscordEmbed, Format};
 use axum::http::StatusCode;
-use serenity::all::CreateMessage;
-use std::sync::Arc;
-use tracing::warn;
+use chrono::{DateTime, Utc};
+use serenity::all::{CreateMessage, Http, User, UserId};
+use crate::core::config::guild_ctx::GuildCtx;
+use crate::features::giveaways::placeholders::GiveawayCtx;
+use crate::shared::placeholders::{render, DiscordCtx, ResolverChain};
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
@@ -18,17 +21,34 @@ pub fn build_giveaway_msg(
     embed: Option<&DiscordEmbed>,
     prize: &str,
     winner_count: i32,
-    end_time_str: &str,
+    end_time: DateTime<Utc>,
+    host_user: User,
+    gctx: &GuildCtx,
 ) -> Result<Option<CreateMessage>, (StatusCode, String)> {
+    let end_time_str = end_time.timestamp().to_string();
+
+    let giveaway_ctx = GiveawayCtx {
+        prize,
+        winner_count,
+        end_time_str: &end_time_str,
+    };
+
+    let discord_ctx = DiscordCtx {
+        gctx: Some(gctx),
+        user: Some(&host_user),
+        ..Default::default()
+    };
+
+    let resolver = ResolverChain(vec![
+        &giveaway_ctx,
+        &discord_ctx,
+    ]);
+
     let create_msg = crate::shared::embed::build_custom_message(
         format,
         content,
         embed,
-        |text| {
-            text.replace("{prize}", prize)
-                .replace("{winners}", &winner_count.to_string())
-                .replace("{end_time}", end_time_str)
-        },
+        |text| render(text, &resolver)
     )
         .map_err(|e| {
             (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build giveaway layout: {}", e))
