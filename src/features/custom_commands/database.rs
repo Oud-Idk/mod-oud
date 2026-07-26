@@ -1,10 +1,9 @@
-use fred::clients::Client;
-use fred::interfaces::KeysInterface;
-use fred::prelude::Expiration;
-use sqlx::PgPool;
-use sqlx::types::Json;
 use crate::Error;
 use crate::features::custom_commands::types::{CommandAction, CooldownType, CustomCommand};
+use crate::features::custom_commands::{cache, keys};
+use fred::clients::Client;
+use sqlx::PgPool;
+use sqlx::types::Json;
 
 pub async fn get_custom_command_by_name(
     pool: &PgPool,
@@ -12,15 +11,10 @@ pub async fn get_custom_command_by_name(
     guild_id: i64,
     cmd_name: &str,
 ) -> Result<Option<CustomCommand>, Error> {
-    let cache_key = format!("cmd:{}:{}", guild_id, cmd_name);
+    let cache_key = keys::custom_command_key(guild_id, cmd_name);
 
-    if let Ok(Some(cached_json)) = redis.get::<Option<String>, _>(&cache_key).await {
-        if cached_json == "none" {
-            return Ok(None);
-        }
-        if let Ok(cmd) = serde_json::from_str::<CustomCommand>(&cached_json) {
-            return Ok(Some(cmd));
-        }
+    if let Some(value) = cache::get_custom_command_from_redis(redis, &cache_key).await {
+        return Ok(Some(value));
     }
 
     let command = sqlx::query_as!(
@@ -39,15 +33,8 @@ pub async fn get_custom_command_by_name(
         .fetch_optional(pool)
         .await?;
 
-    // 3. Write to Redis (300 seconds cache TTL)
-    if let Some(ref cmd) = command {
-        if let Ok(json_str) = serde_json::to_string(cmd) {
-            let _ = redis.set::<(), _, _>(&cache_key, json_str, Some(Expiration::EX(300)), None, false).await;
-        }
-    } else {
-        // Negative cache for 30s to avoid DB spam for non-existent commands
-        let _ = redis.set::<(), _, _>(&cache_key, "none", Some(Expiration::EX(30)), None, false).await;
-    }
+    cache::cache_command_to_redis(redis, &cache_key, &command).await;
 
     Ok(command)
 }
+

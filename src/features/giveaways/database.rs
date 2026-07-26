@@ -81,66 +81,6 @@ pub async fn clear_giveaway_message_id(
     Ok(())
 }
 
-/// Fetches giveaway details by Discord Message ID with Redis caching
-pub async fn get_giveaway_by_message_id(
-    data: &Data,
-    message_id: i64,
-) -> Result<Option<Giveaway>, Error> {
-    let cache_key = format!("giveaway:msg:{}", message_id);
-
-    match data.redis.get::<Option<String>, _>(&cache_key).await {
-        Ok(Some(cached_json)) => {
-            if cached_json == "none" {
-                return Ok(None);
-            }
-            if let Ok(giveaway) = serde_json::from_str::<Giveaway>(&cached_json) {
-                return Ok(Some(giveaway));
-            } else {
-                error!("Failed to parse cached giveaway JSON: {}", cached_json);
-            }
-        }
-        Ok(None) => trace!("Cache miss for giveaway. Querying from database."),
-        Err(e) => warn!("Redis read error (falling back to database): {}", e),
-    }
-
-    let giveaway = sqlx::query_as!(
-        Giveaway,
-        r#"
-        SELECT id, guild_id, channel_id, message_id, prize, winner_count, host_id,
-               end_time, is_finished, format as "format: Format", embed as "embed?: sqlx::types::Json<DiscordEmbed>", content
-        FROM giveaways
-        WHERE message_id = $1
-        "#,
-        message_id
-    )
-        .fetch_optional(&data.db)
-        .await?;
-
-    if let Some(ref record) = giveaway {
-        if let Ok(json_str) = serde_json::to_string(record) {
-            let expiration = Expiration::EX(300); // 5 min cache
-            if let Err(e) = data
-                .redis
-                .set::<(), _, _>(&cache_key, json_str, Some(expiration), None, false)
-                .await
-            {
-                warn!("Failed to write giveaway to Redis: {}", e);
-            }
-        }
-    } else {
-        let expiration = Expiration::EX(120); // 2 min negative cache
-        if let Err(e) = data
-            .redis
-            .set::<(), _, _>(&cache_key, "none", Some(expiration), None, false)
-            .await
-        {
-            warn!("Failed to write negative cache result to Redis: {}", e);
-        }
-    }
-
-    Ok(giveaway)
-}
-
 /// Used by the background task scheduler to fetch all active giveaways that have reached their end time
 pub async fn fetch_expired_giveaways(pool: &PgPool) -> Result<Vec<Giveaway>, sqlx::Error> {
     sqlx::query_as!(
