@@ -12,11 +12,11 @@ sqlx = { version = "0.9.0", features = ["postgres", "chrono", "runtime-tokio", "
 duration-str = "0.21.0"
 chrono = { version = "0.4.45", features = ["serde"] }
 futures = "0.3.33"
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
 rustrict = "0.7.38"
 regex = "1.13.1"
 linkify = "0.11.0"
-serde_json = "1.0.150"
+serde_json = "1.0.151"
 prost = "0.14.4"
 reqwest = { version = "0.13.4", features = ["query", "form", "json"] }
 fred = { version = "10.1.0", features = ["partial-tracing", "enable-rustls", "i-scripts", "subscriber-client"] }
@@ -33,7 +33,7 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid = { version = "1.24.0", features = ["v4", "serde"] }
 emojis = "0.9.0"
 sysinfo = "0.39.6"
-anyhow = "1.0.103"
+anyhow = "1.0.104"
 hmac = "0.13.0"
 sha2 = "0.11.0"
 hex = "0.4.3"
@@ -41,5 +41,5 @@ humantime = "2.1"
 alloy-primitives = "1.6.1"
 bitcoin = "0.33.0-beta"
 bs58 = "0.5.1"
-base64 = "0.22.1"
+base64 = "0.23.0"
 serde_path_to_error = "0.1.20"

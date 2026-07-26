@@ -11,8 +11,8 @@ pub mod features;
 pub mod shared;
 pub mod web;
 
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
 // TODO remove this bullshit, use anyhow
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 pub struct Data {
