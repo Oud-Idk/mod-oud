@@ -1,10 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
-use log::{debug, trace};
 use rand::prelude::IndexedRandom;
 use serenity::all::{ChannelId, Http, MessageId, ReactionType, UserId};
 use sqlx::PgPool;
-use tracing::{error, info, warn};
+use tracing::{error, info, trace};
 use crate::features::giveaways::database::{fetch_expired_giveaways, mark_giveaway_finished};
 use crate::features::giveaways::types::Giveaway;
 

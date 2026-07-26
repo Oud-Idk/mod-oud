@@ -96,7 +96,7 @@ No external code should ever write `use crate::features::leveling::database::get
 When writing new code, run through this mental checklist in order:
 
 1. **Does it belong to exactly one feature?**
-    - Put it in that feature's folder, in the file matching its role (`commands.rs`, `config`, `types.rs`, etc.).
+    - Put it in that feature's folder, in the file matching its role (`custom_command`, `config`, `types.rs`, etc.).
 2. **Is it glue that wires features into the bot/web framework itself?**
     - Put it in `core/` or `events/dispatch.rs`.
 3. **Is it used by 3+ features and has absolutely zero feature-specific knowledge?**
@@ -154,7 +154,7 @@ feature's public `<feature_name>.rs` API. Jobs do not get a free pass to break f
 
 ## Naming Conventions
 
-* **File names describe roles, not contents:** `commands.rs`, `config`, `types.rs`, `dispatch`, `jobs.rs`,
+* **File names describe roles, not contents:** `custom_command`, `config`, `types.rs`, `dispatch`, `jobs.rs`,
   `web.rs`. Two different features' `config` files should look virtually identical in layout, even if the SQL queries
   inside are completely different.
 * **Stop creating `utils.rs` as a default dumping ground.** If you are about to add one, ask yourself: *"A utility for

@@ -4,7 +4,7 @@ use mod_oud::core::config;
 use mod_oud::core::error::on_error;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::features::live_feed::LogEvent;
-use mod_oud::features::{general, invite_tracking, leveling, moderation, reporting, tickets, warning};
+use mod_oud::features::{custom_commands, general, invite_tracking, leveling, moderation, reporting, tickets, warning};
 use mod_oud::web::server::start_web_server;
 use mod_oud::{Data, Error, events};
 use poise::serenity_prelude as serenity;
@@ -212,6 +212,7 @@ async fn async_main() -> Result<(), Error> {
             invite_tracking::invites(),
             invite_tracking::inviter(),
             invite_tracking::invites_leaderboard(),
+            custom_commands::custom_commands(),
             register(),
         ];
 

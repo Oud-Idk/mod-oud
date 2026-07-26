@@ -27,28 +27,11 @@ pub fn build_giveaway_msg(
 ) -> Result<Option<CreateMessage>, (StatusCode, String)> {
     let end_time_str = end_time.timestamp().to_string();
 
-    let giveaway_ctx = GiveawayCtx {
-        prize,
-        winner_count,
-        end_time_str: &end_time_str,
-    };
-
-    let discord_ctx = DiscordCtx {
-        gctx: Some(gctx),
-        user: Some(&host_user),
-        ..Default::default()
-    };
-
-    let resolver = ResolverChain(vec![
-        &giveaway_ctx,
-        &discord_ctx,
-    ]);
-
     let create_msg = crate::shared::embed::build_custom_message(
         format,
         content,
         embed,
-        |text| render(text, &resolver)
+        |text| replace_giveaway_placeholders(text, prize, winner_count, &host_user, gctx, &end_time_str)
     )
         .map_err(|e| {
             (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build giveaway layout: {}", e))
@@ -68,6 +51,26 @@ pub fn build_giveaway_msg(
     });
 
     Ok(Some(final_msg))
+}
+
+fn replace_giveaway_placeholders(text: &str, prize: &str, winner_count: i32, host_user: &User, gctx: &GuildCtx, end_time_str: &String) -> String {
+    let giveaway_ctx = GiveawayCtx {
+        prize,
+        winner_count,
+        end_time_str: &end_time_str,
+    };
+
+    let discord_ctx = DiscordCtx {
+        gctx: Some(gctx),
+        user: Some(&host_user),
+        ..Default::default()
+    };
+
+    let resolver = ResolverChain(vec![
+        &giveaway_ctx,
+        &discord_ctx,
+    ]);
+    render(text, &resolver)
 }
 
 pub fn convert_create_to_edit_message(

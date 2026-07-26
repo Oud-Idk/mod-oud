@@ -5,7 +5,6 @@ use axum::routing::get;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, instrument};
-use log::error;
 use crate::core::config::state::WebState;
 use crate::features::{automod, general, giveaways, live_feed, member_counter, moderation, reaction_roles, reporting, temp_voice, tickets, verification};
 

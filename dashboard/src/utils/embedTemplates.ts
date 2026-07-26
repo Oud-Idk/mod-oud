@@ -431,3 +431,39 @@ export const GIVEAWAY_TEMPLATE_CONFIG: BuilderConfig = {
         { key: "channel.id", mockValue: "1122334455667788991", label: "The unique ID of the giveaway channel" },
     ],
 };
+
+export const CUSTOM_COMMAND_TEMPLATE_CONFIG: BuilderConfig = {
+    id: "custom_commands",
+    name: "Custom Command Response Builder",
+    description: "Configure dynamic response messages for custom triggers.",
+    placeholders: [
+        // ── Server ──────────────────────────────────────────────────────────
+        { key: "server.name", mockValue: "My Server", label: "The name of your server" },
+        { key: "server.id", mockValue: "1234567890123456789", label: "The unique ID of your server" },
+        {
+            key: "server.icon_url",
+            mockValue: "https://cdn.discordapp.com/embed/avatars/0.png",
+            label: "A direct link to your server's icon"
+        },
+        { key: "server.member_count", mockValue: "3150", label: "The total number of members in your server" },
+
+        // ── User / Member ────────────────────────────────────────────────────
+        { key: "user", mockValue: "@JaneDoe", label: "Mentions the user who used the command" },
+        { key: "user.name", mockValue: "JaneDoe", label: "The username of the user who used the command" },
+        { key: "user.id", mockValue: "1122334455667788990", label: "The unique ID of the user" },
+        {
+            key: "user.avatar_url",
+            mockValue: "https://cdn.discordapp.com/embed/avatars/0.png",
+            label: "The avatar URL of the user"
+        },
+
+        // ── Channel ─────────────────────────────────────────────────────────
+        { key: "channel.mention", mockValue: "#general", label: "Mentions the current text channel" },
+        { key: "channel.name", mockValue: "general", label: "The name of the current channel" },
+        { key: "channel.id", mockValue: "1122334455667788991", label: "The unique ID of the current channel" },
+
+        // ── Utility ─────────────────────────────────────────────────────────
+        { key: "random", mockValue: "7", label: "Generates a random number between 0 and 10" },
+        { key: "random:1:100", mockValue: "42", label: "Generates a random number between custom min and max" },
+    ],
+};

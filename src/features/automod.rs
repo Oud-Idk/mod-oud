@@ -12,7 +12,7 @@ mod safe_browsing;
 mod web;
 
 pub use database::insert_automod_row;
-pub use events::{is_automod_actioned, store_automod};
+pub use events::{handle_automod, store_automod};
 pub use native_rule_cache::{cache_automod_name, invalidate_rule_cache};
 pub use rules::should_skip_scope;
 pub use types::{BaseRule, FilterVerdict, HoneypotConfig, MessageFilteringConfig, RuleAction, RuleScope};

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth"; // 👈 Your NextAuth helper (or getServerSession)
+import { auth } from "@/auth";
 
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
 import { GiveawaysBody } from "@/components/Dashboards/Giveaway/GiveawayBody";

@@ -129,7 +129,7 @@ pub async fn check_for_filter(
     Ok(false)
 }
 
-pub async fn is_automod_actioned(ctx: &Context, message: &Message, data: &Data) -> Result<bool, Error> {
+pub async fn handle_automod(ctx: &Context, message: &Message, data: &Data) -> Result<bool, Error> {
     if handle_honeypot(ctx, message, data).await? {
         return Ok(true);
     }

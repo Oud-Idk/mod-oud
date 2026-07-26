@@ -15,7 +15,7 @@ import {
     MessageSquareWarning, PartyPopper,
     ScrollTextIcon,
     Skull,
-    Star,
+    Star, Terminal,
     Ticket,
     TrendingUp,
     User,
@@ -85,6 +85,12 @@ export function SidebarLinks() {
             name: "Leveling",
             href: `/dashboard/${guildId}/leveling`,
             icon: TrendingUp,
+            exact: false,
+        },
+        {
+            name: "Custom Commands",
+            href: `/dashboard/${guildId}/custom-commands`,
+            icon: Terminal,
             exact: false,
         },
         {
