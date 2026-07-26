@@ -59,7 +59,6 @@ export function ConfigListLayout<T>({
 
             <Pad/>
 
-            {/* Right Configuration Form Pane */}
             <div className="md:col-span-3 border border-zinc-850 p-6 rounded-lg">
                 {!hasActiveConfig ? (
                     <div className="text-center py-12 space-y-3">

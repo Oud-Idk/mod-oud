@@ -390,3 +390,44 @@ export const REACTION_ROLES_CONFIG: BuilderConfig = {
     description: "Configure the message sent for this reaction role message.",
     placeholders: [],
 };
+
+export const GIVEAWAY_TEMPLATE_CONFIG: BuilderConfig = {
+    id: "giveaways",
+    name: "Giveaway Message Builder",
+    description: "Configure dynamic announcement embeds for community giveaways.",
+    placeholders: [
+        // ── Giveaway Details ────────────────────────────────────────────────
+        { key: "prize", mockValue: "1 Year Discord Nitro", label: "The prize being given away" },
+        { key: "winners", mockValue: "1", label: "The total number of winners" },
+        {
+            key: "end_time",
+            mockValue: "<t:1784970000:R>",
+            label: "Formatted relative Discord timestamp showing when the giveaway ends"
+        },
+
+        // ── Host ────────────────────────────────────────────────────────────
+        { key: "host.mention", mockValue: "@Oud", label: "Mentions the host of the giveaway" },
+        { key: "host.username", mockValue: "Oud", label: "The username of the giveaway host" },
+        { key: "host.id", mockValue: "9876543210987654321", label: "The unique ID of the giveaway host" },
+        {
+            key: "host.avatar_url",
+            mockValue: "https://cdn.discordapp.com/embed/avatars/0.png",
+            label: "A direct link to the host's avatar image"
+        },
+
+        // ── Server ──────────────────────────────────────────────────────────
+        { key: "server.name", mockValue: "My Server", label: "The name of your server" },
+        { key: "server.id", mockValue: "1234567890123456789", label: "The unique ID of your server" },
+        {
+            key: "server.icon_url",
+            mockValue: "https://cdn.discordapp.com/embed/avatars/0.png",
+            label: "A direct link to your server's icon image"
+        },
+        { key: "server.member_count", mockValue: "3150", label: "The total number of members in your server" },
+
+        // ── Channel ─────────────────────────────────────────────────────────
+        { key: "channel.mention", mockValue: "#giveaways", label: "Mentions the giveaway text channel" },
+        { key: "channel.name", mockValue: "giveaways", label: "The name of the giveaway channel" },
+        { key: "channel.id", mockValue: "1122334455667788991", label: "The unique ID of the giveaway channel" },
+    ],
+};

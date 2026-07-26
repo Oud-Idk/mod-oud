@@ -2627,6 +2627,7 @@ dependencies = [
  "hmac 0.13.0",
  "humantime",
  "linkify",
+ "log",
  "moka",
  "poise",
  "prost",

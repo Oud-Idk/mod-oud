@@ -16,6 +16,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, info};
+use crate::features::giveaways::start_giveaway_worker;
 
 pub fn setup<'a>(
     safe_browsing_api_key: Option<String>,
@@ -98,6 +99,8 @@ pub fn start_jobs(pool: &Pool<Postgres>, redis_client: &Client, subscriber_clien
     start_reminder_worker(pool.clone(), ctx.http.clone(), redis_client.clone());
 
     start_member_counter_job(ctx.http.clone(), ctx.cache.clone(), pool.clone(), redis_client.clone(), guild_configs_cache.clone());
+
+    start_giveaway_worker(pool.clone(), ctx.http.clone());
 }
 
 pub struct ShardManagerContainer;

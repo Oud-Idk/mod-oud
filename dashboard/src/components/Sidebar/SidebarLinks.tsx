@@ -12,7 +12,7 @@ import {
     Logs,
     Megaphone,
     MessageSquare,
-    MessageSquareWarning,
+    MessageSquareWarning, PartyPopper,
     ScrollTextIcon,
     Skull,
     Star,
@@ -145,6 +145,12 @@ export function SidebarLinks() {
             name: "Member Counter",
             href: `/dashboard/${guildId}/member-counter`,
             icon: User,
+            exact: false,
+        },
+        {
+            name: "Giveaway",
+            href: `/dashboard/${guildId}/giveaway`,
+            icon: PartyPopper,
             exact: false,
         }
     ];

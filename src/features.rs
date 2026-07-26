@@ -16,3 +16,4 @@ pub mod reporting;
 pub mod member_counter;
 pub mod live_feed;
 pub mod reminder;
+pub mod giveaways;

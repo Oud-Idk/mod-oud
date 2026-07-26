@@ -6,15 +6,21 @@ declare module "next-auth" {
     interface Session {
         accessToken?: string;
         error?: string;
+        user: {
+            id?: string;
+            name?: string | null;
+            email?: string | null;
+            image?: string | null;
+        };
     }
 }
-
 declare module "next-auth/jwt" {
     interface JWT {
         accessToken?: string;
         refreshToken?: string;
         accessTokenExpires?: number;
         error?: string;
+        discordId?: string;
     }
 }
 
@@ -132,7 +138,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }),
     ],
     callbacks: {
-        async jwt({ token, account }) {
+        async jwt({ token, account, profile }) { // 👈 Add `profile` parameter here
             if (account) {
                 const expiresAt = account.expires_at
                     ? account.expires_at * 1000
@@ -143,6 +149,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     accessToken: account.access_token,
                     refreshToken: account.refresh_token,
                     accessTokenExpires: expiresAt,
+                    discordId: (profile?.id as string) ?? account.providerAccountId,
                 };
             }
 
@@ -153,10 +160,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return refreshAccessToken(token);
         },
         async session({ session, token }) {
+            if (session.user) {
+                session.user.id = (token.discordId as string) ?? token.sub ?? "";
+            }
+
             session.accessToken = token.accessToken as string | undefined;
             session.error = token.error as string | undefined;
             return session;
-        },
+        }
     },
 });
 

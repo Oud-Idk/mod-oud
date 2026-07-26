@@ -9,7 +9,7 @@ export interface PageProps {
 }
 
 
-export default async function HonyepotPage({ params }: PageProps) {
+export default async function HoneypotPage({ params }: PageProps) {
     const { guild_id } = await params;
     const [textChannelMap, roleMap, settings] = await Promise.all([
         getTextChannelMap(guild_id),
