@@ -48,8 +48,21 @@ export const Embed = ({ config, embed }: EmbedProps) => {
         return parsed;
     };
 
+    // Helper to format string with real React <br /> tags
+    const renderFormattedText = (text: string | undefined) => {
+        const parsed = renderWithPlaceholders(text);
+        if (!parsed) return "";
+
+        return parsed.split("\n").map((line, i, arr) => (
+            <React.Fragment key={i}>
+                {line}
+                {i < arr.length - 1 && <br/>}
+            </React.Fragment>
+        ));
+    };
+
     return (
-        <DiscordMessages className="rounded-md overflow-hidden" no-background lightTheme={resolvedTheme == "light"}>
+        <DiscordMessages className="rounded-md overflow-hidden" no-background lightTheme={resolvedTheme === "light"}>
             <DiscordMessage>
                 <DiscordEmbed
                     slot="embeds"
@@ -60,13 +73,14 @@ export const Embed = ({ config, embed }: EmbedProps) => {
                     image={renderWithPlaceholders(embed.imageUrl)}
                     thumbnail={renderWithPlaceholders(embed.thumbnailUrl)}
                 >
-                    {/* Use the dedicated Description Component */}
+                    {/* Description */}
                     {embed.description && (
                         <DiscordEmbedDescription slot="description">
-                            {renderWithPlaceholders(embed.description)}
+                            {renderFormattedText(embed.description)}
                         </DiscordEmbedDescription>
                     )}
 
+                    {/* Fields */}
                     {embed.fields && embed.fields.length > 0 && (
                         <DiscordEmbedFields slot="fields">
                             {embed.fields.map((field, index) => (
@@ -75,13 +89,13 @@ export const Embed = ({ config, embed }: EmbedProps) => {
                                     fieldTitle={renderWithPlaceholders(field.name) || "\u200B"}
                                     inline={field.inline}
                                 >
-                                    {renderWithPlaceholders(field.value) || "\u200B"}
+                                    {renderFormattedText(field.value) || "\u200B"}
                                 </DiscordEmbedField>
                             ))}
                         </DiscordEmbedFields>
                     )}
 
-                    {/* Use the dedicated Footer Component */}
+                    {/* Footer */}
                     {embed.footerText && (
                         <DiscordEmbedFooter slot="footer">
                             {renderWithPlaceholders(embed.footerText)}
