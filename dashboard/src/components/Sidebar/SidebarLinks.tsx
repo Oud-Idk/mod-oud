@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import {
     AlertTriangle,
-    BellIcon,
+    BellIcon, Cake,
     DoorOpen,
     FileText,
     LayoutDashboard,
@@ -157,6 +157,12 @@ export function SidebarLinks() {
             name: "Giveaway",
             href: `/dashboard/${guildId}/giveaway`,
             icon: PartyPopper,
+            exact: false,
+        },
+        {
+            name: "Birthdays",
+            href: `/dashboard/${guildId}/birthdays`,
+            icon: Cake,
             exact: false,
         }
     ];

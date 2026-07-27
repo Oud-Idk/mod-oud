@@ -16,6 +16,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, info};
+use crate::features::birthday::start_birthday_worker;
 use crate::features::giveaways::start_giveaway_worker;
 
 pub fn setup<'a>(
@@ -69,7 +70,7 @@ pub fn setup<'a>(
     })
 }
 
-pub fn start_jobs(pool: &Pool<Postgres>, redis_client: &Client, subscriber_client: &SubscriberClient, guild_configs_cache: &Cache<i64, GuildSettings>, ctx: &Context, active_tickets_cache: &Cache<u64, ()>, rx: UnboundedReceiver<TicketLogPayload>) {
+pub fn start_jobs(db: &Pool<Postgres>, redis_client: &Client, subscriber_client: &SubscriberClient, guild_configs_cache: &Cache<i64, GuildSettings>, ctx: &Context, active_tickets_cache: &Cache<u64, ()>, rx: UnboundedReceiver<TicketLogPayload>) {
     sync_tickets(
         &redis_client,
         &subscriber_client,
@@ -77,30 +78,32 @@ pub fn start_jobs(pool: &Pool<Postgres>, redis_client: &Client, subscriber_clien
     );
 
     start_ticket_inactivity_worker(
-        pool.clone(),
+        db.clone(),
         ctx.http.clone(),
         redis_client.clone(),
         guild_configs_cache.clone(),
     );
 
-    start_ticket_logger(rx, pool.clone());
+    start_ticket_logger(rx, db.clone());
 
     start_temp_ban_worker(
-        pool.clone(),
+        db.clone(),
         ctx.http.clone(),
         redis_client.clone()
     );
 
     start_level_flush_worker(
-        pool.clone(),
+        db.clone(),
         redis_client.clone()
     );
 
-    start_reminder_worker(pool.clone(), ctx.http.clone(), redis_client.clone());
+    start_reminder_worker(db.clone(), ctx.http.clone(), redis_client.clone());
 
-    start_member_counter_job(ctx.http.clone(), ctx.cache.clone(), pool.clone(), redis_client.clone(), guild_configs_cache.clone());
+    start_member_counter_job(ctx.http.clone(), ctx.cache.clone(), db.clone(), redis_client.clone(), guild_configs_cache.clone());
 
-    start_giveaway_worker(pool.clone(), ctx.http.clone());
+    start_giveaway_worker(db.clone(), ctx.http.clone());
+
+    start_birthday_worker(db.clone(), redis_client.clone(), guild_configs_cache.clone(), ctx.clone());
 }
 
 pub struct ShardManagerContainer;

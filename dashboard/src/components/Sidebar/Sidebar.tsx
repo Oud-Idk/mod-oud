@@ -23,24 +23,31 @@ export async function Sidebar() {
         <aside
             className="w-64 h-screen border-r bg-white dark:bg-black flex flex-col"
         >
+            {/* Fixed Header */}
             <div
-                className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 bg-white dark:bg-black"
+                className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 bg-white dark:bg-black shrink-0"
             >
                 <Link href="/" className="font-bold">Mod Oud</Link>
                 <div className="hidden md:block">
                     <ThemeToggle/>
                 </div>
             </div>
+
+            {/* Fixed Server List */}
             <div
-                className="h-14 flex justify-start items-center bg-white dark:bg-black"
+                className="h-14 flex justify-start items-center bg-white dark:bg-black shrink-0"
             >
                 <ServerList guilds={mutualGuilds}/>
             </div>
-            <div className="grow">
+
+            {/* Scrollable Navigation Area */}
+            <div className="grow overflow-y-auto min-h-0">
                 <SidebarLinks/>
             </div>
+
+            {/* Fixed Footer */}
             <div
-                className="p-3 dark:bg-neutral-950 bg-white flex items-center justify-between border-t"
+                className="p-3 dark:bg-neutral-950 bg-white flex items-center justify-between border-t shrink-0"
             >
                 <div className="flex items-center gap-2 overflow-hidden">
                     <div className="relative">
@@ -69,5 +76,5 @@ export async function Sidebar() {
                 <LogoutButton/>
             </div>
         </aside>
-    )
+    );
 }

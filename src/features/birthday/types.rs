@@ -1,0 +1,39 @@
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use serde_with::{serde_as, DisplayFromStr};
+use serenity::all::UserId;
+
+/// Information for a single member celebrating a birthday today
+pub struct BirthdayMember {
+    pub user_id: UserId,
+    pub display_name: String,
+    pub birth_year: Option<i16>,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct ExpiredRole {
+    pub(crate) guild_id: i64,
+    pub(crate) user_id: i64,
+    pub(crate) role_id: i64,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BirthdayConfig {
+    pub enabled: bool,
+    #[serde_as(as = "DisplayFromStr")]
+    pub guild_id: u64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: u64,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub birthday_role_id: Option<u64>,
+    pub message_with_year: Value,
+    pub message_without_year: Value,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct UserBirthdayRecord {
+    pub user_id: i64,
+    pub birth_year: Option<i16>,
+}

@@ -8,6 +8,7 @@ use fred::interfaces::{KeysInterface, SetsInterface, TransactionInterface};
 use serenity::all::{GuildId, UserId};
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
+use std::result;
 use tracing::trace;
 
 pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<Option<UserLevel>> {
@@ -126,4 +127,33 @@ pub async fn load_leveling_config(
     }
 
     Ok(Some(leveling_config))
+}
+
+pub async fn upsert_level(
+    db: &PgPool,
+    guild_ids: &[i64],
+    user_ids: &[i64],
+    cumulative_xps: &[i32],
+    current_levels: &[i32],
+    current_xps: &[i32],
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+        INSERT INTO levels (guild_id, user_id, cumulative_xp, current_level, current_xp)
+        SELECT * FROM UNNEST($1::bigint[], $2::bigint[], $3::integer[], $4::integer[], $5::integer[])
+        ON CONFLICT (guild_id, user_id) DO UPDATE SET
+            cumulative_xp = EXCLUDED.cumulative_xp,
+            current_level = EXCLUDED.current_level,
+            current_xp = EXCLUDED.current_xp;
+        "#,
+        guild_ids,
+        user_ids,
+        cumulative_xps,
+        current_levels,
+        current_xps
+    )
+        .execute(db)
+        .await?;
+
+    Ok(())
 }

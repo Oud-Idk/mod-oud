@@ -18,3 +18,4 @@ pub mod live_feed;
 pub mod reminder;
 pub mod giveaways;
 pub mod custom_commands;
+pub mod birthday;

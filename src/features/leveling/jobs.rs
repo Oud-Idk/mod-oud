@@ -1,3 +1,4 @@
+use crate::features::leveling::database;
 use crate::features::leveling::types::UserLevel;
 use crate::shared::locking::acquire_lock;
 use fred::clients::Client;
@@ -122,23 +123,7 @@ async fn process_flushing_key(
         let records_to_upsert = guild_ids.len();
         debug!(records_to_upsert, "Upserting user levels to database");
 
-        sqlx::query!(
-            r#"
-            INSERT INTO levels (guild_id, user_id, cumulative_xp, current_level, current_xp)
-            SELECT * FROM UNNEST($1::bigint[], $2::bigint[], $3::integer[], $4::integer[], $5::integer[])
-            ON CONFLICT (guild_id, user_id) DO UPDATE SET
-                cumulative_xp = EXCLUDED.cumulative_xp,
-                current_level = EXCLUDED.current_level,
-                current_xp = EXCLUDED.current_xp;
-            "#,
-            &guild_ids,
-            &user_ids,
-            &cumulative_xps,
-            &current_levels,
-            &current_xps
-        )
-            .execute(db)
-            .await?;
+        database::upsert_level(db, &guild_ids, &user_ids, &cumulative_xps, &current_levels, &current_xps).await?;
 
         debug!(records_to_upsert, "Database upsert complete");
     }

@@ -31,6 +31,8 @@ import { MessageFilteringConfig } from "@/types/db/config/messageFiltering";
 import { getGuildLists } from "@/utils/servers";
 import { ModerationDMsConfig } from "@/types/db/config/moderationDMs";
 import { BadWordRuleset } from "@/types/db";
+import { BirthdayConfig } from "@/types/db/birthday";
+import { saveBirthdayConfig } from "@/utils/db/birthdays";
 
 /**
  * Authenticates the user and verifies if they have management permissions
@@ -262,6 +264,17 @@ export async function saveMemberCounterConfigAction(
         revalidatePath(`/dashboard/${guildId}/member-counter`);
     } catch (error) {
         console.error("Failed to save honeypot config:", error);
+        throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
+    }
+}
+
+export async function saveBirthdayConfigAction(guildId: string, data: BirthdayConfig) {
+    try {
+        await verifyGuildAccess(guildId);
+        await saveBirthdayConfig(guildId, data);
+        revalidatePath(`/dashboard/${guildId}/birthdays`);
+    } catch (error) {
+        console.error("Failed to save birthday config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }
