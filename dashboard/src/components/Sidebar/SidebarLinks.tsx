@@ -13,7 +13,7 @@ import {
     Megaphone,
     MessageSquare,
     MessageSquareWarning, PartyPopper,
-    ScrollTextIcon,
+    ScrollTextIcon, ShieldAlert,
     Skull,
     Star, Terminal,
     Ticket,
@@ -164,6 +164,11 @@ export function SidebarLinks() {
             href: `/dashboard/${guildId}/birthdays`,
             icon: Cake,
             exact: false,
+        },
+        {
+            name: "Raid Detection",
+            href: `/dashboard/${guildId}/raid-detection`,
+            icon: ShieldAlert
         }
     ];
 

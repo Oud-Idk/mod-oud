@@ -111,17 +111,11 @@ export interface HoneypotConfig {
     duration: number | null;
 }
 
-// Not used but made here for consistency
-export interface Config {
-    welcome?: WelcomeConfig;
-    leave?: LeaveConfig;
-    messageLogging?: MessageLoggingConfig;
-    messageFiltering?: MessageFilteringConfig;
-    leveling?: LevelingConfig;
-    report?: ReportConfig;
-    moderationDms?: ModerationDMsConfig;
-    tickets?: TicketConfig;
-    tempVoice?: TempVoiceConfig;
+export interface RaidDetectionConfig {
+    enabled: boolean;
+    zScoreMultiplier: number;
+    minSafeLimit: number;
+    windowSizeSeconds: number;
 }
 
 export interface CounterChannel {
@@ -136,4 +130,17 @@ export interface MemberCounterConfig {
     enabled: boolean;
     updateIntervalMinutes: number;
     counters: CounterChannel[];
+}
+
+// Not used but made here for consistency
+export interface Config {
+    welcome?: WelcomeConfig;
+    leave?: LeaveConfig;
+    messageLogging?: MessageLoggingConfig;
+    messageFiltering?: MessageFilteringConfig;
+    leveling?: LevelingConfig;
+    report?: ReportConfig;
+    moderationDms?: ModerationDMsConfig;
+    tickets?: TicketConfig;
+    tempVoice?: TempVoiceConfig;
 }

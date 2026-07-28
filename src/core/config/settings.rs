@@ -16,6 +16,7 @@ use sqlx::PgPool;
 use tracing::{debug, error, trace, warn};
 use anyhow::Context;
 use crate::features::birthday::BirthdayConfig;
+use crate::features::raid_detection::RaidDetectionConfig;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
@@ -33,6 +34,7 @@ pub struct GuildSettings {
     pub honeypot: Option<HoneypotConfig>,
     pub member_counter: Option<MemberCounterConfig>,
     pub birthday: Option<BirthdayConfig>,
+    pub raid_detection: Option<RaidDetectionConfig>
 }
 
 impl GuildSettings {

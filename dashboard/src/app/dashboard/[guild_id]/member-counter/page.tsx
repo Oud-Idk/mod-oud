@@ -1,5 +1,5 @@
 import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { getMemberCountereConfig } from "@/utils/db/config";
+import { getMemberCounterConfig } from "@/utils/db/config";
 import { MemberCounterBody } from "@/components/Dashboards/MemberTracking/MemberTrackingBody";
 import { saveMemberCounterConfigAction } from "@/actions/config";
 import { getRoleMap } from "@/utils/discord";
@@ -15,7 +15,7 @@ export default async function MemberCounterPage({ params }: PageProps) {
         memberCounterConfig,
         roleMap,
     ] = await Promise.all([
-        getMemberCountereConfig(guild_id),
+        getMemberCounterConfig(guild_id),
         getRoleMap(guild_id),
     ]);
 

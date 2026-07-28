@@ -81,7 +81,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
 
     if winners.is_empty() {
         let no_winners_msg = format!(
-            "🎉 The giveaway for **{}** has ended! Unfortunately, no eligible entries were found. 😢",
+            "The giveaway for **{}** has ended! Unfortunately, no eligible entries were found :(",
             giveaway.prize
         );
         channel_id.say(http, no_winners_msg).await?;
@@ -89,7 +89,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
     } else {
         let winner_mentions: Vec<String> = winners.iter().map(|u| format!("<@{}>", u)).collect();
         let announcement = format!(
-            "🎊 **GIVEAWAY ENDED** 🎊\n\nCongratulations to {}! You won **{}**! 🎁",
+            "**GIVEAWAY ENDED** \n\nCongratulations to {}! You won **{}**! 🎁",
             winner_mentions.join(", "),
             giveaway.prize
         );

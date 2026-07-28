@@ -7,7 +7,7 @@ import {
     LevelingConfig,
     MemberCounterConfig,
     MessageLayout,
-    MessageLoggingConfig,
+    MessageLoggingConfig, RaidDetectionConfig,
     ReportConfig,
     TempVoiceConfig,
     TicketConfig
@@ -535,7 +535,7 @@ export async function getInviteLeaderboard(guildId: string, limit = 10): Promise
     }
 }
 
-export async function getMemberCountereConfig(guildId: string): Promise<MemberCounterConfig> {
+export async function getMemberCounterConfig(guildId: string): Promise<MemberCounterConfig> {
     const defaultConfig: MemberCounterConfig = {
         enabled: false,
         updateIntervalMinutes: 15,
@@ -553,4 +553,25 @@ export async function getMemberCountereConfig(guildId: string): Promise<MemberCo
 
 export async function saveMemberCounterConfig(guildId: string, config: MemberCounterConfig): Promise<void> {
     await saveGuildConfigField(guildId, 'member_counter', config);
+}
+
+export async function getRaidDetectionConfig(guildId: string): Promise<RaidDetectionConfig> {
+    const defaultConfig: RaidDetectionConfig = {
+        enabled: false,
+        zScoreMultiplier: 3,
+        minSafeLimit: 5,
+        windowSizeSeconds: 60,
+    }
+
+    const dbConfig = await getGuildConfigField<Partial<RaidDetectionConfig>>(guildId, "raid_detection");
+    if (!dbConfig) return defaultConfig;
+
+    return {
+        ...defaultConfig,
+        ...dbConfig,
+    }
+}
+
+export async function saveRaidDetectionConfig(guildId: string, config: RaidDetectionConfig): Promise<void> {
+    await saveGuildConfigField(guildId, 'raid_detection', config);
 }

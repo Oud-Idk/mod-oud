@@ -11,7 +11,7 @@ import {
     saveLevelingConfig,
     saveMemberCounterConfig,
     saveMessageFilteringConfig,
-    saveModerationDMsConfig,
+    saveModerationDMsConfig, saveRaidDetectionConfig,
     saveReportConfig,
     saveTempVoiceChannelConfig,
     saveTicketConfig,
@@ -21,7 +21,7 @@ import {
     HoneypotConfig,
     LeaveConfig,
     LevelingConfig,
-    MemberCounterConfig,
+    MemberCounterConfig, RaidDetectionConfig,
     ReportConfig,
     TempVoiceConfig,
     TicketConfig
@@ -275,6 +275,17 @@ export async function saveBirthdayConfigAction(guildId: string, data: BirthdayCo
         revalidatePath(`/dashboard/${guildId}/birthdays`);
     } catch (error) {
         console.error("Failed to save birthday config:", error);
+        throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
+    }
+}
+
+export async function saveRaidDetectionConfigAction(guildId: string, data: RaidDetectionConfig) {
+    try {
+        await verifyGuildAccess(guildId);
+        await saveRaidDetectionConfig(guildId, data);
+        revalidatePath(`/dashboard/${guildId}/raid-detection`);
+    } catch (error) {
+        console.error("Failed to save raid detection config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }
