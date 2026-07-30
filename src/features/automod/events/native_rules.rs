@@ -1,5 +1,5 @@
 use crate::features::automod::insert_automod_row;
-use crate::features::automod::native_rule_cache::get_rule_name;
+use crate::features::automod::cache::get_rule_name;
 use crate::features::automod::types::LoggedAction;
 use crate::shared::{get_username, store_username_relation};
 use crate::{Data, Error};

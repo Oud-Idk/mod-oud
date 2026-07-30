@@ -1,0 +1,154 @@
+use crate::core::config::settings::get_settings;
+use crate::features::moderation::apply_global_lock;
+use crate::features::raid_detection::database;
+use crate::features::raid_detection::implementation::{clear_raid_active, DynamicRaidDetector};
+use crate::features::raid_detection::keys;
+use crate::features::raid_detection::raid_end::handle_raid_end;
+use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
+use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
+use crate::features::raid_detection::types::RaidAction;
+use crate::{Data, Error};
+use fred::interfaces::KeysInterface;
+use serenity::all::{ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp};
+use tracing::{debug, error, info, instrument, warn};
+
+#[instrument(
+    skip(ctx, data),
+    fields(
+        guild_id = guild_id_u64,
+        mod_username = mod_username
+    )
+)]
+pub async fn trigger_raid_manual(
+    ctx: &Context,
+    data: &Data,
+    guild_id_u64: u64,
+    mod_username: &str,
+) -> Result<bool, Error> {
+    info!(
+        guild_id = guild_id_u64,
+        mod_username,
+        "Manual raid mode activation requested by moderator"
+    );
+
+    let detector = DynamicRaidDetector::new(
+        data.redis.clone(),
+        60,
+        3.0,
+        5,
+    );
+
+    let is_first_trigger = detector.try_set_raid_active(guild_id_u64, 300).await?;
+    if !is_first_trigger {
+        warn!(
+            guild_id = guild_id_u64,
+            mod_username,
+            "Manual raid trigger ignored: server is already in an active raid"
+        );
+        return Ok(false);
+    }
+
+    if let Err(e) = ensure_preraid_state_saved(ctx, data, guild_id_u64).await {
+        error!(
+            error = %e,
+            guild_id = guild_id_u64,
+            mod_username,
+            "Failed to save pre-raid state snapshot during manual raid trigger; rolling back active state"
+        );
+        let _ = clear_raid_active(&data.redis, guild_id_u64).await;
+        return Err(e);
+    }
+
+    spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id_u64);
+
+    let Some(raid_config) = get_settings(
+        &data.db, &data.redis, &data.guild_configs, guild_id_u64 as i64,
+    ).await?.raid_detection else {
+        warn!(
+            guild_id = guild_id_u64,
+            "Raid mode set active manually, but no raid configuration found for mitigation actions"
+        );
+        return Ok(true);
+    };
+
+    let guild_id = GuildId::new(guild_id_u64);
+
+    for action in &raid_config.raid_actions {
+        match action {
+            RaidAction::LockdownServer => {
+                info!(guild_id = guild_id_u64, "Spawning global server lockdown background task (manual trigger)");
+                let ctx = ctx.clone();
+                let data = (*data).clone();
+                tokio::spawn(async move {
+                    if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
+                        error!(error = ?e, guild_id = guild_id.get(), "Failed to lock server during manual trigger");
+                    }
+                });
+            }
+            RaidAction::BumpVerification => {
+                info!(guild_id = guild_id_u64, "Bumping server verification to hCaptcha and using auth (manual trigger)");
+                database::bump_verification_to_max(&data.db, guild_id_u64 as i64).await?;
+            }
+            RaidAction::PauseInvites { hours } => {
+                info!(guild_id = guild_id_u64, hours, "Pausing server invites (manual trigger)");
+                let until = chrono::Utc::now() + chrono::Duration::hours(*hours);
+                let timestamp = Timestamp::from_unix_timestamp(until.timestamp())?;
+                let builder = EditGuildIncidentActions::new().invites_disabled_until(timestamp);
+                guild_id.edit_guild_incident_actions(&ctx.http, guild_id, builder).await?;
+            }
+            RaidAction::Alert { channel_id } => {
+                info!(guild_id = guild_id_u64, channel_id, "Sending manual raid alert message");
+                let channel = ChannelId::new(*channel_id);
+                let message_content = format!(
+                    "🚨 **Manual Raid Mode Activated** by moderator `{}`! Server incident protections have been enabled.",
+                    mod_username
+                );
+                let message = CreateMessage::new().content(message_content);
+                if let Err(e) = channel.send_message(&ctx.http, message).await {
+                    error!(error = %e, channel_id, guild_id = guild_id_u64, "Failed to send manual raid alert message");
+                }
+            }
+            _ => {} // Skip member-specific actions like AutoBan or Timeout
+        }
+    }
+
+    info!(
+        guild_id = guild_id_u64,
+        mod_username,
+        "Manual raid mode successfully activated"
+    );
+
+    Ok(true)
+}
+
+#[instrument(skip(ctx, data), fields(guild_id = guild_id_u64))]
+pub async fn resolve_raid_manual(
+    ctx: &Context,
+    data: &Data,
+    guild_id_u64: u64,
+) -> Result<bool, Error> {
+    info!(guild_id = guild_id_u64, "Manual raid resolution requested");
+
+    let active_key = keys::raid_active_key(guild_id_u64);
+    let snapshot_key = keys::raid_snapshot_key(guild_id_u64);
+
+    let is_active: bool = data.redis.exists(&active_key).await.unwrap_or(false);
+    let has_snapshot: bool = data.redis.exists(&snapshot_key).await.unwrap_or(false);
+
+    if !is_active && !has_snapshot {
+        warn!(
+            guild_id = guild_id_u64,
+            "Manual raid resolution ignored: no active raid flag or snapshot found"
+        );
+        return Ok(false);
+    }
+
+    let _: () = data.redis.del(&active_key).await?;
+
+    info!(guild_id = guild_id_u64, "Cleared active raid flag; initiating raid cleanup");
+    handle_raid_end(ctx, data, guild_id_u64).await?;
+
+    info!(guild_id = guild_id_u64, "Manual raid resolution completed successfully");
+
+    Ok(true)
+}

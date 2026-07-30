@@ -1,10 +1,13 @@
-use std::borrow::Cow;
-use serenity::all::Message;
-use tracing::{debug, trace};
 use crate::features::automod::FilterVerdict;
 use crate::features::bad_words::rules::should_be_skipped_ruleset;
-use crate::features::bad_words::types::{MatchStrategy, Pattern};
 use crate::features::bad_words::types::BadWordRuleset;
+use crate::features::bad_words::types::{MatchStrategy, Pattern};
+use crate::features::bad_words::{cache, database, keys};
+use crate::{Data, Error};
+use fred::interfaces::{FredResult, KeysInterface};
+use serenity::all::Message;
+use std::borrow::Cow;
+use tracing::{debug, instrument, trace, warn};
 
 fn has_bad_words(pattern: &Pattern, original: &str, lower: &str) -> bool {
     match pattern.strategy {
@@ -71,4 +74,55 @@ pub fn filter_bad_words<'a>(
     }
 
     FilterVerdict::Pass
+}
+
+/// Fetch active rulesets using a Redis cache layer fallback
+#[instrument(skip(data), fields(guild_id = guild_id))]
+pub async fn get_active_bad_word_rulesets(
+    data: &Data,
+    guild_id: i64,
+) -> Result<Vec<BadWordRuleset>, Error> {
+    let cache_key = keys::bad_word_config_key(guild_id);
+    let conn = &data.redis;
+
+    trace!(cache_key = %cache_key, "Checking Redis cache for bad word rulesets");
+
+    let res: FredResult<String> = conn.get(&cache_key).await;
+    match res {
+        Ok(cached) => {
+            match serde_json::from_str::<Vec<BadWordRuleset>>(&cached) {
+                Ok(rulesets) => {
+                    debug!(rulesets_count = rulesets.len(), "Cache hit; returned bad word rulesets");
+                    return Ok(rulesets);
+                }
+                Err(err) => {
+                    warn!(error = %err, "Failed to deserialize cached rulesets; falling back to DB");
+                }
+            }
+        }
+        Err(err) => {
+            debug!(error = %err, "Cache miss or Redis read error; falling back to DB");
+        }
+    }
+
+    let rulesets = database::fetch_bad_word_rows(&data.db, guild_id).await?;
+    debug!(rulesets_count = rulesets.len(), "Successfully fetched bad word rulesets from database");
+
+    match serde_json::to_string(&rulesets) {
+        Ok(serialized) => {
+            debug!("Writing rulesets to Redis cache");
+            let set_result: Result<(), _> = cache::cache_bad_word(&cache_key, conn, serialized).await;
+
+            if let Err(err) = set_result {
+                warn!(error = %err, "Failed to write rulesets to Redis cache");
+            } else {
+                debug!("Successfully updated Redis cache");
+            }
+        }
+        Err(err) => {
+            warn!(error = %err, "Failed to serialize rulesets for caching");
+        }
+    }
+
+    Ok(rulesets)
 }

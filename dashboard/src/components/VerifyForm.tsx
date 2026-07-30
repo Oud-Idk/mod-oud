@@ -16,9 +16,10 @@ interface VerifyFormProps {
     sig: string;
     session: Session | null;
     captchaType: CaptchaType;
+    useOauth?: boolean;
 }
 
-export default function VerifyForm({ userId, guildId, expires, sig, session, captchaType }: VerifyFormProps) {
+export default function VerifyForm({ userId, guildId, expires, sig, session, captchaType, useOauth }: VerifyFormProps) {
     const [status, setStatus] = useState<'IDLE' | 'VERIFYING' | 'SUCCESS' | 'ERROR'>('IDLE');
     const [message, setMessage] = useState('');
     const [token, setToken] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
         <div className="bg-neutral-300/10 p-8 rounded-lg text-center max-w-sm w-full shadow-lg border">
             <Emphasis className="text-xl font-bold">Prove You're Human</Emphasis>
             <p className="my-2">A quick check to prove that you're a human and not a clanker.</p>
-            {(session?.user?.name && session?.user?.image) && (
+            {(session?.user?.name && session?.user?.image && useOauth) && (
                 <div className="flex flex-row items-center justify-center mb-4 gap-2 rounded-full">
                     <Image src={session.user.image} alt="Profile Picture" width={32} height={32}/>
                     <p>Logged in as {session.user.name}</p>

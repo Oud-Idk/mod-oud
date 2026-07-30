@@ -1,3 +1,5 @@
+use crate::features::automod::{keys, cache};
+use fred::clients::Transaction;
 use fred::prelude::*;
 use fred::types::sorted_sets::Ordering;
 use fred::types::{Expiration, ExpireOptions, SetOptions};
@@ -33,8 +35,7 @@ impl SpamTracker {
         limit: usize,
         window: Duration,
     ) -> Result<bool, Error> {
-        trace!("Establishing Redis transaction");
-        let key = format!("spam:records:{}:{}", guild_id, user_id);
+        let key = keys::spam_record_key(guild_id, user_id);
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -50,23 +51,7 @@ impl SpamTracker {
 
         let tx = self.redis_conn.multi();
 
-        let _: () = tx.zremrangebyscore(&key, "-inf", clear_before).await?;
-        let _: () = tx.zadd(
-            &key,
-            None::<SetOptions>,
-            None::<Ordering>,
-            false,
-            false,
-            (now, member)
-        ).await?;
-        let _: () = tx.zcard(&key).await?;
-        let _: () = tx.expire(
-            &key,
-            (window.as_secs() + 1) as i64,
-            None::<ExpireOptions>
-        ).await?;
-
-        let (_, _, count, _): (usize, usize, usize, usize) = tx.exec(true).await?;
+        let count = cache::store_spam_record(window, &key, now, clear_before, member, tx).await?;
 
         let is_spamming = count > limit;
         if is_spamming {
@@ -86,6 +71,7 @@ impl SpamTracker {
         Ok(is_spamming)
     }
 
+
     /// Checks if a warning should be sent, enforcing a cooldown.
     #[instrument(
         name = "spam_tracker::check_warning_cooldown",
@@ -103,7 +89,7 @@ impl SpamTracker {
         cooldown: Duration,
     ) -> Result<bool, Error> {
         trace!("Checking warning cooldown status in Redis");
-        let key = format!("spam:warned:{}:{}", guild_id, user_id);
+        let key = keys::spam_warned_key(guild_id, user_id);
 
         let set_result: Option<String> = self.redis_conn
             .set(
@@ -125,3 +111,4 @@ impl SpamTracker {
         Ok(cooldown_elapsed)
     }
 }
+

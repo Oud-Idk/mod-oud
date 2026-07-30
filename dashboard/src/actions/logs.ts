@@ -112,8 +112,6 @@ export async function getModerationLogs(
                    reason,
                    duration,
                    created_at,
-                   moderator_username,
-                   target_username
             FROM moderation_logs
             WHERE guild_id = $1
               AND (

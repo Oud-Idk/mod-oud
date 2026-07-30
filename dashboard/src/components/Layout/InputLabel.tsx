@@ -7,5 +7,5 @@ interface InputLabelProps {
 }
 
 export function InputLabel({ className, children }: InputLabelProps) {
-    return <label className={twMerge("mb-0", className)}>{children}</label>;
+    return <label className={twMerge("mb-1", className)}>{children}</label>;
 }

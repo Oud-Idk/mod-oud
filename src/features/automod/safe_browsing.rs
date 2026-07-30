@@ -3,6 +3,7 @@ use prost::Message;
 use std::time::Duration;
 use tracing::{debug, error, instrument, trace};
 
+#[derive(Debug, Clone)]
 pub struct SafeBrowsingClient {
     api_key: String,
     http_client: reqwest::Client,

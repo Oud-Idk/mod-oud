@@ -143,8 +143,6 @@ pub fn start_birthday_worker(
 
             match crate::shared::locking::acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
-                    debug!("Acquired lock; running birthday announcements and role cleanup");
-
                     if let Err(e) = run_birthday_announcements(&pool, &redis_client, &guild_configs, &ctx).await {
                         error!(error = ?e, "Error running birthday announcements");
                     }

@@ -21,7 +21,7 @@ export function ToggleSwitch({
     shrink,
 }: EnableSwitchProps) {
     return (
-        <div className={twMerge("text-xl flex flex-row gap-4 items-center text-wrap", className)}>
+        <div className={twMerge("text-lg flex flex-row gap-4 items-center text-wrap", className)}>
             {text && (<p>{text}</p>)}
             <Switch
                 checked={checked}

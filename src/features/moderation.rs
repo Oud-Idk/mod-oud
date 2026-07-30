@@ -8,6 +8,8 @@ mod placeholders;
 mod channels;
 mod jobs;
 mod web;
+mod lockdown;
+mod keys;
 
 // Endpoint & jobs
 pub use web::routes;
@@ -27,3 +29,5 @@ pub use types::ActionType;
 // Use by other modules
 pub use issuing::{issue_ban, issue_mute, schedule_unban};
 
+// Used by raid detection
+pub use lockdown::{apply_global_lock, apply_global_unlock};

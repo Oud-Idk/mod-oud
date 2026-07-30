@@ -111,11 +111,28 @@ export interface HoneypotConfig {
     duration: number | null;
 }
 
+export type RaidActionKind =
+    | "ALERT"
+    | "LOCKDOWN_SERVER"
+    | "PAUSE_INVITES"
+    | "BUMP_VERIFICATION"
+    | "AUTO_BAN_NEW_ACCOUNTS"
+    | "TIMEOUT_NEW_JOINS";
+
+export type RaidAction =
+    | { type: 'LOCKDOWN_SERVER' }
+    | { type: 'BUMP_VERIFICATION' }
+    | { type: 'PAUSE_INVITES'; hour: number }
+    | { type: 'ALERT'; channelId: string }
+    | { type: 'TIMEOUT_NEW_JOINS'; mins: number }
+    | { type: 'AUTO_BAN_NEW_ACCOUNTS'; maxAgeHours: number };
+
 export interface RaidDetectionConfig {
     enabled: boolean;
     zScoreMultiplier: number;
     minSafeLimit: number;
     windowSizeSeconds: number;
+    raidActions: RaidAction[];
 }
 
 export interface CounterChannel {

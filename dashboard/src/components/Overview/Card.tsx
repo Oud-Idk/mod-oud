@@ -1,4 +1,3 @@
-import { Users } from "lucide-react";
 import { ReactNode } from "react";
 
 type CardProps = {
@@ -10,9 +9,11 @@ type CardProps = {
 
 export function Card({ icon, title, main, footer }: CardProps) {
     return <div
-        className="p-6 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center gap-4">
+        className="p-6 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center gap-4"
+    >
         <div
-            className="p-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-neutral-600 dark:text-neutral-300">
+            className="p-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-neutral-600 dark:text-neutral-300"
+        >
             {icon}
         </div>
         <div>

@@ -15,9 +15,10 @@ use std::env;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 use crate::features::birthday::start_birthday_worker;
 use crate::features::giveaways::start_giveaway_worker;
+use crate::features::raid_detection::reconcile_active_raids;
 
 pub fn setup<'a>(
     safe_browsing_api_key: Option<String>,
@@ -31,7 +32,7 @@ pub fn setup<'a>(
     Box::pin(async move {
         info!("Logged in as {}", _ready.user.name);
 
-        let active_tickets_cache = Cache::new(10_000);
+        let active_tickets_cache = Cache::new(20_000);
 
         let active_tickets_list: Vec<String> = redis_client
             .smembers("active_tickets")
@@ -51,11 +52,12 @@ pub fn setup<'a>(
 
         let spam_tracker = SpamTracker::new(redis_client.clone());
         let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
-        let audit_log_cache = Cache::new(5000);
+        let audit_log_cache = Cache::new(10000);
+
         let shared_secret = env::var("VERIFICATION_SECRET").ok();
         let domain = env::var("DOMAIN").unwrap_or("localhost:3000".to_string());
 
-        Ok(Data {
+        let data = Data {
             db: pool,
             redis: redis_client,
             spam_tracker,
@@ -66,7 +68,13 @@ pub fn setup<'a>(
             audit_log_cache,
             shared_secret,
             domain,
-        })
+        };
+
+        if let Err(e) = reconcile_active_raids(&ctx, &data).await {
+            error!(error = ?e, "Error reconciling active raids on startup");
+        }
+
+        Ok(data)
     })
 }
 

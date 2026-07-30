@@ -1,6 +1,7 @@
 use crate::shared::embed::{DiscordEmbed, Format};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
+use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -9,6 +10,15 @@ pub enum CaptchaType {
     Turnstile,
     #[serde(rename = "HCAPTCHA")]
     HCaptcha,
+}
+
+impl fmt::Display for CaptchaType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CaptchaType::Turnstile => write!(f, "TURNSTILE"),
+            CaptchaType::HCaptcha => write!(f, "HCAPTCHA"),
+        }
+    }
 }
 
 #[serde_as]

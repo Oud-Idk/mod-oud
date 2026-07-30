@@ -55,6 +55,7 @@ export default async function VerifyPage({
                 sig={sig}
                 session={session}
                 captchaType={settings.verification.captchaType}
+                useOauth={settings.verification.useOauth}
             />
         </main>
     );

@@ -44,7 +44,7 @@ pub async fn dispatch_events(
         }
 
         FullEvent::GuildMemberAddition { new_member } => {
-            raid_detection::handle_raid_detection(data, new_member).await?;
+            raid_detection::handle_raid_detection(ctx, data, new_member).await?;
             join_leave::handle_member_join(ctx, new_member, data).await?;
             invite_tracking::store_member_invite(ctx, new_member, data).await?;
         }

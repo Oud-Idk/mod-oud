@@ -557,6 +557,7 @@ export async function saveMemberCounterConfig(guildId: string, config: MemberCou
 
 export async function getRaidDetectionConfig(guildId: string): Promise<RaidDetectionConfig> {
     const defaultConfig: RaidDetectionConfig = {
+        raidActions: [],
         enabled: false,
         zScoreMultiplier: 3,
         minSafeLimit: 5,
@@ -574,4 +575,11 @@ export async function getRaidDetectionConfig(guildId: string): Promise<RaidDetec
 
 export async function saveRaidDetectionConfig(guildId: string, config: RaidDetectionConfig): Promise<void> {
     await saveGuildConfigField(guildId, 'raid_detection', config);
+
+    const statsCacheKey = `guild:${guildId}:stats_cache`;
+    try {
+        await redis.del(statsCacheKey);
+    } catch (err) {
+        console.error("Failed to invalidate raid stats cache", err);
+    }
 }

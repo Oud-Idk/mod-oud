@@ -76,7 +76,7 @@ pub struct ModifiedMessagePayload {
     pub updated_at: String,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CachedAuditLogs {
     pub entries: Vec<serenity::all::AuditLogEntry>,
     pub users: std::collections::HashMap<serenity::all::UserId, serenity::all::User>,

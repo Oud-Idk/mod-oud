@@ -11,6 +11,8 @@ import { MessageLoggingConfig } from "@/types/db/config";
 import { TextInput } from "@/components/Inputs/TextInput";
 import { useConfigForm } from "@/hooks/useConfigForm";
 import { DeletedMessage, EditedMessage } from "@/types/db/deletedEditedMessages";
+import { TabItem, Tabs } from "@/components/Layout/Tabs";
+import { InputLabel } from "@/components/Layout/InputLabel";
 
 interface MessageLoggingBodyProps {
     messageLoggingConfig: MessageLoggingConfig;
@@ -61,8 +63,6 @@ export function MessageLoggingBody({
     });
 
     const [userIdInput, setUserIdInput] = useState("");
-    const [channelDropdownValue, setChannelDropdownValue] = useState("");
-    const [roleDropdownValue, setRoleDropdownValue] = useState("");
     const [activeTab, setActiveTab] = useState<"settings" | "logs">("settings");
 
     // Derived State: Feature is enabled if AT LEAST ONE event is toggled on!
@@ -71,15 +71,6 @@ export function MessageLoggingBody({
     const handleCancel = () => {
         resetConfig();
         setUserIdInput("");
-    };
-
-    // Helper for updating arrays (Channels / Roles)
-    const toggleIgnoredItem = (key: "ignored_channels" | "ignored_roles", id: string) => {
-        const current = config[key] || [];
-        const updated = current.includes(id)
-            ? current.filter((item) => item !== id)
-            : [...current, id];
-        handleChange({ ...config, [key]: updated });
     };
 
     const handleAddUserId = () => {
@@ -103,47 +94,38 @@ export function MessageLoggingBody({
         handleChange({ ...config, ignored_users: current.filter((item) => item !== id) });
     };
 
+    // Memoize options for Dropdowns
+    const channelOptions = useMemo(
+        () =>
+            Object.entries(channelMap).map(([id, name]) => ({
+                value: id,
+                label: `#${name}`,
+            })),
+        [channelMap]
+    );
+
+    const roleOptions = useMemo(
+        () =>
+            Object.entries(roleMap).map(([id, name]) => ({
+                value: id,
+                label: `@${name.replace("@", "")}`,
+            })),
+        [roleMap]
+    );
+
+    const tabs: TabItem<"settings" | "logs">[] = [
+        { value: "settings", label: "Settings" },
+        { value: "logs", label: "Logs" },
+    ];
+
     return (
-        <div className="space-y-6">
-            {/* Top Bar: Tabs for Settings vs Live Feed */}
-            <div className="flex items-center justify-between border-b pb-3">
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => setActiveTab("settings")}
-                        className={`text-sm font-semibold pb-1 border-b-2 transition-all ${
-                            activeTab === "settings"
-                                ? "border-primary text-foreground"
-                                : "border-transparent text-muted-foreground hover:text-foreground"
-                        }`}
-                    >
-                        Logging Settings
-                    </button>
-                    {isLoggingEnabled && (
-                        <button
-                            onClick={() => setActiveTab("logs")}
-                            className={`text-sm font-semibold pb-1 border-b-2 transition-all ${
-                                activeTab === "logs"
-                                    ? "border-primary text-foreground"
-                                    : "border-transparent text-muted-foreground hover:text-foreground"
-                            }`}
-                        >
-                            Live Log Stream </button>
-                    )}
-                </div>
+        <div className="space-y-4">
+            <Tabs tabs={tabs} activeTab={activeTab} onChange={(t) => setActiveTab(t)}/>
 
-                <div className="text-xs text-muted-foreground">
-                    Status: {isLoggingEnabled ? "🟢 Active" : "🔴 Disabled"}
-                </div>
-            </div>
-
-            {/* TAB 1: SETTINGS */}
             {activeTab === "settings" && (
-                <div className="space-y-8">
-                    {/* Event Toggles */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                            Events to Log </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <div className="space-y-2">
+                        <div className="space-y-1">
                             <ToggleSwitch
                                 checked={config.events.messageDelete} onChange={(checked) =>
                                 handleChange({
@@ -163,62 +145,41 @@ export function MessageLoggingBody({
                         </div>
                     </div>
 
-                    {/* Exclusion Rules (Only show if at least 1 event is enabled) */}
-                    {isLoggingEnabled ? (
-                        <div className="space-y-6 pt-6 border-t">
-                            <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                                Exclusion Rules </h4>
+                    {isLoggingEnabled && (
+                        <div>
+                            <h4 className="text-2xl font-semibold">Exclusion Rules</h4>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {/* Ignored Channels */}
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium">Ignored Channels</label>
-                                    <MultiSelectViewer
-                                        selectedList={config.ignored_channels}
-                                        onDelete={(id) => toggleIgnoredItem("ignored_channels", id)}
-                                        map={channelMap}
-                                        placeholder="No channels ignored"
-                                        prefix="#"
-                                    />
+                                    <InputLabel>Ignored Channels</InputLabel>
                                     <Dropdown
-                                        options={Object.entries(channelMap)
-                                            .filter(([id]) => !(config.ignored_channels || []).includes(id))
-                                            .map(([id, name]) => ({ value: id, label: `#${name}` }))}
-                                        value={channelDropdownValue}
-                                        onChange={(val) => {
-                                            if (val) toggleIgnoredItem("ignored_channels", val);
-                                            setChannelDropdownValue("");
-                                        }}
-                                        placeholder="Ignore a channel..."
+                                        multiple
+                                        options={channelOptions}
+                                        value={config.ignored_channels}
+                                        onChange={(selectedValues: string[]) =>
+                                            handleChange({ ...config, ignored_channels: selectedValues })
+                                        }
+                                        placeholder="Select channels to ignore..."
                                     />
                                 </div>
 
                                 {/* Ignored Roles */}
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium">Ignored Roles</label>
-                                    <MultiSelectViewer
-                                        selectedList={config.ignored_roles}
-                                        onDelete={(id) => toggleIgnoredItem("ignored_roles", id)}
-                                        map={roleMap}
-                                        placeholder="No roles ignored"
-                                        prefix="@"
-                                    />
+                                    <InputLabel>Ignored Roles</InputLabel>
                                     <Dropdown
-                                        options={Object.entries(roleMap)
-                                            .filter(([id]) => !(config.ignored_roles || []).includes(id))
-                                            .map(([id, name]) => ({ value: id, label: `@${name.replace("@", "")}` }))}
-                                        value={roleDropdownValue}
-                                        onChange={(val) => {
-                                            if (val) toggleIgnoredItem("ignored_roles", val);
-                                            setRoleDropdownValue("");
-                                        }}
-                                        placeholder="Ignore a role..."
+                                        multiple
+                                        options={roleOptions}
+                                        value={config.ignored_roles}
+                                        onChange={(selectedValues: string[]) =>
+                                            handleChange({ ...config, ignored_roles: selectedValues })
+                                        }
+                                        placeholder="Select roles to ignore..."
                                     />
                                 </div>
 
                                 {/* Ignored User IDs */}
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium">Ignored User IDs</label>
+                                    <InputLabel>Ignored User IDs</InputLabel>
                                     <MultiSelectViewer
                                         selectedList={config.ignored_users}
                                         onDelete={handleRemoveUserId}
@@ -229,18 +190,15 @@ export function MessageLoggingBody({
                                         value={userIdInput}
                                         onChange={(e) => setUserIdInput(e.target.value)}
                                         placeholder="Type User ID & press Enter"
+                                        parentClassName="max-w-none"
                                     />
                                 </div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="p-4 rounded-md bg-muted/50 text-muted-foreground text-sm">
-                            Enable at least one event above to configure exclusion rules and view logs. </div>
                     )}
                 </div>
             )}
 
-            {/* TAB 2: LIVE LOG STREAM */}
             {activeTab === "logs" && isLoggingEnabled && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     {config.events.messageDelete && (

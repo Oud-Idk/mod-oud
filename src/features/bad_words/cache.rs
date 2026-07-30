@@ -1,0 +1,7 @@
+use fred::clients::Client;
+use fred::interfaces::{FredResult, KeysInterface};
+use fred::prelude::Expiration;
+
+pub async fn cache_bad_word(cache_key: &str, conn: &Client, serialized: String) -> FredResult<()> {
+    conn.set(cache_key, serialized, Some(Expiration::EX(3600)), None, false).await
+}
