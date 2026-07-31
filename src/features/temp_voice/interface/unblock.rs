@@ -1,10 +1,9 @@
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
+use crate::features::temp_voice::service;
 use crate::{Data, Error};
-use poise::serenity_prelude as serenity;
 use serenity::all::{
     ComponentInteraction, Context, CreateActionRow, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuKind,
-    PermissionOverwriteType, UserId,
+    CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuKind, UserId,
 };
 use tracing::debug;
 
@@ -51,32 +50,10 @@ pub(crate) async fn handle_unblock_temp_vc_submit(
         return Ok(());
     };
 
-    if target_user_ids.is_empty() {
-        return Ok(());
-    }
+    let response_message = service::unblock_users_from_vc(&ctx.http, channel_id, target_user_ids).await?;
 
-    let mut unblocked_mentions = Vec::new();
-
-    for target_user_id in target_user_ids {
-        debug!("Unblocking user {} in channel {}", target_user_id, channel_id);
-        let target = PermissionOverwriteType::Member(target_user_id);
-
-        if let Err(e) = channel_id.delete_permission(&ctx.http, target).await {
-            match e {
-                serenity::Error::Http(ref http_err) => {
-                    if http_err.status_code() != Some(serenity::all::StatusCode::NOT_FOUND) {
-                        return Err(e.into());
-                    }
-                }
-                _ => return Err(e.into()),
-            }
-        }
-        unblocked_mentions.push(format!("<@{target_user_id}>"));
-    }
-
-    let content = format!("The following users have been **unblocked**: {}", unblocked_mentions.join(", "));
     interaction
-        .create_response(&ctx.http, create_ephemeral_msg(&content))
+        .create_response(&ctx.http, create_ephemeral_msg(&response_message))
         .await?;
 
     Ok(())

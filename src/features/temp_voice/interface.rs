@@ -1,6 +1,8 @@
+use fred::interfaces::HashesInterface;
 use crate::features::temp_voice::cache;
-use crate::{Data, Error};
-use serenity::all::{ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, Context, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Interaction, ModalInteraction};
+use crate::{Data, Error, Context as PoiseContext};
+use serenity::all::{ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, Context, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Interaction, Member, ModalInteraction};
+use crate::shared::embed::send_ephemeral;
 
 mod block;
 mod delete;
@@ -60,6 +62,49 @@ pub fn get_input_value(interaction: &ModalInteraction, custom_id: &str) -> Optio
 
 pub fn get_new_name(interaction: &ModalInteraction) -> Option<String> {
     get_input_value(&interaction, "new_name")
+}
+
+pub async fn preflight_slash_check(
+    ctx: &PoiseContext<'_>,
+) -> Result<Option<(ChannelId, GuildId, Member)>, Error> {
+    let guild_id = match ctx.guild_id() {
+        Some(g) => g,
+        None => {
+            send_ephemeral(ctx, "This command can only be used in a server.").await?;
+            return Ok(None);
+        }
+    };
+
+    let author_id = ctx.author().id;
+
+    // Get current user's voice channel from cache
+    let user_vc_id = ctx.cache().guild(guild_id).and_then(|g| {
+        g.voice_states.get(&author_id).and_then(|vs| vs.channel_id)
+    });
+
+    let Some(channel_id) = user_vc_id else {
+        send_ephemeral(ctx, "You must be inside your temporary voice channel to use this command!").await?;
+        return Ok(None);
+    };
+
+    // Verify ownership via Redis
+    let redis = &ctx.data().redis;
+    let temp_vc_hash = format!("temp_vcs:{}", guild_id);
+    let owner_id_str: Option<String> = redis.hget(&temp_vc_hash, channel_id.get().to_string()).await?;
+
+    let is_owner = match owner_id_str {
+        Some(ref id) => id == &author_id.get().to_string(),
+        None => false,
+    };
+
+    if !is_owner {
+        send_ephemeral(ctx, "You do not own this voice channel! Only the channel owner can control it.").await?;
+        return Ok(None);
+    }
+
+    let member = ctx.author_member().await.ok_or("Failed to fetch member")?.into_owned();
+
+    Ok(Some((channel_id, guild_id, member)))
 }
 
 pub async fn handle_interaction(

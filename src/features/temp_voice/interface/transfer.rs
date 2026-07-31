@@ -1,14 +1,13 @@
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
+use crate::features::temp_voice::service;
 use crate::{Data, Error};
-use fred::interfaces::{HashesInterface, KeysInterface};
-use fred::prelude::Expiration;
 use poise::serenity_prelude as serenity;
 use serenity::all::{
     ButtonStyle, ComponentInteraction, Context, CreateActionRow, CreateButton,
     CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, CreateSelectMenu,
-    CreateSelectMenuKind, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId,
+    CreateSelectMenuKind, UserId,
 };
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(user_id = %interaction.user.id.get()))]
 pub(crate) async fn handle_transfer_temp_vc(
@@ -71,89 +70,17 @@ pub(crate) async fn handle_transfer_temp_vc_submit(
 
     let current_owner_id = interaction.user.id;
 
-    if new_owner_id == current_owner_id {
-        debug!("User attempted to self-transfer ownership");
-        interaction
-            .create_response(&ctx.http, create_ephemeral_msg("You can't transfer to yourself!"))
-            .await?;
-        return Ok(());
-    }
-
-    enum VoicePresence {
-        Confirmed(bool),
-        CacheMiss,
-    }
-
-    let presence = match ctx.cache.guild(guild_id) {
-        Some(guild) => {
-            let in_channel = guild
-                .voice_states
-                .get(&new_owner_id)
-                .and_then(|state| state.channel_id)
-                == Some(channel_id);
-            VoicePresence::Confirmed(in_channel)
-        }
-        None => VoicePresence::CacheMiss,
-    };
-
-    match presence {
-        VoicePresence::CacheMiss => {
-            warn!(guild_id = guild_id.get(), "Guild not in cache; cannot verify target's voice state");
-            interaction
-                .create_response(
-                    &ctx.http,
-                    create_ephemeral_msg("Couldn't verify the recipient right now, please try again in a moment!"),
-                )
-                .await?;
-            return Ok(());
-        }
-        VoicePresence::Confirmed(false) => {
-            debug!(
-                "Transfer rejected: Target user {} is not present in channel {}",
-                new_owner_id.get(),
-                channel_id.get()
-            );
-            interaction
-                .create_response(
-                    &ctx.http,
-                    create_ephemeral_msg("The recipient must be in the voice channel!"),
-                )
-                .await?;
-            return Ok(());
-        }
-        VoicePresence::Confirmed(true) => {}
-    }
-
-    let redis = &data.redis;
-    let owner_hash = format!("temp_vc_owners:{}", guild_id);
-
-    let target_existing_vc: Option<String> = redis.hget(&owner_hash, new_owner_id.get().to_string()).await?;
-    if target_existing_vc.is_some() {
-        debug!("Transfer rejected: Target user already owns a temporary voice channel");
-        interaction
-            .create_response(
-                &ctx.http,
-                create_ephemeral_msg("That user already owns a temporary voice channel!"),
-            )
-            .await?;
-        return Ok(());
-    }
-
-    let pending_key = format!("temp_vc_pending_transfer:{}", channel_id);
-    redis
-        .set::<(), _, _>(
-            &pending_key,
-            new_owner_id.get().to_string(),
-            Some(Expiration::EX(90)),
-            None,
-            false,
-        )
-        .await?;
-
-    debug!("Pending transfer state written to Redis with 90s TTL");
+    let response_message = service::initiate_temp_vc_transfer(
+        ctx,
+        &data.redis,
+        guild_id,
+        channel_id,
+        current_owner_id,
+        new_owner_id,
+    ).await?;
 
     interaction
-        .create_response(&ctx.http, create_ephemeral_msg("Transfer offer sent! Waiting for them to accept..."))
+        .create_response(&ctx.http, create_ephemeral_msg(&response_message))
         .await?;
 
     let accept_btn = CreateButton::new("temp_voice_transfer_accept")

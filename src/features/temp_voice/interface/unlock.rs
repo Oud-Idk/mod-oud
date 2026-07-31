@@ -1,8 +1,7 @@
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
+use crate::features::temp_voice::service;
 use crate::{Data, Error};
-use poise::serenity_prelude as serenity;
-use serenity::all::{ComponentInteraction, Context, PermissionOverwriteType, RoleId};
-use tracing::debug;
+use serenity::all::{ComponentInteraction, Context};
 
 pub(crate) async fn handle_unlock_temp_vc(
     ctx: &Context,
@@ -15,27 +14,10 @@ pub(crate) async fn handle_unlock_temp_vc(
         return Ok(());
     };
 
-    debug!("Unlocking voice channel: {}", channel_id);
-
-    let target = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
-
-    if let Err(e) = channel_id.delete_permission(&ctx.http, target).await {
-        match e {
-            serenity::Error::Http(ref http_err) => {
-                // If the overwrite wasn't found (already unlocked), we can safely ignore it
-                if http_err.status_code() != Some(serenity::all::StatusCode::NOT_FOUND) {
-                    return Err(e.into());
-                }
-            }
-            _ => return Err(e.into()),
-        }
-    }
+    let response_message = service::unlock_temp_vc(&ctx.http, guild_id, channel_id).await?;
 
     interaction
-        .create_response(
-            &ctx.http,
-            create_ephemeral_msg("This channel is now **unlocked** and open for everyone to join."),
-        )
+        .create_response(&ctx.http, create_ephemeral_msg(&response_message))
         .await?;
 
     Ok(())

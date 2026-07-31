@@ -1,11 +1,9 @@
-use crate::features::temp_voice;
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
+use crate::features::temp_voice::service;
 use crate::{Data, Error};
-use poise::serenity_prelude as serenity;
 use serenity::all::{
     ComponentInteraction, Context, CreateActionRow, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuKind, PermissionOverwrite,
-    PermissionOverwriteType, Permissions, UserId,
+    CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuKind, UserId,
 };
 use tracing::debug;
 
@@ -52,47 +50,16 @@ pub(crate) async fn handle_block_temp_vc_submit(
         return Ok(());
     };
 
-    // Filter out the caller
-    let filtered_ids: Vec<UserId> = target_user_ids
-        .into_iter()
-        .filter(|id| *id != interaction.user.id)
-        .collect();
-
-    if filtered_ids.is_empty() {
-        interaction
-            .create_response(
-                &ctx.http,
-                create_ephemeral_msg("You can't block yourself! Who would run the channel?"),
-            )
-            .await?;
-        return Ok(());
-    }
-
-    let mut blocked_mentions = Vec::new();
-
-    for target_user_id in filtered_ids {
-        debug!("Blocking user {} in channel {}", target_user_id, channel_id);
-
-        let overwrite = PermissionOverwrite {
-            allow: Permissions::empty(),
-            deny: Permissions::VIEW_CHANNEL | Permissions::CONNECT,
-            kind: PermissionOverwriteType::Member(target_user_id),
-        };
-
-        channel_id.create_permission(&ctx.http, overwrite).await?;
-
-        // Force-disconnect them from the voice channel (fails silently if not present)
-        let _ = guild_id.disconnect_member(&ctx.http, target_user_id).await;
-        blocked_mentions.push(format!("<@{target_user_id}>"));
-    }
-
-    let content = format!(
-        "The following users have been **blocked** and kicked from this channel: {}",
-        blocked_mentions.join(", ")
-    );
+    let response_message = service::block_users_from_vc(
+        &ctx.http,
+        guild_id,
+        channel_id,
+        target_user_ids,
+        interaction.user.id,
+    ).await?;
 
     interaction
-        .create_response(&ctx.http, create_ephemeral_msg(&content))
+        .create_response(&ctx.http, create_ephemeral_msg(&response_message))
         .await?;
 
     Ok(())

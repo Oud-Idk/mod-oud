@@ -1,10 +1,9 @@
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
+use crate::features::temp_voice::service;
 use crate::{Data, Error};
-use poise::serenity_prelude as serenity;
 use serenity::all::{
     ComponentInteraction, Context, CreateActionRow, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuKind, PermissionOverwrite,
-    PermissionOverwriteType, Permissions, UserId,
+    CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuKind, UserId,
 };
 use tracing::debug;
 
@@ -51,44 +50,15 @@ pub(crate) async fn handle_trust_temp_vc_submit(
         return Ok(());
     };
 
-    // Filter out the caller
-    let filtered_ids: Vec<UserId> = target_user_ids
-        .into_iter()
-        .filter(|id| *id != interaction.user.id)
-        .collect();
-
-    if filtered_ids.is_empty() {
-        interaction
-            .create_response(
-                &ctx.http,
-                create_ephemeral_msg("You can't trust yourself! You already own the channel."),
-            )
-            .await?;
-        return Ok(());
-    }
-
-    let mut trusted_mentions = Vec::new();
-
-    for target_user_id in filtered_ids {
-        debug!("Trusting user {} in channel {}", target_user_id, channel_id);
-
-        let overwrite = PermissionOverwrite {
-            allow: Permissions::VIEW_CHANNEL | Permissions::CONNECT,
-            deny: Permissions::empty(),
-            kind: PermissionOverwriteType::Member(target_user_id),
-        };
-
-        channel_id.create_permission(&ctx.http, overwrite).await?;
-        trusted_mentions.push(format!("<@{target_user_id}>"));
-    }
-
-    let content = format!(
-        "The following users are now **trusted** and can join this channel: {}",
-        trusted_mentions.join(", ")
-    );
+    let response_message = service::trust_users_in_vc(
+        &ctx.http,
+        channel_id,
+        target_user_ids,
+        interaction.user.id,
+    ).await?;
 
     interaction
-        .create_response(&ctx.http, create_ephemeral_msg(&content))
+        .create_response(&ctx.http, create_ephemeral_msg(&response_message))
         .await?;
 
     Ok(())
