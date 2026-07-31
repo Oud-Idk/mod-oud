@@ -1,16 +1,19 @@
 use crate::features::moderation::pre_flight_check;
 use crate::features::warning::database::{fetch_warnings, search_warning_from_id, search_warnings_by_pattern};
-use crate::features::warning::issuing::issue_delete_warning;
-use crate::features::warning::issuing::issue_warning;
+use crate::features::warning::issuing::{issue_delete_warning, issue_warning};
 use crate::features::warning::modify_warns::set_warning_active_status;
 use crate::features::warning::pagination;
 use crate::shared::command_context::GuildMetadata;
 use crate::shared::embed::send_ephemeral;
 use crate::{Context, Error};
 use serenity::all::{Member, User};
-use tracing::{debug, info, trace};
+use tracing::{debug, info};
 
-/// Warns a user.
+// ==========================================
+// 1. TOP-LEVEL ACTION COMMAND
+// ==========================================
+
+/// Warns a user in the server.
 #[poise::command(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
@@ -23,14 +26,8 @@ pub async fn warn(
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
     let target_id = member.user.id.get();
-    info!(
-        caller_id = ctx.author().id.get(),
-        target_id,
-        "Invoked warn command"
-    );
 
     let Some(meta) = pre_flight_check(&ctx, member.user.id, "warn").await? else {
-        debug!(target_id, "Warn pre-flight permissions check failed");
         return Ok(());
     };
 
@@ -55,80 +52,74 @@ pub async fn warn(
             .ephemeral(true),
     ).await?;
 
-    info!(target_id, "User successfully warned");
     Ok(())
 }
 
-/// Shows the history of warns of a user.
+// ==========================================
+// 2. TOP-LEVEL MANAGEMENT GROUP (`/warnings`)
+// ==========================================
+
+/// Parent command for viewing and managing warnings.
 #[poise::command(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
-    guild_only
+    guild_only,
+    subcommands(
+        "history",
+        "search",
+        "view",
+        "pardon",
+        "unpardon",
+        "delete"
+    )
 )]
-pub async fn warn_history(
+pub async fn warnings(_: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+/// Shows the warning history of a user.
+#[poise::command(slash_command)]
+pub async fn history(
     ctx: Context<'_>,
     #[description = "The member to check"] member: Member,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
     let target_id = member.user.id.get();
-    info!(
-        caller_id = ctx.author().id.get(),
-        target_id,
-        "Invoked warn_history command"
-    );
 
     let meta = GuildMetadata::extract(&ctx)?;
-    let db = &ctx.data().db;
+    let records = fetch_warnings(&ctx.data().db, meta.id.get() as i64, target_id as i64).await?;
 
-    let warnings = fetch_warnings(db, meta.id.get() as i64, target_id as i64).await?;
-
-    if warnings.is_empty() {
-        debug!(target_id, "No active warnings found for user");
+    if records.is_empty() {
         send_ephemeral(&ctx, format!("<@{}> has no active warnings.", member.user.id)).await?;
         return Ok(());
     }
 
-    trace!(target_id, count = warnings.len(), "Paginating warning history results");
     let title = format!("Warning History for {}", member.user.name);
     let avatar_url = Some(member.user.face());
 
-    pagination::paginate_warnings(ctx, &warnings, title, avatar_url).await?;
-
+    pagination::paginate_warnings(ctx, &records, title, avatar_url).await?;
     Ok(())
 }
 
-/// Search warnings by description/reason.
-#[poise::command(
-    slash_command,
-    default_member_permissions = "MODERATE_MEMBERS",
-    guild_only
-)]
-pub async fn search_warnings(
+/// Search warnings by description or reason.
+#[poise::command(slash_command)]
+pub async fn search(
     ctx: Context<'_>,
-    #[description = "The text to search for in warning reasons"] query: String,
+    #[description = "Text to search for in warning reasons"] query: String,
     #[description = "Filter results to a specific user"] user: Option<User>,
 ) -> Result<(), Error> {
     let target_user_id = user.as_ref().map(|u| u.id.get());
-    info!(
-        caller_id = ctx.author().id.get(),
-        query,
-        target_user_id,
-        "Invoked search_warnings command"
-    );
-
     let meta = GuildMetadata::extract(&ctx)?;
-    let db = &ctx.data().db;
 
     let search_pattern = format!("%{}%", query);
-    let warnings = search_warnings_by_pattern(
-        db,
+    let records = search_warnings_by_pattern(
+        &ctx.data().db,
         meta.id.get() as i64,
         target_user_id.map(|id| id as i64),
         &search_pattern,
     ).await?;
 
-    if warnings.is_empty() {
-        debug!(query, target_user_id, "No warnings matched the search criteria");
+    if records.is_empty() {
         let filter_message = match user {
             Some(u) => format!("issued to <@{}> ", u.id),
             None => String::new(),
@@ -140,39 +131,24 @@ pub async fn search_warnings(
         return Ok(());
     }
 
-    trace!(query, count = warnings.len(), "Paginating pattern search results");
     let title = format!("Search Results for \"{}\"", query);
     let avatar_url = user.as_ref().map(|u| u.face());
 
-    pagination::paginate_warnings(ctx, &warnings, title, avatar_url).await?;
-
+    pagination::paginate_warnings(ctx, &records, title, avatar_url).await?;
     Ok(())
 }
 
-/// Search for a specific warning by its ID.
-#[poise::command(
-    slash_command,
-    default_member_permissions = "MODERATE_MEMBERS",
-    guild_only
-)]
-pub async fn search_warning_by_id(
+/// Look up a specific warning by its ID.
+#[poise::command(slash_command)]
+pub async fn view(
     ctx: Context<'_>,
     #[description = "The ID of the warning to look up"] id: i64,
 ) -> Result<(), Error> {
-    info!(
-        caller_id = ctx.author().id.get(),
-        warning_id = id,
-        "Invoked search_warning_by_id command"
-    );
-
     let meta = GuildMetadata::extract(&ctx)?;
-    let db = &ctx.data().db;
-
-    let record = search_warning_from_id(db, meta.id.get() as i64, id).await;
+    let record = search_warning_from_id(&ctx.data().db, meta.id.get() as i64, id).await;
 
     match record {
         Some(warn) => {
-            trace!(warning_id = id, "Warning detail retrieved successfully");
             let status = if warn.is_active.unwrap_or(true) { "Active" } else { "Pardoned" };
             let time_str = match warn.created_at {
                 Some(dt) => format!("<t:{0}:f> (<t:{0}:R>)", dt.timestamp()),
@@ -192,7 +168,6 @@ pub async fn search_warning_by_id(
             ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true)).await?;
         }
         None => {
-            debug!(warning_id = id, "Warning details search returned empty");
             send_ephemeral(&ctx, format!("Could not find warning with ID **#{}** in this server.", id)).await?;
         }
     }
@@ -200,22 +175,32 @@ pub async fn search_warning_by_id(
     Ok(())
 }
 
-/// Completely deletes a warning from the database. If you want to pardon, use /pardon instead.
-#[poise::command(
-    slash_command,
-    default_member_permissions = "ADMINISTRATOR",
-    guild_only
-)]
-pub async fn delete_warning(
+/// Pardons a warning (deactivates it).
+#[poise::command(slash_command)]
+pub async fn pardon(
     ctx: Context<'_>,
     #[description = "The warning ID"] id: i64,
 ) -> Result<(), Error> {
-    info!(
-        caller_id = ctx.author().id.get(),
-        warning_id = id,
-        "Invoked delete_warning command"
-    );
+    ctx.defer_ephemeral().await?;
+    set_warning_active_status(ctx, id, false).await
+}
 
+/// Reactivates a pardoned warning.
+#[poise::command(slash_command)]
+pub async fn unpardon(
+    ctx: Context<'_>,
+    #[description = "The warning ID"] id: i64,
+) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    set_warning_active_status(ctx, id, true).await
+}
+
+/// Permanently deletes a warning record from the database.
+#[poise::command(slash_command, default_member_permissions = "ADMINISTRATOR")]
+pub async fn delete(
+    ctx: Context<'_>,
+    #[description = "The warning ID"] id: i64,
+) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
     let meta = GuildMetadata::extract(&ctx)?;
 
@@ -238,15 +223,8 @@ pub async fn delete_warning(
                     id, target_user_id, reason
                 ),
             ).await?;
-
-            info!(
-                warning_id = id,
-                target_user_id,
-                "Warning record permanently deleted from the database"
-            );
         }
         None => {
-            debug!(warning_id = id, "Delete warning failed: ID not found in database");
             send_ephemeral(
                 &ctx,
                 format!("Could not find a warning with ID **#{}** in this server.", id),
@@ -255,42 +233,4 @@ pub async fn delete_warning(
     }
 
     Ok(())
-}
-
-/// Pardons a warning.
-#[poise::command(
-    slash_command,
-    default_member_permissions = "MODERATE_MEMBERS",
-    guild_only
-)]
-pub async fn pardon_warning(
-    ctx: Context<'_>,
-    #[description = "The warning ID"] id: i64,
-) -> Result<(), Error> {
-    info!(
-        caller_id = ctx.author().id.get(),
-        warning_id = id,
-        "Invoked pardon_warning command"
-    );
-    ctx.defer_ephemeral().await?;
-    set_warning_active_status(ctx, id, false).await
-}
-
-/// Unpardons a warning.
-#[poise::command(
-    slash_command,
-    default_member_permissions = "MODERATE_MEMBERS",
-    guild_only
-)]
-pub async fn unpardon_warning(
-    ctx: Context<'_>,
-    #[description = "The warning ID"] id: i64,
-) -> Result<(), Error> {
-    info!(
-        caller_id = ctx.author().id.get(),
-        warning_id = id,
-        "Invoked unpardon_warning command"
-    );
-    ctx.defer_ephemeral().await?;
-    set_warning_active_status(ctx, id, true).await
 }

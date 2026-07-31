@@ -7,4 +7,4 @@ mod pagination;
 mod modify_warns;
 
 pub use issuing::issue_warning;
-pub use commands::{delete_warning, pardon_warning, unpardon_warning, warn, warn_history, search_warnings, search_warning_by_id};
+pub use commands::{warn, warnings};
