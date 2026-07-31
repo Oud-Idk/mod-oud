@@ -8,7 +8,7 @@ interface MultiSelectViewerProps {
 
 export function MultiSelectViewer({ selectedList, onDelete, map, placeholder, prefix }: MultiSelectViewerProps) {
     return (
-        <div className="flex flex-wrap gap-2 mb-2">
+        <div className="flex flex-wrap gap-2 mb-1">
             {selectedList.map((item) => (
                 <span
                     key={item} className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-sm border"
