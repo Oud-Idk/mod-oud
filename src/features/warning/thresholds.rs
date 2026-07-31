@@ -19,12 +19,12 @@ pub(crate) async fn apply_threshold_actions(
                 WarnAction::Ban => {
                     debug!("Executing auto-ban");
                     member.ban_with_reason(http, 7, "Reached warning threshold").await?;
-                    insert_threshold_automod_log(db, member, &threshold, "ban").await?;
+                    insert_threshold_automod_log(db, member, &threshold, "BAN").await?;
                 }
                 WarnAction::Kick => {
                     debug!("Executing auto-kick");
                     member.kick_with_reason(http, "Reached warning threshold").await?;
-                    insert_threshold_automod_log(db, member, &threshold, "kick").await?;
+                    insert_threshold_automod_log(db, member, &threshold, "KICK").await?;
                 }
                 WarnAction::Timeout => {
                     if let Some(secs) = threshold.duration {
@@ -37,7 +37,7 @@ pub(crate) async fn apply_threshold_actions(
                         builder = builder.disable_communication_until(until.to_string());
                         member.edit(http, builder).await?;
                     }
-                    insert_threshold_automod_log(db, member, &threshold, "mute").await?;
+                    insert_threshold_automod_log(db, member, &threshold, "MUTE").await?;
                 }
                 WarnAction::RoleAdd => {
                     if let Some(ref roles) = threshold.roles_to_add {
@@ -46,7 +46,7 @@ pub(crate) async fn apply_threshold_actions(
                             member.add_role(http, RoleId::new(*role_id as u64)).await?;
                         }
                     }
-                    insert_threshold_automod_log(db, member, &threshold, "role_add").await?;
+                    insert_threshold_automod_log(db, member, &threshold, "ROLE_ADD").await?;
                 }
                 WarnAction::RoleRemove => {
                     if let Some(ref roles) = threshold.roles_to_remove {
@@ -55,14 +55,14 @@ pub(crate) async fn apply_threshold_actions(
                             member.remove_role(http, RoleId::new(*role_id as u64)).await?;
                         }
                     }
-                    insert_threshold_automod_log(db, member, &threshold, "role_remove").await?;
+                    insert_threshold_automod_log(db, member, &threshold, "ROLE_REMOVE").await?;
                 }
                 WarnAction::RoleRemoveAll => {
                     debug!("Removing all roles from member");
                     for role in &member.roles {
                         member.remove_role(http, *role).await?;
                     }
-                    insert_threshold_automod_log(db, member, &threshold, "role_remove_all").await?;
+                    insert_threshold_automod_log(db, member, &threshold, "ROLE_REMOVE_ALL").await?;
                 }
             }
         }

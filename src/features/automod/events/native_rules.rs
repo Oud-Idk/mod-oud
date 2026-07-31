@@ -9,7 +9,7 @@ pub async fn store_automod(ctx: &Context, execution: &ActionExecution, data: &Da
     let db = &data.db;
     let redis = &data.redis;
 
-    let action = LoggedAction::from(&execution.action).as_str();
+    let action = LoggedAction::from(&execution.action).as_str().to_ascii_uppercase();
     let rule_name = get_rule_name(&ctx, redis, &execution.guild_id, &execution.rule_id).await;
 
     let cached_username = get_username(db, redis, execution.user_id.get()).await?;
@@ -38,7 +38,7 @@ pub async fn store_automod(ctx: &Context, execution: &ActionExecution, data: &Da
         &rule_name,
         execution.matched_content.as_deref(),
         Some(execution.content.as_str()),
-        &[action],
+        &[&action],
         &username,
     ).await?;
 

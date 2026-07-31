@@ -19,7 +19,7 @@ export interface LeaveConfig {
 }
 
 export interface MessageLoggingConfig {
-    ignored_channels: string[];
+    ignoredChannels: string[];
     ignoredRoles: string[];
     ignoredUsers: string[];
     events: {

@@ -109,7 +109,7 @@ export function HoneypotBody({ honeypotConfig, onSave, textChannelMap, guildId, 
 
                 <InputLabel>Reason</InputLabel>
                 <TextInput
-                    value={config.reason}
+                    value={config.reason ?? "Sending a message in a honeypot channel"}
                     onChange={r => setConfig({ ...config, reason: r.target.value })}
                     disableSubmitButton
                     placeholder="Sending a message in a honeypot channel"

@@ -21,3 +21,4 @@ pub use types::{BaseRule, FilterVerdict, HoneypotConfig, MessageFilteringConfig,
 pub use safe_browsing::SafeBrowsingClient;
 pub use spam_tracker::SpamTracker;
 pub use web::routes;
+pub use commands::honeypot;

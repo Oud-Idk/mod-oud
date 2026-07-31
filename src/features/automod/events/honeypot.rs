@@ -69,7 +69,7 @@ pub async fn handle_honeypot(
         guild_id.get() as i64,
         message.author.id.get() as i64,
         None, None, "Honeypot", None,
-        Some(&message.content), &["ban"], "",
+        Some(&message.content), &["BAN"], "",
     )
         .await
         .context("Failed to log honeypot automod action")?;

@@ -40,7 +40,7 @@ export function MessageLoggingBody({
     const normalizedMessageLoggingConfig = useMemo(() => {
         return {
             ...messageLoggingConfig,
-            ignored_channels: messageLoggingConfig.ignored_channels || [],
+            ignored_channels: messageLoggingConfig.ignoredChannels || [],
             ignored_roles: messageLoggingConfig.ignoredRoles || [],
             ignored_users: messageLoggingConfig.ignoredUsers || [],
             events: {

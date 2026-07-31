@@ -70,7 +70,7 @@ pub async fn issue_kick(
         http,
         user.id,
         kick_dm_settings_opt,
-        "kick",
+        "KICK",
         |text| replace_kick_placeholder(
             text,
             &gctx,
@@ -125,7 +125,7 @@ pub async fn issue_ban(
         http,
         user.id,
         ban_dm_settings_opt,
-        "ban",
+        "BAN",
         |text| replace_ban_placeholders(text, &gctx, &member, reason, &moderator),
         CreateEmbed::new()
             .title(format!("You have been banned from {}", gctx.name))
@@ -197,7 +197,7 @@ pub async fn issue_mute(
         http,
         user.id,
         mute_dm_settings_opt,
-        "mute",
+        "MUTE",
         |text| replace_mute_placeholder(text, &gctx, &member, reason, &moderator, duration),
         CreateEmbed::new()
             .title(format!("You have been muted from {}", gctx.name))
@@ -244,7 +244,7 @@ pub async fn issue_unmute(
         http,
         user.id,
         unmute_dm_settings_opt,
-        "unmute",
+        "UNMUTE",
         |text| replace_basic_placeholder(text, &gctx, &member, &moderator),
         CreateEmbed::new()
             .title(format!("You have been unmuted from {}!", gctx.name))
@@ -289,7 +289,7 @@ pub async fn issue_softban(
         http,
         user.id,
         softban_dm_settings_opt,
-        "softban",
+        "SOFTBAN",
         |text| replace_reason_placeholders(text, &gctx, &member, reason, &moderator),
         CreateEmbed::new()
             .title(format!("You have been soft-banned from {}", gctx.name))

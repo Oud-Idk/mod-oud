@@ -83,14 +83,14 @@ export function ModerationTab({ guildId }: ModerationTabProps) {
     // Small helper to color code the action badges so it looks fancy
     const getActionBadgeColor = (action: string) => {
         switch (action.toLowerCase()) {
-            case "ban":
-            case "softban":
+            case "BAN":
+            case "SOFTBAN":
                 return "bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/20";
-            case "kick":
+            case "KICK":
                 return "bg-orange-500/10 text-orange-500 dark:text-orange-400 border-orange-500/20";
-            case "mute":
+            case "MUTE":
                 return "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20";
-            case "unmute":
+            case "UNMUTE":
                 return "bg-green-500/10 text-green-500 dark:text-green-400 border-green-500/20";
             default:
                 return "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400 border-neutral-500/20";

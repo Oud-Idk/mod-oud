@@ -14,7 +14,7 @@ import {
 } from "@/types/db/config";
 import { WelcomeConfig } from "@/types/db/config/welcome";
 import { ModerationDMsConfig } from "@/types/db/config/moderationDMs";
-import { BadWordRuleset, Format, ScopeActionMode } from "@/types/db";
+import { BadWordRuleset } from "@/types/db";
 
 /**
  * Generic JSONB settings getter
@@ -78,14 +78,14 @@ export async function getWelcomeConfig(guildId: string): Promise<WelcomeConfig> 
         joinRoleIds: []
     };
 
-    const dbWelcome = await getGuildConfigField<any>(guildId, 'welcome');
+    const dbWelcome = await getGuildConfigField<WelcomeConfig>(guildId, 'welcome');
     if (!dbWelcome) return default_config;
 
     return {
         public: { ...default_config.public, ...(dbWelcome.public || {}) },
         private: { ...default_config.private, ...(dbWelcome.private || {}) },
         verification: { ...default_config.verification, ...(dbWelcome.verification || {}) },
-        joinRoleIds: dbWelcome.join_role_ids || []
+        joinRoleIds: dbWelcome.joinRoleIds || []
     };
 }
 
@@ -102,7 +102,7 @@ export async function getLeaveConfig(guildId: string): Promise<LeaveConfig> {
         embed: {},
     };
 
-    const dbLeave = await getGuildConfigField<any>(guildId, 'leave');
+    const dbLeave = await getGuildConfigField<LeaveConfig>(guildId, 'leave');
     if (!dbLeave) return default_config;
 
     return { ...default_config, ...dbLeave };
@@ -126,7 +126,7 @@ export async function getReportConfig(guildId: string): Promise<ReportConfig> {
         dismissedDm: default_message_config,
     };
 
-    const dbReport = await getGuildConfigField<any>(guildId, 'report');
+    const dbReport = await getGuildConfigField<ReportConfig>(guildId, 'report');
     if (!dbReport) return default_config;
 
     return { ...default_config, ...dbReport };
@@ -138,21 +138,21 @@ export async function saveReportConfig(guildId: string, config: ReportConfig): P
 
 export async function getMessageLoggingConfig(guildId: string): Promise<MessageLoggingConfig> {
     const default_config: MessageLoggingConfig = {
-        ignored_channels: [],
+        ignoredChannels: [],
         ignoredRoles: [],
         ignoredUsers: [],
         events: { messageDelete: false, messageEdit: false }
     };
 
-    const dbMessageLogging = await getGuildConfigField<any>(guildId, 'message_logging');
+    const dbMessageLogging = await getGuildConfigField<MessageLoggingConfig>(guildId, 'message_logging');
     if (!dbMessageLogging) return default_config;
 
     return {
         ...default_config,
         ...dbMessageLogging,
-        ignored_channels: dbMessageLogging.ignored_channels || [],
-        ignoredRoles: dbMessageLogging.ignored_roles || [],
-        ignoredUsers: dbMessageLogging.ignored_users || [],
+        ignoredChannels: dbMessageLogging.ignoredChannels || [],
+        ignoredRoles: dbMessageLogging.ignoredRoles || [],
+        ignoredUsers: dbMessageLogging.ignoredUsers || [],
     };
 }
 
@@ -162,7 +162,7 @@ export async function saveMessageLoggingConfig(guildId: string, config: MessageL
 
 export async function getMessageFilteringConfig(guildId: string): Promise<MessageFilteringConfig> {
     const default_scope = {
-        mode: "EXEMPT" as ScopeActionMode,
+        mode: "EXEMPT" as const,
         roles: [],
         channels: [],
     };
@@ -194,23 +194,23 @@ export async function getMessageFilteringConfig(guildId: string): Promise<Messag
         globalSettings: { ...default_scope }
     };
 
-    const dbConfig = await getGuildConfigField<any>(guildId, 'message_filtering');
+    const dbConfig = await getGuildConfigField<MessageFilteringConfig>(guildId, 'message_filtering');
     if (!dbConfig) return default_config;
 
     // Merge default configuration with whatever exists in the database
     return {
-        badWords: { ...default_config.badWords, ...(dbConfig.bad_words || {}) },
-        serverInvites: { ...default_config.serverInvites, ...(dbConfig.server_invites || {}) },
-        externalLinks: { ...default_config.externalLinks, ...(dbConfig.external_links || {}) },
-        excessiveCaps: { ...default_config.excessiveCaps, ...(dbConfig.excessive_caps || {}) },
-        excessiveEmojis: { ...default_config.excessiveEmojis, ...(dbConfig.excessive_emojis || {}) },
-        excessiveSpoilers: { ...default_config.excessiveSpoilers, ...(dbConfig.excessive_spoilers || {}) },
-        excessiveMentions: { ...default_config.excessiveMentions, ...(dbConfig.excessive_mentions || {}) },
+        badWords: { ...default_config.badWords, ...(dbConfig.badWords || {}) },
+        serverInvites: { ...default_config.serverInvites, ...(dbConfig.serverInvites || {}) },
+        externalLinks: { ...default_config.externalLinks, ...(dbConfig.externalLinks || {}) },
+        excessiveCaps: { ...default_config.excessiveCaps, ...(dbConfig.excessiveCaps || {}) },
+        excessiveEmojis: { ...default_config.excessiveEmojis, ...(dbConfig.excessiveEmojis || {}) },
+        excessiveSpoilers: { ...default_config.excessiveSpoilers, ...(dbConfig.excessiveSpoilers || {}) },
+        excessiveMentions: { ...default_config.excessiveMentions, ...(dbConfig.excessiveMentions || {}) },
         zalgo: { ...default_config.zalgo, ...(dbConfig.zalgo || {}) },
         cryptoAddress: { ...default_config.cryptoAddress, ...(dbConfig.cryptoAddress || {}) },
-        antiSpam: { ...default_config.antiSpam, ...(dbConfig.anti_spam || {}) },
-        offensiveMessages: { ...default_config.offensiveMessages, ...(dbConfig.offensive_messages || {}) },
-        globalSettings: { ...default_scope, ...(dbConfig.global_settings || {}) },
+        antiSpam: { ...default_config.antiSpam, ...(dbConfig.antiSpam || {}) },
+        offensiveMessages: { ...default_config.offensiveMessages, ...(dbConfig.offensiveMessages || {}) },
+        globalSettings: { ...default_scope, ...(dbConfig.globalSettings || {}) },
     };
 }
 
@@ -260,7 +260,7 @@ export async function getLevelingConfig(guildId: string): Promise<LevelingConfig
         }
     }
 
-    const dbLeveling = await getGuildConfigField<any>(guildId, 'leveling');
+    const dbLeveling = await getGuildConfigField<LevelingConfig>(guildId, 'leveling');
     if (!dbLeveling) return defaultConfig;
 
     return {
@@ -284,7 +284,7 @@ export async function getHoneypotConfig(guildId: string): Promise<HoneypotConfig
         duration: null
     }
 
-    const dbHoneypot = await getGuildConfigField<any>(guildId, 'honeypot');
+    const dbHoneypot = await getGuildConfigField<HoneypotConfig>(guildId, 'honeypot');
     if (!dbHoneypot) return defaultConfig;
 
     return {
@@ -302,7 +302,7 @@ export async function getModerationDMsConfig(guildId: string): Promise<Moderatio
         enabled: false,
         content: "",
         embed: {},
-        format: "TEXT" as Format,
+        format: "TEXT" as const,
     };
 
     const default_config: ModerationDMsConfig = {
@@ -318,7 +318,7 @@ export async function getModerationDMsConfig(guildId: string): Promise<Moderatio
         honeypot: { ...default_template },
     };
 
-    const dbConfig = await getGuildConfigField<any>(guildId, 'moderation_dms');
+    const dbConfig = await getGuildConfigField<ModerationDMsConfig>(guildId, 'moderation_dms');
     if (!dbConfig) return default_config;
 
     return {
@@ -335,25 +335,15 @@ export async function getModerationDMsConfig(guildId: string): Promise<Moderatio
     };
 }
 
-export async function getTempVoiceChannelConfig(guildId: string): Promise<TempVoiceConfig> {
-    const default_template: TempVoiceConfig = {
-        hubChannelId: "",
-        categoryId: "",
-        defaultLimit: 30,
-        defaultName: "{user.display_name}'s Temp Channel",
+export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
+    const defaultMessageConfig: MessageLayout = {
+        enabled: false,
+        format: "TEXT",
+        content: "",
+        embed: {},
     }
 
-    const dbConfig = await getGuildConfigField<any>(guildId, 'temp_voice');
-    if (!dbConfig) return default_template;
-
-    return {
-        ...default_template,
-        ...dbConfig,
-    };
-}
-
-export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
-    const defaultConfig = {
+    const defaultConfig: TicketConfig = {
         categoryId: "",
         enabled: false,
         channelId: "",
@@ -365,26 +355,19 @@ export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
         warnThreshold: 30,
         deleteThreshold: 45,
         bumpEvery: 20,
+        welcomeMessage: defaultMessageConfig,
     }
 
-    const defaultMessageConfig: MessageLayout = {
-        enabled: false,
-        format: "TEXT",
-        content: "",
-        embed: {},
-    }
 
-    const dbConfig = await getGuildConfigField<any>(guildId, 'tickets');
-
-    // Ensure dbConfig is an object to prevent errors when destructuring
-    const safeDbConfig = dbConfig ?? {};
+    const dbConfig = await getGuildConfigField<TicketConfig>(guildId, 'tickets');
+    if (!dbConfig) return defaultConfig;
 
     return {
         ...defaultConfig,
-        ...safeDbConfig,
+        ...dbConfig || {},
         welcomeMessage: {
             ...defaultMessageConfig,
-            ...(safeDbConfig.welcome_message ?? {}),
+            ...(dbConfig.welcomeMessage || {}),
         }
     }
 }

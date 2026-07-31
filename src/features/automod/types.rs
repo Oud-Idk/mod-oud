@@ -63,11 +63,11 @@ pub enum RuleAction {
 impl RuleAction {
     pub fn as_str(&self) -> &'static str {
         match self {
-            RuleAction::Delete => "delete",
-            RuleAction::Warn => "warn",
-            RuleAction::Timeout => "timeout",
-            RuleAction::RemindPublicly => "remind_publicly",
-            RuleAction::RemindPrivately => "remind_privately",
+            RuleAction::Delete => "DELETE",
+            RuleAction::Warn => "WARN",
+            RuleAction::Timeout => "TIMEOUT",
+            RuleAction::RemindPublicly => "REMIND_PUBLICLY",
+            RuleAction::RemindPrivately => "REMIND_PRIVATELY",
         }
     }
 }
