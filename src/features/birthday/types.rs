@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::UserId;
 
 /// Information for a single member celebrating a birthday today
@@ -36,4 +36,28 @@ pub struct BirthdayConfig {
 pub struct UserBirthdayRecord {
     pub user_id: i64,
     pub birth_year: Option<i16>,
+}
+
+#[derive(sqlx::FromRow, Debug, Clone)]
+pub struct FullUserBirthdayRecord {
+    pub user_id: i64,
+    pub birth_month: i16,
+    pub birth_day: i16,
+    pub birth_year: Option<i16>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, poise::ChoiceParameter)]
+pub enum Month {
+    January = 1,
+    February = 2,
+    March = 3,
+    April = 4,
+    May = 5,
+    June = 6,
+    July = 7,
+    August = 8,
+    September = 9,
+    October = 10,
+    November = 11,
+    December = 12,
 }

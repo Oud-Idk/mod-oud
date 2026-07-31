@@ -1,4 +1,5 @@
-use crate::features::birthday::types::{ExpiredRole, UserBirthdayRecord};
+use crate::Error;
+use crate::features::birthday::types::{ExpiredRole, FullUserBirthdayRecord, UserBirthdayRecord};
 use serenity::all::{ChannelId, RoleId};
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
@@ -104,5 +105,81 @@ pub async fn delete_expired_birthday_roles(
         .execute(pool)
         .await?;
 
+    Ok(())
+}
+
+pub async fn set_birthday(db: &PgPool, uid: u64, month_num: i16, day: i16, year: Option<i16>) -> Result<(), Error> {
+    sqlx::query!(
+        r#"
+        INSERT INTO user_birthdays (user_id, birth_month, birth_day, birth_year)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id) DO UPDATE
+        SET birth_month = EXCLUDED.birth_month,
+            birth_day = EXCLUDED.birth_day,
+            birth_year = EXCLUDED.birth_year
+        "#,
+        uid as i64,
+        month_num,
+        day,
+        year
+    )
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+/// Fetches upcoming birthdays within N days
+pub async fn get_upcoming_birthdays(
+    db: &PgPool,
+    lookahead_days: i32,
+) -> Result<Vec<FullUserBirthdayRecord>, sqlx::Error> {
+    sqlx::query_as!(
+        FullUserBirthdayRecord,
+        r#"
+        SELECT user_id, birth_month, birth_day, birth_year
+        FROM user_birthdays
+        WHERE MAKE_DATE(2000, birth_month, birth_day) >= MAKE_DATE(2000, EXTRACT(MONTH FROM CURRENT_DATE)::int, EXTRACT(DAY FROM CURRENT_DATE)::int)
+          AND MAKE_DATE(2000, birth_month, birth_day) <= MAKE_DATE(2000, EXTRACT(MONTH FROM CURRENT_DATE)::int, EXTRACT(DAY FROM CURRENT_DATE)::int) + ($1::int * INTERVAL '1 day')
+        ORDER BY birth_month, birth_day
+        LIMIT 25
+        "#,
+        lookahead_days
+    )
+        .fetch_all(db)
+        .await
+}
+
+/// Get a user's birthday record
+pub async fn get_user_birthday(
+    db: &PgPool,
+    uid: u64,
+) -> Result<Option<FullUserBirthdayRecord>, sqlx::Error> {
+    sqlx::query_as!(
+        FullUserBirthdayRecord,
+        r#"
+        SELECT user_id, birth_month, birth_day, birth_year
+        FROM user_birthdays
+        WHERE user_id = $1
+        "#,
+        uid as i64
+    )
+        .fetch_optional(db)
+        .await
+}
+
+/// Remove a user's birthday record
+pub async fn remove_birthday(
+    db: &PgPool,
+    uid: u64,
+) -> Result<(), Error> {
+    sqlx::query!(
+        r#"
+        DELETE FROM user_birthdays
+        WHERE user_id = $1
+        "#,
+        uid as i64
+    )
+        .execute(db)
+        .await?;
     Ok(())
 }

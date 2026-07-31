@@ -1,0 +1,285 @@
+use crate::features::birthday::{database, pagination};
+use crate::features::birthday::types::Month;
+use crate::shared::embed::send_ephemeral;
+use crate::{Context, Error};
+use chrono::Datelike;
+use poise::serenity_prelude as serenity;
+
+/// Birthday management commands
+#[poise::command(
+    slash_command,
+    guild_only,
+    subcommands(
+        "set",
+        "remove",
+        "view",
+        "upcoming",
+        "test",
+        "force_set",
+        "force_remove"
+    )
+)]
+pub async fn birthday(_: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+/// Register or update your birthday
+#[poise::command(slash_command)]
+async fn set(
+    ctx: Context<'_>,
+    #[description = "Month of birth"] month: Month,
+    #[description = "Day of birth (1-31)"] day: i16,
+    #[description = "Birth year (optional)"] year: Option<i16>,
+) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    let month_num = month as i16;
+
+    if let Err(e) = validate_birthday_input(month, day, year) {
+        ctx.send(
+            poise::CreateReply::default()
+                .content(e)
+                .ephemeral(true),
+        ).await?;
+        return Ok(());
+    }
+
+    let uid = ctx.author().id.get();
+    database::set_birthday(&ctx.data().db, uid, month_num, day, year).await?;
+
+    let year_str = year.map(|y| format!(", {}", y)).unwrap_or_default();
+    ctx.send(
+        poise::CreateReply::default()
+            .content(format!("Saved your birthday as **{:?} {}{}**!", month, day, year_str))
+            .ephemeral(true),
+    ).await?;
+
+    Ok(())
+}
+
+/// Test the birthday announcement message using dashboard settings (Mods only)
+#[poise::command(
+    slash_command,
+    default_member_permissions = "MANAGE_GUILD",
+    guild_only,
+)]
+async fn test(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    let guild_id = ctx.guild_id().ok_or("Must be run in a guild")?.get() as i64;
+
+    let settings = crate::core::config::settings::get_settings(
+        &ctx.data().db,
+        &ctx.data().redis,
+        &ctx.data().guild_configs,
+        guild_id,
+    ).await?;
+
+    let Some(birthday_cfg) = settings.birthday.filter(|c| c.enabled) else {
+        send_ephemeral(&ctx, "Birthday announcements are disabled for this server.").await?;
+        return Ok(());
+    };
+
+    // Dummy celebrant for testing
+    let mock_celebrant = crate::features::birthday::types::BirthdayMember {
+        user_id: ctx.author().id,
+        display_name: ctx.author().name.clone(),
+        birth_year: Some(2000),
+    };
+
+    let gctx = crate::core::config::guild_ctx::get_guild_ctx(
+        serenity::GuildId::new(guild_id as u64),
+        &ctx.serenity_context().http,
+    ).await?;
+
+    let raw_content = birthday_cfg
+        .message_with_year
+        .get("content")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Happy Birthday {users}!");
+
+    let rendered = crate::features::birthday::placeholders::replace_birthday_placeholders(
+        raw_content,
+        &gctx,
+        &[mock_celebrant],
+    );
+
+    send_ephemeral(&ctx, format!("**Preview Announcement:**\n\n{}", rendered)).await?;
+
+    Ok(())
+}
+
+/// View upcoming birthdays in the server
+#[poise::command(slash_command)]
+pub async fn upcoming(
+    ctx: Context<'_>,
+    #[description = "Days ahead to check (default: 14)"] days: Option<i16>,
+) -> Result<(), Error> {
+    let lookahead_days = days.unwrap_or(14).min(60) as i32;
+
+    let records = database::get_upcoming_birthdays(&ctx.data().db, lookahead_days).await?;
+
+    if records.is_empty() {
+        send_ephemeral(&ctx, format!("No upcoming birthdays in the next **{}** days.", lookahead_days)).await?;
+        return Ok(());
+    }
+
+    let title = format!("Upcoming Birthdays (Next {} Days)", lookahead_days);
+
+    // Paginate automatically handles 1 page or 100 pages!
+    pagination::paginate_birthdays(ctx, &records, title).await?;
+
+    Ok(())
+}
+
+/// View your registered birthday
+#[poise::command(slash_command)]
+async fn view(
+    ctx: Context<'_>,
+) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    let uid = ctx.author().id.get();
+
+    let birthday = database::get_user_birthday(&ctx.data().db, uid).await?;
+
+    match birthday {
+        Some(b) => {
+            let month_name = match b.birth_month {
+                1 => "January",
+                2 => "February",
+                3 => "March",
+                4 => "April",
+                5 => "May",
+                6 => "June",
+                7 => "July",
+                8 => "August",
+                9 => "September",
+                10 => "October",
+                11 => "November",
+                12 => "December",
+                _ => "Unknown",
+            };
+            let year_str = b.birth_year.map(|y| format!(", {}", y)).unwrap_or_default();
+            send_ephemeral(&ctx, format!("Your birthday is set to **{} {}{}**.", month_name, b.birth_day, year_str)).await?;
+        }
+        None => {
+            send_ephemeral(&ctx, "You haven't registered a birthday yet. Use `/birthday set` to add one.").await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Remove your registered birthday
+#[poise::command(slash_command)]
+async fn remove(
+    ctx: Context<'_>,
+) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    let uid = ctx.author().id.get();
+
+    let birthday = database::get_user_birthday(&ctx.data().db, uid).await?;
+
+    if birthday.is_none() {
+        send_ephemeral(&ctx, "You don't have a birthday registered.").await?;
+        return Ok(());
+    }
+
+    database::remove_birthday(&ctx.data().db, uid).await?;
+    send_ephemeral(&ctx, "Your birthday has been removed.").await?;
+
+    Ok(())
+}
+
+/// Force set a birthday for a user (Mods only)
+#[poise::command(
+    slash_command,
+    default_member_permissions = "MANAGE_GUILD",
+    guild_only,
+)]
+async fn force_set(
+    ctx: Context<'_>,
+    #[description = "User to set birthday for"] user: serenity::User,
+    #[description = "Month of birth"] month: Month,
+    #[description = "Day of birth (1-31)"] day: i16,
+    #[description = "Birth year (optional)"] year: Option<i16>,
+) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    let month_num = month as i16;
+
+    if let Err(e) = validate_birthday_input(month, day, year) {
+        ctx.send(
+            poise::CreateReply::default()
+                .content(e)
+                .ephemeral(true),
+        ).await?;
+        return Ok(());
+    }
+
+    let uid = user.id.get();
+    database::set_birthday(&ctx.data().db, uid, month_num, day, year).await?;
+
+    let year_str = year.map(|y| format!(", {}", y)).unwrap_or_default();
+    ctx.send(
+        poise::CreateReply::default()
+            .content(format!("Set birthday for **{}** to **{:?} {}{}**!", user.name, month, day, year_str))
+            .ephemeral(true),
+    ).await?;
+
+    Ok(())
+}
+
+/// Force remove a birthday for a user (Mods only)
+#[poise::command(
+    slash_command,
+    default_member_permissions = "MANAGE_GUILD",
+    guild_only,
+)]
+async fn force_remove(
+    ctx: Context<'_>,
+    #[description = "User to remove birthday for"] user: serenity::User,
+) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    let uid = user.id.get();
+
+    let birthday = database::get_user_birthday(&ctx.data().db, uid).await?;
+
+    if birthday.is_none() {
+        send_ephemeral(&ctx, format!("**{}** doesn't have a birthday registered.", user.name)).await?;
+        return Ok(());
+    }
+
+    database::remove_birthday(&ctx.data().db, uid).await?;
+    send_ephemeral(&ctx, format!("Removed birthday for **{}**.", user.name)).await?;
+
+    Ok(())
+}
+
+
+fn validate_birthday_input(month: Month, day: i16, year: Option<i16>) -> Result<(), String> {
+    let month_num = month as i16;
+    let max_days = date_valid_for_month(year, month_num);
+
+    if day < 1 || day > max_days {
+        return Err(format!("Invalid day **{}** for month **{:?}**. Maximum is **{}**.", day, month, max_days));
+    }
+
+    if let Some(y) = year {
+        let current_year = chrono::Utc::now().year() as i16;
+        if y < 1920 || y > current_year {
+            return Err(format!("Please enter a valid birth year between 1920 and {}.", current_year));
+        }
+    }
+
+    Ok(())
+}
+
+fn date_valid_for_month(year: Option<i16>, month_num: i16) -> i16 {
+    match month_num {
+        2 => if year.map_or(true, |y| is_leap_year(y as i32)) { 29 } else { 28 },
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
+}
+
+fn is_leap_year(year: i32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+}
