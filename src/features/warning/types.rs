@@ -9,7 +9,7 @@ pub struct PartialWarning {
 pub const MODERATION_FOOTER: &str = "If you believe this was a mistake, please contact an administrator.";
 
 #[derive(Debug, Clone, Copy, sqlx::Type, PartialEq, Eq, Deserialize, Serialize)]
-#[sqlx(type_name = "moderation_action", rename_all = "snake_case")]
+#[sqlx(type_name = "moderation_action", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WarnAction {
     Timeout,
     Kick,

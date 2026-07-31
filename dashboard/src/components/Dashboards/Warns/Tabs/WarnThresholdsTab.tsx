@@ -27,12 +27,12 @@ export function WarnThresholdTab({
     }));
 
     const punishmentOptions = [
-        { value: "timeout", label: "Timeout User" },
-        { value: "kick", label: "Kick User" },
-        { value: "ban", label: "Ban User" },
-        { value: "role_remove", label: "Remove Role" },
-        { value: "role_add", label: "Add Role" },
-        { value: "role_remove_all", label: "Remove All Roles" },
+        { value: "TIMEOUT", label: "Timeout User" },
+        { value: "KICK", label: "Kick User" },
+        { value: "BAN", label: "Ban User" },
+        { value: "ROLE_REMOVE", label: "Remove Role" },
+        { value: "ROLE_ADD", label: "Add Role" },
+        { value: "ROLE_REMOVE_ALL", label: "Remove All Roles" },
     ];
 
     const handleSave = async (updatedRules: RuleItem[]) => {
@@ -42,7 +42,7 @@ export function WarnThresholdTab({
             actionType: u.actions as ModerationAction[],
             rolesToAdd: u.rolesToAdd || null,
             rolesToRemove: u.rolesToRemove || null,
-            duration: u.actions.includes("timeout") ? 60 : null,
+            duration: u.actions.includes("timeout") ? 60 : null, // TODO pls add configurable timeouts
         }));
 
         await saveWarnThresholdsAction(guildId, mapped);

@@ -1,4 +1,4 @@
-CREATE TYPE MODERATION_ACTION AS ENUM ('timeout', 'kick', 'ban', 'role_remove', 'role_add', 'role_remove_all');
+CREATE TYPE MODERATION_ACTION AS ENUM ('TIMEOUT', 'KICK', 'BAN', 'ROLE_REMOVE', 'ROLE_ADD', 'ROLE_REMOVE_ALL');
 
 CREATE TABLE warn_thresholds
 (
