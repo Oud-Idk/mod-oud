@@ -157,3 +157,21 @@ pub async fn upsert_level(
 
     Ok(())
 }
+
+pub async fn get_user_rank(db: &PgPool, guild_id: i64, user_id: i64, user_level: i32, user_xp: i32) -> Result<Option<i64>> {
+    let rank = sqlx::query_scalar!(
+        r#"
+        SELECT COUNT(*) + 1
+        FROM levels
+        WHERE guild_id = $1
+        AND (current_level > $2 OR (current_level = $2 AND current_xp > $3))
+        "#,
+        guild_id,
+        user_level,
+        user_xp
+    )
+        .fetch_one(db)
+        .await?;
+
+    Ok(rank)
+}

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 211.7 52.9" version="1.1">
+    <defs>
+        <!-- Profile picture clip path -->
+        <clipPath id="circleClip">
+            <circle cx="22.2" cy="22.2" r="16.9"/>
+        </clipPath>
+    </defs>
+
+    <!-- Background -->
+    <rect id="bg-color" width="100%" height="100%" fill="#000000"/>
+
+    <!-- Profile Picture -->
+    <image
+            id="profile-picture"
+            href="{{PROFILE_PICTURE}}"
+            x="5.3"
+            y="5.3"
+            width="33.9"
+            height="33.9"
+            clip-path="url(#circleClip)"
+            preserveAspectRatio="xMidYMid slice"
+    />
+
+    <!-- Progress Bar Background -->
+    <rect id="bar-bg" x="4" y="42" width="200" height="7" ry="3.7" fill="{{BAR.BACKGROUND}}"/>
+
+    <!-- Progress Bar Foreground -->
+    <rect id="bar-fg" x="4" y="42" width="{{FILL_WIDTH}}" height="7" ry="3.7" fill="{{BAR.FOREGROUND}}"/>
+
+    <!-- Username -->
+    <text id="username" x="43.9" y="18.6" fill="{{USERNAME_COLOR}}" font-family="'JetBrains Mono', sans-serif"
+          font-size="11px">
+        {{USERNAME}}
+    </text>
+
+    <!-- Statistics (JetBrains Mono) -->
+    <text id="level" x="43.7" y="33.9" fill="{{STATISTICS}}" font-family="'Inter Variable', sans-serif"
+          font-size="7.5px">
+        Level
+        <tspan font-family="'JetBrains Mono', monospace">{{LEVEL}}</tspan>
+    </text>
+    <text id="xp" x="119" y="33.9" fill="{{STATISTICS}}" font-family="'Inter Variable', sans-serif"
+          font-size="7.5px" text-anchor="middle">
+        XP <tspan font-family="'JetBrains Mono', monospace">{{XP.PROGRESS}}</tspan> /
+        <tspan font-family="'JetBrains Mono', monospace">{{XP.MAX}}</tspan>
+    </text>
+    <text id="rank" x="195" y="33.9" fill="{{STATISTICS}}" font-family="'Inter Variable', sans-serif"
+          font-size="7.5px" text-anchor="end">
+        Rank
+        <tspan font-family="'JetBrains Mono', monospace">#{{RANK}}</tspan>
+    </text>
+
+    <!-- Line Separator -->
+    <rect id="separator" x="43.7" y="23.3" width="140" height="0.9" fill="{{SEPARATOR}}"/>
+
+    <!-- Accent Shape -->
+    <rect id="accent" x="109.6" y="-167.3" width="77.5" height="42.9" fill="{{ACCENT}}" transform="rotate(45)"/>
+</svg>

@@ -104,12 +104,26 @@ pub struct LevelingScope {
     pub channels: Vec<u64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageCardSettings {
+    pub text_color: String,
+    pub bar_foreground_color: String,
+    pub bar_background_color: String,
+    pub accent_color: String,
+    pub line_separator_color: String,
+    pub username_color: String,
+    pub statistics_color: String,
+    pub background_color: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LevelingConfig {
     pub text: TextSettings,
     pub voice: VoiceSettings,
     pub scope: LevelingScope,
+    pub image_card: ImageCardSettings,
     pub notify: NotificationSettings,
 
     pub level_cap: u64,

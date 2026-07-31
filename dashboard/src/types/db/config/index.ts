@@ -53,11 +53,23 @@ export interface NotificationSettings {
     embed: DiscordEmbed;
 }
 
+export interface ImageCardSettings {
+    textColor: string;
+    barForegroundColor: string;
+    barBackgroundColor: string;
+    accentColor: string;
+    lineSeparatorColor: string;
+    usernameColor: string;
+    statisticsColor: string;
+    backgroundColor: string;
+}
+
 export interface LevelingConfig {
     text: TextSettings;
     voice: VoiceSettings;
     scope: Scope;
     notify: NotificationSettings;
+    imageCard: ImageCardSettings;
 
     levelCap: number;
     keepLevelOnLeave: boolean;

@@ -1,7 +1,7 @@
-use crate::features::leveling::database;
 use crate::features::leveling::types::VcSession;
 use crate::features::leveling::types::{LevelingConfig, UserLevel, XpMultiplier};
-use crate::{Data, Error};
+use crate::features::leveling::{database, keys};
+use crate::{Data, Error, features};
 use anyhow::Result;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, HashesInterface, KeysInterface, SetsInterface, TransactionInterface};
@@ -108,10 +108,6 @@ pub async fn save_user_level_cache(redis: &Client, stats_key: &str, serialized: 
     redis.set(stats_key, serialized, Some(Expiration::EX(3600)), None, false).await
 }
 
-fn occupants_key(guild_id: GuildId, channel_id: ChannelId) -> String {
-    format!("vc_occupants:{}:{}", guild_id.get(), channel_id.get())
-}
-
 /// Adds a user to a channel's eligible-occupant set.
 /// Returns (count_after, was_newly_added).
 pub async fn add_occupant(
@@ -120,7 +116,7 @@ pub async fn add_occupant(
     channel_id: ChannelId,
     user_id: UserId,
 ) -> Result<(i64, bool)> {
-    let key = occupants_key(guild_id, channel_id);
+    let key = keys::occupants_key(guild_id, channel_id);
     let added: i64 = redis.sadd(&key, user_id.get().to_string()).await?;
     let _: Result<(), _> = redis.expire(&key, 86400, None).await;
     let count: i64 = redis.scard(&key).await?;
@@ -134,14 +130,14 @@ pub async fn remove_occupant(
     channel_id: ChannelId,
     user_id: UserId,
 ) -> Result<i64> {
-    let key = occupants_key(guild_id, channel_id);
+    let key = keys::occupants_key(guild_id, channel_id);
     let _: () = redis.srem(&key, user_id.get().to_string()).await?;
     let count: i64 = redis.scard(&key).await?;
     Ok(count)
 }
 
 async fn get_occupants(redis: &Client, guild_id: GuildId, channel_id: ChannelId) -> Result<Vec<u64>> {
-    let key = occupants_key(guild_id, channel_id);
+    let key = keys::occupants_key(guild_id, channel_id);
     let members: Vec<String> = redis.smembers(&key).await?;
     Ok(members.into_iter().filter_map(|m| m.parse::<u64>().ok()).collect())
 }
@@ -174,10 +170,6 @@ pub async fn pause_channel_clocks(
     Ok(())
 }
 
-pub fn session_key(guild_id: GuildId, user_id: UserId) -> String {
-    format!("vc_session:{}:{}", guild_id.get(), user_id.get())
-}
-
 /// Opens a new voice session for a user who just became eligible (connected + not deafened).
 /// `start_clock` should be true if the channel already has another eligible occupant.
 pub async fn open_session(
@@ -188,7 +180,7 @@ pub async fn open_session(
     now: i64,
     start_clock: bool,
 ) -> Result<()> {
-    let key = session_key(guild_id, user_id);
+    let key = features::keys::session_key(guild_id, user_id);
     trace!(
         guild_id = guild_id.get(),
         user_id = user_id.get(),
@@ -214,7 +206,7 @@ pub async fn resume_clock(
     user_id: UserId,
     now: i64,
 ) -> Result<()> {
-    let key = session_key(guild_id, user_id);
+    let key = features::keys::session_key(guild_id, user_id);
     if let Some(mut s) = get_session(redis, &key).await? {
         if s.clock_started_at.is_none() {
             trace!(guild_id = guild_id.get(), user_id = user_id.get(), "Resuming voice XP clock");
@@ -233,7 +225,7 @@ pub async fn pause_clock(
     user_id: UserId,
     now: i64,
 ) -> Result<()> {
-    let key = session_key(guild_id, user_id);
+    let key = features::keys::session_key(guild_id, user_id);
     if let Some(mut s) = get_session(redis, &key).await? {
         if let Some(started) = s.clock_started_at.take() {
             trace!(guild_id = guild_id.get(), user_id = user_id.get(), "Pausing voice XP clock (alone in channel)");

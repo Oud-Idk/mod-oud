@@ -97,7 +97,7 @@ async fn check_db_status(pool: &sqlx::PgPool) -> String {
     match db_query {
         Ok(_) => {
             trace!(latency_ms = db_latency, "PostgreSQL database connection is healthy");
-            format!("PostgreSQL connection is healthy ({:.2}ms).", db_latency)
+            format!("PostgreSQL connection is healthy (`SELECT 1` yields {:.2}ms).", db_latency)
         }
         Err(err) => {
             warn!(error = ?err, "PostgreSQL database connection check failed");
@@ -114,7 +114,7 @@ async fn check_redis_status(redis: &fred::clients::Client) -> String {
     match redis_ping {
         Ok(_) => {
             trace!(latency_ms = redis_latency, "Redis cache connection is healthy");
-            format!("Redis connection is healthy ({:.2}ms).", redis_latency)
+            format!("Redis connection is healthy (`PING` yields {:.2}ms).", redis_latency)
         }
         Err(err) => {
             warn!(error = ?err, "Redis cache connection check failed");

@@ -247,6 +247,16 @@ export async function getLevelingConfig(guildId: string): Promise<LevelingConfig
             format: "TEXT",
             content: "",
             embed: {},
+        },
+        imageCard: {
+            lineSeparatorColor: "#FFFFFF",
+            accentColor: "#5865f2",
+            barForegroundColor: "#5865f2",
+            barBackgroundColor: "#FFFFFF",
+            textColor: "#FFFFFF",
+            usernameColor: "#FFFFFF",
+            statisticsColor: "#FFFFFF",
+            backgroundColor: "#000000",
         }
     }
 

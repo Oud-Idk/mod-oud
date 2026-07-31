@@ -1,8 +1,9 @@
 use super::super::{cache, calculation, database, notifications, rewards, rules};
 use crate::features::leveling::types::UserLevel;
-
 use crate::Data;
+use crate::features::leveling::keys::member_stats_key;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
+use crate::features::{keys, leveling};
 use crate::shared::store_username_relation;
 use anyhow::Result;
 use fred::interfaces::KeysInterface;
@@ -34,7 +35,7 @@ pub async fn handle_voice_leveling(
 
     let member = new.member.as_ref();
     let redis = &data.redis;
-    let session_key = cache::session_key(guild_id, user_id);
+    let session_key = keys::session_key(guild_id, user_id);
     let now = chrono::Utc::now().timestamp();
 
     let old_channel = old.and_then(|o| o.channel_id);
@@ -114,7 +115,7 @@ async fn award_vc_xp_for_session(
 ) -> Result<()> {
     let elapsed_seconds = leave_time - join_time;
 
-    if session_too_short(guild_id, user_id, elapsed_seconds) {
+    if session_too_short(elapsed_seconds) {
         return Ok(());
     }
 
@@ -131,8 +132,8 @@ async fn award_vc_xp_for_session(
         return Ok(());
     }
 
-    let stats_key = format!("member:{}:{}", guild_id, user_id);
-    let multiplier_key = format!("multipliers:{}", guild_id.get());
+    let stats_key = member_stats_key(&guild_id, user_id);
+    let multiplier_key = leveling::keys::multiplier_key(&guild_id);
     let multiplier = rules::get_voice_multiplier(redis, &multiplier_key, db, &guild_id, channel_id, &member.roles).await?;
 
     let elapsed_minutes = elapsed_seconds / 60;
@@ -171,7 +172,7 @@ async fn award_vc_xp_for_session(
     Ok(())
 }
 
-fn session_too_short(guild_id: GuildId, user_id: UserId, elapsed_seconds: i64) -> bool {
+fn session_too_short(elapsed_seconds: i64) -> bool {
     elapsed_seconds < 60
 }
 

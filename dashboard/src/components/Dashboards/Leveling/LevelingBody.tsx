@@ -14,6 +14,8 @@ import { useConfigForm } from "@/hooks/useConfigForm";
 import { UserLevel } from "@/utils/db/leaderboard";
 import { LeaderboardTab } from "@/components/Dashboards/Leveling/Tabs/LeaderboardTab";
 import { LevelReward, XpMultiplier } from "@/types/db/multipliers";
+import { ImageCardTab } from "@/components/Dashboards/Leveling/Tabs/ImageCardTab";
+import { setConfig } from "@skyra/discord-components-react";
 
 interface LevelingBodyProps {
     guildId: string;
@@ -32,7 +34,7 @@ interface LevelingBodyProps {
     fetchMoreLevels: (currentLowestXp: number) => Promise<UserLevel[]>;
 }
 
-type TabValue = "TEXT" | "VOICE" | "GENERAL" | "MULTIPLIERS" | "REWARDS" | "LEADERBOARD";
+type TabValue = "TEXT" | "VOICE" | "GENERAL" | "MULTIPLIERS" | "REWARDS" | "LEADERBOARD" | "IMAGE_CARD";
 
 const LEVEL_TABS: TabItem<TabValue>[] = [
     { value: "TEXT", label: "Text" },
@@ -41,6 +43,7 @@ const LEVEL_TABS: TabItem<TabValue>[] = [
     { value: "MULTIPLIERS", label: "Multipliers" },
     { value: "REWARDS", label: "Rewards" },
     { value: "LEADERBOARD", label: "Leaderboard" },
+    { value: "IMAGE_CARD", label: "Image Card" },
 ];
 
 export function LevelingBody({
@@ -114,6 +117,10 @@ export function LevelingBody({
                 <LeaderboardTab
                     levels={levels} fetchMoreLevels={fetchMoreLevels}
                 />
+            )}
+
+            {activeTab === "IMAGE_CARD" && (
+                <ImageCardTab config={config} handleChange={handleChange}/>
             )}
 
             {isDirty && (

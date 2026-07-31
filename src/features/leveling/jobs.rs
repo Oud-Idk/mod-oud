@@ -1,5 +1,5 @@
-use crate::features::leveling::database;
 use crate::features::leveling::types::UserLevel;
+use crate::features::leveling::{database, keys};
 use crate::shared::locking::acquire_lock;
 use fred::clients::Client;
 use fred::error::Error;
@@ -140,8 +140,8 @@ async fn flush_guild(
     redis: &Client,
     db: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let pending_key = format!("levels:pending:{}", guild_id_str);
-    let flushing_key = format!("levels:flushing:{}", guild_id_str);
+    let pending_key = keys::pending_levels_key(guild_id_str);
+    let flushing_key = keys::flushing_levels_key(guild_id_str);
 
     let stale_exists: bool = redis.exists(&flushing_key).await?;
 

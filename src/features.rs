@@ -20,3 +20,4 @@ pub mod giveaways;
 pub mod custom_commands;
 pub mod birthday;
 pub mod raid_detection;
+mod keys;

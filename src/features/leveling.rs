@@ -10,6 +10,7 @@ mod types;
 mod placeholders;
 mod commands;
 mod jobs;
+mod keys;
 
 pub use types::LevelingConfig;
 pub use events::text::handle_text_leveling;

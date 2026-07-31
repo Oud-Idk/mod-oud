@@ -1,17 +1,18 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
+use crate::core::config::settings::get_settings;
 use crate::features::leveling;
 use crate::features::leveling::calculation::clamp_to_level_cap;
 use crate::features::leveling::calculation::process_level_ups;
 use crate::features::leveling::database::get_user_level;
+use crate::features::leveling::keys::{member_stats_key, multiplier_key};
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
-use crate::features::leveling::{cache, notifications, rewards, rules};
+use crate::features::leveling::{cache, keys, notifications, rewards, rules};
 use crate::shared::embed::DiscordEmbed;
 use crate::shared::embed::build_custom_message;
 use crate::{Data, Error};
-use serenity::all::{Context, CreateMessage, GuildId, Message};
+use serenity::all::{Context, CreateMessage, GuildId, Message, User};
 use tracing::{debug, info, trace, warn};
-use crate::core::config::settings::get_settings;
 
 pub async fn handle_text_leveling(
     ctx: &Context,
@@ -37,7 +38,7 @@ pub async fn handle_text_leveling(
     let db = &data.db;
     let redis = &data.redis;
 
-    let cooldown_key = format!("cooldown:{}:{}", guild_id, author.id);
+    let cooldown_key = keys::cooldown_key(guild_id, author);
     let set_cooldown = cache::create_redis_cooldown(&cooldown_key, &leveling_config, &redis).await?;
 
     if !set_cooldown {
@@ -45,8 +46,8 @@ pub async fn handle_text_leveling(
         return Ok(());
     }
 
-    let stats_key = format!("member:{}:{}", guild_id, author.id);
-    let multiplier_key = format!("multipliers:{}", guild_id.get());
+    let stats_key = member_stats_key(guild_id, author.id);
+    let multiplier_key = multiplier_key(guild_id);
 
     let (applied_multiplier, mut user_level) = tokio::try_join!(
         rules::get_multiplier(&redis, &multiplier_key, db, guild_id, message),
