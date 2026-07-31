@@ -9,7 +9,7 @@ use crate::features::reporting::ReportConfig;
 use crate::features::tickets::TicketConfig;
 use crate::shared::embed::{DiscordEmbed, Format};
 use fred::clients::Client;
-use fred::interfaces::FredResult;
+use fred::interfaces::{FredResult, PubsubInterface};
 use fred::prelude::{Expiration, KeysInterface};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -216,4 +216,55 @@ pub struct ModerationDMsConfig {
     pub softban: Option<MessageLayout>,
     #[serde(default, deserialize_with = "ok_or_none")]
     pub honeypot: Option<MessageLayout>,
+}
+
+
+/// Saves updated settings to Database, updates Redis cache, updates local Moka cache,
+/// and publishes an invalidation event to the "config_updates" Pub/Sub channel.
+pub async fn save_settings(
+    db: &PgPool,
+    redis: &Client,
+    cache: &moka::future::Cache<i64, GuildSettings>,
+    guild_id: i64,
+    settings: &GuildSettings,
+) -> anyhow::Result<()> {
+    let json_value = serde_json::to_value(settings)
+        .with_context(|| format!("Failed to serialize GuildSettings for guild_id {guild_id}"))?;
+
+    sqlx::query!(
+        r#"
+        INSERT INTO guild_configs (guild_id, settings)
+        VALUES ($1, $2)
+        ON CONFLICT (guild_id)
+        DO UPDATE SET settings = EXCLUDED.settings
+        "#,
+        guild_id,
+        json_value
+    )
+        .execute(db)
+        .await
+        .with_context(|| format!("Failed to save guild settings to database for guild_id {guild_id}"))?;
+
+    let cache_key = format!("config:guild:{}", guild_id);
+    if let Err(e) = set_setting_to_redis(redis, settings, &cache_key).await {
+        warn!(
+            error = %e,
+            guild_id,
+            key = %cache_key,
+            "Failed to write updated settings to Redis cache"
+        );
+    }
+
+    cache.insert(guild_id, settings.clone()).await;
+    let payload = format!("invalidate:{}", guild_id);
+    let res: FredResult<i64> = redis.publish("config_updates", payload).await;
+    if let Err(e) = res {
+        warn!(
+            error = %e,
+            guild_id,
+            "Failed to publish config invalidation event to Redis Pub/Sub"
+        );
+    }
+
+    Ok(())
 }

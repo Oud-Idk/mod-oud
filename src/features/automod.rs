@@ -11,6 +11,7 @@ mod spam_tracker;
 mod safe_browsing;
 mod web;
 mod keys;
+mod commands;
 
 pub use database::insert_automod_row;
 pub use events::{handle_automod, store_automod};

@@ -10,6 +10,7 @@ use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use std::result;
 use tracing::trace;
+use crate::features::leveling::keys::member_stats_key;
 
 pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<Option<UserLevel>> {
     Ok(sqlx::query_as!(
@@ -35,8 +36,11 @@ pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Re
         .await?)
 }
 
-pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQueryResult> {
-    Ok(sqlx::query!(
+pub async fn update_level(
+    db: &PgPool,
+    user_level: &UserLevel,
+) -> Result<PgQueryResult> {
+    let result = sqlx::query!(
         "UPDATE levels
          SET cumulative_xp = $1, current_level = $2, current_xp = $3
          WHERE user_id = $4 AND guild_id = $5",
@@ -47,7 +51,9 @@ pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQuery
         user_level.guild_id
     )
         .execute(db)
-        .await?)
+        .await?;
+
+    Ok(result)
 }
 
 pub async fn get_multipliers(db: &PgPool, guild_id: i64) -> Result<Vec<XpMultiplier>> {
