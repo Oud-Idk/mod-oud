@@ -9,6 +9,7 @@ use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{error, trace, warn};
+use chrono::{DateTime, Utc};
 
 /// Fetches a single giveaway configuration by ID and Guild ID for the web handler
 pub async fn fetch_giveaway(
@@ -106,4 +107,33 @@ pub async fn mark_giveaway_finished(pool: &PgPool, giveaway_id: i64) -> Result<(
         .execute(pool)
         .await?;
     Ok(())
+}
+
+
+pub async fn create_giveaway(
+    pool: &PgPool,
+    guild_id: i64,
+    host_id: i64,
+    channel_id: i64,
+    prize: &str,
+    winner_count: i32,
+    end_time: DateTime<Utc>,
+) -> Result<i64, sqlx::Error> {
+    let rec = sqlx::query!(
+        r#"
+        INSERT INTO giveaways (guild_id, host_id, channel_id, prize, winner_count, end_time, is_finished, format)
+        VALUES ($1, $2, $3, $4, $5, $6, FALSE, 'EMBED'::message_format)
+        RETURNING id
+        "#,
+        guild_id,
+        host_id,
+        channel_id,
+        prize,
+        winner_count,
+        end_time
+    )
+        .fetch_one(pool)
+        .await?;
+
+    Ok(rec.id)
 }

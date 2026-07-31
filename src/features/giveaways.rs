@@ -3,6 +3,7 @@ mod database;
 mod types;
 mod jobs;
 mod placeholders;
+mod commands;
 
 pub use web::routes;
 pub use jobs::start_giveaway_worker;
