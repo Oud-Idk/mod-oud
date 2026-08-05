@@ -12,7 +12,7 @@ import { useTicketing } from "@/features/tickets/hooks/useTicketing";
 import { useState } from "react";
 
 
-import { DiscordChannel } from "@/features/_shared/channels";
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface TicketsBodyProps {
     guildId: string;

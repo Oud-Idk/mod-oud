@@ -2,12 +2,7 @@ import "server-only";
 import redis from "@/lib/redis";
 import { DiscordRole } from "@/features/welcome/components/WelcomeBody";
 import { revalidateTag } from "next/cache";
-
-export interface DiscordChannel {
-    id: string;
-    name: string;
-    type: number;
-}
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 export async function getGuildChannels(guild_id: string): Promise<DiscordChannel[]> {
     const token = process.env.DISCORD_TOKEN;

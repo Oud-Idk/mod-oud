@@ -9,18 +9,23 @@ interface PlaceholderListProps {
 }
 
 export const PlaceholderList = ({ config }: PlaceholderListProps) => {
+    if (!config.placeholders?.length) return null;
+
     return (
-        <div className="p-3 rounded-lg border mb-2">
-            <h3 className="text-xs font-bold uppercase mb-2 tracking-wider">
-                Available Placeholders </h3>
-            <div className="flex flex-wrap gap-2">
+        <div className="p-3 rounded-lg border border-border bg-surface mb-2">
+            <h3 className="mb-2 text-foreground">
+                Available Placeholders
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
                 {config.placeholders.map((p) => (
                     <span
                         key={p.key}
                         title={p.label}
-                        className="px-2 py-1 rounded text-xs font-mono border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 flex items-center cursor-help hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                        className="px-2 py-0.5 rounded border border-border bg-surface-muted text-xs font-mono text-foreground inline-flex items-center cursor-help hover:border-foreground/30 transition-colors select-none"
                     >
-                        {"{"}{p.key}{"}"}
+                        <span className="text-muted-foreground">{'{'}</span>
+                        <span>{p.key}</span>
+                        <span className="text-muted-foreground">{'}'}</span>
                     </span>
                 ))}
             </div>

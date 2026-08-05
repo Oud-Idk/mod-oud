@@ -1,7 +1,6 @@
 import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { DiscordEmbed } from "@/features/_shared/embed";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
-import { DiscordChannel } from "@/features/_shared/channels";
 import { JSX, ReactNode, SetStateAction, useEffect } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { ChannelSelector } from "@/features/_shared/message-creator/components/ChannelSelector";
@@ -9,6 +8,7 @@ import { MessageModeSelector } from "@/features/_shared/message-creator/componen
 import { PlaintextEditor } from "@/features/_shared/message-creator/components/PlaintextEditor";
 
 import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBuilder";
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface MessageConfigEditorProps {
     config: GenericMessageConfig;
@@ -87,7 +87,8 @@ export function MessageConfigEditor({
                             value={config.channel_id || ""}
                             disabled={disabled}
                             onChange={(value) => onChange({ ...config, channel_id: value })}
-                            className={targetChannelIsEmpty ? "border-red-700 dark:border-red-300" : ""}
+                            className={targetChannelIsEmpty ? "border-danger-subtle" : ""}
+                            targetChannelIsEmpty={targetChannelIsEmpty}
                         />
                     )}
                     {CustomFields}

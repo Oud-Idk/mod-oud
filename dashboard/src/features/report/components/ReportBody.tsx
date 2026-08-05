@@ -18,7 +18,7 @@ import { ReportConfig, ReportedMessage } from "@/features/report/types";
 import { ViewTicketStatus } from "@/features/tickets/types";
 
 
-import { DiscordChannel } from "@/features/_shared/channels";
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface ReportBodyConfig {
     reportConfig: ReportConfig;
@@ -106,7 +106,7 @@ export function ReportBody({
     }, [logs, statusFilter]);
 
     return (
-        <div className="flex-1 scrollbar-thin pr-2 pb-12 space-y-6">
+        <div className="flex-1 scrollbar-thin space-y-4">
             <ToggleSwitch
                 checked={config.enabled}
                 onChange={v => handleChange({ enabled: v })}

@@ -52,8 +52,7 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
     return (
         <Modal onClose={onClose} headerText="Create Bad Words Ruleset">
             <div>
-                <InputLabel>
-                    Ruleset Name</InputLabel>
+                <InputLabel>Ruleset Name</InputLabel>
                 <TextInput
                     placeholder="e.g. Hate Speech, Spam Keywords..."
                     value={name}

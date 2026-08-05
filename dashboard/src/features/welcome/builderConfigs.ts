@@ -11,7 +11,6 @@ export const WELCOME_CONFIG: BuilderConfig = {
     description: "Configure dynamic arrival embeds for newly joined members.",
     placeholders: [
         ...COMMON_PLACEHOLDERS,
-        ...SERVER_PLACEHOLDERS,
 
         { key: "random", mockValue: "7", label: "Generates a random number between 0 and 10" },
         {

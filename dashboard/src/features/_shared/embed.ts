@@ -1,5 +1,4 @@
 export type Format = "EMBED" | "TEXT";
-export type FieldKey = "NAME" | "VALUE" | "INLINE";
 
 // API Shape
 export interface EmbedThumbnail {

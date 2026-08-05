@@ -7,5 +7,5 @@ interface EmphasisProps {
 }
 
 export default function Footer({ children, className }: EmphasisProps) {
-    return <footer className={twMerge("text-sm text-neutral-500 mt-0", className)}>{children}</footer>
+    return <footer className={twMerge("text-xs text-muted-foreground", className)}>{children}</footer>
 }

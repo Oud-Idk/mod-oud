@@ -9,8 +9,8 @@ import { VerificationTab } from "@/features/welcome/components/VerificationTab";
 import { WelcomeConfig } from "@/features/welcome/types";
 import { WELCOME_CONFIG } from "@/features/welcome/builderConfigs";
 
-import { DiscordChannel } from "@/features/_shared/channels";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 export interface DiscordRole {
     id: string;
@@ -74,7 +74,7 @@ export function WelcomeBody({
         <div>
             <Tabs tabs={WELCOME_TABS} activeTab={activeTab} onChange={setActiveTab}/>
 
-            <div className="mt-4">
+            <div>
                 {activeTab === "PUBLIC" && (
                     <MessageConfigEditor
                         config={config.public}
@@ -102,7 +102,7 @@ export function WelcomeBody({
                         toggleLabel="Send Public Message when New User Joins"
                         embedTemplateConfig={WELCOME_CONFIG}
                         resetKey={`${resetKey}_public`}
-                        modeLabel="Message Mode (Public)"
+                        modeLabel="Message Mode"
                         placeholderText="Welcome to the server, {user.mention}!"
                         setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                         targetChannelIsEmpty={targetChannelIsEmpty}

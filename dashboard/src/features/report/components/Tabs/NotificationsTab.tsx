@@ -82,48 +82,50 @@ export function NotificationsTab({
 }: NotificationsTabProps) {
     const activeKey = TAB_TO_CONFIG_KEY[activeDmTab];
 
-    return <div className="space-y-6 px-4 mt-4">
-        <div>
-            <h3 className="text-lg font-semibold">Reporter Notifications</h3>
-            <p className="text-sm text-zinc-500">
-                Customize the messages sent to users who report content when their report status
-                changes. </p>
-        </div>
-
-        <Tabs
-            tabs={REPORT_DM_TABS} activeTab={activeDmTab} onChange={setActiveDmTab}
-        />
-
-        <div className="mt-4">
-            <MessageConfigEditor
-                config={config[activeKey]}
-                onChange={(updated) =>
-                    handleChange({
-                        [activeDmTab]: {
-                            enabled: updated.enabled,
-                            content: updated.content,
-                            embed: updated.embed,
-                            format: updated.format,
-                        }
-                    })
-                }
-                onEmbedChange={(embed) =>
-                    handleChange({
-                        [activeDmTab]: {
-                            ...config[activeKey],
-                            embed
-                        }
-                    })
-                }
-                disabled={isPending}
-                toggleLabel={`Enable DM when Report is ${activeDmTab === "RESOLVED_DM" ? "Actioned" : "Dismissed"}`}
-                embedTemplateConfig={REPORT_DM_CONFIGS[activeDmTab]}
-                resetKey={`${resetKey}_${activeDmTab}`}
-                modeLabel={`Message Mode (${activeDmTab === "RESOLVED_DM" ? "Actioned" : "Dismissed"})`}
-                placeholderText={REPORT_PLACEHOLDER_TEXTS[activeDmTab]}
-                setIsEmpty={setIsEmpty}
-                noChannels
+    return (
+        <div className="space-y-2">
+            <Tabs
+                tabs={REPORT_DM_TABS}
+                activeTab={activeDmTab}
+                onChange={setActiveDmTab}
+                className="mt-4"
             />
+
+            <div className="mt-4">
+                <MessageConfigEditor
+                    config={config[activeKey]}
+                    onChange={(updated) =>
+                        handleChange({
+                            [activeKey]: {
+                                enabled: updated.enabled,
+                                content: updated.content,
+                                embed: updated.embed,
+                                format: updated.format,
+                            },
+                        })
+                    }
+                    onEmbedChange={(embed) =>
+                        handleChange({
+                            [activeKey]: {
+                                ...config[activeKey],
+                                embed,
+                            },
+                        })
+                    }
+                    disabled={isPending}
+                    toggleLabel={`Enable DM when Report is ${
+                        activeDmTab === "RESOLVED_DM" ? "Actioned" : "Dismissed"
+                    }`}
+                    embedTemplateConfig={REPORT_DM_CONFIGS[activeDmTab]}
+                    resetKey={`${resetKey}_${activeDmTab}`}
+                    modeLabel={`Message Mode (${
+                        activeDmTab === "RESOLVED_DM" ? "Actioned" : "Dismissed"
+                    })`}
+                    placeholderText={REPORT_PLACEHOLDER_TEXTS[activeDmTab]}
+                    setIsEmpty={setIsEmpty}
+                    noChannels
+                />
+            </div>
         </div>
-    </div>;
+    );
 }

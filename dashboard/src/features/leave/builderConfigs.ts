@@ -11,7 +11,6 @@ export const LEAVE_CONFIG: BuilderConfig = {
     description: "Configure dynamic leave messages for members who left.",
     placeholders: [
         ...COMMON_PLACEHOLDERS,
-        ...MEMBER_PLACEHOLDERS,
         ...CHANNEL_PLACEHOLDERS,
 
         { key: "random", mockValue: "7", label: "Generates a random number between 0 and 10" },

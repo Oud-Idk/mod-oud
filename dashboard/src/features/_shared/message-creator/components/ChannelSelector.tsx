@@ -2,9 +2,8 @@
 
 import React, { useMemo } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
-
-
-import { DiscordChannel } from "@/features/_shared/channels";
+import { InputLabel } from "@/components/layout/InputLabel";
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface ChannelSelectorProps {
     channels: DiscordChannel[];
@@ -12,6 +11,7 @@ interface ChannelSelectorProps {
     onChange: (value: string) => void;
     disabled?: boolean;
     className?: string;
+    targetChannelIsEmpty?: boolean; // 👈 Added prop
 }
 
 export function ChannelSelector({
@@ -20,6 +20,7 @@ export function ChannelSelector({
     onChange,
     disabled,
     className,
+    targetChannelIsEmpty,
 }: ChannelSelectorProps) {
     const options = useMemo(() => {
         const list = channels.map((channel) => ({
@@ -27,15 +28,12 @@ export function ChannelSelector({
             label: `#${channel.name}${channel.type === 5 ? " 📢" : ""}`,
         }));
 
-        // Include the default placeholder item at the top of the list
         return [{ value: "", label: "Select a channel..." }, ...list];
     }, [channels]);
 
     return (
-        <div className="flex flex-col gap-2 max-w-sm">
-            <label className="text-sm block">
-                Target Channel
-            </label>
+        <div className="flex flex-col max-w-sm">
+            <InputLabel required>Target Channel</InputLabel>
             <Dropdown
                 options={options}
                 value={value}
@@ -43,7 +41,13 @@ export function ChannelSelector({
                 disabled={disabled}
                 placeholder="Select a channel..."
                 className={className}
+                error={targetChannelIsEmpty}
             />
+            {targetChannelIsEmpty && (
+                <span className="text-xs text-danger mt-1 font-medium">
+                    A target channel is required when this feature is enabled.
+                </span>
+            )}
         </div>
     );
 }

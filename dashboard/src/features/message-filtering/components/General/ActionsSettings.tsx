@@ -22,7 +22,7 @@ const ACTION_OPTIONS: DropdownOption<RuleAction>[] = [
 
 export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsSettingsProps): JSX.Element {
     return (
-        <div className="space-y-2">
+        <div className="space-y-2 max-w-md">
             <InputLabel>Actions</InputLabel>
 
             <Dropdown
@@ -30,7 +30,6 @@ export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsS
                 options={ACTION_OPTIONS}
                 value={actions}
                 placeholder="Select actions..."
-                className="max-w-xs"
                 onChange={(selected) => {
                     const selectedActions = selected as RuleAction[];
                     const hasTimeout = selectedActions.includes("TIMEOUT");

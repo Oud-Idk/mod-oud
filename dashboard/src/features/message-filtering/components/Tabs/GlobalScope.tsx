@@ -1,6 +1,7 @@
 import ScopeSettings from "@/features/message-filtering/components/General/ScopeSettings";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
-import { createFilterUpdater } from "@/features/message-filtering";
+
+import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 
 interface GlobalScopeTab {
     config: MessageFilteringConfig;

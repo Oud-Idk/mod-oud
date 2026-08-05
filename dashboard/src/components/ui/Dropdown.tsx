@@ -2,7 +2,7 @@
 
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { twMerge } from "tailwind-merge";
+import { cn } from "@/lib/cn";
 
 export interface DropdownOption<T extends string> {
     value: T;
@@ -13,6 +13,7 @@ interface BaseDropdownProps<T extends string> {
     options: DropdownOption<T>[];
     placeholder?: string;
     disabled?: boolean;
+    error?: boolean; // Added for design system consistency
     className?: string;
 }
 
@@ -36,11 +37,10 @@ export function Dropdown<T extends string>({
     onChange,
     placeholder = "Select an option",
     disabled,
-    className = "",
+    error,
+    className,
     multiple = false,
 }: DropdownProps<T>) {
-
-    // Type guards/assertions inside the component keep the internal render logic happy
     const selectedLabels = multiple && Array.isArray(value)
         ? options
             .filter((opt) => value.includes(opt.value))
@@ -51,46 +51,64 @@ export function Dropdown<T extends string>({
     const displayText = hasSelection ? selectedLabels.join(", ") : placeholder;
 
     return (
-        <div className={twMerge(`w-full relative`, className)}>
-            <Listbox
-                value={value} disabled={disabled} onChange={onChange as any} multiple={multiple}
-            >
+        <div className={cn("w-full relative", className)}>
+            <Listbox value={value} disabled={disabled} onChange={onChange as any} multiple={multiple}>
                 <div className="relative">
                     <ListboxButton
-                        className={twMerge("relative w-full cursor-pointer rounded-md border border-neutral-500 bg-neutral-300/10 py-2 pl-3 pr-10 min-h-full text-left text-sm disabled:cursor-not-allowed disabled:opacity-50", className)}
+                        aria-invalid={error ? true : undefined}
+                        className={cn(
+                            // Base Layout & Typography
+                            "relative w-full cursor-pointer rounded-md border bg-surface py-2 pl-3 pr-10 text-left text-sm transition-all duration-150",
+                            "disabled:cursor-not-allowed disabled:opacity-50",
+
+                            // Focus Ring Improvements (Uses focus-visible for clean keyboard navigation)
+                            "focus:outline-none focus-visible:ring-2 focus-visible:border-brand",
+
+                            // State Based Colors (Normal vs Error)
+                            error
+                                ? "border-danger-subtle"
+                                : "border-border focus-visible:ring-focus-ring"
+                        )}
                     >
-                        <span className={`block truncate font-medium ${!hasSelection && 'text-neutral-500'}`}>
+                        <span className={cn("block truncate font-medium", !hasSelection && "text-muted-foreground")}>
                             {displayText}
                         </span>
                         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                            <ChevronsUpDown className="h-4 w-4 text-neutral-400" aria-hidden="true"/>
+                            <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         </span>
                     </ListboxButton>
 
                     <ListboxOptions
                         anchor="bottom start"
-                        className="z-50 max-h-60 w-(--button-width) overflow-auto rounded-md bg-white py-1 text-sm shadow-[0px_0px_10px_-2px_rgba(0,0,0,0.5)] dark:bg-neutral-900 focus:outline-none [--anchor-gap:4px]"
+                        transition
+                        className={cn(
+                            // Popover Container
+                            "z-50 max-h-60 w-(--button-width) overflow-auto rounded-md bg-surface-elevated py-1 text-sm border border-border shadow-dropdown [--anchor-gap:4px]",
+                            "focus:outline-none",
+
+                            // Headless UI Smooth Fade/Scale Micro-Animation
+                            "transition duration-100 ease-out data-closed:scale-95 data-closed:opacity-0"
+                        )}
                     >
                         {options.map((option) => (
                             <ListboxOption
-                                key={option.value} value={option.value} className={({ focus }) =>
-                                `relative cursor-pointer select-none py-2 pl-10 pr-4 transition-colors focus:outline-none ${
-                                    focus
-                                        ? "bg-neutral-300/10 dark:text-white text-black"
-                                        : "text-neutral-900 dark:text-neutral-200"
-                                }`
-                            }
+                                key={option.value}
+                                value={option.value}
+                                className={({ focus }) =>
+                                    cn(
+                                        "relative cursor-pointer select-none py-2 pl-10 pr-4 transition-colors focus:outline-none",
+                                        focus ? "bg-surface-muted text-foreground" : "text-foreground"
+                                    )
+                                }
                             >
                                 {({ selected: isSelected }) => (
                                     <>
-                                        <span
-                                            className={`block truncate ${isSelected ? "font-semibold" : "font-normal"}`}
-                                        >
+                                        <span className={cn("block truncate", isSelected ? "font-semibold text-brand" : "font-normal")}>
                                             {option.label}
                                         </span>
                                         {isSelected && (
-                                            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                                                <Check className="h-4 w-4" aria-hidden="true"/>
+                                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-brand">
+                                                <Check className="h-4 w-4" aria-hidden="true" />
                                             </span>
                                         )}
                                     </>

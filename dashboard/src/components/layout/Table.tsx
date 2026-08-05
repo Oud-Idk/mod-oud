@@ -1,15 +1,15 @@
-// components/Table.tsx
-import { ReactNode } from "react";
+import React, { ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
 interface TableProps {
     children: ReactNode;
     className?: string;
 }
 
-export function Table({ children, className = "" }: TableProps) {
+export function Table({ children, className }: TableProps) {
     return (
-        <div className={`overflow-x-auto w-full border rounded-lg ${className}`}>
-            <table className="min-w-full divide-y divide-neutral-500 text-left text-sm">
+        <div className={cn("overflow-x-auto w-full border border-border rounded-lg bg-surface shadow-sm", className)}>
+            <table className="min-w-full divide-y divide-border text-left text-sm">
                 {children}
             </table>
         </div>
@@ -17,15 +17,20 @@ export function Table({ children, className = "" }: TableProps) {
 }
 
 interface TableHeaderProps {
-    headers: string[];
+    headers: (string | ReactNode)[];
+    className?: string;
 }
 
-export function TableHeader({ headers }: TableHeaderProps) {
+export function TableHeader({ headers, className }: TableHeaderProps) {
     return (
-        <thead className="uppercase tracking-wider">
+        <thead className={cn("bg-surface-muted border-b border-border", className)}>
         <tr>
             {headers.map((header, idx) => (
-                <th key={idx} scope="col" className="px-6 py-3 font-medium">
+                <th
+                    key={idx}
+                    scope="col"
+                    className="px-6 py-3.5"
+                >
                     {header}
                 </th>
             ))}
@@ -36,11 +41,12 @@ export function TableHeader({ headers }: TableHeaderProps) {
 
 interface TableBodyProps {
     children: ReactNode;
+    className?: string;
 }
 
-export function TableBody({ children }: TableBodyProps) {
+export function TableBody({ children, className }: TableBodyProps) {
     return (
-        <tbody className="divide-y divide-neutral-300 dark:divide-neutral-700">
+        <tbody className={cn("divide-y divide-border-subtle bg-surface", className)}>
         {children}
         </tbody>
     );
@@ -51,9 +57,9 @@ interface TableRowProps {
     className?: string;
 }
 
-export function TableRow({ children, className = "" }: TableRowProps) {
+export function TableRow({ children, className }: TableRowProps) {
     return (
-        <tr className={`hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${className}`}>
+        <tr className={cn("hover:bg-surface-active/35 transition-colors duration-150", className)}>
             {children}
         </tr>
     );
@@ -64,9 +70,9 @@ interface TableCellProps {
     className?: string;
 }
 
-export function TableCell({ children, className = "" }: TableCellProps) {
+export function TableCell({ children, className }: TableCellProps) {
     return (
-        <td className={`px-6 py-4 text-sm ${className}`}>
+        <td className={cn("px-6 py-4 text-sm text-foreground", className)}>
             {children}
         </td>
     );

@@ -4,12 +4,25 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { ModerationLog } from "@/features/logs/types";
 import { getModerationLogsAction } from "@/features/logs/actions";
+import { cn } from "@/lib/cn";
+import { TableSkeleton } from "@/features/logs/components/TableSkeleton";
+import { EmptyLogsState } from "@/features/logs/components/EmptyLogState";
 
 interface ModerationTabProps {
     guildId: string;
 }
 
 const LIMIT = 20;
+const HEADERS = ["Case ID", "Action", "Target Username", "Moderator Username", "Reason", "Duration", "Timestamp"];
+
+function InfiniteLoadingIndicator(props: {
+    ref: React.RefObject<HTMLDivElement | null>,
+    loadingMore: boolean,
+    hasMore: boolean,
+    logsLength: number
+}) {
+    return null;
+}
 
 export function ModerationTab({ guildId }: ModerationTabProps): ReactNode {
     const [logs, setLogs] = useState<ModerationLog[]>([]);
@@ -73,56 +86,64 @@ export function ModerationTab({ guildId }: ModerationTabProps): ReactNode {
     }, [fetchMoreLogs, hasMore, loading, loadingMore]);
 
     if (loading) {
-        return <div>Loading logs...</div>;
+        return <TableSkeleton headers={HEADERS} />;
     }
 
     if (logs.length === 0) {
-        return <div>No moderation logs found.</div>;
+        return <EmptyLogsState message="No moderation incidents have been filed on this server." />;
     }
 
-    // Small helper to color code the action badges so it looks fancy
     const getActionBadgeColor = (action: string): string => {
         switch (action.toLowerCase()) {
-            case "BAN":
-            case "SOFTBAN":
-                return "bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/20";
-            case "KICK":
-                return "bg-orange-500/10 text-orange-500 dark:text-orange-400 border-orange-500/20";
-            case "MUTE":
-                return "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20";
-            case "UNMUTE":
-                return "bg-green-500/10 text-green-500 dark:text-green-400 border-green-500/20";
+            case "ban":
+            case "softban":
+                return "bg-danger-subtle text-danger border-danger/15";
+            case "kick":
+                return "bg-warning-subtle text-warning border-warning/15";
+            case "mute":
+                return "bg-warning-subtle text-warning border-warning/15";
+            case "unmute":
+                return "bg-success-subtle text-success border-success/15";
             default:
-                return "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400 border-neutral-500/20";
+                return "bg-surface-active text-muted-foreground border-border";
         }
     };
 
     return (
-        <div>
+        <div className="space-y-4">
             <Table>
-                <TableHeader
-                    headers={["Case ID", "Action", "Target Username", "Moderator Username", "Reason", "Duration", "Timestamp"]}
-                />
+                <TableHeader headers={HEADERS} />
                 <TableBody>
                     {logs.map((log) => (
                         <TableRow key={log.case_id}>
-                            <TableCell className="font-mono text-xs font-semibold">#{log.case_id}</TableCell>
+                            <TableCell className="font-mono text-xs font-semibold text-foreground">
+                                #{log.case_id}
+                            </TableCell>
                             <TableCell>
                                 <span
-                                    className={`px-2 py-0.5 text-xs rounded border ${getActionBadgeColor(log.action_type)}`}
+                                    className={cn(
+                                        "px-2 py-0.5 text-xs font-bold uppercase tracking-wider rounded border",
+                                        getActionBadgeColor(log.action_type)
+                                    )}
                                 >
                                     {log.action_type.toUpperCase()}
                                 </span>
                             </TableCell>
-                            <TableCell className="font-mono text-xs">{log.target_id ?? "-"}</TableCell>
-                            <TableCell className="font-mono text-xs">{log.moderator_id}</TableCell>
-                            <TableCell className="max-w-xs truncate">
-                                {log.reason || <span className="text-gray-400 italic">No reason provided</span>}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {log.target_id ?? "—"}
                             </TableCell>
-                            <TableCell className="text-xs">
-                                {log.duration || <span className="text-gray-400">—</span>}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {log.moderator_id}
                             </TableCell>
-                            <TableCell className="text-xs">
+                            <TableCell className="max-w-xs truncate text-foreground">
+                                {log.reason || (
+                                    <span className="text-muted-foreground italic">No reason provided</span>
+                                )}
+                            </TableCell>
+                            <TableCell className="text-xs text-foreground">
+                                {log.duration || <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
                                 {new Date(log.created_at).toLocaleString()}
                             </TableCell>
                         </TableRow>
@@ -130,14 +151,13 @@ export function ModerationTab({ guildId }: ModerationTabProps): ReactNode {
                 </TableBody>
             </Table>
 
-            <div ref={observerTarget} className="py-6 flex justify-center items-center min-h-10">
-                {loadingMore && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Loading more logs...</span>
-                )}
-                {!hasMore && logs.length > 0 && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500">All logs loaded</span>
-                )}
-            </div>
+            {/* Bottom Infinite Loading Indicator */}
+            <InfiniteLoadingIndicator
+                ref={observerTarget}
+                loadingMore={loadingMore}
+                hasMore={hasMore}
+                logsLength={logs.length}
+            />
         </div>
     );
 }

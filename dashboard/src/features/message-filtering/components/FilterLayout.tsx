@@ -33,19 +33,18 @@ export function FilterLayout({
     children,
 }: FilterLayoutProps) {
     return (
-        <div className="space-y-0">
+        <div>
             <ToggleSwitch
                 checked={enabled} onChange={onToggle} disabled={false} text={toggleText} shrink={true}
             />
 
             {enabled && (
-                <div className="space-y-1">
+                <div className="space-y-2 max-w-md">
                     {children}
 
                     <ActionsSettings
                         actions={actions} timeoutDuration={timeoutDuration} onChange={onActionsChange}
                     />
-                    <Pad amount={1}/>
 
                     <ScopeSettings
                         scope={scope} channelMap={channelMap} roleMap={roleMap} onChange={onScopeChange}

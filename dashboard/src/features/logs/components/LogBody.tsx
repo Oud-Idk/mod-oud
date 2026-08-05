@@ -30,8 +30,9 @@ export function LogBody({ guildId }: LogBodyProps): ReactNode {
             <div className="mt-4">
                 {activeTab === "AUTOMOD" && <AutomodTab guildId={guildId}/>}
                 {activeTab === "ACTIVITY" && <MemberActivityTab guildId={guildId}/>}
-                {activeTab === "MODERATION" && <ModerationTab guildId={guildId}/>} {/* <-- Added condition */}
+                {activeTab === "MODERATION" && <ModerationTab guildId={guildId}/>}
             </div>
         </div>
     );
 }
+

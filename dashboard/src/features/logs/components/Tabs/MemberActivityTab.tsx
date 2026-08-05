@@ -4,12 +4,24 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { JoinLeaveLog } from "@/features/logs/types";
 import { getJoinLeaveLogsAction } from "@/features/logs/actions";
+import { TableSkeleton } from "@/features/logs/components/TableSkeleton";
+import { EmptyLogsState } from "@/features/logs/components/EmptyLogState";
 
 interface MemberActivityTabProps {
     guildId: string;
 }
 
 const LIMIT = 20;
+const HEADERS = ["User ID", "Action", "Timestamp"];
+
+function InfiniteLoadingIndicator(props: {
+    ref: React.RefObject<HTMLDivElement | null>,
+    loadingMore: boolean,
+    hasMore: boolean,
+    logsLength: number
+}) {
+    return null;
+}
 
 export function MemberActivityTab({ guildId }: MemberActivityTabProps): ReactNode {
     const [logs, setLogs] = useState<JoinLeaveLog[]>([]);
@@ -73,33 +85,33 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): ReactNod
     }, [fetchMoreLogs, hasMore, loading, loadingMore]);
 
     if (loading) {
-        return <div>Loading member events...</div>;
+        return <TableSkeleton headers={HEADERS} />;
     }
 
     if (logs.length === 0) {
-        return <div>No entries found.</div>;
+        return <EmptyLogsState message="No member events (joins/leaves) have occurred recently." />;
     }
 
     return (
-        <div>
+        <div className="space-y-4">
             <Table>
-                <TableHeader headers={["User ID", "Action", "Timestamp"]}/>
+                <TableHeader headers={HEADERS}/>
                 <TableBody>
                     {logs.map((log) => (
                         <TableRow key={log.id}>
-                            <TableCell className="font-mono text-xs">{log.user_id}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{log.user_id}</TableCell>
                             <TableCell>
                                 {log.action === "JOIN" ? (
-                                    <span className="px-2 py-0.5 text-xs rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                    <span className="px-2 py-0.5 text-xs font-semibold rounded bg-success-subtle text-success border border-success/15">
                                         Joined
                                     </span>
                                 ) : (
-                                    <span className="px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                                    <span className="px-2 py-0.5 text-xs font-semibold rounded bg-warning-subtle text-warning border border-warning/15">
                                         Left
                                     </span>
                                 )}
                             </TableCell>
-                            <TableCell className="text-xs">
+                            <TableCell className="text-xs text-muted-foreground">
                                 {new Date(log.created_at).toLocaleString()}
                             </TableCell>
                         </TableRow>
@@ -107,14 +119,13 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): ReactNod
                 </TableBody>
             </Table>
 
-            <div ref={observerTarget} className="py-6 flex justify-center items-center min-h-10">
-                {loadingMore && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Loading more logs...</span>
-                )}
-                {!hasMore && logs.length > 0 && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500">All logs loaded</span>
-                )}
-            </div>
+            {/* Bottom Infinite Loading Indicator */}
+            <InfiniteLoadingIndicator
+                ref={observerTarget}
+                loadingMore={loadingMore}
+                hasMore={hasMore}
+                logsLength={logs.length}
+            />
         </div>
     );
 }

@@ -15,7 +15,6 @@ import { AntiSpamFilterTab } from "@/features/message-filtering/components/Tabs/
 import { GlobalScopeTab } from "@/features/message-filtering/components/Tabs/GlobalScope";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 
-// Import your custom Bad Words components
 import { BadWordTab } from "@/features/message-filtering/components/Tabs/BadWordsTab";
 import { CryptoAddressTab } from "@/features/message-filtering/components/Tabs/CryptoAddressTab";
 import { BadWordRuleset } from "@/features/message-filtering/types";

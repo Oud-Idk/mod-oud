@@ -1,6 +1,6 @@
 import { EmbedState } from "@/features/_shared/message-creator/types";
-import { DiscordEmbed, FieldKey } from "@/features/_shared/embed";
-import React, { ReactNode, SetStateAction, useMemo } from "react";
+import { DiscordEmbed, EmbedField } from "@/features/_shared/embed"; // <-- Removed FieldKey
+import React, { ReactNode, SetStateAction, useMemo, useEffect } from "react";
 import { PlaceholderList } from "@/features/_shared/message-creator/components/PlaceholderList";
 import { EmbedBuilderForm } from "@/features/_shared/message-creator/components/EmbedBuilderForm";
 import { EmbedPreview } from "@/features/_shared/message-creator/components/EmbedPreview";
@@ -59,7 +59,6 @@ export const hexToDecimal = (hex: string): number => {
 
 function decimalToHex(decimal?: number): string {
     if (decimal === undefined || decimal === null) return "#000000"; // Default fallback color
-
     const clamped = Math.max(0, Math.min(decimal, 0xffffff));
     return `#${clamped.toString(16).padStart(6, '0')}`;
 }
@@ -108,6 +107,7 @@ export const parseSavedEmbed = (savedValue?: string | object, defaultValues?: Em
         return defaultValues || ({ color: "#000000" } as EmbedState);
     }
 };
+
 export default function EmbedBuilder({
     config,
     setEmbedState,
@@ -122,13 +122,29 @@ export default function EmbedBuilder({
         return { ...emptyState, ...parsed, fields: parsed.fields || [] };
     }, [initialEmbedState]);
 
+    const isEmbedEmpty = useMemo(() => {
+        return (
+            !embed.title?.trim() &&
+            !embed.description?.trim() &&
+            (!embed.fields || embed.fields.length === 0) &&
+            !embed.imageUrl &&
+            !embed.authorName &&
+            !embed.footerText
+        );
+    }, [embed]);
+
+    useEffect(() => {
+        setIsEmpty(isEmbedEmpty);
+    }, [isEmbedEmpty, setIsEmpty]);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         const updated = { ...embed, [name]: value };
         setEmbedState(convertToDiscordEmbed(updated));
     };
 
-    const handleFieldChange = (index: number, key: FieldKey, value: string | boolean) => {
+    // FIX 1: Use `keyof EmbedField` instead of `FieldKey` to match the exact properties in the array
+    const handleFieldChange = (index: number, key: keyof EmbedField, value: string | boolean) => {
         const updatedFields = [...(embed.fields || [])];
         updatedFields[index] = { ...updatedFields[index], [key]: value };
         const updated = { ...embed, fields: updatedFields };
@@ -151,20 +167,33 @@ export default function EmbedBuilder({
         setEmbedState(convertToDiscordEmbed(updated));
     };
 
+    // FIX 2: Added moveField support for the Up/Down arrows in EmbedBuilderForm
+    const moveField = (fromIndex: number, toIndex: number) => {
+        const updatedFields = [...(embed.fields || [])];
+        const [movedItem] = updatedFields.splice(fromIndex, 1);
+        updatedFields.splice(toIndex, 0, movedItem);
+
+        const updated = { ...embed, fields: updatedFields };
+        setEmbedState(convertToDiscordEmbed(updated));
+    };
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="flex flex-col space-y-4 pt-2">
-                    {(enablePlaceholderList && (placeholderConfig?.placeholders.length || 0 > 0)) && (
-                        <PlaceholderList config={config}/>)
-                    }
+
+                    {enablePlaceholderList && (placeholderConfig?.placeholders?.length ?? 0) > 0 && (
+                        <PlaceholderList config={placeholderConfig || config} />
+                    )}
+
                     <EmbedBuilderForm
                         embed={embed}
                         handleChange={handleChange}
                         handleFieldChange={handleFieldChange}
                         addField={addField}
                         removeField={removeField}
-                        setIsEmpty={setIsEmpty}
+                        moveField={moveField}
+                        isEmpty={isEmbedEmpty}
                     />
                 </div>
 

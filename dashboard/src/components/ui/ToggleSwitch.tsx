@@ -3,7 +3,7 @@
 import { Switch } from "@headlessui/react";
 import { twMerge } from "tailwind-merge";
 
-interface EnableSwitchProps {
+export interface ToggleSwitchProps {
     checked: boolean;
     onChange: (value: boolean) => void;
     disabled?: boolean;
@@ -14,23 +14,50 @@ interface EnableSwitchProps {
 
 export function ToggleSwitch({
     checked,
-    onChange: setEnabled,
-    disabled,
+    onChange,
+    disabled = false,
     text,
     className,
-    shrink,
-}: EnableSwitchProps) {
+    shrink = false,
+}: ToggleSwitchProps) {
     return (
-        <div className={twMerge("text-lg flex flex-row gap-4 items-center text-wrap", className)}>
-            {text && (<p>{text}</p>)}
+        <label
+            className={twMerge(
+                "inline-flex items-center gap-3 select-none font-medium text-foreground cursor-pointer",
+                disabled && "opacity-50 cursor-not-allowed",
+                className
+            )}
+        >
+            {text && <span>{text}</span>}
+
             <Switch
                 checked={checked}
-                onChange={setEnabled}
+                onChange={onChange}
                 disabled={disabled}
-                className={`group inline-flex h-6 w-11 items-center rounded-full bg-neutral-500 transition data-checked:bg-blue-500 ${!shrink ? "shrink-0" : ""}`}
+                className={twMerge(
+                    "group relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer",
+
+                    // Track Colors (Off = Border/Muted Surface | On = Brand)
+                    "bg-border data-checked:bg-brand",
+
+                    // Focus Ring (Keyboard Accessibility)
+                    "focus-ring",
+
+                    // Disabled Cursor
+                    "disabled:cursor-not-allowed",
+
+                    !shrink && "shrink-0"
+                )}
             >
-                <span className="size-4 translate-x-1 rounded-full bg-white transition group-data-checked:translate-x-6"/>
+                {/* Thumb / Knob */}
+                <span
+                    className={twMerge(
+                        "size-4 rounded-full transition-transform translate-x-1",
+                        // Thumb color adapts to brand foreground when active
+                        "bg-surface group-data-checked:bg-brand-foreground group-data-checked:translate-x-6"
+                    )}
+                />
             </Switch>
-        </div>
+        </label>
     );
 }

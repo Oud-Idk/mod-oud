@@ -13,7 +13,8 @@ import { LeaderboardTab } from "@/features/leveling/components/Tabs/LeaderboardT
 import { ImageCardTab } from "@/features/leveling/components/Tabs/ImageCardTab";
 import { UserLevel, LevelingConfig, LevelReward, XpMultiplier } from "@/features/leveling/types";
 
-import { DiscordChannel } from "@/features/_shared/channels";
+
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface LevelingBodyProps {
     guildId: string;

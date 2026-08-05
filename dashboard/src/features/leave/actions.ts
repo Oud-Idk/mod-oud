@@ -1,3 +1,5 @@
+"use server";
+
 import { LeaveConfig } from "@/features/leave/types";
 import { saveLeaveConfig } from "@/features/leave/queries";
 import { revalidatePath } from "next/cache";

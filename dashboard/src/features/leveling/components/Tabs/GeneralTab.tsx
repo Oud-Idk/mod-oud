@@ -6,8 +6,8 @@ import { SetStateAction } from "react";
 import { LevelingConfig, NotificationScope } from "@/features/leveling/types";
 import { LEVEL_NOTIFY_CONFIG } from "@/features/leveling/builderConfigs";
 
-import { DiscordChannel } from "@/features/_shared/channels";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 export interface GeneralTabProps {
     config: LevelingConfig;

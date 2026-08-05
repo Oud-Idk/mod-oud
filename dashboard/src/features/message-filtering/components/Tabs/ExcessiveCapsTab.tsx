@@ -2,7 +2,8 @@ import { FilterLayoutWrapper } from "@/features/message-filtering/components/Fil
 import { PercentSlider } from "@/components/ui/PercentSlider";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
-import { createFilterUpdater } from "@/features/message-filtering";
+
+import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 
 interface ExcessiveCapsProps {
     config: MessageFilteringConfig;
@@ -33,6 +34,7 @@ export function ExcessiveCapsTab({
                 value={filterConfig.threshold}
                 onChange={(v) => updateFilter({ threshold: v })}
                 label="Threshold Percentage"
+                className="mt-1"
             />
             <NumberInput
                 value={filterConfig.minLength}

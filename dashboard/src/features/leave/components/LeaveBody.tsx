@@ -5,11 +5,9 @@ import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { LeaveConfig } from "@/features/leave/types";
 import { DiscordEmbed } from "@/features/_shared/embed";
-import { WELCOME_CONFIG } from "@/features/welcome/builderConfigs";
 import { LEAVE_CONFIG } from "@/features/leave/builderConfigs";
-
-import { DiscordChannel } from "@/features/_shared/channels";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface LeaveBodyProps {
     leaveConfig: LeaveConfig;
@@ -41,25 +39,29 @@ export function LeaveBody({
         onSave,
     });
 
-    const handleEditorChange = useCallback((updated: LeaveConfig) => {
-        handleChange({
-            enabled: updated.enabled,
-            channelId: updated.channelId || "",
-            content: updated.content,
-            embed: updated.embed,
-            format: updated.format,
-        });
-    }, [handleChange]);
-
     const handleEmbedChange = useCallback((embed: DiscordEmbed) => {
         setConfig((prev) => ({ ...prev, embed }));
     }, [setConfig]);
 
+    // Bridge camelCase (LeaveConfig) to snake_case (MessageConfigEditor)
+    const editorConfig = useMemo(() => ({
+        ...config,
+        channel_id: config.channelId || "",
+    }), [config]);
+
     return (
         <div>
             <MessageConfigEditor
-                config={config}
-                onChange={v => handleEditorChange({...v, channelId: v.channel_id ?? "", enabled: v.enabled ?? false, content: v.content ?? "", embed: v.embed ?? {}})}
+                config={editorConfig}
+                onChange={(updated) =>
+                    handleChange({
+                        enabled: updated.enabled ?? false,
+                        channelId: updated.channel_id ?? "",
+                        content: updated.content ?? "",
+                        embed: updated.embed ?? {},
+                        format: updated.format,
+                    })
+                }
                 onEmbedChange={handleEmbedChange}
                 channels={channels}
                 disabled={isPending}
@@ -75,7 +77,9 @@ export function LeaveBody({
 
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

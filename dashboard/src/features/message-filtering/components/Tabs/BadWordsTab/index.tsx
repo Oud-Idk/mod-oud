@@ -6,8 +6,9 @@ import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { BadWordCreateModal } from "./BadWordCreateModal";
 import { BadWordRulesetConfig } from "./BadWordRulesetConfig";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { BadWordRuleset } from "@/features/message-filtering/types";
+import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/Button";
 
 type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {
     id?: string;
@@ -53,7 +54,8 @@ export function BadWordTab({
 
     return (
         <>
-            <ConfigListLayout<BadWordRuleset> title="Rulesets"
+            <ConfigListLayout<BadWordRuleset>
+                title="Rulesets"
                 onCreateClick={() => setIsCreateModalOpen(true)}
                 items={rulesets}
                 emptyMessage="No rulesets configured yet."
@@ -71,37 +73,44 @@ export function BadWordTab({
                         <button
                             key={ruleset.id}
                             onClick={() => router.push(`/dashboard/${guildId}/message-filtering?id=${ruleset.id}`)}
-                            className={`w-full text-left px-3 py-2 rounded text-sm transition block cursor-pointer truncate ${
+                            className={cn(
+                                "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border",
                                 isCurrent
-                                    ? "bg-neutral-400/15 hover:bg-neutral-400/20 font-medium"
-                                    : "hover:bg-neutral-300/15"
-                            }`}
+                                    ? "bg-surface-active/50 border-border text-foreground shadow-sm"
+                                    : "border-transparent hover:bg-surface-active/60 text-foreground"
+                            )}
                         >
-                            <div className="flex justify-between items-center">
-                                <span className="truncate font-semibold">{ruleset.name}</span>
+                            <div className="flex justify-between items-center gap-2 w-full">
+                                <span className="truncate font-semibold text-sm">{ruleset.name}</span>
                                 <span
-                                    className={`text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                                        ruleset.enabled ? "bg-emerald-500/10 text-emerald-500" : "bg-neutral-500/10 text-neutral-400"
-                                    }`}
+                                    className={cn(
+                                        "text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                                        ruleset.enabled
+                                            ? "text-success"
+                                            : "text-muted-foreground"
+                                    )}
                                 >
                                     {statusText}
                                 </span>
                             </div>
-                            <div className="text-xs text-zinc-500 truncate mt-0.5">
+                            <div className="text-xs text-muted-foreground truncate mt-1">
                                 {patternCount === 1 ? "1 Pattern" : `${patternCount} Patterns`} • {ruleset.actions.join(", ")}
                             </div>
                         </button>
                     );
                 }}
                 noActivePlaceholder={
-                    <>
-                        <p className="mb-1">Select an active ruleset, or create a new one to begin.</p>
-                        <PrimaryButton
-                            onClick={() => setIsCreateModalOpen(true)}
-                        >
+                    <div className="max-w-md mx-auto space-y-4">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold">No Ruleset Selected</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Select an active ruleset from the sidebar to edit its patterns, or create a new ruleset to begin filtering.
+                            </p>
+                        </div>
+                        <Button onClick={() => setIsCreateModalOpen(true)}>
                             Create Your First Ruleset
-                        </PrimaryButton>
-                    </>
+                        </Button>
+                    </div>
                 }
             >
                 <BadWordRulesetConfig
@@ -116,7 +125,9 @@ export function BadWordTab({
             </ConfigListLayout>
 
             <BadWordCreateModal
-                isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSave={onSave}
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSave={onSave}
             />
         </>
     );

@@ -1,9 +1,9 @@
 "use client";
 
 import React, { ReactNode } from "react";
-import { Pad } from "@/components/layout/Pad";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
+import { Button } from "@/components/ui/Button";
+import Emphasis from "@/components/layout/Emphasis";
 
 interface ConfigListLayoutProps<T> {
     title: string;
@@ -41,27 +41,33 @@ export function ConfigListLayout<T>({
     children,
 }: ConfigListLayoutProps<T>) {
     return (
-        <div className="items-start mt-4 shrink">
-            <div className="md:col-span-1 flex flex-col min-h-70 max-h-70 p-4 rounded-lg border overflow-hidden">
-                <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm font-semibold uppercase tracking-wider">{title}</span>
-                    <PrimaryButton onClick={onCreateClick}>{createButtonText}</PrimaryButton>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-stretch mt-4">
+            <div className="md:col-span-1 flex flex-col min-h-100 p-4 rounded-lg border border-border bg-surface overflow-hidden">
+                <div className="flex justify-between items-center pb-3 border-b border-border-subtle shrink-0">
+                    <Emphasis>{title}</Emphasis>
+                    <Button onClick={onCreateClick}>{createButtonText}</Button>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 mt-4">
+                {/* List Body */}
+                <div className="flex-1 flex flex-col min-h-0 overflow-y-auto mt-3">
                     {items.length === 0 ? (
-                        <p className="text-xs py-2">{emptyMessage}</p>
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-4 border border-dashed border-border-subtle rounded-lg my-1">
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                {emptyMessage}
+                            </p>
+                        </div>
                     ) : (
-                        items.map((item) => renderItem(item))
+                        <div className="space-y-2">
+                            {items.map((item) => renderItem(item))}
+                        </div>
                     )}
                 </div>
             </div>
 
-            <Pad/>
-
-            <div className="md:col-span-3 border border-zinc-850 p-6 rounded-lg">
+            {/* Main Content Details Panel */}
+            <div className="md:col-span-3 flex flex-col min-h-100 border border-border bg-surface p-4 rounded-lg">
                 {!hasActiveConfig ? (
-                    <div className="text-center py-12 space-y-3">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
                         {noActivePlaceholder}
                     </div>
                 ) : (
@@ -72,7 +78,9 @@ export function ConfigListLayout<T>({
             {/* Bottom Floating Save Bar */}
             {isDirty && handleSave && handleCancel && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

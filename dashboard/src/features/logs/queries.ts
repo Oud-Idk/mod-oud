@@ -91,22 +91,22 @@ export async function getJoinLeaveLogs(
     cursorId?: string | null
 ): Promise<JoinLeaveLog[]> {
     const query = `
-    SELECT id::TEXT,
-           user_id::TEXT,
-           guild_id::TEXT,
-           action,
-           created_at
-    FROM join_leave_logs
-    WHERE guild_id = $1
-      AND ($2::TEXT IS NULL OR action = $2)
-      AND (
-        $3::TEXT IS NULL OR $4::BIGINT IS NULL OR
-        created_at < $3::TIMESTAMPTZ OR
-        (created_at = $3::TIMESTAMPTZ AND id < $4::BIGINT)
-      )
-    ORDER BY created_at DESC, id DESC
-    LIMIT $5;
-  `;
+        SELECT id::TEXT,
+               user_id::TEXT,
+               guild_id::TEXT,
+               action,
+               created_at
+        FROM join_leave_logs
+        WHERE guild_id = $1
+          AND ($2::TEXT IS NULL OR action = $2::LOG_ACTION) -- ✨ The magic fix is right here! ✨
+          AND (
+            $3::TEXT IS NULL OR $4::BIGINT IS NULL OR
+            created_at < $3::TIMESTAMPTZ OR
+            (created_at = $3::TIMESTAMPTZ AND id < $4::BIGINT)
+            )
+        ORDER BY created_at DESC, id DESC
+        LIMIT $5;
+    `;
 
     const result = await db.query(query, [
         guildId,

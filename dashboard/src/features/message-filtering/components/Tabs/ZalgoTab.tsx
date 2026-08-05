@@ -1,6 +1,7 @@
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayoutWrapper";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
-import { createFilterUpdater } from "@/features/message-filtering";
+
+import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 
 interface ZalgoTabProp {
     config: MessageFilteringConfig;
@@ -28,9 +29,7 @@ export function ZalgoTab({
             toggleText="Enable Zalgo Filter"
         >
             <p>Zalgos like T̴̢̝͇̈́̐͒h̵̙̼͌͐͐e̵̢̪̦͛̓̚ q̸͇̺͔͋͛̕ǘ̸̫̘͌̔͜i̸͍͖̪̓͐c̴̝̺̼̒̈́͠k̴̫͕̦̐̈́̾
-                b̴̡̦͙͆̐̐r̴̡͍̞̓́̓o̴̼̼͎͊̾w̵͖͇͇̿̓̚n̸̼̻̫͋̈́ f̴̻͓͇̾͑͝o̸̪̦̓̈́̕x̴̻̝͓̓̐͝ j̴̪͇̙̽̓̕u̴͚̝̟̒̓m̵̙͕͎͑̾p̸̪͎͔̈́̈́͠s̸̫͍͑͐͘
-                o̸͇͕̠͑̽̕v̴͉̼͎͆͊e̴̢̻͉̔̓r̵̡̼̼̽̽̈́ t̴̡̢̪̾̈́͊h̸͖͍͎̓͊̕e̸̡͕͔̐̚ l̸͇̟̪͋͐͐a̵̘̠͓͛̈́z̴̡̦̿͊͜͝y̸̪̝͚͒͊͝
-                d̸͙͙̠́̈́͠o̴̟̦͆͑͜g̴̡̺̞͑̕͠ &nbsp;will be filtered</p>
+                b̴̡̦͙͆̐̐r̴̡͍̞̓́̓o̴̼̼͎͊̾w̵͖͇͇̿̓̚n̸̼̻̫͋̈́ f̴̻͓͇̾͑͝o̸̪̦̓̈́̕x̴̻̝͓̓̐͝ j̴̪͇̙̽̓̕u̴͚̝̟̒̓m̵̙͕͎͑̾p̸̪͎͔̈́̈́͠s̸̫͍͑͐͘&nbsp;will be filtered</p>
         </FilterLayoutWrapper>
     )
 }

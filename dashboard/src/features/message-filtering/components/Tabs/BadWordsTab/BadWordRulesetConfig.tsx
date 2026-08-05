@@ -8,9 +8,8 @@ import ScopeSettings from "@/features/message-filtering/components/General/Scope
 import { TextInput } from "@/components/ui/TextInput";
 import ActionsSettings from "@/features/message-filtering/components/General/ActionsSettings";
 import { InputLabel } from "@/components/layout/InputLabel";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
+import { Button } from "@/components/ui/Button";
 import { BadWordRuleset, StrategyType } from "@/features/message-filtering/types";
-
 
 interface BadWordRulesetConfigProps {
     config: BadWordRuleset;
@@ -61,23 +60,26 @@ export function BadWordRulesetConfig({
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center pb-4 border-b border-zinc-800">
-                <div className="flex flex-row items-center gap-2">
-                    <InputLabel>
+        <div className="space-y-4">
+            {/* Header / Ruleset Name + Delete */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-border-subtle">
+                <div className="flex items-center gap-3 flex-1 max-w-sm w-full">
+                    <InputLabel required className="whitespace-nowrap shrink-0">
                         Ruleset Name
                     </InputLabel>
                     <TextInput
                         value={config.name}
                         onChange={(e) => onChange({ name: e.target.value })}
-                        className="p-1"
+                        className="p-1.5 w-full"
                     />
                 </div>
-                <PrimaryButton
-                    onClick={() => onDelete(config.id)} disabled={isPending}
+                <Button
+                    onClick={() => onDelete(config.id)}
+                    disabled={isPending}
+                    variant="danger"
                 >
                     Delete Ruleset
-                </PrimaryButton>
+                </Button>
             </div>
 
             <ToggleSwitch
@@ -90,32 +92,43 @@ export function BadWordRulesetConfig({
             />
 
             {config.enabled && (
-                <div className="space-y-4">
-                    <div>
+                <div className="space-y-2">
+                    <div className="space-y-2">
                         <InputLabel>Configure Custom Patterns</InputLabel>
-                        <TextInput
-                            value={wordInput}
-                            onChange={(e) => setWordInput(e.target.value)}
-                            placeholder="Add a word or pattern..."
-                            onSubmit={addPattern}
-                            className="mb-2"
-                        />
-                        <Dropdown
-                            options={[
-                                { value: "EXACT", label: "Exact match" },
-                                { value: "SUBSTRING", label: "Substring" },
-                                { value: "REGEX", label: "Regex" },
-                            ]}
-                            value={strategyInput}
-                            onChange={(strategy) => setStrategyInput(strategy as StrategyType)}
-                            placeholder="Strategy"
-                            className="max-w-xs"
-                        />
 
-                        <div className="space-y-2 mt-4">
-                            <span className="block">Active Rules</span>
+                        {/* Side-by-Side Form Row */}
+                        <form onSubmit={addPattern} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                            <TextInput
+                                value={wordInput}
+                                onChange={(e) => setWordInput(e.target.value)}
+                                placeholder="Add a word or pattern..."
+                                className="flex-1"
+                            />
+                            <div className="w-full sm:w-44 shrink-0">
+                                <Dropdown
+                                    options={[
+                                        { value: "EXACT", label: "Exact match" },
+                                        { value: "SUBSTRING", label: "Substring" },
+                                        { value: "REGEX", label: "Regex" },
+                                    ]}
+                                    value={strategyInput}
+                                    onChange={(strategy) => setStrategyInput(strategy as StrategyType)}
+                                    placeholder="Strategy"
+                                />
+                            </div>
+                            <Button type="submit" className="shrink-0">
+                                Add
+                            </Button>
+                        </form>
+
+                        <div>
+                            <span className="block">
+                                Active Rules ({patterns.length})
+                            </span>
                             <MultiSelectViewer
-                                selectedList={displayList} onDelete={removePattern} placeholder="No rules configured"
+                                selectedList={displayList}
+                                onDelete={removePattern}
+                                placeholder="No rules configured"
                             />
                         </div>
                     </div>

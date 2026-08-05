@@ -3,6 +3,11 @@ interface RoleOption {
     label: string;
 }
 
+export interface ChannelOption {
+    value: string;
+    label: string;
+}
+
 export function getAvailableRoleOptions(
     roleMap: Record<string, string> | null | undefined,
     scopeRoles?: string[]
@@ -18,3 +23,17 @@ export function getAvailableRoleOptions(
         }));
 }
 
+export function getAvailableChannelOptions(
+    channelMap: Record<string, string> | null | undefined,
+    scopeChannels?: string[]
+): ChannelOption[] {
+    const channels = scopeChannels || [];
+    const map = channelMap || {};
+
+    return Object.entries(map)
+        .filter(([id]) => !channels.includes(id))
+        .map(([id, name]) => ({
+            value: id,
+            label: `#${name.replace("#", "")}`
+        }));
+}

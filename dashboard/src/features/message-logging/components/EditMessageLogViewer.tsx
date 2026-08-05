@@ -1,9 +1,8 @@
 "use client";
 
-import { LogViewer } from "./LogViewer";
-
-import { EditedMessage } from "@/features/message-logging/types";
 import { ReactNode } from "react";
+import { LogViewer } from "./LogViewer";
+import { EditedMessage } from "@/features/message-logging/types";
 
 interface EditedMessageLogViewerProps {
     sseUrl: string;
@@ -21,7 +20,8 @@ export function EditedMessageLogViewer({
     fetchMoreAction,
 }: EditedMessageLogViewerProps): ReactNode {
     return (
-        <LogViewer<EditedMessage> title="Edit Logs"
+        <LogViewer<EditedMessage>
+            title="Edit Logs"
             sseUrl={sseUrl}
             initialHistory={initialHistory}
             guildId={guildId}
@@ -34,21 +34,33 @@ export function EditedMessageLogViewer({
                     : `ID: ${log.channel_id}`;
 
                 return (
-                    <div key={log.id} className="p-3 border border-yellow-900/50 rounded">
-                        <div className="flex justify-between mb-1">
-                            <span className="font-semibold">
-                                Message Edited | {log.author_id}
-                                <span className="text-neutral-500 ml-2">in {channelName}</span>
+                    <div
+                        key={log.id}
+                        className="p-3.5 border border-warning-subtle bg-surface-muted/30 hover:border-border-active rounded-lg transition-all space-y-2"
+                    >
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="font-semibold text-foreground flex items-center gap-2">
+                                <span>Message Edited</span>
+                                <span className="text-muted-foreground font-normal">| Author ID: {log.author_id}</span>
+                                <span className="text-brand font-medium">{channelName}</span>
                             </span>
-                            <span>{new Date(log.updated_at).toLocaleString()}</span>
+                            <span className="text-muted-foreground">
+                                {new Date(log.updated_at).toLocaleString()}
+                            </span>
                         </div>
-                        <div className="text-sm wrap-break-word space-y-1">
+
+                        <div className="space-y-1.5 text-xs">
                             {log.old_content && (
-                                <p className="text-neutral-500">
-                                    Old: {log.old_content}
-                                </p>
+                                <div className="text-sm text-muted-foreground bg-surface/50 p-2.5 rounded-md border border-border/50 wrap-break-word font-normal">
+                                    <span className="font-bold text-warning/50 mr-1.5 font-mono">OLD:</span>
+                                    <span>{log.old_content}</span>
+                                </div>
                             )}
-                            <p>New: {log.new_content}</p>
+
+                            <div className="text-sm text-foreground/90 bg-surface p-2.5 rounded-md border border-border/60 wrap-break-word font-normal">
+                                <span className="font-bold mr-1.5 font-mono">NEW:</span>
+                                <span>{log.new_content}</span>
+                            </div>
                         </div>
                     </div>
                 );

@@ -123,32 +123,29 @@ export function MessageLoggingBody({
 
             {activeTab === "settings" && (
                 <div className="space-y-2">
-                    <div className="space-y-2">
-                        <div className="space-y-1">
-                            <ToggleSwitch
-                                checked={config.events.messageDelete} onChange={(checked) =>
-                                handleChange({
-                                    ...config,
-                                    events: { ...config.events, messageDelete: checked },
-                                })
-                            } text="Log Deleted Messages"
-                            />
-                            <ToggleSwitch
-                                checked={config.events.messageEdit} onChange={(checked) =>
-                                handleChange({
-                                    ...config,
-                                    events: { ...config.events, messageEdit: checked },
-                                })
-                            } text="Log Edited Messages"
-                            />
-                        </div>
+                    <div className="flex flex-col gap-1">
+                        <ToggleSwitch
+                            checked={config.events.messageDelete} onChange={(checked) =>
+                            handleChange({
+                                ...config,
+                                events: { ...config.events, messageDelete: checked },
+                            })
+                        } text="Log Deleted Messages"
+                        />
+                        <ToggleSwitch
+                            checked={config.events.messageEdit} onChange={(checked) =>
+                            handleChange({
+                                ...config,
+                                events: { ...config.events, messageEdit: checked },
+                            })
+                        } text="Log Edited Messages"
+                        />
                     </div>
 
                     {isLoggingEnabled && (
                         <div>
                             <h4 className="text-2xl font-semibold">Exclusion Rules</h4>
-
-                            <div className="flex flex-col max-w-xs gap-2">
+                            <div className="flex flex-col max-w-md gap-2">
                                 <div className="space-y-2">
                                     <InputLabel>Ignored Channels</InputLabel>
                                     <Dropdown

@@ -1,6 +1,7 @@
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayoutWrapper";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
-import { createFilterUpdater } from "@/features/message-filtering";
+
+import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 
 interface ServerInvitesTabProps {
     config: MessageFilteringConfig;

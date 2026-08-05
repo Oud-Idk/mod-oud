@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import { useSSEInfiniteScroll } from "@/lib/hooks/useSSEInfiniteScroll";
+import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 
 interface LogViewerProps<T> {
     title: string;
@@ -33,29 +34,24 @@ export function LogViewer<T extends { id: number }>({
     });
 
     return (
-        <div className="p-4 border rounded-xl border-neutral-500 shadow-md">
-            <div className="flex justify-between items-center mb-4">
-                <div>
-                    <h3 className="text-lg font-semibold">{title}</h3>
-                </div>
-                <span
-                    className={`text-sm px-1 py-0.5 rounded text-white ${
-                        status === "CONNECTED" ? "bg-green-500" : "bg-red-500"
-                    }`}
-                >
-                    {status}
-                </span>
+        <div className="p-4 border border-border bg-surface rounded-xl shadow-xs">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-border-subtle">
+                <h3 className="text-lg font-semibold text-foreground tracking-tight">{title}</h3>
+
+                <ConnectionStatusPill status={status} />
             </div>
 
-            <div className="space-y-2 max-h-125 overflow-y-auto pr-1 scrollbar-thin">
+            {/* Scrollable Container */}
+            <div className="space-y-2.5 max-h-125 overflow-y-auto pr-1.5 scrollbar-thin">
                 {logs.length === 0 ? (
-                    <p className="text-gray-400 text-sm text-center py-4">{emptyText}</p>
+                    <p className="text-muted-foreground text-sm text-center py-8 font-medium">{emptyText}</p>
                 ) : (
                     <>
                         {logs.map((log) => renderItem(log))}
 
                         <div
-                            ref={observerTarget} className="h-10 flex items-center justify-center text-xs"
+                            ref={observerTarget}
+                            className="h-10 flex items-center justify-center text-xs text-muted-foreground font-medium"
                         >
                             {isLoadingMore && <span>Loading more logs...</span>}
                             {!hasMore && logs.length > 0 && <span>End of history</span>}

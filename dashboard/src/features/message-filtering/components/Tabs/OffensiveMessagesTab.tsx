@@ -3,7 +3,9 @@ import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayoutWrapper";
 import Link from "next/link";
 import { MessageFilteringConfig, FlagThreshold } from "@/features/message-filtering/types";
-import { createFilterUpdater } from "@/features/message-filtering";
+
+import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 interface OffensiveMessagesTabProps {
     config: MessageFilteringConfig;
@@ -45,10 +47,10 @@ export function OffensiveMessagesTab({
         >
             <p>Powered by <Link
                 href="https://github.com/finnbear/rustrict" className="text-blue-500 hover:underline"
-            >Rustirct</Link>. Enabling this feature but doing no actions will default to just logging.</p>
-            <div className="space-y-4 max-w-xs">
+            >Rustirct</Link>. Enabling this feature but doing no actions will default to logging only.</p>
+            <div className="space-y-4 max-w-md">
                 <div className="space-y-2">
-                    <p className="text-sm font-medium">Threshold</p>
+                    <InputLabel>Threshold</InputLabel>
                     <Dropdown
                         options={options} value={selected} onChange={handleThresholdChange}
                     />

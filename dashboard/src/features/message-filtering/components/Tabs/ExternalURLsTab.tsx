@@ -6,7 +6,8 @@ import React, { useState } from "react";
 import { isFQDN } from "validator";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayoutWrapper";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
-import { createFilterUpdater } from "@/features/message-filtering";
+
+import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 
 interface ExternalURLsTabProps {
     config: MessageFilteringConfig;
@@ -84,7 +85,6 @@ export function ExternalURLsTab({
                         onChange={() => updateFilter({ blockOnlyMalicious: !filterConfig.blockOnlyMalicious })}
                         disabled={false}
                         text="Block only Malicious URLs (Google Safe Browsing)"
-                        className="text-sm"
                     />
 
                     {!filterConfig.blockOnlyMalicious && (

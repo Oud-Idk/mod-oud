@@ -3,9 +3,9 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { TicketConfig } from "@/features/tickets/types";
 import { TICKETS_PANEL_CONFIG } from "@/features/tickets/builderConfigs";
 
-import { DiscordChannel } from "@/features/_shared/channels";
 import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface TicketingTabProps {
     config: TicketConfig;

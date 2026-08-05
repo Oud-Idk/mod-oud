@@ -3,13 +3,14 @@
 import React, { ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 
 import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfigEditor } from "./StarboardConfigEditor";
 
 import type { StarboardConfig, StarboardConfigInput } from "../types";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
 
 interface StarboardBodyProps {
     guildId: string;
@@ -51,7 +52,8 @@ export function StarboardBody({
 
     return (
         <>
-            <ConfigListLayout<StarboardConfig> title="Boards"
+            <ConfigListLayout<StarboardConfig>
+                title="Boards"
                 onCreateClick={() => setIsCreateModalOpen(true)}
                 items={starboardConfigs}
                 emptyMessage="No starboards configured yet."
@@ -67,40 +69,46 @@ export function StarboardBody({
                         <button
                             key={board.id}
                             onClick={() => router.push(`/dashboard/${guildId}/starboard?id=${board.id}`)}
-                            className={`w-full text-left px-3 py-2 rounded text-sm transition block cursor-pointer truncate ${
+                            className={cn(
+                                "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border",
                                 isCurrent
-                                    ? "bg-neutral-400/15 hover:bg-neutral-400/20 font-medium"
-                                    : "hover:bg-neutral-300/15"
-                            }`}
+                                    ? "bg-surface-active border-border text-foreground shadow-sm font-medium"
+                                    : "bg-surface/50 border-transparent hover:bg-surface-active/60 text-foreground"
+                            )}
                         >
-                            <div className="truncate font-semibold">#{channelName}</div>
-                            <div className="text-xs text-zinc-500 truncate mt-0.5">
+                            <div className="truncate font-semibold text-sm">#{channelName}</div>
+                            <div className="text-xs text-muted-foreground truncate mt-1">
                                 {board.emojis.join(" ")} • Min: {board.reaction_threshold} Reactions
                             </div>
                         </button>
                     );
                 }}
                 noActivePlaceholder={
-                    <>
-                  <p className="text-sm">Select an active starboard, or create a new one to begin.</p>
-                  <PrimaryButton onClick={() => setIsCreateModalOpen(true)}>
-                    Create Your First Starboard
-                  </PrimaryButton>
-                </>
+                    <div className="max-w-md mx-auto space-y-2 text-center">
+                        <div>
+                            <h3 className="text-sm font-semibold text-foreground mb-1">No Starboard Selected</h3>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                Select an active starboard from the sidebar to edit its settings, or create a new board to start highlighting popular server messages.
+                            </p>
+                        </div>
+                        <Button onClick={() => setIsCreateModalOpen(true)}>
+                            Create Your First Starboard
+                        </Button>
+                    </div>
                 }
             >
-              {config && (
-                  <StarboardConfigEditor
-                      config={config}
-                      channelMap={channelMap}
-                      roleMap={roleMap}
-                      isPending={isPending}
-                      onDelete={onDelete}
-                      onChange={handleChange}
-                      setIsEmpty={setIsEmpty}
-                      guildId={guildId}
-                  />
-              )}
+                {config && (
+                    <StarboardConfigEditor
+                        config={config}
+                        channelMap={channelMap}
+                        roleMap={roleMap}
+                        isPending={isPending}
+                        onDelete={onDelete}
+                        onChange={handleChange}
+                        setIsEmpty={setIsEmpty}
+                        guildId={guildId}
+                    />
+                )}
             </ConfigListLayout>
 
             <StarboardCreateModal

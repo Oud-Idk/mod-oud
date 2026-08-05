@@ -1,6 +1,6 @@
 import { Button, Field, Input, Label } from "@headlessui/react";
 import React from "react";
-import { twMerge } from "tailwind-merge";
+import { cn } from "@/lib/cn";
 
 interface NumberInputProps {
     value: number | undefined | null; // Accepts undefined or null from DB/parent
@@ -12,6 +12,7 @@ interface NumberInputProps {
     className?: string;
     disabled?: boolean;
     required?: boolean;
+    error?: boolean;
     placeholder?: string;
 }
 
@@ -22,9 +23,10 @@ export function NumberInput({
     max = 100,
     step = 1,
     label,
-    className = "",
+    className,
     disabled = false,
-    required = true,
+    required = false,
+    error = false,
     placeholder = "",
 }: NumberInputProps) {
     // Helper to check if the value is empty
@@ -62,35 +64,46 @@ export function NumberInput({
 
     const handleBlur = () => {
         if (disabled) return;
-        if (isEmpty) return; // Allow empty state so the browser's required validation can trigger
+        if (isEmpty) return; // Allow empty state so browser validation works
 
         if (value < min) onChange(min);
         if (value > max) onChange(max);
     };
 
     return (
-        <Field className={twMerge(`flex flex-col gap-1.5 w-full`, className)}>
+        <Field className={cn("flex flex-col gap-1.5 w-full", className)}>
             {label && (
-                <Label className={`text-sm ${disabled ? "text-neutral-400" : ""}`}>
+                <Label className={cn("text-sm font-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
                     {label}
-                    {required && <span className="text-red-500 ml-1" aria-hidden="true">*</span>}
+                    {required && <span className="text-danger ml-1" aria-hidden="true">*</span>}
                 </Label>
             )}
 
             <div
-                className={twMerge(`flex items-center border border-neutral-500 rounded-lg overflow-hidden bg-neutral-300/10 max-w-35 transition-opacity ${
-                    disabled ? "opacity-50 cursor-not-allowed" : ""
-                }`, className)}
+                className={cn(
+                    "flex items-center w-full rounded-md border bg-surface overflow-hidden transition-all duration-150",
+                    "focus-within:outline-none focus-within:ring-2",
+                    error
+                        ? "border-danger focus-within:ring-danger/20"
+                        : "border-border focus-within:ring-focus-ring focus-within:border-brand",
+                    disabled && "opacity-50 cursor-not-allowed bg-surface-muted"
+                )}
             >
+                {/* Decrement Button */}
                 <Button
                     type="button"
                     onClick={decrement}
                     disabled={disabled || (!isEmpty && value <= min)}
-                    className="px-3 py-2 hover:bg-neutral-300/30 disabled:opacity-50 disabled:hover:bg-transparent transition-colors border-r border-neutral-500 font-medium select-none cursor-pointer"
+                    className={cn(
+                        "px-3 py-1 text-muted-foreground hover:text-foreground hover:bg-surface-active font-medium select-none cursor-pointer border-r border-border transition-colors shrink-0",
+                        "disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                    )}
+                    aria-label="Decrement"
                 >
                     &minus;
                 </Button>
 
+                {/* Number Input */}
                 <Input
                     type="number"
                     min={min}
@@ -102,14 +115,23 @@ export function NumberInput({
                     disabled={disabled}
                     required={required}
                     placeholder={placeholder}
-                    className="w-full text-center bg-transparent border-0 py-2 focus:outline-0 dark:text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:cursor-not-allowed"
+                    className={cn(
+                        "flex-1 min-w-0 w-full text-center bg-transparent border-0 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none",
+                        "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                        "disabled:cursor-not-allowed"
+                    )}
                 />
 
+                {/* Increment Button */}
                 <Button
                     type="button"
                     onClick={increment}
                     disabled={disabled || (!isEmpty && value >= max)}
-                    className="px-3 py-2 hover:bg-neutral-300/15 disabled:opacity-50 disabled:hover:bg-transparent transition-colors border-l border-neutral-500 font-medium select-none cursor-pointer"
+                    className={cn(
+                        "px-3 py-1 text-muted-foreground hover:text-foreground hover:bg-surface-active font-medium select-none cursor-pointer border-l border-border transition-colors shrink-0",
+                        "disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                    )}
+                    aria-label="Increment"
                 >
                     +
                 </Button>

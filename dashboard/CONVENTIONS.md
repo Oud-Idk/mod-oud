@@ -115,6 +115,108 @@ Feature-specific client hooks (`useStarboardConfig`, `useTicketFilters`) live in
 
 ---
 
+Here's the full section, rewritten clean for Tailwind v4's CSS-first config:
+
+---
+
+## 🎨 Tailwind Theming Conventions
+
+### 1. Design Tokens Live in `globals.css`, via `@theme`
+There's no `tailwind.config.ts` on v4 — tokens are declared directly in CSS with `@theme`, which is also what generates the utility classes (`bg-surface`, `text-brand`, etc.). Never hardcode a hex/oklch value or drop into an arbitrary bracket value (`bg-[#1a1a2e]`) in a component — if a color isn't already a token, add it to `globals.css` first, then consume it.
+
+### 2. One File, Two Blocks (Fixed Order)
+`globals.css` is split into two blocks, in this order — raw palette first, `@theme` mapping second:
+
+```css
+/* src/app/globals.css */
+@import "tailwindcss";
+
+/* 1. Raw values — the actual colors */
+:root {
+  --surface: oklch(1 0 0);
+  --surface-muted: oklch(0.96 0 0);
+  --brand: oklch(0.6 0.2 264);
+  --danger: oklch(0.58 0.24 27);
+}
+
+.dark {
+  --surface: oklch(0.15 0 0);
+  --surface-muted: oklch(0.22 0 0);
+  --brand: oklch(0.68 0.2 264);
+  --danger: oklch(0.65 0.24 27);
+}
+
+/* 2. Theme tokens — map raw values to Tailwind utilities */
+@theme {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono);
+
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-brand: var(--brand);
+  --color-danger: var(--danger);
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+```
+
+They're conceptually different things, even though they live in the same file:
+* `:root` / `.dark` = **the actual palette** — what "brand" *is* in each mode.
+* `@theme` = **the contract** — which of those values become `bg-*` / `text-*` utilities.
+
+**Never define a color directly inside `@theme`** (e.g. `--color-brand: oklch(0.6 0.2 264);`), even for a token that doesn't currently need a dark-mode variant. Always go through the `:root`/`.dark` indirection, so every color has exactly one predictable place to look and retheming never means hunting through `@theme` for a stray literal.
+
+### 3. Dark Mode Is a Variable Swap, Not a Variant Sprawl
+Because utilities resolve through `:root`/`.dark`, `bg-surface` just works in both modes with zero `dark:` prefixes on the component itself. Reach for the `@custom-variant dark (...)` you've already got only when light/dark needs to render genuinely different *content* (e.g. swapping an icon), not different colors of the same token.
+
+If you later want per-guild branding, set `--brand` inline via `style={{ "--brand": guildAccentColor }}` on a wrapper — every `bg-brand`/`text-brand` in that subtree inherits it for free, no component changes required.
+
+### 4. Where Theme Files Live
+```
+src/
+├── app/
+│   └── globals.css     # raw palette + @theme tokens + dark mode
+```
+Whatever you name it, it's **infrastructure** — same tier as `lib/`. It should only ever contain primitives (color/font/spacing) and never anything that mentions "guild," "starboard," or another feature concept.
+
+### 5. Component Variants: `cva`, Not Conditional Classnames
+Any component in `src/components/ui/` with more than one visual variant (a `Button` with `primary`/`danger`/`ghost`, a `Badge` with status colors) should use `class-variance-authority` rather than inline ternaries stacking `className` strings.
+
+```tsx
+// src/components/ui/Button.tsx
+const buttonVariants = cva("rounded-md font-medium transition-colors", {
+  variants: {
+    intent: {
+      primary: "bg-brand text-white hover:bg-brand/90",
+      danger: "bg-danger text-white hover:bg-danger/90",
+      ghost: "bg-transparent hover:bg-surface-muted",
+    },
+  },
+  defaultVariants: { intent: "primary" },
+});
+```
+
+### 6. Feature Components Consume Tokens, Never Invent Them
+Feature code (`features/<feature_name>/components/`) composes existing tokens and existing `components/ui/` primitives — it never defines a new color or reaches for an arbitrary value for a one-off need. If `starboard` needs a color that doesn't exist yet, add it to `globals.css` (step 2), don't hardcode it locally. Unlike the Golden Rule's "wait for the third feature," colors/spacing should be tokenized immediately — one-off magic values are how visual drift creeps in.
+
+### 7. `cn()` Utility
+A single shared `cn()` helper (clsx + tailwind-merge) for conditionally combining classNames, so conflicting utilities (two different `bg-*` classes) resolve correctly instead of both landing in the DOM. Infrastructure, so it lives in `lib/cn.ts`.
+
+```ts
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
+### 🚫 New Code Smells
+* **Colors defined inside `@theme` directly**, skipping the `:root`/`.dark` indirection.
+* **Arbitrary values in feature/component code:** `w-[137px]`, `bg-[#3b82f6]` outside truly one-off layout tweaks that will never repeat.
+* **`dark:` variant sprawl:** repeating `dark:bg-... dark:text-...` on every element instead of letting the CSS variable swap handle it.
+* **Ternary classNames instead of `cva`:** `className={variant === "danger" ? "bg-red-500" : "bg-blue-500"}` in a component with more than two variants.
+
 ## 🚫 Code Smells (What NOT to do)
 
 * **Layer-First Directories:** Creating folders like `src/actions/`, `src/hooks/`, or `src/types/db/` containing one file per feature.
@@ -122,4 +224,7 @@ Feature-specific client hooks (`useStarboardConfig`, `useTicketFilters`) live in
 * **Fat Pages:** Writing 200 lines of state and JSX inside `app/dashboard/.../page.tsx`.
 * **Domain logic in `lib/`:** If a file in `lib/` mentions "guild," "starboard," or any feature concept, it belongs in `_shared/` instead.
 * **Premature `_shared/`:** Moving something into `_shared/` because it's used by 2 features "for now." Wait for the third.
-
+* **Colors defined inside `@theme` directly**, skipping the :root/.dark indirection.
+* **Arbitrary values in feature/component code**: `w-[137px]`, `bg-[#3b82f6]` outside truly one-off layout tweaks that will never repeat.
+* **`dark`: variant sprawl**: repeating dark:bg-... dark:text-... on every element instead of letting the CSS variable swap handle it.
+* **Ternary classNames instead of cva**: className={variant === "danger" ? "bg-red-500" : "bg-blue-500"} in a component with more than two variants.
