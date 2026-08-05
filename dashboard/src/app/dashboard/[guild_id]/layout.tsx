@@ -1,9 +1,9 @@
 import React from "react";
 import { redirect } from "next/navigation";
-import { Sidebar } from "@/components/Sidebar/Sidebar";
-import { MobileNav } from "@/components/Sidebar/MobileNav";
+import { Sidebar } from "@/components/layout/sidebar/Sidebar";
+import { MobileNav } from "@/components/layout/sidebar/MobileNav";
 import 'katex/dist/katex.min.css';
-import { auth } from "@/auth";
+import { auth } from "@/lib/auth";
 
 export default async function DashboardLayout({
     children,

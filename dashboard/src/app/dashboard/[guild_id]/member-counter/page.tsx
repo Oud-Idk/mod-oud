@@ -1,32 +1,11 @@
-import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { getMemberCounterConfig } from "@/utils/db/config";
-import { MemberCounterBody } from "@/components/Dashboards/MemberTracking/MemberTrackingBody";
-import { saveMemberCounterConfigAction } from "@/actions/config";
-import { getRoleMap } from "@/utils/discord";
+import { MemberCounterFeature } from "@/features/member-counter";
+import { ReactNode } from "react";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 
-export default async function MemberCounterPage({ params }: PageProps) {
+export default async function MemberCounterPage({ params }: PageProps): Promise<ReactNode> {
     const { guild_id } = await params;
-
-    const [
-        memberCounterConfig,
-        roleMap,
-    ] = await Promise.all([
-        getMemberCounterConfig(guild_id),
-        getRoleMap(guild_id),
-    ]);
-
-    const onSave = saveMemberCounterConfigAction.bind(null, guild_id);
-
-    return (
-        <div className="space-y-6">
-            <DashboardHeader>Member Counter</DashboardHeader>
-            <MemberCounterBody
-                guildId={guild_id} memberCounterConfig={memberCounterConfig} onSave={onSave} roleMap={roleMap}
-            />
-        </div>
-    );
+    return <MemberCounterFeature guildId={guild_id} />;
 }

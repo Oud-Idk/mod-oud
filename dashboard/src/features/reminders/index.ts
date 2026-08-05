@@ -1,0 +1,1 @@
+export { RemindersFeature } from "@/features/reminders/components/RemindersFeature";

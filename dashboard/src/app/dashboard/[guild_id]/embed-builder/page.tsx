@@ -1,20 +1,14 @@
-import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { EmbedBuilderBody } from "@/components/EmbedBuilder/EmbedBuilderBody";
-import { getTextChannelMap } from "@/utils/discord";
+import { ReactNode } from "react";
+import { EmbedBuilderFeature } from "@/features/embed-builder";
 
 export interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 
-export default async function EmbedBuilderPage({ params }: PageProps) {
+export default async function EmbedBuilderPage({ params }: PageProps): Promise<ReactNode> {
     const { guild_id } = await params;
-    const channelMap = await getTextChannelMap(guild_id);
 
-    return <div>
-        <DashboardHeader className="mb-2">Embed Builder</DashboardHeader>
-        <p>Send custom embed message here!</p>
-        <EmbedBuilderBody
-            channelMap={channelMap} guildId={guild_id}
-        />
-    </div>
+    return <EmbedBuilderFeature guildId={guild_id} />
 }
+
+

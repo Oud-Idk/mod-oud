@@ -1,0 +1,94 @@
+"use client";
+
+import { ReactNode, useState } from "react";
+import { LogViewer } from "./LogViewer";
+import { Modal } from "@/components/ui/Modal";
+import Image from "next/image";
+
+import { DeletedMessage } from "@/features/message-logging/types";
+import { AttachmentImage } from "@/components/layout/AttachmentImage";
+
+interface DeletedMessageLogViewerProps {
+    sseUrl: string;
+    initialHistory?: DeletedMessage[];
+    channelMap?: Record<string, string>;
+    guildId: string;
+    fetchMoreAction: (guild_id: string, before_id: number) => Promise<DeletedMessage[]>;
+}
+
+
+export function DeletedMessageLogViewer({
+    sseUrl,
+    initialHistory = [],
+    channelMap = {},
+    guildId,
+    fetchMoreAction,
+}: DeletedMessageLogViewerProps): ReactNode {
+    const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
+
+    return (
+        <>
+            <LogViewer<DeletedMessage> title="Deletion Logs"
+                sseUrl={sseUrl}
+                initialHistory={initialHistory}
+                guildId={guildId}
+                fetchMoreAction={fetchMoreAction}
+                eventName="message-delete"
+                emptyText="No activity recorded yet..."
+                renderItem={(log) => {
+                    const channelName = channelMap[log.channel_id]
+                        ? `#${channelMap[log.channel_id]}`
+                        : `ID: ${log.channel_id}`;
+
+                    const images = log.attachment_url
+                        ? log.attachment_url
+                            .split(",")
+                            .map((url) => url.trim())
+                            .filter((url) => url.length > 0)
+                        : [];
+
+                    return (
+                        <div key={log.id} className="p-3 border border-red-900/50 rounded">
+                            <div className="flex justify-between mb-1">
+                                <span className="font-semibold">
+                                    Message Deleted | {log.author_id}
+                                    <span className="text-neutral-500 ml-2">in {channelName}</span>
+                                </span>
+                                <span>{new Date(log.deleted_at).toLocaleString()}</span>
+                            </div>
+
+                            {log.deleted_by_id && (
+                                <p className="text-sm wrap-break-word">Deleted By: {log.deleted_by_id}</p>
+                            )}
+
+                            {log.content && (
+                                <p className="text-sm wrap-break-word">{log.content}</p>
+                            )}
+
+                            {images.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {images.map((url, index) => (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            onClick={() => setActiveImageUrl(url)}
+                                            className="group relative block overflow-hidden rounded border border-red-800/50 hover:border-red-500/50 cursor-zoom-in text-left"
+                                        >
+                                            <AttachmentImage url={url} index={index}/>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                }}
+            />
+
+            {activeImageUrl && (
+                <Modal onClose={() => setActiveImageUrl(null)} headerText="Image">
+                    <Image src={activeImageUrl} alt="The Attached Image"/>
+                </Modal>
+            )}
+        </>
+    );
+}

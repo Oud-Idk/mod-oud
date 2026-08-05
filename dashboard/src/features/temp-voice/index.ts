@@ -1,0 +1,1 @@
+export { TempVoiceFeature } from './components/TempVoiceFeature';

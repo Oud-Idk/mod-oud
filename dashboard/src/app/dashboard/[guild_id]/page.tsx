@@ -1,9 +1,9 @@
 import { CircleArrowUp, Gavel, Ticket, TicketX, Users } from "lucide-react";
-import { BotNotSetup } from "@/components/Dashboards/General/BotNotSetup";
+import { BotNotSetup } from "@/features/overview/components/BotNotSetup";
 import Image from "next/image";
-import { Card } from "@/components/Overview/Card";
-import { getGuildDetails } from "@/utils/discord";
-import { getGuildStats } from "@/utils/db/guild";
+import { Card } from "@/features/overview/components/Card";
+
+import { getGuildDetails, getGuildStats } from "@/features/overview/queries";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;

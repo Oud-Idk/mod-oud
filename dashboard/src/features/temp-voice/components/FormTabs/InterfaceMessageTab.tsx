@@ -1,0 +1,122 @@
+import React, { ReactNode, useMemo, useState } from "react";
+import { Dropdown } from "@/components/ui/Dropdown";
+import { TempVoiceHub } from "@/features/temp-voice/types";
+import { sendInterfaceMessageAction } from "@/features/temp-voice/actions";
+import { TEMP_VOICE_CHANNEL_BUILDER_CONFIG } from "@/features/temp-voice/builderConfigs";
+import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBuilder";
+
+interface InterfaceMessageTabProps {
+    channelMap: Record<string, string>;
+    guildId: string;
+    voiceConfig: TempVoiceHub;
+    handleChange: (updated: Partial<TempVoiceHub>) => void; // Pass handleChange prop
+}
+
+export function InterfaceMessageTab({
+    channelMap,
+    guildId,
+    voiceConfig,
+    handleChange,
+}: InterfaceMessageTabProps): ReactNode {
+    const [embedState, setEmbedState] = useState<object>({
+        title: "Temp Voice Interface",
+        description:
+            "This interface can be used to manage temporary voice channels. More options are available with /voice commands.",
+        color: 0x55ee77,
+    });
+    const [isEmpty, setIsEmpty] = useState<boolean>(true);
+    const selectedChannel = voiceConfig.interface_channel_id ?? "";
+
+    const [isSending, setIsSending] = useState<boolean>(false);
+    const [statusMessage, setStatusMessage] = useState<{ type: "SUCCESS" | "ERROR"; text: string } | null>(null);
+
+    const channelOptions = useMemo(() => {
+        return Object.entries(channelMap).map(([id, name]) => ({
+            label: name,
+            value: id,
+        }));
+    }, [channelMap]);
+
+    const canSend = selectedChannel && !isEmpty && !isSending;
+
+    const handleSendEmbed = async (): Promise<void> => {
+        if (!canSend) return;
+
+        setIsSending(true);
+        setStatusMessage(null);
+
+        try {
+            const result = await sendInterfaceMessageAction(guildId, {
+                channelId: selectedChannel,
+                embedState: embedState,
+            });
+
+            if (result.success) {
+                setStatusMessage({
+                    type: "SUCCESS",
+                    text: `Interface dispatched successfully. Message ID: ${result.messageId}`,
+                });
+            } else {
+                setStatusMessage({
+                    type: "ERROR",
+                    text: result.error || "An error occurred while sending.",
+                });
+            }
+        } catch (error) {
+            const err = error instanceof Error ? error.message : "An error occurred while sending.";
+            setStatusMessage({ type: "ERROR", text: err });
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+
+
+    return (
+        <div className="flex flex-col space-y-2">
+            <div className="flex flex-col my-4 rounded-lg">
+                <div className="flex flex-wrap items-end gap-4">
+                    <div className="flex flex-col space-y-2 w-64">
+                        <label className="text-xs font-medium">Select Channel</label>
+                        <Dropdown
+                            value={selectedChannel}
+                            onChange={(val: string) => handleChange({ interface_channel_id: val })}
+                            options={channelOptions}
+                        />
+                    </div>
+
+                    <button
+                        onClick={handleSendEmbed}
+                        disabled={!canSend}
+                        className={`px-5 py-2.5 rounded font-medium text-sm transition-all ${
+                            canSend
+                                ? "border border-blue-500 hover:bg-blue-300/15 cursor-pointer"
+                                : "border border-neutral-500 text-neutral-500 bg-neutral-300/10 cursor-not-allowed"
+                        }`}
+                    >
+                        {isSending ? "Sending Embed..." : "Send Embed"}
+                    </button>
+                </div>
+
+                {statusMessage && (
+                    <div
+                        className={`text-sm mt-2 font-medium ${
+                            statusMessage.type === "ERROR" ? "text-red-500" : "text-green-500"
+                        }`}
+                    >
+                        {statusMessage.text}
+                    </div>
+                )}
+            </div>
+
+            <EmbedBuilder
+                config={TEMP_VOICE_CHANNEL_BUILDER_CONFIG}
+                initialEmbedState={embedState}
+                setEmbedState={setEmbedState}
+                setIsEmpty={setIsEmpty}
+                enablePlaceholderList={true}
+                placeholderConfig={TEMP_VOICE_CHANNEL_BUILDER_CONFIG}
+            />
+        </div>
+    );
+}

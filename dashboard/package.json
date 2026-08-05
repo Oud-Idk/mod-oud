@@ -6,7 +6,7 @@
     "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "oxlint --type-aware"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",
@@ -27,9 +27,11 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-turnstile": "^1.1.5",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tw-merge": "^0.0.1-alpha.3",
-    "validator": "^13.15.35"
+    "validator": "^13.15.35",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -39,8 +41,8 @@
     "@types/react-dom": "^19",
     "@types/validator": "^13.15.10",
     "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.7",
+    "oxlint": "^1.76.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

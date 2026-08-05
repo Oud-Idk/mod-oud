@@ -1,42 +1,14 @@
-import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { getStarboardConfigs } from "@/utils/db/starboard";
-import { getRoleMap, getTextChannelMap } from "@/utils/discord";
-import { StarboardBody } from "@/components/Dashboards/Starboard/StarboardBody";
-import { deleteStarboardConfigAction, saveStarboardConfigAction } from "@/actions/starboard";
+import { StarboardFeature } from "@/features/starboard/components/StarboardFeature";
+import { ReactNode } from "react";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
     searchParams: Promise<{ id?: string }>;
 }
 
-export default async function StarboardPage({ params, searchParams }: PageProps) {
+export default async function StarboardPage({ params, searchParams }: PageProps): Promise<ReactNode> {
     const { guild_id } = await params;
     const { id } = await searchParams;
 
-    const [starboardConfigs, channelMap, roleMap] = await Promise.all([
-        getStarboardConfigs(guild_id),
-        getTextChannelMap(guild_id),
-        getRoleMap(guild_id),
-    ]);
-
-    const activeConfig = id
-        ? (starboardConfigs.find((config) => config.id === id) || null)
-        : (starboardConfigs[0] || null);
-
-    const onSave = saveStarboardConfigAction.bind(null, guild_id);
-    const onDelete = deleteStarboardConfigAction.bind(null, guild_id);
-
-    return (
-        <div>
-            <DashboardHeader>Starboard</DashboardHeader>
-            <StarboardBody
-                starboardConfigs={starboardConfigs}
-                activeConfig={activeConfig}
-                channelMap={channelMap}
-                roleMap={roleMap}
-                onSave={onSave}
-                onDelete={onDelete}
-            />
-        </div>
-    );
+    return <StarboardFeature guildId={guild_id} activeConfigId={id} />;
 }

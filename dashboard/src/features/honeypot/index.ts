@@ -1,0 +1,1 @@
+export { HoneypotFeature } from './components/HoneypotFeature';

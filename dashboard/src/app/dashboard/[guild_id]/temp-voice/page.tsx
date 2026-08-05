@@ -1,32 +1,13 @@
-import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { TempVoiceBody } from "@/components/Dashboards/TempVoice/TempVoiceBody";
-import { getCategoryMap, getTextChannelMap, getVoiceChannelMap } from "@/utils/discord";
-import { getTempVoiceHubs } from "@/actions/tempVoice";
+import { ReactNode } from "react";
+import { TempVoiceFeature } from "@/features/temp-voice";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 
-export default async function TempVoicePage({ params }: PageProps) {
+export default async function TempVoicePage({ params }: PageProps): Promise<ReactNode> {
     const { guild_id } = await params;
 
-    const [hubs, voiceChannelMap, categoryMap, textChannelMap] = await Promise.all([
-        getTempVoiceHubs(guild_id),
-        getVoiceChannelMap(guild_id),
-        getCategoryMap(guild_id),
-        getTextChannelMap(guild_id),
-    ]);
-
-    return (
-        <div>
-            <DashboardHeader>Temporary Voice Channel</DashboardHeader>
-            <TempVoiceBody
-                initialHubs={hubs}
-                voiceChannelMap={voiceChannelMap}
-                categoryMap={categoryMap}
-                guildId={guild_id}
-                textChannelMap={textChannelMap}
-            />
-        </div>
-    );
+    return <TempVoiceFeature guildId={guild_id} />
 }
+

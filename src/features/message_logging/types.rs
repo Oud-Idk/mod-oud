@@ -51,6 +51,8 @@ pub struct DeletedMessagePayload {
     pub id: i64,
     #[serde(with = "string_i64")]
     pub guild_id: i64,
+    #[serde(with = "string_i64")]
+    pub author_id: i64,
     pub author_name: String,
     pub content: String,
     #[serde(with = "string_i64")]
@@ -68,6 +70,8 @@ pub struct ModifiedMessagePayload {
     pub id: i64,
     #[serde(with = "string_i64")]
     pub guild_id: i64,
+    #[serde(with = "string_i64")]
+    pub author_id: i64,
     pub author_name: String,
     #[serde(with = "string_i64")]
     pub channel_id: i64,

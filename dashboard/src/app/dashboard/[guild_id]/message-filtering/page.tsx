@@ -1,12 +1,4 @@
-import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { MessageFilteringBody } from "@/components/Dashboards/MessageFiltering/MessageFilteringBody";
-import { getRoleMap, getTextChannelMap } from "@/utils/discord";
-import { getBadWordRulesets, getMessageFilteringConfig } from "@/utils/db/config";
-import {
-    deleteBadWordRulesetAction,
-    saveBadWordRulesetAction,
-    saveMessageFilteringConfigAction
-} from "@/actions/config";
+import { MessageFilteringFeature } from "@/features/message-filtering";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -17,38 +9,5 @@ export default async function MessageFilteringPage({ params, searchParams }: Pag
     const { guild_id } = await params;
     const { id: rulesetId } = await searchParams;
 
-    const [
-        messageFilteringConfig,
-        badWordRulesets,
-        channelMap,
-        roleMap,
-    ] = await Promise.all([
-        getMessageFilteringConfig(guild_id),
-        getBadWordRulesets(guild_id),
-        getTextChannelMap(guild_id),
-        getRoleMap(guild_id),
-    ]);
-
-    const activeRuleset = badWordRulesets.find((r) => r.id === rulesetId) || null;
-
-    const onSave = saveMessageFilteringConfigAction.bind(null, guild_id);
-
-    const onSaveRuleset = saveBadWordRulesetAction.bind(null, guild_id);
-    const onDeleteRuleset = deleteBadWordRulesetAction.bind(null, guild_id);
-
-    return (
-        <div>
-            <DashboardHeader>Message Filtering</DashboardHeader>
-            <MessageFilteringBody
-                messageFilteringConfig={messageFilteringConfig}
-                badWordRulesets={badWordRulesets}
-                activeRuleset={activeRuleset}
-                onSaveRuleset={onSaveRuleset}
-                onDeleteRuleset={onDeleteRuleset}
-                channelMap={channelMap}
-                roleMap={roleMap}
-                onSave={onSave}
-            />
-        </div>
-    );
+    return <MessageFilteringFeature guildId={guild_id} rulesetId={rulesetId} />
 }

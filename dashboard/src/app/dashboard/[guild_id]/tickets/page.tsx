@@ -1,8 +1,4 @@
-import { getCategoryMap, getGuildChannels, getRoleMap } from "@/utils/discord";
-import { DashboardHeader } from "@/components/Dashboards/General/DashboardHeader";
-import { TicketsBody } from "@/components/Dashboards/Tickets/TicketsBody";
-import { getTicketConfig } from "@/utils/db/config";
-import { deleteTicketMessageAction, saveTicketsConfigAction, sendTicketMessageAction } from "@/actions/config";
+import { TicketsFeature } from "@/features/tickets";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -11,30 +7,6 @@ interface PageProps {
 export default async function TicketsPage({ params }: PageProps) {
     const { guild_id } = await params;
 
-    const [categoryMap, roleMap, channels, ticketConfig] = await Promise.all([
-        getCategoryMap(guild_id),
-        getRoleMap(guild_id),
-        getGuildChannels(guild_id),
-        getTicketConfig(guild_id),
-    ]);
-
-    const onSave = saveTicketsConfigAction.bind(null, guild_id);
-    const onSendTicketMessage = sendTicketMessageAction.bind(null, guild_id);
-    const onDeleteTicketMessage = deleteTicketMessageAction.bind(null, guild_id);
-
-    return (
-        <div>
-            <DashboardHeader>Tickets Settings</DashboardHeader>
-            <TicketsBody
-                categoryMap={categoryMap}
-                roleMap={roleMap}
-                channels={channels}
-                ticketConfig={ticketConfig}
-                onSave={onSave}
-                onSendTicketMessage={onSendTicketMessage}
-                onDeleteTicketMessage={onDeleteTicketMessage}
-                guildId={guild_id}
-            />
-        </div>
-    );
+    return <TicketsFeature guildId={guild_id} />
 }
+

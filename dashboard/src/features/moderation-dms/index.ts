@@ -1,0 +1,1 @@
+export { ModerationDMsFeature } from './components/ModerationDMsFeature';

@@ -170,6 +170,7 @@ pub async fn message_log_delete(
         let payload = DeletedMessagePayload {
             id: msg_clone.msg_id,
             guild_id: g_id,
+            author_id: msg_clone.author_id,
             author_name: msg_clone.author_name.clone(),
             content: msg_clone.content.clone(),
             channel_id: msg_clone.chan_id,
@@ -252,6 +253,7 @@ pub async fn log_message_update(
     let payload = ModifiedMessagePayload {
         id: details.msg_id,
         guild_id: g_id,
+        author_id: details.author_id,
         author_name: details.author_name.clone(),
         channel_id: details.chan_id,
         old_content: details.old_content.clone(),
