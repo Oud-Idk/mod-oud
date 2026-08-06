@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { getGuildChannels } from "@/features/_shared/channels";
+import { getGuildChannels, getTextChannelMap } from "@/features/_shared/channels";
 import { fetchInitialReports, saveReportConfigAction } from "@/features/report/actions";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { ReportBody } from "@/features/report/components/ReportBody";
@@ -10,10 +10,11 @@ interface ReportFeatureProps {
 }
 
 export async function ReportFeature({ guildId }: ReportFeatureProps): Promise<ReactNode> {
-    const [reportConfig, channels, initialReports] = await Promise.all([
+    const [reportConfig, channels, initialReports, textChannelMap] = await Promise.all([
         getReportConfig(guildId),
         getGuildChannels(guildId),
         fetchInitialReports(guildId),
+        getTextChannelMap(guildId),
     ]);
 
     const onSave = saveReportConfigAction.bind(null, guildId);
@@ -27,6 +28,7 @@ export async function ReportFeature({ guildId }: ReportFeatureProps): Promise<Re
                 initialReports={initialReports}
                 guildId={guildId}
                 onSave={onSave}
+                textChannelMap={textChannelMap}
             />
         </div>
     );

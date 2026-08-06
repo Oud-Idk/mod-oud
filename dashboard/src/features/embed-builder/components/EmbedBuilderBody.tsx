@@ -68,8 +68,8 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
     };
 
     return (
-        <div className="flex flex-col space-y-2">
-            <div className="flex flex-col my-4 rounded-lg">
+        <>
+            <div className="flex flex-col">
                 <div className="flex flex-wrap items-end gap-4">
                     <div className="flex flex-col space-y-2 w-64">
                         <InputLabel>
@@ -108,6 +108,6 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                 enablePlaceholderList={true}
                 placeholderConfig={config}
             />
-        </div>
+        </>
     );
 }

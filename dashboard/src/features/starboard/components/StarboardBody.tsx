@@ -65,19 +65,22 @@ export function StarboardBody({
                 renderItem={(board) => {
                     const isCurrent = activeConfig?.id === board.id;
                     const channelName = channelMap[board.starboard_channel_id] || "unknown-channel";
+
                     return (
                         <button
                             key={board.id}
                             onClick={() => router.push(`/dashboard/${guildId}/starboard?id=${board.id}`)}
                             className={cn(
-                                "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border",
+                                "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
-                                    ? "bg-surface-active border-border text-foreground shadow-sm font-medium"
-                                    : "bg-surface/50 border-transparent hover:bg-surface-active/60 text-foreground"
+                                    ? "bg-surface-active/50 border-border text-foreground shadow-sm"
+                                    : "border-transparent hover:bg-surface-active/60 text-foreground"
                             )}
                         >
-                            <div className="truncate font-semibold text-sm">#{channelName}</div>
-                            <div className="text-xs text-muted-foreground truncate mt-1">
+                            <div className="flex justify-between items-center gap-2 w-full">
+                                <span className="truncate font-semibold text-sm">#{channelName}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate mt-1 w-full">
                                 {board.emojis.join(" ")} • Min: {board.reaction_threshold} Reactions
                             </div>
                         </button>

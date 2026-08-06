@@ -1,10 +1,11 @@
 import React, { Dispatch, SetStateAction } from "react";
 import { ReportedMessageCard } from "@/features/report/components/ReportMessageCard/ReportedMessageCard";
-import { ReportedMessage, ReportStatus, SimpleReportAction } from "@/features/report/types";
+import { ReportedMessage, SimpleReportAction } from "@/features/report/types";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 import { cn } from "@/lib/cn";
 
 export type ConnectingStatus = "CONNECTING" | "CONNECTED" | "DISCONNECTED";
+type ReportStatus = "ALL" | "OPEN" | "CLOSED";
 
 interface HistoryTabProps {
     status: ConnectingStatus;
@@ -53,7 +54,8 @@ export function HistoryTab({
                 </div>
 
                 {/* Filter Segmented Control */}
-                <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs self-start sm:self-auto border border-border-subtle">
+                <div
+                    className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs self-start sm:self-auto border border-border-subtle">
                     <button
                         type="button"
                         onClick={() => setStatusFilter("ALL")}
@@ -93,8 +95,8 @@ export function HistoryTab({
                 </div>
             </div>
 
-            {/* Reports List */}
-            <div className="space-y-4 max-h-[500px] overflow-y-auto p-2 rounded-xl border border-border-subtle bg-surface-muted/30">
+            <div
+                className="space-y-4 max-h-125 overflow-y-auto p-4 rounded-xl border border-border-subtle bg-surface-muted/30">
                 {filteredLogs.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-12 text-center">
                         {statusFilter === "OPEN"
@@ -120,13 +122,9 @@ export function HistoryTab({
                     ))
                 )}
 
-                <div ref={observerTarget} className="h-4 w-full">
-                    {isLoadingMore ? (
-                        <p className="text-center text-xs text-muted-foreground pt-2">Loading older records...</p>
-                    ) : (
-                        <p className="text-center text-xs text-muted-foreground pt-2">That's everything for you.</p>
-                    )}
-                </div>
+                {isLoadingMore && (
+                    <p className="text-center text-xs text-muted-foreground pt-2">Loading older records...</p>
+                )}
             </div>
         </div>
     );

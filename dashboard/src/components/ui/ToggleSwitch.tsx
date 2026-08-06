@@ -2,6 +2,7 @@
 
 import { Switch } from "@headlessui/react";
 import { twMerge } from "tailwind-merge";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 export interface ToggleSwitchProps {
     checked: boolean;
@@ -21,9 +22,9 @@ export function ToggleSwitch({
     shrink = false,
 }: ToggleSwitchProps) {
     return (
-        <label
+        <InputLabel
             className={twMerge(
-                "inline-flex items-center gap-3 select-none font-medium text-foreground cursor-pointer",
+                "inline-flex items-center gap-3 select-none font-medium text-foreground mt-0",
                 disabled && "opacity-50 cursor-not-allowed",
                 className
             )}
@@ -36,16 +37,9 @@ export function ToggleSwitch({
                 disabled={disabled}
                 className={twMerge(
                     "group relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer",
-
-                    // Track Colors (Off = Border/Muted Surface | On = Brand)
                     "bg-border data-checked:bg-brand",
-
-                    // Focus Ring (Keyboard Accessibility)
-                    "focus-ring",
-
-                    // Disabled Cursor
+                    "focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
                     "disabled:cursor-not-allowed",
-
                     !shrink && "shrink-0"
                 )}
             >
@@ -53,11 +47,10 @@ export function ToggleSwitch({
                 <span
                     className={twMerge(
                         "size-4 rounded-full transition-transform translate-x-1",
-                        // Thumb color adapts to brand foreground when active
                         "bg-surface group-data-checked:bg-brand-foreground group-data-checked:translate-x-6"
                     )}
                 />
             </Switch>
-        </label>
+        </InputLabel>
     );
 }

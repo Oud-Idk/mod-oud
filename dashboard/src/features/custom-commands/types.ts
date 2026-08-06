@@ -45,7 +45,7 @@ export const commandActionSchema = z.discriminatedUnion("type", [
 ]);
 
 export const saveCustomCommandInputSchema = z.object({
-    id: z.number().optional(),
+    id: z.coerce.number().optional(), //  Changed to optional
     guild_id: z.string(),
     name: z.string().min(1, "Name is required"),
     description: z.string().nullable().optional().default(""),
@@ -61,7 +61,7 @@ export const saveCustomCommandInputSchema = z.object({
 });
 
 export const customCommandSchema = saveCustomCommandInputSchema.extend({
-    id: z.number(),
+    id: z.coerce.number(),
 });
 
 export type CooldownType = z.infer<typeof cooldownTypeSchema>;

@@ -37,7 +37,7 @@ export function MultiSelectViewer({
                         <button
                             type="button"
                             onClick={() => onDelete(item)}
-                            className="text-muted-foreground hover:text-danger hover:bg-danger-subtle rounded p-0.5 py-1 transition-colors cursor-pointer -mr-0.5 shrink-0"
+                            className="text-muted-foreground hover:text-danger hover:bg-danger-subtle rounded p-0.5 py-1 transition-colors cursor-pointer -mr-0.5 shrink-0 focus-ring"
                             aria-label={`Remove ${displayText}`}
                         >
                             <svg

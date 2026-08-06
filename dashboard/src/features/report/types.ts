@@ -3,7 +3,6 @@ import { DiscordEmbed, Format } from "@/features/_shared/embed";
 
 export type SimpleReportAction = 'ACTIONED' | 'DISMISSED';
 export type ReportAction = 'UNDER_REVIEW' | SimpleReportAction;
-export type ReportStatus = "ALL" | "OPEN" | "CLOSED";
 export type TimeUnit = "MINUTES" | "HOURS" | "DAYS";
 
 export interface MessageLayout {
@@ -37,7 +36,7 @@ export interface ReportedMessage {
 
 export interface ReportConfig {
     enabled: boolean;
-    reportingChannel?: string;
+    reportingChannel?: string | null;
     resolvedDm: MessageLayout;
     dismissedDm: MessageLayout;
 }

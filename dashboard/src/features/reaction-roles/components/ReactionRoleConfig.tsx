@@ -1,20 +1,19 @@
-// src/features/reaction-roles/components/ReactionRoleConfig.tsx
 "use client";
 
 import React, { ReactNode, SetStateAction, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
-import SecondaryButton from "@/components/ui/buttons/SecondaryButton";
+import { Button } from "@/components/ui/Button";
+import { REACTION_ROLES_CONFIG } from "@/features/reaction-roles/builderConfigs";
+import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 
-// Feature types imported relative from ../types
 import type {
     ReactionMessage,
     ReactionRoleItem,
     ButtonRoleItem,
 } from "../types";
-import { REACTION_ROLES_CONFIG } from "@/features/reaction-roles/builderConfigs";
-import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 interface ReactionRoleConfigProps {
     config: ReactionMessage;
@@ -79,7 +78,6 @@ export function ReactionRoleConfig({
         }
     };
 
-    // --- REACTION MODE HANDLERS ---
     const handleAddReaction = (): void => {
         const updatedReactions: ReactionRoleItem[] = [
             ...reactions,
@@ -107,7 +105,6 @@ export function ReactionRoleConfig({
         onChange({ ...config, reactions: updatedReactions });
     };
 
-    // --- BUTTON MODE HANDLERS ---
     const handleAddButton = (): void => {
         const uniqueId = `btn_${Math.random().toString(36).substring(2, 9)}`;
         const updatedButtons: ButtonRoleItem[] = [
@@ -154,55 +151,42 @@ export function ReactionRoleConfig({
 
     return (
         <div className="space-y-6">
+            {/* Header / Actions Row */}
             <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                    <p className="font-semibold text-lg">Configure {config.name}</p>
+                    <h3 className="font-bold text-lg text-foreground">Configure {config.name}</h3>
                 </div>
                 <div className="flex items-center gap-2">
                     {isSent ? (
-                        <button
-                            type="button"
+                        <Button
                             disabled={isDisabled}
                             onClick={handleDeleteDiscordMessage}
-                            className="px-4 py-2 text-sm font-medium cursor-pointer rounded transition flex items-center gap-1.5 border-red-500/80 border hover:bg-red-300/10 disabled:opacity-50"
                         >
                             {isActionPending ? "Deleting message..." : "Delete Discord Message"}
-                        </button>
+                        </Button>
                     ) : (
-                        <button
-                            type="button"
+                        <Button
                             disabled={sendToDiscordIsDisabled}
                             onClick={handleSend}
-                            className={`px-4 py-2 text-sm font-medium cursor-pointer rounded transition flex items-center gap-1.5 ${
-                                sendToDiscordIsDisabled
-                                    ? "bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed opacity-60"
-                                    : "border-neutral-500 border hover:bg-neutral-300/15 disabled:opacity-50"
-                            }`}
-                            title={
-                                sendToDiscordIsDisabled
-                                    ? "Save changes first to enable sending"
-                                    : "Publish to Discord"
-                            }
                         >
                             {isSending ? "Sending..." : "Send to Discord"}
-                        </button>
+                        </Button>
                     )}
 
-                    <button
-                        type="button"
+                    <Button
+                        variant="danger"
                         disabled={isDisabled}
                         onClick={() => handleDelete(config.id)}
-                        className="px-4 py-2 text-sm cursor-pointer border-red-500/80 border hover:bg-red-300/10 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isDeleting ? "Deleting..." : "Delete Reaction Role"}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
             {/* Core Settings */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">Channel</label>
+                <div className="space-y-1.5">
+                    <label className="block text-sm font-semibold text-foreground">Channel</label>
                     <Dropdown
                         options={Object.entries(channelMap).map(([id, name]) => ({
                             value: id,
@@ -215,8 +199,8 @@ export function ReactionRoleConfig({
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">Interaction Mode</label>
+                <div className="space-y-1.5">
+                    <label className="block text-sm font-semibold text-foreground">Interaction Mode</label>
                     <Dropdown
                         options={[
                             { value: "REACTION", label: "Reaction Emojis" },
@@ -234,29 +218,30 @@ export function ReactionRoleConfig({
                 </div>
             </div>
 
+            {/* Mode-Specific Mappings Section */}
             {config.mode === "BUTTON" ? (
-                <div className="space-y-3 pt-4 border-t border-neutral-800">
+                <div className="space-y-3 pt-4 border-t border-border-subtle">
                     <div>
-                        <h3 className="text-md font-semibold">Button Mappings</h3>
-                        <p className="text-xs text-neutral-400">
+                        <h4 className="text-md font-bold text-foreground">Button Mappings</h4>
+                        <p className="text-xs text-muted-foreground">
                             Configure buttons that grant roles to users when clicked. At least a Label or Emoji is required.
                         </p>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         {buttons.map((button, index) => (
                             <div
                                 key={button.custom_id || index}
-                                className="p-4 rounded border border-neutral-500 space-y-3"
+                                className="bg-surface border border-border-subtle rounded-lg p-4 space-y-3 transition hover:border-border"
                             >
-                                <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
-                                    <span className="text-xs font-semibold text-neutral-400">
+                                <div className="flex items-center justify-between border-b border-border-subtle pb-2">
+                                    <span className="text-xs font-semibold text-muted-foreground">
                                         Button #{index + 1}
                                     </span>
                                     <button
                                         type="button"
                                         onClick={() => handleRemoveButton(index)}
-                                        className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition cursor-pointer"
+                                        className="p-1.5 text-danger hover:bg-danger-subtle rounded transition cursor-pointer"
                                         title="Remove Button"
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -271,8 +256,8 @@ export function ReactionRoleConfig({
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <div>
-                                        <label className="block text-xs font-medium mb-1">Label</label>
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-semibold text-foreground">Label</label>
                                         <TextInput
                                             placeholder="Label text"
                                             value={button.label || ""}
@@ -280,8 +265,8 @@ export function ReactionRoleConfig({
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium mb-1">Emoji (Optional)</label>
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-semibold text-foreground">Emoji (Optional)</label>
                                         <TextInput
                                             placeholder="😀"
                                             value={button.emoji || ""}
@@ -289,8 +274,8 @@ export function ReactionRoleConfig({
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium mb-1">Style</label>
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-semibold text-foreground">Style</label>
                                         <Dropdown
                                             options={[
                                                 { value: "PRIMARY", label: "Primary (Blue)" },
@@ -303,8 +288,8 @@ export function ReactionRoleConfig({
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium mb-1">Role</label>
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-semibold text-foreground">Role</label>
                                         {roleMap ? (
                                             <Dropdown
                                                 options={Object.entries(roleMap).map(([id, name]) => ({
@@ -321,19 +306,19 @@ export function ReactionRoleConfig({
                                                 placeholder="Paste Role ID"
                                                 value={button.role_id}
                                                 onChange={(e) => handleUpdateButton(index, "role_id", e.target.value)}
-                                                className="w-full border rounded px-2 py-1.5 text-sm"
+                                                className="w-full bg-surface border border-border-subtle rounded-md px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-brand transition"
                                             />
                                         )}
                                     </div>
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-neutral-500 font-mono">
+                                    <span className="text-[10px] text-muted-foreground font-mono">
                                         ID: {button.custom_id}
                                     </span>
                                     <button
                                         type="button"
-                                        className="text-[10px] text-neutral-400 hover:underline cursor-pointer"
+                                        className="text-[10px] text-brand hover:text-brand-hover hover:underline cursor-pointer"
                                         onClick={() => {
                                             const newCustomId = prompt(
                                                 "Enter a unique custom ID for this button (must start with `btn_`):",
@@ -351,19 +336,18 @@ export function ReactionRoleConfig({
                         ))}
                     </div>
 
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
                         onClick={handleAddButton}
-                        className="text-xs px-3 py-1.5 border border-neutral-500 rounded transition cursor-pointer flex items-center gap-1 hover:bg-neutral-300/15"
                     >
-                        <span className="text-sm font-semibold">+</span> Add Button
-                    </button>
+                        + Add Button
+                    </Button>
                 </div>
             ) : (
-                <div className="space-y-3 pt-4 border-t border-neutral-800">
+                <div className="space-y-3 pt-4 border-t border-border-subtle">
                     <div>
-                        <h3 className="text-md font-semibold">Reaction Mappings</h3>
-                        <p className="text-xs text-neutral-400">
+                        <h4 className="text-md font-bold text-foreground">Reaction Mappings</h4>
+                        <p className="text-xs text-muted-foreground">
                             Assign which roles are given to users when they click a specific emoji.
                         </p>
                     </div>
@@ -372,21 +356,20 @@ export function ReactionRoleConfig({
                         {reactions.map((reaction, index) => (
                             <div
                                 key={index}
-                                className="flex items-end gap-3 p-3 rounded border border-neutral-500 bg-neutral-900/20"
+                                className="flex items-end gap-3 p-3 rounded-lg border border-border-subtle bg-surface-muted/30"
                             >
-                                <div className="w-24">
-                                    <label className="block text-xs font-medium mb-1">Emoji</label>
-                                    <input
-                                        type="text"
+                                <div>
+                                    <InputLabel className="mt-0">Emoji</InputLabel>
+                                    <TextInput
                                         placeholder="😀"
                                         value={reaction.emoji}
                                         onChange={(e) => handleUpdateReaction(index, "emoji", e.target.value)}
-                                        className="w-full border-neutral-500 border rounded px-4 py-2 text-sm text-center bg-neutral-300/10"
+                                        className="text-center w-20"
                                     />
                                 </div>
 
-                                <div className="flex-1">
-                                    <label className="block text-xs font-medium mb-1">Role</label>
+                                <div className="flex-1 space-y-1">
+                                    <InputLabel className="mt-0">Role</InputLabel>
                                     {roleMap ? (
                                         <Dropdown
                                             options={Object.entries(roleMap).map(([id, name]) => ({
@@ -398,21 +381,19 @@ export function ReactionRoleConfig({
                                             placeholder="Select role..."
                                         />
                                     ) : (
-                                        <input
-                                            type="text"
+                                        <TextInput
                                             placeholder="Paste Role ID"
                                             value={reaction.role_id}
                                             onChange={(e) => handleUpdateReaction(index, "role_id", e.target.value)}
-                                            className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm"
                                         />
                                     )}
                                 </div>
 
-                                <button
+                                <Button
                                     type="button"
                                     onClick={() => handleRemoveReaction(index)}
-                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded transition cursor-pointer"
-                                    title="Remove Mapping"
+                                    className="p-2 border-none"
+                                    variant="danger"
                                 >
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path
@@ -422,16 +403,22 @@ export function ReactionRoleConfig({
                                             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                         />
                                     </svg>
-                                </button>
+                                </Button>
                             </div>
                         ))}
                     </div>
 
-                    <SecondaryButton onClick={handleAddReaction}>+ Add Mapping</SecondaryButton>
+                    <Button
+                        variant="secondary"
+                        onClick={handleAddReaction}
+                    >
+                        + Add Mapping
+                    </Button>
                 </div>
             )}
 
-            <div className="pt-4 border-t border-neutral-800">
+            {/* Shared Message Creator Editor */}
+            <div className="pt-4 border-t border-border-subtle">
                 <MessageConfigEditor
                     config={config}
                     onChange={(v) =>

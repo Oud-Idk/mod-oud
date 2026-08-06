@@ -23,7 +23,7 @@ export const buttonRoleItemSchema = z.object({
 });
 
 export const saveReactionMessageInputSchema = z.object({
-    id: z.number().optional(), // 👈 Optional for creation, present for updates
+    id: z.coerce.number().optional(),
     name: z.string().min(1, "Name is required"),
     message_id: z.string().nullable().optional(),
     channel_id: z.string().min(1, "Channel is required"),
@@ -37,7 +37,7 @@ export const saveReactionMessageInputSchema = z.object({
 });
 
 export const reactionMessageSchema = saveReactionMessageInputSchema.extend({
-    id: z.number(),
+    id: z.coerce.number(),
 });
 
 export type ReactionRoleItem = z.infer<typeof reactionRoleItemSchema>;

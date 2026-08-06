@@ -17,6 +17,10 @@ pub struct ExpiredRole {
     pub(crate) role_id: i64,
 }
 
+fn default_timezone() -> String {
+    "UTC".to_string()
+}
+
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -26,12 +30,16 @@ pub struct BirthdayConfig {
     pub guild_id: u64,
     #[serde_as(as = "DisplayFromStr")]
     pub channel_id: u64,
+    pub announcement_hour: i16,
+    #[serde(default = "default_timezone")]
+    pub timezone: String,
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub birthday_role_id: Option<u64>,
+    pub timezone_offset_hours: i16,
+    pub require_year: bool,
     pub message_with_year: Value,
     pub message_without_year: Value,
 }
-
 #[derive(sqlx::FromRow)]
 pub struct UserBirthdayRecord {
     pub user_id: i64,

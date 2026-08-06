@@ -49,7 +49,7 @@ export async function LevelingFeature({ guildId }: LevelingFeatureProps) {
         <div>
             <DashboardHeader>Leveling</DashboardHeader>
 
-            <details className="group border rounded-lg p-2 transition-all">
+            <details className="group border border-border rounded-lg p-2 transition-all">
                 <summary className="font-medium cursor-pointer list-none flex items-center justify-between select-none">
                     <span>View Leveling Formulas & XP Math</span>
                     <span className="transition group-open:rotate-180">

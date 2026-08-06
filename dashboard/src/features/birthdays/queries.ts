@@ -1,4 +1,3 @@
-
 import {
     birthdayConfigSchema,
     type BirthdayConfig,
@@ -6,9 +5,15 @@ import {
 } from "./types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
+function isPlainObject(val: unknown): val is Record<string, unknown> {
+    return typeof val === "object" && val !== null && !Array.isArray(val);
+}
+
 export async function getBirthdayConfig(guildId: string): Promise<BirthdayConfig> {
     const dbBirthday = await getGuildConfigField<unknown>(guildId, "birthday");
-    return birthdayConfigSchema.parse(dbBirthday ?? {});
+    const safeData = isPlainObject(dbBirthday) ? dbBirthday : {};
+
+    return birthdayConfigSchema.parse(safeData);
 }
 
 export async function saveBirthdayConfig(

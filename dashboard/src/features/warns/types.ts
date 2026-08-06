@@ -17,12 +17,12 @@ export const warnSchema = z.object({
     moderator_id: z.string(),
     reason: z.string(),
     created_at: z.coerce.date(), // Automatically parses Date object or ISO string
-    isActive: z.boolean(),
+    is_active: z.boolean(),
 });
 export type Warn = z.infer<typeof warnSchema>;
 
 export const warnThresholdSchema = z.object({
-    id: z.number().int(),
+    id: z.coerce.number().int(),
     guild_id: z.string(),
     warn_count: z.number().int().min(1, "Warn count must be at least 1"),
     action_type: z.array(moderationActionSchema).min(1, "At least one action is required"),

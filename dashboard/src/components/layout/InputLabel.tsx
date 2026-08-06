@@ -9,5 +9,5 @@ interface InputLabelProps {
 }
 
 export function InputLabel({ className, children, required = false }: InputLabelProps) {
-    return <label className={cn("mb-1 mt-2", className)}>{children} {required && <span className="text-danger">*</span>}</label>;
+    return <label className={cn("mb-1 mt-2 block font-medium", className)}>{children} {required && <span className="text-danger">*</span>}</label>;
 }

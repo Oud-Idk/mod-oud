@@ -4,10 +4,13 @@ import React, { ReactNode, SetStateAction, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
-import { Giveaway } from "@/features/giveaway/types";
+import { Giveaway } from "@/features/giveaways/types";
 import { NumberInput } from "@/components/ui/NumberInput";
-import { GIVEAWAY_TEMPLATE_CONFIG } from "@/features/giveaway/builderConfigs";
+import { GIVEAWAY_TEMPLATE_CONFIG } from "@/features/giveaways/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/Button";
+import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 
 interface GiveawayConfigProps {
     config: Giveaway;
@@ -21,6 +24,21 @@ interface GiveawayConfigProps {
     onChange: (updated: Giveaway) => void;
     setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
     onDeleteDiscordMessage: (id: number) => Promise<void>;
+}
+
+function formatToLocalDateTime(isoString?: string): string {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "";
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 export function GiveawayConfig({
@@ -77,52 +95,42 @@ export function GiveawayConfig({
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="font-semibold text-lg">Configure {config.prize}</p>
+                <p className="font-semibold text-lg text-foreground">Configure {config.prize}</p>
                 <div className="flex items-center gap-2">
                     {isSent ? (
-                        <button
-                            type="button"
+                        <Button
+                            variant="danger"
                             disabled={isDisabled || isActionPending}
                             onClick={handleDeleteDiscordMessage}
-                            className="px-4 py-2 text-sm font-medium cursor-pointer rounded transition border-red-500/80 border hover:bg-red-300/10 disabled:opacity-50"
                         >
                             {isActionPending ? "Deleting..." : "Delete Discord Message"}
-                        </button>
+                        </Button>
                     ) : (
-                        <button
-                            type="button"
+                        <Button
                             disabled={sendToDiscordIsDisabled}
                             onClick={handleSend}
-                            className={`px-4 py-2 text-sm font-medium cursor-pointer rounded transition ${
-                                sendToDiscordIsDisabled
-                                    ? "bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed opacity-60"
-                                    : "border-neutral-500 border hover:bg-neutral-300/15"
-                            }`}
                         >
                             {isSending ? "Launching..." : "Launch Giveaway"}
-                        </button>
+                        </Button>
                     )}
 
-                    <button
+                    <Button
+                        variant="danger"
                         type="button"
                         disabled={isDisabled}
                         onClick={() => handleDelete(config.id)}
-                        className="px-4 py-2 text-sm cursor-pointer border-red-500/80 border hover:bg-red-300/10 rounded transition disabled:opacity-50"
                     >
-                        {isDeleting ? "Deleting..." : "Delete Config"}
-                    </button>
+                        {isDeleting ? "Deleting..." : "Delete Giveaway"}
+                    </Button>
                 </div>
             </div>
 
             {/* Core Settings */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium">Destination Channel</label>
+                    <label className="block text-sm font-medium text-foreground">Destination Channel</label>
                     <Dropdown
-                        options={Object.entries(channelMap).map(([id, name]) => ({
-                            value: id,
-                            label: `#${name}`,
-                        }))}
+                        options={getAvailableChannelOptions(channelMap)}
                         value={config.channel_id ? String(config.channel_id) : ""}
                         onChange={(val) => onChange({ ...config, channel_id: val })}
                         placeholder="Select channel..."
@@ -131,7 +139,7 @@ export function GiveawayConfig({
                 </div>
 
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium">Prize</label>
+                    <label className="block text-sm font-medium text-foreground">Prize</label>
                     <TextInput
                         placeholder="e.g. 1 Month Nitro"
                         value={config.prize || ""}
@@ -140,7 +148,7 @@ export function GiveawayConfig({
                 </div>
 
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium">Winner Count</label>
+                    <label className="block text-sm font-medium text-foreground">Winner Count</label>
                     <NumberInput
                         placeholder="1"
                         value={config.winner_count || 1}
@@ -150,26 +158,35 @@ export function GiveawayConfig({
             </div>
 
             <div className="space-y-2">
-                <label className="block text-sm font-medium">End Time (UTC)</label>
+                <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-foreground">End Time</label>
+                    <span className="text-xs text-muted-foreground">Displayed in local time</span>
+                </div>
                 <input
                     type="datetime-local"
-                    value={config.end_time ? new Date(config.end_time).toISOString().slice(0, 16) : ""}
-                    onChange={(e) => onChange({ ...config, end_time: new Date(e.target.value).toISOString() })}
-                    className="bg-neutral-900 border border-neutral-700 rounded px-3 py-2 text-sm text-white w-full max-w-xs"
+                    value={formatToLocalDateTime(config.end_time)}
+                    onChange={(e) => {
+                        if (!e.target.value) return;
+                        const utcISOString = new Date(e.target.value).toISOString();
+                        onChange({ ...config, end_time: utcISOString });
+                    }}
+                    className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground focus-ring w-full max-w-xs cursor-pointer"
                 />
             </div>
 
             {/* Embed / Custom Message Config */}
-            <div className="pt-4 border-t border-neutral-800">
+            <div className="pt-4 border-t border-border-subtle">
                 <MessageConfigEditor
                     config={config}
-                    onChange={(v) => onChange({
-                        ...config,
-                        channel_id: v.channel_id || config.channel_id,
-                        content: v.content ?? "",
-                        embed: v.embed ?? {},
-                        format: v.format,
-                    })}
+                    onChange={(v) =>
+                        onChange({
+                            ...config,
+                            channel_id: v.channel_id || config.channel_id,
+                            content: v.content ?? "",
+                            embed: v.embed ?? {},
+                            format: v.format,
+                        })
+                    }
                     onEmbedChange={(v) => onChange({ ...config, embed: v })}
                     embedTemplateConfig={GIVEAWAY_TEMPLATE_CONFIG}
                     setIsEmpty={setIsEmpty}

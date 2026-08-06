@@ -74,18 +74,13 @@ export function HoneypotBody({ honeypotConfig, onSave, textChannelMap, guildId, 
         />
 
         {config.enabled && (
-            <>
-                <p className="mb-0">A honeypot channel in this case means a channel that will
-                    instantly ban anyone who sent a message.</p>
-                <p>Since the developer is honking lazy, please go to Embed Builder and send an embed to the channel.</p>
-
+            <div className="space-y-2 max-w-md">
                 <InputLabel>Channel</InputLabel>
                 <Dropdown
                     value={config.channelId}
                     onChange={c => setConfig({ ...config, channelId: c })}
                     options={channelOptions}
                     placeholder="Select Channel"
-                    className="max-w-xs"
                 />
 
                 <InputLabel>Exempt Roles</InputLabel>
@@ -95,7 +90,6 @@ export function HoneypotBody({ honeypotConfig, onSave, textChannelMap, guildId, 
                     onChange={r => setConfig({ ...config, exemptRoles: r })}
                     options={roleOptions}
                     placeholder="Select Roles to Exempt"
-                    className="max-w-xs"
                 />
 
                 <InputLabel>Delete Messages Before (DMD)</InputLabel>
@@ -104,7 +98,6 @@ export function HoneypotBody({ honeypotConfig, onSave, textChannelMap, guildId, 
                     onChange={v => setConfig({ ...config, dmd: v ?? 0 })}
                     min={0}
                     max={7}
-                    className="max-w-xs"
                 />
 
                 <InputLabel>Reason</InputLabel>
@@ -143,7 +136,7 @@ export function HoneypotBody({ honeypotConfig, onSave, textChannelMap, guildId, 
                         </div>
                     </>
                 )}
-            </>
+            </div>
         )}
 
         {isDirty && (

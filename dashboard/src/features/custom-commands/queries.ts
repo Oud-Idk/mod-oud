@@ -8,26 +8,32 @@ import {
 
 export async function getCustomCommands(guildId: string): Promise<CustomCommand[]> {
     const query = `
-    SELECT id,
-           guild_id,
-           name,
-           COALESCE(description, '')        AS description,
-           enabled,
-           delete_trigger,
-           cooldown_type,
-           cooldown_seconds,
-           allowed_roles    AS allowed_roles,
-           ignored_roles    AS ignored_roles,
-           allowed_channels AS allowed_channels,
-           ignored_channels AS ignored_channels,
-           actions          AS actions
-    FROM custom_commands
-    WHERE guild_id = $1
-    ORDER BY id DESC;
-  `;
+        SELECT id,
+               guild_id,
+               name,
+               COALESCE(description, '')        AS description,
+               enabled,
+               delete_trigger,
+               cooldown_type,
+               cooldown_seconds,
+               allowed_roles    AS allowed_roles,
+               ignored_roles    AS ignored_roles,
+               allowed_channels AS allowed_channels,
+               ignored_channels AS ignored_channels,
+               actions          AS actions
+        FROM custom_commands
+        WHERE guild_id = $1
+        ORDER BY id DESC;
+    `;
 
     const res = await db.query(query, [guildId]);
-    return res.rows.map((row) => customCommandSchema.parse(row));
+
+    return res.rows.map((row) => {
+        return customCommandSchema.parse({
+            ...row,
+            id: row.id !== null && row.id !== undefined ? Number(row.id) : undefined,
+        });
+    });
 }
 
 export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise<CustomCommand> {

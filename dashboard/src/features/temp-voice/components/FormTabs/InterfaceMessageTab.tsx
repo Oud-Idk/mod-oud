@@ -4,6 +4,7 @@ import { TempVoiceHub } from "@/features/temp-voice/types";
 import { sendInterfaceMessageAction } from "@/features/temp-voice/actions";
 import { TEMP_VOICE_CHANNEL_BUILDER_CONFIG } from "@/features/temp-voice/builderConfigs";
 import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBuilder";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 interface InterfaceMessageTabProps {
     channelMap: Record<string, string>;
@@ -74,10 +75,10 @@ export function InterfaceMessageTab({
 
     return (
         <div className="flex flex-col space-y-2">
-            <div className="flex flex-col my-4 rounded-lg">
+            <div className="flex flex-col rounded-lg">
                 <div className="flex flex-wrap items-end gap-4">
                     <div className="flex flex-col space-y-2 w-64">
-                        <label className="text-xs font-medium">Select Channel</label>
+                        <InputLabel className="mt-0">Select Channel</InputLabel>
                         <Dropdown
                             value={selectedChannel}
                             onChange={(val: string) => handleChange({ interface_channel_id: val })}

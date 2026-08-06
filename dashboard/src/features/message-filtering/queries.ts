@@ -145,12 +145,17 @@ export async function deleteBadWordRuleset(guildId: string, id: string): Promise
     `;
     await db.query(query, [id, guildId]);
 
-    const cacheKey = `config:guild:${guildId}`;
+    const badWordsCacheKey = `config:guild:${guildId}:bad_words`;
+
     try {
-        await redis.del(cacheKey);
-        await redis.publish("config_updates", `invalidate:${guildId}`);
+        await redis.del(badWordsCacheKey);
+
+        const generalCacheKey = `config:guild:${guildId}`;
+        await redis.del(generalCacheKey);
+
+        // Notify other service instances via Redis Pub/Sub if needed
+        await redis.publish("config_updates", `invalidate:${guildId}:bad_words`);
     } catch (redisError) {
         console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
     }
 }
-

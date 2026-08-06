@@ -155,7 +155,7 @@ export function SidebarLinks() {
         },
         {
             name: "Giveaway",
-            href: `/dashboard/${guildId}/giveaway`,
+            href: `/dashboard/${guildId}/giveaways`,
             icon: PartyPopper,
             exact: false,
         },

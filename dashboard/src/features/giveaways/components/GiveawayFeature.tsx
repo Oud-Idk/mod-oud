@@ -1,16 +1,16 @@
 import { ReactNode } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getGiveaways } from "@/features/giveaway/queries";
+import { getGiveaways } from "@/features/giveaways/queries";
 import { getTextChannelMap } from "@/features/_shared/channels";
 import {
     deleteGiveawayAction,
     deleteGiveawayDiscordMessageAction,
     saveGiveawayAction,
     sendGiveawayAction
-} from "@/features/giveaway/actions";
+} from "@/features/giveaways/actions";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { GiveawaysBody } from "@/features/giveaway/components/GiveawayBody";
+import { GiveawaysBody } from "@/features/giveaways/components/GiveawayBody";
 
 interface GiveawayFeatureProps {
     guildId: string;

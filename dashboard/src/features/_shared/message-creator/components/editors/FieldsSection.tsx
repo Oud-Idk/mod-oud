@@ -26,7 +26,7 @@ export function FieldsSection({
     return (
         <Section
             title={`Fields (${embed.fields?.length || 0})`}
-            defaultOpen={true}
+            defaultOpen={false}
         >
 
             <div className="flex flex-row justify-between items-center mt-4">

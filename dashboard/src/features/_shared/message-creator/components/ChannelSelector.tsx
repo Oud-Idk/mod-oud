@@ -32,7 +32,7 @@ export function ChannelSelector({
     }, [channels]);
 
     return (
-        <div className="flex flex-col max-w-sm">
+        <div className="flex flex-col max-w-md">
             <InputLabel required>Target Channel</InputLabel>
             <Dropdown
                 options={options}

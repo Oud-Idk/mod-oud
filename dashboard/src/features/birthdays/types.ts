@@ -14,16 +14,17 @@ export const birthdayConfigInputSchema = z.object({
     enabled: z.boolean().default(false),
     channelId: z.string().nullable().optional().default(""),
     announcementHour: z.number().min(0).max(23).default(9),
+    timezone: z.string().default("UTC"),
     birthdayRoleId: z.string().nullable().optional().default(""),
     requireYear: z.boolean().default(false),
     messageWithYear: customMessagePayloadSchema.default({
         format: "TEXT",
-        content: "Happy {user.ordinal_age} Birthday, {users}! 🎉",
+        content: "Happy birthday!\n{user.list}!\n🎉",
         embed: {},
     }),
     messageWithoutYear: customMessagePayloadSchema.default({
         format: "TEXT",
-        content: "Happy Birthday, {users}! 🎉",
+        content: "Happy birthday!\n{user.list}!\n🎉",
         embed: {},
     }),
 });

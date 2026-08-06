@@ -13,14 +13,15 @@ interface BaseDropdownProps<T extends string> {
     options: DropdownOption<T>[];
     placeholder?: string;
     disabled?: boolean;
-    error?: boolean; // Added for design system consistency
+    error?: boolean;
     className?: string;
 }
 
 interface SingleDropdownProps<T extends string> extends BaseDropdownProps<T> {
     multiple?: false;
-    value: T;
-    onChange: (value: T) => void;
+    value: T | null | undefined;
+    onChange: (value: T | null) => void;
+    allowClear?: boolean;
 }
 
 interface MultiDropdownProps<T extends string> extends BaseDropdownProps<T> {
@@ -45,7 +46,9 @@ export function Dropdown<T extends string>({
         ? options
             .filter((opt) => value.includes(opt.value))
             .map((opt) => opt.label)
-        : [options.find((opt) => opt.value === (value as T))?.label].filter((l): l is string => !!l);
+        : value
+            ? [options.find((opt) => opt.value === value)?.label].filter((l): l is string => !!l)
+            : [];
 
     const hasSelection = selectedLabels.length > 0;
     const displayText = hasSelection ? selectedLabels.join(", ") : placeholder;

@@ -20,7 +20,7 @@ export async function BirthdayFeature({ guildId }: BirthdayFeatureProps): Promis
 
     return (
         <div>
-            <DashboardHeader>Birthdays Plugin</DashboardHeader>
+            <DashboardHeader>Birthdays</DashboardHeader>
             <BirthdaysBody
                 initialConfig={config}
                 guildId={guildId}

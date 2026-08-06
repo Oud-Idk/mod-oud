@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, ReactNode } from "react";
+import React, { useState, ReactNode, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation"; // Import useRouter
 import {
     WarnThreshold,
     ModerationAction,
@@ -11,6 +12,10 @@ import {
     deleteWarnThresholdsAction,
 } from "@/features/warns/actions";
 import { Dropdown } from "@/components/ui/Dropdown";
+import { Button } from "@/components/ui/Button";
+import { InputLabel } from "@/components/layout/InputLabel";
+import { NumberInput } from "@/components/ui/NumberInput";
+import Footer from "@/components/layout/Footer";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 
 export interface WarnThresholdTabProps {
@@ -25,7 +30,7 @@ interface LocalThresholdState {
     actionType: ModerationAction[];
     rolesToAdd: string[];
     rolesToRemove: string[];
-    duration: number | null; // In minutes
+    duration: number | null;
 }
 
 const PUNISHMENT_OPTIONS: Array<{ value: ModerationAction; label: string }> = [
@@ -37,29 +42,63 @@ const PUNISHMENT_OPTIONS: Array<{ value: ModerationAction; label: string }> = [
     { value: "ROLE_REMOVE_ALL", label: "Remove All Roles" },
 ];
 
+const areArraysEqual = (a: string[] | ModerationAction[], b: string[] | ModerationAction[]) => {
+    if (a.length !== b.length) return false;
+    const sortedA = [...a].sort();
+    const sortedB = [...b].sort();
+    return sortedA.every((val, i) => val === sortedB[i]);
+};
+
 export function WarnThresholdTab({
     guildId,
     thresholds,
     roleMap,
 }: WarnThresholdTabProps): ReactNode {
+    const router = useRouter();
     const availableRoles = getAvailableRoleOptions(roleMap);
 
-    // Map initial server prop to local state
-    const [localThresholds, setLocalThresholds] = useState<LocalThresholdState[]>(() =>
-        thresholds.map((t) => ({
-            id: t.id,
-            warnCount: t.warn_count,
-            actionType: t.action_type || [],
-            rolesToAdd: t.roles_to_add || [],
-            rolesToRemove: t.roles_to_remove || [],
-            duration: t.duration || null,
-        }))
+    // Normalize initial server props for comparison
+    const initialThresholds = useMemo<LocalThresholdState[]>(() =>
+            thresholds.map((t) => ({
+                id: t.id,
+                warnCount: t.warn_count,
+                actionType: t.action_type || [],
+                rolesToAdd: t.roles_to_add || [],
+                rolesToRemove: t.roles_to_remove || [],
+                duration: t.duration || null,
+            })),
+        [thresholds]
     );
 
+    const [localThresholds, setLocalThresholds] = useState<LocalThresholdState[]>(initialThresholds);
     const [deletedIds, setDeletedIds] = useState<number[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
-    // ➕ Add a new blank threshold rule
+    // Synchronize local state when server props update
+    useEffect(() => {
+        setLocalThresholds(initialThresholds);
+        setDeletedIds([]);
+    }, [initialThresholds]);
+
+    const hasChanges = useMemo(() => {
+        if (deletedIds.length > 0) return true;
+        if (localThresholds.length !== initialThresholds.length) return true;
+
+        return localThresholds.some((local, idx) => {
+            const initial = initialThresholds[idx];
+            if (!initial) return true;
+
+            return (
+                local.id !== initial.id ||
+                local.warnCount !== initial.warnCount ||
+                local.duration !== initial.duration ||
+                !areArraysEqual(local.actionType, initial.actionType) ||
+                !areArraysEqual(local.rolesToAdd, initial.rolesToAdd) ||
+                !areArraysEqual(local.rolesToRemove, initial.rolesToRemove)
+            );
+        });
+    }, [localThresholds, initialThresholds, deletedIds]);
+
     const handleAddThreshold = () => {
         const nextWarnCount =
             localThresholds.length > 0
@@ -73,7 +112,7 @@ export function WarnThresholdTab({
                 actionType: ["TIMEOUT"],
                 rolesToAdd: [],
                 rolesToRemove: [],
-                duration: 10, // 10 mins default
+                duration: 10,
             },
         ]);
     };
@@ -99,17 +138,13 @@ export function WarnThresholdTab({
         );
     };
 
-    // 💾 Save Changes
     const handleSaveAll = async () => {
         setIsSaving(true);
         try {
-            // Delete queued items
             if (deletedIds.length > 0) {
                 await deleteWarnThresholdsAction(guildId, deletedIds);
-                setDeletedIds([]);
             }
 
-            // Clean & format payload
             const payload: SaveWarnThresholdInput[] = localThresholds.map((t) => ({
                 warnCount: Number(t.warnCount),
                 actionType: t.actionType,
@@ -119,6 +154,9 @@ export function WarnThresholdTab({
             }));
 
             await saveWarnThresholdsAction(guildId, payload);
+
+            // Fetch updated dataset and update baseline
+            router.refresh();
         } catch (err) {
             console.error("Failed to save warn thresholds:", err);
         } finally {
@@ -127,50 +165,38 @@ export function WarnThresholdTab({
     };
 
     return (
-        <div className="space-y-6 pt-4">
-            {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-4 border-b border-neutral-800 pb-4">
+        <div className="space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-4 border-border-subtle">
                 <div>
-                    <h3 className="text-lg font-semibold text-white">Action Thresholds</h3>
-                    <p className="text-xs text-neutral-400">
+                    <h3 className="text-lg font-bold text-foreground">Action Thresholds</h3>
+                    <Footer>
                         Automatically punish users when they reach a specific number of active warnings.
-                    </p>
+                    </Footer>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={handleAddThreshold}
-                        className="px-3.5 py-2 text-sm font-medium bg-neutral-800 hover:bg-neutral-700 text-white rounded border border-neutral-700 transition cursor-pointer"
-                    >
+                    <Button variant="secondary" onClick={handleAddThreshold}>
                         + Add Threshold
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleSaveAll}
-                        disabled={isSaving}
-                        className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded transition disabled:opacity-50 cursor-pointer"
-                    >
+                    </Button>
+                    <Button onClick={handleSaveAll} disabled={isSaving || !hasChanges}>
                         {isSaving ? "Saving..." : "Save Changes"}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
-            {/* Empty State */}
             {localThresholds.length === 0 && (
-                <div className="text-center py-12 border border-dashed border-neutral-800 rounded-lg bg-neutral-900/50">
-                    <p className="text-sm text-neutral-400">No warn thresholds set up yet.</p>
+                <div className="text-center py-12 border border-dashed border-border rounded-lg bg-surface-muted/30">
+                    <p className="text-sm text-muted-foreground">No warn thresholds set up yet.</p>
                     <button
                         type="button"
                         onClick={handleAddThreshold}
-                        className="mt-3 text-xs text-indigo-400 hover:underline cursor-pointer"
+                        className="mt-2 text-xs font-bold text-brand hover:text-brand-hover hover:underline transition cursor-pointer"
                     >
                         Create your first automated action
                     </button>
                 </div>
             )}
 
-            {/* Threshold List */}
-            <div className="space-y-4">
+            <div className="space-y-2">
                 {localThresholds.map((threshold, index) => {
                     const hasTimeout = threshold.actionType.includes("TIMEOUT");
                     const hasRoleAdd = threshold.actionType.includes("ROLE_ADD");
@@ -179,48 +205,33 @@ export function WarnThresholdTab({
                     return (
                         <div
                             key={threshold.id ?? `new-${index}`}
-                            className="bg-neutral-900 border border-neutral-800 rounded-lg p-5 space-y-4 transition hover:border-neutral-700"
+                            className="bg-surface border border-border-subtle rounded-lg p-4 py-3 space-y-2 transition-colors duration-150 hover:border-border"
                         >
-                            {/* Card Header */}
-                            <div className="flex items-center justify-between border-b border-neutral-800/60 pb-3">
-                                <span className="text-sm font-semibold text-indigo-400">
-                                    Trigger at {threshold.warnCount} {threshold.warnCount === 1 ? "Warn" : "Warns"}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => handleRemoveThreshold(index)}
-                                    className="text-xs text-red-400 hover:text-red-300 transition hover:bg-red-500/10 px-2.5 py-1 rounded border border-red-500/30 cursor-pointer"
-                                >
+                            <div className="flex items-center justify-between border-border mb-0">
+                                <span className="text-brand">Threshold Rule #{index + 1}</span>
+                                <Button variant="danger" onClick={() => handleRemoveThreshold(index)}>
                                     Delete Rule
-                                </button>
+                                </Button>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Field 1: Warn Count */}
-                                <div className="space-y-1.5">
-                                    <label className="block text-xs font-medium text-neutral-300">
-                                        Warn Count Trigger
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="1"
+                                <div className="space-y-1">
+                                    <InputLabel>Warn Count Trigger</InputLabel>
+                                    <NumberInput
+                                        min={1}
                                         value={threshold.warnCount}
-                                        onChange={(e) =>
+                                        onChange={(v) =>
                                             updateThreshold(
                                                 index,
                                                 "warnCount",
-                                                Math.max(1, parseInt(e.target.value) || 1)
+                                                Math.max(1, v || 1)
                                             )
                                         }
-                                        className="w-full bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
                                     />
                                 </div>
 
-                                {/* Field 2: Action Types Multi-Select */}
                                 <div className="space-y-1.5">
-                                    <label className="block text-xs font-medium text-neutral-300">
-                                        Actions To Execute
-                                    </label>
+                                    <InputLabel>Actions To Execute</InputLabel>
                                     <Dropdown
                                         multiple
                                         options={PUNISHMENT_OPTIONS}
@@ -237,58 +248,51 @@ export function WarnThresholdTab({
                                 </div>
                             </div>
 
-                            {/* Conditional Section: Timeout Duration */}
-                            {hasTimeout && (
-                                <div className="space-y-1.5 pt-2 border-t border-neutral-800/40">
-                                    <label className="block text-xs font-medium text-amber-400">
-                                        Timeout Duration (Minutes)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        placeholder="e.g. 10"
-                                        value={threshold.duration ?? ""}
-                                        onChange={(e) =>
-                                            updateThreshold(
-                                                index,
-                                                "duration",
-                                                e.target.value ? parseInt(e.target.value) : null
-                                            )
-                                        }
-                                        className="w-full max-w-xs bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-                                    />
-                                </div>
-                            )}
+                            {(hasTimeout || hasRoleAdd || hasRoleRemove) && (
+                                <div className="space-y-2 pt-2 border-t border-border-subtle">
+                                    {hasTimeout && (
+                                        <div className="space-y-1">
+                                            <InputLabel>Timeout Duration (Minutes)</InputLabel>
+                                            <NumberInput
+                                                min={1}
+                                                placeholder="e.g. 10"
+                                                value={threshold.duration ?? undefined}
+                                                onChange={(v) =>
+                                                    updateThreshold(index, "duration", v ?? null)
+                                                }
+                                            />
+                                        </div>
+                                    )}
 
-                            {/* Conditional Section: Roles To Add */}
-                            {hasRoleAdd && (
-                                <div className="space-y-1.5 pt-2 border-t border-neutral-800/40">
-                                    <label className="block text-xs font-medium text-emerald-400">
-                                        Roles To Add
-                                    </label>
-                                    <Dropdown
-                                        multiple
-                                        options={availableRoles}
-                                        value={threshold.rolesToAdd}
-                                        onChange={(roles) => updateThreshold(index, "rolesToAdd", roles)}
-                                        placeholder="Select roles to assign..."
-                                    />
-                                </div>
-                            )}
+                                    {hasRoleAdd && (
+                                        <div className="space-y-1.5">
+                                            <InputLabel>Roles To Add</InputLabel>
+                                            <Dropdown
+                                                multiple
+                                                options={availableRoles}
+                                                value={threshold.rolesToAdd}
+                                                onChange={(roles) =>
+                                                    updateThreshold(index, "rolesToAdd", roles)
+                                                }
+                                                placeholder="Select roles to assign..."
+                                            />
+                                        </div>
+                                    )}
 
-                            {/* Conditional Section: Roles To Remove */}
-                            {hasRoleRemove && (
-                                <div className="space-y-1.5 pt-2 border-t border-neutral-800/40">
-                                    <label className="block text-xs font-medium text-rose-400">
-                                        Roles To Remove
-                                    </label>
-                                    <Dropdown
-                                        multiple
-                                        options={availableRoles}
-                                        value={threshold.rolesToRemove}
-                                        onChange={(roles) => updateThreshold(index, "rolesToRemove", roles)}
-                                        placeholder="Select roles to strip..."
-                                    />
+                                    {hasRoleRemove && (
+                                        <div className="space-y-1.5">
+                                            <InputLabel>Roles To Remove</InputLabel>
+                                            <Dropdown
+                                                multiple
+                                                options={availableRoles}
+                                                value={threshold.rolesToRemove}
+                                                onChange={(roles) =>
+                                                    updateThreshold(index, "rolesToRemove", roles)
+                                                }
+                                                placeholder="Select roles to strip..."
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

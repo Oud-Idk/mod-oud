@@ -9,6 +9,7 @@ import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { ReactionRoleCreateModal } from "./ReactionRoleCreateModal";
 import { ReactionRoleConfig } from "./ReactionRoleConfig";
 import type { ReactionMessage, SaveReactionMessageInput } from "../types";
+import { cn } from "@/lib/cn";
 
 interface ReactionRolesBodyProps {
     guildId: string;
@@ -61,17 +62,42 @@ export function ReactionRolesBody({
                 items={reactionRoles}
                 renderItem={(item: ReactionMessage): ReactNode => {
                     const isCurrent = activeConfig?.id === item.id;
+
+                    const isSent = Boolean(item.message_id && item.message_id.trim() !== "");
+                    const statusText = isSent ? "Sent" : "Draft";
+
+                    const mappingCount = item.mode === "BUTTON" ? (item.buttons?.length ?? 0) : (item.reactions?.length ?? 0);
+                    const mappingLabel = item.mode === "BUTTON"
+                        ? (mappingCount === 1 ? "1 Button" : `${mappingCount} Buttons`)
+                        : (mappingCount === 1 ? "1 Reaction" : `${mappingCount} Reactions`);
+
                     return (
                         <button
                             key={item.id}
                             onClick={() => router.push(`/dashboard/${guildId}/reaction-roles?id=${item.id}`)}
-                            className={`w-full text-left px-3 py-2 rounded text-sm transition block cursor-pointer truncate ${
+                            className={cn(
+                                "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border",
                                 isCurrent
-                                    ? "bg-neutral-400/15 hover:bg-neutral-400/20 font-medium"
-                                    : "hover:bg-neutral-300/15"
-                            }`}
+                                    ? "bg-surface-active/50 border-border text-foreground shadow-sm"
+                                    : "border-transparent hover:bg-surface-active/60 text-foreground"
+                            )}
                         >
-                            <div className="truncate font-semibold">{item.name}</div>
+                            <div className="flex justify-between items-center gap-2 w-full">
+                                <span className="truncate font-semibold text-sm">{item.name}</span>
+                                <span
+                                    className={cn(
+                                        "text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                                        isSent
+                                            ? "text-success"
+                                            : "text-muted-foreground"
+                                    )}
+                                >
+                                    {statusText}
+                                </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate mt-1 w-full">
+                                {mappingLabel} • {item.mode === "BUTTON" ? "Button Mode" : "Reaction Mode"}
+                            </div>
                         </button>
                     );
                 }}

@@ -8,6 +8,8 @@ import { SavePopup } from "@/components/dashboard/SavePopup";
 import { CustomCommandConfig } from "@/features/custom-commands/components/CustomCommandConfig";
 import { CustomCommandCreateModal } from "@/features/custom-commands/components/CustomCommandCreateModal";
 import { CustomCommand, SaveCustomCommandData } from "@/features/custom-commands/types";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
 
 interface CustomCommandsBodyProps {
     commands: CustomCommand[];
@@ -49,19 +51,36 @@ export function CustomCommandsBody({
                 items={commands}
                 renderItem={(item) => {
                     const isCurrent = activeConfig?.id === item.id;
+                    const statusText = item.enabled ? "Active" : "Disabled";
+                    const actionCount = item.actions.length;
+
                     return (
                         <button
                             key={item.id}
                             onClick={() => router.push(`/dashboard/${guildId}/custom-commands?id=${item.id}`)}
-                            className={`w-full text-left px-3 py-2 rounded text-sm transition block cursor-pointer truncate ${
-                                isCurrent ? "bg-neutral-400/15 font-medium" : "hover:bg-neutral-300/15"
-                            }`}
+                            className={cn(
+                                "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
+                                isCurrent
+                                    ? "bg-surface-active/50 border-border text-foreground shadow-sm"
+                                    : "border-transparent hover:bg-surface-active/60 text-foreground"
+                            )}
                         >
-                            <div className="flex items-center justify-between">
-                                <span className="font-semibold truncate">!{item.name}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${item.enabled ? "bg-green-500/20 text-green-400" : "bg-neutral-700 text-neutral-400"}`}>
-                                    {item.enabled ? "Active" : "Disabled"}
+                            <div className="flex justify-between items-center gap-2 w-full">
+                                <span className="truncate font-semibold text-sm">!{item.name}</span>
+                                <span
+                                    className={cn(
+                                        "text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                                        item.enabled
+                                            ? "text-success"
+                                            : "text-muted-foreground"
+                                    )}
+                                >
+                                    {statusText}
                                 </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate mt-1 w-full">
+                                {actionCount === 1 ? "1 Action" : `${actionCount} Actions`}
+                                {item.description ? ` • ${item.description}` : ""}
                             </div>
                         </button>
                     );
@@ -70,15 +89,17 @@ export function CustomCommandsBody({
                 handleSave={handleSave}
                 handleCancel={handleCancel}
                 noActivePlaceholder={
-                    <>
-                        <p className="text-sm">Select a custom command or create a new one to begin.</p>
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="text-xs px-3.5 py-1.5 bg-zinc-850 rounded border border-neutral-500 hover:bg-neutral-300/10 cursor-pointer"
-                        >
+                    <div className="max-w-md mx-auto space-y-4">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-foreground">No Command Selected</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Select an existing custom command from the sidebar to edit its triggers and actions, or create a new one to begin.
+                            </p>
+                        </div>
+                        <Button onClick={() => setIsCreateModalOpen(true)}>
                             Create Your First Command
-                        </button>
-                    </>
+                        </Button>
+                    </div>
                 }
             >
                 {config && (

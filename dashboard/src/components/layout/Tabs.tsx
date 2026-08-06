@@ -61,7 +61,7 @@ export function Tabs<T extends string>({
             ref={containerRef}
             role="tablist"
             className={twMerge(
-                // Layout & Border using your design system
+                // Layout, Border, & Top Padding to prevent focus clipping
                 "flex gap-6 border-b border-border mb-2 overflow-x-auto",
                 // Scrollbar hiding
                 "scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
@@ -79,11 +79,7 @@ export function Tabs<T extends string>({
                         aria-selected={isActive}
                         onClick={() => onChange(tab.value)}
                         className={twMerge(
-                            // Base styles
-                            "pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all select-none shrink-0 cursor-pointer",
-                            // Focus Ring (Keyboard only)
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring rounded-t-sm",
-                            // Active vs Inactive State (Using brand & muted tokens)
+                            "ml-1 mt-1 p-1 text-xs font-bold uppercase tracking-wider border-b-2 transition-all select-none shrink-0 cursor-pointer focus-ring rounded-t-sm",
                             isActive
                                 ? "border-brand text-brand"
                                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"

@@ -5,6 +5,8 @@ import { Pad } from "@/components/layout/Pad";
 import { X } from "lucide-react";
 import { Warn } from "@/features/warns/types";
 import { searchWarnsAction } from "@/features/warns/actions";
+import { Button } from "@/components/ui/Button";
+import Footer from "@/components/layout/Footer";
 
 interface HistoryTabProps {
     guildId: string;
@@ -40,14 +42,15 @@ export function HistoryTab({ guildId }: HistoryTabProps): ReactNode {
 
     return (
         <div>
-            <TextInput
-                value={userId}
-                onChange={handleInputChange}
-                placeholder="Type your User ID"
-                onSubmit={onSearch}
-            />
-
-            <Pad/>
+            <div className="flex flex-row gap-2 max-w-md mb-2">
+                <TextInput
+                    value={userId}
+                    onChange={handleInputChange}
+                    placeholder="Type your User ID"
+                    className="font-mono"
+                />
+                <Button onClick={onSearch}>Search</Button>
+            </div>
 
             {warns.length > 0 && (
                 <Table>
@@ -98,7 +101,7 @@ export function HistoryTab({ guildId }: HistoryTabProps): ReactNode {
             )}
 
             {searchedUserId && warns.length === 0 && (
-                <span>Cannot find warns with user ID {searchedUserId}</span>
+                <Footer>    Cannot find warns with user ID {searchedUserId}</Footer>
             )}
         </div>
     );

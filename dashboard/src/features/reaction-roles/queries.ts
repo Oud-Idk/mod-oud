@@ -95,15 +95,15 @@ export async function saveReactionMessage(
             internalId = Number(res.rows[0].id);
         }
 
-        await client.query(`
-            DELETE FROM reaction_roles WHERE reaction_message_id = $1;
-            DELETE FROM button_roles WHERE reaction_message_id = $1;
-        `, [internalId]);
+        await client.query("DELETE FROM reaction_roles WHERE reaction_message_id = $1;", [internalId]);
+        await client.query("DELETE FROM button_roles WHERE reaction_message_id = $1;", [internalId]);
+
         // 3. Insert child records cleanly using PostgreSQL UNNEST
         if (data.mode === "REACTION" && data.reactions.length > 0) {
             const query = `
                 INSERT INTO reaction_roles (reaction_message_id, emoji, role_id)
-                SELECT $1, * FROM UNNEST($2::text[], $3::text[])
+                SELECT $1, u.emoji, u.role_id::bigint
+                FROM UNNEST($2::text[], $3::text[]) AS u(emoji, role_id)
                 ON CONFLICT (reaction_message_id, emoji) DO UPDATE SET role_id = EXCLUDED.role_id;
             `;
             await client.query(query, [
@@ -114,13 +114,15 @@ export async function saveReactionMessage(
         } else if (data.mode === "BUTTON" && data.buttons.length > 0) {
             const query = `
                 INSERT INTO button_roles (reaction_message_id, role_id, custom_id, label, style, emoji)
-                SELECT $1, * FROM UNNEST($2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
+                SELECT $1, u.role_id::bigint, u.custom_id, u.label, u.style::button_style, u.emoji
+                FROM UNNEST($2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
+                         AS u(role_id, custom_id, label, style, emoji)
                 ON CONFLICT (reaction_message_id, custom_id)
-                DO UPDATE SET
-                    role_id = EXCLUDED.role_id,
-                    label   = EXCLUDED.label,
-                    style   = EXCLUDED.style,
-                    emoji   = EXCLUDED.emoji;
+                    DO UPDATE SET
+                                  role_id = EXCLUDED.role_id,
+                                  label   = EXCLUDED.label,
+                                  style   = EXCLUDED.style,
+                                  emoji   = EXCLUDED.emoji;
             `;
             await client.query(query, [
                 internalId,

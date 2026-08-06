@@ -48,7 +48,7 @@ pub async fn setup_tickets(
     let category_id: u64 = match category {
         Some(c) => c.id.get(),
         None => {
-            let config_cat_id = settings.tickets.as_ref().and_then(|t| t.category_id);
+            let config_cat_id = settings.tickets.as_ref().map(|t| t.category_id);
 
             match config_cat_id {
                 Some(id) => id,
@@ -69,7 +69,7 @@ pub async fn setup_tickets(
     let ticket_role_id: u64 = match role {
         Some(r) => r.id.get(),
         None => {
-            let config_role_id = settings.tickets.as_ref().and_then(|t| t.ticket_role_id);
+            let config_role_id = settings.tickets.as_ref().map(|t| t.ticket_role_id);
 
             match config_role_id {
                 Some(id) => id,
@@ -100,7 +100,7 @@ pub async fn setup_tickets(
         build_ticket_message_payload(
             ctx.http(),
             serenity_guild_id,
-            Some(ticket_role_id),
+            ticket_role_id,
             Some(&ticket_cfg.format),
             ticket_cfg.content.as_ref(),
             ticket_cfg.embed.as_ref(),
@@ -110,7 +110,7 @@ pub async fn setup_tickets(
         build_ticket_message_payload(
             ctx.http(),
             serenity_guild_id,
-            Some(ticket_role_id),
+            ticket_role_id,
             None,
             None,
             None,

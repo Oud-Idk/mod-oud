@@ -25,7 +25,7 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Re
         .unwrap_or(20);
 
     let ticket_role = settings.tickets.as_ref()
-        .and_then(|v| v.ticket_role_id)
+        .map(|v| v.ticket_role_id)
         .unwrap_or(0);
 
     if !is_ticket_active(data, channel_id.get()) {

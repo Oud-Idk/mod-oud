@@ -4,7 +4,7 @@ use mod_oud::core::config;
 use mod_oud::core::error::on_error;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::features::live_feed::LogEvent;
-use mod_oud::features::{automod, birthday, custom_commands, general, invite_tracking, leveling, moderation, raid_detection, reporting, tickets, warning};
+use mod_oud::features::{automod, birthday, custom_commands, general, invite_tracking, leveling, moderation, raid_detection, reporting, temp_voice, tickets, warning};
 use mod_oud::web::server::start_web_server;
 use mod_oud::{Data, Error, events};
 use poise::serenity_prelude as serenity;
@@ -211,6 +211,7 @@ async fn async_main() -> Result<(), Error> {
             raid_detection::raid(),
             birthday::birthday(),
             automod::honeypot(),
+            temp_voice::voice(),
             register(),
         ];
 

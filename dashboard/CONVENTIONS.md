@@ -115,10 +115,6 @@ Feature-specific client hooks (`useStarboardConfig`, `useTicketFilters`) live in
 
 ---
 
-Here's the full section, rewritten clean for Tailwind v4's CSS-first config:
-
----
-
 ## 🎨 Tailwind Theming Conventions
 
 ### 1. Design Tokens Live in `globals.css`, via `@theme`
@@ -210,12 +206,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 ```
-
-### 🚫 New Code Smells
-* **Colors defined inside `@theme` directly**, skipping the `:root`/`.dark` indirection.
-* **Arbitrary values in feature/component code:** `w-[137px]`, `bg-[#3b82f6]` outside truly one-off layout tweaks that will never repeat.
-* **`dark:` variant sprawl:** repeating `dark:bg-... dark:text-...` on every element instead of letting the CSS variable swap handle it.
-* **Ternary classNames instead of `cva`:** `className={variant === "danger" ? "bg-red-500" : "bg-blue-500"}` in a component with more than two variants.
 
 ## 🚫 Code Smells (What NOT to do)
 

@@ -1,5 +1,4 @@
 import { z } from "zod";
-
 import { DiscordEmbed } from "@/features/_shared/embed";
 
 export const reminderFormatSchema = z.enum(["EMBED", "TEXT"]);
@@ -12,7 +11,10 @@ export const saveableReminderSchema = z.object({
     embed: z.custom<DiscordEmbed>().nullable().optional().default(null),
     content: z.string().nullable().optional().default(""),
     rType: reminderTypeSchema.default("SINGLE"),
-    nextTriggerAt: z.string().default(() => new Date().toISOString()),
+    nextTriggerAt: z
+        .union([z.string(), z.date()])
+        .transform((val) => (val instanceof Date ? val.toISOString() : val))
+        .default(() => new Date().toISOString()),
     daysOfWeek: z.array(z.number()).nullable().optional().default([]),
     timeStart: z.string().nullable().optional().default(null),
     timeEnd: z.string().nullable().optional().default(null),

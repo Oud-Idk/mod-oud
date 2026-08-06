@@ -28,6 +28,7 @@ pub struct CounterChannel {
     pub name_template: String,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MemberCounterConfig {
@@ -36,6 +37,9 @@ pub struct MemberCounterConfig {
     pub update_interval_minutes: u32,
     #[serde(default)]
     pub counters: Vec<CounterChannel>,
+    #[serde(default)]
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub category_id: Option<u64>,
 }
 
 fn default_interval() -> u32 { 15 }

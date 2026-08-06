@@ -153,8 +153,12 @@ export async function saveXpMultipliers(
 
     await db.query(
         `INSERT INTO xp_multipliers (guild_id, target_id, target_type, multiplier)
-         SELECT $1, *
-         FROM UNNEST($2::TEXT[], $3::TEXT[], $4::NUMERIC[])
+         SELECT
+             $1,
+             u.target_id::bigint,
+             u.target_type,
+             u.multiplier
+         FROM UNNEST($2::TEXT[], $3::TEXT[], $4::NUMERIC[]) AS u(target_id, target_type, multiplier)
          ON CONFLICT (guild_id, target_id)
              DO UPDATE SET multiplier = EXCLUDED.multiplier`,
         [guildId, targetIds, targetTypes, multipliers]

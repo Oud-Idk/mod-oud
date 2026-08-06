@@ -1,11 +1,12 @@
 "use client";
 
-import React, { ReactNode, useState, useTransition, useEffect, useRef, useCallback } from "react";
+import React, { ReactNode, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { InviteTrackerConfig, LeaderboardEntry } from "@/features/invite-tracking/types";
 import { fetchInviteLeaderboardAction } from "@/features/invite-tracking/actions";
+import Emphasis from "@/components/layout/Emphasis";
 
 interface InviteTrackerBodyProps {
     guildId: string;
@@ -44,7 +45,7 @@ export function InviteTrackingBody({
             try {
                 await onSave(config);
             } catch (error) {
-                console.error(error);
+                console.error("Failed to save invite tracker config:", error);
             }
         });
     };
@@ -99,102 +100,87 @@ export function InviteTrackingBody({
         };
     }, [loadMore]);
 
+    const renderRankBadge = (rank: number) => {
+        if (rank === 1) {
+            return (
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-warning-subtle text-warning text-xs font-bold border border-warning/30">
+                    1
+                </span>
+            );
+        }
+        if (rank === 2) {
+            return (
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-surface-active text-foreground text-xs font-bold border border-border">
+                    2
+                </span>
+            );
+        }
+        if (rank === 3) {
+            return (
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent-subtle text-accent text-xs font-bold border border-accent/30">
+                    3
+                </span>
+            );
+        }
+        return (
+            <span className="text-muted-foreground text-xs font-medium pl-1.5">
+                #{rank}
+            </span>
+        );
+    };
+
     return (
-        <div className="flex-1 scrollbar-thin pr-2 pb-12 space-y-6">
-            {/* Status Panel Control */}
-            <div className="border border-neutral-200 dark:border-neutral-800 p-5 rounded-xl bg-white dark:bg-zinc-900/50 space-y-2">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h3 className="font-semibold text-neutral-900 dark:text-zinc-100">Tracking System</h3>
-                        <p className="text-xs text-neutral-500 dark:text-zinc-400">
-                            Monitor new member attributions back to their respective inviters.
-                        </p>
-                    </div>
-                    <ToggleSwitch
-                        checked={config.enabled}
-                        onChange={handleToggle}
-                        disabled={isPending}
-                        text="Enable Tracking"
-                    />
-                </div>
-            </div>
+        <div className="flex-1">
+            <ToggleSwitch
+                checked={config.enabled} onChange={handleToggle} disabled={isPending} text="Enable Tracking"
+            />
 
-            {/* Leaderboard Module */}
-            <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white dark:bg-zinc-900/50 p-6 space-y-4">
-                <div>
-                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-zinc-100">Invite Leaderboard</h3>
-                    <p className="text-xs text-neutral-500 dark:text-zinc-400">
-                        Top active inviters currently registered within this guild.
-                    </p>
-                </div>
+            {config.enabled && (
+                <>
+                    <Emphasis className="mb-2">Invite Leaderboard</Emphasis>
 
-                {!config.enabled ? (
-                    <div className="py-12 text-center border border-dashed border-neutral-200 dark:border-neutral-800 rounded-xl bg-neutral-50 dark:bg-zinc-900/20">
-                        <p className="text-sm text-zinc-500">
-                            Enable the tracking system above to display statistical data.
-                        </p>
-                    </div>
-                ) : leaderboard.length === 0 ? (
-                    <div className="py-12 text-center">
-                        <p className="text-sm text-zinc-500">No invitation logs recorded yet.</p>
-                    </div>
-                ) : (
-                    <>
-                        <Table className="border-neutral-200 dark:border-neutral-800 bg-white dark:bg-zinc-900/10">
-                            <TableHeader headers={["Rank", "Inviter ID", "Invites"]} />
-                            <TableBody>
-                                {leaderboard.map((entry, index) => {
-                                    const rank = index + 1;
-                                    return (
-                                        <TableRow key={entry.inviterId}>
-                                            <TableCell className="font-medium">
-                                                {rank === 1 ? (
-                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-bold border border-amber-500/20">
-                                                        1
-                                                    </span>
-                                                ) : rank === 2 ? (
-                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-zinc-400/10 text-zinc-600 dark:text-zinc-300 text-xs font-bold border border-zinc-400/20">
-                                                        2
-                                                    </span>
-                                                ) : rank === 3 ? (
-                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-700/15 text-amber-800 dark:text-amber-600 text-xs font-bold border border-amber-700/20">
-                                                        3
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-zinc-400 dark:text-zinc-500 pl-2 text-xs font-medium">
-                                                        #{rank}
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="font-mono text-xs text-neutral-800 dark:text-zinc-300">
-                                                {entry.inviterId}
-                                            </TableCell>
-                                            <TableCell className="font-semibold text-neutral-900 dark:text-zinc-100">
-                                                {entry.count.toLocaleString()}
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-
-                        {/* Intersection Observer Sentinel for Infinite Scrolling */}
-                        <div ref={sentinelRef} className="py-2 text-center text-xs text-zinc-500">
+                    {leaderboard.length === 0 ? (
+                        <div className="py-12 text-center border border-dashed border-border-subtle rounded-xl bg-surface">
+                            <p className="text-sm text-muted-foreground">No invitation logs recorded yet.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <Table className="border border-border bg-surface rounded-lg overflow-hidden">
+                                <TableHeader headers={["Rank", "Inviter ID", "Invites"]}/>
+                                <TableBody>
+                                    {leaderboard.map((entry, index) => {
+                                        const rank = index + 1;
+                                        return (
+                                            <TableRow key={entry.inviterId}>
+                                                <TableCell className="font-medium">
+                                                    {renderRankBadge(rank)}
+                                                </TableCell>
+                                                <TableCell className="font-mono text-xs text-foreground">
+                                                    {entry.inviterId}
+                                                </TableCell>
+                                                <TableCell className="font-semibold text-foreground">
+                                                    {entry.count.toLocaleString()}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                            <div ref={sentinelRef} className="py-3 text-center text-xs text-muted-foreground">
                             {isLoadingMore && <p>Loading more entries...</p>}
-                            {!hasMore && leaderboard.length > pageSize && (
-                                <p className="text-zinc-400">Reached end of leaderboard.</p>
-                            )}
+                                {!hasMore && leaderboard.length > pageSize && (
+                                    <p>Reached end of leaderboard.</p>
+                                )}
                         </div>
                     </>
-                )}
-            </div>
+                    )}
+                </>
+            )}
 
             {/* Unsaved Popup Notification */}
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel}
-                    handleSave={handleSave}
-                    isSaving={isPending}
+                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
                 />
             )}
         </div>

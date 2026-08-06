@@ -170,7 +170,7 @@ export function StarboardConfigEditor({
     const id = config.id;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-2">
             <div className="flex justify-between items-center">
                 <div>
                     <h3 className="text-lg font-bold text-foreground">
@@ -182,14 +182,13 @@ export function StarboardConfigEditor({
                 </div>
 
                 {id && (
-                    <button
-                        type="button"
+                    <Button
+                        variant="danger"
                         disabled={isPending}
                         onClick={() => handleDelete(id)}
-                        className="px-4 py-2 text-xs font-semibold tracking-wide uppercase border border-danger/30 hover:border-danger hover:bg-danger-subtle text-danger rounded transition-all duration-150 cursor-pointer focus-ring-danger"
                     >
                         Delete Starboard
-                    </button>
+                    </Button>
                 )}
             </div>
 

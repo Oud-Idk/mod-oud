@@ -2,6 +2,7 @@ import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { RangeSlider } from "@/components/ui/RangeSlider";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { LevelingConfig } from "@/features/leveling/types";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 interface TextTabProps {
     config: LevelingConfig;
@@ -19,11 +20,12 @@ export function TextTab({
                 onChange={(v) => handleChange({ text: { ...config.text, enabled: v } })}
                 disabled={false}
                 text="Enable Text Leveling"
+                className="mb-0"
             />
             {config.text.enabled && (
-                <div className="space-y-4 mb-8">
+                <div className="space-y-2 mb-8 max-w-md">
                     <div>
-                        <p className="text-lg">XP Range</p>
+                        <InputLabel>XP Range</InputLabel>
                         <RangeSlider
                             valMin={config.text.xpRange.min}
                             valMax={config.text.xpRange.max}
@@ -35,7 +37,7 @@ export function TextTab({
                         />
                     </div>
                     <div>
-                        <p className="text-lg">Cooldown (Seconds)</p>
+                        <InputLabel>Cooldown (Seconds)</InputLabel>
                         <NumberInput
                             value={config.text.xpCooldown}
                             onChange={v => handleChange({ text: { ...config.text, xpCooldown: v ?? 0 } })}

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { getTicketHistoryAction, getTicketsListAction } from "@/features/tickets/actions";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Ticket, TicketHistory, ViewTicketStatus } from "@/features/tickets/types";
+import { cn } from "@/lib/cn";
 
 interface HistoryTabProps {
     guildId: string;
@@ -13,9 +14,10 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<TicketHistory | null>(null);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [loadingChannelId, setLoadingChannelId] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<ViewTicketStatus>("ALL");
     const [isPending, startTransition] = useTransition();
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     useEffect(() => {
         startTransition(async () => {
@@ -24,146 +26,239 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                 setTickets(list);
                 setFilteredTickets(list);
             } catch (err) {
-                console.error(err);
+                console.error("Failed to load ticket list:", err);
             }
         });
     }, [guildId]);
 
     useEffect(() => {
         let result = tickets;
-
         if (statusFilter !== "ALL") {
             result = result.filter((t) => t.status === statusFilter);
         }
-
         setFilteredTickets(result);
     }, [statusFilter, tickets]);
 
     const handleViewHistory = async (channelId: string) => {
-        setIsLoadingHistory(true);
+        setLoadingChannelId(channelId);
+        // Open the drawer immediately with a loading state, rather than waiting
+        // for the fetch to resolve before anything appears on screen.
+        setDrawerOpen(true);
         try {
             const history = await getTicketHistoryAction(channelId);
             setSelectedTicket(history);
         } catch (err) {
-            console.error(err);
+            console.error("Failed to fetch ticket history:", err);
         } finally {
-            setIsLoadingHistory(false);
+            setLoadingChannelId(null);
         }
     };
 
+    const closeDrawer = () => {
+        setDrawerOpen(false);
+        // Wait for the close transition to finish before clearing content,
+        // so the drawer doesn't visibly empty out mid-slide.
+        setTimeout(() => setSelectedTicket(null), 200);
+    };
+
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center border p-3 rounded-lg">
-                <div className="flex items-center gap-2 w-full">
-                    <span className="text-sm">Status:</span>
+        <div className="space-y-6 relative">
+            {/* Toolbar Filter */}
+            <div className="bg-surface-muted border border-border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <span className="text-sm font-medium text-muted-foreground">Status Filter:</span>
                     <Dropdown
-                        value={statusFilter} onChange={(v) => setStatusFilter(v as ViewTicketStatus)} options={[
-                        {
-                            value: "ALL",
-                            label: "All",
-                        },
-                        {
-                            value: "OPEN",
-                            label: "Open",
-                        },
-                        {
-                            value: "CLOSED",
-                            label: "Closed",
-                        }
-                    ]} className="max-w-40"
+                        value={statusFilter}
+                        onChange={(v) => setStatusFilter(v as ViewTicketStatus)}
+                        options={[
+                            { value: "ALL", label: "All Tickets" },
+                            { value: "OPEN", label: "Open" },
+                            { value: "CLOSED", label: "Closed" }
+                        ]}
+                        className="w-44"
                     />
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    Showing <span className="font-semibold text-foreground">{filteredTickets.length}</span> entries
                 </div>
             </div>
 
-            <div className="">
-                <div className={`lg:col-span-7 border mb-4 rounded-lg p-4 overflow-x-auto ${selectedTicket ? 'hidden lg:block' : 'col-span-12'}`}>
-                    <h2 className="text-lg font-semibold mb-4">Ticket Entries</h2>
-                    {isPending ? (
-                        <div className="py-8 text-center">Loading ticket list...</div>
-                    ) : filteredTickets.length === 0 ? (
-                        <div className="py-8 text-center">No ticket histories found.</div>
-                    ) : (
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                            <tr className="border-b text-sm">
-                                <th className="py-2">ID</th>
-                                <th className="py-2">Opener</th>
-                                <th className="py-2">Status</th>
-                                <th className="py-2">Messages</th>
-                                <th className="py-2">Created At</th>
-                                <th className="py-2 text-right">Action</th>
-                            </tr>
-                            </thead>
-                            <tbody className="divide-y divide-neutral-500  text-sm">
-                            {filteredTickets.map((ticket) => (
-                                <tr key={ticket.id} className="hover:bg-neutral-300/10">
-                                    <td className="py-3">#{ticket.id}</td>
-                                    <td className="py-3 font-mono text-xs">{ticket.opener_id}</td>
-                                    <td className="py-3">
-                                        <span
-                                            className={`py-0.5 rounded text-xs font-semibold ${
-                                                ticket.status === 'OPEN' ? 'text-green-400' : 'text-red-400'
-                                            }`}
-                                        >
-                                            {ticket.status}
-                                        </span>
-                                    </td>
-                                    <td className="py-3">{ticket.message_count}</td>
-                                    <td className="py-3">{new Date(ticket.created_at).toLocaleString()}</td>
-                                    <td className="py-3 text-right">
-                                        <button
-                                            onClick={() => handleViewHistory(ticket.channel_id)}
-                                            className="text-sm px-3 py-1 rounded border-neutral-500 hover:bg-neutral-300/10 border cursor-pointer mr-2"
-                                            disabled={isLoadingHistory}
-                                        >
-                                            View
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    )}
+            {/* Tickets Table — always full width, no reflow on selection */}
+            <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden">
+                <div className="p-5 border-b border-border-subtle flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-foreground">Ticket Entries</h2>
                 </div>
 
-                {/* Ticket Transcript Detail Column */}
-                {selectedTicket && (
-                    <div className="lg:col-span-5 rounded-lg p-4 flex flex-col h-150 border">
-                        <div className="flex justify-between items-center border-b pb-3 mb-4">
+                {isPending ? (
+                    <div className="py-16 text-center text-sm text-muted-foreground">
+                        Loading ticket list...
+                    </div>
+                ) : filteredTickets.length === 0 ? (
+                    <div className="py-16 text-center text-sm text-muted-foreground">
+                        No ticket histories found.
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                            <tr className="border-b border-border-subtle bg-surface-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                <th scope="col" className="py-3 px-4">Ticket</th>
+                                <th scope="col" className="py-3 px-4">Opener ID</th>
+                                <th scope="col" className="py-3 px-4">Status</th>
+                                <th scope="col" className="py-3 px-4">Msgs</th>
+                                <th scope="col" className="py-3 px-4">Created At</th>
+                                <th scope="col" className="py-3 px-4 text-right">Action</th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border-subtle text-sm">
+                            {filteredTickets.map((ticket) => {
+                                const isSelected = selectedTicket?.ticket_id === ticket.id && drawerOpen;
+                                const isLoadingThis = loadingChannelId === ticket.channel_id;
+                                const isOpen = ticket.status === "OPEN";
+
+                                return (
+                                    <tr
+                                        key={ticket.id}
+                                        className={cn(
+                                            "transition-colors hover:bg-surface-muted/60",
+                                            isSelected && "bg-surface-active/70"
+                                        )}
+                                    >
+                                        <td className="py-3.5 px-4 font-mono font-medium text-foreground">
+                                            #{ticket.id}
+                                        </td>
+                                        <td className="py-3.5 px-4 font-mono text-xs text-muted-foreground">
+                                            {ticket.opener_id}
+                                        </td>
+                                        <td className="py-3.5 px-4">
+                                            <span
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                                                    isOpen
+                                                        ? "bg-success-subtle text-success border-success/20"
+                                                        : "bg-surface-muted text-muted-foreground border-border"
+                                                )}
+                                            >
+                                                <span
+                                                    className={cn(
+                                                        "w-1.5 h-1.5 rounded-full",
+                                                        isOpen ? "bg-success" : "bg-muted-foreground"
+                                                    )}
+                                                />
+                                                {ticket.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-3.5 px-4 text-muted-foreground">
+                                            {ticket.message_count}
+                                        </td>
+                                        <td className="py-3.5 px-4 text-xs text-muted-foreground whitespace-nowrap">
+                                            {new Date(ticket.created_at).toLocaleString()}
+                                        </td>
+                                        <td className="py-3.5 px-4 text-right">
+                                            <button
+                                                onClick={() => handleViewHistory(ticket.channel_id)}
+                                                disabled={isLoadingThis}
+                                                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-surface hover:bg-surface-muted text-foreground focus-ring cursor-pointer transition-colors disabled:opacity-50 shadow-xs"
+                                            >
+                                                {isLoadingThis ? "Loading..." : "View"}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Backdrop */}
+            <div
+                onClick={closeDrawer}
+                aria-hidden="true"
+                className={cn(
+                    "fixed inset-0 bg-black/40 z-40 transition-opacity duration-200",
+                    drawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                )}
+            />
+
+            {/* Slide-over Drawer */}
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={selectedTicket ? `Ticket #${selectedTicket.ticket_id} transcript` : "Ticket transcript"}
+                className={cn(
+                    "fixed top-0 right-0 h-full w-full sm:w-[480px] bg-surface border-l border-border shadow-xl z-50",
+                    "flex flex-col transition-transform duration-200 ease-out",
+                    drawerOpen ? "translate-x-0" : "translate-x-full"
+                )}
+            >
+                {selectedTicket ? (
+                    <>
+                        <div className="flex justify-between items-start border-b border-border-subtle p-5">
                             <div>
-                                <h3 className="text-md font-semibold">Ticket
-                                    #{selectedTicket.ticket_id} History</h3>
-                                <p className="text-xs">Opener: {selectedTicket.opener_name}</p>
+                                <h3 className="text-base font-semibold text-foreground">
+                                    Ticket #{selectedTicket.ticket_id}
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Opener: <span className="font-mono text-foreground">{selectedTicket.opener_id}</span>
+                                </p>
                             </div>
                             <button
-                                onClick={() => setSelectedTicket(null)}
-                                className="text-sm px-3 py-1 rounded border-neutral-500 hover:bg-neutral-300/10 border cursor-pointer"
+                                onClick={closeDrawer}
+                                className="px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-surface hover:bg-surface-muted text-muted-foreground hover:text-foreground focus-ring cursor-pointer transition-colors"
                             >
-                                Close View
+                                Close
                             </button>
                         </div>
 
                         {/* Message Transcript Log */}
-                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 p-3 rounded border border-neutral-500 shadow">
+                        <div className="flex-1 overflow-y-auto space-y-3 p-4 bg-surface-muted/30">
                             {selectedTicket.messages.length === 0 ? (
-                                <div className="text-zinc-500 text-center py-12 text-sm">No messages recorded in this
-                                    ticket.</div>
+                                <div className="text-muted-foreground text-center py-16 text-sm">
+                                    No messages recorded in this ticket.
+                                </div>
                             ) : (
-                                selectedTicket.messages.map((msg, index) => (
-                                    <div key={msg.message_id || index} className="text-sm shadow">
-                                        <div className="flex items-baseline justify-between mb-1">
-                                            <p className={`text-xs ${msg.is_ticket_manager ? "text-indigo-500" : ""}`}>User: {msg.sender_name}</p>
-                                            <span className="text-[10px] text-zinc-500">
-                                                {new Date(msg.created_at).toLocaleString()}
-                                            </span>
+                                selectedTicket.messages.map((msg, index) => {
+                                    const isManager = msg.is_ticket_manager;
+
+                                    return (
+                                        <div
+                                            key={msg.message_id || index}
+                                            className={cn(
+                                                "p-3 rounded-lg border text-sm transition-colors",
+                                                isManager
+                                                    ? "bg-brand-subtle/40 border-brand/20"
+                                                    : "bg-surface border-border-subtle shadow-2xs"
+                                            )}
+                                        >
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-semibold text-foreground">
+                                                        {msg.author_id}
+                                                    </span>
+                                                    {isManager && (
+                                                        <span className="bg-brand text-brand-foreground text-[10px] font-medium px-1.5 py-0.2 rounded">
+                                                            Staff
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    {new Date(msg.created_at).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-foreground/90 whitespace-pre-wrap wrap-break-word leading-relaxed">
+                                                {msg.content}
+                                            </p>
                                         </div>
-                                        <p className="border-neutral-500 border whitespace-pre-wrap break-all p-2 rounded">
-                                            {msg.content}
-                                        </p>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
+                    </>
+                ) : (
+                    <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+                        Loading transcript...
                     </div>
                 )}
             </div>

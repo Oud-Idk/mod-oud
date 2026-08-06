@@ -1,9 +1,4 @@
-interface RoleOption {
-    value: string;
-    label: string;
-}
-
-export interface ChannelOption {
+interface Option {
     value: string;
     label: string;
 }
@@ -11,7 +6,7 @@ export interface ChannelOption {
 export function getAvailableRoleOptions(
     roleMap: Record<string, string> | null | undefined,
     scopeRoles?: string[]
-): RoleOption[] {
+): Option[] {
     const roles = scopeRoles || [];
     const map = roleMap || {};
 
@@ -26,7 +21,7 @@ export function getAvailableRoleOptions(
 export function getAvailableChannelOptions(
     channelMap: Record<string, string> | null | undefined,
     scopeChannels?: string[]
-): ChannelOption[] {
+): Option[] {
     const channels = scopeChannels || [];
     const map = channelMap || {};
 
@@ -35,5 +30,20 @@ export function getAvailableChannelOptions(
         .map(([id, name]) => ({
             value: id,
             label: `#${name.replace("#", "")}`
+        }));
+}
+
+export function getAvailableCategoryOptions(
+    categoryMap: Record<string, string> | null | undefined,
+    scopeCategories?: string[]
+): Option[] {
+    const categories = scopeCategories || [];
+    const map = categoryMap || {};
+
+    return Object.entries(map)
+        .filter(([id]) => !categories.includes(id))
+        .map(([id, name]) => ({
+            value: id,
+            label: name
         }));
 }

@@ -6,6 +6,10 @@ import { TICKETS_PANEL_CONFIG } from "@/features/tickets/builderConfigs";
 import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import { DiscordChannel } from "@/features/_shared/channels.types";
+import { InputLabel } from "@/components/layout/InputLabel";
+import Emphasis from "@/components/layout/Emphasis";
+import { Button } from "@/components/ui/Button";
+import { getAvailableCategoryOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
 
 interface TicketingTabProps {
     config: TicketConfig;
@@ -22,8 +26,8 @@ interface TicketingTabProps {
     onPostPanel: () => Promise<void>;
     isProcessing: boolean;
     isDirty: boolean;
-    status: { type: "SUCCESS" | "ERROR"; message: string } | null,
-    isEmpty: boolean,
+    status: { type: "SUCCESS" | "ERROR"; message: string } | null;
+    isEmpty: boolean;
 }
 
 export default function TicketingTab({
@@ -46,6 +50,14 @@ export default function TicketingTab({
 }: TicketingTabProps) {
     const targetCategoryIsEmpty = (config.categoryId ?? "").trim() === "";
     const targetRoleIsEmpty = !config.ticketRoleId || config.ticketRoleId.trim() === "";
+
+    const messageConfigAdapter = useMemo<GenericMessageConfig>(() => ({
+        enabled: config.enabled,
+        channel_id: config.channelId,
+        content: config.content,
+        embed: config.embed,
+        format: config.format,
+    }), [config]);
 
     const handleChange = useCallback((updated: GenericMessageConfig) => {
         setConfig((prev) => ({
@@ -71,27 +83,27 @@ export default function TicketingTab({
     }, [setConfig]);
 
     const categoryOptions = useMemo(() => {
-        const transformedArray = Object.entries(categoryMap).map(([key, value]) => ({
-            value: key,
-            label: value
-        }));
-        return [{ value: "", label: "Select a category for tickets..." }, ...transformedArray];
+        return getAvailableCategoryOptions(categoryMap);
     }, [categoryMap]);
 
     const roleOptions = useMemo(() => {
-        const transformedArray = Object.entries(roleMap).map(([key, value]) => ({
-            value: key,
-            label: value
-        }));
-        return [{ value: "", label: "Select a support role..." }, ...transformedArray];
+        return getAvailableRoleOptions(roleMap);
     }, [roleMap]);
 
-    const actionButtonDisabled = !(!isDirty && config.channelId && config.enabled && !targetChannelIsEmpty && !isEmpty);
+    const actionButtonDisabled =
+        isDirty ||
+        isProcessing ||
+        !config.enabled ||
+        !config.channelId ||
+        targetChannelIsEmpty ||
+        targetCategoryIsEmpty ||
+        targetRoleIsEmpty ||
+        isEmpty;
 
     return (
-        <div className="flex flex-col gap-3 mt-4">
+        <div className="flex flex-col">
             <MessageConfigEditor
-                config={config}
+                config={messageConfigAdapter}
                 onChange={handleChange}
                 onEmbedChange={handleEmbedChange}
                 channels={channels}
@@ -105,58 +117,70 @@ export default function TicketingTab({
                 targetChannelIsEmpty={targetChannelIsEmpty}
                 setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                 customFields={
-                    <div className="max-w-sm space-y-3">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium">Ticket Destination Category</label>
+                    <div className="max-w-md flex flex-col">
+                        <div>
+                            <InputLabel required>Ticket Destination Category</InputLabel>
                             <Dropdown
                                 value={(config.categoryId ?? "")}
                                 onChange={handleCategoryChange}
                                 options={categoryOptions}
-                                className={targetCategoryIsEmpty ? `border-red-700 dark:border-red-300` : ''}
+                                error={targetCategoryIsEmpty}
                             />
+                            {targetCategoryIsEmpty && (
+                                <p className="text-xs text-danger mt-1">
+                                    Please select a category for tickets.
+                                </p>
+                            )}
                         </div>
 
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium">Support Staff Role</label>
+                        <div>
+                            <InputLabel required>Support Staff Role</InputLabel>
                             <Dropdown
-                                value={config.ticketRoleId || ""}
+                                value={config.ticketRoleId ?? ""}
                                 onChange={handleRoleChange}
                                 options={roleOptions}
-                                className={targetRoleIsEmpty ? `border-red-700 dark:border-red-300` : ''}
+                                error={targetRoleIsEmpty}
                             />
+                            {targetRoleIsEmpty && (
+                                <p className="text-xs text-danger mt-1">
+                                    Please select a support staff role.
+                                </p>
+                            )}
                         </div>
                     </div>
                 }
             />
 
             {config.enabled && (
-                <div className="flex flex-col  gap-4">
+                <div className="flex flex-col gap-4">
                     <div>
-                        <h3 className="text-lg font-medium">Post Ticket Panel</h3>
+                        <Emphasis className="mt-4">Post Ticket Panel</Emphasis>
                         <p className="text-sm">
                             Send or delete your saved custom embed and/or text content down to the selected Discord
-                            channel. </p>
+                            channel.
+                        </p>
                     </div>
                     {config.postedMessageId ? (
-                        <button
+                        <Button
+                            variant="danger"
                             onClick={onDeletePanel}
                             disabled={actionButtonDisabled}
-                            className="w-fit px-4 py-2 text-sm font-medium border border-red-500 rounded hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="w-fit"
                         >
                             {isProcessing ? "Deleting Panel..." : "Delete Ticket Panel"}
-                        </button>
+                        </Button>
                     ) : (
-                        <button
+                        <Button
                             onClick={onPostPanel}
                             disabled={actionButtonDisabled}
-                            className="w-fit px-4 py-2 text-sm font-medium border border-neutral-500 rounded hover:bg-neutral-300/10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="w-fit"
                         >
                             {isProcessing ? "Sending Panel..." : "Post Ticket Panel"}
-                        </button>
+                        </Button>
                     )}
 
                     {isDirty && (
-                        <span className="text-sm text-amber-600 italic">
+                        <span className="text-sm text-warning italic">
                             Please save your changes first to enable actions.
                         </span>
                     )}
@@ -168,8 +192,6 @@ export default function TicketingTab({
                     )}
                 </div>
             )}
-
-
         </div>
     );
 }

@@ -1,4 +1,3 @@
-
 import { DiscordEmbed, Format } from "@/features/_shared/embed";
 
 export type TicketStatus = "OPEN" | "CLOSED";
@@ -27,7 +26,6 @@ export interface TicketMessage {
     author_id: string;
     content: string;
     created_at: string;
-    sender_name: string;
     is_ticket_manager: boolean;
 }
 
@@ -42,7 +40,6 @@ export interface TicketHistory {
     last_activity: Date;
     message_count: number;
     messages: TicketMessage[];
-    opener_name: string;
 }
 
 export interface Ticket {

@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { LevelReward } from "@/features/leveling/types";
 import { Dropdown } from "@/components/ui/Dropdown";
+import { Button } from "@/components/ui/Button";
+import { InputLabel } from "@/components/layout/InputLabel";
+import { NumberInput } from "@/components/ui/NumberInput";
+import Footer from "@/components/layout/Footer";
+import { useRouter } from "next/navigation";
 
 export interface LevelRewardsTabProps {
     guildId: string;
@@ -22,6 +27,13 @@ interface RewardItemState {
     removePreviousRoles: boolean;
 }
 
+const areArraysEqual = (a: string[], b: string[]) => {
+    if (a.length !== b.length) return false;
+    const sortedA = [...a].sort();
+    const sortedB = [...b].sort();
+    return sortedA.every((val, i) => val === sortedB[i]);
+};
+
 export function RewardTab({
     guildId,
     rewards,
@@ -30,18 +42,46 @@ export function RewardTab({
     roleMap,
 }: LevelRewardsTabProps) {
     const availableRoles = getAvailableRoleOptions(roleMap);
-    // Map database rewards (snake_case) to camelCase local state
-    const [localRewards, setLocalRewards] = useState<RewardItemState[]>(() =>
-        rewards.map((r) => ({
-            id: r.id,
-            levelRequirement: r.level_requirement ?? 1,
-            rolesToAdd: r.roles_to_add ?? [],
-            removePreviousRoles: r.remove_previous_roles ?? false,
-        }))
+
+    // Normalize initial server props for comparison
+    const initialRewards = useMemo<RewardItemState[]>(() =>
+            rewards.map((r) => ({
+                id: r.id,
+                levelRequirement: r.level_requirement ?? 1,
+                rolesToAdd: r.roles_to_add ?? [],
+                removePreviousRoles: r.remove_previous_roles ?? false,
+            })),
+        [rewards]
     );
 
+    // Map database rewards (snake_case) to camelCase local state
+    const [localRewards, setLocalRewards] = useState<RewardItemState[]>(initialRewards);
     const [deletedIds, setDeletedIds] = useState<number[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const router = useRouter();
+
+    // Determine if any changes exist between current state and original props
+    const hasChanges = useMemo(() => {
+        if (deletedIds.length > 0) return true;
+        if (localRewards.length !== initialRewards.length) return true;
+
+        return localRewards.some((local, idx) => {
+            const initial = initialRewards[idx];
+            if (!initial) return true;
+
+            return (
+                local.id !== initial.id ||
+                local.levelRequirement !== initial.levelRequirement ||
+                local.removePreviousRoles !== initial.removePreviousRoles ||
+                !areArraysEqual(local.rolesToAdd, initial.rolesToAdd)
+            );
+        });
+    }, [localRewards, initialRewards, deletedIds]);
+
+    useEffect(() => {
+        setLocalRewards(initialRewards);
+        setDeletedIds([]);
+    }, [initialRewards]);
 
     const handleAddReward = () => {
         const nextLevel =
@@ -91,6 +131,7 @@ export function RewardTab({
                     removePreviousRoles: r.removePreviousRoles,
                 }))
             );
+            router.refresh();
         } catch (err) {
             console.error("Failed to save level rewards:", err);
         } finally {
@@ -99,89 +140,81 @@ export function RewardTab({
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-4 border-b border-neutral-800 pb-4">
+        <div className="space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-4 border-border-subtle">
                 <div>
-                    <h3 className="text-lg font-semibold text-white">Level Rewards</h3>
-                    <p className="text-xs text-neutral-400">
+                    <h3 className="text-lg font-bold text-foreground">Level Rewards</h3>
+                    <Footer>
                         Automatically assign roles to members when they hit specific levels.
-                    </p>
+                    </Footer>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
                         onClick={handleAddReward}
-                        className="px-3.5 py-2 text-sm font-medium bg-neutral-800 hover:bg-neutral-700 text-white rounded border border-neutral-700 transition cursor-pointer"
                     >
                         + Add Reward
-                    </button>
-                    <button
-                        type="button"
+                    </Button>
+                    <Button
                         onClick={handleSaveAll}
-                        disabled={isSaving}
-                        className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded transition disabled:opacity-50 cursor-pointer"
+                        disabled={isSaving || !hasChanges}
                     >
                         {isSaving ? "Saving..." : "Save Changes"}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
+            {/* Empty State */}
             {localRewards.length === 0 && (
-                <div className="text-center py-12 border border-dashed border-neutral-800 rounded-lg bg-neutral-900/50">
-                    <p className="text-sm text-neutral-400">No level rewards configured yet.</p>
+                <div className="text-center py-12 border border-dashed border-border rounded-lg bg-surface-muted/30">
+                    <p className="text-sm text-muted-foreground">No level rewards configured yet.</p>
                     <button
                         type="button"
                         onClick={handleAddReward}
-                        className="mt-3 text-xs text-indigo-400 hover:underline cursor-pointer"
+                        className="mt-2 text-xs font-bold text-brand hover:text-brand-hover hover:underline transition cursor-pointer"
                     >
                         Create your first level reward rule
                     </button>
                 </div>
             )}
 
-            <div className="space-y-4">
+            {/* Reward Card List */}
+            <div className="space-y-2">
                 {localRewards.map((reward, index) => (
                     <div
                         key={reward.id ?? `new-${index}`}
-                        className="bg-neutral-900 border border-neutral-800 rounded-lg p-5 space-y-4 transition hover:border-neutral-700"
+                        className="bg-surface border border-border-subtle rounded-lg p-4 py-3 space-y-2 transition-colors duration-150 hover:border-border"
                     >
-                        <div className="flex items-center justify-between border-b border-neutral-800/60 pb-3">
-                            <span className="text-sm font-semibold text-indigo-400">
-                                Reward Rule #{index + 1}
-                            </span>
-                            <button
-                                type="button"
+                        {/* Card Subheader */}
+                        <div className="flex items-center justify-between border-border mb-0">
+                            <span className="text-brand">Reward Rule #{index + 1}</span>
+                            <Button
+                                variant="danger"
                                 onClick={() => handleRemoveReward(index)}
-                                className="text-xs text-red-400 hover:text-red-300 transition hover:bg-red-500/10 px-2.5 py-1 rounded border border-red-500/30 cursor-pointer"
                             >
                                 Delete Rule
-                            </button>
+                            </Button>
                         </div>
 
+                        {/* Input Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-medium text-neutral-300">
-                                    Level Requirement
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
+                            <div className="space-y-1">
+                                <InputLabel>Level Requirement</InputLabel>
+                                <NumberInput
+                                    min={1}
                                     value={reward.levelRequirement}
-                                    onChange={(e) =>
+                                    onChange={(v) =>
                                         updateReward(
                                             index,
                                             "levelRequirement",
-                                            Math.max(1, parseInt(e.target.value) || 1)
+                                            Math.max(1, v || 1)
                                         )
                                     }
-                                    className="w-full bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
                                 />
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="block text-xs font-medium text-neutral-300">
-                                    Roles To Grant
-                                </label>
+                                <InputLabel>Roles to Grant</InputLabel>
                                 <Dropdown
                                     multiple
                                     options={availableRoles}
@@ -194,16 +227,12 @@ export function RewardTab({
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60">
+                        {/* Switch Footer Row */}
+                        <div className="flex items-center justify-between border-border">
                             <div className="space-y-0.5">
-                                <span className="text-xs font-medium text-neutral-200 block">
-                                    Remove Previous Leveling Roles
-                                </span>
-                                <span className="text-[11px] text-neutral-500 block">
-                                    Strips lower-tier level roles when unlocking this reward.
-                                </span>
+                                <span>Strips lower-tier level roles </span>
                             </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
+                            <label className="relative inline-flex items-center cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={reward.removePreviousRoles}
@@ -212,7 +241,7 @@ export function RewardTab({
                                     }
                                     className="sr-only peer"
                                 />
-                                <div className="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                <div className="w-9 h-5 bg-surface-active rounded-full transition-all duration-150 peer-focus:outline-none peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-brand-foreground after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
                             </label>
                         </div>
                     </div>

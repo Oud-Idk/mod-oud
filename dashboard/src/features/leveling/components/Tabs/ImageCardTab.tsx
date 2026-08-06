@@ -1,6 +1,9 @@
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { ImageCardSettings, LevelingConfig } from "@/features/leveling/types";
+import { TextInput } from "@/components/ui/TextInput";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 export interface ImageCardTabProps {
     config: LevelingConfig;
@@ -15,20 +18,19 @@ interface ColorPickerInputProps {
 
 function ColorPickerInput({ label, value, onChange }: ColorPickerInputProps) {
     return (
-        <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-300">{label}</label>
+        <div className="flex flex-col">
+            <InputLabel>{label}</InputLabel>
             <div className="flex items-center gap-2">
                 <input
                     type="color"
                     value={value || "#000000"}
                     onChange={(e) => onChange(e.target.value)}
-                    className="w-10 h-10 rounded cursor-pointer border border-gray-700 bg-transparent p-0.5"
+                    className="w-10 h-10 rounded-md cursor-pointer border border-border bg-surface-muted p-1 transition-all focus-ring"
                 />
-                <input
-                    type="text"
+                <TextInput
                     value={value || "#000000"}
                     onChange={(e) => onChange(e.target.value)}
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-sm text-white focus:outline-none focus:border-indigo-500 font-mono w-28"
+                    className="px-3 py-2 bg-surface-elevated border border-border rounded-md text-sm text-foreground focus-ring font-mono w-28 transition-all"
                 />
             </div>
         </div>
@@ -55,9 +57,8 @@ export function ImageCardTab({ config, handleChange }: ImageCardTabProps) {
 
     const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max);
 
-    // Dummy preview values
     const dummyData = {
-        username: "Alex",
+        username: "Oud",
         level: 10,
         xp: 700,
         maxXp: 1000,
@@ -93,19 +94,21 @@ export function ImageCardTab({ config, handleChange }: ImageCardTabProps) {
 
     return (
         <div className="space-y-6">
-            {/* Live SVG Preview */}
-            <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-400">Card Preview</p>
-                <div
-                    className="w-full max-w-xl rounded-lg overflow-hidden border border-gray-800 bg-gray-950 p-2 [&>svg]:w-full [&>svg]:h-auto"
-                    dangerouslySetInnerHTML={{ __html: manipulatedSvg }}
-                />
-            </div>
+           <div
+               className="w-full max-w-xl rounded-lg overflow-hidden border border-border bg-surface-muted [&>svg]:w-full [&>svg]:h-auto shadow-sm"
+               dangerouslySetInnerHTML={{ __html: manipulatedSvg }}
+           />
 
             {/* Customization Inputs Grid */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white">Card Customization</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="space-y-4 pt-4 border-t border-border-subtle">
+                <div>
+                    <h3 className="text-base font-bold text-foreground">Card Customization</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        Customize the look of the rank card that members generate in Discord.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                     <ColorPickerInput
                         label="Background Color"
                         value={card.backgroundColor}

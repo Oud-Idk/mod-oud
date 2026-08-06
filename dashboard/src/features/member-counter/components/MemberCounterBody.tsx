@@ -1,12 +1,19 @@
+"use client";
 
-import { ForwardRefExoticComponent, ReactNode, SVGProps, useMemo, useState } from "react";
+import React, { ForwardRefExoticComponent, ReactNode, SVGProps, useMemo, useState } from "react";
 import { Bot, Hash, Loader2, Plus, ShieldAlert, Sparkles, Trash2, UserCheck, Users, Wand2 } from "lucide-react";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { Button } from "@/components/ui/Button";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { CounterChannel, CounterType, MemberCounterConfig } from "@/features/member-counter/types";
 
 import { setupMemberCounterChannelsAction } from "@/features/member-counter/actions";
+import { InputLabel } from "@/components/layout/InputLabel";
+import Footer from "@/components/layout/Footer";
+import Emphasis from "@/components/layout/Emphasis";
+import { TextInput } from "@/components/ui/TextInput";
 
 interface MemberCounterBodyProps {
     guildId: string;
@@ -19,7 +26,7 @@ const COUNTER_TYPES: {
     label: string;
     value: CounterType;
     icon: ForwardRefExoticComponent<Omit<SVGProps<SVGSVGElement>, "ref">>;
-    defaultTemplate: string
+    defaultTemplate: string;
 }[] = [
     { label: "Total Members", value: "TOTAL_MEMBERS", icon: Users, defaultTemplate: "👥 Members: {count}" },
     { label: "Humans Only", value: "HUMANS_ONLY", icon: UserCheck, defaultTemplate: "👨 Humans: {count}" },
@@ -99,12 +106,10 @@ export function MemberCounterBody({
         });
     };
 
-    // Server action caller: auto-creates category & missing channels
     const handleAutoCreateChannels = async (targetCounterId?: string): Promise<void> => {
         setIsCreatingChannels(true);
         setCreateError(null);
 
-        // Filter target counters or pass all counters to backend
         const countersToProcess = targetCounterId
             ? (config.counters || []).filter((c) => c.id === targetCounterId)
             : (config.counters || []);
@@ -114,7 +119,6 @@ export function MemberCounterBody({
         setIsCreatingChannels(false);
 
         if (result.success && result.counters) {
-            // Update local state with the newly assigned channel IDs
             const updatedCounters = (config.counters || []).map((c) => {
                 const matchedNew = result.counters?.find((nc) => nc.id === c.id);
                 return matchedNew ? { ...c, channelId: matchedNew.channelId } : c;
@@ -131,103 +135,116 @@ export function MemberCounterBody({
 
     const hasMissingChannelIds = config.counters?.some((c) => !c.channelId?.trim());
 
-    return (
-        <div className="w-full space-y-6 text-zinc-900 dark:text-zinc-100">
-            {/* Header & Master Toggle */}
-            <div className="flex items-start justify-between border-b border-zinc-200 dark:border-zinc-800 pb-5">
-                <div>
-                    <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Member Counter</h1>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                        Automatically update locked voice channel names with live server statistics. </p>
-                </div>
+    const timeOptions: DropdownOption<"5" | "10" | "15" | "30">[] = [
+        {
+            value: "5",
+            label: "Every 5 Minutes",
+        },
+        {
+            value: "10",
+            label: "Every 10 Minutes",
+        },
+        {
+            value: "15",
+            label: "Every 15 Minutes",
+        },
+        {
+            value: "30",
+            label: "Every 30 Minutes",
+        }
+    ]
 
-                <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={config.enabled ?? false}
-                        onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
-                        className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-zinc-200 dark:bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
-            </div>
+    return (
+        <div className="w-full space-y-6 text-foreground">
+            <ToggleSwitch
+                checked={config.enabled ?? false}
+                onChange={(checked) => setConfig({ ...config, enabled: checked })}
+                disabled={isPending}
+                text="Enable Member Counter"
+            />
 
             {config.enabled && (
-                <div className="space-y-6">
+                <div className="space-y-2">
                     {/* Error Banner */}
                     {createError && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-lg flex items-center justify-between">
+                        <div
+                            className="p-3.5 bg-danger-subtle border border-danger/30 text-danger text-xs rounded-xl flex items-center justify-between">
                             <span>{createError}</span>
-                            <button onClick={() => setCreateError(null)} className="font-bold ml-2">✕</button>
+                            <button
+                                onClick={() => setCreateError(null)}
+                                className="font-bold ml-2 hover:opacity-80 cursor-pointer"
+                                aria-label="Dismiss error"
+                            >
+                                ✕
+                            </button>
                         </div>
                     )}
 
-                    {/* Update Frequency Bar */}
-                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                        <div>
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Update Frequency</h3>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                Frequency of channel name updates (Recommended: 15 mins to avoid Discord rate
-                                limits). </p>
-                        </div>
-                        <select
-                            value={config.updateIntervalMinutes ?? 15}
-                            onChange={(e) => setConfig({ ...config, updateIntervalMinutes: Number(e.target.value) })}
-                            className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm rounded-lg px-3 py-2 text-zinc-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        >
-                            <option value={5}>Every 5 minutes</option>
-                            <option value={10}>Every 10 minutes</option>
-                            <option value={15}>Every 15 minutes (Default)</option>
-                            <option value={30}>Every 30 minutes</option>
-                        </select>
+                    <div className="max-w-md">
+                        <InputLabel>Update Frequency</InputLabel>
+                        <Dropdown
+                            value={String(config.updateIntervalMinutes)}
+                            options={timeOptions}
+                            onChange={(v) => setConfig({ ...config, updateIntervalMinutes: Number(v) })}
+                        />
+                        <Footer className="mt-1">
+                            Frequency of channel name updates (Recommended: 15 mins to avoid Discord rate limits).
+                        </Footer>
                     </div>
 
                     {/* Section Header */}
-                    <div className="flex items-center justify-between pt-2">
-                        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Configured Stat
-                            Channels</h2>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs text-zinc-500">{config.counters?.length || 0} active</span>
-                            {hasMissingChannelIds && (
-                                <button
-                                    onClick={() => handleAutoCreateChannels()}
-                                    disabled={isCreatingChannels}
-                                    className="text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800 transition flex items-center gap-1.5 font-medium disabled:opacity-50"
-                                >
-                                    {isCreatingChannels ? (
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin"/>
-                                    ) : (
-                                        <Wand2 className="w-3.5 h-3.5"/>
-                                    )}
-                                    Auto-Create All Missing </button>
-                            )}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Emphasis>Configured Stat Channels</Emphasis>
+                            <span className="text-xs text-muted-foreground font-medium">
+                                ({config.counters?.length || 0} active)
+                            </span>
                         </div>
+                        {hasMissingChannelIds && (
+                            <Button
+                                type="button"
+                                onClick={() => handleAutoCreateChannels()}
+                                disabled={isCreatingChannels}
+                                className="text-xs border border-brand/30 bg-brand-subtle text-brand hover:bg-brand/10 px-3 py-1.5 focus-ring cursor-pointer"
+                            >
+                                {isCreatingChannels ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5"/>
+                                ) : (
+                                    <Wand2 className="w-3.5 h-3.5 mr-1.5"/>
+                                )}
+                                Auto-Create All Missing
+                            </Button>
+                        )}
                     </div>
 
                     {/* Counter Cards */}
                     <div className="space-y-4">
                         {config.counters?.map((counter, index) => {
-                            const MatchedIcon = COUNTER_TYPES.find((t) => t.value === counter.counterType)?.icon || Hash;
+                            const MatchedIcon =
+                                COUNTER_TYPES.find((t) => t.value === counter.counterType)?.icon || Hash;
                             const isChannelEmpty = !counter.channelId?.trim();
 
                             return (
                                 <div
                                     key={counter.id || index}
-                                    className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 space-y-4 shadow-sm"
+                                    className="bg-surface border border-border rounded-xl p-5 space-y-4 shadow-xs"
                                 >
                                     {/* Card Header */}
-                                    <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+                                    <div
+                                        className="flex items-center justify-between border-b border-border-subtle pb-3">
                                         <div className="flex items-center gap-2.5">
-                                            <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                                            <div className="p-2 bg-brand-subtle text-brand rounded-lg">
                                                 <MatchedIcon className="w-4 h-4"/>
                                             </div>
-                                            <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                                            <span
+                                                className="text-xs font-bold text-foreground uppercase tracking-wider">
                                                 COUNTER #{index + 1}
                                             </span>
                                         </div>
                                         <button
+                                            type="button"
                                             onClick={() => handleRemoveCounter(counter.id)}
-                                            className="text-zinc-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                                            className="text-muted-foreground hover:text-danger p-1.5 rounded-lg hover:bg-surface-active transition cursor-pointer"
                                             title="Delete Counter"
                                         >
                                             <Trash2 className="w-4 h-4"/>
@@ -236,17 +253,19 @@ export function MemberCounterBody({
 
                                     {/* Inputs Grid */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                        <div className="space-y-1.5">
+                                            <InputLabel>
                                                 Metric Type
-                                            </label>
+                                            </InputLabel>
                                             <Dropdown
                                                 options={COUNTER_TYPES.map((t) => ({
                                                     value: t.value,
                                                     label: t.label,
                                                 }))}
                                                 value={counter.counterType}
-                                                onChange={(val) => handleUpdateCounter(counter.id, "counterType", val)}
+                                                onChange={(val) =>
+                                                    handleUpdateCounter(counter.id, "counterType", val)
+                                                }
                                                 placeholder="Select metric..."
                                                 className="w-full"
                                             />
@@ -254,80 +273,83 @@ export function MemberCounterBody({
 
                                         {/* Channel ID */}
                                         <div>
-                                            <div className="flex items-center justify-between mb-1.5">
-                                                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                            <div className="flex items-center justify-between">
+                                                <InputLabel>
                                                     Voice Channel ID
-                                                </label>
+                                                </InputLabel>
                                                 {isChannelEmpty && (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleAutoCreateChannels(counter.id)}
                                                         disabled={isCreatingChannels}
-                                                        className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 disabled:opacity-50"
+                                                        className="text-[11px] font-medium text-brand hover:underline flex items-center gap-1 disabled:opacity-50 cursor-pointer"
                                                     >
                                                         {isCreatingChannels ? (
                                                             <Loader2 className="w-3 h-3 animate-spin"/>
                                                         ) : (
                                                             <Wand2 className="w-3 h-3"/>
                                                         )}
-                                                        Auto-create </button>
+                                                        Auto-create
+                                                    </button>
                                                 )}
                                             </div>
-                                            <input
-                                                type="text"
-                                                placeholder={isChannelEmpty ? "Auto-create or enter ID..." : "123456789012345678"}
+                                            <TextInput
+                                                placeholder={
+                                                    isChannelEmpty
+                                                        ? "Auto-create or enter ID..."
+                                                        : "123456789012345678"
+                                                }
                                                 value={counter.channelId || ""}
-                                                onChange={(e) => handleUpdateCounter(counter.id, "channelId", e.target.value)}
-                                                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs rounded-lg p-2.5 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"
+                                                onChange={(e) =>
+                                                    handleUpdateCounter(counter.id, "channelId", e.target.value)
+                                                }
                                             />
                                         </div>
 
                                         {/* Name Format */}
-                                        <div>
-                                            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                        <div className="space-y-1.5">
+                                            <InputLabel>
                                                 Name Format (`{"{count}"}`)
-                                            </label>
-                                            <input
-                                                type="text"
+                                            </InputLabel>
+                                            <TextInput
                                                 placeholder="👥 Members: {count}"
                                                 value={counter.nameTemplate || ""}
-                                                onChange={(e) => handleUpdateCounter(counter.id, "nameTemplate", e.target.value)}
-                                                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs rounded-lg p-2.5 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                                                onChange={(e) =>
+                                                    handleUpdateCounter(counter.id, "nameTemplate", e.target.value)
+                                                }
                                             />
                                         </div>
                                     </div>
 
                                     {/* Role ID (Conditional) */}
                                     {counter.counterType === "ROLE_COUNT" && (
-                                        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                                            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                        <div className="pt-2 border-t border-border-subtle space-y-1.5">
+                                            <InputLabel>
                                                 Target Role ID
-                                            </label>
+                                            </InputLabel>
                                             <Dropdown
                                                 value={counter.roleId ?? ""}
-                                                onChange={r => handleUpdateCounter(counter.id, "roleId", r)}
+                                                onChange={(r) => handleUpdateCounter(counter.id, "roleId", r)}
                                                 options={roleOptions}
                                             />
                                         </div>
                                     )}
 
-                                    {/* Live Preview Box */}
-                                    <div className="bg-zinc-50 dark:bg-zinc-950 rounded-lg p-3 flex items-center justify-between text-xs border border-zinc-200/80 dark:border-zinc-800">
-                                        <span className="text-zinc-500 text-[11px] font-medium">Discord Preview:</span>
-                                        <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded border border-indigo-200 dark:border-indigo-800/40">
-                                            🔊 {counter.nameTemplate?.replace("{count}", "1,234") || "👥 Members: 1,234"}
-                                        </span>
-                                    </div>
+                                    <span
+                                        className="font-mono text-brand font-bold bg-brand-subtle px-2.5 py-1 text-xs rounded border border-brand/20">
+                                        🔊 {counter.nameTemplate?.replace("{count}", "1,234") || "👥 Members: 1,234"}
+                                    </span>
                                 </div>
                             );
                         })}
 
-                        {/* Clean Theme-Adaptive Add Button */}
+                        {/* Add Button */}
                         <button
+                            type="button"
                             onClick={handleAddCounter}
-                            className="w-full py-3 border-2 border-dashed border-zinc-300 hover:border-indigo-500 dark:border-zinc-800 dark:hover:border-indigo-500 bg-white hover:bg-zinc-50 dark:bg-zinc-900/50 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-semibold rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
+                            className="w-full py-3.5 border-2 border-dashed border-border hover:border-brand bg-surface hover:bg-surface-muted text-muted-foreground hover:text-foreground text-xs font-semibold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer focus-ring"
                         >
-                            <Plus className="w-4 h-4 text-indigo-600 dark:text-indigo-400"/> Add Another Stat Channel
+                            <Plus className="w-4 h-4 text-brand"/> Add Another Stat Channel
                         </button>
                     </div>
                 </div>
@@ -335,7 +357,9 @@ export function MemberCounterBody({
 
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

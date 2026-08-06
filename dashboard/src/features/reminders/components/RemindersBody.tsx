@@ -8,6 +8,7 @@ import { ReminderCreateModal } from "./ReminderCreateModal";
 import { ReminderConfig } from "./ReminderConfig";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import type { ReminderRow, SaveableReminder } from "../types";
+import { Button } from "@/components/ui/Button";
 
 interface RemindersBodyProps {
     reminders: ReminderRow[];
@@ -57,89 +58,100 @@ export function RemindersBody({
 
     return (
         <>
-      <ConfigListLayout<ReminderRow> title="Reminders"
-          onCreateClick={() => setIsCreateModalOpen(true)}
-          items={reminders}
-          emptyMessage="No reminders scheduled yet."
-          hasActiveConfig={!!config}
-          isDirty={isDirty}
-          isPending={isPending}
-          handleSave={handleSave}
-          handleCancel={handleCancel}
-          renderItem={(reminder) => {
-              const isCurrent = activeReminder?.id === reminder.id;
-              const channelName = channelMap[reminder.channelId] || `#${reminder.channelId}`;
-
-              const typeLabel = reminder.rType === "RECURRING" ? "Recurring" : "Single";
-              let scheduleText = "";
-              if (reminder.rType === "RECURRING") {
-                  if (reminder.daysOfWeek && reminder.daysOfWeek.length > 0) {
-                      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-                      scheduleText = reminder.daysOfWeek.map((d) => days[d]).join(", ");
-                  } else if (reminder.intervalSeconds) {
-                      scheduleText = `${reminder.intervalSeconds}s`;
-                  }
-              } else {
-                  scheduleText = new Date(reminder.nextTriggerAt).toLocaleDateString();
-              }
-
-              return (
-                  <button
-                      key={reminder.id}
-                      onClick={() => router.push(`/dashboard/${guildId}/reminders?id=${reminder.id}`)}
-                      className={`w-full text-left px-3 py-2 rounded text-sm transition block cursor-pointer truncate ${
-                          isCurrent
-                              ? "bg-neutral-400/15 hover:bg-neutral-400/20 font-medium"
-                              : "hover:bg-neutral-300/15"
-                      }`}
-                  >
-                      <div className="flex justify-between items-center">
-                          <span className="truncate font-semibold text-zinc-200">
-                              {reminder.content ? reminder.content : "Rich Embed Message"}
-                          </span>
-                          <span
-                              className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                                  reminder.isActive
-                                      ? "bg-emerald-500/10 text-emerald-500"
-                                      : "bg-neutral-500/10 text-neutral-400"
-                              }`}
-                          >
-                              {reminder.isActive ? "Active" : "Paused"}
-                          </span>
-                      </div>
-                      <div className="text-xs text-zinc-500 truncate mt-0.5">
-                          {channelName} • {typeLabel} {scheduleText && `(${scheduleText})`}
-                      </div>
-                  </button>
-              );
-          }}
-          noActivePlaceholder={
-              <div className="text-center py-8 space-y-4">
-                  <p className="text-sm text-zinc-400">Select a reminder or create a new one to get started.</p>
-                  <button
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className="text-xs px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded transition border border-neutral-750 cursor-pointer"
-                  >
-                      Create Your First Reminder
-                  </button>
-              </div>
-          }
-      >
-        {config && (
-            <ReminderConfig
-                config={config}
-                channelMap={channelMap}
+            <ConfigListLayout<ReminderRow>
+                title="Reminders"
+                onCreateClick={() => setIsCreateModalOpen(true)}
+                items={reminders}
+                emptyMessage="No reminders scheduled yet."
+                hasActiveConfig={!!config}
+                isDirty={isDirty}
                 isPending={isPending}
-                onDelete={(id) => handleDelete(id, config.channelId)}
-                onChange={handleChange}
-                setIsEmpty={setIsEmpty}
-            />
-        )}
-      </ConfigListLayout>
+                handleSave={handleSave}
+                handleCancel={handleCancel}
+                renderItem={(reminder) => {
+                    const isCurrent = activeReminder?.id === reminder.id;
+                    const channelName = channelMap[reminder.channelId] || `#${reminder.channelId}`;
 
-      <ReminderCreateModal
-          isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSave={onSave} channelMap={channelMap}
-      />
-    </>
+                    const typeLabel = reminder.rType === "RECURRING" ? "Recurring" : "Single";
+                    let scheduleText = "";
+                    if (reminder.rType === "RECURRING") {
+                        if (reminder.daysOfWeek && reminder.daysOfWeek.length > 0) {
+                            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                            scheduleText = reminder.daysOfWeek.map((d) => days[d]).join(", ");
+                        } else if (reminder.intervalSeconds) {
+                            scheduleText = `${reminder.intervalSeconds}s`;
+                        }
+                    } else {
+                        scheduleText = new Date(reminder.nextTriggerAt).toLocaleDateString();
+                    }
+
+                    return (
+                        <button
+                            key={reminder.id}
+                            onClick={() => router.push(`/dashboard/${guildId}/reminders?id=${reminder.id}`)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition block cursor-pointer truncate ${
+                                isCurrent
+                                    ? "bg-surface-active font-medium"
+                                    : "hover:bg-surface-muted text-foreground"
+                            }`}
+                        >
+                            <div className="flex justify-between items-center gap-2">
+                                <span className="truncate font-semibold text-foreground">
+                                    {reminder.content ? reminder.content : "Rich Embed Message"}
+                                </span>
+                                <span
+                                    className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                        reminder.isActive
+                                            ? "bg-success-subtle text-success"
+                                            : "bg-surface-muted text-muted-foreground"
+                                    }`}
+                                >
+                                    {reminder.isActive ? "Active" : "Paused"}
+                                </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate mt-0.5">
+                                {channelName} • {typeLabel} {scheduleText && `(${scheduleText})`}
+                            </div>
+                        </button>
+                    );
+                }}
+                noActivePlaceholder={
+                    <div className="max-w-md mx-auto space-y-4 flex items-center flex-col text-center">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-foreground">
+                                Manage Reminders
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                                Create a one-time reminder, or a recurring reminder to remind yourself or your members of something.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button onClick={() => setIsCreateModalOpen(true)}>
+                                Create Reminder
+                            </Button>
+                        </div>
+                    </div>
+                }
+            >
+                {config && (
+                    <ReminderConfig
+                        config={config}
+                        channelMap={channelMap}
+                        isPending={isPending}
+                        onDelete={(id) => handleDelete(id, config.channelId)}
+                        onChange={handleChange}
+                        setIsEmpty={setIsEmpty}
+                    />
+                )}
+            </ConfigListLayout>
+
+            <ReminderCreateModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSave={onSave}
+                channelMap={channelMap}
+            />
+        </>
     );
 }

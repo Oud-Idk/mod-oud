@@ -7,8 +7,14 @@ import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { AlertTriangle, ShieldAlert, Sparkles } from "lucide-react";
 
-import { RaidActionKind, RaidStatusSnapshot, RaidAction, RaidDetectionConfig } from "@/features/raid-detection/types";
+import {
+    RaidActionKind,
+    RaidStatusSnapshot,
+    RaidAction,
+    RaidDetectionConfig,
+} from "@/features/raid-detection/types";
 import { WelcomeConfig } from "@/features/welcome/types";
 
 interface RaidDetectionBodyProps {
@@ -65,12 +71,12 @@ export function RaidDetectionBody({
     ];
 
     const raidOptions: { value: RaidActionKind; label: string }[] = [
-        { value: "ALERT", label: "Alert Moderator" },
-        { value: "LOCKDOWN_SERVER", label: "Lockdown Server" },
-        { value: "PAUSE_INVITES", label: "Pause All Invites" },
-        { value: "BUMP_VERIFICATION", label: "Bump Verification to Max" },
-        { value: "AUTO_BAN_NEW_ACCOUNTS", label: "Auto Ban New Accounts" },
-        { value: "TIMEOUT_NEW_JOINS", label: "Timeout New Join" },
+        { value: "ALERT", label: "Alert Moderator Channel" },
+        { value: "LOCKDOWN_SERVER", label: "Lockdown Server Channels" },
+        { value: "PAUSE_INVITES", label: "Pause Server Invites" },
+        { value: "BUMP_VERIFICATION", label: "Bump Verification Level to Max" },
+        { value: "AUTO_BAN_NEW_ACCOUNTS", label: "Auto-Ban New Accounts" },
+        { value: "TIMEOUT_NEW_JOINS", label: "Timeout New Joins" },
     ];
 
     function mapRaidActionToKind(action: RaidAction): RaidActionKind {
@@ -126,334 +132,357 @@ export function RaidDetectionBody({
         !welcomeConfig?.verification?.verificationChannelId ||
         !welcomeConfig?.verification?.verificationMessageId;
 
-    return (
-        <div>
-            <div className="space-y-3">
-                <ToggleSwitch
-                    checked={config.enabled}
-                    onChange={(checked) => handleChange({ ...config, enabled: checked })}
-                    text="Enable Raid Detection"
-                />
+    const hasDynamicActionFields = Boolean(
+        alertAction || pauseInvitesAction || timeoutAction || autoBanAction,
+    );
 
-                {/* Hide settings if module is disabled */}
-                {config.enabled && (
-                    <div className="space-y-6">
-                        {raidStatus?.isRaidActive && (
-                            <div className="p-4 border-red-700 dark:border-red-300 rounded-lg flex items-center justify-between gap-4 text-red-200 animate-pulse">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl select-none">🚨</span>
-                                    <div>
-                                        <strong className="font-semibold block text-red-100 text-sm">
-                                            Active Raid Detected!
-                                        </strong>
-                                        <p className="text-xs text-red-300">
-                                            Automated raid defenses are actively triggering. Recorded{" "}
-                                            <span className="font-mono font-bold text-white">
-                                                {raidStatus.currentJoinsInWindow}
-                                            </span>{" "}
-                                            joins in the current window (Threshold: {raidStatus.calculatedThreshold}).
-                                        </p>
-                                    </div>
+    return (
+        <div className="space-y-6">
+            <ToggleSwitch
+                checked={config.enabled}
+                onChange={(checked) => handleChange({ ...config, enabled: checked })}
+                text="Enable Anti-Raid Defense System"
+            />
+
+            {config.enabled && (
+                <div className="space-y-6">
+                    {/* Active Raid Emergency Alert Banner */}
+                    {raidStatus?.isRaidActive && (
+                        <div
+                            className="p-4 bg-danger-subtle border border-danger/40 rounded-xl flex items-start justify-between gap-4 text-danger animate-pulse">
+                            <div className="flex items-start gap-3">
+                                <ShieldAlert className="w-6 h-6 shrink-0 mt-0.5"/>
+                                <div>
+                                    <strong className="font-bold block text-sm">
+                                        Active Server Raid Detected!
+                                    </strong>
+                                    <p className="text-xs mt-0.5 opacity-90">
+                                        Automated defenses are active. Recorded{" "}
+                                        <span className="font-mono font-bold">
+                                            {raidStatus.currentJoinsInWindow}
+                                        </span>{" "}
+                                        joins in window (Threshold: {raidStatus.calculatedThreshold}).
+                                    </p>
                                 </div>
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        <div className="p-4 border rounded-xl">
-                            <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
-                                <div className="flex items-center gap-2">
-                                    <p>Live Monitor Status </p>
-                                    {raidStatus?.isRaidActive ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
-                                            <span className="relative flex h-2 w-2">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                                            </span>
-                                            Raid Active
+                    {/* Live Monitor Status Card */}
+                    <div className="p-5 bg-surface border border-border rounded-xl space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+                            <div className="flex items-center gap-2.5">
+                                <span className="font-semibold text-sm text-foreground">
+                                    Live Monitor Status
+                                </span>
+                                {raidStatus?.isRaidActive ? (
+                                    <span
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger-subtle text-danger border border-danger/30">
+                                        <span className="relative flex h-2 w-2">
+                                            <span
+                                                className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                                            <span
+                                                className="relative inline-flex rounded-full h-2 w-2 bg-danger"></span>
                                         </span>
-                                    ) : raidStatus?.statsAvailable ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                            <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                                            Monitoring Normal
-                                        </span>
-                                    ) : (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                                            <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-                                            Calibrating Baseline
-                                        </span>
-                                    )}
-                                </div>
-
-                                {!raidStatus?.statsAvailable && (
-                                    <span className="text-xs text-amber-400/90 font-medium">
-                                        ⚠️ Collecting 7-day traffic baseline...
+                                        Raid Active
+                                    </span>
+                                ) : raidStatus?.statsAvailable ? (
+                                    <span
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-subtle text-success border border-success/30">
+                                        <span className="h-2 w-2 rounded-full bg-success"></span>
+                                        Monitoring Normal
+                                    </span>
+                                ) : (
+                                    <span
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning-subtle text-warning border border-warning/30">
+                                        <span className="h-2 w-2 rounded-full bg-warning"></span>
+                                        Calibrating Baseline
                                     </span>
                                 )}
                             </div>
 
-                            {/* Status Metrics Grid */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {/* Current Joins in Window */}
-                                <div className="p-3 rounded-md border border-neutral-500 space-y-1 bg-neutral-300/10">
-                                    <span className="text-xs block font-medium">
-                                        Active Traffic
-                                    </span>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-lg font-bold font-mono">
-                                            {raidStatus?.currentJoinsInWindow ?? 0}
-                                        </span>
-                                        <span className="text-xs">
-                                            / {raidStatus?.windowSizeSeconds ?? 60}s
-                                        </span>
-                                    </div>
-                                </div>
+                            {!raidStatus?.statsAvailable && (
+                                <span className="text-xs text-warning font-medium">
+                                    ⚠️ Collecting 7-day traffic baseline...
+                                </span>
+                            )}
+                        </div>
 
-                                {/* Dynamic Threshold */}
-                                <div className="p-3 rounded-md border border-neutral-500 space-y-1 bg-neutral-300/10">
-                                    <span className="text-xs block font-medium">
-                                        Trigger Threshold
+                        {/* Status Metrics Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div className="p-3 bg-surface-muted border border-border rounded-lg space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground block">
+                                    Active Traffic
+                                </span>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-lg font-bold font-mono text-foreground">
+                                        {raidStatus?.currentJoinsInWindow ?? 0}
                                     </span>
-                                    <div className="text-lg font-bold font-mono">
-                                        {raidStatus?.calculatedThreshold ?? 0}
-                                        <span className="text-xs font-normal ml-1 font-sans">
-                                            joins
-                                        </span>
-                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                        / {raidStatus?.windowSizeSeconds ?? 60}s
+                                    </span>
                                 </div>
+                            </div>
 
-                                {/* Baseline Avg */}
-                                <div className="p-3 rounded-md border border-neutral-500 space-y-1 bg-neutral-300/10">
-                                    <span className="text-xs block font-medium">
-                                        Avg Joins / Min
+                            <div className="p-3 bg-surface-muted border border-border rounded-lg space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground block">
+                                    Trigger Threshold
+                                </span>
+                                <div className="text-lg font-bold font-mono text-foreground">
+                                    {raidStatus?.calculatedThreshold ?? 0}
+                                    <span className="text-xs font-normal ml-1 font-sans text-muted-foreground">
+                                        joins
                                     </span>
-                                    <div className="text-lg font-bold font-mono">
-                                        {(raidStatus?.avgJoinsPerMin ?? 0).toFixed(1)}
-                                    </div>
                                 </div>
+                            </div>
 
-                                {/* Std Deviation */}
-                                <div className="p-3 rounded-md border border-neutral-500 space-y-1 bg-neutral-300/10">
-                                    <span className="text-xs block font-medium">
-                                        Std Deviation
-                                    </span>
-                                    <div className="text-lg font-bold font-mono">
-                                        ±{(raidStatus?.stdDevPerMin ?? 0).toFixed(1)}
-                                    </div>
+                            <div className="p-3 bg-surface-muted border border-border rounded-lg space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground block">
+                                    Avg Joins / Min
+                                </span>
+                                <div className="text-lg font-bold font-mono text-foreground">
+                                    {(raidStatus?.avgJoinsPerMin ?? 0).toFixed(1)}
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-surface-muted border border-border rounded-lg space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground block">
+                                    Std Deviation
+                                </span>
+                                <div className="text-lg font-bold font-mono text-foreground">
+                                    ±{(raidStatus?.stdDevPerMin ?? 0).toFixed(1)}
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Main Controls Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Sensitivity Preset Dropdown */}
-                            <div className="space-y-2">
-                                <InputLabel>
-                                    Detection Sensitivity
-                                </InputLabel>
-                                <NumberInput
-                                    value={config.zScoreMultiplier} onChange={(val) =>
+                    {/* Core Settings Controls */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                            <InputLabel>Detection Sensitivity (Z-Score)</InputLabel>
+                            <NumberInput
+                                value={config.zScoreMultiplier}
+                                step={0.1}
+                                onChange={(val) =>
                                     handleChange({
                                         ...config,
                                         zScoreMultiplier: Math.round((val ?? 0) * 10) / 10,
                                     })
-                                } step={0.1}
-                                />
-                                <p className="text-xs text-neutral-400">
-                                    Lower values flag smaller join spikes. Higher values only trigger on massive
-                                    raids. </p>
-                            </div>
+                                }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Lower values flag smaller spikes. Higher values trigger only on massive join waves.
+                            </p>
+                        </div>
 
-                            {/* Time Window Dropdown */}
-                            <div className="space-y-2">
-                                <InputLabel>Sliding Time Window</InputLabel>
-                                <Dropdown
-                                    options={windowOptions}
-                                    value={String(config.windowSizeSeconds ?? 60)}
-                                    onChange={(val) =>
-                                        handleChange({ ...config, windowSizeSeconds: Number(val) })
-                                    }
-                                />
-                                <p className="text-xs text-neutral-400">
-                                    The time frame over which rapid joins are calculated. </p>
-                            </div>
+                        <div className="space-y-2">
+                            <InputLabel>Sliding Time Window</InputLabel>
+                            <Dropdown
+                                options={windowOptions}
+                                value={String(config.windowSizeSeconds ?? 60)}
+                                onChange={(val) =>
+                                    handleChange({ ...config, windowSizeSeconds: Number(val) })
+                                }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                The timeframe over which join spikes are calculated.
+                            </p>
+                        </div>
 
-                            {/* Minimum Safe Floor */}
-                            <div className="space-y-2">
-                                <InputLabel>Minimum Join Floor</InputLabel>
-                                <NumberInput
-                                    min={1} max={100} value={config.minSafeLimit} onChange={(val) =>
+                        <div className="space-y-2">
+                            <InputLabel>Minimum Join Floor</InputLabel>
+                            <NumberInput
+                                min={1}
+                                max={100}
+                                value={config.minSafeLimit}
+                                onChange={(val) =>
                                     handleChange({
                                         ...config,
                                         minSafeLimit: Math.max(1, val ?? 1),
                                     })
                                 }
-                                />
-                                <p className="text-xs text-neutral-400">
-                                    Minimum joins required in the window to trigger an alert, preventing false alarms on
-                                    quiet servers. </p>
-                            </div>
-
-                            {/* Raid Actions Multi-Select Dropdown */}
-                            <div className="space-y-2">
-                                <InputLabel>Automated Raid Actions</InputLabel>
-                                <Dropdown<RaidActionKind> options={raidOptions}
-                                    value={currentActions.map((action) => mapRaidActionToKind(action))}
-                                    multiple={true}
-                                    placeholder="Select raid defense actions..."
-                                    onChange={(selectedKinds) => {
-                                        const updatedActions = selectedKinds.map((kind): RaidAction => {
-                                            const existing = currentActions.find(
-                                                (a) => mapRaidActionToKind(a) === kind,
-                                            );
-                                            if (existing) return existing;
-
-                                            return createRaidAction(kind, {
-                                                mins: 15,
-                                                hour: 24,
-                                                maxAgeHours: 24,
-                                                channelId: Object.keys(channelMap || {})[0] ?? "",
-                                            });
-                                        });
-
-                                        handleChange({
-                                            ...config,
-                                            raidActions: updatedActions,
-                                        });
-                                    }}
-                                />
-                                <p className="text-xs text-neutral-400">
-                                    Actions the bot will automatically execute when a raid spike is detected. </p>
-                            </div>
-
-                            {/* Dynamic Action Inputs */}
-
-                            {/* Alert Channel Select Dropdown */}
-                            {alertAction && (
-                                <div className="space-y-2">
-                                    <InputLabel>Alert Notification Channel</InputLabel>
-                                    <Dropdown
-                                        options={channelOptions}
-                                        value={alertAction.channelId || ""}
-                                        placeholder="Select channel for raid alerts..."
-                                        onChange={(channelId) => {
-                                            const updatedActions = currentActions.map((action) =>
-                                                action.type === "ALERT"
-                                                    ? { ...action, channel_id: String(channelId) }
-                                                    : action,
-                                            );
-                                            handleChange({ ...config, raidActions: updatedActions });
-                                        }}
-                                    />
-                                    <p className="text-xs text-neutral-400">
-                                        The channel where moderator raid alert messages will be dispatched. </p>
-                                </div>
-                            )}
-
-                            {/* Pause Invites Duration Input */}
-                            {pauseInvitesAction && pauseInvitesAction.type === "PAUSE_INVITES" && (
-                                <div className="space-y-2">
-                                    <InputLabel>Pause Invites Duration (Hours)</InputLabel>
-                                    <NumberInput
-                                        min={1}
-                                        max={168} // max 7 days
-                                        value={pauseInvitesAction.hour ?? 24}
-                                        onChange={(val) => {
-                                            const updatedActions = currentActions.map((action) =>
-                                                action.type === "PAUSE_INVITES"
-                                                    ? { ...action, hour: Math.max(1, val ?? 24) }
-                                                    : action,
-                                            );
-                                            handleChange({ ...config, raidActions: updatedActions });
-                                        }}
-                                    />
-                                    <p className="text-xs text-neutral-400">
-                                        Duration to pause server invite links during an active raid spike. </p>
-                                </div>
-                            )}
-
-                            {/* Timeout Duration Input */}
-                            {timeoutAction && timeoutAction.type === "TIMEOUT_NEW_JOINS" && (
-                                <div className="space-y-2">
-                                    <InputLabel>Timeout Duration (Minutes)</InputLabel>
-                                    <NumberInput
-                                        min={1}
-                                        max={40320} // max 28 days
-                                        value={timeoutAction.mins ?? 15}
-                                        onChange={(val) => {
-                                            const updatedActions = currentActions.map((action) =>
-                                                action.type === "TIMEOUT_NEW_JOINS"
-                                                    ? { ...action, mins: Math.max(1, val ?? 15) }
-                                                    : action,
-                                            );
-                                            handleChange({ ...config, raidActions: updatedActions });
-                                        }}
-                                    />
-                                    <p className="text-xs text-neutral-400">
-                                        Duration to timeout users who join during an active raid spike. </p>
-                                </div>
-                            )}
-
-                            {/* Auto-Ban Account Age Input */}
-                            {autoBanAction && autoBanAction.type === "AUTO_BAN_NEW_ACCOUNTS" && (
-                                <div className="space-y-2">
-                                    <InputLabel>Auto-Ban Account Age Limit (Hours)</InputLabel>
-                                    <NumberInput
-                                        min={1}
-                                        max={8760} // max 1 year
-                                        value={autoBanAction.maxAgeHours ?? 24}
-                                        onChange={(val) => {
-                                            const updatedActions = currentActions.map((action) =>
-                                                action.type === "AUTO_BAN_NEW_ACCOUNTS"
-                                                    ? { ...action, max_age_hours: Math.max(1, val ?? 24) }
-                                                    : action,
-                                            );
-                                            handleChange({ ...config, raidActions: updatedActions });
-                                        }}
-                                    />
-                                    <p className="text-xs text-neutral-400">
-                                        Only accounts created less than this many hours ago will be automatically banned
-                                        during a raid. </p>
-                                </div>
-                            )}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Minimum joins required in window before an alert can trigger, preventing false alarms on
+                                quiet servers.
+                            </p>
                         </div>
 
-                        {/* Warning: Verification Module Disabled */}
-                        {isBumpVerificationSelected && isVerificationDisabled && (
-                            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-3 text-amber-300 text-xs leading-relaxed">
-                                <span className="text-base select-none">⚠️</span>
-                                <div>
-                                    <strong className="font-semibold block text-amber-200 mb-0.5">
-                                        Verification is Disabled
-                                    </strong>
-                                    You have configured <em>&quot;Bump Verification to Max&quot;</em> as a raid action, but server
-                                    verification is currently disabled / not set up in your Verification settings. This
-                                    action will have no effect during a raid until verification is enabled.
-                                </div>
-                            </div>
-                        )}
+                        <div className="space-y-2">
+                            <InputLabel>Automated Raid Actions</InputLabel>
+                            <Dropdown<RaidActionKind>
+                                options={raidOptions}
+                                value={currentActions.map((action) => mapRaidActionToKind(action))}
+                                multiple={true}
+                                placeholder="Select raid defense actions..."
+                                onChange={(selectedKinds) => {
+                                    const updatedActions = selectedKinds.map((kind): RaidAction => {
+                                        const existing = currentActions.find(
+                                            (a) => mapRaidActionToKind(a) === kind,
+                                        );
+                                        if (existing) return existing;
 
-                        {/* Informational Help Box */}
-                        <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-lg space-y-1">
-                            <h4 className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">
-                                💡 How Dynamic Detection Works </h4>
-                            <p className="text-xs text-neutral-400 leading-relaxed">
-                                The bot analyzes your server&apos;s join history over the last 7 days to learn normal traffic
-                                patterns. If a join burst exceeds{" "}
-                                <span className="text-neutral-200 font-mono">
-                                    Average + ({config.zScoreMultiplier} × StdDev)
-                                </span>{" "}
-                                AND reaches at least{" "}
-                                <span className="text-neutral-200 font-mono">
-                                    {config.minSafeLimit} joins
-                                </span>{" "}
-                                in{" "}
-                                <span className="text-neutral-200 font-mono">
-                                    {config.windowSizeSeconds}s
-                                </span>
-                                , an anomaly alert is triggered. </p>
+                                        return createRaidAction(kind, {
+                                            mins: 15,
+                                            hour: 24,
+                                            maxAgeHours: 24,
+                                            channelId: Object.keys(channelMap || {})[0] ?? "",
+                                        });
+                                    });
+
+                                    handleChange({
+                                        ...config,
+                                        raidActions: updatedActions,
+                                    });
+                                }}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Defensive actions executed automatically when a raid is flagged.
+                            </p>
                         </div>
                     </div>
-                )}
-            </div>
+
+                    {/* Dynamic Action Parameters Section */}
+                    {hasDynamicActionFields && (
+                        <div className="pt-4 border-t border-border-subtle space-y-4">
+                            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                                Action Parameters Configuration
+                            </h4>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {alertAction && (
+                                    <div className="space-y-2">
+                                        <InputLabel>Alert Notification Channel</InputLabel>
+                                        <Dropdown
+                                            options={channelOptions}
+                                            value={alertAction.channelId || ""}
+                                            placeholder="Select channel for raid alerts..."
+                                            onChange={(channelId) => {
+                                                const updatedActions = currentActions.map((action) =>
+                                                    action.type === "ALERT"
+                                                        ? { ...action, channelId: String(channelId) }
+                                                        : action,
+                                                );
+                                                handleChange({ ...config, raidActions: updatedActions });
+                                            }}
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            The channel where moderator raid notification messages will be posted.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {pauseInvitesAction && pauseInvitesAction.type === "PAUSE_INVITES" && (
+                                    <div className="space-y-2">
+                                        <InputLabel>Pause Invites Duration (Hours)</InputLabel>
+                                        <NumberInput
+                                            min={1}
+                                            max={168}
+                                            value={pauseInvitesAction.hour ?? 24}
+                                            onChange={(val) => {
+                                                const updatedActions = currentActions.map((action) =>
+                                                    action.type === "PAUSE_INVITES"
+                                                        ? { ...action, hour: Math.max(1, val ?? 24) }
+                                                        : action,
+                                                );
+                                                handleChange({ ...config, raidActions: updatedActions });
+                                            }}
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Duration to pause server invite links during a detected raid.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {timeoutAction && timeoutAction.type === "TIMEOUT_NEW_JOINS" && (
+                                    <div className="space-y-2">
+                                        <InputLabel>Timeout Duration (Minutes)</InputLabel>
+                                        <NumberInput
+                                            min={1}
+                                            max={40320}
+                                            value={timeoutAction.mins ?? 15}
+                                            onChange={(val) => {
+                                                const updatedActions = currentActions.map((action) =>
+                                                    action.type === "TIMEOUT_NEW_JOINS"
+                                                        ? { ...action, mins: Math.max(1, val ?? 15) }
+                                                        : action,
+                                                );
+                                                handleChange({ ...config, raidActions: updatedActions });
+                                            }}
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Timeout duration applied to members who join during a raid.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {autoBanAction && autoBanAction.type === "AUTO_BAN_NEW_ACCOUNTS" && (
+                                    <div className="space-y-2">
+                                        <InputLabel>Auto-Ban Account Age Limit (Hours)</InputLabel>
+                                        <NumberInput
+                                            min={1}
+                                            max={8760}
+                                            value={autoBanAction.maxAgeHours ?? 24}
+                                            onChange={(val) => {
+                                                const updatedActions = currentActions.map((action) =>
+                                                    action.type === "AUTO_BAN_NEW_ACCOUNTS"
+                                                        ? { ...action, maxAgeHours: Math.max(1, val ?? 24) }
+                                                        : action,
+                                                );
+                                                handleChange({ ...config, raidActions: updatedActions });
+                                            }}
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Only accounts younger than this limit will be automatically banned.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Warning Box: Verification Disabled */}
+                    {isBumpVerificationSelected && isVerificationDisabled && (
+                        <div
+                            className="p-4 bg-warning-subtle border border-warning/30 rounded-xl flex items-start gap-3 text-warning text-xs leading-relaxed">
+                            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5"/>
+                            <div>
+                                <strong className="font-semibold block text-sm mb-0.5">
+                                    Verification Module Disabled
+                                </strong>
+                                You have selected <em>&quot;Bump Verification Level to Max&quot;</em> as a raid action,
+                                but server verification is currently disabled or incomplete in your Verification
+                                settings.
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Informational Help Box */}
+                    <div className="p-4 bg-surface-muted border border-border rounded-xl space-y-1.5">
+                        <div
+                            className="flex items-center gap-1.5 text-foreground font-semibold text-xs uppercase tracking-wider">
+                            <Sparkles className="w-4 h-4 text-brand"/>
+                            <span>How Dynamic Anomaly Detection Works</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            The bot analyzes your server&apos;s join history over the past 7 days to calculate your
+                            baseline traffic. If a join spike exceeds{" "}
+                            <span className="text-foreground font-mono font-medium">
+                                Avg + ({config.zScoreMultiplier} × StdDev)
+                            </span>{" "}
+                            AND reaches at least{" "}
+                            <span className="text-foreground font-mono font-medium">
+                                {config.minSafeLimit} joins
+                            </span>{" "}
+                            within{" "}
+                            <span className="text-foreground font-mono font-medium">
+                                {config.windowSizeSeconds}s
+                            </span>
+                            , an anomaly alert is triggered and configured automated defenses execute instantly.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Unsaved Changes Popup */}
             {isDirty && (

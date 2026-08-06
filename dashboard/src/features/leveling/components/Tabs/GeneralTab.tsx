@@ -8,6 +8,8 @@ import { LEVEL_NOTIFY_CONFIG } from "@/features/leveling/builderConfigs";
 
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import { DiscordChannel } from "@/features/_shared/channels.types";
+import { InputLabel } from "@/components/layout/InputLabel";
+import Footer from "@/components/layout/Footer";
 
 export interface GeneralTabProps {
     config: LevelingConfig;
@@ -39,22 +41,16 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
     ]
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-2 max-w-md">
             <div>
-                <p className="text-lg">Level Cap</p>
-                <p className="text-sm">Set 0 to remove cap</p>
+                <InputLabel>Level Cap</InputLabel>
                 <NumberInput
                     value={config.levelCap} onChange={v => handleChange({ levelCap: v })}
                 />
+                <Footer>Set to 0 to remove cap</Footer>
             </div>
-            <ToggleSwitch
-                checked={config.keepLevelOnLeave}
-                onChange={(v) => handleChange({ keepLevelOnLeave: v })}
-                disabled={false}
-                text="Preserve Level on user Leave"
-            />
             <div>
-                <p className="text-xl mb-1">Choose where to send your level up message</p>
+                <InputLabel>Choose where to send your level up message</InputLabel>
                 <Dropdown
                     options={options} value={config.notify.scope} onChange={(val) => {
                     if (val) handleChange({
@@ -63,9 +59,17 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                             scope: val
                         }
                     })
-                }} placeholder={"Choose where to send your level up message"} className="max-w-xs"
+                }} placeholder={"Choose where to send your level up message"}
                 />
             </div>
+
+            <ToggleSwitch
+                checked={config.keepLevelOnLeave}
+                onChange={(v) => handleChange({ keepLevelOnLeave: v })}
+                disabled={false}
+                text="Preserve Level on user Leave"
+            />
+
             {config.notify.scope !== "NONE" && (
                 <MessageConfigEditor
                     config={{ ...config.notify, enabled: true }} // assumed true cuz this is case of not none

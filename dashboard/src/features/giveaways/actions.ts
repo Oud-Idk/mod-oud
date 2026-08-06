@@ -1,13 +1,14 @@
 "use server";
 
-import { deleteGiveaway, saveGiveaway } from "@/features/giveaway/queries";
+import { deleteGiveaway, saveGiveaway } from "@/features/giveaways/queries";
 import { revalidatePath } from "next/cache";
 import {
     Giveaway,
     SaveGiveawayData,
-    sendGiveawayInputSchema, SendGiveawayResponse,
+    sendGiveawayInputSchema,
+    SendGiveawayResponse,
     sendGiveawayResponseSchema
-} from "@/features/giveaway/types";
+} from "@/features/giveaways/types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
 export async function saveGiveawayAction(guildId: string, config: SaveGiveawayData): Promise<Giveaway> {
@@ -23,17 +24,16 @@ export async function saveGiveawayAction(guildId: string, config: SaveGiveawayDa
         }
     }
 
-    revalidatePath(`/dashboard/${guildId}/giveaway`);
+    revalidatePath(`/dashboard/${guildId}/giveaways`);
     return ret;
 }
 
 export async function deleteGiveawayAction(guildId: string, id: number): Promise<boolean> {
     await verifyGuildAccess(guildId);
     const ret = await deleteGiveaway(id);
-    revalidatePath(`/dashboard/${guildId}/giveaway`);
+    revalidatePath(`/dashboard/${guildId}/giveaways`);
     return ret;
 }
-
 
 export async function sendGiveawayAction(guildId: string, id: number): Promise<SendGiveawayResponse> {
     const validatedInput = sendGiveawayInputSchema.parse({ guildId, id });
@@ -52,7 +52,7 @@ export async function sendGiveawayAction(guildId: string, id: number): Promise<S
 
     const data = await response.json();
     const validatedResponse = sendGiveawayResponseSchema.parse(data);
-    revalidatePath(`/dashboard/${validatedInput.guildId}/giveaway`);
+    revalidatePath(`/dashboard/${validatedInput.guildId}/giveaways`);
     return validatedResponse;
 }
 
@@ -62,8 +62,8 @@ export async function deleteGiveawayDiscordMessageAction(guildId: string, id: nu
     const response = await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${id}/message`, { method: "DELETE" });
 
     if (!response.ok) {
-        throw new Error(await response.text() || "Failed to delete Discord message.");
+        throw new Error((await response.text()) || "Failed to delete Discord message.");
     }
 
-    revalidatePath(`/dashboard/${guildId}/giveaway`);
+    revalidatePath(`/dashboard/${guildId}/giveaways`);
 }

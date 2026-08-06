@@ -5,6 +5,10 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { TargetType, XpMultiplier } from "@/features/leveling/types";
+import { InputLabel } from "@/components/layout/InputLabel";
+import { Button } from "@/components/ui/Button";
+import Emphasis from "@/components/layout/Emphasis";
+import Footer from "@/components/layout/Footer";
 
 export interface MultiplierTabProps {
     guildId: string;
@@ -139,7 +143,7 @@ export function MultiplierTab({
         );
     };
 
-    // Filter out options that already have active multipliers applied (using optimistic array)
+    // Filter out options that already have active multipliers applied
     const excludedIds = (optimisticMultipliers || []).map((m) => m.target_id);
 
     const filteredOptions = targetType === "ROLE"
@@ -149,29 +153,36 @@ export function MultiplierTab({
             .map(([id, name]) => ({ value: id, label: `#${name}` }));
 
     return (
-        <div className="space-y-4">
-            <h3 className="text-xl">XP Multipliers</h3>
+        <div className="space-y-2">
+            <div>
+                <Emphasis>XP Multipliers</Emphasis>
+                <Footer>
+                    Configure bonus XP rates for specific roles or text channels in the server.
+                </Footer>
+            </div>
 
-            <div className="p-3 rounded-lg border space-y-4">
-                <p className="text-lg m-0">Apply New Multipliers</p>
+            <div className="p-4 rounded-lg bg-surface border border-border-subtle space-y-2">
+                <h2 className="text-sm font-semibold text-foreground">Apply New Multipliers</h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium">Type</label>
+                        <InputLabel>Type</InputLabel>
                         <Dropdown
                             options={[
                                 { value: "ROLE", label: "Role" },
                                 { value: "CHANNEL", label: "Channel" },
-                            ]} value={targetType} onChange={(val) => {
-                            setTargetType(val as TargetType);
-                            setSelectedTargetIds([]);
-                        }}
+                            ]}
+                            value={targetType}
+                            onChange={(val) => {
+                                setTargetType(val as TargetType);
+                                setSelectedTargetIds([]);
+                            }}
                         />
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium">
+                        <InputLabel required>
                             {targetType === "ROLE" ? "Roles" : "Channels"}
-                        </label>
+                        </InputLabel>
                         <Dropdown
                             multiple
                             options={filteredOptions}
@@ -183,48 +194,53 @@ export function MultiplierTab({
                     </div>
 
                     <div className="space-y-1.5">
+                        <InputLabel>Multiplier</InputLabel>
                         <NumberInput
                             value={+(multiplierValue ?? 0).toFixed(1)}
                             onChange={setMultiplierValue}
                             min={0.1}
                             max={10.0}
                             step={0.1}
-                            label="Multiplier"
                         />
                     </div>
 
                     <div className="flex justify-end pt-2">
-                        <button
-                            type="button"
+                        <Button
                             disabled={selectedTargetIds.length === 0 || isMutating}
                             onClick={handleAddMultipliers}
-                            className="px-4 py-2 bg-neutral-300/10 hover:bg-neutral-300/15 border border-neutral-500 rounded text-sm font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full md:w-auto"
                         >
                             {isMutating ? "Saving..." : "Add"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
 
-            <div className="space-y-3">
+            {/* Active Multipliers List */}
+            <div>
                 <div className="flex justify-between items-center min-h-9">
-                    <h4 className="text-sm font-semibold">Active Multipliers</h4>
+                    <Emphasis>Active Multipliers</Emphasis>
                     {selectedActiveIds.length > 0 && (
                         <button
                             type="button"
                             disabled={isMutating}
                             onClick={handleDeleteSelected}
-                            className="px-3 py-1.5 text-xs bg-red-600/90 hover:bg-red-600 text-white rounded transition font-medium disabled:opacity-50 cursor-pointer"
+                            className="px-3 py-1.5 text-xs bg-danger hover:bg-danger-hover text-brand-foreground font-bold uppercase tracking-wider rounded transition-all duration-150 cursor-pointer focus-ring-danger disabled:opacity-50"
                         >
-                            Delete Selected ({selectedActiveIds.length}) </button>
+                            Delete Selected ({selectedActiveIds.length})
+                        </button>
                     )}
                 </div>
 
                 {optimisticMultipliers.length === 0 ? (
-                    <p className="text-sm italic text-neutral-500">No custom multipliers configured.</p>
+                    <div className="p-8 border border-dashed border-border rounded-lg text-center bg-surface-muted/30">
+                        <p className="text-sm text-muted-foreground">No custom multipliers configured.</p>
+                    </div>
                 ) : (
-                    <div className="border border-neutral-500/30 rounded-lg overflow-hidden">
-                        <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-300/10 border-b border-neutral-500/30">
+                    <div className="border border-border rounded-lg overflow-hidden bg-surface shadow-sm">
+
+                        {/* Select All Header */}
+                        <div className="flex items-center gap-3 px-4 py-3 bg-surface-muted border-b border-border">
                             <input
                                 type="checkbox"
                                 checked={isAllSelected}
@@ -233,14 +249,15 @@ export function MultiplierTab({
                                 }}
                                 onChange={handleToggleSelectAll}
                                 disabled={isMutating}
-                                className="h-4 w-4 rounded border-neutral-500 text-neutral-600 focus:ring-neutral-500 bg-transparent cursor-pointer disabled:opacity-50"
+                                className="h-4 w-4 rounded border-border bg-surface text-brand cursor-pointer focus-ring disabled:opacity-50"
                             />
-                            <span className="text-xs text-neutral-400 font-medium select-none">
+                            <span className="text-xs text-muted-foreground font-semibold select-none">
                                 {isAllSelected ? "Deselect All" : "Select All"}
                             </span>
                         </div>
 
-                        <div className="divide-y divide-neutral-500/30">
+                        {/* List Items */}
+                        <div className="divide-y divide-border">
                             {optimisticMultipliers.map((m) => {
                                 const displayName = m.target_type === "ROLE"
                                     ? (roleMap[m.target_id] ? `@${roleMap[m.target_id]}` : `@Unknown Role`)
@@ -249,37 +266,36 @@ export function MultiplierTab({
                                 return (
                                     <div
                                         key={m.target_id}
-                                        className="flex items-center gap-3 p-4 bg-neutral-300/5 hover:bg-neutral-300/10 transition"
+                                        className="flex items-center gap-3 p-4 bg-surface hover:bg-surface-active/20 transition-colors duration-150"
                                     >
                                         <input
                                             type="checkbox"
                                             checked={selectedActiveIds.includes(m.target_id)}
                                             onChange={() => handleToggleSelect(m.target_id)}
                                             disabled={isMutating}
-                                            className="h-4 w-4 rounded border-neutral-500 text-neutral-600 focus:ring-neutral-500 bg-transparent cursor-pointer disabled:opacity-50"
+                                            className="h-4 w-4 rounded border-border bg-surface text-brand cursor-pointer focus-ring disabled:opacity-50"
                                         />
                                         <div className="flex-1 flex justify-between items-center">
                                             <div className="flex items-center gap-4 flex-wrap">
-                                                <span className="font-semibold text-sm">
+                                                <span className="font-bold text-sm text-foreground">
                                                     {displayName}
                                                 </span>
-                                                {/* Clean Badge Style matching other tabs */}
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 uppercase tracking-wider font-mono">
+                                                <span className="text-[10px] px-2 py-0.5 rounded bg-brand-subtle border border-brand/10 text-brand uppercase tracking-wider font-mono font-bold">
                                                     {m.target_type}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-4">
-                                                <span className="font-mono text-sm font-bold text-neutral-900 dark:text-neutral-100">
+                                                <span className="font-mono text-sm text-foreground">
                                                     {m.multiplier.toFixed(1)}x
                                                 </span>
-                                                <button
-                                                    type="button"
+                                                <Button
+                                                    variant="danger"
                                                     disabled={isMutating}
                                                     onClick={() => handleDeleteSingle(m.target_id)}
-                                                    className="px-2.5 py-1 text-xs border border-red-500 hover:bg-red-500/10 rounded transition text-red-500 dark:text-red-400 font-medium cursor-pointer disabled:opacity-50"
+                                                    className="px-3 py-1"
                                                 >
                                                     Delete
-                                                </button>
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>

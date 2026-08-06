@@ -19,6 +19,10 @@ import { ViewTicketStatus } from "@/features/tickets/types";
 
 
 import { DiscordChannel } from "@/features/_shared/channels.types";
+import { getReportConfig } from "@/features/report/queries";
+import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import { Dropdown } from "@/components/ui/Dropdown";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 interface ReportBodyConfig {
     reportConfig: ReportConfig;
@@ -26,13 +30,15 @@ interface ReportBodyConfig {
     initialReports: ReportedMessage[];
     guildId: string;
     onSave: (config: ReportConfig) => Promise<void>;
+    textChannelMap: Record<string, string>;
 }
 
-export type ReportMainTab = "HISTORY" | "NOTIFICATIONS";
+export type ReportMainTab = "HISTORY" | "REPORTER_NOTIFICATIONS" | "MODERATOR_NOTIFICATIONS";
 
 const MAIN_REPORT_TABS: TabItem<ReportMainTab>[] = [
     { value: "HISTORY", label: "Report History" },
-    { value: "NOTIFICATIONS", label: "Reporter Notifications" },
+    { value: "REPORTER_NOTIFICATIONS", label: "Reporter Notifications" },
+    { value: "MODERATOR_NOTIFICATIONS", label: "Moderator Notifications" },
 ];
 
 export function ReportBody({
@@ -41,6 +47,7 @@ export function ReportBody({
     initialReports,
     guildId,
     onSave,
+    textChannelMap,
 }: ReportBodyConfig) {
     const normalizedReportConfig = useMemo(() => reportConfig, [reportConfig]);
 
@@ -61,9 +68,15 @@ export function ReportBody({
     const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<ViewTicketStatus>("OPEN");
     const [activeDmTab, setActiveDmTab] = useState<ReportTabValue>("RESOLVED_DM");
-
-    // This state controls which main sub-tab is currently active
     const [activeMainTab, setActiveMainTab] = useState<ReportMainTab>("HISTORY");
+
+    const channelOptions = useMemo(() => {
+        const available = getAvailableChannelOptions(textChannelMap);
+        return [
+            { value: "", label: "None (Disabled)" },
+            ...available
+        ];
+    }, [textChannelMap]);
 
     const {
         deletingIds,
@@ -95,11 +108,13 @@ export function ReportBody({
     const filteredLogs = useMemo(() => {
         return logs.filter((log) => {
             const currentStatus = log.status?.toLowerCase();
+
             if (statusFilter === "OPEN") {
-                return currentStatus === "UNDER_REVIEW";
+                return currentStatus === "under_review";
             }
             if (statusFilter === "CLOSED") {
-                return currentStatus === "ACTIONED" || currentStatus === "DISMISSED";
+                // Changed "actioned" to "action"
+                return currentStatus === "action" || currentStatus === "dismissed";
             }
             return true;
         });
@@ -122,7 +137,7 @@ export function ReportBody({
             )}
 
             {/* Conditionally render the active tab view */}
-            {config.enabled && activeMainTab === "NOTIFICATIONS" && (
+            {config.enabled && activeMainTab === "REPORTER_NOTIFICATIONS" && (
                 <NotificationsTab
                     activeDmTab={activeDmTab}
                     setActiveDmTab={setActiveDmTab}
@@ -151,6 +166,13 @@ export function ReportBody({
                     observerTarget={observerTarget}
                     isLoadingMore={isLoadingMore}
                 />
+            )}
+
+            {config.enabled && activeMainTab === "MODERATOR_NOTIFICATIONS" && (
+                <div>
+                    <InputLabel>Send a Message for Every Report to</InputLabel>
+                    <Dropdown value={config.reportingChannel ?? ""} onChange={c => handleChange({reportingChannel: c})} options={channelOptions} placeholder="Select a channel..."/>
+                </div>
             )}
 
             {isDirty && (

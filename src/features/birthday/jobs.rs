@@ -54,10 +54,8 @@ pub async fn run_birthday_announcements(
 ) -> Result<(), Error> {
     let now = Utc::now();
     let current_hour = now.hour() as i32;
-    let current_month = now.month() as i16;
-    let current_day = now.day() as i16;
-    let current_year = now.year();
 
+    // Fetch guilds whose announcement_hour matches current_hour UTC
     let target_guild_ids = database::fetch_enabled_guild_ids(db, current_hour).await?;
 
     for guild_id in target_guild_ids {
@@ -74,8 +72,22 @@ pub async fn run_birthday_announcements(
             _ => continue,
         };
 
+        let local_now = now + chrono::Duration::hours(birthday_cfg.timezone_offset_hours as i64);
+
+        let guild_month = local_now.month() as i16;
+        let guild_day = local_now.day() as i16;
+        let guild_year = local_now.year();
+
         let channel_id = ChannelId::new(birthday_cfg.channel_id);
-        let birthday_records = database::get_unannounced_birthdays(db, current_month, current_day, current_year, guild_id).await?;
+
+        // Pass the guild's local month, day, and year to the query
+        let birthday_records = database::get_unannounced_birthdays(
+            db,
+            guild_month,
+            guild_day,
+            guild_year,
+            guild_id
+        ).await?;
 
         if birthday_records.is_empty() {
             continue;
@@ -84,12 +96,11 @@ pub async fn run_birthday_announcements(
         let celebrants = build_celebrants(ctx, guild_id, birthday_records).await;
         let sent_msg_id = announcements::send_birthday_message(ctx, channel_id, &celebrants, birthday_cfg, guild_id).await;
 
-        announcements::process_celebrant_roles(db, ctx, &celebrants, birthday_cfg, guild_id, channel_id, sent_msg_id, current_year).await;
+        announcements::process_celebrant_roles(db, ctx, &celebrants, birthday_cfg, guild_id, channel_id, sent_msg_id, guild_year).await;
     }
 
     Ok(())
 }
-
 pub async fn cleanup_expired_birthday_roles(
     pool: &PgPool,
     ctx: &Context,

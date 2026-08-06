@@ -74,7 +74,7 @@ export function BadWordTab({
                             key={ruleset.id}
                             onClick={() => router.push(`/dashboard/${guildId}/message-filtering?id=${ruleset.id}`)}
                             className={cn(
-                                "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border",
+                                "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
                                     ? "bg-surface-active/50 border-border text-foreground shadow-sm"
                                     : "border-transparent hover:bg-surface-active/60 text-foreground"

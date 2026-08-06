@@ -1,4 +1,3 @@
-// features/giveaway/queries.ts
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -6,7 +5,7 @@ import {
     SaveGiveawayData,
     giveawaySchema,
     saveGiveawayInputSchema
-} from "@/features/giveaway/types";
+} from "@/features/giveaways/types";
 
 export async function getGiveaways(guildId: string): Promise<Giveaway[]> {
     const validGuildId = z.string().min(1).parse(guildId);

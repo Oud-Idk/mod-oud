@@ -8,7 +8,9 @@ use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use axum::routing::post;
+use serenity::all::ChannelId;
 use tracing::{debug, error, info, warn};
+use crate::core::config::settings::{get_settings, save_settings};
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +32,6 @@ pub async fn handle_setup_member_counter(
     let Json(payload) = match payload {
         Ok(p) => p,
         Err(rejection) => {
-            // THIS WILL PRINT THE EXACT DESERIALIZATION ERROR TO YOUR RUST TERMINAL!
             error!(error = %rejection, "JSON Deserialization failed");
             return Err((StatusCode::UNPROCESSABLE_ENTITY, rejection.body_text()));
         }
@@ -46,7 +47,6 @@ pub async fn handle_setup_member_counter(
 
     let mut updated_counters = payload.counters;
 
-    // Check if any counter actually requires a channel to be created
     let needs_creation = updated_counters.iter().any(|c| c.channel_id.is_none());
 
     if !needs_creation {
@@ -58,29 +58,65 @@ pub async fn handle_setup_member_counter(
         ));
     }
 
-    // Create a category for the counters on Discord
-    let category_builder = serenity::CreateChannel::new("📊 Server Stats")
-        .kind(serenity::ChannelType::Category);
+    let mut guild_settings = get_settings(&state.db, &state.redis, &state.guild_configs, guild_id.get() as i64).await
+        .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to get settings"))
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to get settings".to_string()))?;
 
-    info!(guild_id = guild_id_u64, "Creating 'Server Stats' category for member counters");
+    let mut verified_category_id = None;
 
-    let category = guild_id
-        .create_channel(&state.http, category_builder)
-        .await
-        .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create category"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create category: {}", e)))?;
+    if let Some(saved_id) = guild_settings.member_counter.as_ref().and_then(|c| c.category_id) {
+        let cid = ChannelId::new(saved_id); // Assuming saved_id is u64
 
-    // Iterate through counters and create voice channels for any missing channel_id
+        match state.http.get_channel(cid).await {
+            Ok(serenity::Channel::Guild(channel)) if channel.kind == serenity::ChannelType::Category => {
+                verified_category_id = Some(cid);
+            }
+            Ok(_) => {
+                warn!(guild_id = guild_id_u64, channel_id = saved_id, "Saved category ID is not a category, recreating...");
+            }
+            Err(e) => {
+                warn!(error = ?e, guild_id = guild_id_u64, channel_id = saved_id, "Saved category ID no longer exists in Discord, recreating...");
+            }
+        }
+    }
+
+    let category_id = match verified_category_id {
+        Some(valid_id) => valid_id,
+        None => {
+            let category_builder = serenity::CreateChannel::new("📊 Server Stats")
+                .kind(serenity::ChannelType::Category);
+
+            info!(guild_id = guild_id_u64, "Creating 'Server Stats' category for member counters");
+
+            let category = guild_id
+                .create_channel(&state.http, category_builder)
+                .await
+                .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create category"))
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create category".to_string()))?;
+
+            guild_settings.member_counter
+                .get_or_insert_with(Default::default)
+                .category_id = Some(category.id.get());
+
+            save_settings(&state.db, &state.redis, &state.guild_configs, guild_id.get() as i64, &guild_settings).await
+                .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to save settings"))
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save settings".to_string()))?;
+
+            category.id
+        }
+    };
+
+    debug!(category_id = category_id.get(), "Got category for member tracking");
+
     for counter in updated_counters.iter_mut() {
         if counter.channel_id.is_none() {
-            // Render template default count placeholder for initial channel creation
             let channel_name = counter
                 .name_template
                 .replace("{count}", "0");
 
             let voice_builder = serenity::CreateChannel::new(&channel_name)
                 .kind(serenity::ChannelType::Voice)
-                .category(category.id);
+                .category(category_id);
 
             info!(
                 guild_id = guild_id_u64,
@@ -93,7 +129,7 @@ pub async fn handle_setup_member_counter(
                 .create_channel(&state.http, voice_builder)
                 .await
                 .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create voice channel"))
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create counter channel: {}", e)))?;
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create counter channel".to_string()))?;
 
             counter.channel_id = Some(voice_channel.id.get());
         }
@@ -101,7 +137,7 @@ pub async fn handle_setup_member_counter(
 
     info!(
         guild_id = guild_id_u64,
-        category_id = %category.id,
+        category_id = %category_id.get(),
         "Member counter category and channels setup successfully completed"
     );
 

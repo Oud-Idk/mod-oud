@@ -1,6 +1,8 @@
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { RangeSlider } from "@/components/ui/RangeSlider";
 import { LevelingConfig } from "@/features/leveling/types";
+import { InputLabel } from "@/components/layout/InputLabel";
+import Footer from "@/components/layout/Footer";
 
 interface VoiceTabProps {
     config: LevelingConfig;
@@ -12,19 +14,19 @@ export function VoiceTab({
     handleChange,
 }: VoiceTabProps) {
     return (
-        <div>
+        <div className="max-w-md">
             <ToggleSwitch
                 checked={config.voice.enabled}
                 onChange={(v) => handleChange({ voice: { ...config.voice, enabled: v, } })}
                 disabled={false}
                 text="Enable Voice Leveling"
+                className="mb-0"
             />
-            <p className="mt-1.5 mb-3">There must be another human in the same VC to increase XP.</p>
 
             {config.voice.enabled && (
                 <div className="space-y-2">
                     <div>
-                        <p className="text-lg">XP Range per Minute</p>
+                        <InputLabel>XP Range per Minute</InputLabel>
                         <RangeSlider
                             valMin={config.voice.xpRange.min}
                             valMax={config.voice.xpRange.max}
@@ -37,6 +39,8 @@ export function VoiceTab({
                     </div>
                 </div>
             )}
+
+            <Footer className="mt-1">There must be another human in the same VC.</Footer>
         </div>
     )
 }

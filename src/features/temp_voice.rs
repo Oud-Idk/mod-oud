@@ -11,3 +11,4 @@ mod service;
 pub use events::{handle_voice_event};
 pub use interface::handle_interaction;
 pub use web::routes;
+pub use commands::voice;

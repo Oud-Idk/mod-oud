@@ -1,9 +1,8 @@
 import React, { Dispatch, SetStateAction } from "react";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { ReportConfig } from "@/features/report/types";
-import { ModerationDMsConfig } from "@/features/moderation-dms/types";
-import { BuilderConfig } from "@/features/_shared/builderConfig";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { REPORT_DM_CONFIGS } from "@/features/report/builderConfigs";
 
 interface NotificationsTabProps {
     activeDmTab: ReportTabValue;
@@ -27,44 +26,6 @@ const REPORT_DM_TABS: TabItem<ReportTabValue>[] = [
     { value: "DISMISSED_DM", label: "Report Dismissed" },
 ];
 
-const REPORT_PLACEHOLDER_METADATA = [
-    {
-        key: "server.name",
-        mockValue: "Community Haven",
-        label: "The name of the Discord server"
-    },
-    {
-        key: "channel.name",
-        mockValue: "general-chat",
-        label: "The channel where the reported content was located"
-    },
-    {
-        key: "message.snippet",
-        mockValue: "Get cheap coins at this link...",
-        label: "A brief snippet of the reported message content"
-    },
-    {
-        key: "report.id",
-        mockValue: "1024",
-        label: "The system ID of the filed report"
-    }
-];
-
-export const REPORT_DM_CONFIGS: Record<ReportTabValue, BuilderConfig> = {
-    RESOLVED_DM: {
-        id: "report_resolved",
-        name: "Report Actioned",
-        description: "Sent to the reporting user when a moderator takes action on their report.",
-        placeholders: REPORT_PLACEHOLDER_METADATA,
-    },
-    DISMISSED_DM: {
-        id: "report_dismissed",
-        name: "Report Dismissed",
-        description: "Sent to the reporting user when a moderator reviews and dismisses their report.",
-        placeholders: REPORT_PLACEHOLDER_METADATA,
-    },
-};
-
 
 const TAB_TO_CONFIG_KEY = {
     RESOLVED_DM: "resolvedDm",
@@ -83,12 +44,11 @@ export function NotificationsTab({
     const activeKey = TAB_TO_CONFIG_KEY[activeDmTab];
 
     return (
-        <div className="space-y-2">
+        <div>
             <Tabs
                 tabs={REPORT_DM_TABS}
                 activeTab={activeDmTab}
                 onChange={setActiveDmTab}
-                className="mt-4"
             />
 
             <div className="mt-4">

@@ -8,6 +8,7 @@ interface NumberInputProps {
     min?: number;
     max?: number;
     step?: number;
+    clamp?: boolean; // Set to true to enforce min/max on blur (default: false)
     label?: string;
     className?: string;
     disabled?: boolean;
@@ -19,9 +20,10 @@ interface NumberInputProps {
 export function NumberInput({
     value,
     onChange,
-    min = 0,
-    max = 100,
+    min,
+    max,
     step = 1,
+    clamp = false,
     label,
     className,
     disabled = false,
@@ -37,14 +39,26 @@ export function NumberInput({
 
     const increment = () => {
         if (disabled) return;
-        const currentValue = isEmpty ? min : value;
-        onChange(Math.min(max, currentValue + step));
+        const base = isEmpty ? (min ?? 0) : value;
+        const next = base + step;
+
+        if (max !== undefined && clamp) {
+            onChange(Math.min(max, next));
+        } else {
+            onChange(next);
+        }
     };
 
     const decrement = () => {
         if (disabled) return;
-        const currentValue = isEmpty ? min : value;
-        onChange(Math.max(min, currentValue - step));
+        const base = isEmpty ? (min ?? 0) : value;
+        const next = base - step;
+
+        if (min !== undefined && clamp) {
+            onChange(Math.max(min, next));
+        } else {
+            onChange(next);
+        }
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,12 +77,14 @@ export function NumberInput({
     };
 
     const handleBlur = () => {
-        if (disabled) return;
-        if (isEmpty) return; // Allow empty state so browser validation works
+        if (disabled || isEmpty || !clamp) return;
 
-        if (value < min) onChange(min);
-        if (value > max) onChange(max);
+        if (min !== undefined && value < min) onChange(min);
+        if (max !== undefined && value > max) onChange(max);
     };
+
+    const isAtMin = min !== undefined && !isEmpty && value <= min;
+    const isAtMax = max !== undefined && !isEmpty && value >= max;
 
     return (
         <Field className={cn("flex flex-col gap-1.5 w-full", className)}>
@@ -82,10 +98,7 @@ export function NumberInput({
             <div
                 className={cn(
                     "flex items-center w-full rounded-md border bg-surface overflow-hidden transition-all duration-150",
-                    "focus-within:outline-none focus-within:ring-2",
-                    error
-                        ? "border-danger focus-within:ring-danger/20"
-                        : "border-border focus-within:ring-focus-ring focus-within:border-brand",
+                    error ? "border-danger" : "border-border",
                     disabled && "opacity-50 cursor-not-allowed bg-surface-muted"
                 )}
             >
@@ -93,9 +106,9 @@ export function NumberInput({
                 <Button
                     type="button"
                     onClick={decrement}
-                    disabled={disabled || (!isEmpty && value <= min)}
+                    disabled={disabled || (clamp && isAtMin)}
                     className={cn(
-                        "px-3 py-1 text-muted-foreground hover:text-foreground hover:bg-surface-active font-medium select-none cursor-pointer border-r border-border transition-colors shrink-0",
+                        "px-3 py-1 text-muted-foreground hover:text-foreground hover:bg-surface-active font-medium select-none cursor-pointer border-r border-border transition-colors shrink-0 focus-ring rounded-md ml-0.5",
                         "disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                     )}
                     aria-label="Decrement"
@@ -126,9 +139,9 @@ export function NumberInput({
                 <Button
                     type="button"
                     onClick={increment}
-                    disabled={disabled || (!isEmpty && value >= max)}
+                    disabled={disabled || (clamp && isAtMax)}
                     className={cn(
-                        "px-3 py-1 text-muted-foreground hover:text-foreground hover:bg-surface-active font-medium select-none cursor-pointer border-l border-border transition-colors shrink-0",
+                        "px-3 py-1 text-muted-foreground hover:text-foreground hover:bg-surface-active font-medium select-none cursor-pointer border-l border-border transition-colors shrink-0 focus-ring rounded-md mr-0.5",
                         "disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                     )}
                     aria-label="Increment"

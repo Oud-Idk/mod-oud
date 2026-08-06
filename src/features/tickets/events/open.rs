@@ -37,7 +37,7 @@ pub async fn on_open_ticket(
     let settings = get_settings(db, redis, &data.guild_configs, guild_id.get() as i64).await?;
     let tickets = settings.tickets.as_ref();
 
-    let role_id = match tickets.and_then(|t| t.ticket_role_id) {
+    let role_id = match tickets.map(|t| t.ticket_role_id) {
         Some(role_u64) => RoleId::new(role_u64),
         None => {
             warn!("Ticket staff role missing from guild configuration");
@@ -46,7 +46,7 @@ pub async fn on_open_ticket(
         }
     };
 
-    if tickets.and_then(|t| t.enabled) != Some(true) {
+    if tickets.map(|t| t.enabled) != Some(true) {
         debug!("Ticket system is disabled in this guild settings");
         message::send_disabled_error(ctx, component).await?;
         return Ok(());
@@ -68,7 +68,7 @@ pub async fn on_open_ticket(
     let ticket_category_id = settings
         .tickets
         .as_ref()
-        .and_then(|t| t.category_id);
+        .map(|t| t.category_id);
 
     debug!("Creating channel overwrites and constructing new Discord channel");
     let overwrites = build_permission_overwrites(guild_id, user_interact.id, role_id);
@@ -193,7 +193,7 @@ async fn send_welcome_message(
                     text,
                     gctx,
                     Some(member),
-                    Some(role_id),
+                    role_id,
                     role_name,
                     Some(channel),
                 )

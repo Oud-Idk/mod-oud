@@ -1,5 +1,6 @@
 import { NumberInput } from "@/components/ui/NumberInput";
 import { TicketConfig } from "@/features/tickets/types";
+import Footer from "@/components/layout/Footer";
 
 interface GeneralsTabProps {
     config: TicketConfig;
@@ -21,18 +22,16 @@ export default function GeneralsTab({
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col">
                     <h4 className="text-xl font-medium">Auto-Close Inactive Tickets</h4>
-                    <p className="text-sm text-neutral-400">
-                        Configure when inactive tickets receive a warning, and when they are closed. </p>
+                    <Footer>Configure when inactive tickets receive a warning, and when they are closed. </Footer>
                 </div>
 
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 max-w-md">
                     <NumberInput
                         label="Warn Threshold (Minutes)"
                         value={config.warnThreshold}
                         onChange={(v) => updateConfig({ warnThreshold: v })}
                         min={5}
                         max={10080}
-                        className={warnThresholdInvalid ? "opacity-40 grayscale pointer-events-auto transition-all" : "transition-all"}
                     />
                     <NumberInput
                         label="Close Threshold (Minutes)"

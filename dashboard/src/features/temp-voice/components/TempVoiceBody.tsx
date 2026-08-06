@@ -5,6 +5,7 @@ import { saveTempVoiceHubAction, setupTempVoiceAction } from "@/features/temp-vo
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { HubForm } from "@/features/temp-voice/components/HubForm";
 import { TempVoiceHub } from "@/features/temp-voice/types";
+import { Button } from "@/components/ui/Button";
 
 interface TempVoiceBodyProps {
     guildId: string;
@@ -125,7 +126,7 @@ export function TempVoiceBody({
     }
 
     return (
-        <ConfigListLayout<TempVoiceHub> title="Temporary Voice Hubs"
+        <ConfigListLayout<TempVoiceHub> title=" Temporary Voice Hubs"
             createButtonText="+ Add Hub"
             onCreateClick={handleCreateNewManual}
             items={hubs}
@@ -148,30 +149,36 @@ export function TempVoiceBody({
             emptyMessage="No voice hubs configured yet."
             hasActiveConfig={activeHubId !== null}
             noActivePlaceholder={
-                <div className="flex flex-col items-center justify-center p-6 text-center">
-                    <p className="font-semibold mb-2 text-neutral-200 text-lg">Manage
-                        Temporary Voice Channels</p>
+                <div className="max-w-md mx-auto space-y-4 flex items-center flex-col">
+                    <div className="space-y-1">
+                        <h3 className="text-lg font-semibold text-foreground">
+                            Manage Temporary Voice Channels
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                            Create self-managing temporary voice channels that automatically clean up when empty. Choose automated wizard setup or configure your rules manually.
+                        </p>
+                    </div>
 
-                    <div className="flex gap-4">
-                        <button
-                            type="button"
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
                             onClick={handleSetupTempVoice}
                             disabled={isSettingUp}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-50 text-white rounded-md text-sm font-semibold transition cursor-pointer"
                         >
                             {isSettingUp ? "Working our magic..." : "Set it up for me"}
-                        </button>
-                        <button
-                            type="button"
+                        </Button>
+                        <Button
+                            variant="secondary"
                             onClick={handleCreateNewManual}
-                            className="px-4 py-2 border border-neutral-600 hover:bg-neutral-300/10 text-neutral-200 rounded-md text-sm font-semibold transition cursor-pointer"
+                            disabled={isSettingUp}
                         >
                             Configure Manually
-                        </button>
+                        </Button>
                     </div>
 
                     {setupError && (
-                        <p className="text-red-500 text-sm mt-4">Error: {setupError}</p>
+                        <p className="text-sm text-danger">
+                            Error: {setupError}
+                        </p>
                     )}
                 </div>
             }

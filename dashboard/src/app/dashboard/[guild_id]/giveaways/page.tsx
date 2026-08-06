@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { GiveawayFeature } from "@/features/giveaway";
+import { GiveawayFeature } from "@/features/giveaways";
 
 export interface PageProps {
     params: Promise<{ guild_id: string }>;

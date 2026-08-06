@@ -1,6 +1,6 @@
 use crate::shared::embed::{DiscordEmbed, Format};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{serde_as, NoneAsEmptyString};
 use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
@@ -27,11 +27,11 @@ impl fmt::Display for CaptchaType {
 #[serde(default)]
 pub struct VerificationSettings {
     pub enabled: Option<bool>,
-    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde_as(as = "NoneAsEmptyString")]
     pub verification_message_id: Option<u64>,
-    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde_as(as = "NoneAsEmptyString")]
     pub verification_channel_id: Option<u64>,
-    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde_as(as = "NoneAsEmptyString")]
     pub verification_role_id: Option<u64>,
     pub content: Option<String>,
     pub embed: Option<DiscordEmbed>,

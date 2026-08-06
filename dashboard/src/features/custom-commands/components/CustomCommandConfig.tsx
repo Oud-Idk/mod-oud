@@ -15,6 +15,10 @@ import type {
 import { CUSTOM_COMMAND_TEMPLATE_CONFIG } from "@/features/custom-commands/builderConfigs";
 import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import Emphasis from "@/components/layout/Emphasis";
+import { TabItem, Tabs } from "@/components/layout/Tabs";
+import { Button } from "@/components/ui/Button";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 interface CustomCommandConfigProps {
     config: CustomCommand;
@@ -28,6 +32,13 @@ interface CustomCommandConfigProps {
     setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
 }
 
+type TabValue = "GENERAL" | "RESPONSE";
+
+const CUSTOM_COMMANDS_VALUE: TabItem<TabValue>[] = [
+    { value: "GENERAL", label: "General" },
+    { value: "RESPONSE", label: "Response" },
+];
+
 export function CustomCommandConfig({
     config,
     isPending,
@@ -38,6 +49,7 @@ export function CustomCommandConfig({
 }: CustomCommandConfigProps): ReactNode {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
+    const [activeTab, setActiveTab] = useState<TabValue>("GENERAL");
 
     const handleDelete = (id: number): void => {
         setIsDeleting(true);
@@ -87,108 +99,109 @@ export function CustomCommandConfig({
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-3">
-                    <p className="font-semibold text-lg">!{config.name}</p>
+        <div>
+            <Tabs tabs={CUSTOM_COMMANDS_VALUE} activeTab={activeTab} onChange={setActiveTab}/>
+            {activeTab === "GENERAL" && (
+                <div>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-3">
+                            <Emphasis>!{config.name}</Emphasis>
+                            <ToggleSwitch
+                                checked={config.enabled}
+                                onChange={(checked) => onChange({ ...config, enabled: checked })}
+                                text={config.enabled ? "Enabled" : "Disabled"}
+                                className="mb-0"
+                            />
+                        </div>
+                        <Button
+                            disabled={isPending || isDeleting}
+                            onClick={() => handleDelete(config.id)}
+                        >
+                            {isDeleting ? "Deleting..." : "Delete Command"}
+                        </Button>
+                    </div>
+
+                    {/* Core Settings */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <InputLabel>Command Name / Trigger</InputLabel>
+                            <TextInput
+                                placeholder="rules"
+                                value={config.name || ""}
+                                onChange={(e) => onChange({ ...config, name: e.target.value.replace(/\s+/g, "") })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <InputLabel>Description</InputLabel>
+                            <TextInput
+                                placeholder="Displays server rules"
+                                value={config.description || ""}
+                                onChange={(e) => onChange({ ...config, description: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <InputLabel>Cooldown Type</InputLabel>
+                            <Dropdown
+                                options={[
+                                    { value: "NONE", label: "No Cooldown" },
+                                    { value: "USER", label: "Per User" },
+                                    { value: "SERVER", label: "Server-wide" },
+                                ]}
+                                value={config.cooldown_type || "NONE"}
+                                onChange={(val) => {
+                                    if (val === "NONE" || val === "USER" || val === "SERVER") {
+                                        onChange({ ...config, cooldown_type: val });
+                                    }
+                                }}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <InputLabel>Cooldown Duration (Seconds)</InputLabel>
+                            <NumberInput
+                                placeholder="0"
+                                value={config.cooldown_seconds || 0}
+                                onChange={(val) => onChange({ ...config, cooldown_seconds: val || 0 })}
+                            />
+                        </div>
+                    </div>
+
                     <ToggleSwitch
-                        checked={config.enabled}
-                        onChange={(checked) => onChange({ ...config, enabled: checked })}
-                        text={config.enabled ? "Enabled" : "Disabled"}
+                        checked={config.delete_trigger}
+                        onChange={(checked) => onChange({ ...config, delete_trigger: checked })}
+                        text="Delete user trigger message after command execution"
+                        className="mt-2"
                     />
                 </div>
-                <button
-                    type="button"
-                    disabled={isPending || isDeleting}
-                    onClick={() => handleDelete(config.id)}
-                    className="px-4 py-2 text-sm cursor-pointer border-red-500/80 border hover:bg-red-300/10 rounded transition disabled:opacity-50"
-                >
-                    {isDeleting ? "Deleting..." : "Delete Command"}
-                </button>
-            </div>
+            )}
 
-            {/* Core Settings */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">Command Name / Trigger</label>
-                    <TextInput
-                        placeholder="rules"
-                        value={config.name || ""}
-                        onChange={(e) => onChange({ ...config, name: e.target.value.replace(/\s+/g, "") })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">Description</label>
-                    <TextInput
-                        placeholder="Displays server rules"
-                        value={config.description || ""}
-                        onChange={(e) => onChange({ ...config, description: e.target.value })}
-                    />
-                </div>
-            </div>
-
-            {/* Cooldown Settings */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-neutral-800">
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">Cooldown Type</label>
-                    <Dropdown
-                        options={[
-                            { value: "NONE", label: "No Cooldown" },
-                            { value: "USER", label: "Per User" },
-                            { value: "SERVER", label: "Server-wide" },
-                        ]}
-                        value={config.cooldown_type || "NONE"}
-                        onChange={(val) => {
-                            if (val === "NONE" || val === "USER" || val === "SERVER") {
-                                onChange({ ...config, cooldown_type: val });
-                            }
-                        }}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">Cooldown Duration (Seconds)</label>
-                    <NumberInput
-                        placeholder="0"
-                        value={config.cooldown_seconds || 0}
-                        onChange={(val) => onChange({ ...config, cooldown_seconds: val || 0 })}
-                    />
-                </div>
-            </div>
-
-            {/* Behavior Options */}
-            <div className="pt-2">
-                <ToggleSwitch
-                    checked={config.delete_trigger}
-                    onChange={(checked) => onChange({ ...config, delete_trigger: checked })}
-                    text="Delete user trigger message after command execution"
-                />
-            </div>
-
-            {/* Response Message Editor */}
-            <div className="pt-4 border-t border-neutral-800">
-                <label className="block text-sm font-medium mb-3">Command Response Message</label>
-                <MessageConfigEditor
-                    config={{
-                        format: primaryMessagePayload.format,
-                        content: primaryMessagePayload.content,
-                        embed: primaryMessagePayload.embed,
-                    }}
-                    onChange={handleMessageChange}
-                    onEmbedChange={(embed) =>
-                        handleMessageChange({
+            {activeTab === "RESPONSE" && (
+                <div>
+                    <MessageConfigEditor
+                        config={{
                             format: primaryMessagePayload.format,
                             content: primaryMessagePayload.content,
-                            embed,
-                        })
-                    }
-                    embedTemplateConfig={CUSTOM_COMMAND_TEMPLATE_CONFIG}
-                    setIsEmpty={setIsEmpty}
-                    enableToggle={false}
-                    noChannels={true}
-                />
-            </div>
+                            embed: primaryMessagePayload.embed,
+                        }}
+                        onChange={handleMessageChange}
+                        onEmbedChange={(embed) =>
+                            handleMessageChange({
+                                format: primaryMessagePayload.format,
+                                content: primaryMessagePayload.content,
+                                embed,
+                            })
+                        }
+                        embedTemplateConfig={CUSTOM_COMMAND_TEMPLATE_CONFIG}
+                        setIsEmpty={setIsEmpty}
+                        enableToggle={false}
+                        noChannels={true}
+                    />
+                </div>
+            )}
         </div>
     );
 }

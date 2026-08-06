@@ -4,7 +4,12 @@ import React, { ReactNode } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { ReminderFormat, ReminderRow, ReminderType } from "@/features/reminders/types";
-
+import { Button } from "@/components/ui/Button";
+import { InputLabel } from "@/components/layout/InputLabel";
+import { LongTextInput } from "@/components/ui/LongTextInput";
+import Footer from "@/components/layout/Footer";
+import { NumberInput } from "@/components/ui/NumberInput";
+import { TimeInput } from "@/components/ui/TimeInput";
 
 interface ReminderConfigProps {
     config: ReminderRow;
@@ -37,12 +42,12 @@ export function ReminderConfig({
         label: name,
     }));
 
-    const formatOptions: {value: ReminderFormat, label: string}[] = [
+    const formatOptions: { value: ReminderFormat; label: string }[] = [
         { value: "TEXT", label: "Plain Text" },
         { value: "EMBED", label: "Discord Rich Embed" },
     ];
 
-    const typeOptions: {value: ReminderType; label: string}[] = [
+    const typeOptions: { value: ReminderType; label: string }[] = [
         { value: "SINGLE", label: "One-Time (Single)" },
         { value: "RECURRING", label: "Recurring Schedule" },
     ];
@@ -58,7 +63,9 @@ export function ReminderConfig({
     const handleTimeChange = (field: "timeStart" | "timeEnd", value: string): void => {
         const formattedTime = !value
             ? null
-            : (value.split(":").length === 2 ? `${value}:00` : value);
+            : value.split(":").length === 2
+                ? `${value}:00`
+                : value;
 
         onChange({ [field]: formattedTime });
     };
@@ -75,7 +82,6 @@ export function ReminderConfig({
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
-    // Strip seconds from HH:MM:SS for the native HTML time input
     const formatTimeForInput = (timeStr: string | null): string => {
         if (!timeStr) return "";
         const parts = timeStr.split(":");
@@ -84,24 +90,27 @@ export function ReminderConfig({
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center pb-4 border-b border-zinc-800">
-                <div className="space-y-1">
-                    <span className="block text-xs uppercase text-zinc-500 font-semibold tracking-wider">
+            {/* Header section */}
+            <div className="flex justify-between items-center pb-4 border-b border-border-subtle gap-4">
+                <div className="space-y-0.5">
+                    <span className="block text-xs uppercase font-semibold tracking-wider text-muted-foreground">
                         Reminder Configuration
                     </span>
-                    <h2 className="text-lg font-bold text-zinc-150">
+                    <h2 className="text-lg font-bold text-foreground">
                         {config.rType === "RECURRING" ? "Recurring Schedule" : "One-Time Reminder"}
                     </h2>
                 </div>
-                <button
+                <Button
+                    variant="danger"
+                    type="button"
                     onClick={() => onDelete(config.id)}
                     disabled={isPending}
-                    className="text-xs border border-red-500 hover:bg-red-500/10 px-3 py-1.5 rounded transition disabled:opacity-50 cursor-pointer"
                 >
                     Delete Reminder
-                </button>
+                </Button>
             </div>
 
+            {/* Toggle Switch */}
             <ToggleSwitch
                 checked={config.isActive}
                 onChange={(checked) => onChange({ isActive: checked })}
@@ -110,9 +119,12 @@ export function ReminderConfig({
                 shrink={true}
             />
 
+            {/* Target Channel & Format */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-zinc-300">Target Channel</label>
+                    <InputLabel>
+                        Target Channel
+                    </InputLabel>
                     <Dropdown
                         options={channelOptions}
                         value={config.channelId}
@@ -122,7 +134,9 @@ export function ReminderConfig({
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-zinc-300">Message Format</label>
+                    <InputLabel>
+                        Message Format
+                    </InputLabel>
                     <Dropdown
                         options={formatOptions}
                         value={config.format}
@@ -132,131 +146,141 @@ export function ReminderConfig({
                 </div>
             </div>
 
-            {(config.format === "TEXT" && (
+            {/* Content Field */}
+            {config.format === "TEXT" && (
                 <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-zinc-300">Message Content</label>
-                    <textarea
+                    <InputLabel>
+                        Message Content
+                    </InputLabel>
+                    <LongTextInput
                         value={config.content || ""}
                         onChange={(e) => onChange({ content: e.target.value })}
                         placeholder="Type the message to send..."
                         rows={4}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
                     />
                 </div>
-            ))}
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-zinc-800">
+            {/* Schedule Type & Next Trigger */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border-subtle">
                 <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-zinc-300">Reminder Type</label>
+                    <InputLabel>
+                        Reminder Type
+                    </InputLabel>
                     <Dropdown
-                        options={typeOptions} value={config.rType} onChange={(val) => {
-                        onChange({
-                            rType: val,
-                            nextTriggerAt: val === "RECURRING" ? new Date().toISOString() : config.nextTriggerAt
-                        });
-                    }} placeholder="Select type"
+                        options={typeOptions}
+                        value={config.rType}
+                        onChange={(val) => {
+                            onChange({
+                                rType: val,
+                                nextTriggerAt:
+                                    val === "RECURRING"
+                                        ? new Date().toISOString()
+                                        : config.nextTriggerAt,
+                            });
+                        }}
+                        placeholder="Select type"
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-zinc-300">Next Scheduled Trigger</label>
+                    <InputLabel>
+                        Next Scheduled Trigger
+                    </InputLabel>
                     {config.rType === "RECURRING" ? (
-                        <div className="bg-zinc-950/40 border border-zinc-800/80 rounded px-3 py-2 text-xs text-zinc-500">
-                            Managed and calculated automatically by the scheduling worker based on your recurrence
-                            rules. </div>
+                        <div className="bg-surface-muted border border-border-subtle rounded-lg px-4 py-2.5 text-xs text-muted-foreground">
+                            {new Date(config.nextTriggerAt).toLocaleString()}
+                        </div>
                     ) : (
                         <input
                             type="datetime-local"
                             value={getFormattedDateTime(config.nextTriggerAt)}
                             onChange={(e) => {
                                 if (e.target.value) {
-                                    onChange({ nextTriggerAt: new Date(e.target.value).toISOString() });
+                                    onChange({
+                                        nextTriggerAt: new Date(e.target.value).toISOString(),
+                                    });
                                 }
                             }}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-zinc-700"
+                            className="w-full bg-surface-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus-ring"
                         />
                     )}
                 </div>
             </div>
 
+            {/* Recurrence Settings */}
             {config.rType === "RECURRING" && (
-                <div className="space-y-5 pt-4 border-t border-zinc-800">
+                <div className="space-y-5 pt-4 border-t border-border-subtle">
                     <div>
-                        <h3 className="font-semibold text-sm text-zinc-300">Recurrence Details</h3>
-                        <p className="text-xs text-zinc-500">Specify when and how often this reminder executes.</p>
+                        <h3 className="font-semibold text-sm text-foreground">Recurrence Details</h3>
+                        <Footer>
+                            Specify when and how often this reminder executes.
+                        </Footer>
                     </div>
 
+                    {/* Active Days Selection */}
                     <div className="space-y-2">
-                        <label className="text-xs uppercase text-zinc-500 font-bold tracking-wider block">
-                            Active Days of the Week <span className="text-red-500/80">*</span>
-                        </label>
+                        <InputLabel>Active Days of the Week</InputLabel>
                         <div className="flex flex-wrap gap-2">
                             {DAYS_OF_WEEK.map((day) => {
                                 const isSelected = (config.daysOfWeek || []).includes(day.value);
                                 return (
-                                    <button
+                                    <Button
                                         type="button"
                                         key={day.value}
                                         onClick={() => handleDayToggle(day.value)}
-                                        className={`px-3 py-1.5 text-xs rounded border transition cursor-pointer ${
+                                        className={`px-3 py-1.5 text-xs rounded-md transition cursor-pointer border ${
                                             isSelected
-                                                ? "bg-zinc-200 text-zinc-950 border-zinc-200 font-medium"
-                                                : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                                                ? "bg-brand-subtle text-brand-foreground border-brand font-medium hover:bg-brand-subtle/80"
+                                                : "bg-surface-muted border-border text-foreground hover:bg-surface-active hover:text-foreground"
                                         }`}
                                     >
                                         {day.label}
-                                    </button>
+                                    </Button>
                                 );
                             })}
                         </div>
-                        <span className="text-xs text-zinc-500 block">
+                        <span className="text-xs text-muted-foreground block">
                             Select specific days, or leave all unselected to run every day of the week.
                         </span>
                     </div>
 
+                    {/* Time Window & Interval Inputs */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs uppercase text-zinc-500 font-bold tracking-wider block">
+                            <InputLabel>
                                 Time Range Start
-                            </label>
-                            <input
-                                type="time"
-                                value={formatTimeForInput(config.timeStart)}
+                            </InputLabel>
+                            <TimeInput
                                 onChange={(e) => handleTimeChange("timeStart", e.target.value)}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-zinc-700"
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs uppercase text-zinc-500 font-bold tracking-wider block">
+                            <InputLabel>
                                 Time Range End
-                            </label>
-                            <input
-                                type="time"
-                                value={formatTimeForInput(config.timeEnd)}
+                            </InputLabel>
+                            <TimeInput
                                 onChange={(e) => handleTimeChange("timeEnd", e.target.value)}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-zinc-700"
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs uppercase text-zinc-500 font-bold tracking-wider block">
+                            <InputLabel>
                                 Interval (Seconds)
-                            </label>
-                            <input
-                                type="number"
+                            </InputLabel>
+                            <NumberInput
                                 min={10}
-                                value={config.intervalSeconds || ""}
-                                onChange={(e) => {
-                                    const val = parseInt(e.target.value, 10);
-                                    onChange({ intervalSeconds: isNaN(val) ? null : val });
+                                value={config.intervalSeconds}
+                                onChange={(n) => {
+                                    onChange({ intervalSeconds: n });
                                 }}
                                 placeholder="Once per day"
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none"
                             />
                         </div>
                     </div>
-                    <span className="text-xs text-zinc-500 block">
+
+                    <span className="text-xs text-muted-foreground block leading-relaxed">
                         💡 Leave <strong>Interval</strong> blank to run the reminder exactly once per day at your start
                         time. Provide an interval to repeat it periodically between your start and end times.
                     </span>
