@@ -68,7 +68,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
 
     let eligible_users: Vec<UserId> = users
         .into_iter()
-        .filter(|user| !user.bot || user.id.get() != giveaway.host_id as u64)
+        .filter(|user| !user.bot && user.id.get() != giveaway.host_id as u64)
         .map(|user| user.id)
         .collect();
 
