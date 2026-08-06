@@ -1,12 +1,30 @@
 use crate::features::member_counter::types::{CounterType, MemberCounterConfig};
 use tracing::{info, trace, warn};
 
+#[derive(Debug, Clone)]
+pub struct CounterResult {
+    pub channel_id: u64,
+    pub counter_type: CounterType,
+    pub count: u64,
+    pub new_name: String,
+    pub name_changed: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct GuildCounts {
+    pub total_members: u64,
+    pub humans_count: u64,
+    pub bots_count: u64,
+    pub online_count: u64,
+    pub counters: Vec<CounterResult>,
+}
+
 pub async fn update_guild_counters(
     http: &serenity::all::Http,
     serenity_cache: &serenity::all::Cache,
     guild_id: i64,
     config: &MemberCounterConfig,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<GuildCounts> {
     let serenity_guild_id = serenity::all::GuildId::new(guild_id as u64);
 
     // Compute guild statistics using Serenity Cache (or HTTP fallback)
@@ -42,6 +60,8 @@ pub async fn update_guild_counters(
             (approx_total, approx_total, 0, approx_online)
         };
 
+    let mut counter_results = Vec::new();
+
     for counter in &config.counters {
         let channel_id_u64 = match counter.channel_id {
             Some(id) => id,
@@ -59,10 +79,9 @@ pub async fn update_guild_counters(
             }
         };
 
-
         let target_name = counter.name_template.replace("{count}", &count.to_string());
-
         let channel_id = serenity::all::ChannelId::new(channel_id_u64);
+        let mut name_changed = false;
 
         // Fetch current channel to check if the name actually changed
         let current_channel = match channel_id.to_channel(http).await {
@@ -76,6 +95,7 @@ pub async fn update_guild_counters(
         if let Some(guild_channel) = current_channel.guild() {
             // ONLY send request to Discord if the channel name has changed (avoids rate limits)
             if guild_channel.name != target_name {
+                name_changed = true;
                 info!(
                     guild_id,
                     channel_id = %channel_id,
@@ -101,9 +121,25 @@ pub async fn update_guild_counters(
                 );
             }
         }
+
+        // Add this channel's update report to our list!
+        counter_results.push(CounterResult {
+            channel_id: channel_id_u64,
+            counter_type: counter.counter_type.clone(), // Assuming CounterType implements Clone!
+            count,
+            new_name: target_name,
+            name_changed,
+        });
     }
 
-    Ok(())
+    // Wrap it all up in a pretty package and return! 🎁
+    Ok(GuildCounts {
+        total_members,
+        humans_count,
+        bots_count,
+        online_count,
+        counters: counter_results,
+    })
 }
 
 /// Helper function to count guild members with a specific role ID.
