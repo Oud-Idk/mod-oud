@@ -6,10 +6,12 @@ import { SavePopup } from "@/components/dashboard/SavePopup";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { BirthdayConfig, CustomMessagePayload } from "@/features/birthdays/types";
+import { BirthdayConfig } from "@/features/birthdays/types";
 import { BIRTHDAY_TEMPLATE_CONFIG } from "@/features/birthdays/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { MessageLayout } from "@/features/_shared/embed";
 
 interface BirthdaysBodyProps {
     initialConfig: BirthdayConfig;
@@ -33,6 +35,7 @@ const COMMON_TIMEZONES = [
     { value: "Europe/Moscow", label: "(UTC+03:00) Moscow, St. Petersburg" },
     { value: "Asia/Dubai", label: "(UTC+04:00) Dubai, Abu Dhabi" },
     { value: "Asia/Kolkata", label: "(UTC+05:30) India, New Delhi" },
+    { value: "Asia/Kathmandu", label: "(UTC+05:45) Kathmandu, Nepal" }, // 🇳🇵 Nepal represent!
     { value: "Asia/Bangkok", label: "(UTC+07:00) Bangkok, Hanoi, Jakarta" },
     { value: "Asia/Singapore", label: "(UTC+08:00) Singapore, Beijing, Hong Kong" },
     { value: "Asia/Tokyo", label: "(UTC+09:00) Tokyo, Seoul" },
@@ -64,25 +67,10 @@ export function BirthdaysBody({
         return list;
     }, [browserTz]);
 
-    const defaultConfig: BirthdayConfig = useMemo(() => {
-        return (
-            initialConfig || {
-                guild_id: guildId,
-                enabled: false,
-                channel_id: "",
-                announcement_hour: 9,
-                timezone: browserTz,
-                birthday_role_id: "",
-                require_year: false,
-                message_with_year: { format: "TEXT", content: "Happy {user.ordinal_age} Birthday, {user}! 🎉" },
-                message_without_year: { format: "TEXT", content: "Happy Birthday, {user}! 🎉" },
-            }
-        );
-    }, [initialConfig, guildId, browserTz]);
-
+    // Simplified config form hook (initialConfig is already pre-validated by Zod on server)
     const { config, isPending, isDirty, handleSave, handleCancel, handleChange, setIsEmpty } =
         useConfigForm<BirthdayConfig>({
-            initialConfig: defaultConfig,
+            initialConfig,
             onSave: async (updatedConfig) => {
                 if (updatedConfig) {
                     await onSave(updatedConfig);
@@ -115,11 +103,19 @@ export function BirthdaysBody({
 
     const currentMsg = activeTab === "withYear" ? config.messageWithYear : config.messageWithoutYear;
 
-    const handleMsgChange = (updatedMsg: CustomMessagePayload): void => {
+    // Safe conversion from GenericMessageConfig -> MessageLayout
+    const handleMsgChange = (updated: GenericMessageConfig): void => {
+        const updatedLayout: MessageLayout = {
+            enabled: true,
+            format: updated.format ?? "TEXT",
+            content: updated.content ?? "",
+            embed: updated.embed ?? {},
+        };
+
         if (activeTab === "withYear") {
-            handleChange({ ...config, messageWithYear: updatedMsg });
+            handleChange({ ...config, messageWithYear: updatedLayout });
         } else {
-            handleChange({ ...config, messageWithoutYear: updatedMsg });
+            handleChange({ ...config, messageWithoutYear: updatedLayout });
         }
     };
 
@@ -139,12 +135,12 @@ export function BirthdaysBody({
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <InputLabel>
-                                Announce Channel <span className="text-danger">*</span>
+                            <InputLabel required>
+                                Announce Channel
                             </InputLabel>
                             <Dropdown
                                 options={channelOptions}
-                                value={config.channelId || ""}
+                                value={config.channelId ?? ""}
                                 onChange={(val) => handleChange({ ...config, channelId: val })}
                                 error={isChannelMissing}
                             />
@@ -159,7 +155,7 @@ export function BirthdaysBody({
                             <InputLabel>Birthday Role</InputLabel>
                             <Dropdown
                                 options={roleOptions}
-                                value={config.birthdayRoleId || ""}
+                                value={config.birthdayRoleId ?? ""}
                                 onChange={(val) => handleChange({ ...config, birthdayRoleId: val })}
                             />
                         </div>
@@ -205,13 +201,8 @@ export function BirthdaysBody({
 
                         <MessageConfigEditor
                             key={activeTab}
-                            config={{
-                                format: currentMsg?.format || "TEXT",
-                                content: currentMsg?.content || "",
-                                embed: currentMsg?.embed || {},
-                            }}
-                            onChange={(updated) => handleMsgChange({ ...currentMsg, ...updated })}
-                            onEmbedChange={(embed) => handleMsgChange({ ...currentMsg, embed })}
+                            config={currentMsg}
+                            onChange={handleMsgChange}
                             embedTemplateConfig={BIRTHDAY_TEMPLATE_CONFIG}
                             setIsEmpty={setIsEmpty}
                             enableToggle={false}

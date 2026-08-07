@@ -10,7 +10,6 @@ import { InputLabel } from "@/components/layout/InputLabel";
 import Emphasis from "@/components/layout/Emphasis";
 import { Button } from "@/components/ui/Button";
 import { getAvailableCategoryOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
-import { MessageLayout } from "@/features/report/types";
 
 interface TicketingTabProps {
     config: TicketConfig;

@@ -19,7 +19,8 @@ describe("Ticket Schemas Unit Tests", () => {
             expect(parsed.warnThreshold).toBe(30);
             expect(parsed.deleteThreshold).toBe(45);
             expect(parsed.bumpEvery).toBe(20);
-            expect(parsed.format).toBe("TEXT");
+            expect(parsed.panelMessage.format).toBe("TEXT");
+            expect(parsed.welcomeMessage.format).toBe("TEXT");
             expect(parsed.welcomeMessage.enabled).toBe(false);
         });
 

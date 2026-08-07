@@ -123,3 +123,5 @@ export const MessageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ct
         }
     }
 });
+
+export type MessageLayout = z.infer<typeof MessageLayoutSchema>;
