@@ -77,7 +77,7 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                         </InputLabel>
                         <Dropdown
                             value={selectedChannel}
-                            onChange={(val: string) => setSelectedChannel(val)}
+                            onChange={(val) => setSelectedChannel(val ?? "")}
                             options={channelOptions}
                         />
                     </div>

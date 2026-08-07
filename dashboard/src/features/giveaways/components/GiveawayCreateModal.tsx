@@ -86,7 +86,7 @@ export function GiveawayCreateModal({
                             label: `#${cName}`,
                         }))}
                         value={channelId}
-                        onChange={setChannelId}
+                        onChange={(val) => setChannelId(val ?? "")}
                         placeholder="Choose channel..."
                     />
                 </div>

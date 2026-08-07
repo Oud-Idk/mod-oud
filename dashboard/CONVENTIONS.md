@@ -207,6 +207,162 @@ export function cn(...inputs: ClassValue[]) {
 }
 ```
 
+Here is the new section designed specifically for your conventions document!
+
+It captures everything we built: **Zod as the single source of truth**, **honest `null` form state**, **`.superRefine()` validation**, **Server Action error boundaries**, and **Rust Serde alignment**.
+
+You can paste this right before the `## 🚫 Code Smells` section at the bottom:
+
+
+##  Form State, Zod Validation & Server Actions
+
+### 1. Zod Is the Single Source of Truth for Types
+Do not manually write `interface` definitions alongside Zod schemas. Define the Zod schema first in `features/<feature_name>/types.ts`, and infer the TypeScript type using `z.infer`.
+
+```typescript
+// src/features/tickets/types.ts
+import { z } from "zod";
+
+export const TicketConfigSchema = z.object({
+  categoryId: z.string().nullish(),
+  ticketRoleId: z.string().nullish(),
+  enabled: z.boolean().default(false),
+  warnThreshold: z.number().default(30),
+});
+
+// Automatically infer the TS type — never double-declare interfaces!
+export type TicketConfig = z.infer<typeof TicketConfigSchema>;
+```
+
+### 2. Honest Form State (`null` > Magic Empty Strings)
+External foreign references (e.g. Discord `categoryId`, `ticketRoleId`, `channelId`) that may be unselected during initial setup must be typed as `null` or `.nullish()`. Never use empty strings (`""`) as a fake sentinel value for `null`.
+
+* **JSON & Server Actions:** `JSON.stringify({ categoryId: null })` preserves `null` over the wire, whereas `undefined` gets erased.
+* **SQL & Rust Alignment:** `null` maps directly to Postgres `NULL` and Rust Serde `Option<T>` (`None`).
+
+### 3. Draft Mode vs. Strict Save Validation (`.superRefine`)
+Allow fields to be `null` while the user is editing or if the feature is disabled (`enabled: false`). Use Zod's `.superRefine()` on the save schema to enforce strict rules when the feature is enabled.
+
+```typescript
+// src/features/tickets/types.ts
+export const SaveTicketConfigSchema = TicketConfigSchema.superRefine((data, ctx) => {
+  if (data.enabled) {
+    if (!data.categoryId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please select a Discord Category for tickets!",
+        path: ["categoryId"],
+      });
+    }
+    if (!data.ticketRoleId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please select a Support Staff Role!",
+        path: ["ticketRoleId"],
+      });
+    }
+  }
+});
+```
+
+### 4. Server Action Validation & Error Throwing
+Server Actions (`actions.ts`) must validate raw incoming data at the boundary using Zod before touching the database or external APIs.
+
+To keep Server Action return signatures clean (`Promise<void>`) and easily catchable by React client hooks (`useConfigForm`), catch `z.ZodError` and re-throw the first user-friendly error message:
+
+```typescript
+// src/features/tickets/actions.ts
+"use server";
+
+import { SaveTicketConfigSchema } from "./types";
+import { z } from "zod";
+
+export async function saveTicketsConfigAction(guildId: string, rawData: unknown): Promise<void> {
+  try {
+    await verifyGuildAccess(guildId);
+
+    // 🚨 Validate with strict Zod schema at the boundary!
+    const validatedData = SaveTicketConfigSchema.parse(rawData);
+
+    await saveTicketConfig(guildId, validatedData);
+    revalidatePath(`/dashboard/${guildId}/tickets`);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      // Pick the first human-readable message to display in UI status banners
+      const firstError = error.issues[0]?.message || "Invalid configuration.";
+      throw new Error(firstError);
+    }
+    throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
+  }
+}
+```
+
+---
+
+## Testing Conventions (Unit, Integration & E2E)
+
+### 1. Colocate Feature Tests ("Keep It Local")
+Just like components and queries, unit and integration tests for a feature live **inside that feature's directory** (`src/features/<feature_name>/`), not in a top-level `src/tests/` folder.
+
+```
+src/
+└── features/
+└── tickets/
+├── actions.ts
+├── actions.test.ts     # Integration tests for Server Actions
+├── types.ts
+├── types.test.ts       # Unit tests for complex Zod schemas
+├── queries.ts
+└── queries.test.ts     # DB integration tests
+```
+
+### 2. High-Yield Priority: Test Server Actions & Zod Boundary
+Don't waste time testing raw React markup or standard getters. The **highest return-on-investment (ROI) tests** are integration tests on Server Actions and Zod Schemas.
+
+* **Zod Schema Unit Tests:** Assert that valid payloads pass and invalid/malformed payloads fail with expected error messages.
+* **Server Action Integration Tests:** Call Server Actions directly in Vitest/Jest (no browser required!) to verify that Zod validation, authentication (`verifyGuildAccess`), and database writes work correctly.
+
+```typescript
+// src/features/tickets/actions.test.ts
+import { saveTicketsConfigAction } from "./actions";
+import { vi, describe, it, expect } from "vitest";
+
+// Mock infrastructure (DB / Auth), test real Zod + Server Action logic
+vi.mock("@/features/_shared/guild", () => ({
+  verifyGuildAccess: vi.fn().mockResolvedValue(true),
+}));
+
+describe("saveTicketsConfigAction", () => {
+  it("should throw error when ticketing is enabled without a category", async () => {
+    const invalidConfig = {
+      enabled: true,
+      categoryId: null, // 👈 Missing required category!
+    };
+
+    await expect(
+      saveTicketsConfigAction("guild_123", invalidConfig)
+    ).rejects.toThrow("Please select a Discord Category for tickets!");
+  });
+});
+```
+
+### 3. E2E Tests Live at Root (`e2e/`)
+While feature unit/integration tests live inside `src/features/`, **End-to-End (E2E) tests** using Playwright or Cypress test multi-route user journeys (e.g. logging in via Discord, navigating sidebar, filling form, saving). E2E tests cross feature boundaries, so they live in a root-level `e2e/` folder.
+
+```
+my-dashboard/
+├── e2e/                        # Playwright E2E tests (Cross-feature user flows)
+│   ├── auth.spec.ts
+│   └── ticketing-flow.spec.ts
+├── src/
+│   └── features/               # Feature-local unit/integration tests
+```
+
+### 4. Mock Infrastructure (`lib/`), Not Domain Logic
+* **Mock at the edges:** Mock external network requests (`fetch` to Discord API, backend Rust bot endpoints) and infrastructure singletons (`lib/db.ts`).
+* **Do NOT mock Zod or domain helpers:** Test real Zod schema parsing, real transformations, and real business logic.
+
+
 ## 🚫 Code Smells (What NOT to do)
 
 * **Layer-First Directories:** Creating folders like `src/actions/`, `src/hooks/`, or `src/types/db/` containing one file per feature.

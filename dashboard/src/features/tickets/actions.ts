@@ -1,10 +1,11 @@
 "use server";
 
-import { Ticket, TicketConfig, TicketHistory } from "@/features/tickets/types";
+import { SaveTicketConfigSchema, Ticket, TicketConfig, TicketHistory } from "@/features/tickets/types";
 import { getTicketConfig, getTicketHistory, getTicketList, saveTicketConfig } from "@/features/tickets/queries";
 import { revalidatePath } from "next/cache";
 
 import { verifyGuildAccess } from "@/features/_shared/guild";
+import { z } from "zod";
 
 /**
  * Fetches a list of tickets for a specific guild
@@ -85,7 +86,7 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
 
         const currentConfig = await getTicketConfig(guildId);
         const { postedMessageId, ...rest } = currentConfig;
-        await saveTicketConfig(guildId, rest);
+        await saveTicketConfig(guildId, {...rest, postedMessageId: null});
 
         revalidatePath(`/dashboard/${guildId}/tickets`);
     } catch (error) {
@@ -94,13 +95,22 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
     }
 }
 
-export async function saveTicketsConfigAction(guildId: string, data: TicketConfig) {
+export async function saveTicketsConfigAction(guildId: string, data: unknown): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
-        await saveTicketConfig(guildId, data);
-        revalidatePath(`/dashboard/${guildId}/leave`);
+
+        const validatedData = SaveTicketConfigSchema.parse(data);
+
+        await saveTicketConfig(guildId, validatedData);
+        revalidatePath(`/dashboard/${guildId}/tickets`);
     } catch (error) {
         console.error("Failed to save tickets config:", error);
+
+        if (error instanceof z.ZodError) {
+            const firstErrorMessage = error.issues[0]?.message || "Invalid configuration.";
+            throw new Error(firstErrorMessage);
+        }
+
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }

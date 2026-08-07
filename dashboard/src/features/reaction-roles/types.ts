@@ -1,4 +1,3 @@
-// src/features/reaction-roles/types.ts
 import { z } from "zod";
 
 import { DiscordEmbed } from "@/features/_shared/embed";

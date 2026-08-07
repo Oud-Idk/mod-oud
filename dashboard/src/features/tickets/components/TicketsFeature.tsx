@@ -25,9 +25,10 @@ export async function TicketsFeature({ guildId }: TicketsFeatureProps) {
     const onDeleteTicketMessage = deleteTicketMessageAction.bind(null, guildId);
 
     return (
-        <div>
+        <div className="flex flex-col">
             <DashboardHeader>Tickets Settings</DashboardHeader>
             <TicketsBody
+                guildId={guildId}
                 categoryMap={categoryMap}
                 roleMap={roleMap}
                 channels={channels}
@@ -35,7 +36,6 @@ export async function TicketsFeature({ guildId }: TicketsFeatureProps) {
                 onSave={onSave}
                 onSendTicketMessage={onSendTicketMessage}
                 onDeleteTicketMessage={onDeleteTicketMessage}
-                guildId={guildId}
             />
         </div>
     );

@@ -22,6 +22,6 @@ CREATE TABLE ticket_messages
     message_id        BIGINT NOT NULL UNIQUE,
     author_id         BIGINT NOT NULL,
     content           TEXT   NOT NULL,
-    is_ticket_manger  BOOL   NOT NULL,
+    is_ticket_manager BOOL   NOT NULL,
     created_at        TIMESTAMPTZ DEFAULT NOW()
 );

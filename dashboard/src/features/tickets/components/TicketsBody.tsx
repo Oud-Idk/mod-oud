@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
@@ -9,9 +10,6 @@ import GeneralsTab from "@/features/tickets/components/Tabs/GeneralsTab";
 import HistoryTab from "@/features/tickets/components/Tabs/HistoryTab";
 import { TicketConfig } from "@/features/tickets/types";
 import { useTicketing } from "@/features/tickets/hooks/useTicketing";
-import { useState } from "react";
-
-
 import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface TicketsBodyProps {
@@ -27,7 +25,7 @@ interface TicketsBodyProps {
 
 type TabValue = "TICKETING" | "WELCOME" | "GENERAL" | "HISTORY";
 
-const MODERATION_DM_TABS: TabItem<TabValue>[] = [
+const TICKETS_TABS: TabItem<TabValue>[] = [
     { value: "TICKETING", label: "Ticketing" },
     { value: "WELCOME", label: "Initial Message" },
     { value: "GENERAL", label: "General" },
@@ -35,7 +33,7 @@ const MODERATION_DM_TABS: TabItem<TabValue>[] = [
 ];
 
 export function TicketsBody({
-    guildId, // Destructure guildId
+    guildId,
     categoryMap = {},
     roleMap = {},
     channels = [],
@@ -44,6 +42,7 @@ export function TicketsBody({
     onSendTicketMessage,
     onDeleteTicketMessage
 }: TicketsBodyProps) {
+    // Form state hook handling initial config & changes
     const {
         config,
         setConfig,
@@ -60,6 +59,7 @@ export function TicketsBody({
         onSave,
     });
 
+    // Ticketing domain hook
     const {
         isProcessing,
         status,
@@ -73,13 +73,23 @@ export function TicketsBody({
         handleTicketConfigChange,
         handleSendLiveMessage,
         handleDeleteLiveMessage
-    } = useTicketing(config, ticketConfig, isEmpty, targetChannelIsEmpty, hookHandleSave, hookHandleCancel, setConfig, onSendTicketMessage, onDeleteTicketMessage);
+    } = useTicketing(
+        config,
+        ticketConfig,
+        isEmpty,
+        targetChannelIsEmpty,
+        hookHandleSave,
+        hookHandleCancel,
+        setConfig,
+        onSendTicketMessage,
+        onDeleteTicketMessage
+    );
 
     const [activeTab, setActiveTab] = useState<TabValue>("TICKETING");
 
     return (
-        <div>
-            <Tabs tabs={MODERATION_DM_TABS} activeTab={activeTab} onChange={setActiveTab}/>
+        <div className="flex flex-col">
+            <Tabs tabs={TICKETS_TABS} activeTab={activeTab} onChange={setActiveTab} />
 
             {activeTab === "TICKETING" && (
                 <TicketingTab
@@ -101,6 +111,7 @@ export function TicketsBody({
                     isDirty={isDirty}
                 />
             )}
+
             {activeTab === "WELCOME" && (
                 <InitialMessageTab
                     config={config}
@@ -111,18 +122,24 @@ export function TicketsBody({
                     isEmpty={setIsWelcomeEmpty}
                 />
             )}
+
             {activeTab === "GENERAL" && (
                 <GeneralsTab
-                    config={config} onChange={handleTicketConfigChange} warnThresholdInvalid={isWarnThresholdInvalid}
+                    config={config}
+                    onChange={handleTicketConfigChange}
+                    warnThresholdInvalid={isWarnThresholdInvalid}
                 />
             )}
+
             {activeTab === "HISTORY" && (
-                <HistoryTab guildId={guildId}/> // Mount HistoryTab here
+                <HistoryTab guildId={guildId} />
             )}
 
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

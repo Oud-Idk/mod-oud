@@ -78,7 +78,7 @@ export function HoneypotBody({ honeypotConfig, onSave, textChannelMap, guildId, 
                 <InputLabel>Channel</InputLabel>
                 <Dropdown
                     value={config.channelId}
-                    onChange={c => setConfig({ ...config, channelId: c })}
+                    onChange={c => setConfig({ ...config, channelId: c ?? ""})}
                     options={channelOptions}
                     placeholder="Select Channel"
                 />

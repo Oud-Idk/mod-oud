@@ -48,12 +48,13 @@ export default function TicketingTab({
     status,
     isEmpty,
 }: TicketingTabProps) {
-    const targetCategoryIsEmpty = (config.categoryId ?? "").trim() === "";
+    // ✅ Handles null / undefined / empty strings cleanly
+    const targetCategoryIsEmpty = !config.categoryId || config.categoryId.trim() === "";
     const targetRoleIsEmpty = !config.ticketRoleId || config.ticketRoleId.trim() === "";
 
     const messageConfigAdapter = useMemo<GenericMessageConfig>(() => ({
         enabled: config.enabled,
-        channel_id: config.channelId,
+        channel_id: config.channelId ?? "",
         content: config.content,
         embed: config.embed,
         format: config.format,
@@ -63,7 +64,7 @@ export default function TicketingTab({
         setConfig((prev) => ({
             ...prev,
             enabled: updated.enabled ?? false,
-            channelId: updated.channel_id ?? "",
+            channelId: updated.channel_id ?? null,
             content: updated.content ?? "",
             embed: updated.embed ?? {},
             format: updated.format,
@@ -74,11 +75,11 @@ export default function TicketingTab({
         setConfig((prev) => ({ ...prev, embed }));
     }, [setConfig]);
 
-    const handleCategoryChange = useCallback((v: string) => {
+    const handleCategoryChange = useCallback((v: string | null) => {
         setConfig((prev) => ({ ...prev, categoryId: v }));
     }, [setConfig]);
 
-    const handleRoleChange = useCallback((v: string) => {
+    const handleRoleChange = useCallback((v: string | null) => {
         setConfig((prev) => ({ ...prev, ticketRoleId: v }));
     }, [setConfig]);
 
@@ -121,7 +122,7 @@ export default function TicketingTab({
                         <div>
                             <InputLabel required>Ticket Destination Category</InputLabel>
                             <Dropdown
-                                value={(config.categoryId ?? "")}
+                                value={config.categoryId ?? ""}
                                 onChange={handleCategoryChange}
                                 options={categoryOptions}
                                 error={targetCategoryIsEmpty}

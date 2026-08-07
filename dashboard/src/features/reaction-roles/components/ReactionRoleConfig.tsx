@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, SetStateAction, useState } from "react";
+import React, { ReactNode, SetStateAction, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
@@ -14,6 +14,7 @@ import type {
     ButtonRoleItem,
 } from "../types";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 
 interface ReactionRoleConfigProps {
     config: ReactionMessage;
@@ -48,9 +49,24 @@ export function ReactionRoleConfig({
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [isActionPending, setIsActionPending] = useState(false);
+    const [isMessageEmpty, setIsMessageEmpty] = useState(false);
 
     const reactions = config.reactions ?? [];
     const buttons = config.buttons ?? [];
+
+    // Check if any role_id is unassigned or empty string in the active mode 🔍
+    const hasMissingRoles = useMemo(() => {
+        if (config.mode === "BUTTON") {
+            return buttons.some((b) => !b.role_id || b.role_id.trim() === "");
+        } else {
+            return reactions.some((r) => !r.role_id || r.role_id.trim() === "");
+        }
+    }, [config.mode, buttons, reactions]);
+
+    // Combine message body emptiness with missing role mappings to block Save button in parent!
+    useEffect(() => {
+        setIsEmpty(isMessageEmpty || hasMissingRoles);
+    }, [isMessageEmpty, hasMissingRoles, setIsEmpty]);
 
     const handleDelete = async (id: number): Promise<void> => {
         setIsDeleting(true);
@@ -66,6 +82,10 @@ export function ReactionRoleConfig({
     const handleSend = async (): Promise<void> => {
         if (isDirty) {
             alert("Please save your changes before sending the message to Discord.");
+            return;
+        }
+        if (hasMissingRoles) {
+            alert("Please select a role for all mappings before sending.");
             return;
         }
         setIsSending(true);
@@ -146,7 +166,8 @@ export function ReactionRoleConfig({
     };
 
     const isDisabled = isPending || isDeleting || isSending;
-    const sendToDiscordIsDisabled = isPending || isDeleting || isSending || isDirty || isEmpty;
+    const sendToDiscordIsDisabled =
+        isPending || isDeleting || isSending || isDirty || isEmpty || hasMissingRoles;
     const isSent = Boolean(config.message_id && config.message_id.trim() !== "");
 
     return (
@@ -183,17 +204,22 @@ export function ReactionRoleConfig({
                 </div>
             </div>
 
+            {/* Validation Warning Hint */}
+            {hasMissingRoles && (
+                <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>All button and reaction mappings must have an assigned Role before you can save or send to Discord.</span>
+                </div>
+            )}
+
             {/* Core Settings */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <label className="block text-sm font-semibold text-foreground">Channel</label>
                     <Dropdown
-                        options={Object.entries(channelMap).map(([id, name]) => ({
-                            value: id,
-                            label: `#${name}`,
-                        }))}
+                        options={getAvailableChannelOptions(channelMap)}
                         value={config.channel_id ? String(config.channel_id) : ""}
-                        onChange={(val) => onChange({ ...config, channel_id: val })}
+                        onChange={(val) => onChange({ ...config, channel_id: val ?? "" })}
                         placeholder="Select channel..."
                         className="w-full"
                     />
@@ -284,7 +310,7 @@ export function ReactionRoleConfig({
                                                 { value: "DANGER", label: "Danger (Red)" },
                                             ]}
                                             value={button.style || "PRIMARY"}
-                                            onChange={(val) => handleUpdateButton(index, "style", val)}
+                                            onChange={(val) => handleUpdateButton(index, "style", val ?? "PRIMARY")}
                                         />
                                     </div>
 
@@ -297,7 +323,7 @@ export function ReactionRoleConfig({
                                                     label: name,
                                                 }))}
                                                 value={button.role_id}
-                                                onChange={(val) => handleUpdateButton(index, "role_id", val)}
+                                                onChange={(val) => handleUpdateButton(index, "role_id", val ?? "")}
                                                 placeholder="Select role..."
                                             />
                                         ) : (
@@ -377,7 +403,7 @@ export function ReactionRoleConfig({
                                                 label: name,
                                             }))}
                                             value={reaction.role_id}
-                                            onChange={(val) => handleUpdateReaction(index, "role_id", val)}
+                                            onChange={(val) => handleUpdateReaction(index, "role_id", val ?? "")}
                                             placeholder="Select role..."
                                         />
                                     ) : (
@@ -437,7 +463,7 @@ export function ReactionRoleConfig({
                         })
                     }
                     embedTemplateConfig={REACTION_ROLES_CONFIG}
-                    setIsEmpty={setIsEmpty}
+                    setIsEmpty={setIsMessageEmpty}
                     enableToggle={false}
                 />
             </div>

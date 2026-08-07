@@ -8,11 +8,10 @@ import { InputLabel } from "@/components/layout/InputLabel";
 import { TextInput } from "@/components/ui/TextInput";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import Emphasis from "@/components/layout/Emphasis";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import Footer from "@/components/layout/Footer";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DiscordRole } from "@/features/welcome/components/WelcomeBody";
-import { WelcomeConfig } from "@/features/welcome/types";
+import { WelcomeConfig, CaptchaType } from "@/features/welcome/types";
 import { setupVerificationAction, teardownVerificationAction } from "@/features/welcome/actions";
 import { WELCOME_CONFIG } from "@/features/welcome/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
@@ -85,9 +84,9 @@ export function VerificationTab({
                     verification: {
                         ...prev.verification,
                         enabled: true,
-                        verificationChannelId: res.verificationChannelId ?? "",
-                        verificationRoleId: res.verificationRoleId ?? "",
-                        verificationMessageId: res.verificationMessageId ?? "",
+                        verificationChannelId: res.verificationChannelId ?? null,
+                        verificationRoleId: res.verificationRoleId ?? null,
+                        verificationMessageId: res.verificationMessageId ?? null,
                     },
                 }));
             } else {
@@ -130,9 +129,9 @@ export function VerificationTab({
                     verification: {
                         ...prev.verification,
                         enabled: false,
-                        verificationChannelId: "",
-                        verificationRoleId: "",
-                        verificationMessageId: "",
+                        verificationChannelId: null,
+                        verificationRoleId: null,
+                        verificationMessageId: null,
                     },
                 }));
             } else {
@@ -161,119 +160,135 @@ export function VerificationTab({
                 <div className="space-y-2">
                     <div className="space-y-1 flex flex-col">
                         <ToggleSwitch
-                            checked={config.verification.enabled} onChange={(enabled) =>
-                            setConfig((prev) => ({
-                                ...prev,
-                                verification: { ...prev.verification, enabled },
-                            }))
-                        } text="Enable Verification for New Members"
+                            checked={config.verification.enabled}
+                            onChange={(enabled) =>
+                                setConfig((prev) => ({
+                                    ...prev,
+                                    verification: { ...prev.verification, enabled },
+                                }))
+                            }
+                            text="Enable Verification for New Members"
                         />
 
                         {config.verification.enabled && (
                             <ToggleSwitch
-                                checked={config.verification.useOauth} onChange={(useOauth) =>
-                                setConfig((prev) => ({
-                                    ...prev,
-                                    verification: { ...prev.verification, useOauth },
-                                }))
-                            } text="Use OAuth to verify"
+                                checked={config.verification.useOauth}
+                                onChange={(useOauth) =>
+                                    setConfig((prev) => ({
+                                        ...prev,
+                                        verification: { ...prev.verification, useOauth },
+                                    }))
+                                }
+                                text="Use OAuth to verify"
                             />
                         )}
                     </div>
 
                     {config.verification.enabled && (
                         <>
-                        {/* Captcha Section */}
+                            {/* Captcha Section */}
                             <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                        This system uses{" "}
-                        <Link
-                            href="https://developers.cloudflare.com/turnstile/"
-                            className="hover:underline text-blue-500 font-medium"
-                            target="_blank"
-                        >
-                            Cloudflare Turnstile
-                        </Link>{" "}
-                        or{" "}
-                        <Link
-                            href="https://www.hcaptcha.com/"
-                            className="hover:underline text-blue-500 font-medium"
-                            target="_blank"
-                        >
-                            hCaptcha
-                        </Link>{" "}
-                        to verify humans against bots.
-                    </p>
+                                <p className="text-sm text-muted-foreground">
+                                    This system uses{" "}
+                                    <Link
+                                        href="https://developers.cloudflare.com/turnstile/"
+                                        className="hover:underline text-blue-500 font-medium"
+                                        target="_blank"
+                                    >
+                                        Cloudflare Turnstile
+                                    </Link>{" "}
+                                    or{" "}
+                                    <Link
+                                        href="https://www.hcaptcha.com/"
+                                        className="hover:underline text-blue-500 font-medium"
+                                        target="_blank"
+                                    >
+                                        hCaptcha
+                                    </Link>{" "}
+                                    to verify humans against bots.
+                                </p>
 
-                    <Dropdown
-                        value={config.verification.captchaType} onChange={(captchaType) =>
-                        setConfig((prev) => ({
-                            ...prev,
-                            verification: { ...prev.verification, captchaType },
-                        }))
-                    } options={CAPTCHA_OPTIONS} className="max-w-sm"
-                    />
+                                <Dropdown
+                                    value={config.verification.captchaType}
+                                    onChange={(captchaType) => {
+                                        if (captchaType) {
+                                            setConfig((prev) => ({
+                                                ...prev,
+                                                verification: { ...prev.verification, captchaType: captchaType as CaptchaType },
+                                            }));
+                                        }
+                                    }}
+                                    options={CAPTCHA_OPTIONS}
+                                    className="max-w-sm"
+                                />
 
-                    <div>
-                        <Emphasis className="mb-1.5 block">Sample Widget Box</Emphasis>
-                        {config.verification.captchaType === "TURNSTILE" ? (
-                            <Turnstile sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""}/>
-                        ) : (
-                            <HCaptcha sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? ""}/>
-                        )}
-                    </div>
-                </div>
+                                <div>
+                                    <Emphasis className="mb-1.5 block">Sample Widget Box</Emphasis>
+                                    {config.verification.captchaType === "TURNSTILE" ? (
+                                        <Turnstile sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""}/>
+                                    ) : (
+                                        <HCaptcha sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? ""}/>
+                                    )}
+                                </div>
+                            </div>
 
                             {/* Active Channel & Role Bindings Section */}
                             <div className="space-y-2 pt-1">
-                    <Emphasis>Active Channel & Role Bindings</Emphasis>
-                    <div className="space-y-2.5 max-w-sm">
-                        <div>
-                            <InputLabel>Verification Role</InputLabel>
-                            <Dropdown
-                                options={roleOptions}
-                                value={config.verification.verificationRoleId || ""}
-                                onChange={(val) =>
-                                    setConfig((prev) => ({
-                                        ...prev,
-                                        verification: { ...prev.verification, verificationRoleId: val },
-                                    }))
-                                }
-                                placeholder="Uncreated"
-                            />
-                        </div>
+                                <Emphasis>Active Channel & Role Bindings</Emphasis>
+                                <div className="space-y-2.5 max-w-sm">
+                                    <div>
+                                        <InputLabel>Verification Role</InputLabel>
+                                        <Dropdown
+                                            options={roleOptions}
+                                            value={config.verification.verificationRoleId}
+                                            onChange={(val) =>
+                                                setConfig((prev) => ({
+                                                    ...prev,
+                                                    verification: { ...prev.verification, verificationRoleId: val },
+                                                }))
+                                            }
+                                            placeholder="Uncreated"
+                                        />
+                                    </div>
 
-                        <div>
-                            <InputLabel>Landing Channel</InputLabel>
-                            <Dropdown
-                                options={channelOptions}
-                                value={config.verification.verificationChannelId || ""}
-                                onChange={(val) =>
-                                    setConfig((prev) => ({
-                                        ...prev,
-                                        verification: { ...prev.verification, verificationChannelId: val },
-                                    }))
-                                }
-                                placeholder="Uncreated"
-                            />
-                        </div>
+                                    <div>
+                                        <InputLabel>Landing Channel</InputLabel>
+                                        <Dropdown
+                                            options={channelOptions}
+                                            value={config.verification.verificationChannelId}
+                                            onChange={(val) =>
+                                                setConfig((prev) => ({
+                                                    ...prev,
+                                                    verification: { ...prev.verification, verificationChannelId: val },
+                                                }))
+                                            }
+                                            placeholder="Uncreated"
+                                        />
+                                    </div>
 
-                        <div>
-                            <InputLabel>Interaction Message ID</InputLabel>
-                            <TextInput
-                                value={config.verification.verificationMessageId || ""} onChange={(e) =>
-                                setConfig((prev) => ({
-                                    ...prev,
-                                    verification: { ...prev.verification, verificationMessageId: e.target.value },
-                                }))
-                            } placeholder="Uncreated" className="mt-1"
-                            />
-                        </div>
+                                    <div>
+                                        <InputLabel>Interaction Message ID</InputLabel>
+                                        <TextInput
+                                            value={config.verification.verificationMessageId ?? ""}
+                                            onChange={(e) => {
+                                                const val = e.target.value.trim();
+                                                setConfig((prev) => ({
+                                                    ...prev,
+                                                    verification: {
+                                                        ...prev.verification,
+                                                        verificationMessageId: val ? val : null
+                                                    },
+                                                }));
+                                            }}
+                                            placeholder="Uncreated"
+                                            className="mt-1"
+                                        />
+                                    </div>
 
-                        <Footer>Navigate to &quot;Setup&quot; to set up these roles and channels.</Footer>
-                    </div>
-                </div>
-            </>
+                                    <Footer>Navigate to &quot;Setup&quot; to set up these roles and channels.</Footer>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
@@ -312,8 +327,7 @@ export function VerificationTab({
 
                                 {/* UX Help hint for disabled button */}
                                 {isDirty && !isSystemConfigured && (
-                                    <p className="text-xs text-amber-500 mt-1">Save your changes first before running
-                                        setup.</p>
+                                    <p className="text-xs text-amber-500 mt-1">Save your changes first before running setup.</p>
                                 )}
                             </div>
                         ) : (
@@ -328,18 +342,22 @@ export function VerificationTab({
                     </div>
 
                     <MessageConfigEditor
-                        config={config.verification} onChange={(changed) =>
-                        setConfig((prev) => ({
-                            ...prev,
-                            verification: {
-                                ...prev.verification,
-                                enabled: changed.enabled ?? prev.verification.enabled,
-                                content: changed.content ?? "",
-                                embed: changed.embed ?? prev.verification.embed,
-                                format: changed.format,
-                            },
-                        }))
-                    } embedTemplateConfig={WELCOME_CONFIG} setIsEmpty={setEmpty} enableToggle={false}
+                        config={config.verification}
+                        onChange={(changed) =>
+                            setConfig((prev) => ({
+                                ...prev,
+                                verification: {
+                                    ...prev.verification,
+                                    enabled: changed.enabled ?? prev.verification.enabled,
+                                    content: changed.content ?? "",
+                                    embed: changed.embed ?? prev.verification.embed,
+                                    format: changed.format,
+                                },
+                            }))
+                        }
+                        embedTemplateConfig={WELCOME_CONFIG}
+                        setIsEmpty={setEmpty}
+                        enableToggle={false}
                     />
                 </div>
             )}

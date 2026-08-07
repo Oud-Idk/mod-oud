@@ -94,14 +94,14 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<TicketLogPayload>) -> Result<
     // Bulk Insert logs
     sqlx::query!(
         r#"
-        INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content, is_ticket_manger)
+        INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content, is_ticket_manager)
         SELECT * FROM UNNEST($1::bigint[], $2::bigint[], $3::bigint[], $4::text[], $5::boolean[])
         "#,
-        &chan_ids,
-        &msg_ids,
-        &auth_ids,
-        &contents,
-        &managers
+        &chan_ids[..],
+        &msg_ids[..],
+        &auth_ids[..],
+        &contents[..],
+        &managers[..]
     )
         .execute(&mut *tx)
         .await?;

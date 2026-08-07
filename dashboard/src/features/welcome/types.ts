@@ -10,7 +10,6 @@ const defaultVerificationEmbed: DiscordEmbed = {
     color: 0x55ee77,
 };
 
-// 2. Sub-schemas
 const discordEmbedSchema = z.custom<DiscordEmbed>().default({});
 
 export const publicWelcomeConfigSchema = z.object({
@@ -32,9 +31,9 @@ export const verificationConfigSchema = z.object({
     enabled: z.boolean().default(false),
     useOauth: z.boolean().default(false),
     captchaType: z.custom<CaptchaType>().default("TURNSTILE"),
-    verificationMessageId: z.string().optional().default(""),
-    verificationChannelId: z.string().optional().default(""),
-    verificationRoleId: z.string().optional().default(""),
+    verificationMessageId: z.string().nullable().default(null),
+    verificationChannelId: z.string().nullable().default(null),
+    verificationRoleId: z.string().nullable().default(null),
     content: z
         .string()
         .optional()
@@ -43,12 +42,10 @@ export const verificationConfigSchema = z.object({
     format: z.custom<Format>().default("EMBED"),
 });
 
-// 3. Derived Sub-types
 export type PublicWelcomeConfig = z.infer<typeof publicWelcomeConfigSchema>;
 export type PrivateWelcomeConfig = z.infer<typeof privateWelcomeConfigSchema>;
 export type VerificationConfig = z.infer<typeof verificationConfigSchema>;
 
-// 4. Fully satisfied default objects for parent schema (fixes TS2769 error)
 export const DEFAULT_PUBLIC_WELCOME_CONFIG: PublicWelcomeConfig = {
     enabled: false,
     channel_id: "",
@@ -68,9 +65,9 @@ export const DEFAULT_VERIFICATION_CONFIG: VerificationConfig = {
     enabled: false,
     useOauth: false,
     captchaType: "TURNSTILE",
-    verificationMessageId: "",
-    verificationChannelId: "",
-    verificationRoleId: "",
+    verificationMessageId: null,
+    verificationChannelId: null,
+    verificationRoleId: null,
     content: "Please complete the verification below to gain access to the server.",
     embed: defaultVerificationEmbed,
     format: "EMBED",

@@ -206,7 +206,7 @@ export function StarboardConfigEditor({
                                         label: `#${name}`,
                                     }))}
                                     value={config.starboard_channel_id || ""}
-                                    onChange={(val) => onChange({ ...config, starboard_channel_id: val })}
+                                    onChange={(val) => onChange({ ...config, starboard_channel_id: val ?? "" })}
                                     placeholder="Select channel..."
                                 />
                                 <p className="text-xs text-muted-foreground">
@@ -358,7 +358,7 @@ export function StarboardConfigEditor({
                                     { value: "ONLY_THESE", label: "Allow Only Selected Roles (Whitelist)" },
                                 ]}
                                 value={config.role_restriction_type || "NONE"}
-                                onChange={(val) => onChange({ ...config, role_restriction_type: val })}
+                                onChange={(val) => onChange({ ...config, role_restriction_type: val ?? "NONE" })}
                                 className="max-w-md"
                             />
                             {config.role_restriction_type !== "NONE" && (
@@ -399,7 +399,7 @@ export function StarboardConfigEditor({
                                     { value: "ONLY_THESE", label: "Allow Only Selected Channels (Whitelist)" },
                                 ]}
                                 value={config.channel_restriction_type || "NONE"}
-                                onChange={(val) => onChange({ ...config, channel_restriction_type: val })}
+                                onChange={(val) => onChange({ ...config, channel_restriction_type: val ?? "NONE" })}
                                 className="max-w-md"
                             />
                             {config.channel_restriction_type !== "NONE" && (

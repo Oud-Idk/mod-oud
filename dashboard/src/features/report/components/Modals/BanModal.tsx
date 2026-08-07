@@ -23,7 +23,7 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.SubmitEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
         let durationMins: number | undefined = undefined;
@@ -42,7 +42,7 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
         <Modal onClose={onClose} headerText="Ban User">
             <form onSubmit={handleSubmit} className="space-y-2">
                 <div className="space-y-1">
-                    <label>Reason</label>
+                    <label className="text-sm font-medium text-foreground">Reason</label>
                     <LongTextInput
                         placeholder="Provide a reason for the ban..."
                         value={reason}
@@ -51,22 +51,31 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
                 </div>
 
                 <ToggleSwitch
-                    checked={isTemporary} onChange={setIsTemporary} text="Temporary Ban" className="text-base"
+                    checked={isTemporary}
+                    onChange={setIsTemporary}
+                    text="Temporary Ban"
+                    className="text-base"
                 />
 
                 {isTemporary && (
                     <div className="space-y-2">
-                        <label>Duration</label>
+                        <label className="text-sm font-medium text-foreground">Duration</label>
                         <div className="flex gap-2">
                             <NumberInput
-                                value={duration} onChange={n => setDuration(n)} min={1} className="h-10"
+                                value={duration}
+                                onChange={n => setDuration(n)}
+                                min={1}
+                                className="h-10"
                             />
                             <Dropdown
-                                value={unit} onChange={v => setUnit(v)} options={[
-                                { value: "MINUTES", label: "Minutes" },
-                                { value: "HOURS", label: "Hours" },
-                                { value: "DAYS", label: "Days" },
-                            ]} className="max-w-50 h-10"
+                                value={unit}
+                                onChange={v => v && setUnit(v as TimeUnit)}
+                                options={[
+                                    { value: "MINUTES", label: "Minutes" },
+                                    { value: "HOURS", label: "Hours" },
+                                    { value: "DAYS", label: "Days" },
+                                ]}
+                                className="max-w-50 h-10"
                             />
                         </div>
                     </div>
@@ -77,14 +86,14 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
                         type="button"
                         onClick={onClose}
                         disabled={isSubmitting}
-                        className="px-4 py-2 rounded text-sm font-semibold border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition disabled:opacity-50 cursor-pointer text-neutral-800 dark:text-neutral-200"
+                        className="px-4 py-2 rounded text-sm font-semibold border border-border hover:bg-surface-active text-foreground transition disabled:opacity-50 cursor-pointer"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="px-4 py-2 rounded text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white transition disabled:opacity-50 cursor-pointer"
+                        className="px-4 py-2 rounded text-sm font-semibold bg-danger hover:bg-danger-hover text-white transition disabled:opacity-50 cursor-pointer"
                     >
                         {isSubmitting ? "Applying..." : "Confirm Ban"}
                     </button>

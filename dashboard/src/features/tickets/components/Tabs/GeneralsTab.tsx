@@ -18,14 +18,14 @@ export default function GeneralsTab({
     };
 
     return (
-        <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+            <div className="flex flex-col">
                 <div className="flex flex-col">
                     <h4 className="text-xl font-medium">Auto-Close Inactive Tickets</h4>
                     <Footer>Configure when inactive tickets receive a warning, and when they are closed. </Footer>
                 </div>
 
-                <div className="flex flex-col gap-4 max-w-md">
+                <div className="flex flex-col max-w-md">
                     <NumberInput
                         label="Warn Threshold (Minutes)"
                         value={config.warnThreshold}
@@ -50,7 +50,7 @@ export default function GeneralsTab({
                 </div>
 
                 {warnThresholdInvalid && (
-                    <p className="text-xs text-red-500 font-semibold italic">
+                    <p className="text-xs text-danger font-semibold italic">
                         Warning threshold cannot be higher than the close threshold. </p>
                 )}
             </div>

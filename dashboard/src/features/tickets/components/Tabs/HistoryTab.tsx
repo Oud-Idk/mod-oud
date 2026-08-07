@@ -23,16 +23,20 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
         startTransition(async () => {
             try {
                 const list = await getTicketsListAction(guildId);
-                setTickets(list);
-                setFilteredTickets(list);
+                // 🛡️ Safety Guard: Ensure list is an array!
+                const safeList = Array.isArray(list) ? list : [];
+                setTickets(safeList);
             } catch (err) {
                 console.error("Failed to load ticket list:", err);
+                setTickets([]);
             }
         });
     }, [guildId]);
 
     useEffect(() => {
-        let result = tickets;
+        // 🛡️ Safety Guard: Ensure tickets is an array before filtering!
+        let result = Array.isArray(tickets) ? tickets : [];
+
         if (statusFilter !== "ALL") {
             result = result.filter((t) => t.status === statusFilter);
         }
@@ -41,8 +45,6 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
 
     const handleViewHistory = async (channelId: string) => {
         setLoadingChannelId(channelId);
-        // Open the drawer immediately with a loading state, rather than waiting
-        // for the fetch to resolve before anything appears on screen.
         setDrawerOpen(true);
         try {
             const history = await getTicketHistoryAction(channelId);
@@ -56,15 +58,16 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
 
     const closeDrawer = () => {
         setDrawerOpen(false);
-        // Wait for the close transition to finish before clearing content,
-        // so the drawer doesn't visibly empty out mid-slide.
         setTimeout(() => setSelectedTicket(null), 200);
     };
 
+    // 🛡️ Extra fallback safety
+    const safeFilteredTickets = Array.isArray(filteredTickets) ? filteredTickets : [];
+
     return (
-        <div className="space-y-6 relative">
+        <div className="space-y-2 relative">
             {/* Toolbar Filter */}
-            <div className="bg-surface-muted border border-border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+            <div className="bg-surface border border-border rounded-xl py-2 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     <span className="text-sm font-medium text-muted-foreground">Status Filter:</span>
                     <Dropdown
@@ -79,13 +82,13 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                     />
                 </div>
                 <div className="text-xs text-muted-foreground">
-                    Showing <span className="font-semibold text-foreground">{filteredTickets.length}</span> entries
+                    Showing <span className="font-semibold text-foreground">{safeFilteredTickets.length}</span> entries
                 </div>
             </div>
 
-            {/* Tickets Table — always full width, no reflow on selection */}
+            {/* Tickets Table */}
             <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden">
-                <div className="p-5 border-b border-border-subtle flex items-center justify-between">
+                <div className="px-4 py-2 border-b border-border-subtle flex items-center justify-between">
                     <h2 className="text-base font-semibold text-foreground">Ticket Entries</h2>
                 </div>
 
@@ -93,7 +96,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                     <div className="py-16 text-center text-sm text-muted-foreground">
                         Loading ticket list...
                     </div>
-                ) : filteredTickets.length === 0 ? (
+                ) : safeFilteredTickets.length === 0 ? (
                     <div className="py-16 text-center text-sm text-muted-foreground">
                         No ticket histories found.
                     </div>
@@ -111,7 +114,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-border-subtle text-sm">
-                            {filteredTickets.map((ticket) => {
+                            {safeFilteredTickets.map((ticket) => {
                                 const isSelected = selectedTicket?.ticket_id === ticket.id && drawerOpen;
                                 const isLoadingThis = loadingChannelId === ticket.channel_id;
                                 const isOpen = ticket.status === "OPEN";
@@ -188,7 +191,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                 aria-modal="true"
                 aria-label={selectedTicket ? `Ticket #${selectedTicket.ticket_id} transcript` : "Ticket transcript"}
                 className={cn(
-                    "fixed top-0 right-0 h-full w-full sm:w-[480px] bg-surface border-l border-border shadow-xl z-50",
+                    "fixed top-0 right-0 h-full w-full sm:w-120 bg-surface border-l border-border shadow-xl z-50",
                     "flex flex-col transition-transform duration-200 ease-out",
                     drawerOpen ? "translate-x-0" : "translate-x-full"
                 )}
@@ -214,7 +217,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
 
                         {/* Message Transcript Log */}
                         <div className="flex-1 overflow-y-auto space-y-3 p-4 bg-surface-muted/30">
-                            {selectedTicket.messages.length === 0 ? (
+                            {(selectedTicket.messages ?? []).length === 0 ? (
                                 <div className="text-muted-foreground text-center py-16 text-sm">
                                     No messages recorded in this ticket.
                                 </div>

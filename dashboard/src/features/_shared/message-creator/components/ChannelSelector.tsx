@@ -37,7 +37,7 @@ export function ChannelSelector({
             <Dropdown
                 options={options}
                 value={value}
-                onChange={onChange}
+                onChange={v => onChange(v ?? "")}
                 disabled={disabled}
                 placeholder="Select a channel..."
                 className={className}

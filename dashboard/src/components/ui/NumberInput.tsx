@@ -1,6 +1,7 @@
 import { Button, Field, Input, Label } from "@headlessui/react";
 import React from "react";
 import { cn } from "@/lib/cn";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 interface NumberInputProps {
     value: number | undefined | null; // Accepts undefined or null from DB/parent
@@ -87,12 +88,12 @@ export function NumberInput({
     const isAtMax = max !== undefined && !isEmpty && value >= max;
 
     return (
-        <Field className={cn("flex flex-col gap-1.5 w-full", className)}>
+        <Field className={cn("flex flex-col w-full", className)}>
             {label && (
-                <Label className={cn("text-sm font-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
+                <InputLabel className={cn(disabled ? "text-muted-foreground" : "text-foreground")}>
                     {label}
                     {required && <span className="text-danger ml-1" aria-hidden="true">*</span>}
-                </Label>
+                </InputLabel>
             )}
 
             <div

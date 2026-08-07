@@ -1,15 +1,15 @@
 import { db } from "@/lib/db";
-import { MessageLayout, TicketConfig, TicketHistory } from "@/features/tickets/types";
+import {
+    TicketConfig,
+    TicketConfigSchema,
+    SaveTicketConfigSchema,
+    TicketHistory,
+    Ticket
+} from "@/features/tickets/types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
-/**
- * Retrieves the full history of a ticket, including its metadata and all messages.
- *
- * @param channelId - The channel_id of the ticket to retrieve.
- * @returns The ticket history object, or null if not found.
- */
 export async function getTicketHistory(
-    channelId: string | number
+    channelId: string
 ): Promise<TicketHistory | null> {
     const query = `
         SELECT t.id AS ticket_id,
@@ -28,11 +28,11 @@ export async function getTicketHistory(
                                        'author_id', tm.author_id::TEXT,
                                        'content', tm.content,
                                        'created_at', tm.created_at,
-                                       'is_ticket_manager', tm.is_ticket_manger
+                                       'is_ticket_manager', tm.is_ticket_manager -- Fixed typo here
                                ) ORDER BY tm.created_at
                                        ) FILTER (WHERE tm.id IS NOT NULL),
                                '[]'::JSON
-               )    AS messages
+               ) AS messages
         FROM tickets t
                  LEFT JOIN ticket_messages tm ON t.channel_id = tm.ticket_channel_id
         WHERE t.channel_id = $1
@@ -53,60 +53,30 @@ export async function getTicketHistory(
     }
 }
 
-export async function getTicketList(guildId: string) {
+export async function getTicketList(guildId: string): Promise<Ticket[]> {
     const query = `
-            SELECT id,
-                   channel_id::TEXT,
-                   opener_id::TEXT,
-                   status,
-                   created_at,
-                   closed_at,
-                   message_count
-            FROM tickets
-            WHERE guild_id = $1
-            ORDER BY created_at DESC;
-        `;
-    const res = await db.query(query, [guildId]);
-    return res;
+        SELECT id,
+               channel_id::TEXT,
+               opener_id::TEXT,
+               status,
+               created_at,
+               closed_at,
+               message_count
+        FROM tickets
+        WHERE guild_id = $1
+        ORDER BY created_at DESC;
+    `;
+    const res = await db.query<Ticket>(query, [guildId]);
+    return res.rows; // Fixed: Returning res.rows array
 }
 
 export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
-    const defaultMessageConfig: MessageLayout = {
-        enabled: false,
-        format: "TEXT",
-        content: "",
-        embed: {},
-    }
+    const dbConfig = await getGuildConfigField<unknown>(guildId, 'tickets');
 
-    const defaultConfig: TicketConfig = {
-        categoryId: "",
-        enabled: false,
-        channelId: "",
-        format: "TEXT",
-        content: "",
-        embed: {},
-        postedMessageId: "",
-        ticketRoleId: "",
-        warnThreshold: 30,
-        deleteThreshold: 45,
-        bumpEvery: 20,
-        welcomeMessage: defaultMessageConfig,
-    }
-
-
-    const dbConfig = await getGuildConfigField<TicketConfig>(guildId, 'tickets');
-    if (!dbConfig) return defaultConfig;
-
-    return {
-        ...defaultConfig,
-        ...dbConfig || {},
-        welcomeMessage: {
-            ...defaultMessageConfig,
-            ...(dbConfig.welcomeMessage || {}),
-        }
-    }
+    return TicketConfigSchema.parse(dbConfig ?? {});
 }
 
 export async function saveTicketConfig(guildId: string, config: TicketConfig): Promise<void> {
-    await saveGuildConfigField(guildId, 'tickets', config);
+    const validatedConfig = SaveTicketConfigSchema.parse(config);
+    await saveGuildConfigField(guildId, 'tickets', validatedConfig);
 }
