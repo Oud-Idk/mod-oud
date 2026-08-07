@@ -44,47 +44,32 @@ pub async fn setup_tickets(
             return Ok(());
         }
     }
-
-    let category_id: u64 = match category {
-        Some(c) => c.id.get(),
-        None => {
-            let config_cat_id = settings.tickets.as_ref().map(|t| t.category_id);
-
-            match config_cat_id {
-                Some(id) => id,
-                None => {
-                    debug!(guild_id, "Ticket setup blocked: category_id not provided or configured");
-                    ctx.send(
-                        CreateReply::default()
-                            .content("Please set a category for tickets using the dashboard/config first, or pass it as an argument.")
-                            .ephemeral(true),
-                    )
-                        .await?;
-                    return Ok(());
-                }
-            }
-        }
+    let Some(category_id) = category
+        .map(|c| c.id.get())
+        .or_else(|| settings.tickets.as_ref().and_then(|t| t.category_id))
+    else {
+        debug!(guild_id, "Ticket setup blocked: category_id not provided or configured");
+        ctx.send(
+            CreateReply::default()
+                .content("Please set a category for tickets using the dashboard/config first, or pass it as an argument.")
+                .ephemeral(true),
+        )
+            .await?;
+        return Ok(());
     };
 
-    let ticket_role_id: u64 = match role {
-        Some(r) => r.id.get(),
-        None => {
-            let config_role_id = settings.tickets.as_ref().map(|t| t.ticket_role_id);
-
-            match config_role_id {
-                Some(id) => id,
-                None => {
-                    debug!(guild_id, "Ticket setup blocked: support role not provided or configured");
-                    ctx.send(
-                        CreateReply::default()
-                            .content("Please set a support role using the dashboard/config first, or pass it as an argument.")
-                            .ephemeral(true),
-                    )
-                        .await?;
-                    return Ok(());
-                }
-            }
-        }
+    let Some(ticket_role_id) = role
+        .map(|r| r.id.get())
+        .or_else(|| settings.tickets.as_ref().and_then(|t| t.ticket_role_id))
+    else {
+        debug!(guild_id, "Ticket setup blocked: support role not provided or configured");
+        ctx.send(
+            CreateReply::default()
+                .content("Please set a support role using the dashboard/config first, or pass it as an argument.")
+                .ephemeral(true),
+        )
+            .await?;
+        return Ok(());
     };
 
     let target_channel_id: u64 = match &channel {
@@ -101,9 +86,9 @@ pub async fn setup_tickets(
             ctx.http(),
             serenity_guild_id,
             ticket_role_id,
-            Some(&ticket_cfg.format),
-            ticket_cfg.content.as_ref(),
-            ticket_cfg.embed.as_ref(),
+            Some(&ticket_cfg.panel_message.format),
+            Some(&ticket_cfg.panel_message.content),
+            ticket_cfg.panel_message.embed.as_ref(),
         )
             .await?
     } else {

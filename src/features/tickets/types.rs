@@ -1,6 +1,4 @@
 use crate::core::config::settings::MessageLayout;
-use crate::shared::embed::{DiscordEmbed, Format};
-use crate::shared::ok_or_none;
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, NoneAsEmptyString, serde_as, serde_conv};
 use std::time::Duration;

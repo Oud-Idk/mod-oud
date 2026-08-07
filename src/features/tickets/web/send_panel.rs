@@ -47,13 +47,21 @@ pub async fn handle_send_ticket_message(
     let serenity_guild_id = serenity::all::GuildId::new(guild_id as u64);
     let channel = serenity::all::ChannelId::new(payload.channel_id);
 
+    let Some(ticket_role_id) = ticket_cfg.ticket_role_id else {
+        debug!(guild_id, "Ticket dispatch failed: support staff role is unconfigured");
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Support staff role must be configured before posting the ticket panel.".to_string(),
+        ));
+    };
+
     let message_builder = build_ticket_message_payload(
         &state.http,
         serenity_guild_id,
-        ticket_cfg.ticket_role_id,
-        Some(&ticket_cfg.format),
-        ticket_cfg.content.as_ref(),
-        ticket_cfg.embed.as_ref(),
+        ticket_role_id,
+        Some(&ticket_cfg.panel_message.format),
+        Some(&ticket_cfg.panel_message.content),
+        ticket_cfg.panel_message.embed.as_ref(),
     )
         .await
         .inspect_err(|e| warn!(error = ?e, guild_id, "Failed to compile custom ticket layout payload"))

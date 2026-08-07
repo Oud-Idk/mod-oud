@@ -13,7 +13,7 @@ pub async fn build_ticket_message_payload(
     guild_id: serenity::all::GuildId,
     ticket_role_id: u64,
     format: Option<&Format>,
-    content: Option<&String>,
+    content: Option<&str>,
     embed_json: Option<&DiscordEmbed>,
 ) -> Result<CreateMessage, Error> {
     let guild_id_u64 = guild_id.get();
@@ -42,7 +42,7 @@ pub async fn build_ticket_message_payload(
 
     let custom_msg_opt = build_custom_message(
         format.unwrap_or(&Format::Embed),
-        content.map(String::as_str),
+        content,
         embed_json,
         |text| {
             replace_ticket_panel_placeholders(
