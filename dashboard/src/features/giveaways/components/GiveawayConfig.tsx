@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, SetStateAction, useState } from "react";
+import React, { ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
@@ -8,21 +8,19 @@ import { Giveaway } from "@/features/giveaways/types";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { GIVEAWAY_TEMPLATE_CONFIG } from "@/features/giveaways/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
-import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import { InputLabel } from "@/components/layout/InputLabel";
 
 interface GiveawayConfigProps {
     config: Giveaway;
     channelMap: Record<string, string>;
     isPending: boolean;
     isDirty: boolean;
-    isEmpty: boolean;
     guildId: string;
     onDelete: (id: number) => Promise<boolean>;
     onSend: (id: number) => Promise<{ message_id: string }>;
     onChange: (updated: Giveaway) => void;
-    setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
     onDeleteDiscordMessage: (id: number) => Promise<void>;
 }
 
@@ -45,13 +43,11 @@ export function GiveawayConfig({
     config,
     isPending,
     isDirty,
-    isEmpty,
     channelMap,
     guildId,
     onDelete,
     onSend,
     onChange,
-    setIsEmpty,
     onDeleteDiscordMessage,
 }: GiveawayConfigProps): ReactNode {
     const router = useRouter();
@@ -59,9 +55,9 @@ export function GiveawayConfig({
     const [isSending, setIsSending] = useState(false);
     const [isActionPending, setIsActionPending] = useState(false);
 
-    const isSent = !!config.message_id && config.message_id.trim() !== "";
+    const isSent = Boolean(config.message_id?.trim());
     const isDisabled = isPending || isDeleting || isSending;
-    const sendToDiscordIsDisabled = isDisabled || isDirty || isEmpty;
+    const sendToDiscordIsDisabled = isDisabled || isDirty || !config.channel_id;
 
     const handleDelete = (id: number): void => {
         setIsDeleting(true);
@@ -87,7 +83,7 @@ export function GiveawayConfig({
     const handleDeleteDiscordMessage = (): void => {
         setIsActionPending(true);
         onDeleteDiscordMessage(config.id)
-            .then(() => onChange({ ...config, message_id: undefined }))
+            .then(() => onChange({ ...config, message_id: null }))
             .catch((err) => alert(err.message || "Failed to delete message."))
             .finally(() => setIsActionPending(false));
     };
@@ -128,18 +124,18 @@ export function GiveawayConfig({
             {/* Core Settings */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">Destination Channel</label>
+                    <InputLabel required>Destination Channel</InputLabel>
                     <Dropdown
                         options={getAvailableChannelOptions(channelMap)}
-                        value={config.channel_id ? String(config.channel_id) : ""}
+                        value={config.channel_id}
                         onChange={(val) => onChange({ ...config, channel_id: val })}
                         placeholder="Select channel..."
-                        className="w-full"
+                        error={!config.channel_id}
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">Prize</label>
+                    <InputLabel required>Prize</InputLabel>
                     <TextInput
                         placeholder="e.g. 1 Month Nitro"
                         value={config.prize || ""}
@@ -148,7 +144,7 @@ export function GiveawayConfig({
                 </div>
 
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">Winner Count</label>
+                    <InputLabel>Winner Count</InputLabel>
                     <NumberInput
                         placeholder="1"
                         value={config.winner_count || 1}
@@ -159,7 +155,7 @@ export function GiveawayConfig({
 
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-foreground">End Time</label>
+                    <InputLabel className="mb-0">End Time</InputLabel>
                     <span className="text-xs text-muted-foreground">Displayed in local time</span>
                 </div>
                 <input
@@ -177,20 +173,24 @@ export function GiveawayConfig({
             {/* Embed / Custom Message Config */}
             <div className="pt-4 border-t border-border-subtle">
                 <MessageConfigEditor
-                    config={config}
+                    config={{
+                        format: config.format,
+                        content: config.content ?? "",
+                        embed: config.embed ?? {},
+                        channel_id: config.channel_id ?? undefined,
+                    }}
                     onChange={(v) =>
                         onChange({
                             ...config,
-                            channel_id: v.channel_id || config.channel_id,
+                            channel_id: v.channel_id ?? config.channel_id,
                             content: v.content ?? "",
                             embed: v.embed ?? {},
                             format: v.format,
                         })
                     }
-                    onEmbedChange={(v) => onChange({ ...config, embed: v })}
                     embedTemplateConfig={GIVEAWAY_TEMPLATE_CONFIG}
-                    setIsEmpty={setIsEmpty}
                     enableToggle={false}
+                    noChannels={true}
                 />
             </div>
         </div>

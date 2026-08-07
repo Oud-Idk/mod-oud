@@ -1,24 +1,26 @@
 import { z } from "zod";
-import { DiscordEmbed, Format } from "@/features/_shared/embed";
+import { MessageLayoutSchema, MessageLayout, IsoDateSchema } from "@/features/_shared/embed";
 
-const formatSchema = z.custom<Format>((val) => typeof val === "string");
-const discordEmbedSchema = z.custom<DiscordEmbed>((val) => typeof val === "object" && val !== null);
+export const DEFAULT_GIVEAWAY_MESSAGE: MessageLayout = Object.freeze({
+    enabled: true,
+    format: "TEXT",
+    content: "🎉 **GIVEAWAY** 🎉\nPrize: **{prize}**\nClick the button below to enter!",
+    embed: {},
+});
 
 export const giveawaySchema = z.object({
     id: z.coerce.number().int(),
     guild_id: z.string(),
     host_id: z.string(),
-    channel_id: z.string().nullish(),
-    message_id: z.string().nullish(),
-    prize: z.string().min(1, "Prize is required"),
+    channel_id: z.string().nullish().default(null),
+    message_id: z.string().nullish().default(null),
+
+    prize: z.string().min(1, "Prize description is required"),
     winner_count: z.coerce.number().int().min(1, "Winner count must be at least 1").default(1),
-    end_time: z.union([z.string(), z.date()]).transform((val) =>
-        val instanceof Date ? val.toISOString() : val
-    ),
+    end_time: IsoDateSchema,
     is_finished: z.boolean().default(false),
-    format: formatSchema,
-    embed: discordEmbedSchema.optional(),
-    content: z.string().nullish(),
+
+    message: MessageLayoutSchema.default(DEFAULT_GIVEAWAY_MESSAGE),
 });
 
 export type Giveaway = z.infer<typeof giveawaySchema>;
@@ -27,13 +29,39 @@ export const saveGiveawayInputSchema = giveawaySchema
     .omit({ is_finished: true })
     .extend({
         id: z.coerce.number().int().positive().optional(),
-        channel_id: z.string().nullish(),
-        message_id: z.string().nullish(),
-        embed: discordEmbedSchema.optional(),
-        content: z.string().nullish(),
+        channel_id: z.string().nullish().default(null),
+        message_id: z.string().nullish().optional().default(null),
+        message: MessageLayoutSchema.default(DEFAULT_GIVEAWAY_MESSAGE),
     });
 
 export type SaveGiveawayData = z.infer<typeof saveGiveawayInputSchema>;
+
+// Strict Save Validation Schema
+export const SaveGiveawaySchema = saveGiveawayInputSchema.superRefine((data, ctx) => {
+    if (!data.prize || data.prize.trim() === "") {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Prize description is required!",
+            path: ["prize"],
+        });
+    }
+
+    if (!data.channel_id) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Please select a target Discord channel for the giveaway!",
+            path: ["channel_id"],
+        });
+    }
+
+    if (data.winner_count < 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Winner count must be at least 1!",
+            path: ["winner_count"],
+        });
+    }
+});
 
 export const sendGiveawayInputSchema = z.object({
     guildId: z.string().min(1, "Guild ID is required"),

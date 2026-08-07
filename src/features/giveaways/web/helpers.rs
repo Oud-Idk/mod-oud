@@ -1,12 +1,9 @@
-use std::sync::Arc;
-use crate::core::config::state::WebState;
+use crate::core::config::guild_ctx::GuildCtx;
+use crate::features::giveaways::placeholders;
 use crate::shared::embed::{DiscordEmbed, Format};
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
-use serenity::all::{CreateMessage, Http, User, UserId};
-use crate::core::config::guild_ctx::GuildCtx;
-use crate::features::giveaways::placeholders::GiveawayCtx;
-use crate::shared::placeholders::{render, DiscordCtx, ResolverChain};
+use serenity::all::{CreateEmbed, CreateMessage, EditMessage, Embed, User};
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
@@ -16,9 +13,9 @@ pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)>
 
 /// Builds a custom layout or default Giveaway message builder
 pub fn build_giveaway_msg(
-    format: &Format,
-    content: Option<&str>,
-    embed: Option<&DiscordEmbed>,
+    format: Format,
+    content: &str,
+    embed: &DiscordEmbed,
     prize: &str,
     winner_count: i32,
     end_time: DateTime<Utc>,
@@ -31,13 +28,13 @@ pub fn build_giveaway_msg(
         format,
         content,
         embed,
-        |text| replace_giveaway_placeholders(text, prize, winner_count, &host_user, gctx, &end_time_str)
+        |text| placeholders::replace_giveaway_placeholders(text, prize, winner_count, &host_user, gctx, &end_time_str),
     )
         .map_err(|e| {
             (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build giveaway layout: {}", e))
         })?;
 
-    // Fallback if no custom format is specified
+    // Fallback if no custom format is specified or empty
     let final_msg = create_msg.unwrap_or_else(|| {
         let default_embed = serenity::all::CreateEmbed::new()
             .title("🎉 GIVEAWAY 🎉")
@@ -53,42 +50,28 @@ pub fn build_giveaway_msg(
     Ok(Some(final_msg))
 }
 
-fn replace_giveaway_placeholders(text: &str, prize: &str, winner_count: i32, host_user: &User, gctx: &GuildCtx, end_time_str: &String) -> String {
-    let giveaway_ctx = GiveawayCtx {
-        prize,
-        winner_count,
-        end_time_str: &end_time_str,
-    };
-
-    let discord_ctx = DiscordCtx {
-        gctx: Some(gctx),
-        user: Some(&host_user),
-        ..Default::default()
-    };
-
-    let resolver = ResolverChain(vec![
-        &giveaway_ctx,
-        &discord_ctx,
-    ]);
-    render(text, &resolver)
-}
-
 pub fn convert_create_to_edit_message(
-    create_msg_opt: Option<serenity::all::CreateMessage>,
-) -> serenity::all::EditMessage {
-    let mut edit_builder = serenity::all::EditMessage::new();
+    create_msg_opt: Option<CreateMessage>,
+) -> EditMessage {
+    let mut edit_builder = EditMessage::new();
 
     if let Some(create_msg) = create_msg_opt {
+        // Serialize CreateMessage to JSON to inspect content & embeds
         if let Ok(val) = serde_json::to_value(&create_msg) {
+            // Extract and apply message content
             if let Some(content) = val.get("content").and_then(|v| v.as_str()) {
                 edit_builder = edit_builder.content(content);
+            } else {
+                // Clear content if not present
+                edit_builder = edit_builder.content("");
             }
 
+            // Extract and apply embeds
             if let Some(embeds_json) = val.get("embeds").and_then(|v| v.as_array()) {
                 let mut create_embeds = Vec::new();
                 for embed_json in embeds_json {
-                    if let Ok(embed) = serde_json::from_value::<serenity::all::Embed>(embed_json.clone()) {
-                        create_embeds.push(serenity::all::CreateEmbed::from(embed));
+                    if let Ok(embed) = serde_json::from_value::<Embed>(embed_json.clone()) {
+                        create_embeds.push(CreateEmbed::from(embed));
                     }
                 }
                 edit_builder = edit_builder.embeds(create_embeds);

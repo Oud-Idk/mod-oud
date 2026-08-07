@@ -1,18 +1,18 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useState, useEffect, useTransition } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter } from "next/navigation";
-import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { Giveaway, SaveGiveawayData } from "@/features/giveaways/types";
+import { Giveaway, SaveGiveawayData, SaveGiveawaySchema } from "@/features/giveaways/types";
 import { GiveawayConfig } from "@/features/giveaways/components/GiveawayConfig";
 import { GiveawayCreateModal } from "@/features/giveaways/components/GiveawayCreateModal";
+import { isDeepEqual } from "@/features/_shared/embed";
 import { cn } from "@/lib/cn";
 
 interface GiveawaysBodyProps {
     giveaways: Giveaway[];
-    activeConfig: Giveaway;
+    activeConfig: Giveaway | null;
     onSave: (config: SaveGiveawayData) => Promise<Giveaway>;
     channelMap: Record<string, string>;
     onDelete: (id: number) => Promise<boolean>;
@@ -34,24 +34,57 @@ export function GiveawaysBody({
     guildId
 }: GiveawaysBodyProps): ReactNode {
     const router = useRouter();
-
-    const { config, isPending, isDirty, isEmpty, setIsEmpty, handleSave, handleCancel, handleChange } =
-        useConfigForm<Giveaway | null>({
-            initialConfig: activeConfig,
-            onSave: async (updatedConfig) => {
-                if (updatedConfig) {
-                    await onSave({
-                        ...updatedConfig,
-                        host_id: updatedConfig.host_id || userId,
-                    });
-                }
-            },
-        });
-
+    const [config, setConfig] = useState<Giveaway | null>(activeConfig);
+    const [isPending, startTransition] = useTransition();
+    const [validationError, setValidationError] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    useEffect(() => {
+        setConfig(activeConfig);
+        setValidationError(null);
+    }, [activeConfig]);
+
+    const isDirty = !isDeepEqual(config, activeConfig);
+
+    const handleSave = () => {
+        if (!config) return;
+        setValidationError(null);
+
+        const payload: SaveGiveawayData = {
+            ...config,
+            host_id: config.host_id || userId,
+        };
+
+        const result = SaveGiveawaySchema.safeParse(payload);
+        if (!result.success) {
+            const firstMessage = result.error.issues[0]?.message || "Invalid giveaway configuration.";
+            setValidationError(firstMessage);
+            return;
+        }
+
+        startTransition(async () => {
+            try {
+                await onSave(payload);
+                setValidationError(null);
+            } catch (err) {
+                setValidationError(err instanceof Error ? err.message : "Failed to save giveaway.");
+            }
+        });
+    };
+
+    const handleCancel = () => {
+        setConfig(activeConfig);
+        setValidationError(null);
+    };
 
     return (
         <div>
+            {validationError && (
+                <div className="p-3 mb-4 text-sm text-danger bg-danger-subtle rounded-md font-medium">
+                    {validationError}
+                </div>
+            )}
+
             <ConfigListLayout<Giveaway>
                 title="Giveaways"
                 onCreateClick={() => setIsCreateModalOpen(true)}
@@ -81,7 +114,7 @@ export function GiveawaysBody({
                         <p className="text-sm text-muted-foreground">Select a giveaway or create a new one to begin.</p>
                         <button
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="text-xs px-3.5 py-1.5 bg-surface-muted border border-border hover:bg-surface-active rounded-lg transition text-foreground cursor-pointer focus-ring"
+                            className="text-xs px-3.5 py-1.5 bg-surface-muted border border-border hover:bg-surface-active rounded-lg transition text-foreground cursor-pointer focus-ring mt-2"
                         >
                             Create Your First Giveaway
                         </button>
@@ -95,12 +128,10 @@ export function GiveawaysBody({
                         channelMap={channelMap}
                         isPending={isPending}
                         isDirty={isDirty}
-                        isEmpty={isEmpty}
                         guildId={guildId}
                         onDelete={onDelete}
                         onSend={onSend}
-                        onChange={handleChange}
-                        setIsEmpty={setIsEmpty}
+                        onChange={setConfig}
                         onDeleteDiscordMessage={onDeleteDiscordMessage}
                     />
                 )}
@@ -111,15 +142,16 @@ export function GiveawaysBody({
                 onClose={() => setIsCreateModalOpen(false)}
                 onSave={(v) =>
                     onSave({
-                        channel_id: v.channel_id || "",
+                        channel_id: v.channel_id ?? null,
                         guild_id: guildId,
                         format: "TEXT",
-                        prize: v.prize || "",
+                        prize: v.prize || "New Giveaway",
                         winner_count: v.winner_count || 1,
                         end_time: v.end_time || new Date().toISOString(),
                         embed: {},
                         content: "",
-                        host_id: userId || "",
+                        host_id: userId,
+                        message_id: null,
                     })
                 }
                 channelMap={channelMap}

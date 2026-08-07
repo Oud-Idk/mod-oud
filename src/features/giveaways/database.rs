@@ -1,15 +1,11 @@
-use crate::core::config::state::WebState;
+use crate::core::config::settings::MessageLayout;
 use crate::features::giveaways::types::Giveaway;
-use crate::shared::embed::{Format, DiscordEmbed};
-use crate::{Data, Error};
 use axum::http::StatusCode;
-use fred::interfaces::KeysInterface;
-use fred::types::Expiration;
-use sqlx::postgres::PgQueryResult;
-use sqlx::PgPool;
-use std::sync::Arc;
-use tracing::{error, trace, warn};
 use chrono::{DateTime, Utc};
+use sqlx::postgres::PgQueryResult;
+use sqlx::types::Json;
+use sqlx::PgPool;
+use tracing::warn;
 
 /// Fetches a single giveaway configuration by ID and Guild ID for the web handler
 pub async fn fetch_giveaway(
@@ -20,8 +16,9 @@ pub async fn fetch_giveaway(
     sqlx::query_as!(
         Giveaway,
         r#"
-        SELECT id, guild_id, channel_id, message_id, prize, winner_count, host_id,
-               end_time, is_finished, format as "format: Format", embed as "embed?: sqlx::types::Json<DiscordEmbed>", content
+        SELECT id, guild_id, host_id, channel_id, message_id, prize, winner_count,
+               end_time, is_finished,
+               message_layout AS "message!: Json<MessageLayout>"
         FROM giveaways
         WHERE id = $1 AND guild_id = $2
         "#,
@@ -73,7 +70,7 @@ pub async fn clear_giveaway_message_id(
         .execute(pool)
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed to clear giveaway message ID in database"))
-        .map_err(|e| {
+        .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Database cleanup error".to_string(),
@@ -87,9 +84,9 @@ pub async fn fetch_expired_giveaways(pool: &PgPool) -> Result<Vec<Giveaway>, sql
     sqlx::query_as!(
         Giveaway,
         r#"
-        SELECT id, guild_id, channel_id, message_id, prize, winner_count,
-               end_time, is_finished, format as "format: Format", host_id,
-               embed as "embed?: sqlx::types::Json<DiscordEmbed>", content
+        SELECT id, guild_id, host_id, channel_id, message_id, prize, winner_count,
+               end_time, is_finished,
+               message_layout AS "message!: Json<MessageLayout>"
         FROM giveaways
         WHERE end_time <= NOW() AND is_finished = FALSE AND message_id IS NOT NULL
         "#
@@ -109,7 +106,7 @@ pub async fn mark_giveaway_finished(pool: &PgPool, giveaway_id: i64) -> Result<(
     Ok(())
 }
 
-
+/// Inserts a new giveaway record into the database with default message_layout JSONB
 pub async fn create_giveaway(
     pool: &PgPool,
     guild_id: i64,
@@ -121,8 +118,8 @@ pub async fn create_giveaway(
 ) -> Result<i64, sqlx::Error> {
     let rec = sqlx::query!(
         r#"
-        INSERT INTO giveaways (guild_id, host_id, channel_id, prize, winner_count, end_time, is_finished, format)
-        VALUES ($1, $2, $3, $4, $5, $6, FALSE, 'EMBED'::message_format)
+        INSERT INTO giveaways (guild_id, host_id, channel_id, prize, winner_count, end_time, is_finished, message_layout)
+        VALUES ($1, $2, $3, $4, $5, $6, FALSE, '{"enabled": true, "format": "TEXT", "content": "", "embed": {}}'::jsonb)
         RETURNING id
         "#,
         guild_id,

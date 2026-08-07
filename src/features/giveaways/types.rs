@@ -1,7 +1,8 @@
-use crate::shared::embed::{DiscordEmbed, Format};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
+use sqlx::types::Json;
+use crate::core::config::settings::MessageLayout;
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -20,8 +21,5 @@ pub struct Giveaway {
     pub winner_count: i32,
     pub end_time: DateTime<Utc>,
     pub is_finished: bool,
-
-    pub format: Format,
-    pub embed: Option<sqlx::types::Json<DiscordEmbed>>,
-    pub content: Option<String>,
+    pub message: Json<MessageLayout>,
 }

@@ -1,4 +1,6 @@
-use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver};
+use crate::core::config::guild_ctx::GuildCtx;
+use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver, ResolverChain, render};
+use serenity::all::User;
 
 pub struct GiveawayCtx<'a> {
     pub prize: &'a str,
@@ -17,3 +19,26 @@ impl PlaceholderResolver for GiveawayCtx<'_> {
     }
 }
 
+pub fn replace_giveaway_placeholders(
+    text: &str,
+    prize: &str,
+    winner_count: i32,
+    host_user: &User,
+    gctx: &GuildCtx,
+    end_time_str: &str,
+) -> String {
+    let giveaway_ctx = GiveawayCtx {
+        prize,
+        winner_count,
+        end_time_str,
+    };
+
+    let discord_ctx = DiscordCtx {
+        gctx: Some(gctx),
+        user: Some(host_user),
+        ..Default::default()
+    };
+
+    let resolver = ResolverChain(vec![&giveaway_ctx, &discord_ctx]);
+    render(text, &resolver)
+}

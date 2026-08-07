@@ -186,12 +186,17 @@ pub async fn get_settings(
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageLayout {
+    #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default)]
     pub format: Format,
+    #[serde(default)]
     pub content: String,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub embed: Option<DiscordEmbed>,
+    #[serde(default)]
+    pub embed: DiscordEmbed, // 👈 Direct DiscordEmbed struct (defaults to empty embed)
 }
+
+fn default_true() -> bool { true }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

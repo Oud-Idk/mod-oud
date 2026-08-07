@@ -125,3 +125,7 @@ export const MessageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ct
 });
 
 export type MessageLayout = z.infer<typeof MessageLayoutSchema>;
+
+export const IsoDateSchema = z
+    .union([z.string(), z.date()])
+    .transform((val) => (val instanceof Date ? val.toISOString() : val));

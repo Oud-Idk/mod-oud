@@ -4,7 +4,7 @@ import {
     Giveaway,
     SaveGiveawayData,
     giveawaySchema,
-    saveGiveawayInputSchema
+    SaveGiveawaySchema,
 } from "@/features/giveaways/types";
 
 export async function getGiveaways(guildId: string): Promise<Giveaway[]> {
@@ -20,9 +20,12 @@ export async function getGiveaways(guildId: string): Promise<Giveaway[]> {
                winner_count,
                end_time,
                is_finished,
-               format,
-               COALESCE(embed, '{}'::jsonb) AS embed,
-               COALESCE(content, '') AS content
+               JSON_BUILD_OBJECT(
+                       'enabled', true,
+                       'format', format,
+                       'content', COALESCE(content, ''),
+                       'embed', COALESCE(embed, '{}'::jsonb)
+               ) AS message
         FROM giveaways
         WHERE guild_id = $1
         ORDER BY id DESC;
@@ -33,7 +36,7 @@ export async function getGiveaways(guildId: string): Promise<Giveaway[]> {
 }
 
 export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Giveaway> {
-    const data = saveGiveawayInputSchema.parse(dataPayload);
+    const data = SaveGiveawaySchema.parse(dataPayload);
 
     if (data.id) {
         const query = `
@@ -48,7 +51,13 @@ export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Givea
                 content      = $8,
                 host_id      = $9
             WHERE id = $10
-            RETURNING *;
+            RETURNING id, guild_id, host_id, channel_id, message_id, prize, winner_count, end_time, is_finished,
+                JSON_BUILD_OBJECT(
+                        'enabled', true,
+                        'format', format,
+                        'content', COALESCE(content, ''),
+                        'embed', COALESCE(embed, '{}'::jsonb)
+                ) AS message;
         `;
 
         const res = await db.query(query, [
@@ -57,11 +66,11 @@ export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Givea
             data.prize,
             data.winner_count,
             data.end_time,
-            data.format,
-            data.embed ? JSON.stringify(data.embed) : null,
-            data.content ?? null,
+            data.message.format,
+            data.message.embed ? JSON.stringify(data.message.embed) : null,
+            data.message.content ?? "",
             data.host_id,
-            data.id
+            data.id,
         ]);
 
         return giveawaySchema.parse(res.rows[0]);
@@ -77,7 +86,13 @@ export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Givea
                                    content,
                                    host_id)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING *;
+            RETURNING id, guild_id, host_id, channel_id, message_id, prize, winner_count, end_time, is_finished,
+                JSON_BUILD_OBJECT(
+                        'enabled', true,
+                        'format', format,
+                        'content', COALESCE(content, ''),
+                        'embed', COALESCE(embed, '{}'::jsonb)
+                ) AS message;
         `;
 
         const res = await db.query(query, [
@@ -86,9 +101,9 @@ export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Givea
             data.prize,
             data.winner_count || 1,
             data.end_time,
-            data.format,
-            data.embed ? JSON.stringify(data.embed) : null,
-            data.content ?? null,
+            data.message.format,
+            data.message.embed ? JSON.stringify(data.message.embed) : null,
+            data.message.content ?? "",
             data.host_id,
         ]);
 
@@ -96,18 +111,10 @@ export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Givea
     }
 }
 
-export async function deleteGiveaway(id: number, guildId?: string): Promise<boolean> {
+export async function deleteGiveaway(id: number, guildId: string): Promise<boolean> {
     const validId = z.number().int().positive().parse(id);
+    const validGuildId = z.string().parse(guildId);
 
-    let query = `DELETE FROM giveaways WHERE id = $1`;
-    const params: (number | string)[] = [validId];
-
-    if (guildId) {
-        const validGuildId = z.string().parse(guildId);
-        query += ` AND guild_id = $2`;
-        params.push(validGuildId);
-    }
-
-    const res = await db.query(query, params);
+    const res = await db.query(`DELETE FROM giveaways WHERE id = $1 AND guild_id = $2`, [validId, validGuildId]);
     return (res.rowCount ?? 0) > 0;
 }

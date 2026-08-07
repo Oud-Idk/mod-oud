@@ -10,7 +10,6 @@ use tracing::warn;
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::features::giveaways;
 
-// 2. EDIT DISCORD GIVEAWAY MESSAGE
 pub async fn handle_edit_giveaway_message(
     State(state): State<Arc<WebState>>,
     Path((guild_id_str, config_id_str)): Path<(String, String)>,
@@ -41,9 +40,9 @@ pub async fn handle_edit_giveaway_message(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Couldn't fetch guild ctx.".to_string()))?;
 
     let custom_msg_opt = build_giveaway_msg(
-        &record.format,
-        record.content.as_deref(),
-        record.embed.as_deref(),
+        record.message.format,
+        &record.message.content,
+        &record.message.embed,
         &record.prize,
         record.winner_count,
         record.end_time,
