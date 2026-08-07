@@ -28,23 +28,23 @@ serde_conv!(
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TicketConfig {
-    #[serde_as(as = "DisplayFromStr")]
-    pub category_id: u64,
-    #[serde_as(as = "DisplayFromStr")]
-    pub ticket_role_id: u64,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub category_id: Option<u64>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub ticket_role_id: Option<u64>,
     pub enabled: bool,
-    #[serde_as(as = "NoneAsEmptyString")]
+    #[serde_as(as = "Option<DisplayFromStr>")]
     pub posted_message_id: Option<u64>,
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub channel_id: Option<u64>,
-    pub content: Option<String>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub embed: Option<DiscordEmbed>,
-    pub format: Format,
     #[serde_as(as = "DurationMinutes")]
     pub warn_threshold: Duration,
     #[serde_as(as = "DurationMinutes")]
     pub delete_threshold: Duration,
-    pub bump_every: i32,
-    pub welcome_message: Option<MessageLayout>,
+    #[serde_as(as = "DurationMinutes")]
+    pub bump_every: Duration,
+    #[serde(default)]
+    pub panel_message: MessageLayout,
+    #[serde(default)]
+    pub welcome_message: MessageLayout,
 }

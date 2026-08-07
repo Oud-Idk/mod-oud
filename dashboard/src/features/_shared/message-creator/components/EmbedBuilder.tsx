@@ -1,5 +1,5 @@
 import { EmbedState } from "@/features/_shared/message-creator/types";
-import { DiscordEmbed, EmbedField } from "@/features/_shared/embed"; // <-- Removed FieldKey
+import { DiscordEmbed, EmbedField, isEmbedEmpty } from "@/features/_shared/embed"; // <-- Removed FieldKey
 import React, { ReactNode, SetStateAction, useMemo, useEffect } from "react";
 import { PlaceholderList } from "@/features/_shared/message-creator/components/PlaceholderList";
 import { EmbedBuilderForm } from "@/features/_shared/message-creator/components/EmbedBuilderForm";
@@ -122,20 +122,13 @@ export default function EmbedBuilder({
         return { ...emptyState, ...parsed, fields: parsed.fields || [] };
     }, [initialEmbedState]);
 
-    const isEmbedEmpty = useMemo(() => {
-        return (
-            !embed.title?.trim() &&
-            !embed.description?.trim() &&
-            (!embed.fields || embed.fields.length === 0) &&
-            !embed.imageUrl &&
-            !embed.authorName &&
-            !embed.footerText
-        );
+    const isEmbedEmptyMemo = useMemo(() => {
+        return isEmbedEmpty(embed);
     }, [embed]);
 
     useEffect(() => {
-        setIsEmpty(isEmbedEmpty);
-    }, [isEmbedEmpty, setIsEmpty]);
+        setIsEmpty(isEmbedEmptyMemo);
+    }, [isEmbedEmptyMemo, setIsEmpty]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -193,7 +186,7 @@ export default function EmbedBuilder({
                         addField={addField}
                         removeField={removeField}
                         moveField={moveField}
-                        isEmpty={isEmbedEmpty}
+                        isEmpty={isEmbedEmptyMemo}
                     />
                 </div>
 

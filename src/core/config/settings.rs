@@ -183,7 +183,7 @@ pub async fn get_settings(
     Box::pin(get_settings_inner(db, redis, cache, guild_id)).await
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageLayout {
     pub enabled: bool,

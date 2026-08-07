@@ -8,25 +8,28 @@ use serenity::all::{ChannelId, ComponentInteraction, Context, CreateInteractionR
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, info, instrument, trace};
 
-#[instrument(skip(ctx, data, message), fields(msg_id = %message.id, channel_id = %message.channel_id, author = %message.author.id
-))]
+#[instrument(
+    skip(ctx, data, message),
+    fields(
+        msg_id = %message.id,
+        channel_id = %message.channel_id,
+        author = %message.author.id
+    )
+)]
 pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
-    if message.author.bot { return Ok(()); }
+    if message.author.bot {
+        return Ok(());
+    }
 
     let channel_id = message.channel_id;
     let channel_id_str = channel_id.get().to_string();
     let Some(guild_id) = message.guild_id else { return Ok(()) };
-    let mut redis_conn = data.redis.clone();
 
     let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
 
-    let bump_every = settings.tickets.as_ref()
-        .map(|v| v.bump_every)
-        .unwrap_or(20);
-
-    let ticket_role = settings.tickets.as_ref()
-        .map(|v| v.ticket_role_id)
-        .unwrap_or(0);
+    let Some(ticket_config) = settings.tickets.as_ref().filter(|cfg| cfg.enabled) else {
+        return Ok(());
+    };
 
     if !is_ticket_active(data, channel_id.get()) {
         trace!("Message is not in an active ticket channel; skipping ticket logic");
@@ -34,22 +37,31 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Re
     }
 
     debug!("Active ticket message intercepted. Evaluating staff roles.");
-    let has_role = if let Some(ref member) = message.member {
-        member.roles.contains(&RoleId::from(ticket_role))
-    } else if let Some(member) = ctx.cache.member(guild_id, message.author.id) {
-        member.roles.contains(&RoleId::from(ticket_role))
+
+    let has_role = if let Some(role_id) = ticket_config.ticket_role_id {
+        let role_id = RoleId::from(role_id);
+        if let Some(ref member) = message.member {
+            member.roles.contains(&role_id)
+        } else if let Some(member) = ctx.cache.member(guild_id, message.author.id) {
+            member.roles.contains(&role_id)
+        } else {
+            trace!("Cache miss for member roles; executing HTTP request to verify");
+            message.author.has_role(ctx, guild_id, role_id).await?
+        }
     } else {
-        trace!("Cache miss for member roles; executing HTTP request to verify");
-        message.author.has_role(ctx, guild_id, ticket_role).await?
+        false // No staff role configured
     };
 
     trace!(has_role = has_role, "Logging message payload to database queue");
     log_message_to_db(&data.ticket_log_tx, channel_id, message, message.author.name.clone(), has_role);
 
     let ticket_key = format!("ticket:{}", channel_id_str);
+    let mut redis_conn = data.redis.clone();
+
+    let bump_every_mins = (ticket_config.bump_every.as_secs() / 60) as i32;
 
     trace!("Updating Redis ticket activity tracking");
-    let (should_rotate, last_button_id_str) = update_activity_redis(&mut redis_conn, &ticket_key, bump_every).await?;
+    let (should_rotate, last_button_id_str) = update_activity_redis(&mut redis_conn, &ticket_key, bump_every_mins).await?;
 
     if should_rotate {
         info!("Message threshold reached; rotating close button placement");

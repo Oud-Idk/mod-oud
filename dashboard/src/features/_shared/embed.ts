@@ -1,36 +1,51 @@
-export type Format = "EMBED" | "TEXT";
+import { z } from "zod";
 
-// API Shape
-export interface EmbedThumbnail {
-    url: string;
-}
+export const FormatSchema = z.enum(["EMBED", "TEXT"]);
 
-export interface EmbedAuthor {
-    name: string;
-    icon_url?: string;
-}
+export const EmbedThumbnailSchema = z.object({
+    url: z.string(),
+});
 
-export interface EmbedFooter {
-    text: string;
-    icon_url?: string;
-}
+export const EmbedAuthorSchema = z.object({
+    name: z.string(),
+    icon_url: z.string().optional(),
+});
 
-export interface EmbedField {
-    name: string;
-    value: string;
-    inline?: boolean;
-}
+export const EmbedFooterSchema = z.object({
+    text: z.string(),
+    icon_url: z.string().optional(),
+});
 
-export interface DiscordEmbed {
-    title?: string;
-    description?: string;
-    color?: number;
-    thumbnail?: EmbedThumbnail;
-    author?: EmbedAuthor;
-    footer?: EmbedFooter;
-    fields?: EmbedField[];
-    image?: EmbedThumbnail;
-}
+export const EmbedFieldSchema = z.object({
+    name: z.string(),
+    value: z.string(),
+    inline: z.boolean().optional(),
+});
+
+export const DiscordEmbedSchema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    color: z.number().int().optional(),
+    thumbnail: EmbedThumbnailSchema.optional(),
+    author: EmbedAuthorSchema.optional(),
+    footer: EmbedFooterSchema.optional(),
+    fields: z.array(EmbedFieldSchema).optional(),
+    image: EmbedThumbnailSchema.optional(),
+});
+
+export type Format = z.infer<typeof FormatSchema>;
+export type EmbedThumbnail = z.infer<typeof EmbedThumbnailSchema>;
+export type EmbedAuthor = z.infer<typeof EmbedAuthorSchema>;
+export type EmbedFooter = z.infer<typeof EmbedFooterSchema>;
+export type EmbedField = z.infer<typeof EmbedFieldSchema>;
+export type DiscordEmbed = z.infer<typeof DiscordEmbedSchema>;
+
+export const DEFAULT_MESSAGE_LAYOUT = Object.freeze({
+    enabled: false,
+    format: "TEXT" as const,
+    content: "",
+    embed: {},
+});
 
 export const isDeepEqual = (obj1: any, obj2: any): boolean => {
     if (obj1 === obj2) return true;
@@ -66,3 +81,45 @@ export const isDeepEqual = (obj1: any, obj2: any): boolean => {
 
     return true;
 };
+
+export const isEmbedEmpty = (embed: Record<string, any> | undefined | null): boolean => {
+    if (!embed) return true;
+    const hasTitle = Boolean(embed.title?.trim());
+    const hasDescription = Boolean(embed.description?.trim());
+    const hasFields = Boolean(embed.fields && embed.fields.length > 0);
+    const hasAuthor = Boolean(embed.author?.name?.trim());
+    const hasFooter = Boolean(embed.footer?.text?.trim());
+    const hasImage = Boolean(embed.image?.url?.trim());
+    const hasThumbnail = Boolean(embed.thumbnail?.url?.trim());
+
+    return !hasTitle && !hasDescription && !hasFields && !hasAuthor && !hasFooter && !hasImage && !hasThumbnail;
+};
+
+export const BaseMessageLayoutSchema = z.object({
+    enabled: z.boolean().default(false),
+    format: FormatSchema,
+    content: z.string().default(""),
+    embed: DiscordEmbedSchema.default({}),
+});
+
+export const MessageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ctx) => {
+    if (!data.enabled) return;
+
+    if (data.format === "TEXT") {
+        if (!data.content || data.content.trim() === "") {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Message content cannot be empty when format is set to TEXT!",
+                path: ["content"],
+            });
+        }
+    } else if (data.format === "EMBED") {
+        if (isEmbedEmpty(data.embed)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Embed must have a title, description, or fields when format is set to EMBED!",
+                path: ["embed"],
+            });
+        }
+    }
+});

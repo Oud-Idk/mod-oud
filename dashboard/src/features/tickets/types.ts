@@ -1,36 +1,14 @@
 import { z } from "zod";
-import { DiscordEmbed } from "@/features/_shared/embed";
-
-// ==========================================
-// 1. Shared Enums & Constants
-// ==========================================
+import {
+    DEFAULT_MESSAGE_LAYOUT,
+    MessageLayoutSchema
+} from "@/features/_shared/embed";
 
 export const FormatSchema = z.enum(["TEXT", "EMBED"]).default("TEXT");
 export const TicketStatusSchema = z.enum(["OPEN", "CLOSED"]);
 export const ViewTicketStatusSchema = z.enum(["ALL", "OPEN", "CLOSED"]);
 
-// Freeze default object to prevent accidental mutation bugs
-export const DEFAULT_MESSAGE_LAYOUT = Object.freeze({
-    enabled: false,
-    format: "TEXT" as const,
-    content: "",
-    embed: {},
-});
-
-// Reuseable helper for ISO Date Strings / Date coercion
 const IsoDateSchema = z.string().datetime().or(z.date());
-
-// ==========================================
-// 2. Config Schemas
-// ==========================================
-
-export const MessageLayoutSchema = z.object({
-    enabled: z.boolean().default(false),
-    format: FormatSchema,
-    content: z.string().default(""),
-    // Passthrough allow flexible embed objects while staying type-safe
-    embed: z.custom<DiscordEmbed>().default({}),
-}).default(DEFAULT_MESSAGE_LAYOUT);
 
 export const TicketConfigSchema = z.object({
     categoryId: z.string().nullish().default(null),
@@ -39,16 +17,13 @@ export const TicketConfigSchema = z.object({
     postedMessageId: z.string().nullish().default(null),
 
     enabled: z.boolean().default(false),
-    format: FormatSchema,
-    content: z.string().default(""),
-    embed: z.custom<DiscordEmbed>().default({}),
 
-    // Added numerical constraints (.int().min(1))
-    warnThreshold: z.number().int().positive().default(30),
-    deleteThreshold: z.number().int().positive().default(45),
-    bumpEvery: z.number().int().positive().default(20),
+    panelMessage: MessageLayoutSchema.default(DEFAULT_MESSAGE_LAYOUT),
+    welcomeMessage: MessageLayoutSchema.default(DEFAULT_MESSAGE_LAYOUT),
 
-    welcomeMessage: MessageLayoutSchema,
+    warnThreshold: z.number().default(30),
+    deleteThreshold: z.number().default(45),
+    bumpEvery: z.number().default(20),
 });
 
 export const SaveTicketConfigSchema = TicketConfigSchema.superRefine((data, ctx) => {

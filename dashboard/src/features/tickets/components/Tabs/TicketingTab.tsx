@@ -10,6 +10,7 @@ import { InputLabel } from "@/components/layout/InputLabel";
 import Emphasis from "@/components/layout/Emphasis";
 import { Button } from "@/components/ui/Button";
 import { getAvailableCategoryOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
+import { MessageLayout } from "@/features/report/types";
 
 interface TicketingTabProps {
     config: TicketConfig;
@@ -48,28 +49,21 @@ export default function TicketingTab({
     status,
     isEmpty,
 }: TicketingTabProps) {
-    // ✅ Handles null / undefined / empty strings cleanly
     const targetCategoryIsEmpty = !config.categoryId || config.categoryId.trim() === "";
     const targetRoleIsEmpty = !config.ticketRoleId || config.ticketRoleId.trim() === "";
 
-    const messageConfigAdapter = useMemo<GenericMessageConfig>(() => ({
-        enabled: config.enabled,
-        channel_id: config.channelId ?? "",
-        content: config.content,
-        embed: config.embed,
-        format: config.format,
-    }), [config]);
-
-    const handleChange = useCallback((updated: GenericMessageConfig) => {
+    const handlePanelMessageChange = useCallback((updated: GenericMessageConfig) => {
         setConfig((prev) => ({
             ...prev,
-            enabled: updated.enabled ?? false,
-            channelId: updated.channel_id ?? null,
-            content: updated.content ?? "",
-            embed: updated.embed ?? {},
-            format: updated.format,
+            panelMessage: {
+                enabled: updated.enabled ?? false,
+                format: updated.format ?? "TEXT",
+                content: updated.content ?? "",
+                embed: updated.embed ?? {},
+            },
         }));
     }, [setConfig]);
+
 
     const handleEmbedChange = useCallback((embed: any) => {
         setConfig((prev) => ({ ...prev, embed }));
@@ -104,8 +98,8 @@ export default function TicketingTab({
     return (
         <div className="flex flex-col">
             <MessageConfigEditor
-                config={messageConfigAdapter}
-                onChange={handleChange}
+                config={config.panelMessage}
+                onChange={handlePanelMessageChange}
                 onEmbedChange={handleEmbedChange}
                 channels={channels}
                 disabled={disabled}
