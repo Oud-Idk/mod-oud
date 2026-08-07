@@ -7,11 +7,10 @@ import { DiscordChannel } from "@/features/_shared/channels.types";
 
 interface ChannelSelectorProps {
     channels: DiscordChannel[];
-    value: string;
-    onChange: (value: string) => void;
+    value: string | null;
+    onChange: (value: string | null) => void;
     disabled?: boolean;
-    className?: string;
-    targetChannelIsEmpty?: boolean; // 👈 Added prop
+    error?: boolean;
 }
 
 export function ChannelSelector({
@@ -19,16 +18,13 @@ export function ChannelSelector({
     value,
     onChange,
     disabled,
-    className,
-    targetChannelIsEmpty,
+    error,
 }: ChannelSelectorProps) {
     const options = useMemo(() => {
-        const list = channels.map((channel) => ({
+        return channels.map((channel) => ({
             value: channel.id,
             label: `#${channel.name}${channel.type === 5 ? " 📢" : ""}`,
         }));
-
-        return [{ value: "", label: "Select a channel..." }, ...list];
     }, [channels]);
 
     return (
@@ -37,15 +33,14 @@ export function ChannelSelector({
             <Dropdown
                 options={options}
                 value={value}
-                onChange={v => onChange(v ?? "")}
+                onChange={onChange}
                 disabled={disabled}
                 placeholder="Select a channel..."
-                className={className}
-                error={targetChannelIsEmpty}
+                error={error}
             />
-            {targetChannelIsEmpty && (
-                <span className="text-xs text-danger mt-1 font-medium">
-                    A target channel is required when this feature is enabled.
+            {error && (
+                <span className="text-xs text-danger mt-1">
+                    Please select a channel to post the panel.
                 </span>
             )}
         </div>

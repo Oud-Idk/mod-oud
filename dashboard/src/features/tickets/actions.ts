@@ -12,8 +12,7 @@ import { z } from "zod";
  */
 export async function getTicketsListAction(guildId: string): Promise<Ticket[]> {
     try {
-        const res = await getTicketList(guildId);
-        return res.rows;
+        return await getTicketList(guildId);
     } catch (error) {
         console.error("Failed to fetch ticket list:", error);
         throw new Error("Could not retrieve tickets list.");

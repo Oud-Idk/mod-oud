@@ -1,14 +1,14 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useState, useEffect, useTransition } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter } from "next/navigation";
-import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { CustomCommandConfig } from "@/features/custom-commands/components/CustomCommandConfig";
 import { CustomCommandCreateModal } from "@/features/custom-commands/components/CustomCommandCreateModal";
-import { CustomCommand, SaveCustomCommandData } from "@/features/custom-commands/types";
+import { CustomCommand, SaveCustomCommandData, SaveCustomCommandSchema } from "@/features/custom-commands/types";
 import { Button } from "@/components/ui/Button";
+import { isDeepEqual } from "@/features/_shared/embed";
 import { cn } from "@/lib/cn";
 
 interface CustomCommandsBodyProps {
@@ -31,22 +31,54 @@ export function CustomCommandsBody({
     guildId
 }: CustomCommandsBodyProps): ReactNode {
     const router = useRouter();
-
-    const { config, isPending, isDirty, setIsEmpty, handleSave, handleCancel, handleChange } =
-        useConfigForm<CustomCommand | null>({
-            initialConfig: activeConfig,
-            onSave: async (updatedConfig) => {
-                if (updatedConfig) {
-                    await onSave(updatedConfig);
-                }
-            },
-        });
-
+    const [config, setConfig] = useState<CustomCommand | null>(activeConfig);
+    const [isPending, startTransition] = useTransition();
+    const [validationError, setValidationError] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    useEffect(() => {
+        setConfig(activeConfig);
+        setValidationError(null);
+    }, [activeConfig]);
+
+    const isDirty = !isDeepEqual(config, activeConfig);
+
+    const handleSave = () => {
+        if (!config) return;
+        setValidationError(null);
+
+        const result = SaveCustomCommandSchema.safeParse(config);
+        if (!result.success) {
+            const firstMessage = result.error.issues[0]?.message || "Invalid custom command configuration.";
+            setValidationError(firstMessage);
+            return;
+        }
+
+        startTransition(async () => {
+            try {
+                await onSave(config);
+                setValidationError(null);
+            } catch (err) {
+                setValidationError(err instanceof Error ? err.message : "Failed to save custom command.");
+            }
+        });
+    };
+
+    const handleCancel = () => {
+        setConfig(activeConfig);
+        setValidationError(null);
+    };
 
     return (
         <div>
-            <ConfigListLayout<CustomCommand> title="Custom Commands"
+            {validationError && (
+                <div className="p-3 mb-4 text-sm text-danger bg-danger-subtle rounded-md">
+                    {validationError}
+                </div>
+            )}
+
+            <ConfigListLayout<CustomCommand>
+                title="Custom Commands"
                 onCreateClick={() => setIsCreateModalOpen(true)}
                 items={commands}
                 renderItem={(item) => {
@@ -70,9 +102,7 @@ export function CustomCommandsBody({
                                 <span
                                     className={cn(
                                         "text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
-                                        item.enabled
-                                            ? "text-success"
-                                            : "text-muted-foreground"
+                                        item.enabled ? "text-success" : "text-muted-foreground"
                                     )}
                                 >
                                     {statusText}
@@ -107,49 +137,58 @@ export function CustomCommandsBody({
                         key={config.id}
                         config={config}
                         isPending={isPending}
-                        isDirty={isDirty}
                         guildId={guildId}
                         channelMap={channelMap}
                         roleMap={roleMap}
                         onDelete={onDelete}
-                        onChange={handleChange}
-                        setIsEmpty={setIsEmpty}
+                        onChange={setConfig}
                     />
                 )}
             </ConfigListLayout>
 
             <CustomCommandCreateModal
-                isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSave={async (v) => {
-                const newCmd = await onSave({
-                    guild_id: guildId,
-                    name: v.name.replace(/^!/, ""), // Strip leading ! if typed
-                    description: v.description || "",
-                    enabled: true,
-                    delete_trigger: false,
-                    cooldown_type: "NONE",
-                    cooldown_seconds: 0,
-                    allowed_roles: [],
-                    ignored_roles: [],
-                    allowed_channels: [],
-                    ignored_channels: [],
-                    actions: [
-                        {
-                            type: "respond_current_channel",
-                            data: {
-                                is_dm: false,
-                                is_ephemeral: false,
-                                messages: [{ format: "TEXT", content: "Hello from my custom command!" }],
-                                randomize: false,
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSave={async (v) => {
+                    const newCmd = await onSave({
+                        guild_id: guildId,
+                        name: v.name.replace(/^!/, ""),
+                        description: v.description || "",
+                        enabled: true,
+                        delete_trigger: false,
+                        cooldown_type: "NONE",
+                        cooldown_seconds: 0,
+                        allowed_roles: [],
+                        ignored_roles: [],
+                        allowed_channels: [],
+                        ignored_channels: [],
+                        actions: [
+                            {
+                                type: "respond_current_channel",
+                                data: {
+                                    is_dm: false,
+                                    is_ephemeral: false,
+                                    message_layout: {
+                                        messages: [
+                                            {
+                                                enabled: true,
+                                                format: "TEXT",
+                                                content: "Hello from my custom command!",
+                                                embed: {},
+                                            },
+                                        ],
+                                        randomize: false,
+                                    },
+                                },
                             },
-                        },
-                    ],
-                });
-                setIsCreateModalOpen(false);
-                router.push(`/dashboard/${guildId}/custom-commands?id=${newCmd.id}`);
-            }}
+                        ],
+                    });
+                    setIsCreateModalOpen(false);
+                    router.push(`/dashboard/${guildId}/custom-commands?id=${newCmd.id}`);
+                }}
             />
 
-            {isDirty && <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}/>}
+            {isDirty && <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending} />}
         </div>
     );
 }

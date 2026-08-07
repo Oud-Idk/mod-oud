@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MessageLayoutSchema, isEmbedEmpty } from "@/features/_shared/embed";
+import { MessageLayoutSchema } from "@/features/_shared/embed";
 
 export const DEFAULT_BIRTHDAY_MESSAGE = {
     enabled: true,
@@ -21,32 +21,12 @@ export const BirthdayConfigSchema = z.object({
 });
 
 export const SaveBirthdayConfigSchema = BirthdayConfigSchema.superRefine((data, ctx) => {
-    if (data.enabled) {
-        if (!data.channelId) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Please select an announcement channel for birthdays!",
-                path: ["channelId"],
-            });
-        }
-
-        // Validate messageWithYear
-        if (data.messageWithYear.format === "TEXT" && !data.messageWithYear.content?.trim()) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Birthday message (with year) cannot be empty when format is TEXT!",
-                path: ["messageWithYear", "content"],
-            });
-        }
-
-        // Validate messageWithoutYear
-        if (data.messageWithoutYear.format === "TEXT" && !data.messageWithoutYear.content?.trim()) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Birthday message (without year) cannot be empty when format is TEXT!",
-                path: ["messageWithoutYear", "content"],
-            });
-        }
+    if (data.enabled && !data.channelId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Please select an announcement channel for birthdays!",
+            path: ["channelId"],
+        });
     }
 });
 

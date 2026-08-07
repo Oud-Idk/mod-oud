@@ -1,54 +1,13 @@
 "use server";
 
 import { z } from "zod";
+import { verifyGuildAccess } from "@/features/_shared/guild";
 import {
     GuildIdSchema,
     SendEmbedPayload,
     SendEmbedPayloadSchema,
-    SendEmbedResponse
-} from "@/features/embed-builder/types";
-import { verifyGuildAccess } from "@/features/_shared/guild";
-
-export type SendMessageResponseType = { success: true; messageId: string } | { success: false; error: string };
-
-export async function sendMessage(endpoint: string, payload: SendEmbedPayload): Promise<SendMessageResponseType> {
-    const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            channel_id: payload.channelId,
-            content: null,
-            embed: payload.embedState,
-            format: "EMBED",
-        }),
-    });
-
-    if (!response.ok) {
-        const errText = await response.text();
-        return {
-            success: false,
-            error: errText || "Backend returned an error state.",
-        };
-    }
-
-    const data = await response.json();
-    return {
-        success: true,
-        messageId: data.message_id,
-    };
-}
-
-function formatError(error: unknown): string {
-    if (error instanceof z.ZodError) {
-        return error.issues.map((issue) => issue.message).join(", ");
-    }
-    if (error instanceof Error) {
-        return error.message;
-    }
-    return "Failed to communicate with the backend server.";
-}
+    SendEmbedResponse,
+} from "./types";
 
 export async function sendEmbedAction(
     guildId: string,
@@ -59,13 +18,52 @@ export async function sendEmbedAction(
         const validPayload = SendEmbedPayloadSchema.parse(payload);
 
         await verifyGuildAccess(validGuildId);
+
         const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
         const endpoint = `${backendUrl}/api/guilds/${validGuildId}/embeds/send`;
-        return await sendMessage(endpoint, validPayload);
+
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                channel_id: validPayload.channelId,
+                content: null,
+                embed: validPayload.embedState,
+                format: "EMBED",
+            }),
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            return {
+                success: false,
+                error: errText || "Backend returned an error state.",
+            };
+        }
+
+        const data = await response.json();
+        return {
+            success: true,
+            messageId: data.message_id,
+        };
     } catch (error: unknown) {
+        if (error instanceof z.ZodError) {
+            return {
+                success: false,
+                error: error.issues[0]?.message || "Validation failed.",
+            };
+        }
+        if (error instanceof Error) {
+            return {
+                success: false,
+                error: error.message,
+            };
+        }
         return {
             success: false,
-            error: formatError(error),
+            error: "Failed to communicate with the backend server.",
         };
     }
 }

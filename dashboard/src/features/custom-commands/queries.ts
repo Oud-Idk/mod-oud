@@ -28,12 +28,7 @@ export async function getCustomCommands(guildId: string): Promise<CustomCommand[
 
     const res = await db.query(query, [guildId]);
 
-    return res.rows.map((row) => {
-        return customCommandSchema.parse({
-            ...row,
-            id: row.id !== null && row.id !== undefined ? Number(row.id) : undefined,
-        });
-    });
+    return res.rows.map((row) => customCommandSchema.parse(row));
 }
 
 export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise<CustomCommand> {
@@ -107,7 +102,6 @@ export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise
 }
 
 export async function deleteCustomCommand(id: number, guildId: string): Promise<boolean> {
-    // 🛡️ Added guild_id check for multi-tenant database safety!
     const res = await db.query(`DELETE FROM custom_commands WHERE id = $1 AND guild_id = $2`, [id, guildId]);
     return (res.rowCount ?? 0) === 1;
 }

@@ -20,13 +20,19 @@ export function MessageModeSelector({
     disabled = false,
     onChange
 }: MessageModeSelectorProps): JSX.Element {
+    const handleChange = (newFormat: Format) => {
+        if (newFormat !== format) {
+            onChange(newFormat);
+        }
+    };
+
     return (
         <SegmentedControl<Format>
             label={label}
             value={format}
             options={FORMAT_OPTIONS}
             disabled={disabled}
-            onChange={onChange}
+            onChange={handleChange}
         />
     );
 }

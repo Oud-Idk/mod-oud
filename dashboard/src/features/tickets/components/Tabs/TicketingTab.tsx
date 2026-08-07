@@ -1,8 +1,9 @@
+// features/tickets/components/Tabs/TicketingTab.tsx
+
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TicketConfig } from "@/features/tickets/types";
 import { TICKETS_PANEL_CONFIG } from "@/features/tickets/builderConfigs";
-
 import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import { DiscordChannel } from "@/features/_shared/channels.types";
@@ -10,16 +11,15 @@ import { InputLabel } from "@/components/layout/InputLabel";
 import Emphasis from "@/components/layout/Emphasis";
 import { Button } from "@/components/ui/Button";
 import { getAvailableCategoryOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
+import { isDeepEqual } from "@/features/_shared/embed";
+
+type MessageConfigWithChannel = GenericMessageConfig & { channel_id?: string };
 
 interface TicketingTabProps {
     config: TicketConfig;
     setConfig: Dispatch<SetStateAction<TicketConfig>>;
     channels: DiscordChannel[];
     disabled: boolean;
-    resetKey: number;
-    setIsEmpty: Dispatch<SetStateAction<boolean>>;
-    targetChannelIsEmpty: boolean;
-    setTargetChannelIsEmpty: Dispatch<SetStateAction<boolean>>;
     categoryMap: Record<string, string>;
     roleMap: Record<string, string>;
     onDeletePanel: () => Promise<void>;
@@ -27,7 +27,6 @@ interface TicketingTabProps {
     isProcessing: boolean;
     isDirty: boolean;
     status: { type: "SUCCESS" | "ERROR"; message: string } | null;
-    isEmpty: boolean;
 }
 
 export default function TicketingTab({
@@ -35,10 +34,6 @@ export default function TicketingTab({
     setConfig,
     channels,
     disabled,
-    resetKey,
-    setIsEmpty,
-    targetChannelIsEmpty,
-    setTargetChannelIsEmpty,
     categoryMap,
     roleMap,
     onDeletePanel,
@@ -46,26 +41,49 @@ export default function TicketingTab({
     isProcessing,
     isDirty,
     status,
-    isEmpty,
 }: TicketingTabProps) {
-    const targetCategoryIsEmpty = !config.categoryId || config.categoryId.trim() === "";
-    const targetRoleIsEmpty = !config.ticketRoleId || config.ticketRoleId.trim() === "";
+    // Check missing fields directly on honest state (null / empty)
+    const targetCategoryIsEmpty = !config.categoryId;
+    const targetRoleIsEmpty = !config.ticketRoleId;
+    const targetChannelIsEmpty = !config.channelId;
+
+    const panelMessageConfig = useMemo<GenericMessageConfig>(() => ({
+        ...config.panelMessage,
+        enabled: config.enabled ?? config.panelMessage?.enabled ?? false,
+        channel_id: config.channelId,
+    }), [config.panelMessage, config.enabled, config.channelId]);
 
     const handlePanelMessageChange = useCallback((updated: GenericMessageConfig) => {
-        setConfig((prev) => ({
-            ...prev,
-            panelMessage: {
-                enabled: updated.enabled ?? false,
-                format: updated.format ?? "TEXT",
-                content: updated.content ?? "",
-                embed: updated.embed ?? {},
-            },
-        }));
-    }, [setConfig]);
+        setConfig((prev) => {
+            const nextEnabled = updated.enabled ?? prev.enabled;
+            const nextChannelId = updated.channel_id ?? null;
+            const nextFormat = updated.format ?? "TEXT";
+            const nextContent = updated.content ?? "";
+            const nextEmbed = updated.embed ?? {};
 
+            if (
+                prev.enabled === nextEnabled &&
+                prev.channelId === nextChannelId &&
+                prev.panelMessage.enabled === nextEnabled &&
+                prev.panelMessage.format === nextFormat &&
+                prev.panelMessage.content === nextContent &&
+                isDeepEqual(prev.panelMessage.embed, nextEmbed)
+            ) {
+                return prev;
+            }
 
-    const handleEmbedChange = useCallback((embed: any) => {
-        setConfig((prev) => ({ ...prev, embed }));
+            return {
+                ...prev,
+                enabled: nextEnabled,
+                channelId: nextChannelId,
+                panelMessage: {
+                    enabled: nextEnabled,
+                    format: nextFormat,
+                    content: nextContent,
+                    embed: nextEmbed,
+                },
+            };
+        });
     }, [setConfig]);
 
     const handleCategoryChange = useCallback((v: string | null) => {
@@ -76,13 +94,8 @@ export default function TicketingTab({
         setConfig((prev) => ({ ...prev, ticketRoleId: v }));
     }, [setConfig]);
 
-    const categoryOptions = useMemo(() => {
-        return getAvailableCategoryOptions(categoryMap);
-    }, [categoryMap]);
-
-    const roleOptions = useMemo(() => {
-        return getAvailableRoleOptions(roleMap);
-    }, [roleMap]);
+    const categoryOptions = useMemo(() => getAvailableCategoryOptions(categoryMap), [categoryMap]);
+    const roleOptions = useMemo(() => getAvailableRoleOptions(roleMap), [roleMap]);
 
     const actionButtonDisabled =
         isDirty ||
@@ -91,38 +104,33 @@ export default function TicketingTab({
         !config.channelId ||
         targetChannelIsEmpty ||
         targetCategoryIsEmpty ||
-        targetRoleIsEmpty ||
-        isEmpty;
+        targetRoleIsEmpty;
 
     return (
         <div className="flex flex-col">
             <MessageConfigEditor
-                config={config.panelMessage}
+                config={panelMessageConfig}
                 onChange={handlePanelMessageChange}
-                onEmbedChange={handleEmbedChange}
                 channels={channels}
                 disabled={disabled}
                 toggleLabel="Enable Interactive Ticket System"
                 embedTemplateConfig={TICKETS_PANEL_CONFIG}
-                resetKey={`${resetKey}_tickets`}
                 modeLabel="Message Mode (Tickets Panel)"
                 placeholderText="Click the button below to open a support ticket."
-                setIsEmpty={setIsEmpty}
-                targetChannelIsEmpty={targetChannelIsEmpty}
-                setTargetChannelIsEmpty={setTargetChannelIsEmpty}
+                setIsEmpty={() => {}} // Dummy no-op if MessageConfigEditor still demands it
                 customFields={
                     <div className="max-w-md flex flex-col">
                         <div>
                             <InputLabel required>Ticket Destination Category</InputLabel>
                             <Dropdown
-                                value={config.categoryId ?? ""}
+                                value={config.categoryId}
                                 onChange={handleCategoryChange}
                                 options={categoryOptions}
-                                error={targetCategoryIsEmpty}
+                                error={targetCategoryIsEmpty && config.enabled}
                             />
-                            {targetCategoryIsEmpty && (
+                            {targetCategoryIsEmpty && config.enabled && (
                                 <p className="text-xs text-danger mt-1">
-                                    Please select a category for tickets.
+                                    Please select a Discord Category for tickets.
                                 </p>
                             )}
                         </div>
@@ -130,14 +138,14 @@ export default function TicketingTab({
                         <div>
                             <InputLabel required>Support Staff Role</InputLabel>
                             <Dropdown
-                                value={config.ticketRoleId ?? ""}
+                                value={config.ticketRoleId}
                                 onChange={handleRoleChange}
                                 options={roleOptions}
-                                error={targetRoleIsEmpty}
+                                error={targetRoleIsEmpty && config.enabled}
                             />
-                            {targetRoleIsEmpty && (
+                            {targetRoleIsEmpty && config.enabled && (
                                 <p className="text-xs text-danger mt-1">
-                                    Please select a support staff role.
+                                    Please select a Support Staff Role.
                                 </p>
                             )}
                         </div>
@@ -146,14 +154,14 @@ export default function TicketingTab({
             />
 
             {config.enabled && (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 mt-6">
                     <div>
-                        <Emphasis className="mt-4">Post Ticket Panel</Emphasis>
-                        <p className="text-sm">
-                            Send or delete your saved custom embed and/or text content down to the selected Discord
-                            channel.
+                        <Emphasis>Post Ticket Panel</Emphasis>
+                        <p className="text-sm text-subtle">
+                            Send or delete your saved custom embed and/or text content down to the selected Discord channel.
                         </p>
                     </div>
+
                     {config.postedMessageId ? (
                         <Button
                             variant="danger"
@@ -180,7 +188,7 @@ export default function TicketingTab({
                     )}
 
                     {status && (
-                        <p className={`text-sm ${status.type === "SUCCESS" ? "text-green-600" : "text-red-600"}`}>
+                        <p className={`text-sm ${status.type === "SUCCESS" ? "text-success" : "text-danger"}`}>
                             {status.message}
                         </p>
                     )}

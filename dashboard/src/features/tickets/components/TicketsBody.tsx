@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import TicketingTab from "@/features/tickets/components/Tabs/TicketingTab";
 import InitialMessageTab from "@/features/tickets/components/Tabs/InitialMessageTab";
 import GeneralsTab from "@/features/tickets/components/Tabs/GeneralsTab";
 import HistoryTab from "@/features/tickets/components/Tabs/HistoryTab";
 import { TicketConfig } from "@/features/tickets/types";
-import { useTicketing } from "@/features/tickets/hooks/useTicketing";
+import { useTicketConfig } from "@/features/tickets/hooks/useTicketConfig";
 import { DiscordChannel } from "@/features/_shared/channels.types";
+import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 
 interface TicketsBodyProps {
     guildId: string;
@@ -42,54 +42,44 @@ export function TicketsBody({
     onSendTicketMessage,
     onDeleteTicketMessage
 }: TicketsBodyProps) {
-    // Form state hook handling initial config & changes
     const {
         config,
         setConfig,
-        isPending,
-        resetKey,
-        isEmpty,
-        setIsEmpty,
-        targetChannelIsEmpty,
-        setTargetChannelIsEmpty,
-        handleSave: hookHandleSave,
-        handleCancel: hookHandleCancel,
-    } = useConfigForm<TicketConfig>({
-        initialConfig: ticketConfig,
-        onSave,
-    });
-
-    // Ticketing domain hook
-    const {
-        isProcessing,
-        status,
-        setIsWelcomeEmpty,
-        isWarnThresholdInvalid,
         isDirty,
+        isPending,
+        isProcessingAction,
+        isWarnThresholdInvalid,
+        status,
+        validationError,
         handleSave,
         handleCancel,
-        handleWelcomeChange,
-        handleWelcomeEmbedChange,
-        handleTicketConfigChange,
         handleSendLiveMessage,
         handleDeleteLiveMessage
-    } = useTicketing(
-        config,
-        ticketConfig,
-        isEmpty,
-        targetChannelIsEmpty,
-        hookHandleSave,
-        hookHandleCancel,
-        setConfig,
-        onSendTicketMessage,
-        onDeleteTicketMessage
-    );
+    } = useTicketConfig(ticketConfig, onSave, onSendTicketMessage, onDeleteTicketMessage);
 
     const [activeTab, setActiveTab] = useState<TabValue>("TICKETING");
+
+    const handleWelcomeChange = (updated: GenericMessageConfig) => {
+        setConfig((prev) => ({
+            ...prev,
+            welcomeMessage: {
+                format: updated.format ?? prev.welcomeMessage.format,
+                content: updated.content ?? prev.welcomeMessage.content,
+                embed: updated.embed ?? prev.welcomeMessage.embed,
+                enabled: updated.enabled ?? prev.welcomeMessage.enabled ?? false,
+            },
+        }));
+    };
 
     return (
         <div className="flex flex-col">
             <Tabs tabs={TICKETS_TABS} activeTab={activeTab} onChange={setActiveTab} />
+
+            {validationError && (
+                <div className="p-3 mb-4 text-sm text-danger bg-danger-subtle rounded-md">
+                    {validationError}
+                </div>
+            )}
 
             {activeTab === "TICKETING" && (
                 <TicketingTab
@@ -98,16 +88,11 @@ export function TicketsBody({
                     setConfig={setConfig}
                     channels={channels}
                     disabled={isPending}
-                    resetKey={resetKey}
-                    isEmpty={isEmpty}
-                    setIsEmpty={setIsEmpty}
-                    targetChannelIsEmpty={targetChannelIsEmpty}
-                    setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                     categoryMap={categoryMap}
                     roleMap={roleMap}
                     onDeletePanel={handleDeleteLiveMessage}
                     onPostPanel={handleSendLiveMessage}
-                    isProcessing={isProcessing}
+                    isProcessing={isProcessingAction}
                     isDirty={isDirty}
                 />
             )}
@@ -116,17 +101,22 @@ export function TicketsBody({
                 <InitialMessageTab
                     config={config}
                     onChange={handleWelcomeChange}
-                    onEmbedChange={handleWelcomeEmbedChange}
+                    onEmbedChange={(embed) =>
+                        setConfig((prev) => ({
+                            ...prev,
+                            welcomeMessage: { ...prev.welcomeMessage, embed },
+                        }))
+                    }
                     disabled={isPending}
-                    resetKey={resetKey}
-                    isEmpty={setIsWelcomeEmpty}
+                    resetKey={0}
+                    isEmpty={() => {}}
                 />
             )}
 
             {activeTab === "GENERAL" && (
                 <GeneralsTab
                     config={config}
-                    onChange={handleTicketConfigChange}
+                    onChange={setConfig}
                     warnThresholdInvalid={isWarnThresholdInvalid}
                 />
             )}

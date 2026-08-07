@@ -54,10 +54,6 @@ export const SaveTicketConfigSchema = TicketConfigSchema.superRefine((data, ctx)
     }
 });
 
-// ==========================================
-// 3. Ticket Schemas
-// ==========================================
-
 export const TicketMessageSchema = z.object({
     message_id: z.string(),
     author_id: z.string(),

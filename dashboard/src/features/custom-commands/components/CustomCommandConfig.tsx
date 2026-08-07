@@ -1,17 +1,13 @@
 "use client";
 
-import React, { ReactNode, SetStateAction, useState } from "react";
+import React, { ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TextInput } from "@/components/ui/TextInput";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
-import type {
-    CommandAction,
-    CustomCommand,
-    CustomMessagePayload,
-} from "../types";
+import type { CommandAction, CustomCommand } from "../types";
 import { CUSTOM_COMMAND_TEMPLATE_CONFIG } from "@/features/custom-commands/builderConfigs";
 import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
@@ -19,17 +15,16 @@ import Emphasis from "@/components/layout/Emphasis";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { Button } from "@/components/ui/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { MessageLayout } from "@/features/_shared/embed";
 
 interface CustomCommandConfigProps {
     config: CustomCommand;
     isPending: boolean;
-    isDirty: boolean;
     guildId: string;
     channelMap: Record<string, string>;
     roleMap: Record<string, string>;
     onDelete: (id: number) => Promise<boolean>;
     onChange: (updated: CustomCommand) => void;
-    setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
 }
 
 type TabValue = "GENERAL" | "RESPONSE";
@@ -45,7 +40,6 @@ export function CustomCommandConfig({
     guildId,
     onDelete,
     onChange,
-    setIsEmpty,
 }: CustomCommandConfigProps): ReactNode {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
@@ -61,48 +55,59 @@ export function CustomCommandConfig({
             });
     };
 
-    const defaultPayload: CustomMessagePayload = {
+    const defaultPayload: MessageLayout = {
+        enabled: true,
         format: "TEXT",
         content: "",
         embed: {},
     };
 
+    // Extract primary action
     const primaryAction = config.actions?.[0] || {
         type: "respond_current_channel",
-        data: { is_dm: false, is_ephemeral: false, messages: [defaultPayload], randomize: false },
+        data: {
+            is_dm: false,
+            is_ephemeral: false,
+            message_layout: { messages: [defaultPayload], randomize: false },
+        },
     };
 
-    const primaryMessagePayload: CustomMessagePayload =
+    // Correct nested property extraction
+    const primaryMessagePayload: MessageLayout =
         primaryAction.type === "respond_current_channel" || primaryAction.type === "send_channel_message"
-            ? primaryAction.data.messages[0] || defaultPayload
+            ? primaryAction.data.message_layout.messages[0] || defaultPayload
             : defaultPayload;
 
     const handleMessageChange = (updatedMsg: GenericMessageConfig): void => {
+        const updatedLayout: MessageLayout = {
+            enabled: true,
+            format: updatedMsg.format ?? "TEXT",
+            content: updatedMsg.content ?? "",
+            embed: updatedMsg.embed ?? {},
+        };
+
         const updatedActions: CommandAction[] = [
             {
                 type: "respond_current_channel",
                 data: {
                     is_dm: false,
                     is_ephemeral: false,
-                    messages: [
-                        {
-                            format: updatedMsg.format,
-                            content: updatedMsg.content ?? "",
-                            embed: updatedMsg.embed,
-                        },
-                    ],
-                    randomize: false,
+                    message_layout: {
+                        messages: [updatedLayout],
+                        randomize: false,
+                    },
                 },
             },
         ];
+
         onChange({ ...config, actions: updatedActions });
     };
 
     return (
         <div>
-            <Tabs tabs={CUSTOM_COMMANDS_VALUE} activeTab={activeTab} onChange={setActiveTab}/>
+            <Tabs tabs={CUSTOM_COMMANDS_VALUE} activeTab={activeTab} onChange={setActiveTab} />
             {activeTab === "GENERAL" && (
-                <div>
+                <div className="space-y-4 pt-2">
                     <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-3">
                             <Emphasis>!{config.name}</Emphasis>
@@ -116,15 +121,15 @@ export function CustomCommandConfig({
                         <Button
                             disabled={isPending || isDeleting}
                             onClick={() => handleDelete(config.id)}
+                            variant="danger"
                         >
                             {isDeleting ? "Deleting..." : "Delete Command"}
                         </Button>
                     </div>
 
-                    {/* Core Settings */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <InputLabel>Command Name / Trigger</InputLabel>
+                            <InputLabel required>Command Name / Trigger</InputLabel>
                             <TextInput
                                 placeholder="rules"
                                 value={config.name || ""}
@@ -174,13 +179,12 @@ export function CustomCommandConfig({
                         checked={config.delete_trigger}
                         onChange={(checked) => onChange({ ...config, delete_trigger: checked })}
                         text="Delete user trigger message after command execution"
-                        className="mt-2"
                     />
                 </div>
             )}
 
             {activeTab === "RESPONSE" && (
-                <div>
+                <div className="pt-2">
                     <MessageConfigEditor
                         config={{
                             format: primaryMessagePayload.format,
@@ -196,7 +200,6 @@ export function CustomCommandConfig({
                             })
                         }
                         embedTemplateConfig={CUSTOM_COMMAND_TEMPLATE_CONFIG}
-                        setIsEmpty={setIsEmpty}
                         enableToggle={false}
                         noChannels={true}
                     />

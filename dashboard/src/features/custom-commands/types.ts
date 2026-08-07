@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MessageLayoutSchema } from "@/features/_shared/embed";
+import { MessageLayoutSchema, MessageLayout } from "@/features/_shared/embed";
 
 export const cooldownTypeSchema = z.enum(["NONE", "USER", "SERVER"]);
 
@@ -42,7 +42,7 @@ export const commandActionSchema = z.discriminatedUnion("type", [
 
 export const saveCustomCommandInputSchema = z.object({
     id: z.coerce.number().optional(),
-    guild_id: z.coerce.string(), // ✅ Handles number from Rust DB or string from UI
+    guild_id: z.coerce.string(),
     name: z
         .string()
         .min(1, "Command name is required")
@@ -80,3 +80,4 @@ export type CooldownType = z.infer<typeof cooldownTypeSchema>;
 export type CommandAction = z.infer<typeof commandActionSchema>;
 export type SaveCustomCommandData = z.infer<typeof saveCustomCommandInputSchema>;
 export type CustomCommand = z.infer<typeof customCommandSchema>;
+export type { MessageLayout };

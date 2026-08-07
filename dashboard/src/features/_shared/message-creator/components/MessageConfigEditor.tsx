@@ -22,7 +22,7 @@ interface MessageConfigEditorProps {
     resetKey?: string | number;
     modeLabel?: string;
     placeholderText?: string;
-    setIsEmpty: (value: SetStateAction<boolean>) => void;
+    setIsEmpty?: (value: SetStateAction<boolean>) => void;
     targetChannelIsEmpty?: boolean;
     setTargetChannelIsEmpty?: (value: SetStateAction<boolean>) => void;
     noChannels?: boolean;
@@ -41,13 +41,14 @@ export function MessageConfigEditor({
     modeLabel,
     placeholderText,
     enableToggle = true,
-    setIsEmpty,
+    setIsEmpty = () => {},
     targetChannelIsEmpty,
     setTargetChannelIsEmpty,
     noChannels = false,
     customFields: CustomFields,
 }: MessageConfigEditorProps): JSX.Element {
     const isEnabled = config.enabled ?? true;
+    const isChannelError = isEnabled && !config.channel_id;
 
     // Reset emptiness status when the message configuration is disabled
     useEffect(() => {
@@ -84,13 +85,13 @@ export function MessageConfigEditor({
                     {!noChannels && channels && (
                         <ChannelSelector
                             channels={channels}
-                            value={config.channel_id || ""}
+                            value={config.channel_id ?? null}
                             disabled={disabled}
                             onChange={(value) => onChange({ ...config, channel_id: value })}
-                            className={targetChannelIsEmpty ? "border-danger-subtle" : ""}
-                            targetChannelIsEmpty={targetChannelIsEmpty}
+                            error={isChannelError}
                         />
                     )}
+
                     {CustomFields}
 
                     <MessageModeSelector
