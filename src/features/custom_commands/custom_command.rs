@@ -66,32 +66,66 @@ pub async fn handle_custom_command(
     Ok(())
 }
 
-async fn execute_payload(ctx: &&Context, msg: &Message, gctx: &GuildCtx, channel: Option<&GuildChannel>, action: &CommandAction) -> Result<(), Error> {
+async fn execute_payload(
+    ctx: &&Context,
+    msg: &Message,
+    gctx: &GuildCtx,
+    channel: Option<&GuildChannel>,
+    action: &CommandAction,
+) -> Result<(), Error> {
     match action {
-        CommandAction::SendChannelMessage { channel_id, messages, randomize } => {
-            let payload = pick_payload(messages, *randomize);
+        CommandAction::SendChannelMessage {
+            channel_id,
+            message_layout,
+        } => {
+            let payload = pick_payload(&message_layout.messages, message_layout.randomize);
             let cid = ChannelId::new(channel_id.parse()?);
-            send_payload(&ctx.http, cid, payload, |t| placeholders::replace_general_placeholders(t, msg, &gctx, channel)).await?;
+            send_payload(&ctx.http, cid, payload, |t| {
+                placeholders::replace_general_placeholders(t, msg, gctx, channel)
+            })
+                .await?;
         }
-        CommandAction::RespondCurrentChannel { is_dm, messages, randomize, .. } => {
-            let payload = pick_payload(messages, *randomize);
+        CommandAction::RespondCurrentChannel {
+            is_dm,
+            message_layout,
+            ..
+        } => {
+            let payload = pick_payload(&message_layout.messages, message_layout.randomize);
             if *is_dm {
                 let dm_channel = msg.author.create_dm_channel(&ctx.http).await?;
-                send_payload(&ctx.http, dm_channel.id, payload, |t| placeholders::replace_general_placeholders(t, msg, &gctx, channel)).await?;
+                send_payload(&ctx.http, dm_channel.id, payload, |t| {
+                    placeholders::replace_general_placeholders(t, msg, gctx, channel)
+                })
+                    .await?;
             } else {
-                send_payload(&ctx.http, msg.channel_id, payload, |t| placeholders::replace_general_placeholders(t, msg, &gctx, channel)).await?;
+                send_payload(&ctx.http, msg.channel_id, payload, |t| {
+                    placeholders::replace_general_placeholders(t, msg, gctx, channel)
+                })
+                    .await?;
             }
         }
         CommandAction::AddRole { role_id } => {
             let role_id = RoleId::new(role_id.parse()?);
-            let _ = ctx.http
-                .add_member_role(msg.guild_id.unwrap(), msg.author.id, role_id, Some("Custom Command Action"))
+            let _ = ctx
+                .http
+                .add_member_role(
+                    msg.guild_id.unwrap(),
+                    msg.author.id,
+                    role_id,
+                    Some("Custom Command Action"),
+                )
                 .await;
         }
         CommandAction::RemoveRole { role_id } => {
             let role_id = RoleId::new(role_id.parse()?);
-            let _ = ctx.http
-                .remove_member_role(msg.guild_id.unwrap(), msg.author.id, role_id, Some("Custom Command Action"))
+            let _ = ctx
+                .http
+                .remove_member_role(
+                    msg.guild_id.unwrap(),
+                    msg.author.id,
+                    role_id,
+                    Some("Custom Command Action"),
+                )
                 .await;
         }
     }

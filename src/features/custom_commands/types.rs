@@ -1,8 +1,9 @@
+use crate::shared::embed::{CustomMessagePayload, DiscordEmbed};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use crate::shared::embed::{DiscordEmbed, Format};
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "COMMAND_COOLDOWN_TYPE", rename_all = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CooldownType {
@@ -11,19 +12,25 @@ pub enum CooldownType {
     Server,
 }
 
+/// Dedicated sub-field for all message execution layout & logic
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct MessageLayout {
+    pub messages: Vec<CustomMessagePayload>,
+    pub randomize: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum CommandAction {
     SendChannelMessage {
         channel_id: String,
-        messages: Vec<CustomMessagePayload>,
-        randomize: bool,
+        message_layout: MessageLayout,
     },
     RespondCurrentChannel {
         is_dm: bool,
         is_ephemeral: bool,
-        messages: Vec<CustomMessagePayload>,
-        randomize: bool,
+        message_layout: MessageLayout,
     },
     AddRole {
         role_id: String,
@@ -31,13 +38,6 @@ pub enum CommandAction {
     RemoveRole {
         role_id: String,
     },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomMessagePayload {
-    pub format: Format,
-    pub content: Option<String>,
-    pub embed: Option<DiscordEmbed>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]

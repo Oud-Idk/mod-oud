@@ -1,8 +1,8 @@
-use rand::prelude::IndexedRandom;
-use serenity::all::{ChannelId, CreateMessage, Http, Message};
 use crate::Error;
-use crate::features::custom_commands::types::CustomMessagePayload;
+use crate::shared::embed::CustomMessagePayload;
 use crate::shared::embed::build_custom_message;
+use rand::prelude::IndexedRandom;
+use serenity::all::{ChannelId, Http, Message};
 
 pub fn pick_payload(
     messages: &[CustomMessagePayload],
@@ -33,9 +33,9 @@ where
     };
 
     let message_builder = build_custom_message(
-        &payload.format,
-        payload.content.as_deref(),
-        payload.embed.as_ref(),
+        payload.format,
+        &payload.content,
+        &payload.embed,
         replace_fn,
     )?;
 

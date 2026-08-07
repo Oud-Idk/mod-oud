@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import {
     customCommandSchema,
-    saveCustomCommandInputSchema,
+    SaveCustomCommandSchema,
     type CustomCommand,
     type SaveCustomCommandData,
 } from "./types";
@@ -37,7 +37,7 @@ export async function getCustomCommands(guildId: string): Promise<CustomCommand[
 }
 
 export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise<CustomCommand> {
-    const data = saveCustomCommandInputSchema.parse(rawData);
+    const data = SaveCustomCommandSchema.parse(rawData);
     const actionsJson = JSON.stringify(data.actions);
 
     let query: string;
@@ -45,22 +45,22 @@ export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise
 
     if (data.id) {
         query = `
-      UPDATE custom_commands
-      SET name             = $1,
-          description      = $2,
-          enabled          = $3,
-          delete_trigger   = $4,
-          cooldown_type    = $5,
-          cooldown_seconds = $6,
-          allowed_roles    = $7,
-          ignored_roles    = $8,
-          allowed_channels = $9,
-          ignored_channels = $10,
-          actions          = $11::JSONB
-      WHERE id = $12
-        AND guild_id = $13
-      RETURNING *;
-    `;
+            UPDATE custom_commands
+            SET name             = $1,
+                description      = $2,
+                enabled          = $3,
+                delete_trigger   = $4,
+                cooldown_type    = $5,
+                cooldown_seconds = $6,
+                allowed_roles    = $7,
+                ignored_roles    = $8,
+                allowed_channels = $9,
+                ignored_channels = $10,
+                actions          = $11::JSONB
+            WHERE id = $12
+              AND guild_id = $13
+            RETURNING *;
+        `;
         params = [
             data.name,
             data.description ?? "",
@@ -78,14 +78,14 @@ export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise
         ];
     } else {
         query = `
-      INSERT INTO custom_commands (
-        guild_id, name, description, enabled, delete_trigger,
-        cooldown_type, cooldown_seconds, allowed_roles, ignored_roles,
-        allowed_channels, ignored_channels, actions
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::JSONB)
-      RETURNING *;
-    `;
+            INSERT INTO custom_commands (
+                guild_id, name, description, enabled, delete_trigger,
+                cooldown_type, cooldown_seconds, allowed_roles, ignored_roles,
+                allowed_channels, ignored_channels, actions
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::JSONB)
+            RETURNING *;
+        `;
         params = [
             data.guild_id,
             data.name,
@@ -106,7 +106,8 @@ export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise
     return customCommandSchema.parse(res.rows[0]);
 }
 
-export async function deleteCustomCommand(id: number): Promise<boolean> {
-    const res = await db.query(`DELETE FROM custom_commands WHERE id = $1`, [id]);
+export async function deleteCustomCommand(id: number, guildId: string): Promise<boolean> {
+    // 🛡️ Added guild_id check for multi-tenant database safety!
+    const res = await db.query(`DELETE FROM custom_commands WHERE id = $1 AND guild_id = $2`, [id, guildId]);
     return (res.rowCount ?? 0) === 1;
 }

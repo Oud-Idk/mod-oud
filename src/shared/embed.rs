@@ -71,6 +71,10 @@ impl DiscordEmbed {
     where
         F: FnMut(&str) -> String,
     {
+        if self.is_empty() {
+            anyhow::bail!("Cannot build Discord embed: embed has no title, description, or fields.");
+        }
+
         let mut embed = CreateEmbed::new();
 
         if let Some(ref title) = self.title {
@@ -109,11 +113,16 @@ impl DiscordEmbed {
     }
 }
 
-/// A generic builder that takes your templates and a placeholder replacement closure.
+pub trait EmbedGetters {
+    fn content(&self) -> &str;
+    fn embed(&self) -> &DiscordEmbed;
+    fn format(&self) -> Format;
+}
+
 pub fn build_custom_message<F>(
-    format: &Format,
-    content: Option<&str>,
-    embed_template: Option<&DiscordEmbed>,
+    format: Format,
+    content: &str,
+    embed_template: &DiscordEmbed,
     replace_fn: F,
 ) -> Result<Option<CreateMessage>, Error>
 where
@@ -122,15 +131,17 @@ where
     let mut builder = CreateMessage::new();
     let mut has_payload = false;
 
-    if matches!(format, Format::Text) {
-        if let Some(text) = content {
-            builder = builder.content(replace_fn(text));
-            has_payload = true;
+    match format {
+        Format::Text => {
+            let text = replace_fn(content);
+            if !text.trim().is_empty() {
+                builder = builder.content(text);
+                has_payload = true;
+            }
         }
-    } else {
-        if let Some(custom_embed) = embed_template {
-            if !custom_embed.is_empty() {
-                let embed = custom_embed.to_embed(replace_fn)?;
+        Format::Embed => {
+            if !embed_template.is_empty() {
+                let embed = embed_template.to_embed(replace_fn)?;
                 builder = builder.embed(embed);
                 has_payload = true;
             }
@@ -140,7 +151,40 @@ where
     Ok(if has_payload { Some(builder) } else { None })
 }
 
-/// Sends a simple ephemeral reply back to the user.
+pub fn create_basic_embed<T, F>(payload: &T, replace_fn: F) -> Result<Option<CreateMessage>, Error>
+where
+    T: EmbedGetters,
+    F: Fn(&str) -> String,
+{
+    build_custom_message(
+        payload.format(),
+        payload.content(),
+        payload.embed(),
+        replace_fn,
+    )
+}
+
+pub fn create_embed_for_web<T, F>(payload: &T, replace_fn: F) -> Result<CreateMessage, (StatusCode, String)>
+where
+    T: EmbedGetters,
+    F: Fn(&str) -> String,
+{
+    match create_basic_embed(payload, replace_fn) {
+        Ok(Some(builder)) => Ok(builder),
+        Ok(None) => Err((
+            StatusCode::BAD_REQUEST,
+            "Cannot send an empty message. Please provide either text content or a populated embed.".to_string(),
+        )),
+        Err(e) => {
+            warn!(error = ?e, "Failed to parse custom embed format");
+            Err((
+                StatusCode::BAD_REQUEST,
+                format!("Failed to compile embed: {}", e),
+            ))
+        }
+    }
+}
+
 pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Result<(), Error> {
     ctx.send(
         poise::CreateReply::default()
@@ -151,55 +195,34 @@ pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Re
     Ok(())
 }
 
-pub trait EmbedGetters {
-    fn content(&self) -> Option<&str>;
-    fn embed(&self) -> Option<&DiscordEmbed>;
-    fn format(&self) -> Option<&Format>;
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(default)]
+pub struct CustomMessagePayload {
+    pub format: Format,
+    pub content: String,
+    pub embed: DiscordEmbed,
 }
 
-pub fn create_basic_embed<T, F>(payload: &T, replace_fn: Option<F>) -> Result<Option<CreateMessage>, Error>
-where
-    T: EmbedGetters,
-    F: Fn(&str) -> String
-{
-    fn default_replace_fn(text: &str) -> String {
-        text.to_string()
+static DEFAULT_EMBED: DiscordEmbed = DiscordEmbed {
+    title: None,
+    description: None,
+    color: None,
+    thumbnail: None,
+    image: None,
+    author: None,
+    footer: None,
+};
+
+impl EmbedGetters for CustomMessagePayload {
+    fn content(&self) -> &str {
+        &self.content
     }
 
-    build_custom_message(
-        payload.format().unwrap_or(&Format::Embed),
-        payload.content(),
-        payload.embed(),
-        |text| {
-            match &replace_fn {
-                Some(f) => f(text),
-                None => default_replace_fn(text),
-            }
-        }
-    )
-}
+    fn embed(&self) -> &DiscordEmbed {
+        &self.embed
+    }
 
-pub fn create_embed_for_web<T, F>(payload: &T, replace_fn: Option<F>) -> Result<CreateMessage, (StatusCode, String)>
-where
-    T: EmbedGetters,
-    F: Fn(&str) -> String
-{
-    Ok(
-        match create_basic_embed(payload, replace_fn) {
-            Ok(Some(builder)) => builder,
-            Ok(None) => {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    "Cannot send an empty message. Please provide either text content or a populated embed.".to_string(),
-                ));
-            }
-            Err(e) => {
-                warn!(error = ?e, "Failed to parse custom embed format");
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    format!("Failed to compile embed: {}", e),
-                ));
-            }
-        }
-    )
+    fn format(&self) -> Format {
+        self.format
+    }
 }

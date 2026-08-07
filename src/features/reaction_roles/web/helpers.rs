@@ -2,7 +2,7 @@ use crate::core::config::state::WebState;
 use crate::features::reaction_roles;
 use crate::features::reaction_roles::database::fetch_active_reactions;
 use crate::features::reaction_roles::types::{ButtonStyle, ReactionMessage};
-use crate::shared::embed::Format;
+use crate::shared::embed::{build_custom_message, DiscordEmbed, Format};
 use axum::http::StatusCode;
 use serenity::all::{ChannelId, CreateButton, MessageId};
 use sqlx::PgPool;
@@ -53,25 +53,18 @@ pub async fn fetch_and_build_buttons(
 
 /// Compiles a custom layout configuration to a Serenity CreateMessage builder
 pub fn build_custom_msg(
-    format: &Format,
-    content: Option<&str>,
-    embed_str: Option<&str>,
+    format: Format,
+    content: &str,
+    embed_str: &str,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
-    let embed_data: Option<crate::shared::embed::DiscordEmbed> = embed_str
-        .filter(|s| !s.trim().is_empty())
-        .and_then(|s| {
-            serde_json::from_str(s)
-                .map_err(|err| {
-                    warn!(error = ?err, "Failed to parse stored JSON layout string");
-                    err
-                })
-                .ok()
-        });
+    let embed_data = serde_json::from_str(embed_str)
+        .inspect_err(|err| { warn!(error = ?err, "Failed to parse stored JSON layout string"); })
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid embed data format".to_string()))?;
 
-    crate::shared::embed::build_custom_message(
-        &format,
+    build_custom_message(
+        format,
         content,
-        embed_data.as_ref(),
+        embed_data,
         |text| text.to_string(),
     )
         .map_err(|e| {
