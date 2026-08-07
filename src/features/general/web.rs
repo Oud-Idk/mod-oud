@@ -1,17 +1,16 @@
-use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::state::WebState;
 use crate::shared;
-use crate::shared::embed::DiscordEmbed;
-use crate::shared::embed::EmbedGetters;
-use crate::shared::embed::Format;
-use crate::shared::embed::build_custom_message;
-use axum::{extract::{Path, State}, http::StatusCode, Json, Router};
+use crate::shared::embed::{DiscordEmbed, EmbedGetters, Format, DEFAULT_EMBED};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    routing::post,
+    Json, Router,
+};
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
-use serenity::gateway::ShardRunnerInfo;
-use std::sync::Arc;
-use axum::routing::post;
 use serde_with::{serde_as, DisplayFromStr};
+use std::sync::Arc;
 use tracing::{debug, info, warn};
 
 #[serde_as]
@@ -19,8 +18,11 @@ use tracing::{debug, info, warn};
 pub struct SendCustomEmbedPayload {
     #[serde_as(as = "DisplayFromStr")]
     pub channel_id: u64,
+    #[serde(default)]
     pub content: Option<String>,
+    #[serde(default)]
     pub embed: Option<DiscordEmbed>,
+    #[serde(default)]
     pub format: Option<Format>,
 }
 
@@ -31,16 +33,20 @@ pub struct SendCustomEmbedResponse {
     pub message_id: u64,
 }
 
+// Fixed trait implementation to match EmbedGetters signatures exactly
 impl EmbedGetters for SendCustomEmbedPayload {
-    fn content(&self) -> Option<&str> {
-        self.content.as_deref()
+    fn content(&self) -> &str {
+        self.content.as_deref().unwrap_or("")
     }
-    fn embed(&self) -> Option<&DiscordEmbed> {
-        self.embed.as_ref()
-    }
-    fn format(&self) -> Option<&Format> { self.format.as_ref() }
-}
 
+    fn embed(&self) -> &DiscordEmbed {
+        self.embed.as_ref().unwrap_or(&DEFAULT_EMBED)
+    }
+
+    fn format(&self) -> Format {
+        self.format.unwrap_or_default()
+    }
+}
 
 /// Generic handler to deliver custom embeds or messages directly to a channel.
 pub async fn handle_send_custom_embed(
@@ -50,22 +56,20 @@ pub async fn handle_send_custom_embed(
 ) -> Result<(StatusCode, Json<SendCustomEmbedResponse>), (StatusCode, String)> {
     debug!(guild_id = guild_id_str, "Received request to dispatch generic embed");
 
-    let guild_id_u64 = guild_id_str.parse::<u64>()
+    let guild_id_u64 = guild_id_str
+        .parse::<u64>()
         .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
         .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string()))?;
 
     let target_channel = serenity::ChannelId::new(payload.channel_id);
 
-    let message_builder = match shared::embed::create_embed_for_web(&payload, None::<fn(&str) -> String>) {
-        Ok(value) => value,
-        Err(value) => return Err(value),
-    };
+    let message_builder = shared::embed::create_embed_for_web(&payload, None::<fn(&str) -> String>)?;
 
     let message = target_channel
         .send_message(&state.http, message_builder)
         .await
         .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to deliver Discord message"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Discord API error: {}", e),))?;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Discord API error: {}", e)))?;
 
     info!(
         guild_id = guild_id_u64,
@@ -84,5 +88,6 @@ pub async fn handle_send_custom_embed(
 
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
-        .route("/guilds/{guild_id}/embeds/send", post(handle_send_custom_embed))
+        // Fixed Axum route path syntax (:guild_id instead of {guild_id})
+        .route("/guilds/:guild_id/embeds/send", post(handle_send_custom_embed))
 }

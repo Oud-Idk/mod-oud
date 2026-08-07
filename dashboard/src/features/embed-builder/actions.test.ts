@@ -15,7 +15,10 @@ describe("Embed Builder Server Actions", () => {
     });
 
     it("should send embed action successfully", async () => {
-        vi.mocked(verifyGuildAccess).mockResolvedValue(undefined);
+        vi.mocked(verifyGuildAccess).mockResolvedValue({
+            id: "user_123",
+            name: "Test User",
+        });
 
         mockFetch.mockResolvedValueOnce({
             ok: true,
@@ -78,7 +81,10 @@ describe("Embed Builder Server Actions", () => {
     });
 
     it("should handle non-OK backend HTTP response", async () => {
-        vi.mocked(verifyGuildAccess).mockResolvedValue(undefined);
+        vi.mocked(verifyGuildAccess).mockResolvedValue({
+            id: "user_123",
+            name: "Test User",
+        });
 
         mockFetch.mockResolvedValueOnce({
             ok: false,

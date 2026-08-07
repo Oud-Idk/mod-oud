@@ -7,6 +7,7 @@ import { InputLabel } from "@/components/layout/InputLabel";
 import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
 import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBuilder";
+import { DiscordEmbed } from "@/features/_shared/embed";
 
 interface EmbedBuilderBodyProps {
     channelMap: Record<string, string>;
@@ -14,24 +15,25 @@ interface EmbedBuilderBodyProps {
 }
 
 export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps): ReactNode {
-    const [embedState, setEmbedState] = useState<object>({});
+    // 1. Honest nullable state for channel & typed DiscordEmbed state
+    const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+    const [embedState, setEmbedState] = useState<DiscordEmbed>({});
     const [isEmpty, setIsEmpty] = useState<boolean>(true);
-    const [selectedChannel, setSelectedChannel] = useState<string>("");
 
     const [isSending, setIsSending] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<{ type: "SUCCESS" | "ERROR"; text: string } | null>(null);
 
     const channelOptions = useMemo(() => {
         return Object.entries(channelMap).map(([id, name]) => ({
-            label: name,
+            label: `#${name}`,
             value: id,
         }));
     }, [channelMap]);
 
-    const canSend = selectedChannel && !isEmpty && !isSending;
+    const canSend = Boolean(selectedChannel) && !isEmpty && !isSending;
 
     const handleSendEmbed = async (): Promise<void> => {
-        if (!canSend) return;
+        if (!canSend || !selectedChannel) return;
 
         setIsSending(true);
         setStatusMessage(null);
@@ -54,7 +56,11 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                 });
             }
         } catch (error) {
-            console.log(error);
+            console.error("Failed to dispatch embed:", error);
+            setStatusMessage({
+                type: "ERROR",
+                text: "An unexpected network error occurred while sending the embed.",
+            });
         } finally {
             setIsSending(false);
         }
@@ -69,30 +75,27 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
 
     return (
         <>
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-end gap-4">
                     <div className="flex flex-col space-y-2 w-64">
-                        <InputLabel>
-                            Select Channel
-                        </InputLabel>
+                        <InputLabel required>Select Channel</InputLabel>
                         <Dropdown
                             value={selectedChannel}
-                            onChange={(val) => setSelectedChannel(val ?? "")}
+                            onChange={setSelectedChannel}
                             options={channelOptions}
+                            placeholder="Select a channel..."
                         />
                     </div>
 
-                    <PrimaryButton
-                        onClick={handleSendEmbed} disabled={!canSend}
-                    >
+                    <PrimaryButton onClick={handleSendEmbed} disabled={!canSend}>
                         {isSending ? "Sending Embed..." : "Send Embed"}
                     </PrimaryButton>
                 </div>
 
                 {statusMessage && (
                     <div
-                        className={`text-sm mt-2 font-medium ${
-                            statusMessage.type === "ERROR" ? "text-red-500" : "text-green-500"
+                        className={`text-sm mt-1 font-medium ${
+                            statusMessage.type === "ERROR" ? "text-danger" : "text-success"
                         }`}
                     >
                         {statusMessage.text}
