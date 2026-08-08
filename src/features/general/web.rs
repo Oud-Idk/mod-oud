@@ -88,6 +88,5 @@ pub async fn handle_send_custom_embed(
 
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
-        // Fixed Axum route path syntax (:guild_id instead of {guild_id})
-        .route("/guilds/:guild_id/embeds/send", post(handle_send_custom_embed))
+        .route("/guilds/{guild_id}/embeds/send", post(handle_send_custom_embed))
 }
