@@ -218,8 +218,11 @@ pub async fn handle_leave_temp_vc(
     Ok(())
 }
 
-pub async fn create_temp_vc(ctx: &Context, guild_id: &GuildId, member: &Member, hub_info: &TempVoiceHub) -> Result<GuildChannel, Error> {
-    let category_id = ChannelId::new(hub_info.category_id as u64);
+pub async fn create_temp_vc(ctx: &Context, guild_id: &GuildId, member: &Member, hub_info: &TempVoiceHub) -> Result<GuildChannel, anyhow::Error> {
+    let Some(cat_id) = hub_info.category_id.map(|id| id as u64) else {
+        anyhow::bail!("Category ID is not specified");
+    };
+    let category_id = ChannelId::new(cat_id);
     let channel_name = placeholders::replace_channel_placeholders(hub_info.default_channel_name.as_str(), &guild_id, &ctx, &member).await?;
 
     let mut channel_builder = CreateChannel::new(channel_name)
