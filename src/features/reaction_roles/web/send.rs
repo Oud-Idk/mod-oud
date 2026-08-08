@@ -31,7 +31,10 @@ pub async fn handle_send_reaction_role_message(
     let config_id = parse_config_id(&config_id_str)?;
     let config_row = fetch_reaction_message(&state.db, config_id, &guild_id_str).await?;
 
-    let channel_id_u64 = config_row.channel_id as u64;
+    let Some(channel_id_u64) = config_row.channel_id.map(|id| id as u64) else {
+        debug!("Channel ID is not specified, skipping.");
+        return Err((StatusCode::BAD_REQUEST, "Channel ID is not specified".to_string()));
+    };
     let channel = serenity::all::ChannelId::new(channel_id_u64);
 
     let custom_msg_opt = build_custom_msg(

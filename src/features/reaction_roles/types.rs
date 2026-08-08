@@ -30,8 +30,8 @@ pub struct ReactionRole {
 pub struct ReactionMessage {
     pub id: i64,
     pub message_id: Option<i64>,
+    pub channel_id: Option<i64>,
     pub name: String,
-    pub channel_id: i64,
     pub guild_id: i64,
     pub mode: InteractionMode,
     pub message: Json<MessageLayout>,

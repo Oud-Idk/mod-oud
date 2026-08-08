@@ -32,7 +32,10 @@ pub async fn handle_edit_reaction_role_message(
     let config_id = parse_config_id(&config_id_str)?;
     let config_row = fetch_reaction_message(&state.db, config_id, &guild_id_str).await?;
 
-    let channel_id_u64 = config_row.channel_id as u64;
+    let Some(channel_id_u64) = config_row.channel_id.map(|id| id as u64) else {
+        debug!("Channel ID is not specified, skipping.");
+        return Err((StatusCode::BAD_REQUEST, "Channel ID is not specified".to_string()));
+    };
     let channel_id = ChannelId::new(channel_id_u64);
 
     let message_id_i64 = config_row.message_id.ok_or_else(|| {
@@ -46,6 +49,7 @@ pub async fn handle_edit_reaction_role_message(
         &config_row.message.content,
         &config_row.message.embed,
     )?;
+
     let mut edit_builder = convert_create_to_edit_message(custom_msg_opt);
 
     match config_row.mode {

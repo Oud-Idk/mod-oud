@@ -24,7 +24,7 @@ pub(crate) async fn replace_channel_placeholders(
     guild_id: &GuildId,
     ctx: &Context,
     member: &Member,
-) -> Result<String, Error> {
+) -> Result<String, anyhow::Error> {
     let re = get_placeholder_regex();
 
     // Check if the text contains any placeholders that require the GuildCtx

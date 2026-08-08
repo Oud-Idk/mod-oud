@@ -28,8 +28,8 @@ pub struct BirthdayConfig {
     pub enabled: bool,
     #[serde_as(as = "DisplayFromStr")]
     pub guild_id: u64,
-    #[serde_as(as = "DisplayFromStr")]
-    pub channel_id: u64,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub channel_id: Option<u64>,
     pub announcement_hour: i16,
     #[serde(default = "default_timezone")]
     pub timezone: String,

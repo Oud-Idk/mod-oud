@@ -78,7 +78,12 @@ pub async fn run_birthday_announcements(
         let guild_day = local_now.day() as i16;
         let guild_year = local_now.year();
 
-        let channel_id = ChannelId::new(birthday_cfg.channel_id);
+        let Some(chan_id) = birthday_cfg.channel_id else {
+            warn!("Channel ID is empty, skipping");
+            return Ok(());
+        };
+
+        let channel_id = ChannelId::new(chan_id);
 
         // Pass the guild's local month, day, and year to the query
         let birthday_records = database::get_unannounced_birthdays(
