@@ -47,7 +47,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
         setLoadingChannelId(channelId);
         setDrawerOpen(true);
         try {
-            const history = await getTicketHistoryAction(channelId);
+            const history = await getTicketHistoryAction(guildId, channelId);
             setSelectedTicket(history);
         } catch (err) {
             console.error("Failed to fetch ticket history:", err);
