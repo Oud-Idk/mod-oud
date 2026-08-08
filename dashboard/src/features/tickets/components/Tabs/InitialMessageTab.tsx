@@ -13,7 +13,7 @@ export default function InitialMessageTab(props: {
 }) {
     return <div className="flex flex-col gap-3">
             <MessageConfigEditor
-                config={props.config.welcomeMessage}
+                config={props.config.welcomeMessage.message}
                 onChange={props.onChange}
                 onEmbedChange={props.onEmbedChange}
                 channels={[]}

@@ -1,20 +1,43 @@
 import { db } from "@/lib/db";
 import redis from "@/lib/redis";
-import { StarboardConfig, StarboardConfigInput, starboardConfigInputSchema, starboardConfigSchema } from "./types";
+import {
+    starboardConfigInputSchema,
+    starboardConfigSchema,
+    type StarboardConfig,
+    type StarboardConfigInput,
+} from "./types";
+
+function parseRowEmbed(embedRaw: unknown): Record<string, unknown> {
+    if (typeof embedRaw === "string") {
+        try {
+            return JSON.parse(embedRaw || "{}");
+        } catch {
+            return {};
+        }
+    }
+    if (typeof embedRaw === "object" && embedRaw !== null) {
+        return embedRaw as Record<string, unknown>;
+    }
+    return {};
+}
 
 export async function getStarboardConfigs(guildId: string): Promise<StarboardConfig[]> {
-    const res = await db.query(`SELECT * FROM starboards WHERE guild_id = $1`, [guildId]);
-    return res.rows.map((row) => starboardConfigSchema.parse(row));
+    const res = await db.query(`SELECT * FROM starboards WHERE guild_id = $1`, [guildId] as unknown[]);
+    return res.rows.map((row) =>
+        starboardConfigSchema.parse({
+            ...row,
+            embed_template: parseRowEmbed(row.embed_template),
+        })
+    );
 }
 
 export async function upsertStarboardConfig(
     guildId: string,
-    rawInput: StarboardConfigInput
+    config: StarboardConfigInput
 ): Promise<StarboardConfig> {
-    const config = starboardConfigInputSchema.parse(rawInput);
 
     let query: string;
-    let values: any[];
+    let values: unknown[];
 
     if (config.id) {
         query = `
@@ -61,18 +84,18 @@ export async function upsertStarboardConfig(
         values = [
             config.id,
             guildId,
-            config.starboard_channel_id,
+            config.starboard_channel_id ?? null,
             config.emojis,
             config.reaction_threshold,
-            config.min_message_age,
-            config.max_message_age,
+            config.min_message_age ?? null,
+            config.max_message_age ?? null,
             config.prevent_self_star,
             config.allow_bot_messages,
             config.role_restriction_type,
             config.restricted_roles,
             config.channel_restriction_type,
             config.restricted_channels,
-            config.embed_template,
+            config.embed_template ? JSON.stringify(config.embed_template) : null,
             config.plaintext_template,
             config.keep_deleted_messages,
         ];
@@ -103,24 +126,24 @@ export async function upsertStarboardConfig(
 
         values = [
             guildId,
-            config.starboard_channel_id,
+            config.starboard_channel_id ?? null,
             config.emojis,
             config.reaction_threshold,
-            config.min_message_age,
-            config.max_message_age,
+            config.min_message_age ?? null,
+            config.max_message_age ?? null,
             config.prevent_self_star,
             config.allow_bot_messages,
             config.role_restriction_type,
             config.restricted_roles,
             config.channel_restriction_type,
             config.restricted_channels,
-            config.embed_template,
+            config.embed_template ? JSON.stringify(config.embed_template) : null,
             config.plaintext_template,
             config.keep_deleted_messages,
         ];
     }
 
-    const res = await db.query(query, values);
+    const res = await db.query(query, values as unknown[]);
 
     try {
         await redis.del(`starboard:config:${guildId}`);
@@ -128,7 +151,11 @@ export async function upsertStarboardConfig(
         console.error(`Failed to invalidate starboard cache for guild ${guildId}:`, redisError);
     }
 
-    return starboardConfigSchema.parse(res.rows[0]);
+    const savedRow = res.rows[0];
+    return starboardConfigSchema.parse({
+        ...savedRow,
+        embed_template: parseRowEmbed(savedRow.embed_template),
+    });
 }
 
 export async function deleteStarboardConfig(id: string, guildId: string): Promise<boolean> {
@@ -139,13 +166,12 @@ export async function deleteStarboardConfig(id: string, guildId: string): Promis
     `;
 
     try {
-        const res = await db.query<{ id: number | string }>(query, [id, guildId]);
+        const res = await db.query<{ id: number | string }>(query, [id, guildId] as unknown[]);
         const deleted = (res.rowCount ?? 0) > 0;
 
         if (deleted) {
             try {
-                const cacheKey = `starboard:config:${guildId}`;
-                await redis.del(cacheKey);
+                await redis.del(`starboard:config:${guildId}`);
             } catch (redisError) {
                 console.error(`Failed to invalidate starboard cache for guild ${guildId}:`, redisError);
             }

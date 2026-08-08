@@ -4,14 +4,18 @@ import { JSX, useMemo, useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { isDeepEqual } from "@/features/_shared/embed";
-import { ModerationDMsConfig } from "@/features/moderation-dms/types";
+import { ModerationDMsConfig, moderationDMsConfigSchema } from "@/features/moderation-dms/types";
 import {
     BAN_CONFIG,
     HONEYPOT_CONFIG,
-    KICK_CONFIG, MUTE_CONFIG, PARDON_WARN_CONFIG,
+    KICK_CONFIG,
+    MUTE_CONFIG,
+    PARDON_WARN_CONFIG,
     SOFTBAN_CONFIG,
-    UNMUTE_CONFIG, UNPARDON_DELETE_WARN_CONFIG, UNPARDON_WARN_CONFIG, WARN_CONFIG
+    UNMUTE_CONFIG,
+    UNPARDON_DELETE_WARN_CONFIG,
+    UNPARDON_WARN_CONFIG,
+    WARN_CONFIG,
 } from "@/features/moderation-dms/builderConfigs";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
@@ -87,10 +91,11 @@ const TAB_TO_CONFIG_KEY = {
 
 export function ModerationDMsBody({
     moderationDMsConfig,
-    onSave
+    onSave,
 }: ModerationDMsBodyProps): JSX.Element {
     const normalizedConfig = useMemo(() => moderationDMsConfig, [moderationDMsConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("WARN");
+    const [, setIsEmpty] = useState(false);
 
     const activeKey = TAB_TO_CONFIG_KEY[activeTab];
 
@@ -98,8 +103,8 @@ export function ModerationDMsBody({
         config,
         setConfig,
         isPending,
+        isDirty,
         resetKey,
-        setIsEmpty,
         handleSave,
         handleCancel,
     } = useConfigForm({
@@ -107,53 +112,32 @@ export function ModerationDMsBody({
         onSave,
     });
 
-    // Check if ANY enabled tab in the entire configuration contains an empty message
-    const hasAnyEnabledEmptyTab = useMemo(() => {
-        return Object.values(config).some((tabConfig) => {
-            if (!tabConfig || tabConfig.enabled === false) return false;
-
-            if (tabConfig.format === "TEXT") {
-                return !tabConfig.content || tabConfig.content.trim() === "";
-            }
-
-            const embed = tabConfig.embed;
-            if (!embed) return true;
-
-            const hasTitle = !!embed.title?.trim();
-            const hasDesc = !!embed.description?.trim();
-            const hasFields = Array.isArray(embed.fields) && embed.fields.length > 0;
-            const hasAuthor = !!embed.author?.name?.trim();
-            const hasFooter = !!embed.footer?.text?.trim();
-            const hasImage = !!embed.image?.url?.trim();
-            const hasThumbnail = !!embed.thumbnail?.url?.trim();
-
-            return !(hasTitle || hasDesc || hasFields || hasAuthor || hasFooter || hasImage || hasThumbnail);
-        });
-    }, [config]);
-
-    const isDirty = !isDeepEqual(config, normalizedConfig) && !hasAnyEnabledEmptyTab;
+    const onValidatedSave = (): void => {
+        moderationDMsConfigSchema.parse(config);
+        handleSave();
+    };
 
     return (
         <div>
-            <Tabs tabs={MODERATION_DM_TABS} activeTab={activeTab} onChange={setActiveTab}/>
+            <Tabs tabs={MODERATION_DM_TABS} activeTab={activeTab} onChange={setActiveTab} />
 
             <MessageConfigEditor
-                config={config[activeKey]}
+                config={config[activeKey].message}
                 onChange={(updated) =>
                     setConfig((prev) => ({
                         ...prev,
                         [activeKey]: {
-                            enabled: updated.enabled,
-                            content: updated.content,
-                            embed: updated.embed,
-                            format: updated.format,
-                        }
+                            enabled: updated.enabled ?? prev[activeKey].enabled,
+                            content: updated.content ?? "",
+                            embed: updated.embed ?? {},
+                            format: updated.format ?? "TEXT",
+                        },
                     }))
                 }
                 onEmbedChange={(embed) =>
                     setConfig((prev) => ({
                         ...prev,
-                        [activeKey]: { ...prev[activeKey], embed }
+                        [activeKey]: { ...prev[activeKey], embed },
                     }))
                 }
                 disabled={isPending}
@@ -167,7 +151,9 @@ export function ModerationDMsBody({
 
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={onValidatedSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

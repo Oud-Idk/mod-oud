@@ -1,8 +1,8 @@
-import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayoutWrapper";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
+import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
 
 interface ExcessiveEmojisTabProp {
     config: MessageFilteringConfig;

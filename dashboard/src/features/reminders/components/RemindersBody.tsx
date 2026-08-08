@@ -1,21 +1,22 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
+import { SavePopup } from "@/components/dashboard/SavePopup";
+import { useConfigForm } from "@/components/dashboard/useConfigForm";
+import { Button } from "@/components/ui/Button";
 
 import { ReminderCreateModal } from "./ReminderCreateModal";
 import { ReminderConfig } from "./ReminderConfig";
-import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import type { ReminderRow, SaveableReminder } from "../types";
-import { Button } from "@/components/ui/Button";
+import type { ReminderRow, SaveableReminderInput } from "../types";
 
 interface RemindersBodyProps {
     reminders: ReminderRow[];
     activeReminder: ReminderRow | null;
     channelMap: Record<string, string>;
-    onSave: (reminder: SaveableReminder) => Promise<ReminderRow>;
-    onDelete: (id: string, channelId: string) => Promise<void>;
+    onSave: (reminder: SaveableReminderInput) => Promise<ReminderRow>;
+    onDelete: (id: string, channelId: string | null) => Promise<void>;
     guildId: string;
 }
 
@@ -28,15 +29,15 @@ export function RemindersBody({
     guildId,
 }: RemindersBodyProps): ReactNode {
     const router = useRouter();
+    const [isEmpty, setIsEmpty] = useState(false);
 
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
-        setIsEmpty,
         handleSave,
         handleCancel,
-        handleChange,
     } = useConfigForm<ReminderRow | null>({
         initialConfig: activeReminder,
         onSave: async (updatedConfig) => {
@@ -49,28 +50,32 @@ export function RemindersBody({
         },
     });
 
+    const handleChange = useCallback((updated: Partial<ReminderRow>) => {
+        setConfig((prev) => (prev ? { ...prev, ...updated } : null));
+    }, [setConfig]);
+
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    const handleDelete = async (id: string, channelId: string): Promise<void> => {
+    const handleDelete = async (id: string, channelId: string | null): Promise<void> => {
         await onDelete(id, channelId);
         router.push(`/dashboard/${guildId}/reminders`);
     };
 
     return (
-        <>
+        <div>
             <ConfigListLayout<ReminderRow>
                 title="Reminders"
                 onCreateClick={() => setIsCreateModalOpen(true)}
                 items={reminders}
                 emptyMessage="No reminders scheduled yet."
                 hasActiveConfig={!!config}
-                isDirty={isDirty}
-                isPending={isPending}
                 handleSave={handleSave}
                 handleCancel={handleCancel}
                 renderItem={(reminder) => {
                     const isCurrent = activeReminder?.id === reminder.id;
-                    const channelName = channelMap[reminder.channelId] || `#${reminder.channelId}`;
+                    const channelName = reminder.channelId
+                        ? channelMap[reminder.channelId] || `#${reminder.channelId}`
+                        : "Unassigned Channel";
 
                     const typeLabel = reminder.rType === "RECURRING" ? "Recurring" : "Single";
                     let scheduleText = "";
@@ -97,7 +102,7 @@ export function RemindersBody({
                         >
                             <div className="flex justify-between items-center gap-2">
                                 <span className="truncate font-semibold text-foreground">
-                                    {reminder.content ? reminder.content : "Rich Embed Message"}
+                                    {reminder.message.content ? reminder.message.content : "Rich Embed Message"}
                                 </span>
                                 <span
                                     className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
@@ -122,7 +127,7 @@ export function RemindersBody({
                                 Manage Reminders
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                                Create a one-time reminder, or a recurring reminder to remind yourself or your members of something.
+                                Create a one-time reminder, or a recurring reminder to trigger automatically.
                             </p>
                         </div>
 
@@ -142,6 +147,7 @@ export function RemindersBody({
                         onDelete={(id) => handleDelete(id, config.channelId)}
                         onChange={handleChange}
                         setIsEmpty={setIsEmpty}
+                        isEmpty={isEmpty}
                     />
                 )}
             </ConfigListLayout>
@@ -152,6 +158,14 @@ export function RemindersBody({
                 onSave={onSave}
                 channelMap={channelMap}
             />
-        </>
+
+            {isDirty && (
+                <SavePopup
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
+                />
+            )}
+        </div>
     );
 }

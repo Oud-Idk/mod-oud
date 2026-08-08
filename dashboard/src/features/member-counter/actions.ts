@@ -1,9 +1,14 @@
 "use server";
 
-import { CounterChannel, MemberCounterConfig } from "@/features/member-counter/types";
-import { saveMemberCounterConfig, setupMemberCounterChannels } from "@/features/member-counter/queries";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
-
+import {
+    CounterChannel,
+    MemberCounterConfig,
+    counterChannelSchema,
+    memberCounterConfigSchema, saveMemberCounterConfigSchema,
+} from "@/features/member-counter/types";
+import { saveMemberCounterConfig, setupMemberCounterChannels } from "@/features/member-counter/queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
 interface AutoCreateResponse {
@@ -12,17 +17,21 @@ interface AutoCreateResponse {
     error?: string;
 }
 
-
 export async function saveMemberCounterConfigAction(
     guildId: string,
     data: MemberCounterConfig
 ): Promise<void> {
+    await verifyGuildAccess(guildId);
+
     try {
-        await verifyGuildAccess(guildId);
-        await saveMemberCounterConfig(guildId, data);
+        const validConfig = saveMemberCounterConfigSchema.parse(data);
+        await saveMemberCounterConfig(guildId, validConfig);
         revalidatePath(`/dashboard/${guildId}/member-counter`);
     } catch (error) {
-        console.error("Failed to save honeypot config:", error);
+        console.error("Failed to save member counter config:", error);
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0]?.message || "Validation Error");
+        }
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }
@@ -31,8 +40,11 @@ export async function setupMemberCounterChannelsAction(
     guildId: string,
     counters: CounterChannel[]
 ): Promise<AutoCreateResponse> {
+    await verifyGuildAccess(guildId);
+
     try {
-        const data = await setupMemberCounterChannels(guildId, counters);
+        const validCounters = z.array(counterChannelSchema).parse(counters);
+        const data = await setupMemberCounterChannels(guildId, validCounters);
 
         return {
             success: true,

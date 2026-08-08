@@ -1,11 +1,11 @@
 "use client";
 
 import React, { ReactNode, useEffect, useState } from "react";
-import { saveTempVoiceHubAction, setupTempVoiceAction } from "@/features/temp-voice/actions";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
-import { HubForm } from "@/features/temp-voice/components/HubForm";
-import { TempVoiceHub } from "@/features/temp-voice/types";
 import { Button } from "@/components/ui/Button";
+import { saveTempVoiceHubAction, setupTempVoiceAction } from "../actions";
+import { HubForm } from "./HubForm";
+import type { TempVoiceHub } from "../types";
 
 interface TempVoiceBodyProps {
     guildId: string;
@@ -32,19 +32,6 @@ export function TempVoiceBody({
     const [textChannels, setTextChannels] = useState(initialTextChannelMap);
 
     useEffect(() => {
-        setHubs(initialHubs);
-    }, [initialHubs]);
-    useEffect(() => {
-        setCategories(initialCategoryMap);
-    }, [initialCategoryMap]);
-    useEffect(() => {
-        setVoiceChannels(initialVoiceChannelMap);
-    }, [initialVoiceChannelMap]);
-    useEffect(() => {
-        setTextChannels(initialTextChannelMap);
-    }, [initialTextChannelMap]);
-
-    useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent): void => {
             if (event.key === "Escape") {
                 setActiveHubId(null);
@@ -57,24 +44,21 @@ export function TempVoiceBody({
         };
     }, []);
 
-    // Active configuration details
-    const activeHub = hubs.find(h => h.id === activeHubId) || (activeHubId === "new" ? {
+    const activeHub = hubs.find((h) => h.id === activeHubId) || (activeHubId === "new" ? {
         id: "",
         guild_id: guildId,
         name: "New Hub",
-        hub_channel_id: "",
-        category_id: "",
-        interface_channel_id: "",
+        hub_channel_id: null,
+        category_id: null,
+        interface_channel_id: null,
         user_limit: null,
-        default_channel_name: "{user.display_name}'s Lounge"
+        default_channel_name: "{user.display_name}'s Lounge",
     } : null);
 
-    // Creates a new configuration draft in local state on the right hand side
     function handleCreateNewManual(): void {
         setActiveHubId("new");
     }
 
-    // Direct automated configuration via Discord bot
     async function handleSetupTempVoice(): Promise<void> {
         setIsSettingUp(true);
         setSetupError(null);
@@ -82,51 +66,47 @@ export function TempVoiceBody({
         const defaultCategoryName = "Temporary Channels";
         const defaultHubName = "🔊 Join to Create";
 
-        const res = await setupTempVoiceAction(guildId, {
-            categoryName: defaultCategoryName,
-            hubChannelName: defaultHubName,
-        });
+        try {
+            const { categoryId, hubChannelId, interfaceChannelId } = await setupTempVoiceAction(guildId, {
+                categoryName: defaultCategoryName,
+                hubChannelName: defaultHubName,
+            });
 
-        setIsSettingUp(false);
-
-        if (!res.success) {
-            setSetupError(res.error || "Something went wrong setup.");
-            return;
-        }
-
-        const categoryId = res.categoryId;
-        const hubChannelId = res.hubChannelId;
-        const interfaceChannelId = res.interfaceChannelId;
-
-        if (categoryId && hubChannelId && interfaceChannelId) {
-            // Update local channels & categories map lists
-            setCategories(prev => ({ ...prev, [categoryId]: defaultCategoryName }));
-            setVoiceChannels(prev => ({ ...prev, [hubChannelId]: defaultHubName }));
-            setTextChannels(prev => ({ ...prev, [interfaceChannelId]: "interface" }));
-
-            // Save row directly to Database table and select it
-            try {
-                const hub = await saveTempVoiceHubAction(guildId, {
-                    id: null,
-                    name: "Auto Setup Hub",
-                    hub_channel_id: hubChannelId,
-                    category_id: categoryId,
-                    user_limit: 0,
-                    interface_channel_id: interfaceChannelId,
-                    guild_id: guildId,
-                    default_channel_name: "{user.display_name}'s Lounge"
-                });
-
-                setHubs(prev => [...prev, hub]);
-                setActiveHubId(hub.id);
-            } catch (error) {
-                console.error(error);
+            // Validate we got everything back
+            if (!categoryId || !hubChannelId || !interfaceChannelId) {
+                throw new Error("Channel setup completed, but expected IDs were missing.");
             }
+
+            // Update UI channel lists
+            setCategories((prev) => ({ ...prev, [categoryId]: defaultCategoryName }));
+            setVoiceChannels((prev) => ({ ...prev, [hubChannelId]: defaultHubName }));
+            setTextChannels((prev) => ({ ...prev, [interfaceChannelId]: "interface" }));
+
+            const hub = await saveTempVoiceHubAction(guildId, {
+                id: null,
+                name: "Auto Setup Hub",
+                hub_channel_id: hubChannelId,
+                category_id: categoryId,
+                user_limit: null,
+                interface_channel_id: interfaceChannelId,
+                guild_id: guildId,
+                default_channel_name: "{user.display_name}'s Lounge",
+            });
+
+            setHubs((prev) => [...prev, hub]);
+            setActiveHubId(hub.id);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to setup temporary voice.";
+            console.error("Setup failed:", error);
+            setSetupError(errorMessage);
+        } finally {
+            setIsSettingUp(false);
         }
     }
-
     return (
-        <ConfigListLayout<TempVoiceHub> title=" Temporary Voice Hubs"
+        <ConfigListLayout<TempVoiceHub>
+            title="Temporary Voice Hubs"
             createButtonText="+ Add Hub"
             onCreateClick={handleCreateNewManual}
             items={hubs}
@@ -136,13 +116,15 @@ export function TempVoiceBody({
                     onClick={() => setActiveHubId(hub.id)}
                     className={`w-full text-left px-3 py-2 text-xs rounded transition-colors ${
                         activeHubId === hub.id
-                            ? "bg-neutral-400/15 hover:bg-neutral-400/20 font-medium"
-                            : "hover:bg-neutral-300/15"
+                            ? "bg-surface-active font-medium"
+                            : "hover:bg-surface-muted text-foreground"
                     }`}
                 >
                     <div className="font-semibold">{hub.name}</div>
-                    <div className="text-neutral-400 mt-0.5">
-                        {voiceChannels[hub.hub_channel_id] ? `#${voiceChannels[hub.hub_channel_id]}` : "Unconfigured"}
+                    <div className="text-muted-foreground mt-0.5">
+                        {hub.hub_channel_id && voiceChannels[hub.hub_channel_id]
+                            ? `#${voiceChannels[hub.hub_channel_id]}`
+                            : "Unconfigured"}
                     </div>
                 </button>
             )}
@@ -155,7 +137,7 @@ export function TempVoiceBody({
                             Manage Temporary Voice Channels
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                            Create self-managing temporary voice channels that automatically clean up when empty. Choose automated wizard setup or configure your rules manually.
+                            Create self-managing temporary voice channels that automatically clean up when empty.
                         </p>
                     </div>
 
@@ -192,14 +174,14 @@ export function TempVoiceBody({
                     categories={categories}
                     onSaveSuccess={(savedHub) => {
                         if (activeHubId === "new") {
-                            setHubs(prev => [...prev, savedHub]);
+                            setHubs((prev) => [...prev, savedHub]);
                         } else {
-                            setHubs(prev => prev.map(h => h.id === savedHub.id ? savedHub : h));
+                            setHubs((prev) => prev.map((h) => (h.id === savedHub.id ? savedHub : h)));
                         }
                         setActiveHubId(savedHub.id);
                     }}
                     onDeleteSuccess={() => {
-                        setHubs(prev => prev.filter(h => h.id !== activeHubId));
+                        setHubs((prev) => prev.filter((h) => h.id !== activeHubId));
                         setActiveHubId(null);
                     }}
                     textChannels={textChannels}

@@ -171,7 +171,6 @@ export function CustomCommandsBody({
                                     message_layout: {
                                         messages: [
                                             {
-                                                enabled: true,
                                                 format: "TEXT",
                                                 content: "Hello from my custom command!",
                                                 embed: {},

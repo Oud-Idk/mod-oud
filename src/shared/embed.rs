@@ -55,6 +55,20 @@ pub struct DiscordEmbed {
     pub footer: Option<EmbedFooter>,
 }
 
+impl MessageGetter for DiscordEmbed {
+    fn content(&self) -> &str {
+        "Fuck you SpicyWolf"
+    }
+
+    fn embed(&self) -> &DiscordEmbed {
+        self
+    }
+
+    fn format(&self) -> Format {
+        Format::Embed
+    }
+}
+
 pub static DEFAULT_EMBED: DiscordEmbed = DiscordEmbed {
     title: None,
     description: None,
@@ -145,7 +159,7 @@ impl DiscordEmbed {
     }
 }
 
-pub trait EmbedGetters {
+pub trait MessageGetter {
     fn content(&self) -> &str;
     fn embed(&self) -> &DiscordEmbed;
     fn format(&self) -> Format;
@@ -185,7 +199,7 @@ where
 
 pub fn create_basic_embed<T, F>(payload: &T, replace_fn: F) -> Result<Option<CreateMessage>, Error>
 where
-    T: EmbedGetters,
+    T: MessageGetter,
     F: Fn(&str) -> String,
 {
     build_custom_message(
@@ -198,7 +212,7 @@ where
 
 pub fn create_embed_for_web<T, F>(payload: &T, replace_fn: F) -> Result<CreateMessage, (StatusCode, String)>
 where
-    T: EmbedGetters,
+    T: MessageGetter,
     F: Fn(&str) -> String,
 {
     match create_basic_embed(payload, replace_fn) {
@@ -225,26 +239,4 @@ pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Re
     )
         .await?;
     Ok(())
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[serde(default)]
-pub struct CustomMessagePayload {
-    pub format: Format,
-    pub content: String,
-    pub embed: DiscordEmbed,
-}
-
-impl EmbedGetters for CustomMessagePayload {
-    fn content(&self) -> &str {
-        &self.content
-    }
-
-    fn embed(&self) -> &DiscordEmbed {
-        &self.embed
-    }
-
-    fn format(&self) -> Format {
-        self.format
-    }
 }

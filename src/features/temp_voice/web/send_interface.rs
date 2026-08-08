@@ -1,6 +1,4 @@
 use crate::core::config::state::WebState;
-use crate::shared;
-use crate::shared::embed::EmbedGetters;
 use crate::shared::embed::{DiscordEmbed, Format};
 use crate::shared::embed;
 use axum::Json;
@@ -14,22 +12,11 @@ use tracing::{debug, info, warn};
 
 #[serde_as]
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SendTempVoiceInterfacePayload {
     #[serde_as(as = "DisplayFromStr")]
     pub channel_id: u64,
-    pub content: Option<String>,
-    pub embed: Option<DiscordEmbed>,
-    pub format: Option<Format>,
-}
-
-impl EmbedGetters for SendTempVoiceInterfacePayload {
-    fn content(&self) -> Option<&str> {
-        self.content.as_deref()
-    }
-    fn embed(&self) -> Option<&DiscordEmbed> {
-        self.embed.as_ref()
-    }
-    fn format(&self) -> Option<&Format> { self.format.as_ref() }
+    pub embed_state: DiscordEmbed,
 }
 
 #[serde_as]
@@ -102,7 +89,7 @@ pub async fn handle_send_temp_voice_interface(
         transfer_btn,
     ]);
 
-    let message_builder = match shared::embed::create_embed_for_web(&payload, None::<fn(&str) -> String>) {
+    let message_builder = match embed::create_embed_for_web(&payload.embed_state, |t| t.to_string()) {
         Ok(value) => value,
         Err(e) => return Err(e),
     }

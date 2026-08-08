@@ -6,6 +6,20 @@ import {
     type SaveReactionMessageInput,
 } from "./types";
 
+function parseRowEmbed(embedRaw: unknown): Record<string, unknown> {
+    if (typeof embedRaw === "string") {
+        try {
+            return JSON.parse(embedRaw || "{}");
+        } catch {
+            return {};
+        }
+    }
+    if (typeof embedRaw === "object" && embedRaw !== null) {
+        return embedRaw as Record<string, unknown>;
+    }
+    return {};
+}
+
 export async function getReactionMessages(guildId: string): Promise<ReactionMessage[]> {
     const query = `
         SELECT rm.id,
@@ -15,7 +29,7 @@ export async function getReactionMessages(guildId: string): Promise<ReactionMess
                rm.guild_id,
                rm.format,
                rm.mode,
-               COALESCE(rm.embed, '')                 AS embed,
+               COALESCE(rm.embed, '{}'::json)         AS embed,
                COALESCE(rm.content, '')               AS content,
                (SELECT COALESCE(
                                JSON_AGG(JSON_BUILD_OBJECT('emoji', rr.emoji, 'role_id', rr.role_id::TEXT)),
@@ -39,22 +53,71 @@ export async function getReactionMessages(guildId: string): Promise<ReactionMess
         WHERE rm.guild_id = $1;
     `;
 
-    const res = await db.query(query, [guildId]);
+    const res = await db.query(query, [guildId] as unknown[]);
 
-    // Zod validates and types each raw PostgreSQL row safely
-    return res.rows.map((row) => reactionMessageSchema.parse(row));
+    return res.rows.map((row) =>
+        reactionMessageSchema.parse({
+            ...row,
+            embed: parseRowEmbed(row.embed),
+        })
+    );
+}
+
+export async function getReactionMessageById(id: number): Promise<ReactionMessage | null> {
+    const query = `
+        SELECT rm.id,
+               rm.name,
+               rm.message_id,
+               rm.channel_id,
+               rm.guild_id,
+               rm.format,
+               rm.mode,
+               COALESCE(rm.embed, '{}'::json)         AS embed,
+               COALESCE(rm.content, '')               AS content,
+               (SELECT COALESCE(
+                               JSON_AGG(JSON_BUILD_OBJECT('emoji', rr.emoji, 'role_id', rr.role_id::TEXT)),
+                               '[]'
+                       )
+                FROM reaction_roles rr
+                WHERE rr.reaction_message_id = rm.id) AS reactions,
+               (SELECT COALESCE(
+                               JSON_AGG(JSON_BUILD_OBJECT(
+                                       'role_id', br.role_id::TEXT,
+                                       'custom_id', br.custom_id,
+                                       'label', br.label,
+                                       'style', br.style,
+                                       'emoji', br.emoji
+                                        )),
+                               '[]'
+                       )
+                FROM button_roles br
+                WHERE br.reaction_message_id = rm.id) AS buttons
+        FROM reaction_messages rm
+        WHERE rm.id = $1;
+    `;
+
+    const res = await db.query(query, [id] as unknown[]);
+    if (res.rows.length === 0) return null;
+
+    const row = res.rows[0];
+    return reactionMessageSchema.parse({
+        ...row,
+        embed: parseRowEmbed(row.embed),
+    });
 }
 
 export async function deleteReactionMessage(id: number): Promise<boolean> {
     const query = `DELETE FROM reaction_messages WHERE id = $1`;
-    const res = await db.query(query, [id]);
+    const res = await db.query(query, [id] as unknown[]);
     return (res.rowCount ?? 0) === 1;
 }
 
 export async function saveReactionMessage(
     rawData: SaveReactionMessageInput
 ): Promise<ReactionMessage> {
+    // 1. Resolves default values so reactions/buttons are guaranteed to be arrays!
     const data = saveReactionMessageInputSchema.parse(rawData);
+
     const client = await db.connect();
 
     try {
@@ -62,11 +125,11 @@ export async function saveReactionMessage(
 
         const mainParams = [
             data.message_id ?? null,
-            data.channel_id,
+            data.channel_id ?? null,
             data.guild_id,
-            data.format,
-            data.mode,
-            data.embed ?? null,
+            data.format, // 🟢 Guaranteed "TEXT" or "EMBED"
+            data.mode,   // 🟢 Guaranteed "REACTION" or "BUTTON"
+            data.embed ? JSON.stringify(data.embed) : null,
             data.content ?? null,
             data.name,
         ];
@@ -98,7 +161,7 @@ export async function saveReactionMessage(
         await client.query("DELETE FROM reaction_roles WHERE reaction_message_id = $1;", [internalId]);
         await client.query("DELETE FROM button_roles WHERE reaction_message_id = $1;", [internalId]);
 
-        // 3. Insert child records cleanly using PostgreSQL UNNEST
+        // 🟢 Guaranteed safely defined array!
         if (data.mode === "REACTION" && data.reactions.length > 0) {
             const query = `
                 INSERT INTO reaction_roles (reaction_message_id, emoji, role_id)
@@ -109,8 +172,8 @@ export async function saveReactionMessage(
             await client.query(query, [
                 internalId,
                 data.reactions.map((r) => r.emoji),
-                data.reactions.map((r) => r.role_id),
-            ]);
+                data.reactions.map((r) => r.role_id ?? null),
+            ] as unknown[]);
         } else if (data.mode === "BUTTON" && data.buttons.length > 0) {
             const query = `
                 INSERT INTO button_roles (reaction_message_id, role_id, custom_id, label, style, emoji)
@@ -126,12 +189,12 @@ export async function saveReactionMessage(
             `;
             await client.query(query, [
                 internalId,
-                data.buttons.map((b) => b.role_id),
+                data.buttons.map((b) => b.role_id ?? null),
                 data.buttons.map((b) => b.custom_id),
                 data.buttons.map((b) => b.label ?? null),
                 data.buttons.map((b) => b.style ?? "PRIMARY"),
                 data.buttons.map((b) => b.emoji ?? null),
-            ]);
+            ] as unknown[]);
         }
 
         await client.query("COMMIT");
@@ -143,5 +206,58 @@ export async function saveReactionMessage(
         throw error;
     } finally {
         client.release();
+    }
+}
+
+export async function sendReactionMessageToBackend(
+    guildId: string,
+    id: number
+): Promise<{ message_id: string }> {
+    const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+    const response = await fetch(
+        `${backendUrl}/api/guilds/${guildId}/reaction-roles/${id}/send`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+        }
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to dispatch reaction roles.");
+    }
+
+    const json = (await response.json()) as { message_id: string };
+    return json;
+}
+
+export async function deleteDiscordMessageFromBackend(
+    guildId: string,
+    id: number
+): Promise<void> {
+    const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+    const response = await fetch(
+        `${backendUrl}/api/guilds/${guildId}/reaction-roles/${id}/message`,
+        { method: "DELETE" }
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to delete Discord message.");
+    }
+}
+
+export async function notifyBackendReactionMessageEdit(
+    guildId: string,
+    id: number
+): Promise<void> {
+    try {
+        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        await fetch(
+            `${backendUrl}/api/guilds/${guildId}/reaction-roles/${id}/edit`,
+            { method: "POST" }
+        );
+    } catch (err) {
+        console.error("Failed to auto-update Discord message on save:", err);
     }
 }

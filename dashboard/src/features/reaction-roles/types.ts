@@ -1,42 +1,111 @@
 import { z } from "zod";
-
-import { DiscordEmbed } from "@/features/_shared/embed";
+import { DiscordEmbedSchema, messageLayoutSchema } from "@/features/_shared/embed";
 
 export const formatSchema = z.enum(["EMBED", "TEXT"]);
 export const reactionRoleModeSchema = z.enum(["REACTION", "BUTTON"]);
+export const buttonStyleSchema = z.enum(["PRIMARY", "SECONDARY", "SUCCESS", "DANGER"]);
 
 export type Format = z.infer<typeof formatSchema>;
 export type ReactionRoleMode = z.infer<typeof reactionRoleModeSchema>;
+export type ButtonStyle = z.infer<typeof buttonStyleSchema>;
 
 export const reactionRoleItemSchema = z.object({
-    emoji: z.string(),
-    role_id: z.string(),
+    emoji: z.string().default(""),
+    role_id: z.string().nullish(),
 });
 
 export const buttonRoleItemSchema = z.object({
-    role_id: z.string(),
+    role_id: z.string().nullish(),
     custom_id: z.string(),
-    label: z.string().nullable().optional(),
-    style: z.string().default("PRIMARY"),
-    emoji: z.string().nullable().optional(),
+    label: z.string().nullish(),
+    style: buttonStyleSchema.default("PRIMARY"),
+    emoji: z.string().nullish(),
 });
 
-export const saveReactionMessageInputSchema = z.object({
-    id: z.coerce.number().optional(),
-    name: z.string().min(1, "Name is required"),
-    message_id: z.string().nullable().optional(),
-    channel_id: z.string().min(1, "Channel is required"),
-    guild_id: z.string(),
-    format: formatSchema.default("TEXT"),
-    mode: reactionRoleModeSchema.default("REACTION"),
-    embed: z.custom<DiscordEmbed>(),
-    content: z.string().nullable().optional().default(""),
-    reactions: z.array(reactionRoleItemSchema).optional().default([]),
-    buttons: z.array(buttonRoleItemSchema).optional().default([]),
-});
+export const saveReactionMessageInputSchema = z
+    .object({
+        id: z.coerce.number().optional(),
+        name: z.string().min(1, "Name is required"),
+        message_id: z.string().nullish(),
+        channel_id: z.string().nullish(),
+        guild_id: z.string().min(1, "Guild ID is required"),
+        format: formatSchema.default("TEXT"),
+        mode: reactionRoleModeSchema.default("REACTION"),
+        embed: DiscordEmbedSchema.optional().default({}),
+        content: z.string().nullish().default(""),
+        reactions: z.array(reactionRoleItemSchema).default([]),
+        buttons: z.array(buttonRoleItemSchema).default([]),
+    })
+    .superRefine((data, ctx) => {
+        if (!data.channel_id || data.channel_id.trim() === "") {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Please select a target channel.",
+                path: ["channel_id"],
+            });
+        }
 
-export const reactionMessageSchema = saveReactionMessageInputSchema.extend({
+        if (data.mode === "REACTION") {
+            if (data.reactions.length === 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "At least one reaction mapping is required.",
+                    path: ["reactions"],
+                });
+            }
+            data.reactions.forEach((item, index) => {
+                if (!item.emoji || item.emoji.trim() === "") {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Reaction #${index + 1} requires an emoji.`,
+                        path: ["reactions", index, "emoji"],
+                    });
+                }
+                if (!item.role_id || item.role_id.trim() === "") {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Reaction #${index + 1} requires an assigned role.`,
+                        path: ["reactions", index, "role_id"],
+                    });
+                }
+            });
+        }
+
+        if (data.mode === "BUTTON") {
+            if (data.buttons.length === 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "At least one button mapping is required.",
+                    path: ["buttons"],
+                });
+            }
+            data.buttons.forEach((item, index) => {
+                if (!item.role_id || item.role_id.trim() === "") {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Button #${index + 1} requires an assigned role.`,
+                        path: ["buttons", index, "role_id"],
+                    });
+                }
+            });
+        }
+    });
+
+export const reactionMessageSchema = z.object({
     id: z.coerce.number(),
+    name: z.string(),
+    message_id: z.string().nullish(),
+    channel_id: z.string().nullish(),
+    guild_id: z.string(),
+    mode: reactionRoleModeSchema.default("REACTION"),
+    message: messageLayoutSchema.default({
+        format: "EMBED",
+        content: "Please complete the verification below to gain access to the server.",
+        embed: { },
+    }),
+    content: z.string().nullish().default(""),
+    reactions: z.array(reactionRoleItemSchema).default([]),
+    buttons: z.array(buttonRoleItemSchema).default([]),
 });
 
 export type ReactionRoleItem = z.infer<typeof reactionRoleItemSchema>;

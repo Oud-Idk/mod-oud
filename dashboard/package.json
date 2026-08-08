@@ -6,7 +6,8 @@
     "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "oxlint --type-aware"
+    "lint": "oxlint --type-aware",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",

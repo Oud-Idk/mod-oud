@@ -1,17 +1,24 @@
 "use server";
 
-import { SaveTicketConfigSchema, Ticket, TicketConfig, TicketHistory } from "@/features/tickets/types";
-import { getTicketConfig, getTicketHistory, getTicketList, saveTicketConfig } from "@/features/tickets/queries";
 import { revalidatePath } from "next/cache";
-
-import { verifyGuildAccess } from "@/features/_shared/guild";
 import { z } from "zod";
+import { verifyGuildAccess } from "@/features/_shared/guild";
+import {
+    getTicketConfig,
+    getTicketHistory,
+    getTicketList,
+    saveTicketConfig,
+} from "./queries";
+import {
+    SaveTicketConfigSchema,
+    type Ticket,
+    type TicketConfig,
+    type TicketHistory,
+} from "./types";
 
-/**
- * Fetches a list of tickets for a specific guild
- */
 export async function getTicketsListAction(guildId: string): Promise<Ticket[]> {
     try {
+        await verifyGuildAccess(guildId);
         return await getTicketList(guildId);
     } catch (error) {
         console.error("Failed to fetch ticket list:", error);
@@ -19,11 +26,9 @@ export async function getTicketsListAction(guildId: string): Promise<Ticket[]> {
     }
 }
 
-/**
- * Fetches the detailed message history of a specific ticket channel
- */
-export async function getTicketHistoryAction(channelId: string): Promise<TicketHistory | null> {
+export async function getTicketHistoryAction(guildId: string, channelId: string): Promise<TicketHistory | null> {
     try {
+        await verifyGuildAccess(guildId);
         return await getTicketHistory(channelId);
     } catch (error) {
         console.error("Failed to fetch ticket history:", error);
@@ -31,7 +36,7 @@ export async function getTicketHistoryAction(channelId: string): Promise<TicketH
     }
 }
 
-export async function sendTicketMessageAction(guildId: string, channelId: string) {
+export async function sendTicketMessageAction(guildId: string, channelId: string): Promise<string> {
     try {
         await verifyGuildAccess(guildId);
         const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
@@ -65,7 +70,7 @@ export async function sendTicketMessageAction(guildId: string, channelId: string
     }
 }
 
-export async function deleteTicketMessageAction(guildId: string, channelId: string, messageId: string) {
+export async function deleteTicketMessageAction(guildId: string, channelId: string, messageId: string): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
         const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
@@ -84,8 +89,7 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
         }
 
         const currentConfig = await getTicketConfig(guildId);
-        const { postedMessageId, ...rest } = currentConfig;
-        await saveTicketConfig(guildId, {...rest, postedMessageId: null});
+        await saveTicketConfig(guildId, { ...currentConfig, postedMessageId: null });
 
         revalidatePath(`/dashboard/${guildId}/tickets`);
     } catch (error) {
@@ -99,17 +103,14 @@ export async function saveTicketsConfigAction(guildId: string, data: unknown): P
         await verifyGuildAccess(guildId);
 
         const validatedData = SaveTicketConfigSchema.parse(data);
-
         await saveTicketConfig(guildId, validatedData);
+
         revalidatePath(`/dashboard/${guildId}/tickets`);
     } catch (error) {
-        console.error("Failed to save tickets config:", error);
-
         if (error instanceof z.ZodError) {
-            const firstErrorMessage = error.issues[0]?.message || "Invalid configuration.";
-            throw new Error(firstErrorMessage);
+            throw new Error(error.issues[0]?.message || "Invalid ticket configuration.");
         }
-
+        console.error("Failed to save tickets config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }

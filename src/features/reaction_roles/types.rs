@@ -1,3 +1,5 @@
+use sqlx::types::Json;
+use crate::core::config::settings::MessageLayout;
 use crate::shared::embed::Format;
 
 #[derive(Debug, Clone, Copy, PartialEq, sqlx::Type, serde::Deserialize, serde::Serialize)]
@@ -32,9 +34,7 @@ pub struct ReactionMessage {
     pub channel_id: i64,
     pub guild_id: i64,
     pub mode: InteractionMode,
-    pub format: Format,
-    pub embed: Option<String>,
-    pub content: Option<String>,
+    pub message: Json<MessageLayout>,
 }
 
 #[derive(sqlx::FromRow, Debug, Clone)]

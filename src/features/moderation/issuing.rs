@@ -42,11 +42,10 @@ pub async fn issue_kick(
     let mut invite_url = None;
 
     if let Some(kick_dm_settings) = &kick_dm_settings_opt {
-        let contains_invite = kick_dm_settings.content.contains("invite.url")
-            || kick_dm_settings.embed.as_ref().map_or(false, |emb| {
-            emb.description.as_ref().map_or(false, |d| d.contains("invite.url"))
-                || emb.title.as_ref().map_or(false, |t| t.contains("invite.url"))
-        });
+        // Adjusted to traverse through `message` block and handle non-optional embed struct
+        let contains_invite = kick_dm_settings.message.content.contains("invite.url")
+            || kick_dm_settings.message.embed.description.as_ref().map_or(false, |d| d.contains("invite.url"))
+            || kick_dm_settings.message.embed.title.as_ref().map_or(false, |t| t.contains("invite.url"));
 
         if contains_invite {
             debug!("Generating transient invite URL for kick DM fallback");
@@ -317,4 +316,3 @@ pub async fn issue_softban(
     info!("Successfully soft-banned user from guild");
     Ok(())
 }
-

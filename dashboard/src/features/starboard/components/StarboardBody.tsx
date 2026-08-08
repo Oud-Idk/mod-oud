@@ -3,14 +3,14 @@
 import React, { ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
+import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
 
 import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfigEditor } from "./StarboardConfigEditor";
-
 import type { StarboardConfig, StarboardConfigInput } from "../types";
-import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
 
 interface StarboardBodyProps {
     guildId: string;
@@ -32,19 +32,24 @@ export function StarboardBody({
     onDelete,
 }: StarboardBodyProps): ReactNode {
     const router = useRouter();
+    const [isEmpty, setIsEmpty] = useState(false);
 
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
-        setIsEmpty,
         handleSave,
         handleCancel,
-        handleChange,
     } = useConfigForm<StarboardConfigInput | null>({
         initialConfig: activeConfig,
         onSave: async (updatedConfig) => {
-            if (updatedConfig) await onSave(updatedConfig);
+            if (updatedConfig) {
+                const savedId = await onSave(updatedConfig);
+                if (savedId) {
+                    router.push(`/dashboard/${guildId}/starboard?id=${savedId}`);
+                }
+            }
         },
     });
 
@@ -58,13 +63,11 @@ export function StarboardBody({
                 items={starboardConfigs}
                 emptyMessage="No starboards configured yet."
                 hasActiveConfig={!!config}
-                isDirty={isDirty}
-                isPending={isPending}
                 handleSave={handleSave}
                 handleCancel={handleCancel}
                 renderItem={(board) => {
                     const isCurrent = activeConfig?.id === board.id;
-                    const channelName = channelMap[board.starboard_channel_id] || "unknown-channel";
+                    const channelName = board.starboard_channel_id ? (channelMap[board.starboard_channel_id] || "unknown-channel") : "Unassigned Channel";
 
                     return (
                         <button
@@ -107,8 +110,9 @@ export function StarboardBody({
                         roleMap={roleMap}
                         isPending={isPending}
                         onDelete={onDelete}
-                        onChange={handleChange}
+                        onChange={setConfig}
                         setIsEmpty={setIsEmpty}
+                        isEmpty={isEmpty}
                         guildId={guildId}
                     />
                 )}
@@ -121,6 +125,14 @@ export function StarboardBody({
                 onSave={onSave}
                 guildId={guildId}
             />
+
+            {isDirty && (
+                <SavePopup
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
+                />
+            )}
         </>
     );
 }

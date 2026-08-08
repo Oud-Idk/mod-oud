@@ -1,16 +1,16 @@
 "use client";
 
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { ReactNode, useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { TabItem, Tabs } from "@/components/layout/Tabs";
-import { AutoAssignRole } from "@/features/welcome/components/AutoAssignRole";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { VerificationTab } from "@/features/welcome/components/VerificationTab";
-import { WelcomeConfig } from "@/features/welcome/types";
-import { WELCOME_CONFIG } from "@/features/welcome/builderConfigs";
-
+import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
-import { DiscordChannel } from "@/features/_shared/channels.types";
+import { WELCOME_CONFIG } from "../builderConfigs";
+
+import { AutoAssignRole } from "./AutoAssignRole";
+import { VerificationTab } from "./VerificationTab";
+import type { WelcomeConfig } from "../types";
+import type { DiscordChannel } from "@/features/_shared/channels.types";
 
 export interface DiscordRole {
     id: string;
@@ -44,10 +44,11 @@ export function WelcomeBody({
     channels,
     roles,
     onSave,
-    channelMap
+    channelMap,
 }: WelcomeBodyProps): ReactNode {
-    const normalizedWelcomeConfig = useMemo(() => welcomeConfig, [welcomeConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("PUBLIC");
+    const [, setIsEmpty] = useState(false);
+    const [targetChannelIsEmpty, setTargetChannelIsEmpty] = useState(false);
 
     const {
         config,
@@ -55,13 +56,10 @@ export function WelcomeBody({
         isPending,
         isDirty,
         resetKey,
-        targetChannelIsEmpty,
-        setIsEmpty,
-        setTargetChannelIsEmpty,
         handleSave,
         handleCancel,
     } = useConfigForm({
-        initialConfig: normalizedWelcomeConfig,
+        initialConfig: welcomeConfig,
         onSave,
     });
 
@@ -71,30 +69,42 @@ export function WelcomeBody({
     );
 
     return (
-        <div>
-            <Tabs tabs={WELCOME_TABS} activeTab={activeTab} onChange={setActiveTab}/>
+        <div className="space-y-4">
+            <Tabs tabs={WELCOME_TABS} activeTab={activeTab} onChange={setActiveTab} />
 
             <div>
                 {activeTab === "PUBLIC" && (
                     <MessageConfigEditor
-                        config={config.public}
+                        config={{
+                            enabled: config.public.enabled,
+                            channel_id: config.public.channel_id ?? "",
+                            content: config.public.message.content,
+                            embed: config.public.message.embed,
+                            format: config.public.message.format,
+                        }}
                         onChange={(updated) =>
                             setConfig((prev) => ({
                                 ...prev,
                                 public: {
+                                    ...prev.public,
                                     enabled: updated.enabled ?? false,
-                                    channel_id: updated.channel_id ?? "",
-                                    content: updated.content ?? "",
-                                    embed: updated.embed ?? {},
-                                    format: updated.format,
-                                }
+                                    channel_id: updated.channel_id || null,
+                                    message: {
+                                        format: updated.format,
+                                        content: updated.content ?? "",
+                                        embed: updated.embed ?? {},
+                                    },
+                                },
                             }))
                         }
                         setIsEmpty={setIsEmpty}
                         onEmbedChange={(embed) =>
                             setConfig((prev) => ({
                                 ...prev,
-                                public: { ...prev.public, embed }
+                                public: {
+                                    ...prev.public,
+                                    message: { ...prev.public.message, embed },
+                                },
                             }))
                         }
                         channels={channels}
@@ -111,22 +121,34 @@ export function WelcomeBody({
 
                 {activeTab === "PRIVATE" && (
                     <MessageConfigEditor
-                        config={config.private}
+                        config={{
+                            enabled: config.private.enabled,
+                            channel_id: "",
+                            content: config.private.message.content,
+                            embed: config.private.message.embed,
+                            format: config.private.message.format,
+                        }}
                         onChange={(updated) =>
                             setConfig((prev) => ({
                                 ...prev,
                                 private: {
+                                    ...prev.private,
                                     enabled: updated.enabled ?? false,
-                                    content: updated.content ?? "",
-                                    embed: updated.embed ?? {},
-                                    format: updated.format,
-                                }
+                                    message: {
+                                        format: updated.format,
+                                        content: updated.content ?? "",
+                                        embed: updated.embed ?? {},
+                                    },
+                                },
                             }))
                         }
                         onEmbedChange={(embed) =>
                             setConfig((prev) => ({
                                 ...prev,
-                                private: { ...prev.private, embed }
+                                private: {
+                                    ...prev.private,
+                                    message: { ...prev.private.message, embed },
+                                },
                             }))
                         }
                         setIsEmpty={setIsEmpty}
@@ -142,7 +164,7 @@ export function WelcomeBody({
                 )}
 
                 {activeTab === "ROLES" && (
-                    <AutoAssignRole roles={roles} config={config} isPending={isPending} setConfig={setConfig}/>
+                    <AutoAssignRole roles={roles} config={config} isPending={isPending} setConfig={setConfig} />
                 )}
 
                 {activeTab === "VERIFICATION" && (
@@ -160,7 +182,9 @@ export function WelcomeBody({
 
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

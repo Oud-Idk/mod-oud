@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { StarboardConfigInput } from "@/features/starboard/types";
+import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 
 interface StarboardCreateModalProps {
     isOpen: boolean;
@@ -27,7 +28,7 @@ export function StarboardCreateModal({
     const router = useRouter();
 
     const [isPending, startTransition] = useTransition();
-    const [modalChannelId, setModalChannelId] = useState("");
+    const [modalChannelId, setModalChannelId] = useState<string | null>(null);
     const [modalThreshold, setModalThreshold] = useState(3);
 
     const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
@@ -76,12 +77,9 @@ export function StarboardCreateModal({
                 <div>
                     <InputLabel required>Destination Channel</InputLabel>
                     <Dropdown
-                        options={Object.entries(channelMap).map(([id, name]) => ({
-                            value: id,
-                            label: `#${name}`,
-                        }))}
-                        value={modalChannelId}
-                        onChange={setModalChannelId}
+                        options={getAvailableChannelOptions(channelMap)}
+                        value={modalChannelId ?? ""}
+                        onChange={(val) => setModalChannelId(val)}
                         placeholder="Choose channel..."
                     />
                     {!modalChannelId && (

@@ -17,10 +17,7 @@ export async function getInviteTrackerConfig(guildId: string): Promise<InviteTra
 }
 
 export async function saveInviteTrackerConfig(guildId: string, config: InviteTrackerConfig): Promise<void> {
-    const validGuildId = z.string().parse(guildId);
-    const validConfig = inviteTrackerConfigSchema.parse(config);
-
-    await saveGuildConfigField(validGuildId, "invite_tracker", validConfig);
+    await saveGuildConfigField(guildId, "invite_tracker", config);
 }
 
 export async function getInviteLeaderboard(
@@ -43,7 +40,7 @@ export async function getInviteLeaderboard(
             validParams.guildId,
             validParams.limit,
             validParams.offset
-        ]);
+        ] as unknown[]);
 
         return z.array(leaderboardEntrySchema).parse(res.rows);
     } catch (error) {

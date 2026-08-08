@@ -50,7 +50,7 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
                             value={duration} onChange={v => setDuration(v)} min={1} className="h-10"
                         />
                         <Dropdown
-                            value={unit} onChange={v => setUnit(v)} options={[
+                            value={unit} onChange={v => setUnit(v ?? "MINUTES")} options={[
                             { value: "MINUTES", label: "Minutes" },
                             { value: "HOURS", label: "Hours" },
                             { value: "DAYS", label: "Days" },

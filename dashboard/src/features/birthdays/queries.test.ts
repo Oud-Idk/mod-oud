@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getBirthdayConfig, saveBirthdayConfig } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
+import { BirthdayConfig, DEFAULT_BIRTHDAY_MESSAGE } from "@/features/birthdays/types";
 
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
@@ -43,25 +44,26 @@ describe("Birthdays Query Module", () => {
     });
 
     describe("saveBirthdayConfig", () => {
-        it("should validate and save birthday config to DB", async () => {
-            const validConfig: any = {
+        it("should save birthday config to DB and return it", async () => {
+            const validConfig: BirthdayConfig = {
                 enabled: true,
                 channelId: "channel_999",
                 announcementHour: 10,
+                timezone: "UTC",
+                birthdayRoleId: null,
+                requireYear: false,
+                messageWithYear: DEFAULT_BIRTHDAY_MESSAGE,
+                messageWithoutYear: DEFAULT_BIRTHDAY_MESSAGE,
             };
 
-            await saveBirthdayConfig("guild_123", validConfig);
+            const result = await saveBirthdayConfig("guild_123", validConfig);
 
             expect(saveGuildConfigField).toHaveBeenCalledWith(
                 "guild_123",
                 "birthday",
-                expect.objectContaining({
-                    enabled: true,
-                    channelId: "channel_999",
-                    announcementHour: 10,
-                    timezone: "UTC", // Injected default
-                })
+                validConfig
             );
+            expect(result).toEqual(validConfig);
         });
     });
 });

@@ -1,13 +1,14 @@
 "use client";
 
-import React, { ReactNode, useState, useTransition } from "react";
-import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { deleteTempVoiceHubAction, saveTempVoiceHubAction } from "@/features/temp-voice/actions";
+import React, { ReactNode, useMemo, useState, useTransition, useCallback } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { MainConfigTab } from "@/features/temp-voice/components/FormTabs/MainConfigTab";
+import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import { InterfaceMessageTab } from "@/features/temp-voice/components/FormTabs/InterfaceMessageTab";
-import { TempVoiceHub } from "@/features/temp-voice/types";
+import { Button } from "@/components/ui/Button";
+import { deleteTempVoiceHubAction, saveTempVoiceHubAction } from "../actions";
+import { saveTempVoiceHubInputSchema, type TempVoiceHub } from "../types";
+import { InterfaceMessageTab } from "./FormTabs/InterfaceMessageTab";
+import { MainConfigTab } from "./FormTabs/MainConfigTab";
 
 interface HubFormProps {
     guildId: string;
@@ -19,9 +20,7 @@ interface HubFormProps {
     onDeleteSuccess: () => void;
 }
 
-type TabValue =
-    | "GENERAL"
-    | "INTERFACE_MESSAGE"
+type TabValue = "GENERAL" | "INTERFACE_MESSAGE";
 
 const TEMP_VOICE_TABS: TabItem<TabValue>[] = [
     { value: "GENERAL", label: "General" },
@@ -42,29 +41,33 @@ export function HubForm({
 
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
         handleSave,
         handleCancel,
-        handleChange,
-    } = useConfigForm({
+    } = useConfigForm<TempVoiceHub>({
         initialConfig: initialHub,
         onSave: async (formValues: TempVoiceHub) => {
-            try {
-                const hub = await saveTempVoiceHubAction(guildId, formValues);
-                onSaveSuccess(hub);
-            } catch (error) {
-                console.error(error);
-            }
+            const hub = await saveTempVoiceHubAction(guildId, formValues);
+            onSaveSuccess(hub);
         },
     });
 
-    // 1. Validation Logic: Requires trigger channel, category, and hub name
-    const isValid = Boolean(
-        config.name?.trim() &&
-        config.hub_channel_id &&
-        config.category_id
-    );
+    const handleChange = useCallback((updated: Partial<TempVoiceHub>) => {
+        setConfig((prev) => ({ ...prev, ...updated }));
+    }, [setConfig]);
+
+    const validationResult = useMemo(() => {
+        return saveTempVoiceHubInputSchema.safeParse(config);
+    }, [config]);
+
+    const hasValidationErrors = !validationResult.success;
+
+    const onValidatedSave = (): void => {
+        if (hasValidationErrors) return;
+        handleSave();
+    };
 
     function handleDelete(): void {
         if (!initialHub.id) {
@@ -83,21 +86,30 @@ export function HubForm({
     }
 
     return (
-        <div>
-            <div className="flex justify-between items-center pb-4">
-                <h3 className="text-lg font-semibold">
+        <div className="space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-border-subtle">
+                <h3 className="text-lg font-semibold text-foreground">
                     {initialHub.id ? "Edit Voice Hub" : "Create Voice Hub"}
                 </h3>
-                <button
+                <Button
+                    variant="danger"
                     onClick={handleDelete}
                     disabled={isPending || isDeleting}
-                    className="text-xs border border-red-500 hover:bg-red-500/10 px-3 py-1.5 rounded transition disabled:opacity-50 cursor-pointer"
                 >
                     {isDeleting ? "Deleting..." : initialHub.id ? "Delete Hub" : "Cancel"}
-                </button>
+                </Button>
             </div>
 
-            <Tabs tabs={TEMP_VOICE_TABS} activeTab={activeTab} onChange={tab => setActiveTab(tab)}/>
+            {hasValidationErrors && (
+                <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>
+                        {validationResult.error?.issues[0]?.message || "Please complete all required fields before saving."}
+                    </span>
+                </div>
+            )}
+
+            <Tabs tabs={TEMP_VOICE_TABS} activeTab={activeTab} onChange={setActiveTab} />
 
             {activeTab === "GENERAL" && (
                 <MainConfigTab
@@ -117,12 +129,10 @@ export function HubForm({
                 />
             )}
 
-            {(isDirty && isValid) && (
+            {isDirty && (
                 <SavePopup
                     handleCancel={handleCancel}
-                    handleSave={() => {
-                        if (isValid) handleSave();
-                    }}
+                    handleSave={onValidatedSave}
                     isSaving={isPending}
                 />
             )}

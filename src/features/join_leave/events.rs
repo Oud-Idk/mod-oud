@@ -23,7 +23,7 @@ pub async fn send_leave_message(
 
     let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id as i64).await?;
 
-    let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled.unwrap_or(false)) else {
+    let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled) else {
         trace!(guild_id, user_id, "Leave notifications are disabled; logging departure directly to DB");
         return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.db).await;
     };

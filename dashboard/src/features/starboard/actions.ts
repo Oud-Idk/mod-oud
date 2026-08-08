@@ -1,17 +1,24 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { deleteStarboardConfig, upsertStarboardConfig } from "@/features/starboard/queries";
-import { StarboardConfigInput } from "@/features/starboard/types";
+import { z } from "zod";
 import { verifyGuildAccess } from "@/features/_shared/guild";
+import { deleteStarboardConfig, upsertStarboardConfig } from "./queries";
+import { starboardConfigInputSchema, type StarboardConfigInput } from "./types";
 
 export async function saveStarboardConfigAction(guildId: string, data: StarboardConfigInput): Promise<string> {
     try {
         await verifyGuildAccess(guildId);
-        const s = await upsertStarboardConfig(guildId, data);
+
+        const validatedInput = starboardConfigInputSchema.parse(data);
+        const s = await upsertStarboardConfig(guildId, validatedInput);
+
         revalidatePath(`/dashboard/${guildId}/starboard`);
         return s.id;
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0]?.message || "Invalid starboard configuration.");
+        }
         console.error("Failed to save starboard config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
@@ -20,6 +27,7 @@ export async function saveStarboardConfigAction(guildId: string, data: Starboard
 export async function deleteStarboardConfigAction(guildId: string, starboardId: string): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
+
         await deleteStarboardConfig(starboardId, guildId);
         revalidatePath(`/dashboard/${guildId}/starboard`);
     } catch (error) {

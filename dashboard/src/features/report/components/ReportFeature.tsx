@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { getGuildChannels, getTextChannelMap } from "@/features/_shared/channels";
-import { fetchInitialReports, saveReportConfigAction } from "@/features/report/actions";
+import { fetchInitialReportsAction, saveReportConfigAction } from "@/features/report/actions";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { ReportBody } from "@/features/report/components/ReportBody";
 import { getReportConfig } from "@/features/report/queries";
@@ -13,7 +13,7 @@ export async function ReportFeature({ guildId }: ReportFeatureProps): Promise<Re
     const [reportConfig, channels, initialReports, textChannelMap] = await Promise.all([
         getReportConfig(guildId),
         getGuildChannels(guildId),
-        fetchInitialReports(guildId),
+        fetchInitialReportsAction(guildId),
         getTextChannelMap(guildId),
     ]);
 

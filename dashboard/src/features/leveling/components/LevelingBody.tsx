@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { TextTab } from "@/features/leveling/components/Tabs/TextTab";
@@ -69,19 +69,23 @@ export function LevelingBody({
 }: LevelingBodyProps) {
     const normalizedLevelingConfig = useMemo(() => levelingConfig, [levelingConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("TEXT");
+    const [, setIsEmpty] = useState(false);
 
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
-        setIsEmpty,
         handleSave,
         handleCancel,
-        handleChange,
     } = useConfigForm({
         initialConfig: normalizedLevelingConfig,
         onSave,
     });
+
+    const handleChange = useCallback((updated: Partial<LevelingConfig>) => {
+        setConfig((prev) => ({ ...prev, ...updated }));
+    }, [setConfig]);
 
     return (
         <div>

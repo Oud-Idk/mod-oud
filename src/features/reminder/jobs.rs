@@ -1,13 +1,15 @@
 use crate::features::reminder::timings::{RecurrenceRule, calculate_next_trigger};
 use crate::shared::embed::Format;
-use crate::shared::embed::{DiscordEmbed, EmbedGetters, create_basic_embed};
+use crate::shared::embed::{DiscordEmbed, MessageGetter, create_basic_embed};
 use crate::shared::locking::acquire_lock;
 use chrono::{DateTime, NaiveTime, Utc};
 use fred::prelude::*;
 use futures_util::StreamExt;
 use poise::serenity_prelude as serenity;
 use std::sync::Arc;
+use sqlx::types::Json;
 use tracing::{debug, error, info, instrument, trace, warn};
+use crate::core::config::settings::MessageLayout;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Default)]
 #[sqlx(type_name = "reminder_type", rename_all = "SCREAMING_SNAKE_CASE")]
@@ -26,16 +28,7 @@ struct ReminderRecord {
     time_start: Option<NaiveTime>,
     time_end: Option<NaiveTime>,
     interval_seconds: Option<i32>,
-
-    format: Format,
-    content: Option<String>,
-    pub embed: Option<sqlx::types::Json<DiscordEmbed>>,
-}
-
-impl EmbedGetters for ReminderRecord {
-    fn content(&self) -> Option<&str> { self.content.as_deref() }
-    fn embed(&self) -> Option<&DiscordEmbed> { self.embed.as_deref() }
-    fn format(&self) -> Option<&Format> { Some(&self.format) }
+    message: Json<MessageLayout>,
 }
 
 pub fn start_reminder_worker(
@@ -90,8 +83,7 @@ async fn process_expired_reminders(
     let expired_reminders = sqlx::query_as!(
         ReminderRecord,
         r#"
-        SELECT id, channel_id, format as "format: Format",
-               content, embed as "embed?: sqlx::types::Json<DiscordEmbed>", r_type as "r_type: ReminderType",
+        SELECT id, channel_id, message as "message: Json<MessageLayout>", r_type as "r_type: ReminderType",
                days_of_week, time_start, time_end, interval_seconds
         FROM reminders
         WHERE next_trigger_at <= $1 AND is_active = true
@@ -118,7 +110,7 @@ async fn process_expired_reminders(
         let channel_id = serenity::ChannelId::new(record.channel_id as u64);
 
         async move {
-            let content_opt = match create_basic_embed(&record, None::<fn(&str) -> String>) {
+            let content_opt = match create_basic_embed(&record.message, |t| t.to_string()) {
                 Ok(c) => c,
                 Err(e) => {
                     error!(

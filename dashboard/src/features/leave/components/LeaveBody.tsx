@@ -1,6 +1,6 @@
 "use client";
 
-import { JSX, useCallback, useMemo } from "react";
+import { JSX, useCallback, useMemo, useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { LeaveConfig } from "@/features/leave/types";
@@ -22,22 +22,25 @@ export function LeaveBody({
 }: LeaveBodyProps): JSX.Element {
     const normalizedLeaveConfig = useMemo(() => leaveConfig, [leaveConfig]);
 
+    const [, setIsEmpty] = useState(false);
+    const [targetChannelIsEmpty, setTargetChannelIsEmpty] = useState(false);
+
     const {
         config,
         setConfig,
         isPending,
         isDirty,
         resetKey,
-        targetChannelIsEmpty,
-        setIsEmpty,
-        setTargetChannelIsEmpty,
         handleSave,
         handleCancel,
-        handleChange,
     } = useConfigForm({
         initialConfig: normalizedLeaveConfig,
         onSave,
     });
+
+    const handleChange = useCallback((updated: Partial<LeaveConfig>) => {
+        setConfig((prev) => ({ ...prev, ...updated }));
+    }, [setConfig]);
 
     const handleEmbedChange = useCallback((embed: DiscordEmbed) => {
         setConfig((prev) => ({

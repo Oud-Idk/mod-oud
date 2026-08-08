@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MessageLayoutSchema } from "@/features/_shared/embed";
+import { messageLayoutSchema } from "@/features/_shared/embed";
 
 export const notificationScopeSchema = z
     .enum(["CURRENT_CHANNEL", "SPECIFIED_CHANNEL", "DM", "NONE"])
@@ -36,7 +36,7 @@ export const DEFAULT_LEVEL_NOTIFY_MESSAGE = {
 export const notificationSettingsSchema = z.object({
     scope: notificationScopeSchema,
     channelId: z.string().nullish().default(null),
-    message: MessageLayoutSchema.default(DEFAULT_LEVEL_NOTIFY_MESSAGE),
+    message: messageLayoutSchema.default(DEFAULT_LEVEL_NOTIFY_MESSAGE),
 });
 
 export const imageCardSettingsSchema = z.object({
@@ -67,7 +67,6 @@ export const voiceSettingsSchema = z.object({
     xpRange: rangeSchema.default({ min: 25, max: 50 }),
 });
 
-// .parse({}) gives sensible defaults to the defaults
 export const levelingConfigSchema = z.object({
     text: textSettingsSchema.default(textSettingsSchema.parse({})),
     voice: voiceSettingsSchema.default(voiceSettingsSchema.parse({})),
@@ -76,6 +75,16 @@ export const levelingConfigSchema = z.object({
     imageCard: imageCardSettingsSchema.default(imageCardSettingsSchema.parse({})),
     levelCap: z.number().default(40),
     keepLevelOnLeave: z.boolean().default(false),
+});
+
+export const saveLevelingConfigSchema = levelingConfigSchema.superRefine((data, ctx) => {
+    if (data.notify.scope === "SPECIFIED_CHANNEL" && !data.notify.channelId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Please select a target channel for level-up notifications!",
+            path: ["notify", "channelId"],
+        });
+    }
 });
 
 export const xpMultiplierSchema = z.object({

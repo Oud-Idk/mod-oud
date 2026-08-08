@@ -29,7 +29,7 @@ export function ServerList({ guilds }: ServerListProps) {
         );
     }
 
-    const handleSelect = (id: string) => {
+    const handleSelect = (id: string | null) => {
         if (id && id !== currentGuildId) {
             router.push(`/dashboard/${id}`);
         }

@@ -1,6 +1,6 @@
 import { useCallback, useState, useTransition } from "react";
 import { isDeepEqual } from "@/features/_shared/embed";
-import { TicketConfig, SaveTicketConfigSchema } from "@/features/tickets/types";
+import { SaveTicketConfigSchema, type TicketConfig } from "../types";
 
 export function useTicketConfig(
     initialConfig: TicketConfig,
@@ -14,14 +14,12 @@ export function useTicketConfig(
     const [status, setStatus] = useState<{ type: "SUCCESS" | "ERROR"; message: string } | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
 
-    // Honest Dirty Check: Only checks if the form was modified
     const isDirty = !isDeepEqual(config, initialConfig);
     const isWarnThresholdInvalid = config.warnThreshold > config.deleteThreshold;
 
     const handleSave = useCallback(() => {
         setValidationError(null);
 
-        // Strict Save Validation via Zod superRefine
         const result = SaveTicketConfigSchema.safeParse(config);
         if (!result.success) {
             const firstMessage = result.error.issues[0]?.message || "Invalid configuration.";
@@ -36,7 +34,7 @@ export function useTicketConfig(
             } catch (err) {
                 setStatus({
                     type: "ERROR",
-                    message: err instanceof Error ? err.message : "Failed to save configuration."
+                    message: err instanceof Error ? err.message : "Failed to save configuration.",
                 });
             }
         });
@@ -58,7 +56,7 @@ export function useTicketConfig(
         } catch (error) {
             setStatus({
                 type: "ERROR",
-                message: error instanceof Error ? error.message : "Failed to post ticket panel."
+                message: error instanceof Error ? error.message : "Failed to post ticket panel.",
             });
         } finally {
             setIsProcessingAction(false);
@@ -75,7 +73,7 @@ export function useTicketConfig(
         } catch (error) {
             setStatus({
                 type: "ERROR",
-                message: error instanceof Error ? error.message : "Failed to delete ticket panel."
+                message: error instanceof Error ? error.message : "Failed to delete ticket panel.",
             });
         } finally {
             setIsProcessingAction(false);
@@ -94,6 +92,6 @@ export function useTicketConfig(
         handleCancel,
         handleSendLiveMessage,
         handleDeleteLiveMessage,
-        isWarnThresholdInvalid
+        isWarnThresholdInvalid,
     };
 }

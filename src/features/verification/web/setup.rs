@@ -11,14 +11,7 @@ use serenity::all::{ButtonStyle, ChannelId, ChannelType, CreateActionRow, Create
 use std::sync::Arc;
 use serde_with::{serde_as, DisplayFromStr};
 use tracing::{trace, warn};
-
-#[derive(Deserialize, Clone, Debug)]
-pub struct SetupVerificationRequest {
-    content: Option<String>,
-    embed: Option<DiscordEmbed>,
-    format: Format,
-}
-
+use crate::core::config::settings::MessageLayout;
 
 #[serde_as]
 #[derive(Serialize, Clone, Debug)]
@@ -74,7 +67,7 @@ impl RollbackState {
 pub async fn handle_verification_setup(
     State(state): State<Arc<WebState>>,
     Path(guild_id_str): Path<String>,
-    Json(payload): Json<SetupVerificationRequest>,
+    Json(payload): Json<MessageLayout>,
 ) -> Result<(StatusCode, Json<SetupVerificationResponse>), (StatusCode, String)> {
     let http = &state.http;
 
@@ -109,7 +102,7 @@ async fn execute_setup(
     guild_id: GuildId,
     everyone_role_id: RoleId,
     everyone_role: &Role,
-    payload: &SetupVerificationRequest,
+    payload: &MessageLayout,
 ) -> Result<SetupVerificationResponse, (StatusCode, String, RollbackState)> {
     let mut rollback_state = RollbackState::new(everyone_role_id);
 
@@ -171,7 +164,7 @@ async fn execute_setup(
 }
 
 async fn send_verification_panel(
-    payload: &SetupVerificationRequest,
+    payload: &MessageLayout,
     http: &Arc<Http>,
     verify_channel: &GuildChannel,
 ) -> Result<Message, (StatusCode, String)> {
@@ -182,9 +175,9 @@ async fn send_verification_panel(
     let verify_row = CreateActionRow::Buttons(vec![verify_button]);
 
     let verify_panel_builder = build_custom_message(
-        &payload.format,
-        payload.content.as_deref(),
-        payload.embed.as_ref(),
+        payload.format,
+        &payload.content,
+        &payload.embed,
         |t| t.to_string(),
     )
         .inspect_err(|e| {
@@ -192,7 +185,7 @@ async fn send_verification_panel(
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to build message.".to_string()))?
         .ok_or_else(|| {
-            warn!(guild_id = verify_channel.guild_id.get(), payload = !payload.embed.is_some(), "Failed to build verification panel for guild. Check payload?");
+            warn!(guild_id = verify_channel.guild_id.get(), payload = ?payload.embed, "Failed to build verification panel for guild. Check payload?");
             (StatusCode::BAD_REQUEST, "Invalid embed configuration".to_string())
         })?
         .components(vec![verify_row]);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { BadWordCreateModal } from "./BadWordCreateModal";
@@ -35,20 +35,25 @@ export function BadWordTab({
     const params = useParams();
     const guildId = params?.guild_id as string;
 
+    const [, setIsEmpty] = useState(false);
+
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
-        setIsEmpty,
         handleSave,
         handleCancel,
-        handleChange,
     } = useConfigForm<SaveableBadWordRuleset | null>({
         initialConfig: activeRuleset,
         onSave: async (updatedConfig) => {
             if (updatedConfig) await onSave(updatedConfig);
         },
     });
+
+    const handleChange = useCallback((updated: Partial<SaveableBadWordRuleset>) => {
+        setConfig((prev) => (prev ? { ...prev, ...updated } : null));
+    }, [setConfig]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 

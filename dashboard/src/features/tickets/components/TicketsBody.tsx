@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import TicketingTab from "@/features/tickets/components/Tabs/TicketingTab";
-import InitialMessageTab from "@/features/tickets/components/Tabs/InitialMessageTab";
-import GeneralsTab from "@/features/tickets/components/Tabs/GeneralsTab";
-import HistoryTab from "@/features/tickets/components/Tabs/HistoryTab";
-import { TicketConfig } from "@/features/tickets/types";
-import { useTicketConfig } from "@/features/tickets/hooks/useTicketConfig";
-import { DiscordChannel } from "@/features/_shared/channels.types";
-import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
+import TicketingTab from "./Tabs/TicketingTab";
+import InitialMessageTab from "./Tabs/InitialMessageTab";
+import GeneralsTab from "./Tabs/GeneralsTab";
+import HistoryTab from "./Tabs/HistoryTab";
+import { useTicketConfig } from "../hooks/useTicketConfig";
+import type { TicketConfig } from "../types";
+import type { DiscordChannel } from "@/features/_shared/channels.types";
+import type { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 
 interface TicketsBodyProps {
     guildId: string;
@@ -40,7 +40,7 @@ export function TicketsBody({
     ticketConfig,
     onSave,
     onSendTicketMessage,
-    onDeleteTicketMessage
+    onDeleteTicketMessage,
 }: TicketsBodyProps) {
     const {
         config,
@@ -54,7 +54,7 @@ export function TicketsBody({
         handleSave,
         handleCancel,
         handleSendLiveMessage,
-        handleDeleteLiveMessage
+        handleDeleteLiveMessage,
     } = useTicketConfig(ticketConfig, onSave, onSendTicketMessage, onDeleteTicketMessage);
 
     const [activeTab, setActiveTab] = useState<TabValue>("TICKETING");
@@ -72,6 +72,7 @@ export function TicketsBody({
             },
         }));
     };
+
     return (
         <div className="flex flex-col">
             <Tabs tabs={TICKETS_TABS} activeTab={activeTab} onChange={setActiveTab} />

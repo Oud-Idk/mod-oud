@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
 interface ReactionRolesBodyProps {
     guildId: string;
     reactionRoles: ReactionMessage[];
-    activeConfig: ReactionMessage | null; // 👈 Allows null when list is empty
+    activeConfig: ReactionMessage | null;
     channelMap: Record<string, string>;
     roleMap: Record<string, string>;
     onSave: (config: SaveReactionMessageInput) => Promise<ReactionMessage>;
@@ -35,16 +35,15 @@ export function ReactionRolesBody({
     onDeleteDiscordMessage,
 }: ReactionRolesBodyProps): ReactNode {
     const router = useRouter();
+    const [isEmpty, setIsEmpty] = useState(false);
 
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
-        isEmpty,
-        setIsEmpty,
         handleSave,
         handleCancel,
-        handleChange,
     } = useConfigForm<ReactionMessage | null>({
         initialConfig: activeConfig,
         onSave: async (updatedConfig) => {
@@ -62,7 +61,6 @@ export function ReactionRolesBody({
                 items={reactionRoles}
                 renderItem={(item: ReactionMessage): ReactNode => {
                     const isCurrent = activeConfig?.id === item.id;
-
                     const isSent = Boolean(item.message_id && item.message_id.trim() !== "");
                     const statusText = isSent ? "Sent" : "Draft";
 
@@ -87,9 +85,7 @@ export function ReactionRolesBody({
                                 <span
                                     className={cn(
                                         "text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
-                                        isSent
-                                            ? "text-success"
-                                            : "text-muted-foreground"
+                                        isSent ? "text-success" : "text-muted-foreground"
                                     )}
                                 >
                                     {statusText}
@@ -106,16 +102,16 @@ export function ReactionRolesBody({
                 handleCancel={handleCancel}
                 noActivePlaceholder={
                     <>
-            <p className="text-sm">
-              Select a reaction role message, or create a new one to begin.
-            </p>
-            <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="text-xs px-3.5 py-1.5 bg-zinc-850 rounded transition border border-neutral-500 hover:bg-neutral-300/10 cursor-pointer"
-            >
-              Create Your First Reaction Role
-            </button>
-          </>
+                        <p className="text-sm text-muted-foreground">
+                            Select a reaction role message, or create a new one to begin.
+                        </p>
+                        <button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="text-xs px-3.5 py-1.5 bg-surface-active rounded transition border border-border-subtle hover:bg-surface-muted cursor-pointer text-foreground font-medium"
+                        >
+                            Create Your First Reaction Role
+                        </button>
+                    </>
                 }
             >
                 {config && (
@@ -129,7 +125,7 @@ export function ReactionRolesBody({
                         onDelete={onDelete}
                         onSend={onSend}
                         guildId={guildId}
-                        onChange={handleChange}
+                        onChange={setConfig}
                         setIsEmpty={setIsEmpty}
                         isEmpty={isEmpty}
                         onDeleteDiscordMessage={onDeleteDiscordMessage}
@@ -141,17 +137,17 @@ export function ReactionRolesBody({
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
                 channelMap={channelMap}
-                onSave={(v) =>
-                    onSave({
-                        channel_id: v.channel_id || "",
+                onSave={async (v) => {
+                    return await onSave({
+                        channel_id: v.channel_id || null,
                         guild_id: guildId,
                         format: "TEXT",
                         name: v.name || "",
                         embed: {},
                         content: "",
                         mode: v.mode || "REACTION",
-                    })
-                }
+                    });
+                }}
             />
 
             {isDirty && (

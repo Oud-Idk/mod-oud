@@ -1,34 +1,17 @@
-import { MessageLayout, ReportConfig, ReportedMessage } from "@/features/report/types";
+import { reportConfigSchema, reportedMessageSchema, type ReportConfig, type ReportedMessage } from "./types";
 import { db } from "@/lib/db";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
+const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
 
 export async function getReportConfig(guildId: string): Promise<ReportConfig> {
-    const default_message_config: MessageLayout = {
-        enabled: false,
-        format: "TEXT",
-        content: "",
-        embed: {},
-    }
-
-    const default_config: ReportConfig = {
-        enabled: false,
-        resolvedDm: default_message_config,
-        dismissedDm: default_message_config,
-    };
-
-    const dbReport = await getGuildConfigField<ReportConfig>(guildId, 'report');
-    if (!dbReport) return default_config;
-
-    return { ...default_config, ...dbReport };
+    const dbReport = await getGuildConfigField<unknown>(guildId, "report");
+    return reportConfigSchema.parse(dbReport ?? {});
 }
 
 export async function saveReportConfig(guildId: string, config: ReportConfig): Promise<void> {
-    await saveGuildConfigField(guildId, 'report', config);
+    await saveGuildConfigField(guildId, "report", config);
 }
-
-
-const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
 
 export async function getInitialReportsFromDb(guildId: string): Promise<ReportedMessage[]> {
     const result = await db.query(
@@ -37,9 +20,9 @@ export async function getInitialReportsFromDb(guildId: string): Promise<Reported
          WHERE guild_id = $1
          ORDER BY id DESC
          LIMIT 10`,
-        [guildId]
+        [guildId] as unknown[]
     );
-    return result.rows;
+    return result.rows.map((row) => reportedMessageSchema.parse(row));
 }
 
 export async function getMoreReportsFromDb(guildId: string, beforeId: number): Promise<ReportedMessage[]> {
@@ -50,12 +33,12 @@ export async function getMoreReportsFromDb(guildId: string, beforeId: number): P
            AND id < $2
          ORDER BY id DESC
          LIMIT 10`,
-        [guildId, beforeId]
+        [guildId, beforeId] as unknown[]
     );
-    return result.rows;
+    return result.rows.map((row) => reportedMessageSchema.parse(row));
 }
 
-async function sendReportCommand(payload: Record<string, unknown>) {
+async function sendReportCommand(payload: Record<string, unknown>): Promise<boolean> {
     const response = await fetch(`${BACKEND_URL}/api/commands`, {
         method: "POST",
         headers: {
@@ -66,7 +49,7 @@ async function sendReportCommand(payload: Record<string, unknown>) {
 
     if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || "Failed to process request");
+        throw new Error(errorText || "Failed to process request with backend service.");
     }
 
     return true;

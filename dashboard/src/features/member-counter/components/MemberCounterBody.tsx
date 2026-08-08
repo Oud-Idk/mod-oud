@@ -7,8 +7,7 @@ import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Button } from "@/components/ui/Button";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { CounterChannel, CounterType, MemberCounterConfig } from "@/features/member-counter/types";
-
+import { CounterChannel, CounterType, MemberCounterConfig, memberCounterConfigSchema } from "@/features/member-counter/types";
 import { setupMemberCounterChannelsAction } from "@/features/member-counter/actions";
 import { InputLabel } from "@/components/layout/InputLabel";
 import Footer from "@/components/layout/Footer";
@@ -67,8 +66,9 @@ export function MemberCounterBody({
     const handleAddCounter = (): void => {
         const newCounter: CounterChannel = {
             id: crypto.randomUUID(),
-            channelId: "",
+            channelId: null,
             counterType: "TOTAL_MEMBERS",
+            roleId: null,
             nameTemplate: "👥 Members: {count}",
         };
 
@@ -121,7 +121,7 @@ export function MemberCounterBody({
         if (result.success && result.counters) {
             const updatedCounters = (config.counters || []).map((c) => {
                 const matchedNew = result.counters?.find((nc) => nc.id === c.id);
-                return matchedNew ? { ...c, channelId: matchedNew.channelId } : c;
+                return matchedNew ? { ...c, channelId: matchedNew.channelId ?? null } : c;
             });
 
             setConfig({
@@ -136,23 +136,20 @@ export function MemberCounterBody({
     const hasMissingChannelIds = config.counters?.some((c) => !c.channelId?.trim());
 
     const timeOptions: DropdownOption<"5" | "10" | "15" | "30">[] = [
-        {
-            value: "5",
-            label: "Every 5 Minutes",
-        },
-        {
-            value: "10",
-            label: "Every 10 Minutes",
-        },
-        {
-            value: "15",
-            label: "Every 15 Minutes",
-        },
-        {
-            value: "30",
-            label: "Every 30 Minutes",
+        { value: "5", label: "Every 5 Minutes" },
+        { value: "10", label: "Every 10 Minutes" },
+        { value: "15", label: "Every 15 Minutes" },
+        { value: "30", label: "Every 30 Minutes" },
+    ];
+
+    const onValidatedSave = (): void => {
+        const validation = memberCounterConfigSchema.safeParse(config);
+        if (!validation.success) {
+            setCreateError(validation.error.issues[0]?.message || "Invalid configuration.");
+            return;
         }
-    ]
+        handleSave();
+    };
 
     return (
         <div className="w-full space-y-6 text-foreground">
@@ -167,8 +164,7 @@ export function MemberCounterBody({
                 <div className="space-y-2">
                     {/* Error Banner */}
                     {createError && (
-                        <div
-                            className="p-3.5 bg-danger-subtle border border-danger/30 text-danger text-xs rounded-xl flex items-center justify-between">
+                        <div className="p-3.5 bg-danger-subtle border border-danger/30 text-danger text-xs rounded-xl flex items-center justify-between">
                             <span>{createError}</span>
                             <button
                                 onClick={() => setCreateError(null)}
@@ -185,7 +181,9 @@ export function MemberCounterBody({
                         <Dropdown
                             value={String(config.updateIntervalMinutes)}
                             options={timeOptions}
-                            onChange={(v) => setConfig({ ...config, updateIntervalMinutes: Number(v) })}
+                            onChange={(v) => {
+                                if (v) setConfig({ ...config, updateIntervalMinutes: Number(v) });
+                            }}
                         />
                         <Footer className="mt-1">
                             Frequency of channel name updates (Recommended: 15 mins to avoid Discord rate limits).
@@ -230,14 +228,12 @@ export function MemberCounterBody({
                                     className="bg-surface border border-border rounded-xl p-5 space-y-4 shadow-xs"
                                 >
                                     {/* Card Header */}
-                                    <div
-                                        className="flex items-center justify-between border-b border-border-subtle pb-3">
+                                    <div className="flex items-center justify-between border-b border-border-subtle pb-3">
                                         <div className="flex items-center gap-2.5">
                                             <div className="p-2 bg-brand-subtle text-brand rounded-lg">
                                                 <MatchedIcon className="w-4 h-4"/>
                                             </div>
-                                            <span
-                                                className="text-xs font-bold text-foreground uppercase tracking-wider">
+                                            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                                                 COUNTER #{index + 1}
                                             </span>
                                         </div>
@@ -254,18 +250,16 @@ export function MemberCounterBody({
                                     {/* Inputs Grid */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="space-y-1.5">
-                                            <InputLabel>
-                                                Metric Type
-                                            </InputLabel>
+                                            <InputLabel>Metric Type</InputLabel>
                                             <Dropdown
                                                 options={COUNTER_TYPES.map((t) => ({
                                                     value: t.value,
                                                     label: t.label,
                                                 }))}
                                                 value={counter.counterType}
-                                                onChange={(val) =>
-                                                    handleUpdateCounter(counter.id, "counterType", val)
-                                                }
+                                                onChange={(val) => {
+                                                    if (val) handleUpdateCounter(counter.id, "counterType", val as CounterType);
+                                                }}
                                                 placeholder="Select metric..."
                                                 className="w-full"
                                             />
@@ -274,9 +268,7 @@ export function MemberCounterBody({
                                         {/* Channel ID */}
                                         <div>
                                             <div className="flex items-center justify-between">
-                                                <InputLabel>
-                                                    Voice Channel ID
-                                                </InputLabel>
+                                                <InputLabel>Voice Channel ID</InputLabel>
                                                 {isChannelEmpty && (
                                                     <button
                                                         type="button"
@@ -299,9 +291,13 @@ export function MemberCounterBody({
                                                         ? "Auto-create or enter ID..."
                                                         : "123456789012345678"
                                                 }
-                                                value={counter.channelId || ""}
+                                                value={counter.channelId ?? ""}
                                                 onChange={(e) =>
-                                                    handleUpdateCounter(counter.id, "channelId", e.target.value)
+                                                    handleUpdateCounter(
+                                                        counter.id,
+                                                        "channelId",
+                                                        e.target.value.trim() || null
+                                                    )
                                                 }
                                             />
                                         </div>
@@ -324,19 +320,18 @@ export function MemberCounterBody({
                                     {/* Role ID (Conditional) */}
                                     {counter.counterType === "ROLE_COUNT" && (
                                         <div className="pt-2 border-t border-border-subtle space-y-1.5">
-                                            <InputLabel>
-                                                Target Role ID
-                                            </InputLabel>
+                                            <InputLabel>Target Role ID</InputLabel>
                                             <Dropdown
                                                 value={counter.roleId ?? ""}
-                                                onChange={(r) => handleUpdateCounter(counter.id, "roleId", r)}
+                                                onChange={(r) =>
+                                                    handleUpdateCounter(counter.id, "roleId", r || null)
+                                                }
                                                 options={roleOptions}
                                             />
                                         </div>
                                     )}
 
-                                    <span
-                                        className="font-mono text-brand font-bold bg-brand-subtle px-2.5 py-1 text-xs rounded border border-brand/20">
+                                    <span className="font-mono text-brand font-bold bg-brand-subtle px-2.5 py-1 text-xs rounded border border-brand/20">
                                         🔊 {counter.nameTemplate?.replace("{count}", "1,234") || "👥 Members: 1,234"}
                                     </span>
                                 </div>
@@ -358,7 +353,7 @@ export function MemberCounterBody({
             {isDirty && (
                 <SavePopup
                     handleCancel={handleCancel}
-                    handleSave={handleSave}
+                    handleSave={onValidatedSave}
                     isSaving={isPending}
                 />
             )}

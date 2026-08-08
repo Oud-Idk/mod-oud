@@ -1,33 +1,12 @@
-import { z } from "zod";
-import { WelcomeConfig } from "@/features/welcome/types";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
-import { getWelcomeConfig, saveWelcomeConfig } from "@/features/welcome/queries";
-import { verifyGuildAccess } from "@/features/_shared/guild";
-import { DiscordEmbed, Format } from "@/features/_shared/embed";
-
-export const setupVerificationPayloadSchema = z.object({
-    content: z.string().optional(),
-    embed: z.custom<DiscordEmbed>().optional(),
-    format: z.custom<Format>(),
-});
-
-export const setupBackendResponseSchema = z.object({
-    verification_message_id: z.string(),
-    verification_channel_id: z.string(),
-    verification_role_id: z.string(),
-});
-
-export const teardownVerificationPayloadSchema = z.object({
-    verification_channel_id: z.string().min(1, "Verification Channel ID is required"),
-    verification_role_id: z.string().min(1, "Verification Role ID is required"),
-});
-
-export interface SetupVerificationResult {
-    verificationMessageId: string;
-    verificationChannelId: string;
-    verificationRoleId: string;
-}
-
+import { getWelcomeConfig, saveWelcomeConfig } from "./queries";
+import {
+    setupBackendResponseSchema,
+    setupVerificationPayloadSchema,
+    teardownVerificationPayloadSchema,
+    type SetupVerificationResult,
+    type WelcomeConfig,
+} from "./types";
 
 const getBackendUrl = (): string => process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
 
@@ -35,30 +14,22 @@ export async function setupVerificationService(
     guildId: string,
     rawPayload: unknown
 ): Promise<SetupVerificationResult> {
-    const payloadResult = setupVerificationPayloadSchema.safeParse(rawPayload);
-    if (!payloadResult.success) {
-        throw new Error(payloadResult.error.issues[0]?.message || "Invalid setup parameters provided.");
-    }
-    const payload = payloadResult.data;
-
-    await verifyGuildAccess(guildId);
+    const payload = setupVerificationPayloadSchema.parse(rawPayload);
 
     let parsedEmbed = null;
-    if (payload.format === "EMBED" && payload.embed) {
-        try {
-            parsedEmbed = typeof payload.embed === "string" ? JSON.parse(payload.embed) : payload.embed;
-        } catch {
-            throw new Error("Invalid JSON syntax detected in the Embed schema.");
-        }
+    if (payload.message.format === "EMBED" && payload.message.embed) {
+        parsedEmbed = typeof payload.message.embed === "string"
+            ? JSON.parse(payload.message.embed)
+            : payload.message.embed;
     }
 
     const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            content: payload.content || null,
+            content: payload.message.content || null,
             embed: parsedEmbed,
-            format: payload.format,
+            format: payload.message.format,
         }),
     });
 
@@ -68,12 +39,7 @@ export async function setupVerificationService(
     }
 
     const rawData = await response.json();
-    const dataResult = setupBackendResponseSchema.safeParse(rawData);
-    if (!dataResult.success) {
-        throw new Error("Received an invalid or malformed payload from the backend service.");
-    }
-
-    const data = dataResult.data;
+    const data = setupBackendResponseSchema.parse(rawData);
 
     try {
         await invalidateGuildChannelCache(guildId);
@@ -90,9 +56,11 @@ export async function setupVerificationService(
             verificationMessageId: data.verification_message_id,
             verificationChannelId: data.verification_channel_id,
             verificationRoleId: data.verification_role_id,
-            content: payload.content || currentConfig.verification.content,
-            embed: payload.embed || currentConfig.verification.embed,
-            format: payload.format,
+            message: {
+                format: payload.message.format,
+                content: payload.message.content || currentConfig.verification.message.content,
+                embed: payload.message.embed || currentConfig.verification.message.embed,
+            },
         },
     };
 
@@ -109,13 +77,7 @@ export async function teardownVerificationService(
     guildId: string,
     rawPayload: unknown
 ): Promise<void> {
-    const payloadResult = teardownVerificationPayloadSchema.safeParse(rawPayload);
-    if (!payloadResult.success) {
-        throw new Error(payloadResult.error.issues[0]?.message || "Invalid teardown parameters provided.");
-    }
-    const payload = payloadResult.data;
-
-    await verifyGuildAccess(guildId);
+    const payload = teardownVerificationPayloadSchema.parse(rawPayload);
 
     const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/verification`, {
         method: "DELETE",
@@ -143,9 +105,9 @@ export async function teardownVerificationService(
         verification: {
             ...currentConfig.verification,
             enabled: false,
-            verificationMessageId: "",
-            verificationChannelId: "",
-            verificationRoleId: "",
+            verificationMessageId: null,
+            verificationChannelId: null,
+            verificationRoleId: null,
         },
     };
 

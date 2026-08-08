@@ -69,9 +69,9 @@ export function VerificationTab({
         setSetupStatus(null);
         try {
             const res = await setupVerificationAction(guildId, {
-                content: config.verification.content,
-                embed: config.verification.embed,
-                format: config.verification.format || "embed",
+                content: config.verification.message.content,
+                embed: config.verification.message.embed,
+                format: config.verification.message.format,
             });
 
             if (res.success) {
@@ -342,7 +342,7 @@ export function VerificationTab({
                     </div>
 
                     <MessageConfigEditor
-                        config={config.verification}
+                        config={config.verification.message}
                         onChange={(changed) =>
                             setConfig((prev) => ({
                                 ...prev,
@@ -350,7 +350,7 @@ export function VerificationTab({
                                     ...prev.verification,
                                     enabled: changed.enabled ?? prev.verification.enabled,
                                     content: changed.content ?? "",
-                                    embed: changed.embed ?? prev.verification.embed,
+                                    embed: changed.embed ?? prev.verification.message.embed,
                                     format: changed.format,
                                 },
                             }))

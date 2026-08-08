@@ -1,17 +1,18 @@
 "use client";
 
-import React, { FormEvent, ReactNode, useState } from "react";
+import React, { FormEvent, ReactNode, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Dropdown } from "@/components/ui/Dropdown";
-import { ReminderRow, ReminderType, SaveableReminder } from "@/features/reminders/types";
 import { LongTextInput } from "@/components/ui/LongTextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { Button } from "@/components/ui/Button";
+import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import type { ReminderRow, ReminderType, SaveableReminderInput } from "../types";
 
 interface ReminderCreateModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (reminder: SaveableReminder) => Promise<ReminderRow>;
+    onSave: (reminder: SaveableReminderInput) => Promise<ReminderRow>;
     channelMap: Record<string, string>;
 }
 
@@ -21,45 +22,47 @@ export function ReminderCreateModal({
     onSave,
     channelMap,
 }: ReminderCreateModalProps): ReactNode {
-    const [submitting, setSubmitting] = useState(false);
-    const [channelId, setChannelId] = useState("");
+    const [isPending, startTransition] = useTransition();
+    const [channelId, setChannelId] = useState<string | null>(null);
     const [content, setContent] = useState("");
     const [rType, setRType] = useState<ReminderType>("SINGLE");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     if (!isOpen) return null;
 
-    const channelOptions = Object.entries(channelMap).map(([id, name]) => ({
-        value: id,
-        label: name,
-    }));
-
-    const handleSubmit = async (e: FormEvent): Promise<void> => {
+    const handleSubmit = (e: FormEvent): void => {
         e.preventDefault();
-        if (!channelId) return;
+        setErrorMessage(null);
 
-        setSubmitting(true);
-        try {
-            await onSave({
-                channelId,
-                format: "TEXT",
-                content: content.trim() || "New reminder scheduled",
-                embed: null,
-                rType,
-                // Defaults scheduling to 5 minutes from now
-                nextTriggerAt: new Date(Date.now() + 60 * 1000 * 5).toISOString(),
-                daysOfWeek: null,
-                timeStart: null,
-                timeEnd: null,
-                intervalSeconds: rType === "RECURRING" ? 3600 : null,
-                isActive: true,
-            });
-            onClose();
-            setContent("");
-        } catch (error) {
-            console.error("Error creating reminder:", error);
-        } finally {
-            setSubmitting(false);
+        if (!channelId) {
+            setErrorMessage("Please select a target channel.");
+            return;
         }
+
+        startTransition(async () => {
+            try {
+                await onSave({
+                    channelId,
+                    message: {
+                        format: "TEXT",
+                        content: content.trim() || "New reminder scheduled",
+                        embed: {},
+                    },
+                    rType,
+                    nextTriggerAt: new Date(Date.now() + 60 * 1000 * 5).toISOString(),
+                    daysOfWeek: null,
+                    timeStart: null,
+                    timeEnd: null,
+                    intervalSeconds: rType === "RECURRING" ? 3600 : null,
+                    isActive: true,
+                });
+                onClose();
+                setChannelId(null);
+                setContent("");
+            } catch (error) {
+                setErrorMessage(error instanceof Error ? error.message : "Failed to create reminder.");
+            }
+        });
     };
 
     return (
@@ -68,23 +71,25 @@ export function ReminderCreateModal({
                 Add a quick single or recurring announcement for your community.
             </p>
 
+            {errorMessage && (
+                <div className="mb-4 p-2.5 rounded-md border border-danger/30 bg-danger-subtle text-danger-foreground text-xs font-medium">
+                    {errorMessage}
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                    <InputLabel>
-                        Target Channel
-                    </InputLabel>
+                    <InputLabel>Target Channel</InputLabel>
                     <Dropdown
-                        options={channelOptions}
-                        value={channelId}
-                        onChange={setChannelId}
+                        options={getAvailableChannelOptions(channelMap)}
+                        value={channelId ?? ""}
+                        onChange={(val) => setChannelId(val ?? null)}
                         placeholder="Select a channel"
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <InputLabel>
-                        Reminder Content
-                    </InputLabel>
+                    <InputLabel>Reminder Content</InputLabel>
                     <LongTextInput
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
@@ -95,33 +100,31 @@ export function ReminderCreateModal({
                 </div>
 
                 <div className="space-y-1.5">
-                    <InputLabel>
-                        Schedule Style
-                    </InputLabel>
+                    <InputLabel>Schedule Style</InputLabel>
                     <Dropdown
                         options={[
                             { value: "SINGLE", label: "One-Time (Single)" },
                             { value: "RECURRING", label: "Recurring Interval" },
                         ]}
                         value={rType}
-                        onChange={(val) => setRType(val as ReminderType)}
+                        onChange={(val) => setRType((val as ReminderType) ?? "SINGLE")}
                         placeholder="Select schedule type"
                     />
                 </div>
 
-                <div className="flex justify-end gap-3 ">
+                <div className="flex justify-end gap-3 pt-2">
                     <Button
                         variant="secondary"
                         onClick={onClose}
-                        disabled={submitting}
+                        disabled={isPending}
                     >
                         Cancel
                     </Button>
                     <Button
                         type="submit"
-                        disabled={submitting || !channelId}
+                        disabled={isPending || !channelId}
                     >
-                        {submitting ? "Creating..." : "Create Reminder"}
+                        {isPending ? "Creating..." : "Create Reminder"}
                     </Button>
                 </div>
             </form>

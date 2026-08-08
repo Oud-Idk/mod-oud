@@ -1,7 +1,6 @@
-use crate::shared::embed::{CustomMessagePayload, DiscordEmbed};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-
+use crate::core::config::settings::MessageLayout as CustomMessagePayload;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "COMMAND_COOLDOWN_TYPE", rename_all = "SCREAMING_SNAKE_CASE")]

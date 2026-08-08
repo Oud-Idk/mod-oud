@@ -251,7 +251,6 @@ async fn handle_level_up(
     if !matches!(config.notify.scope, NotificationScope::None) {
         notifications::send_voice_level_up_message(
             ctx,
-            config.notify.embed.as_ref(),
             user,
             user_level,
             config,

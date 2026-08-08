@@ -10,10 +10,11 @@ CREATE TABLE reaction_messages
     channel_id BIGINT           NOT NULL,
     guild_id   BIGINT           NOT NULL,
     mode       INTERACTION_MODE NOT NULL DEFAULT 'REACTION',
-
-    format     MESSAGE_FORMAT   NOT NULL,
-    embed      TEXT,
-    content    TEXT
+    message    JSONB            NOT NULL DEFAULT '{
+      "format": "TEXT",
+      "content": "",
+      "embed": {}
+    }'::JSONB
 );
 
 CREATE TABLE reaction_roles

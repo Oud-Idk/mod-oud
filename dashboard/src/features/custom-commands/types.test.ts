@@ -159,8 +159,7 @@ describe("Custom Commands Schemas", () => {
             expect(result.success).toBe(false);
         });
 
-        it("should PASS a TEXT-format message with empty content when disabled", () => {
-            // enabled: false on the message layout should skip the superRefine check entirely
+        it("should PASS a valid TEXT-format message in message_layout", () => {
             const valid = {
                 guild_id: "guild_123",
                 name: "disabled-layout-cmd",
@@ -171,7 +170,7 @@ describe("Custom Commands Schemas", () => {
                         data: {
                             message_layout: {
                                 messages: [
-                                    { enabled: false, format: "TEXT", content: "" },
+                                    { format: "TEXT", content: "Hello world!" },
                                 ],
                             },
                         },

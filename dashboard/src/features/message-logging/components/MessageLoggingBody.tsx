@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { ReactNode, useMemo, useState, useCallback } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -11,7 +11,7 @@ import { TextInput } from "@/components/ui/TextInput";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { DeletedMessage, EditedMessage, MessageLoggingConfig } from "@/features/message-logging/types";
+import { DeletedMessage, EditedMessage, MessageLoggingConfig, messageLoggingConfigSchema } from "@/features/message-logging/types";
 
 interface MessageLoggingBodyProps {
     messageLoggingConfig: MessageLoggingConfig;
@@ -36,35 +36,27 @@ export function MessageLoggingBody({
     fetchMoreEditedAction,
     guildId,
 }: MessageLoggingBodyProps): ReactNode {
-    const normalizedMessageLoggingConfig = useMemo(() => {
-        return {
-            ...messageLoggingConfig,
-            ignored_channels: messageLoggingConfig.ignoredChannels || [],
-            ignored_roles: messageLoggingConfig.ignoredRoles || [],
-            ignored_users: messageLoggingConfig.ignoredUsers || [],
-            events: {
-                messageDelete: messageLoggingConfig.events?.messageDelete ?? false,
-                messageEdit: messageLoggingConfig.events?.messageEdit ?? false,
-            },
-        };
-    }, [messageLoggingConfig]);
+    const normalizedConfig = useMemo(() => messageLoggingConfig, [messageLoggingConfig]);
 
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
         handleSave,
         handleCancel: resetConfig,
-        handleChange,
     } = useConfigForm({
-        initialConfig: normalizedMessageLoggingConfig,
+        initialConfig: normalizedConfig,
         onSave,
     });
+
+    const handleChange = useCallback((updated: Partial<MessageLoggingConfig>) => {
+        setConfig((prev) => ({ ...prev, ...updated }));
+    }, [setConfig]);
 
     const [userIdInput, setUserIdInput] = useState("");
     const [activeTab, setActiveTab] = useState<"settings" | "logs">("settings");
 
-    // Derived State: Feature is enabled if AT LEAST ONE event is toggled on!
     const isLoggingEnabled = config.events.messageDelete || config.events.messageEdit;
 
     const handleCancel = (): void => {
@@ -81,19 +73,18 @@ export function MessageLoggingBody({
             return;
         }
 
-        const current = config.ignored_users || [];
+        const current = config.ignoredUsers || [];
         if (!current.includes(trimmed)) {
-            handleChange({ ...config, ignored_users: [...current, trimmed] });
+            handleChange({ ...config, ignoredUsers: [...current, trimmed] });
         }
         setUserIdInput("");
     };
 
     const handleRemoveUserId = (id: string): void => {
-        const current = config.ignored_users || [];
-        handleChange({ ...config, ignored_users: current.filter((item) => item !== id) });
+        const current = config.ignoredUsers || [];
+        handleChange({ ...config, ignoredUsers: current.filter((item) => item !== id) });
     };
 
-    // Memoize options for Dropdowns
     const channelOptions = useMemo(
         () =>
             Object.entries(channelMap).map(([id, name]) => ({
@@ -112,6 +103,15 @@ export function MessageLoggingBody({
         [roleMap]
     );
 
+    const onValidatedSave = (): void => {
+        const validation = messageLoggingConfigSchema.safeParse(config);
+        if (!validation.success) {
+            alert(validation.error.issues[0]?.message || "Invalid configuration.");
+            return;
+        }
+        handleSave();
+    };
+
     const tabs: TabItem<"settings" | "logs">[] = [
         { value: "settings", label: "Settings" },
         { value: "logs", label: "Logs" },
@@ -125,20 +125,22 @@ export function MessageLoggingBody({
                 <div className="space-y-2">
                     <div className="flex flex-col gap-1">
                         <ToggleSwitch
-                            checked={config.events.messageDelete} onChange={(checked) =>
-                            handleChange({
-                                ...config,
-                                events: { ...config.events, messageDelete: checked },
-                            })
-                        } text="Log Deleted Messages"
+                            checked={config.events.messageDelete}
+                            onChange={(checked) =>
+                                handleChange({
+                                    events: { ...config.events, messageDelete: checked },
+                                })
+                            }
+                            text="Log Deleted Messages"
                         />
                         <ToggleSwitch
-                            checked={config.events.messageEdit} onChange={(checked) =>
-                            handleChange({
-                                ...config,
-                                events: { ...config.events, messageEdit: checked },
-                            })
-                        } text="Log Edited Messages"
+                            checked={config.events.messageEdit}
+                            onChange={(checked) =>
+                                handleChange({
+                                    events: { ...config.events, messageEdit: checked },
+                                })
+                            }
+                            text="Log Edited Messages"
                         />
                     </div>
 
@@ -151,33 +153,31 @@ export function MessageLoggingBody({
                                     <Dropdown
                                         multiple
                                         options={channelOptions}
-                                        value={config.ignored_channels}
+                                        value={config.ignoredChannels}
                                         onChange={(selectedValues: string[]) =>
-                                            handleChange({ ...config, ignored_channels: selectedValues })
+                                            handleChange({ ignoredChannels: selectedValues })
                                         }
                                         placeholder="Select channels to ignore..."
                                     />
                                 </div>
 
-                                {/* Ignored Roles */}
                                 <div className="space-y-2">
                                     <InputLabel>Ignored Roles</InputLabel>
                                     <Dropdown
                                         multiple
                                         options={roleOptions}
-                                        value={config.ignored_roles}
+                                        value={config.ignoredRoles}
                                         onChange={(selectedValues: string[]) =>
-                                            handleChange({ ...config, ignored_roles: selectedValues })
+                                            handleChange({ ignoredRoles: selectedValues })
                                         }
                                         placeholder="Select roles to ignore..."
                                     />
                                 </div>
 
-                                {/* Ignored User IDs */}
                                 <div className="space-y-2">
                                     <InputLabel>Ignored User IDs</InputLabel>
                                     <MultiSelectViewer
-                                        selectedList={config.ignored_users}
+                                        selectedList={config.ignoredUsers}
                                         onDelete={handleRemoveUserId}
                                         placeholder="No users ignored"
                                     />
@@ -218,10 +218,11 @@ export function MessageLoggingBody({
                 </div>
             )}
 
-            {/* Save Popup */}
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={onValidatedSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

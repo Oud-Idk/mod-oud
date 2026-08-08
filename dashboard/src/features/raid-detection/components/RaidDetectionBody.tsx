@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useMemo } from "react";
+import React, { ReactNode, useMemo, useCallback } from "react";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
@@ -14,6 +14,7 @@ import {
     RaidStatusSnapshot,
     RaidAction,
     RaidDetectionConfig,
+    raidDetectionConfigSchema,
 } from "@/features/raid-detection/types";
 import { WelcomeConfig } from "@/features/welcome/types";
 
@@ -32,27 +33,17 @@ export function RaidDetectionBody({
     onSave,
     raidStatus,
 }: RaidDetectionBodyProps): ReactNode | null {
-    const defaultConfig: RaidDetectionConfig = useMemo(() => {
-        return (
-            raidDetectionConfig || {
-                enabled: false,
-                zScoreMultiplier: 3.0,
-                minSafeLimit: 5,
-                windowSizeSeconds: 60,
-                raidActions: [],
-            }
-        );
-    }, [raidDetectionConfig]);
+    const normalizedConfig = useMemo(() => raidDetectionConfig, [raidDetectionConfig]);
 
-    const { config, isPending, isDirty, handleSave, handleCancel, handleChange } =
+    const { config, setConfig, isPending, isDirty, handleSave, handleCancel } =
         useConfigForm<RaidDetectionConfig>({
-            initialConfig: defaultConfig,
-            onSave: async (updatedConfig) => {
-                if (updatedConfig) {
-                    await onSave(updatedConfig);
-                }
-            },
+            initialConfig: normalizedConfig,
+            onSave,
         });
+
+    const handleChange = useCallback((updated: Partial<RaidDetectionConfig>) => {
+        setConfig((prev) => ({ ...prev, ...updated }));
+    }, [setConfig]);
 
     const channelOptions = useMemo(() => {
         return Object.entries(channelMap || {}).map(([id, name]) => ({
@@ -118,7 +109,6 @@ export function RaidDetectionBody({
 
     const currentActions = config.raidActions || [];
 
-    // Find configured actions for conditional input fields
     const alertAction = currentActions.find((action) => action.type === "ALERT");
     const timeoutAction = currentActions.find((action) => action.type === "TIMEOUT_NEW_JOINS");
     const autoBanAction = currentActions.find((action) => action.type === "AUTO_BAN_NEW_ACCOUNTS");
@@ -136,17 +126,25 @@ export function RaidDetectionBody({
         alertAction || pauseInvitesAction || timeoutAction || autoBanAction,
     );
 
+    const onValidatedSave = (): void => {
+        const validation = raidDetectionConfigSchema.safeParse(config);
+        if (!validation.success) {
+            alert(validation.error.issues[0]?.message || "Invalid configuration.");
+            return;
+        }
+        handleSave();
+    };
+
     return (
         <div className="space-y-6">
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={(checked) => handleChange({ ...config, enabled: checked })}
+                onChange={(checked) => handleChange({ enabled: checked })}
                 text="Enable Anti-Raid Defense System"
             />
 
             {config.enabled && (
                 <div className="space-y-6">
-                    {/* Active Raid Emergency Alert Banner */}
                     {raidStatus?.isRaidActive && (
                         <div
                             className="p-4 bg-danger-subtle border border-danger/40 rounded-xl flex items-start justify-between gap-4 text-danger animate-pulse">
@@ -168,7 +166,6 @@ export function RaidDetectionBody({
                         </div>
                     )}
 
-                    {/* Live Monitor Status Card */}
                     <div className="p-5 bg-surface border border-border rounded-xl space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
                             <div className="flex items-center gap-2.5">
@@ -208,7 +205,6 @@ export function RaidDetectionBody({
                             )}
                         </div>
 
-                        {/* Status Metrics Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                             <div className="p-3 bg-surface-muted border border-border rounded-lg space-y-1">
                                 <span className="text-xs font-medium text-muted-foreground block">
@@ -256,7 +252,6 @@ export function RaidDetectionBody({
                         </div>
                     </div>
 
-                    {/* Core Settings Controls */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-2">
                             <InputLabel>Detection Sensitivity (Z-Score)</InputLabel>
@@ -265,7 +260,6 @@ export function RaidDetectionBody({
                                 step={0.1}
                                 onChange={(val) =>
                                     handleChange({
-                                        ...config,
                                         zScoreMultiplier: Math.round((val ?? 0) * 10) / 10,
                                     })
                                 }
@@ -281,7 +275,7 @@ export function RaidDetectionBody({
                                 options={windowOptions}
                                 value={String(config.windowSizeSeconds ?? 60)}
                                 onChange={(val) =>
-                                    handleChange({ ...config, windowSizeSeconds: Number(val) })
+                                    handleChange({ windowSizeSeconds: Number(val) })
                                 }
                             />
                             <p className="text-xs text-muted-foreground">
@@ -297,14 +291,12 @@ export function RaidDetectionBody({
                                 value={config.minSafeLimit}
                                 onChange={(val) =>
                                     handleChange({
-                                        ...config,
                                         minSafeLimit: Math.max(1, val ?? 1),
                                     })
                                 }
                             />
                             <p className="text-xs text-muted-foreground">
-                                Minimum joins required in window before an alert can trigger, preventing false alarms on
-                                quiet servers.
+                                Minimum joins required in window before an alert can trigger, preventing false alarms on quiet servers.
                             </p>
                         </div>
 
@@ -331,7 +323,6 @@ export function RaidDetectionBody({
                                     });
 
                                     handleChange({
-                                        ...config,
                                         raidActions: updatedActions,
                                     });
                                 }}
@@ -342,7 +333,6 @@ export function RaidDetectionBody({
                         </div>
                     </div>
 
-                    {/* Dynamic Action Parameters Section */}
                     {hasDynamicActionFields && (
                         <div className="pt-4 border-t border-border-subtle space-y-4">
                             <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
@@ -363,7 +353,7 @@ export function RaidDetectionBody({
                                                         ? { ...action, channelId: String(channelId) }
                                                         : action,
                                                 );
-                                                handleChange({ ...config, raidActions: updatedActions });
+                                                handleChange({ raidActions: updatedActions });
                                             }}
                                         />
                                         <p className="text-xs text-muted-foreground">
@@ -385,7 +375,7 @@ export function RaidDetectionBody({
                                                         ? { ...action, hour: Math.max(1, val ?? 24) }
                                                         : action,
                                                 );
-                                                handleChange({ ...config, raidActions: updatedActions });
+                                                handleChange({ raidActions: updatedActions });
                                             }}
                                         />
                                         <p className="text-xs text-muted-foreground">
@@ -407,7 +397,7 @@ export function RaidDetectionBody({
                                                         ? { ...action, mins: Math.max(1, val ?? 15) }
                                                         : action,
                                                 );
-                                                handleChange({ ...config, raidActions: updatedActions });
+                                                handleChange({ raidActions: updatedActions });
                                             }}
                                         />
                                         <p className="text-xs text-muted-foreground">
@@ -429,7 +419,7 @@ export function RaidDetectionBody({
                                                         ? { ...action, maxAgeHours: Math.max(1, val ?? 24) }
                                                         : action,
                                                 );
-                                                handleChange({ ...config, raidActions: updatedActions });
+                                                handleChange({ raidActions: updatedActions });
                                             }}
                                         />
                                         <p className="text-xs text-muted-foreground">
@@ -441,7 +431,6 @@ export function RaidDetectionBody({
                         </div>
                     )}
 
-                    {/* Warning Box: Verification Disabled */}
                     {isBumpVerificationSelected && isVerificationDisabled && (
                         <div
                             className="p-4 bg-warning-subtle border border-warning/30 rounded-xl flex items-start gap-3 text-warning text-xs leading-relaxed">
@@ -457,7 +446,6 @@ export function RaidDetectionBody({
                         </div>
                     )}
 
-                    {/* Informational Help Box */}
                     <div className="p-4 bg-surface-muted border border-border rounded-xl space-y-1.5">
                         <div
                             className="flex items-center gap-1.5 text-foreground font-semibold text-xs uppercase tracking-wider">
@@ -465,28 +453,14 @@ export function RaidDetectionBody({
                             <span>How Dynamic Anomaly Detection Works</span>
                         </div>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                            The bot analyzes your server&apos;s join history over the past 7 days to calculate your
-                            baseline traffic. If a join spike exceeds{" "}
-                            <span className="text-foreground font-mono font-medium">
-                                Avg + ({config.zScoreMultiplier} × StdDev)
-                            </span>{" "}
-                            AND reaches at least{" "}
-                            <span className="text-foreground font-mono font-medium">
-                                {config.minSafeLimit} joins
-                            </span>{" "}
-                            within{" "}
-                            <span className="text-foreground font-mono font-medium">
-                                {config.windowSizeSeconds}s
-                            </span>
-                            , an anomaly alert is triggered and configured automated defenses execute instantly.
+                            The bot analyzes your server&apos;s join history over the past 7 days to calculate your baseline traffic.
                         </p>
                     </div>
                 </div>
             )}
 
-            {/* Unsaved Changes Popup */}
             {isDirty && (
-                <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}/>
+                <SavePopup handleCancel={handleCancel} handleSave={onValidatedSave} isSaving={isPending}/>
             )}
         </div>
     );

@@ -1,13 +1,13 @@
 use crate::Error;
-use crate::shared::embed::CustomMessagePayload;
 use crate::shared::embed::build_custom_message;
 use rand::prelude::IndexedRandom;
 use serenity::all::{ChannelId, Http, Message};
+use crate::core::config::settings::MessageLayout;
 
 pub fn pick_payload(
-    messages: &[CustomMessagePayload],
+    messages: &[MessageLayout],
     randomize: bool,
-) -> Option<&CustomMessagePayload> {
+) -> Option<&MessageLayout> {
     if messages.is_empty() {
         return None;
     }
@@ -22,7 +22,7 @@ pub fn pick_payload(
 pub async fn send_payload<F>(
     http: &Http,
     channel_id: ChannelId,
-    payload: Option<&CustomMessagePayload>,
+    payload: Option<&MessageLayout>,
     replace_fn: F,
 ) -> Result<Option<Message>, Error>
 where

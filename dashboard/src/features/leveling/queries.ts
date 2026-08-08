@@ -13,7 +13,7 @@ import {
     saveXpMultiplierInputSchema,
     saveLevelRewardInputSchema,
     SaveXpMultiplierInput,
-    SaveLevelRewardInput,
+    SaveLevelRewardInput, saveLevelingConfigSchema,
 } from "@/features/leveling/types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
@@ -27,7 +27,7 @@ export async function getLevels(guildId: string): Promise<UserLevel[]> {
         LIMIT 40;
     `;
     try {
-        const res = await db.query(query, [validGuildId]);
+        const res = await db.query(query, [validGuildId] as unknown[]);
         return z.array(userLevelSchema).parse(res.rows);
     } catch (error) {
         console.error(`Error fetching levels for guild ${guildId}:`, error);
@@ -48,7 +48,7 @@ export async function fetchMoreLevels(guildId: string, currentLowestXp: number):
         LIMIT 20;
     `;
     try {
-        const res: QueryResult = await db.query(query, [validGuildId, validLowestXp]);
+        const res: QueryResult = await db.query(query, [validGuildId, validLowestXp] as unknown[]);
         return z.array(userLevelSchema).parse(res.rows);
     } catch (err) {
         console.error("Failed to fetch lower levels for guild:", err);
@@ -63,16 +63,14 @@ export async function getLevelingConfig(guildId: string): Promise<LevelingConfig
 }
 
 export async function saveLevelingConfig(guildId: string, config: LevelingConfig): Promise<void> {
-    const validGuildId = z.string().min(1).parse(guildId);
-    const validConfig = levelingConfigSchema.parse(config);
-    await saveGuildConfigField(validGuildId, "leveling", validConfig);
+    await saveGuildConfigField(guildId, "leveling", config);
 }
 
 export async function getXpMultipliers(guildId: string): Promise<XpMultiplier[]> {
     const validGuildId = z.string().min(1).parse(guildId);
     const { rows } = await db.query(
         "SELECT guild_id, target_id, target_type, multiplier FROM xp_multipliers WHERE guild_id = $1",
-        [validGuildId]
+        [validGuildId] as unknown[]
     );
     return z.array(xpMultiplierSchema).parse(rows);
 }
@@ -81,7 +79,7 @@ export async function getLevelRewards(guildId: string): Promise<LevelReward[]> {
     const validGuildId = z.string().min(1).parse(guildId);
     const { rows } = await db.query(
         "SELECT id, guild_id, level_requirement, roles_to_add, remove_previous_roles FROM level_rewards WHERE guild_id = $1",
-        [validGuildId]
+        [validGuildId] as unknown[]
     );
     return z.array(levelRewardSchema).parse(rows);
 }
@@ -90,11 +88,9 @@ export async function saveLevelRewards(
     guildId: string,
     rewards: SaveLevelRewardInput[]
 ) {
-    const validGuildId = z.string().min(1).parse(guildId);
-    const validRewards = z.array(saveLevelRewardInputSchema).parse(rewards);
-    if (validRewards.length === 0) return;
+    if (rewards.length === 0) return;
 
-    const payload = validRewards.map((r) => ({
+    const payload = rewards.map((r) => ({
         level_requirement: r.levelRequirement,
         roles_to_add: r.rolesToAdd,
         remove_previous_roles: r.removePreviousRoles,
@@ -111,18 +107,16 @@ export async function saveLevelRewards(
          ON CONFLICT (guild_id, level_requirement)
              DO UPDATE SET roles_to_add          = EXCLUDED.roles_to_add,
                            remove_previous_roles = EXCLUDED.remove_previous_roles`,
-        [validGuildId, JSON.stringify(payload)]
+        [guildId, JSON.stringify(payload)] as unknown[]
     );
 }
 
 export async function deleteXpMultipliers(guildId: string, targetIds: string[]) {
-    const validGuildId = z.string().min(1).parse(guildId);
-    const validTargetIds = z.array(z.string()).parse(targetIds);
-    if (validTargetIds.length === 0) return;
+    if (targetIds.length === 0) return;
 
     await db.query(
         "DELETE FROM xp_multipliers WHERE guild_id = $1 AND target_id = ANY($2)",
-        [validGuildId, validTargetIds]
+        [guildId, targetIds] as unknown[]
     );
 }
 
@@ -130,13 +124,11 @@ export async function saveXpMultipliers(
     guildId: string,
     targets: SaveXpMultiplierInput[]
 ) {
-    const validGuildId = z.string().min(1).parse(guildId);
-    const validTargets = z.array(saveXpMultiplierInputSchema).parse(targets);
-    if (validTargets.length === 0) return;
+    if (targets.length === 0) return;
 
-    const targetIds = validTargets.map((t) => t.targetId);
-    const targetTypes = validTargets.map((t) => t.targetType);
-    const multipliers = validTargets.map((t) => t.multiplier);
+    const targetIds = targets.map((t) => t.targetId);
+    const targetTypes = targets.map((t) => t.targetType);
+    const multipliers = targets.map((t) => t.multiplier);
 
     await db.query(
         `INSERT INTO xp_multipliers (guild_id, target_id, target_type, multiplier)
@@ -148,17 +140,15 @@ export async function saveXpMultipliers(
          FROM UNNEST($2::TEXT[], $3::TEXT[], $4::NUMERIC[]) AS u(target_id, target_type, multiplier)
          ON CONFLICT (guild_id, target_id)
              DO UPDATE SET multiplier = EXCLUDED.multiplier`,
-        [validGuildId, targetIds, targetTypes, multipliers]
+        [guildId, targetIds, targetTypes, multipliers] as unknown[]
     );
 }
 
 export async function deleteLevelRewards(guildId: string, ids: number[]) {
-    const validGuildId = z.string().min(1).parse(guildId);
-    const validIds = z.array(z.number().int()).parse(ids);
-    if (validIds.length === 0) return;
+    if (ids.length === 0) return;
 
     await db.query(
         "DELETE FROM level_rewards WHERE guild_id = $1 AND id = ANY($2::INTEGER[])",
-        [validGuildId, validIds]
+        [guildId, ids] as unknown[]
     );
 }

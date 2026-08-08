@@ -41,31 +41,28 @@ export function InterfaceMessageTab({
     const canSend = selectedChannel && !isEmpty && !isSending;
 
     const handleSendEmbed = async (): Promise<void> => {
-        if (!canSend) return;
+        if (!canSend || !selectedChannel) return;
 
         setIsSending(true);
         setStatusMessage(null);
 
         try {
-            const result = await sendInterfaceMessageAction(guildId, {
+            const { messageId } = await sendInterfaceMessageAction(guildId, {
                 channelId: selectedChannel,
                 embedState: embedState,
             });
 
-            if (result.success) {
-                setStatusMessage({
-                    type: "SUCCESS",
-                    text: `Interface dispatched successfully. Message ID: ${result.messageId}`,
-                });
-            } else {
-                setStatusMessage({
-                    type: "ERROR",
-                    text: result.error || "An error occurred while sending.",
-                });
-            }
+            setStatusMessage({
+                type: "SUCCESS",
+                text: `Embed dispatched successfully. Message ID: ${messageId}`,
+            });
         } catch (error) {
-            const err = error instanceof Error ? error.message : "An error occurred while sending.";
-            setStatusMessage({ type: "ERROR", text: err });
+            console.error("Failed to dispatch embed:", error);
+
+            setStatusMessage({
+                type: "ERROR",
+                text: error instanceof Error ? error.message : "An error occurred while sending the embed.",
+            });
         } finally {
             setIsSending(false);
         }
@@ -81,7 +78,7 @@ export function InterfaceMessageTab({
                         <InputLabel className="mt-0">Select Channel</InputLabel>
                         <Dropdown
                             value={selectedChannel}
-                            onChange={(val: string) => handleChange({ interface_channel_id: val })}
+                            onChange={(val) => handleChange({ interface_channel_id: val })}
                             options={channelOptions}
                         />
                     </div>

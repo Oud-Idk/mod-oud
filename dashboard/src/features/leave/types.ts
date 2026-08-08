@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MessageLayoutSchema } from "@/features/_shared/embed";
+import { messageLayoutSchema } from "@/features/_shared/embed";
 
 export const DEFAULT_LEAVE_MESSAGE = {
     enabled: true,
@@ -11,7 +11,7 @@ export const DEFAULT_LEAVE_MESSAGE = {
 export const leaveConfigSchema = z.object({
     enabled: z.boolean().default(false),
     channelId: z.string().nullish().default(null),
-    message: MessageLayoutSchema.default(DEFAULT_LEAVE_MESSAGE),
+    message: messageLayoutSchema.default(DEFAULT_LEAVE_MESSAGE),
 });
 
 export const saveLeaveConfigSchema = leaveConfigSchema.superRefine((data, ctx) => {

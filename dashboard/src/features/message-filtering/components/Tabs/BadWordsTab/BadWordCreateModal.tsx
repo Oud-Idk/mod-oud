@@ -37,7 +37,7 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
                 enabled: true,
                 patterns: [],
                 actions: ["DELETE"],
-                timeout_duration_seconds: null,
+                timeoutDurationSeconds: null,
                 scope: { mode: "EXEMPT", roles: [], channels: [] },
             });
             setName("");

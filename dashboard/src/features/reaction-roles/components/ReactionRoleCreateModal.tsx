@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
-import { Modal } from "@/components/ui/Modal"; // Adjust path to match your directory
-import { ReactionMessage } from "@/features/reaction-roles/types";
+import { Modal } from "@/components/ui/Modal";
+import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import type { ReactionMessage } from "../types";
 
 interface ReactionRoleCreateModalProps {
     isOpen: boolean;
@@ -21,22 +22,22 @@ export function ReactionRoleCreateModal({
     channelMap,
 }: ReactionRoleCreateModalProps) {
     const router = useRouter();
-    const params = useParams();
-    const guildId = params?.guild_id as string;
-
     const [isPending, startTransition] = useTransition();
-    const [modalChannelId, setModalChannelId] = useState("");
+    const [modalChannelId, setModalChannelId] = useState<string | null>(null);
     const [modalName, setModalName] = useState("");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const handleCreateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorMessage(null);
+
         if (!modalChannelId) {
-            alert("Please choose a channel first.");
+            setErrorMessage("Please choose a target channel.");
             return;
         }
 
-        if (!modalName) {
-            alert("Please type in a name.");
+        if (!modalName.trim()) {
+            setErrorMessage("Please enter a configuration name.");
             return;
         }
 
@@ -44,18 +45,18 @@ export function ReactionRoleCreateModal({
             try {
                 const newConfig = await onSave({
                     channel_id: modalChannelId,
-                    name: modalName,
+                    name: modalName.trim(),
                 });
 
                 onClose();
-                setModalChannelId("");
+                setModalChannelId(null);
                 setModalName("");
 
-                if (newConfig?.id) {
-                    router.push(`/dashboard/${guildId}/reaction-roles?id=${newConfig.id}`);
+                if (newConfig?.id && newConfig?.guild_id) {
+                    router.push(`/dashboard/${newConfig.guild_id}/reaction-roles?id=${newConfig.id}`);
                 }
             } catch (err) {
-                alert("Failed to create reaction role.");
+                setErrorMessage(err instanceof Error ? err.message : "Failed to create reaction role.");
             }
         });
     };
@@ -70,18 +71,21 @@ export function ReactionRoleCreateModal({
         >
             <form onSubmit={handleCreateSubmit} className="space-y-4">
                 <p className="text-xs text-muted-foreground -mt-1">
-                    Select target destination channel.
+                    Select target destination channel and set a internal configuration name.
                 </p>
+
+                {errorMessage && (
+                    <div className="p-2.5 rounded-md border border-danger/30 bg-danger-subtle text-danger-foreground text-xs font-medium">
+                        {errorMessage}
+                    </div>
+                )}
 
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-foreground">Destination Channel</label>
                     <Dropdown
-                        options={Object.entries(channelMap).map(([id, name]) => ({
-                            value: id,
-                            label: `#${name}`,
-                        }))}
-                        value={modalChannelId}
-                        onChange={setModalChannelId}
+                        options={getAvailableChannelOptions(channelMap)}
+                        value={modalChannelId ?? ""}
+                        onChange={(val) => setModalChannelId(val ?? null)}
                         placeholder="Choose channel..."
                     />
                 </div>
@@ -90,8 +94,8 @@ export function ReactionRoleCreateModal({
                     <label className="text-sm font-medium text-foreground">Reaction Role Name</label>
                     <TextInput
                         value={modalName}
-                        onChange={e => setModalName(e.target.value)}
-                        placeholder="Enter Reaction Role Name"
+                        onChange={(e) => setModalName(e.target.value)}
+                        placeholder="e.g. Self Roles"
                     />
                 </div>
 

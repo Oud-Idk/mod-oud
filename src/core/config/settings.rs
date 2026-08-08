@@ -7,7 +7,7 @@ use crate::features::member_counter::MemberCounterConfig;
 use crate::features::message_logging::MessageLoggingConfig;
 use crate::features::reporting::ReportConfig;
 use crate::features::tickets::TicketConfig;
-use crate::shared::embed::{DiscordEmbed, Format};
+use crate::shared::embed::{DiscordEmbed, MessageGetter, Format};
 use fred::clients::Client;
 use fred::interfaces::{FredResult, PubsubInterface};
 use fred::prelude::{Expiration, KeysInterface};
@@ -191,6 +191,34 @@ pub struct MessageLayout {
     pub content: String,
     #[serde(default)]
     pub embed: DiscordEmbed,
+}
+
+impl MessageGetter for MessageLayout {
+    fn content(&self) -> &str {
+        &self.content
+    }
+
+    fn embed(&self) -> &DiscordEmbed {
+        &self.embed
+    }
+
+    fn format(&self) -> Format {
+        self.format
+    }
+}
+
+impl<T: MessageGetter> MessageGetter for sqlx::types::Json<T> {
+    fn content(&self) -> &str {
+        self.0.content()
+    }
+
+    fn embed(&self) -> &DiscordEmbed {
+        self.0.embed()
+    }
+
+    fn format(&self) -> Format {
+        self.0.format()
+    }
 }
 
 /// A wrapper for features/messages that can be toggled on/off.

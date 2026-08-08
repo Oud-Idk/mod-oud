@@ -135,12 +135,10 @@ pub fn spawn_level_up_effects(
 
     tokio::spawn(async move {
         if !matches!(leveling_config.notify.scope, NotificationScope::None) {
-            let embed = &leveling_config.notify.embed;
             trace!(guild_id = guild_id_val.get(), author_id = author_id_val.get(), "Initiating level-up notification");
 
             if let Err(e) = notifications::send_message(
                 &ctx,
-                embed.as_ref(),
                 &message,
                 &user_level,
                 &leveling_config,

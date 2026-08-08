@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MessageLayoutSchema } from "@/features/_shared/embed";
+import { messageLayoutSchema } from "@/features/_shared/embed";
 
 export const DEFAULT_BIRTHDAY_MESSAGE = {
     enabled: true,
@@ -16,8 +16,8 @@ export const BirthdayConfigSchema = z.object({
     birthdayRoleId: z.string().nullish().default(null),
     requireYear: z.boolean().default(false),
 
-    messageWithYear: MessageLayoutSchema.default(DEFAULT_BIRTHDAY_MESSAGE),
-    messageWithoutYear: MessageLayoutSchema.default(DEFAULT_BIRTHDAY_MESSAGE),
+    messageWithYear: messageLayoutSchema.default(DEFAULT_BIRTHDAY_MESSAGE),
+    messageWithoutYear: messageLayoutSchema.default(DEFAULT_BIRTHDAY_MESSAGE),
 });
 
 export const SaveBirthdayConfigSchema = BirthdayConfigSchema.superRefine((data, ctx) => {

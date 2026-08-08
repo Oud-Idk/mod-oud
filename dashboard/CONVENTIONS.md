@@ -281,7 +281,6 @@ export async function saveTicketsConfigAction(guildId: string, rawData: unknown)
   try {
     await verifyGuildAccess(guildId);
 
-    // 🚨 Validate with strict Zod schema at the boundary!
     const validatedData = SaveTicketConfigSchema.parse(rawData);
 
     await saveTicketConfig(guildId, validatedData);

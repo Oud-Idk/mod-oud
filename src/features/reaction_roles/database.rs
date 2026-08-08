@@ -10,7 +10,9 @@ use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use std::sync::Arc;
 use fred::bytes_utils::Str;
+use sqlx::types::Json;
 use tracing::{error, trace, warn};
+use crate::core::config::settings::MessageLayout;
 use crate::shared::embed::Format;
 
 /// Retrieves the Role ID associated with a message and emoji, utilizing Redis caching.
@@ -78,8 +80,7 @@ pub async fn fetch_reaction_message(
     sqlx::query_as!(
         ReactionMessage,
         r#"
-        SELECT id, message_id, name, channel_id, guild_id, mode as "mode: InteractionMode",
-               format as "format: Format", embed, content
+        SELECT id, message_id, name, channel_id, guild_id, mode as "mode: InteractionMode", message as "message: Json<MessageLayout>"
         FROM reaction_messages
         WHERE id = $1 AND guild_id = $2
         "#,

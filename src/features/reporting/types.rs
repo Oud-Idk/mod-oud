@@ -1,4 +1,4 @@
-use crate::core::config::settings::MessageLayout;
+use crate::core::config::settings::{MessageLayout, TogglableMessage};
 use crate::shared::string_i64;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
@@ -41,8 +41,8 @@ pub enum ReportStatus {
 #[serde(rename_all = "camelCase")]
 pub struct ReportConfig {
     pub enabled: bool,
-    pub resolved_dm: Option<MessageLayout>,
-    pub dismissed_dm: Option<MessageLayout>,
+    pub resolved_dm: Option<TogglableMessage>,
+    pub dismissed_dm: Option<TogglableMessage>,
 }
 
 #[derive(Deserialize, Debug)]

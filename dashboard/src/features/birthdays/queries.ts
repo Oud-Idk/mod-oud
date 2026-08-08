@@ -8,9 +8,8 @@ export async function getBirthdayConfig(guildId: string): Promise<BirthdayConfig
 
 export async function saveBirthdayConfig(
     guildId: string,
-    rawConfig: BirthdayConfig
+    config: BirthdayConfig
 ): Promise<BirthdayConfig> {
-    const validated = SaveBirthdayConfigSchema.parse(rawConfig);
-    await saveGuildConfigField(guildId, "birthday", validated);
-    return validated;
+    await saveGuildConfigField(guildId, "birthday", config);
+    return config;
 }

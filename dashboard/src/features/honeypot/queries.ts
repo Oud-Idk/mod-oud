@@ -4,8 +4,7 @@ import { z } from "zod";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
 export async function saveHoneypotConfig(guildId: string, config: HoneypotConfig): Promise<void> {
-    const validated = honeypotConfigSchema.parse(config);
-    await saveGuildConfigField(guildId, "honeypot", validated);
+    await saveGuildConfigField(guildId, "honeypot", config);
 }
 
 export async function getHoneypotConfig(guildId: string): Promise<HoneypotConfig> {

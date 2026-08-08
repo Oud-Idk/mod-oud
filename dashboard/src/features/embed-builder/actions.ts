@@ -37,33 +37,21 @@ export async function sendEmbedAction(
 
         if (!response.ok) {
             const errText = await response.text();
-            return {
-                success: false,
-                error: errText || "Backend returned an error state.",
-            };
+            throw new Error(errText || "Backend returned an error state.");
         }
 
         const data = await response.json();
+
         return {
-            success: true,
             messageId: data.message_id,
         };
     } catch (error: unknown) {
         if (error instanceof z.ZodError) {
-            return {
-                success: false,
-                error: error.issues[0]?.message || "Validation failed.",
-            };
+            throw new Error(error.issues[0]?.message || "Validation failed.");
         }
-        if (error instanceof Error) {
-            return {
-                success: false,
-                error: error.message,
-            };
-        }
-        return {
-            success: false,
-            error: "Failed to communicate with the backend server.",
-        };
+
+        throw new Error(
+            error instanceof Error ? error.message : "Failed to communicate with the backend server."
+        );
     }
 }

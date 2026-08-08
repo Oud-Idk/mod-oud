@@ -84,7 +84,7 @@ export async function getAutomodLogs(
         params.cursorCreatedAt,
         params.cursorId,
         params.limit,
-    ]);
+    ] as unknown[]);
 
     return z.array(automodLogSchema).parse(result.rows);
 }
@@ -129,7 +129,7 @@ export async function getJoinLeaveLogs(
         params.cursorCreatedAt,
         params.cursorId,
         params.limit,
-    ]);
+    ] as unknown[]);
 
     return z.array(joinLeaveLogSchema).parse(result.rows);
 }
@@ -172,7 +172,7 @@ export async function getModerationLogs(
         params.cursorCreatedAt,
         params.cursorId,
         params.limit,
-    ]);
+    ] as unknown[]);
 
     const formattedRows = result.rows.map((row) => ({
         ...row,

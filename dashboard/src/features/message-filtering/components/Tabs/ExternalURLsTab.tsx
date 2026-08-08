@@ -4,10 +4,10 @@ import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
 import { TextInput } from "@/components/ui/TextInput";
 import React, { useState } from "react";
 import { isFQDN } from "validator";
-import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayoutWrapper";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
+import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
 
 interface ExternalURLsTabProps {
     config: MessageFilteringConfig;

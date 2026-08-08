@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     getTicketsListAction,
     getTicketHistoryAction,
@@ -36,6 +36,11 @@ vi.stubGlobal("fetch", mockFetch);
 describe("Ticket Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.spyOn(console, "error").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("saveTicketsConfigAction", () => {
@@ -54,7 +59,7 @@ describe("Ticket Server Actions", () => {
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
             expect(saveTicketConfig).toHaveBeenCalledWith("guild_123", expect.anything());
-            expect(revalidatePath).toHaveBeenCalled();
+            expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/tickets");
         });
 
         it("should REJECT save and throw friendly Zod message when enabled = true but category is null", async () => {
@@ -81,6 +86,26 @@ describe("Ticket Server Actions", () => {
                 saveTicketsConfigAction("unauthorized_guild", {} as any)
             ).rejects.toThrow("Unauthorized access!");
         });
+
+        it("should catch non-Zod DB error and throw generic error message", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(saveTicketConfig).mockRejectedValue(new Error("Database write error"));
+
+            const validDraftConfig: any = { enabled: false };
+
+            await expect(
+                saveTicketsConfigAction("guild_123", validDraftConfig)
+            ).rejects.toThrow("Database write error");
+        });
+
+        it("should throw fallback error string if non-Error exception is thrown", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(saveTicketConfig).mockRejectedValue("string exception");
+
+            await expect(
+                saveTicketsConfigAction("guild_123", { enabled: false } as any)
+            ).rejects.toThrow("Could not save configuration.");
+        });
     });
 
     describe("sendTicketMessageAction", () => {
@@ -94,7 +119,6 @@ describe("Ticket Server Actions", () => {
                 postedMessageId: null,
             } as any);
 
-            // Mock successful response from Rust backend bot
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({ message_id: "discord_msg_999" }),
@@ -114,13 +138,12 @@ describe("Ticket Server Actions", () => {
                 postedMessageId: "discord_msg_999",
             }));
             expect(returnedMessageId).toBe("discord_msg_999");
-            expect(revalidatePath).toHaveBeenCalled();
+            expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/tickets");
         });
 
-        it("should throw error if the Discord bot backend responds with HTTP error", async () => {
+        it("should throw error if the Discord bot backend responds with HTTP error text", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
 
-            // Mock 500 error from bot
             mockFetch.mockResolvedValueOnce({
                 ok: false,
                 text: async () => "Bot missing permissions in channel!",
@@ -129,6 +152,28 @@ describe("Ticket Server Actions", () => {
             await expect(
                 sendTicketMessageAction("guild_123", "chan_1")
             ).rejects.toThrow("Bot missing permissions in channel!");
+        });
+
+        it("should throw fallback message if backend returns empty error text", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+
+            mockFetch.mockResolvedValueOnce({
+                ok: false,
+                text: async () => "",
+            });
+
+            await expect(
+                sendTicketMessageAction("guild_123", "chan_1")
+            ).rejects.toThrow("Could not instruct the bot to send the message.");
+        });
+
+        it("should catch network errors when fetch rejects", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            mockFetch.mockRejectedValueOnce(new Error("Network connection reset"));
+
+            await expect(
+                sendTicketMessageAction("guild_123", "chan_1")
+            ).rejects.toThrow("Network connection reset");
         });
     });
 
@@ -150,30 +195,80 @@ describe("Ticket Server Actions", () => {
                 expect.stringContaining("/api/guilds/guild_123/tickets/delete-message"),
                 expect.objectContaining({
                     method: "POST",
+                    body: JSON.stringify({ channel_id: "chan_1", message_id: "discord_msg_999" }),
                 })
             );
-            expect(saveTicketConfig).toHaveBeenCalled();
-            expect(revalidatePath).toHaveBeenCalled();
+            expect(saveTicketConfig).toHaveBeenCalledWith("guild_123", expect.objectContaining({
+                postedMessageId: null,
+            }));
+            expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/tickets");
+        });
+
+        it("should throw error if backend returns error during message deletion", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+
+            mockFetch.mockResolvedValueOnce({
+                ok: false,
+                text: async () => "Message already deleted",
+            });
+
+            await expect(
+                deleteTicketMessageAction("guild_123", "chan_1", "msg_999")
+            ).rejects.toThrow("Message already deleted");
+        });
+
+        it("should throw default message when backend response text is empty on deletion error", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+
+            mockFetch.mockResolvedValueOnce({
+                ok: false,
+                text: async () => "",
+            });
+
+            await expect(
+                deleteTicketMessageAction("guild_123", "chan_1", "msg_999")
+            ).rejects.toThrow("Could not instruct the bot to delete the message.");
         });
     });
 
     describe("Read-only Action Wrappers", () => {
-        it("getTicketsListAction should return rows from query", async () => {
-            const mockRows = [{ id: 1, status: "OPEN" }];
-            vi.mocked(getTicketList).mockResolvedValue({ rows: mockRows } as any);
+        it("getTicketsListAction should verify guild access and return rows", async () => {
+            const mockRows = [{ id: 1, status: "OPEN" }] as any;
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(getTicketList).mockResolvedValue(mockRows);
 
             const result = await getTicketsListAction("guild_123");
 
+            expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
             expect(result).toEqual(mockRows);
         });
 
-        it("getTicketHistoryAction should return history from query", async () => {
+        it("getTicketsListAction should catch errors and throw friendly error message", async () => {
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Access denied"));
+
+            await expect(getTicketsListAction("guild_123")).rejects.toThrow(
+                "Could not retrieve tickets list."
+            );
+        });
+
+        it("getTicketHistoryAction should verify guild access and return history", async () => {
             const mockHistory = { ticket_id: 1 } as any;
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
             vi.mocked(getTicketHistory).mockResolvedValue(mockHistory);
 
-            const result = await getTicketHistoryAction("chan_123");
+            const result = await getTicketHistoryAction("guild_123", "chan_123");
 
+            expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
             expect(result).toEqual(mockHistory);
+        });
+
+        it("getTicketHistoryAction should catch errors and throw friendly error message", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(getTicketHistory).mockRejectedValue(new Error("Database error"));
+
+            await expect(getTicketHistoryAction("guild_123", "chan_123")).rejects.toThrow(
+                "Could not retrieve ticket history."
+            );
         });
     });
 });

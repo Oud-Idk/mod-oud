@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
-import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayoutWrapper";
 import Link from "next/link";
 import { MessageFilteringConfig, FlagThreshold } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
 
 interface OffensiveMessagesTabProps {
     config: MessageFilteringConfig;
@@ -25,10 +25,10 @@ export function OffensiveMessagesTab({
 
     const updateFilter = createFilterUpdater(config, handleChange, "offensiveMessages");
 
-    const handleThresholdChange = (v: string) => {
-        const val = v as FlagThreshold;
-        setSelected(val);
-        updateFilter({ flagThreshold: val });
+    const handleThresholdChange = (v: FlagThreshold | null) => {
+        if (!v) return;
+        setSelected(v);
+        updateFilter({ flagThreshold: v });
     };
 
     const options: DropdownOption<FlagThreshold>[] = [

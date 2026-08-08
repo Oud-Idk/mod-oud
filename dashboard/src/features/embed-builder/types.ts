@@ -19,9 +19,7 @@ export const SendEmbedPayloadSchema = z
     });
 
 export const SendEmbedResponseSchema = z.object({
-    success: z.boolean(),
     messageId: z.string().optional(),
-    error: z.string().optional(),
 });
 
 export type SendEmbedPayload = z.infer<typeof SendEmbedPayloadSchema>;

@@ -101,7 +101,7 @@ export const BaseMessageLayoutSchema = z.object({
     embed: DiscordEmbedSchema.default({}),
 });
 
-export const MessageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ctx) => {
+export const messageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ctx) => {
     if (data.format === "TEXT") {
         if (!data.content || data.content.trim() === "") {
             ctx.addIssue({
@@ -121,17 +121,17 @@ export const MessageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ct
     }
 });
 
-export const DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT = Object.freeze({
+export const DEFAULT_TOGGLABLE_MESSAGE_LAYOUT = Object.freeze({
     enabled: false,
     message: DEFAULT_MESSAGE_LAYOUT,
 });
 
 export const TogglableMessageSchema = z.object({
     enabled: z.boolean().default(false),
-    message: MessageLayoutSchema,
-}).default(DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT);
+    message: messageLayoutSchema,
+}).default(DEFAULT_TOGGLABLE_MESSAGE_LAYOUT);
 
-export type MessageLayout = z.infer<typeof MessageLayoutSchema>;
+export type MessageLayout = z.infer<typeof messageLayoutSchema>;
 
 export const IsoDateSchema = z
     .union([z.string(), z.date()])

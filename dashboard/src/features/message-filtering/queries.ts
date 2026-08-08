@@ -1,67 +1,28 @@
+import { z } from "zod";
 import { db } from "@/lib/db";
 import redis from "@/lib/redis";
-import { BadWordRuleset, MessageFilteringConfig } from "@/features/message-filtering/types";
+import {
+    BadWordRuleset,
+    MessageFilteringConfig,
+    SaveableBadWordRuleset,
+    badWordRulesetSchema,
+    messageFilteringConfigSchema,
+    saveBadWordRulesetInputSchema,
+} from "@/features/message-filtering/types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
 export async function getMessageFilteringConfig(guildId: string): Promise<MessageFilteringConfig> {
-    const default_scope = {
-        mode: "EXEMPT" as const,
-        roles: [],
-        channels: [],
-    };
-
-    const default_base = {
-        enabled: false,
-        action: [],
-        scope: default_scope
-    };
-
-    const default_config: MessageFilteringConfig = {
-        badWords: { ...default_base, patterns: [] },
-        serverInvites: default_base,
-        externalLinks: {
-            ...default_base,
-            blockOnlyMalicious: true,
-            allowedDomains: [],
-            blockedDomains: [],
-            mode: "ALLOWLIST"
-        },
-        excessiveCaps: { ...default_base, threshold: 0.7, minLength: 10 },
-        excessiveEmojis: { ...default_base, maxEmojis: 10 },
-        excessiveSpoilers: { ...default_base, threshold: 0.5 },
-        excessiveMentions: { ...default_base, maxMentions: 5 },
-        zalgo: default_base,
-        cryptoAddress: default_base,
-        antiSpam: { ...default_base, messagesPerWindow: 8, windowSeconds: 5 },
-        offensiveMessages: { ...default_base, flagThreshold: "MODERATE" },
-        globalSettings: { ...default_scope }
-    };
-
-    const dbConfig = await getGuildConfigField<MessageFilteringConfig>(guildId, 'message_filtering');
-    if (!dbConfig) return default_config;
-
-    // Merge default configuration with whatever exists in the database
-    return {
-        badWords: { ...default_config.badWords, ...(dbConfig.badWords || {}) },
-        serverInvites: { ...default_config.serverInvites, ...(dbConfig.serverInvites || {}) },
-        externalLinks: { ...default_config.externalLinks, ...(dbConfig.externalLinks || {}) },
-        excessiveCaps: { ...default_config.excessiveCaps, ...(dbConfig.excessiveCaps || {}) },
-        excessiveEmojis: { ...default_config.excessiveEmojis, ...(dbConfig.excessiveEmojis || {}) },
-        excessiveSpoilers: { ...default_config.excessiveSpoilers, ...(dbConfig.excessiveSpoilers || {}) },
-        excessiveMentions: { ...default_config.excessiveMentions, ...(dbConfig.excessiveMentions || {}) },
-        zalgo: { ...default_config.zalgo, ...(dbConfig.zalgo || {}) },
-        cryptoAddress: { ...default_config.cryptoAddress, ...(dbConfig.cryptoAddress || {}) },
-        antiSpam: { ...default_config.antiSpam, ...(dbConfig.antiSpam || {}) },
-        offensiveMessages: { ...default_config.offensiveMessages, ...(dbConfig.offensiveMessages || {}) },
-        globalSettings: { ...default_scope, ...(dbConfig.globalSettings || {}) },
-    };
+    const validGuildId = z.string().min(1).parse(guildId);
+    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "message_filtering");
+    return messageFilteringConfigSchema.parse(dbConfig ?? {});
 }
 
 export async function saveMessageFilteringConfig(guildId: string, config: MessageFilteringConfig): Promise<void> {
-    await saveGuildConfigField(guildId, 'message_filtering', config);
+    await saveGuildConfigField(guildId, "message_filtering", config);
 }
 
 export async function getBadWordRulesets(guildId: string): Promise<BadWordRuleset[]> {
+    const validGuildId = z.string().min(1).parse(guildId);
     const query = `
         SELECT id,
                guild_id                 AS "guildId",
@@ -77,14 +38,16 @@ export async function getBadWordRulesets(guildId: string): Promise<BadWordRulese
         WHERE guild_id = $1
         ORDER BY created_at ASC
     `;
-    const res = await db.query(query, [guildId]);
-    return res.rows;
+    const res = await db.query(query, [validGuildId] as unknown[]);
+    return z.array(badWordRulesetSchema).parse(res.rows);
 }
 
 export async function saveBadWordRuleset(
     guildId: string,
-    ruleset: Omit<BadWordRuleset, 'created_at' | 'updated_at' | 'guild_id' | 'id'> & { id?: string }
+    rawRuleset: SaveableBadWordRuleset
 ): Promise<BadWordRuleset> {
+    const ruleset = saveBadWordRulesetInputSchema.parse(rawRuleset);
+
     const query = `
         INSERT INTO bad_word_rulesets (id, guild_id, name, enabled, patterns, actions, timeout_duration_seconds, scope)
         VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5::JSONB, $6::JSONB, $7, $8::JSONB)
@@ -109,17 +72,17 @@ export async function saveBadWordRuleset(
     `;
 
     const params = [
-        ruleset.id || null,
+        ruleset.id ?? null,
         guildId,
         ruleset.name,
         ruleset.enabled,
         JSON.stringify(ruleset.patterns),
         JSON.stringify(ruleset.actions),
-        ruleset.timeout_duration_seconds,
-        JSON.stringify(ruleset.scope)
+        ruleset.timeoutDurationSeconds ?? null,
+        JSON.stringify(ruleset.scope),
     ];
 
-    const res = await db.query(query, params);
+    const res = await db.query(query, params as unknown[]);
 
     // Keep Redis cache in sync
     const cacheKey = `config:guild:${guildId}:bad_words`;
@@ -130,12 +93,9 @@ export async function saveBadWordRuleset(
         console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
     }
 
-    return res.rows[0];
+    return badWordRulesetSchema.parse(res.rows[0]);
 }
 
-/**
- * Delete a bad word ruleset by ID and Guild ID
- */
 export async function deleteBadWordRuleset(guildId: string, id: string): Promise<void> {
     const query = `
         DELETE
@@ -143,7 +103,7 @@ export async function deleteBadWordRuleset(guildId: string, id: string): Promise
         WHERE id = $1
           AND guild_id = $2
     `;
-    await db.query(query, [id, guildId]);
+    await db.query(query, [id, guildId] as unknown[]);
 
     const badWordsCacheKey = `config:guild:${guildId}:bad_words`;
 
@@ -153,7 +113,6 @@ export async function deleteBadWordRuleset(guildId: string, id: string): Promise
         const generalCacheKey = `config:guild:${guildId}`;
         await redis.del(generalCacheKey);
 
-        // Notify other service instances via Redis Pub/Sub if needed
         await redis.publish("config_updates", `invalidate:${guildId}:bad_words`);
     } catch (redisError) {
         console.error(`Failed to clear cache for guild ${guildId}:`, redisError);

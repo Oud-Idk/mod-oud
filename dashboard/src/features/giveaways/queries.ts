@@ -35,8 +35,7 @@ export async function getGiveaways(guildId: string): Promise<Giveaway[]> {
     return z.array(giveawaySchema).parse(res.rows);
 }
 
-export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Giveaway> {
-    const data = SaveGiveawaySchema.parse(dataPayload);
+export async function saveGiveaway(data: SaveGiveawayData): Promise<Giveaway> {
 
     if (data.id) {
         const query = `
@@ -68,10 +67,10 @@ export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Givea
             data.end_time,
             data.message.format,
             data.message.embed ? JSON.stringify(data.message.embed) : null,
-            data.message.content ?? "",
+            data.message.content ?? null,
             data.host_id,
             data.id,
-        ]);
+        ] as unknown[]);
 
         return giveawaySchema.parse(res.rows[0]);
     } else {
@@ -103,9 +102,9 @@ export async function saveGiveaway(dataPayload: SaveGiveawayData): Promise<Givea
             data.end_time,
             data.message.format,
             data.message.embed ? JSON.stringify(data.message.embed) : null,
-            data.message.content ?? "",
+            data.message.content ?? null,
             data.host_id,
-        ]);
+        ] as unknown[]);
 
         return giveawaySchema.parse(res.rows[0]);
     }
@@ -115,6 +114,6 @@ export async function deleteGiveaway(id: number, guildId: string): Promise<boole
     const validId = z.number().int().positive().parse(id);
     const validGuildId = z.string().parse(guildId);
 
-    const res = await db.query(`DELETE FROM giveaways WHERE id = $1 AND guild_id = $2`, [validId, validGuildId]);
+    const res = await db.query(`DELETE FROM giveaways WHERE id = $1 AND guild_id = $2`, [validId, validGuildId] as unknown[]);
     return (res.rowCount ?? 0) > 0;
 }

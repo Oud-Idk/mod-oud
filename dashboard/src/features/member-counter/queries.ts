@@ -1,16 +1,22 @@
-import { CounterChannel, type MemberCounterConfig, memberCounterConfigSchema, type MemberCounterInput, } from "./types";
+import { z } from "zod";
+import {
+    CounterChannel,
+    MemberCounterConfig,
+    memberCounterConfigSchema,
+    counterChannelSchema, saveMemberCounterConfigSchema,
+} from "./types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
 export async function getMemberCounterConfig(guildId: string): Promise<MemberCounterConfig> {
-    const dbConfig = await getGuildConfigField<unknown>(guildId, "member_counter");
+    const validGuildId = z.string().min(1).parse(guildId);
+    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "member_counter");
     return memberCounterConfigSchema.parse(dbConfig ?? {});
 }
 
 export async function saveMemberCounterConfig(
     guildId: string,
-    rawConfig: MemberCounterInput
+    config: MemberCounterConfig
 ): Promise<MemberCounterConfig> {
-    const config = memberCounterConfigSchema.parse(rawConfig);
     await saveGuildConfigField(guildId, "member_counter", config);
     return config;
 }
@@ -31,7 +37,6 @@ export async function setupMemberCounterChannels(
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error(response);
         throw new Error(errorData.message || "Failed to create category and channels via bot backend.");
     }
 

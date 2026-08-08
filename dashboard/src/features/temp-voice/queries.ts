@@ -1,15 +1,12 @@
 import { db } from "@/lib/db";
-import { z } from "zod";
 import {
-    TempVoiceHub,
-    tempVoiceHubSchema,
     saveTempVoiceHubInputSchema,
-    SaveTempVoiceHubInput
-} from "@/features/temp-voice/types";
+    tempVoiceHubSchema,
+    type SaveTempVoiceHubInput,
+    type TempVoiceHub,
+} from "./types";
 
 export async function getTempVoiceHubs(guildId: string): Promise<TempVoiceHub[]> {
-    const validGuildId = z.string().parse(guildId);
-
     const query = `
         SELECT id,
                guild_id,
@@ -23,17 +20,14 @@ export async function getTempVoiceHubs(guildId: string): Promise<TempVoiceHub[]>
         WHERE guild_id = $1
         ORDER BY created_at ASC;
     `;
-    const res = await db.query(query, [validGuildId]);
-
-    return z.array(tempVoiceHubSchema).parse(res.rows);
+    const res = await db.query(query, [guildId] as unknown[]);
+    return res.rows.map((row) => tempVoiceHubSchema.parse(row));
 }
 
 export async function saveTempVoiceHub(
     guildId: string,
-    hubPayload: SaveTempVoiceHubInput
+    hub: SaveTempVoiceHubInput
 ): Promise<TempVoiceHub> {
-    const validGuildId = z.string().parse(guildId);
-    const validHub = saveTempVoiceHubInputSchema.parse(hubPayload);
 
     const query = `
         INSERT INTO temp_voice_hubs (id, guild_id, name, hub_channel_id, category_id, user_limit, interface_channel_id,
@@ -44,39 +38,37 @@ export async function saveTempVoiceHub(
                 hub_channel_id       = EXCLUDED.hub_channel_id,
                 category_id          = EXCLUDED.category_id,
                 user_limit           = EXCLUDED.user_limit,
-                interface_channel_id = EXCLUDED.interface_channel_id
+                interface_channel_id = EXCLUDED.interface_channel_id,
+                default_channel_name = EXCLUDED.default_channel_name
         RETURNING *;
     `;
     const res = await db.query(query, [
-        validHub.id || null,
-        validGuildId,
-        validHub.name || 'Default Hub',
-        validHub.hub_channel_id,
-        validHub.category_id,
-        validHub.user_limit ?? null,
-        validHub.interface_channel_id ?? null,
-        validHub.default_channel_name,
-    ]);
+        hub.id ?? null,
+        guildId,
+        hub.name,
+        hub.hub_channel_id,
+        hub.category_id,
+        hub.user_limit ?? null,
+        hub.interface_channel_id ?? null,
+        hub.default_channel_name,
+    ] as unknown[]);
 
     return tempVoiceHubSchema.parse(res.rows[0]);
 }
 
 export async function deleteTempVoiceHub(guildId: string, hubId: string): Promise<void> {
-    const validGuildId = z.string().parse(guildId);
-    const validHubId = z.string().parse(hubId);
-
     const query = `DELETE
                    FROM temp_voice_hubs
                    WHERE id = $1
                      AND guild_id = $2
                    RETURNING category_id;`;
-    const dbRes = await db.query(query, [validHubId, validGuildId]);
+    const dbRes = await db.query(query, [hubId, guildId] as unknown[]);
 
     if (dbRes.rows.length > 0) {
-        const categoryId = z.string().parse(dbRes.rows[0].category_id);
+        const categoryId = dbRes.rows[0].category_id as string;
 
         const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
-        const res = await fetch(`${backendUrl}/api/guilds/${validGuildId}/category/delete-entire`, {
+        const res = await fetch(`${backendUrl}/api/guilds/${guildId}/category/delete-entire`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",
@@ -88,7 +80,5 @@ export async function deleteTempVoiceHub(guildId: string, hubId: string): Promis
             const errorBody = await res.text();
             throw new Error(`Failed to delete temp voice hub: ${errorBody}`);
         }
-    } else {
-        console.log("No matching record was found to delete.");
     }
 }

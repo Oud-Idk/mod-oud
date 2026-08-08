@@ -1,7 +1,7 @@
 "use client";
 
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import { ComponentType, JSX, useMemo, useState } from "react";
+import { ComponentType, JSX, useMemo, useState, useCallback } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { OffensiveMessagesTab } from "@/features/message-filtering/components/Tabs/OffensiveMessagesTab";
 import { ServerInvitesTab } from "@/features/message-filtering/components/Tabs/ServerInvitesTab";
@@ -14,11 +14,14 @@ import { ZalgoTab } from "@/features/message-filtering/components/Tabs/ZalgoTab"
 import { AntiSpamFilterTab } from "@/features/message-filtering/components/Tabs/AntiSpamFilterTab";
 import { GlobalScopeTab } from "@/features/message-filtering/components/Tabs/GlobalScope";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-
 import { BadWordTab } from "@/features/message-filtering/components/Tabs/BadWordsTab";
 import { CryptoAddressTab } from "@/features/message-filtering/components/Tabs/CryptoAddressTab";
-import { BadWordRuleset } from "@/features/message-filtering/types";
-import { MessageFilteringConfig } from "@/features/message-filtering/types";
+import {
+    BadWordRuleset,
+    MessageFilteringConfig,
+    SaveableBadWordRuleset,
+    messageFilteringConfigSchema
+} from "@/features/message-filtering/types";
 
 type TabValue =
     | "bad_words"
@@ -34,7 +37,7 @@ type TabValue =
     | "crypto_addresses"
     | "global_scope";
 
-const WELCOME_TABS: TabItem<TabValue>[] = [
+const FILTERING_TABS: TabItem<TabValue>[] = [
     { value: "bad_words", label: "Bad Words" },
     { value: "offensive_messages", label: "Offensive Messages" },
     { value: "server_invites", label: "External Server Invites" },
@@ -48,21 +51,6 @@ const WELCOME_TABS: TabItem<TabValue>[] = [
     { value: "crypto_addresses", label: "Crypto Addresses" },
     { value: "global_scope", label: "Global Scope" },
 ];
-
-type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {
-    id?: string;
-};
-
-interface MessageFilteringBodyProps {
-    messageFilteringConfig: MessageFilteringConfig;
-    badWordRulesets: BadWordRuleset[];
-    activeRuleset: BadWordRuleset | null;
-    onSaveRuleset: (ruleset: SaveableBadWordRuleset) => Promise<any>;
-    onDeleteRuleset: (id: string) => Promise<void>;
-    channelMap?: Record<string, string>;
-    roleMap?: Record<string, string>;
-    onSave: (messageFilteringConfig: MessageFilteringConfig) => Promise<void>;
-}
 
 const TAB_MAP: Record<Exclude<TabValue, "bad_words">, ComponentType<any>> = {
     offensive_messages: OffensiveMessagesTab,
@@ -78,6 +66,17 @@ const TAB_MAP: Record<Exclude<TabValue, "bad_words">, ComponentType<any>> = {
     global_scope: GlobalScopeTab,
 };
 
+interface MessageFilteringBodyProps {
+    messageFilteringConfig: MessageFilteringConfig;
+    badWordRulesets: BadWordRuleset[];
+    activeRuleset: BadWordRuleset | null;
+    onSaveRuleset: (ruleset: SaveableBadWordRuleset) => Promise<any>;
+    onDeleteRuleset: (id: string) => Promise<void>;
+    channelMap?: Record<string, string>;
+    roleMap?: Record<string, string>;
+    onSave: (messageFilteringConfig: MessageFilteringConfig) => Promise<void>;
+}
+
 export function MessageFilteringBody({
     messageFilteringConfig,
     badWordRulesets,
@@ -89,30 +88,34 @@ export function MessageFilteringBody({
     onSave,
 }: MessageFilteringBodyProps): JSX.Element {
     const [activeTab, setActiveTab] = useState<TabValue>("bad_words");
-
-    const normalizedConfig = useMemo(() => {
-        return {
-            ...messageFilteringConfig,
-        };
-    }, [messageFilteringConfig]);
+    const normalizedConfig = useMemo(() => messageFilteringConfig, [messageFilteringConfig]);
 
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
         handleSave,
         handleCancel,
-        handleChange,
     } = useConfigForm({
         initialConfig: normalizedConfig,
         onSave,
     });
 
+    const handleChange = useCallback((updated: Partial<MessageFilteringConfig>) => {
+        setConfig((prev) => ({ ...prev, ...updated }));
+    }, [setConfig]);
+
+    const onValidatedSave = (): void => {
+        messageFilteringConfigSchema.parse(config);
+        handleSave();
+    };
+
     const ActiveTabComponent = activeTab !== "bad_words" ? TAB_MAP[activeTab] : null;
 
     return (
         <div>
-            <Tabs tabs={WELCOME_TABS} activeTab={activeTab} onChange={setActiveTab}/>
+            <Tabs tabs={FILTERING_TABS} activeTab={activeTab} onChange={setActiveTab}/>
 
             <div className="tab-content">
                 {activeTab === "bad_words" ? (
@@ -127,14 +130,21 @@ export function MessageFilteringBody({
                 ) : (
                     ActiveTabComponent && (
                         <ActiveTabComponent
-                            config={config} handleChange={handleChange} channelMap={channelMap} roleMap={roleMap}
+                            config={config}
+                            handleChange={handleChange}
+                            channelMap={channelMap}
+                            roleMap={roleMap}
                         />
                     )
                 )}
             </div>
 
             {isDirty && activeTab !== "bad_words" && (
-                <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}/>
+                <SavePopup
+                    handleCancel={handleCancel}
+                    handleSave={onValidatedSave}
+                    isSaving={isPending}
+                />
             )}
         </div>
     );

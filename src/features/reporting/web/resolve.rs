@@ -81,9 +81,9 @@ pub async fn handle_resolve_report(
 
     let custom_msg_builder = if let Some(layout) = layout_opt {
         build_custom_message(
-            &layout.format,
-            Some(&layout.content),
-            layout.embed.as_ref(),
+            layout.message.format,
+            &layout.message.content,
+            &layout.message.embed,
             replace_fn,
         )
             .map_err(|e| {

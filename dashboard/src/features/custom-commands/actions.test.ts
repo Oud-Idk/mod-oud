@@ -27,7 +27,6 @@ vi.mock("next/cache", () => ({
 describe("Custom Commands Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        // Optionally search/check or silence expected console.error logs
         vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
@@ -123,12 +122,27 @@ describe("Custom Commands Server Actions", () => {
             await expect(saveCustomCommandAction("guild_123", command)).rejects.toThrow("db exploded");
         });
 
+        it("should handle non-Error throw gracefully", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(saveCustomCommand).mockRejectedValue("string throw");
+
+            const command: any = {
+                guild_id: "guild_123",
+                name: "testcmd",
+                enabled: false,
+            };
+
+            await expect(saveCustomCommandAction("guild_123", command)).rejects.toThrow(
+                "Could not save custom command."
+            );
+        });
+
         it("should REJECT save and throw Zod message when command name contains illegal characters", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
 
             const invalidCommand: any = {
                 guild_id: "guild_123",
-                name: "invalid name!", // ❌ Spaces and exclamation marks!
+                name: "invalid name!",
                 enabled: true,
                 actions: [{ type: "add_role", data: { role_id: "role_1" } }],
             };
@@ -165,6 +179,17 @@ describe("Custom Commands Server Actions", () => {
             expect(redis.del).not.toHaveBeenCalled();
         });
 
+        it("should handle Redis deletion failures without crashing delete action", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(deleteCustomCommand).mockResolvedValue(true);
+            vi.mocked(redis.del).mockRejectedValue(new Error("Redis connection error"));
+
+            const result = await deleteCustomCommandAction("guild_123", 42, "ping");
+
+            expect(result).toBe(true);
+            expect(revalidatePath).toHaveBeenCalled();
+        });
+
         it("should propagate an error when verifyGuildAccess fails", async () => {
             vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
 
@@ -173,14 +198,13 @@ describe("Custom Commands Server Actions", () => {
             expect(deleteCustomCommand).not.toHaveBeenCalled();
         });
 
-        it("should return false and still clear cache attempt correctly when delete finds no row", async () => {
+        it("should throw fallback message on non-Error exception during delete", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
-            vi.mocked(deleteCustomCommand).mockResolvedValue(false);
+            vi.mocked(deleteCustomCommand).mockRejectedValue("string exception");
 
-            const result = await deleteCustomCommandAction("guild_123", 999, "ghost");
-
-            expect(result).toBe(false);
-            expect(redis.del).toHaveBeenCalledWith("cmd:guild_123:ghost");
+            await expect(deleteCustomCommandAction("guild_123", 42, "ping")).rejects.toThrow(
+                "Could not delete custom command."
+            );
         });
     });
 });

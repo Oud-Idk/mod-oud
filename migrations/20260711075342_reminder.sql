@@ -4,10 +4,11 @@ CREATE TABLE reminders
 (
     id               BIGSERIAL PRIMARY KEY,
     channel_id       BIGINT                   NOT NULL,
-
-    format           MESSAGE_FORMAT           NOT NULL,
-    embed            JSONB,
-    content          TEXT,
+    message          JSONB                    NOT NULL DEFAULT '{
+      "format": "TEXT",
+      "content": "",
+      "embed": {}
+    }'::JSONB,
 
     r_type           REMINDER_TYPE            NOT NULL DEFAULT 'SINGLE',
 

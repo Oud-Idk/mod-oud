@@ -1,15 +1,16 @@
 "use client";
 
-import React, { ReactNode } from "react";
+import React, { ReactNode, useMemo } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { ReminderFormat, ReminderRow, ReminderType } from "@/features/reminders/types";
 import { Button } from "@/components/ui/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { LongTextInput } from "@/components/ui/LongTextInput";
 import Footer from "@/components/layout/Footer";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { TimeInput } from "@/components/ui/TimeInput";
+import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import { saveableReminderSchema, type ReminderFormat, type ReminderRow, type ReminderType } from "../types";
 
 interface ReminderConfigProps {
     config: ReminderRow;
@@ -18,6 +19,7 @@ interface ReminderConfigProps {
     onDelete: (id: string) => Promise<void>;
     onChange: (config: Partial<ReminderRow>) => void;
     setIsEmpty: (isEmpty: boolean) => void;
+    isEmpty: boolean;
 }
 
 const DAYS_OF_WEEK = [
@@ -37,10 +39,11 @@ export function ReminderConfig({
     onDelete,
     onChange,
 }: ReminderConfigProps): ReactNode {
-    const channelOptions = Object.entries(channelMap).map(([id, name]) => ({
-        value: id,
-        label: name,
-    }));
+    const validationResult = useMemo(() => {
+        return saveableReminderSchema.safeParse(config);
+    }, [config]);
+
+    const hasValidationErrors = !validationResult.success;
 
     const formatOptions: { value: ReminderFormat; label: string }[] = [
         { value: "TEXT", label: "Plain Text" },
@@ -90,7 +93,6 @@ export function ReminderConfig({
 
     return (
         <div className="space-y-6">
-            {/* Header section */}
             <div className="flex justify-between items-center pb-4 border-b border-border-subtle gap-4">
                 <div className="space-y-0.5">
                     <span className="block text-xs uppercase font-semibold tracking-wider text-muted-foreground">
@@ -110,7 +112,15 @@ export function ReminderConfig({
                 </Button>
             </div>
 
-            {/* Toggle Switch */}
+            {hasValidationErrors && (
+                <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>
+                        {validationResult.error?.issues[0]?.message || "Please complete required reminder fields before saving."}
+                    </span>
+                </div>
+            )}
+
             <ToggleSwitch
                 checked={config.isActive}
                 onChange={(checked) => onChange({ isActive: checked })}
@@ -119,60 +129,49 @@ export function ReminderConfig({
                 shrink={true}
             />
 
-            {/* Target Channel & Format */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                    <InputLabel>
-                        Target Channel
-                    </InputLabel>
+                    <InputLabel>Target Channel</InputLabel>
                     <Dropdown
-                        options={channelOptions}
-                        value={config.channelId}
+                        options={getAvailableChannelOptions(channelMap)}
+                        value={config.channelId ?? ""}
                         onChange={(val) => onChange({ channelId: val })}
                         placeholder="Select channel"
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <InputLabel>
-                        Message Format
-                    </InputLabel>
+                    <InputLabel>Message Format</InputLabel>
                     <Dropdown
                         options={formatOptions}
-                        value={config.format}
-                        onChange={(val) => onChange({ format: val })}
+                        value={config.message.format}
+                        onChange={(val) => onChange({ message: {...config.message, format: val ?? "TEXT"} })}
                         placeholder="Select format"
                     />
                 </div>
             </div>
 
-            {/* Content Field */}
-            {config.format === "TEXT" && (
+            {config.message.format === "TEXT" && (
                 <div className="space-y-1.5">
-                    <InputLabel>
-                        Message Content
-                    </InputLabel>
+                    <InputLabel>Message Content</InputLabel>
                     <LongTextInput
-                        value={config.content || ""}
-                        onChange={(e) => onChange({ content: e.target.value })}
+                        value={config.message.content || ""}
+                        onChange={(e) => onChange({ message: { ...config.message, content: e.target.value }})}
                         placeholder="Type the message to send..."
                         rows={4}
                     />
                 </div>
             )}
 
-            {/* Schedule Type & Next Trigger */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border-subtle">
                 <div className="space-y-1.5">
-                    <InputLabel>
-                        Reminder Type
-                    </InputLabel>
+                    <InputLabel>Reminder Type</InputLabel>
                     <Dropdown
                         options={typeOptions}
                         value={config.rType}
                         onChange={(val) => {
                             onChange({
-                                rType: val,
+                                rType: val as ReminderType,
                                 nextTriggerAt:
                                     val === "RECURRING"
                                         ? new Date().toISOString()
@@ -184,9 +183,7 @@ export function ReminderConfig({
                 </div>
 
                 <div className="space-y-1.5">
-                    <InputLabel>
-                        Next Scheduled Trigger
-                    </InputLabel>
+                    <InputLabel>Next Scheduled Trigger</InputLabel>
                     {config.rType === "RECURRING" ? (
                         <div className="bg-surface-muted border border-border-subtle rounded-lg px-4 py-2.5 text-xs text-muted-foreground">
                             {new Date(config.nextTriggerAt).toLocaleString()}
@@ -208,7 +205,6 @@ export function ReminderConfig({
                 </div>
             </div>
 
-            {/* Recurrence Settings */}
             {config.rType === "RECURRING" && (
                 <div className="space-y-5 pt-4 border-t border-border-subtle">
                     <div>
@@ -218,7 +214,6 @@ export function ReminderConfig({
                         </Footer>
                     </div>
 
-                    {/* Active Days Selection */}
                     <div className="space-y-2">
                         <InputLabel>Active Days of the Week</InputLabel>
                         <div className="flex flex-wrap gap-2">
@@ -245,36 +240,29 @@ export function ReminderConfig({
                         </span>
                     </div>
 
-                    {/* Time Window & Interval Inputs */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                            <InputLabel>
-                                Time Range Start
-                            </InputLabel>
+                            <InputLabel>Time Range Start</InputLabel>
                             <TimeInput
+                                value={formatTimeForInput(config.timeStart)}
                                 onChange={(e) => handleTimeChange("timeStart", e.target.value)}
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <InputLabel>
-                                Time Range End
-                            </InputLabel>
+                            <InputLabel>Time Range End</InputLabel>
                             <TimeInput
+                                value={formatTimeForInput(config.timeEnd)}
                                 onChange={(e) => handleTimeChange("timeEnd", e.target.value)}
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <InputLabel>
-                                Interval (Seconds)
-                            </InputLabel>
+                            <InputLabel>Interval (Seconds)</InputLabel>
                             <NumberInput
                                 min={10}
                                 value={config.intervalSeconds}
-                                onChange={(n) => {
-                                    onChange({ intervalSeconds: n });
-                                }}
+                                onChange={(n) => onChange({ intervalSeconds: n })}
                                 placeholder="Once per day"
                             />
                         </div>

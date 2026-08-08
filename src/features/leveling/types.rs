@@ -3,6 +3,7 @@ use crate::shared::embed::Format;
 use crate::shared::ok_or_none;
 use serde::{Deserialize, Serialize};
 use serde_with::{DefaultOnError, DisplayFromStr, serde_as};
+use crate::core::config::settings::MessageLayout;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -60,10 +61,7 @@ pub struct NotificationSettings {
     pub scope: NotificationScope,
     #[serde_as(as = "DefaultOnError<Option<DisplayFromStr>>")]
     pub channel_id: Option<u64>,
-    pub format: Format,
-    pub content: String,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub embed: Option<DiscordEmbed>,
+    pub message: MessageLayout,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

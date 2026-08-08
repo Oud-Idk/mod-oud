@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MessageLayoutSchema, MessageLayout, IsoDateSchema } from "@/features/_shared/embed";
+import { messageLayoutSchema, MessageLayout, IsoDateSchema } from "@/features/_shared/embed";
 
 export const DEFAULT_GIVEAWAY_MESSAGE: MessageLayout = Object.freeze({
     enabled: true,
@@ -20,7 +20,7 @@ export const giveawaySchema = z.object({
     end_time: IsoDateSchema,
     is_finished: z.boolean().default(false),
 
-    message: MessageLayoutSchema.default(DEFAULT_GIVEAWAY_MESSAGE),
+    message: messageLayoutSchema.default(DEFAULT_GIVEAWAY_MESSAGE),
 });
 
 export type Giveaway = z.infer<typeof giveawaySchema>;
@@ -31,7 +31,7 @@ export const saveGiveawayInputSchema = giveawaySchema
         id: z.coerce.number().int().positive().optional(),
         channel_id: z.string().nullish().default(null),
         message_id: z.string().nullish().optional().default(null),
-        message: MessageLayoutSchema.default(DEFAULT_GIVEAWAY_MESSAGE),
+        message: messageLayoutSchema.default(DEFAULT_GIVEAWAY_MESSAGE),
     });
 
 export type SaveGiveawayData = z.infer<typeof saveGiveawayInputSchema>;

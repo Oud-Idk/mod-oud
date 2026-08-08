@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { MessageLayoutSchema, MessageLayout } from "@/features/_shared/embed";
+import { messageLayoutSchema, MessageLayout } from "@/features/_shared/embed";
 
 export const cooldownTypeSchema = z.enum(["NONE", "USER", "SERVER"]);
 
 /** Reusable schema for the message_layout sub-field */
 export const messageLayoutGroupSchema = z.object({
-    messages: z.array(MessageLayoutSchema).min(1, "At least one message is required"),
+    messages: z.array(messageLayoutSchema).min(1, "At least one message is required"),
     randomize: z.boolean().default(false),
 });
 

@@ -7,6 +7,7 @@ import {
 } from "./queries";
 import { db } from "@/lib/db";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
+import { TicketConfig } from "@/features/tickets/types";
 
 vi.mock("@/lib/db", () => ({
     db: {
@@ -24,17 +25,12 @@ describe("Tickets Query Module", () => {
         vi.clearAllMocks();
     });
 
-    // ==========================================
-    // getTicketConfig Tests
-    // ==========================================
     describe("getTicketConfig", () => {
         it("should return full default config when DB returns null", async () => {
-            // Simulate database returning no saved config
             vi.mocked(getGuildConfigField).mockResolvedValue(null);
 
             const result = await getTicketConfig("guild_123");
 
-            // Verify Zod populated default values automatically!
             expect(result.enabled).toBe(false);
             expect(result.warnThreshold).toBe(30);
             expect(result.categoryId).toBeNull();
@@ -43,65 +39,58 @@ describe("Tickets Query Module", () => {
         });
 
         it("should merge saved DB config with Zod defaults for missing fields", async () => {
-            // Simulate partial DB record
             vi.mocked(getGuildConfigField).mockResolvedValue({
                 enabled: true,
                 categoryId: "cat_999",
-                // Notice warnThreshold and welcomeMessage are missing!
             });
 
             const result = await getTicketConfig("guild_123");
 
             expect(result.enabled).toBe(true);
             expect(result.categoryId).toBe("cat_999");
-            // Zod automatically supplied default for missing fields!
             expect(result.warnThreshold).toBe(30);
             expect(result.deleteThreshold).toBe(45);
         });
     });
 
-    // ==========================================
-    // saveTicketConfig Tests
-    // ==========================================
     describe("saveTicketConfig", () => {
-        it("should parse with Zod and save valid config to DB", async () => {
-            const validConfig: any = {
+        it("should forward the validated config to saveGuildConfigField", async () => {
+            const mockValidatedConfig: TicketConfig = {
                 categoryId: "cat_123",
                 channelId: "chan_456",
                 ticketRoleId: "role_123",
+                postedMessageId: null,
                 enabled: true,
+                panelMessage: { enabled: false, message: { format: "TEXT", content: "", embed: {}} },
+                welcomeMessage: { enabled: false, message: { format: "TEXT", content: "", embed: {}} },
+                warnThreshold: 30,
+                deleteThreshold: 45,
+                bumpEvery: 20,
             };
 
-            await saveTicketConfig("guild_123", validConfig);
+            await saveTicketConfig("guild_123", mockValidatedConfig);
 
-            // Verify saveGuildConfigField received the Zod-validated data
+            // Verify saveGuildConfigField received exact config
             expect(saveGuildConfigField).toHaveBeenCalledWith(
                 "guild_123",
                 "tickets",
-                expect.objectContaining({
-                    categoryId: "cat_123",
-                    channelId: "chan_456",
-                    enabled: true,
-                    warnThreshold: 30, // Injected default!
-                })
+                mockValidatedConfig
             );
         });
     });
 
-    // ==========================================
-    // getTicketHistory Tests
-    // ==========================================
     describe("getTicketHistory", () => {
         it("should return the first row when ticket history is found", async () => {
+            const now = new Date();
             const mockHistory = {
                 ticket_id: 1,
                 guild_id: "guild_123",
                 channel_id: "chan_456",
                 opener_id: "user_789",
                 status: "OPEN",
-                created_at: new Date(),
+                created_at: now,
                 closed_at: null,
-                last_activity: new Date(),
+                last_activity: now,
                 message_count: 5,
                 messages: [],
             };
@@ -113,7 +102,12 @@ describe("Tickets Query Module", () => {
 
             const result = await getTicketHistory("chan_456");
 
-            expect(result).toEqual(mockHistory);
+            // IsoDateSchema transforms Date -> ISO string
+            expect(result).toEqual({
+                ...mockHistory,
+                created_at: now.toISOString(),
+                last_activity: now.toISOString(),
+            });
             expect(db.query).toHaveBeenCalledWith(expect.any(String), ["chan_456"]);
         });
 
@@ -129,19 +123,34 @@ describe("Tickets Query Module", () => {
         });
     });
 
-    // ==========================================
-    // getTicketList Tests
-    // ==========================================
     describe("getTicketList", () => {
         it("should query tickets for the given guild ID", async () => {
-            const mockRows = [{ id: 1, status: "OPEN" }];
+            const now = new Date();
+            const mockRows = [
+                {
+                    id: 1,
+                    channel_id: "chan_456",
+                    opener_id: "user_789",
+                    status: "OPEN",
+                    created_at: now,
+                    closed_at: null,
+                    message_count: 0,
+                },
+            ];
+
             vi.mocked(db.query).mockResolvedValue({
                 rows: mockRows,
             } as any);
 
             const res = await getTicketList("guild_123");
 
-            expect(res).toEqual(mockRows);
+            // TicketSchema converts Date -> ISO string
+            expect(res).toEqual([
+                {
+                    ...mockRows[0],
+                    created_at: now.toISOString(),
+                },
+            ]);
             expect(db.query).toHaveBeenCalledWith(expect.any(String), ["guild_123"]);
         });
     });

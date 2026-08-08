@@ -1,4 +1,3 @@
-// src/features/birthdays/actions.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { saveBirthdayConfigAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
@@ -20,7 +19,6 @@ vi.mock("next/cache", () => ({
 describe("Birthdays Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        // 🔇 Silence expected console.error logs
         vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
@@ -66,6 +64,26 @@ describe("Birthdays Server Actions", () => {
             await expect(
                 saveBirthdayConfigAction("unauthorized_guild", {} as any)
             ).rejects.toThrow("Unauthorized access!");
+        });
+
+        it("should catch database execution error and throw friendly message", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(saveBirthdayConfig).mockRejectedValue(new Error("Database connection lost"));
+
+            const validConfig: any = { enabled: false };
+
+            await expect(
+                saveBirthdayConfigAction("guild_123", validConfig)
+            ).rejects.toThrow("Database connection lost");
+        });
+
+        it("should throw default message when non-Error exception is thrown", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(saveBirthdayConfig).mockRejectedValue("Fatal string error");
+
+            await expect(
+                saveBirthdayConfigAction("guild_123", { enabled: false } as any)
+            ).rejects.toThrow("Could not save configuration.");
         });
     });
 });

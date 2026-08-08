@@ -80,9 +80,9 @@ pub async fn handle_honeypot(
 
         if let Some(dm_config) = honeypot_dm_settings {
             if let Ok(Some(msg_builder)) = build_custom_message(
-                &dm_config.format,
-                Some(dm_config.content.as_str()),
-                dm_config.embed.as_ref(),
+                dm_config.message.format,
+                &dm_config.message.content,
+                &dm_config.message.embed,
                 |text| replace_system_ban_placeholders(text, &gctx, &message.author, duration),
             ) {
                 let _ = dm_channel.send_message(&ctx.http, msg_builder).await;

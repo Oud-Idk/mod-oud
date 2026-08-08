@@ -1,34 +1,29 @@
-// features/warns/queries.ts
-import redis from "@/lib/redis";
 import { db } from "@/lib/db";
+import redis from "@/lib/redis";
 import { z } from "zod";
 import {
+    saveWarnThresholdsInputSchema,
     warnSchema,
     warnThresholdSchema,
-    saveWarnThresholdsInputSchema,
-    Warn,
-    WarnThreshold,
-    SaveWarnThresholdInput,
+    type SaveWarnThresholdInput,
+    type Warn,
+    type WarnThreshold,
 } from "./types";
 
 export async function searchWarns(guildId: string, userId: string): Promise<Warn[]> {
-    const validGuildId = z.string().parse(guildId);
-    const validUserId = z.string().parse(userId);
-
     const query = `
         SELECT *
         FROM warns
         WHERE guild_id = $1
-          AND user_id = $2;
+          AND user_id = $2
+        ORDER BY created_at DESC;
     `;
 
-    const res = await db.query(query, [validGuildId, validUserId]);
-    return z.array(warnSchema).parse(res.rows);
+    const res = await db.query(query, [guildId, userId] as unknown[]);
+    return res.rows.map((row) => warnSchema.parse(row));
 }
 
 export async function getWarnThresholds(guildId: string): Promise<WarnThreshold[]> {
-    const validGuildId = z.string().parse(guildId);
-
     const query = `
         SELECT id,
                guild_id,
@@ -43,45 +38,44 @@ export async function getWarnThresholds(guildId: string): Promise<WarnThreshold[
     `;
 
     try {
-        const res = await db.query(query, [validGuildId]);
-        return z.array(warnThresholdSchema).parse(res.rows);
+        const res = await db.query(query, [guildId] as unknown[]);
+        return res.rows.map((row) => warnThresholdSchema.parse(row));
     } catch (error) {
-        console.error(`Error loading warn thresholds for guild ${validGuildId}:`, error);
+        console.error(`Error loading warn thresholds for guild ${guildId}:`, error);
         return [];
     }
 }
 
 export async function saveWarnThresholds(
     guildId: string,
-    thresholdsPayload: SaveWarnThresholdInput[]
+    thresholds: SaveWarnThresholdInput[]
 ): Promise<void> {
-    const validGuildId = z.string().parse(guildId);
-    const validThresholds = saveWarnThresholdsInputSchema.parse(thresholdsPayload);
-
     const client = await db.connect();
 
     try {
         await client.query("BEGIN");
 
-        if (validThresholds.length === 0) {
-            await client.query(`DELETE FROM warn_thresholds WHERE guild_id = $1`, [validGuildId]);
+        if (thresholds.length === 0) {
+            await client.query(`DELETE FROM warn_thresholds WHERE guild_id = $1`, [guildId] as unknown[]);
         } else {
             const values: unknown[] = [];
             const warnCounts: number[] = [];
 
-            const placeholders = validThresholds.map((t, index) => {
-                const offset = index * 6;
-                values.push(
-                    validGuildId,
-                    t.warnCount,
-                    t.actionType,
-                    t.rolesToAdd ?? null,
-                    t.rolesToRemove ?? null,
-                    t.duration ?? null
-                );
-                warnCounts.push(t.warnCount);
-                return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-            }).join(", ");
+            const placeholders = thresholds
+                .map((t, index) => {
+                    const offset = index * 6;
+                    values.push(
+                        guildId,
+                        t.warnCount,
+                        t.actionType,
+                        t.rolesToAdd ?? null,
+                        t.rolesToRemove ?? null,
+                        t.duration ?? null
+                    );
+                    warnCounts.push(t.warnCount);
+                    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+                })
+                .join(", ");
 
             const upsertQuery = `
                 INSERT INTO warn_thresholds (guild_id, warn_count, action_type, roles_to_add, roles_to_remove, duration)
@@ -93,18 +87,25 @@ export async function saveWarnThresholds(
                 roles_to_remove = EXCLUDED.roles_to_remove,
                 duration = EXCLUDED.duration;
             `;
-            await client.query(upsertQuery, values);
+            await client.query(upsertQuery, values as unknown[]);
 
-            await client.query(`
-                DELETE
-                FROM warn_thresholds
-                WHERE guild_id = $1
-                  AND NOT (warn_count = ANY ($2::INT[]));
-            `, [validGuildId, warnCounts]);
+            await client.query(
+                `
+                    DELETE
+                    FROM warn_thresholds
+                    WHERE guild_id = $1
+                      AND NOT (warn_count = ANY ($2::INT[]));
+                `,
+                [guildId, warnCounts] as unknown[]
+            );
         }
 
         await client.query("COMMIT");
-        await redis.del(`warn_thresholds:${validGuildId}`);
+        try {
+            await redis.del(`warn_thresholds:${guildId}`);
+        } catch (redisErr) {
+            console.error(`Failed to clear cache for guild ${guildId}:`, redisErr);
+        }
     } catch (error) {
         await client.query("ROLLBACK");
         throw error;
@@ -114,20 +115,19 @@ export async function saveWarnThresholds(
 }
 
 export async function deleteWarnThresholds(guildId: string, ids: number[]): Promise<void> {
-    const validGuildId = z.string().parse(guildId);
-    const validIds = z.array(z.number().int()).parse(ids);
+    if (ids.length === 0) return;
 
-    if (validIds.length === 0) return;
-
-    // Added guild_id = $1 check for tenant isolation security
     const query = `
         DELETE
         FROM warn_thresholds
         WHERE guild_id = $1
           AND id = ANY ($2::INT[]);
     `;
-    await db.query(query, [validGuildId, validIds]);
+    await db.query(query, [guildId, ids] as unknown[]);
 
-    // Invalidate Redis cache on deletion
-    await redis.del(`warn_thresholds:${validGuildId}`);
+    try {
+        await redis.del(`warn_thresholds:${guildId}`);
+    } catch (redisErr) {
+        console.error(`Failed to clear cache for guild ${guildId}:`, redisErr);
+    }
 }

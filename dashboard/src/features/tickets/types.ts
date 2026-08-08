@@ -1,14 +1,17 @@
 import { z } from "zod";
 import {
-    DEFAULT_MESSAGE_LAYOUT, DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT,
-    MessageLayoutSchema, TogglableMessageSchema
+    DEFAULT_TOGGLABLE_MESSAGE_LAYOUT,
+    messageLayoutSchema,
+    TogglableMessageSchema,
 } from "@/features/_shared/embed";
 
 export const FormatSchema = z.enum(["TEXT", "EMBED"]).default("TEXT");
 export const TicketStatusSchema = z.enum(["OPEN", "CLOSED"]);
 export const ViewTicketStatusSchema = z.enum(["ALL", "OPEN", "CLOSED"]);
 
-const IsoDateSchema = z.string().datetime().or(z.date());
+const IsoDateSchema = z
+    .union([z.string(), z.date()])
+    .transform((val) => (val instanceof Date ? val.toISOString() : val));
 
 export const TicketConfigSchema = z.object({
     categoryId: z.string().nullish().default(null),
@@ -18,8 +21,8 @@ export const TicketConfigSchema = z.object({
 
     enabled: z.boolean().default(false),
 
-    panelMessage: TogglableMessageSchema.default(DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT),
-    welcomeMessage: TogglableMessageSchema.default(DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT),
+    panelMessage: TogglableMessageSchema.default(DEFAULT_TOGGLABLE_MESSAGE_LAYOUT),
+    welcomeMessage: TogglableMessageSchema.default(DEFAULT_TOGGLABLE_MESSAGE_LAYOUT),
 
     warnThreshold: z.number().default(30),
     deleteThreshold: z.number().default(45),
@@ -57,23 +60,23 @@ export const SaveTicketConfigSchema = TicketConfigSchema.superRefine((data, ctx)
 export const TicketMessageSchema = z.object({
     message_id: z.string(),
     author_id: z.string(),
-    content: z.string(),
+    content: z.string().default(""),
     created_at: IsoDateSchema,
-    is_ticket_manager: z.boolean(),
+    is_ticket_manager: z.boolean().default(false),
 });
 
 export const TicketSchema = z.object({
-    id: z.number().int().positive(),
+    id: z.coerce.number().int().positive(),
     channel_id: z.string(),
     opener_id: z.string(),
     status: TicketStatusSchema,
     created_at: IsoDateSchema,
     closed_at: IsoDateSchema.nullable(),
-    message_count: z.number().int().nonnegative(),
+    message_count: z.coerce.number().int().nonnegative().default(0),
 });
 
 export const TicketHistorySchema = z.object({
-    ticket_id: z.number().int().positive(),
+    ticket_id: z.coerce.number().int().positive(),
     guild_id: z.string(),
     channel_id: z.string(),
     opener_id: z.string(),
@@ -81,16 +84,15 @@ export const TicketHistorySchema = z.object({
     created_at: IsoDateSchema,
     closed_at: IsoDateSchema.nullable(),
     last_activity: IsoDateSchema,
-    message_count: z.number().int().nonnegative(),
-    messages: z.array(TicketMessageSchema),
+    message_count: z.coerce.number().int().nonnegative().default(0),
+    messages: z.array(TicketMessageSchema).default([]),
 });
-
 
 export type Format = z.infer<typeof FormatSchema>;
 export type TicketStatus = z.infer<typeof TicketStatusSchema>;
 export type ViewTicketStatus = z.infer<typeof ViewTicketStatusSchema>;
 
-export type MessageLayout = z.infer<typeof MessageLayoutSchema>;
+export type MessageLayout = z.infer<typeof messageLayoutSchema>;
 export type TicketConfig = z.infer<typeof TicketConfigSchema>;
 export type SaveTicketConfig = z.infer<typeof SaveTicketConfigSchema>;
 

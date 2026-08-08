@@ -40,7 +40,6 @@ pub async fn send_according_to_config(
 
 pub async fn send_message(
     ctx: &Context,
-    embed: Option<&DiscordEmbed>,
     message: &Message,
     user_level: &UserLevel,
     config: &LevelingConfig,
@@ -61,9 +60,9 @@ pub async fn send_message(
     let author = &message.author;
 
     let custom_message_opt = build_custom_message(
-        &config.notify.format,
-        Some(&config.notify.content),
-        embed,
+        config.notify.message.format,
+        &config.notify.message.content,
+        &config.notify.message.embed,
         |text| {
             replace_level_notify_placeholder(
                 text,
@@ -100,7 +99,6 @@ pub async fn send_message(
 
 pub async fn send_voice_level_up_message(
     ctx: &Context,
-    embed: Option<&DiscordEmbed>,
     user: &User,
     user_level: &UserLevel,
     config: &LevelingConfig,
@@ -120,9 +118,9 @@ pub async fn send_voice_level_up_message(
     let gctx = get_guild_ctx(*guild_id, ctx.http.as_ref()).await?;
 
     let custom_message_opt = build_custom_message(
-        &config.notify.format,
-        Some(&config.notify.content),
-        embed,
+        config.notify.message.format,
+        &config.notify.message.content,
+        &config.notify.message.embed,
         |text| {
             replace_level_notify_placeholder(
                 text,

@@ -1,22 +1,25 @@
 "use client";
 
-import React, { useState, ReactNode, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation"; // Import useRouter
-import {
-    WarnThreshold,
-    ModerationAction,
-    SaveWarnThresholdInput,
-} from "@/features/warns/types";
-import {
-    saveWarnThresholdsAction,
-    deleteWarnThresholdsAction,
-} from "@/features/warns/actions";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { Button } from "@/components/ui/Button";
+import React, { ReactNode, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { SavePopup } from "@/components/dashboard/SavePopup";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { NumberInput } from "@/components/ui/NumberInput";
 import Footer from "@/components/layout/Footer";
+import { Button } from "@/components/ui/Button";
+import { Dropdown } from "@/components/ui/Dropdown";
+import { NumberInput } from "@/components/ui/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
+
+import {
+    deleteWarnThresholdsAction,
+    saveWarnThresholdsAction,
+} from "../../actions";
+import {
+    saveWarnThresholdsInputSchema,
+    type ModerationAction,
+    type SaveWarnThresholdInput,
+    type WarnThreshold,
+} from "../../types";
 
 export interface WarnThresholdTabProps {
     guildId: string;
@@ -42,7 +45,7 @@ const PUNISHMENT_OPTIONS: Array<{ value: ModerationAction; label: string }> = [
     { value: "ROLE_REMOVE_ALL", label: "Remove All Roles" },
 ];
 
-const areArraysEqual = (a: string[] | ModerationAction[], b: string[] | ModerationAction[]) => {
+const areArraysEqual = (a: string[], b: string[]) => {
     if (a.length !== b.length) return false;
     const sortedA = [...a].sort();
     const sortedB = [...b].sort();
@@ -55,10 +58,10 @@ export function WarnThresholdTab({
     roleMap,
 }: WarnThresholdTabProps): ReactNode {
     const router = useRouter();
-    const availableRoles = getAvailableRoleOptions(roleMap);
+    const [isPending, startTransition] = useTransition();
 
-    // Normalize initial server props for comparison
-    const initialThresholds = useMemo<LocalThresholdState[]>(() =>
+    const initialThresholds = useMemo<LocalThresholdState[]>(
+        () =>
             thresholds.map((t) => ({
                 id: t.id,
                 warnCount: t.warn_count,
@@ -72,15 +75,9 @@ export function WarnThresholdTab({
 
     const [localThresholds, setLocalThresholds] = useState<LocalThresholdState[]>(initialThresholds);
     const [deletedIds, setDeletedIds] = useState<number[]>([]);
-    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // Synchronize local state when server props update
-    useEffect(() => {
-        setLocalThresholds(initialThresholds);
-        setDeletedIds([]);
-    }, [initialThresholds]);
-
-    const hasChanges = useMemo(() => {
+    const isDirty = useMemo(() => {
         if (deletedIds.length > 0) return true;
         if (localThresholds.length !== initialThresholds.length) return true;
 
@@ -119,12 +116,9 @@ export function WarnThresholdTab({
 
     const handleRemoveThreshold = (index: number) => {
         const itemToRemove = localThresholds[index];
-        const idToDelete = itemToRemove?.id;
-
-        if (idToDelete !== undefined) {
-            setDeletedIds((prev) => [...prev, idToDelete]);
+        if (itemToRemove?.id !== undefined) {
+            setDeletedIds((prev) => [...prev, itemToRemove.id as number]);
         }
-
         setLocalThresholds((prev) => prev.filter((_, i) => i !== index));
     };
 
@@ -138,34 +132,45 @@ export function WarnThresholdTab({
         );
     };
 
+    const handleCancel = () => {
+        setLocalThresholds(initialThresholds);
+        setDeletedIds([]);
+        setErrorMessage(null);
+    };
+
     const handleSaveAll = async () => {
-        setIsSaving(true);
-        try {
-            if (deletedIds.length > 0) {
-                await deleteWarnThresholdsAction(guildId, deletedIds);
-            }
+        setErrorMessage(null);
 
-            const payload: SaveWarnThresholdInput[] = localThresholds.map((t) => ({
-                warnCount: Number(t.warnCount),
-                actionType: t.actionType,
-                rolesToAdd: t.actionType.includes("ROLE_ADD") ? t.rolesToAdd : [],
-                rolesToRemove: t.actionType.includes("ROLE_REMOVE") ? t.rolesToRemove : [],
-                duration: t.actionType.includes("TIMEOUT") ? (t.duration ? Number(t.duration) : null) : null,
-            }));
+        const payload: SaveWarnThresholdInput[] = localThresholds.map((t) => ({
+            warnCount: Number(t.warnCount),
+            actionType: t.actionType,
+            rolesToAdd: t.actionType.includes("ROLE_ADD") ? t.rolesToAdd : [],
+            rolesToRemove: t.actionType.includes("ROLE_REMOVE") ? t.rolesToRemove : [],
+            duration: t.actionType.includes("TIMEOUT") ? (t.duration ? Number(t.duration) : null) : null,
+        }));
 
-            await saveWarnThresholdsAction(guildId, payload);
-
-            // Fetch updated dataset and update baseline
-            router.refresh();
-        } catch (err) {
-            console.error("Failed to save warn thresholds:", err);
-        } finally {
-            setIsSaving(false);
+        const validation = saveWarnThresholdsInputSchema.safeParse(payload);
+        if (!validation.success) {
+            setErrorMessage(validation.error.issues[0]?.message || "Invalid threshold configuration.");
+            return;
         }
+
+        startTransition(async () => {
+            try {
+                if (deletedIds.length > 0) {
+                    await deleteWarnThresholdsAction(guildId, deletedIds);
+                }
+                await saveWarnThresholdsAction(guildId, payload);
+                setDeletedIds([]);
+                router.refresh();
+            } catch (err) {
+                setErrorMessage(err instanceof Error ? err.message : "Failed to save warn thresholds.");
+            }
+        });
     };
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-4 border-border-subtle">
                 <div>
                     <h3 className="text-lg font-bold text-foreground">Action Thresholds</h3>
@@ -173,15 +178,16 @@ export function WarnThresholdTab({
                         Automatically punish users when they reach a specific number of active warnings.
                     </Footer>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="secondary" onClick={handleAddThreshold}>
-                        + Add Threshold
-                    </Button>
-                    <Button onClick={handleSaveAll} disabled={isSaving || !hasChanges}>
-                        {isSaving ? "Saving..." : "Save Changes"}
-                    </Button>
-                </div>
+                <Button variant="secondary" onClick={handleAddThreshold}>
+                    + Add Threshold
+                </Button>
             </div>
+
+            {errorMessage && (
+                <div className="p-3 rounded-lg border border-danger/30 bg-danger-subtle text-danger-foreground text-xs font-medium">
+                    {errorMessage}
+                </div>
+            )}
 
             {localThresholds.length === 0 && (
                 <div className="text-center py-12 border border-dashed border-border rounded-lg bg-surface-muted/30">
@@ -196,7 +202,7 @@ export function WarnThresholdTab({
                 </div>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-3">
                 {localThresholds.map((threshold, index) => {
                     const hasTimeout = threshold.actionType.includes("TIMEOUT");
                     const hasRoleAdd = threshold.actionType.includes("ROLE_ADD");
@@ -205,10 +211,12 @@ export function WarnThresholdTab({
                     return (
                         <div
                             key={threshold.id ?? `new-${index}`}
-                            className="bg-surface border border-border-subtle rounded-lg p-4 py-3 space-y-2 transition-colors duration-150 hover:border-border"
+                            className="bg-surface border border-border-subtle rounded-lg p-4 py-3 space-y-3 transition-colors duration-150 hover:border-border"
                         >
-                            <div className="flex items-center justify-between border-border mb-0">
-                                <span className="text-brand">Threshold Rule #{index + 1}</span>
+                            <div className="flex items-center justify-between border-b border-border-subtle pb-2">
+                                <span className="text-xs font-bold text-brand uppercase tracking-wider">
+                                    Threshold Rule #{index + 1}
+                                </span>
                                 <Button variant="danger" onClick={() => handleRemoveThreshold(index)}>
                                     Delete Rule
                                 </Button>
@@ -221,11 +229,7 @@ export function WarnThresholdTab({
                                         min={1}
                                         value={threshold.warnCount}
                                         onChange={(v) =>
-                                            updateThreshold(
-                                                index,
-                                                "warnCount",
-                                                Math.max(1, v || 1)
-                                            )
+                                            updateThreshold(index, "warnCount", Math.max(1, v || 1))
                                         }
                                     />
                                 </div>
@@ -249,7 +253,7 @@ export function WarnThresholdTab({
                             </div>
 
                             {(hasTimeout || hasRoleAdd || hasRoleRemove) && (
-                                <div className="space-y-2 pt-2 border-t border-border-subtle">
+                                <div className="space-y-3 pt-2 border-t border-border-subtle">
                                     {hasTimeout && (
                                         <div className="space-y-1">
                                             <InputLabel>Timeout Duration (Minutes)</InputLabel>
@@ -257,9 +261,7 @@ export function WarnThresholdTab({
                                                 min={1}
                                                 placeholder="e.g. 10"
                                                 value={threshold.duration ?? undefined}
-                                                onChange={(v) =>
-                                                    updateThreshold(index, "duration", v ?? null)
-                                                }
+                                                onChange={(v) => updateThreshold(index, "duration", v ?? null)}
                                             />
                                         </div>
                                     )}
@@ -269,11 +271,9 @@ export function WarnThresholdTab({
                                             <InputLabel>Roles To Add</InputLabel>
                                             <Dropdown
                                                 multiple
-                                                options={availableRoles}
+                                                options={getAvailableRoleOptions(roleMap)}
                                                 value={threshold.rolesToAdd}
-                                                onChange={(roles) =>
-                                                    updateThreshold(index, "rolesToAdd", roles)
-                                                }
+                                                onChange={(roles) => updateThreshold(index, "rolesToAdd", roles)}
                                                 placeholder="Select roles to assign..."
                                             />
                                         </div>
@@ -284,11 +284,9 @@ export function WarnThresholdTab({
                                             <InputLabel>Roles To Remove</InputLabel>
                                             <Dropdown
                                                 multiple
-                                                options={availableRoles}
+                                                options={getAvailableRoleOptions(roleMap)}
                                                 value={threshold.rolesToRemove}
-                                                onChange={(roles) =>
-                                                    updateThreshold(index, "rolesToRemove", roles)
-                                                }
+                                                onChange={(roles) => updateThreshold(index, "rolesToRemove", roles)}
                                                 placeholder="Select roles to strip..."
                                             />
                                         </div>
@@ -299,6 +297,14 @@ export function WarnThresholdTab({
                     );
                 })}
             </div>
+
+            {isDirty && (
+                <SavePopup
+                    handleCancel={handleCancel}
+                    handleSave={handleSaveAll}
+                    isSaving={isPending}
+                />
+            )}
         </div>
     );
 }

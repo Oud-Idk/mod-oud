@@ -34,10 +34,11 @@
 
         if let Some(dm_settings) = $dm_settings_opt {
             if dm_settings.enabled {
+                // FIXED ARGUMENTS HERE:
                 custom_msg_opt = build_custom_message(
-                    &dm_settings.format,
-                    Some(&dm_settings.content),
-                    dm_settings.embed.as_ref(),
+                    dm_settings.message.format,
+                    &dm_settings.message.content,
+                    &dm_settings.message.embed,
                     $replace_closure,
                 ).unwrap_or_else(|e| {
                     tracing::error!(error = %e, action = $action_name, "Failed to build custom moderation DM");

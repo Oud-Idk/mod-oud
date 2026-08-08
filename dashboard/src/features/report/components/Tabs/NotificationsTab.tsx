@@ -53,7 +53,7 @@ export function NotificationsTab({
 
             <div className="mt-4">
                 <MessageConfigEditor
-                    config={config[activeKey]}
+                    config={config[activeKey].message}
                     onChange={(updated) =>
                         handleChange({
                             [activeKey]: {
@@ -61,14 +61,6 @@ export function NotificationsTab({
                                 content: updated.content,
                                 embed: updated.embed,
                                 format: updated.format,
-                            },
-                        })
-                    }
-                    onEmbedChange={(embed) =>
-                        handleChange({
-                            [activeKey]: {
-                                ...config[activeKey],
-                                embed,
                             },
                         })
                     }

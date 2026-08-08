@@ -9,14 +9,13 @@ export const raidActionKindSchema = z.enum([
     "TIMEOUT_NEW_JOINS",
 ]);
 
-/** Strictly typed discriminated union matching Discord raid mitigation configurations */
 export const raidActionSchema = z.discriminatedUnion("type", [
     z.object({ type: z.literal("LOCKDOWN_SERVER") }),
     z.object({ type: z.literal("BUMP_VERIFICATION") }),
-    z.object({ type: z.literal("PAUSE_INVITES"), hour: z.number() }),
-    z.object({ type: z.literal("ALERT"), channelId: z.string() }),
-    z.object({ type: z.literal("TIMEOUT_NEW_JOINS"), mins: z.number() }),
-    z.object({ type: z.literal("AUTO_BAN_NEW_ACCOUNTS"), maxAgeHours: z.number() }),
+    z.object({ type: z.literal("PAUSE_INVITES"), hour: z.number().min(1) }),
+    z.object({ type: z.literal("ALERT"), channelId: z.string().min(1, "Alert channel is required") }),
+    z.object({ type: z.literal("TIMEOUT_NEW_JOINS"), mins: z.number().min(1) }),
+    z.object({ type: z.literal("AUTO_BAN_NEW_ACCOUNTS"), maxAgeHours: z.number().min(1) }),
 ]);
 
 export const raidDetectionInputSchema = z.object({
@@ -25,6 +24,16 @@ export const raidDetectionInputSchema = z.object({
     minSafeLimit: z.number().default(5),
     windowSizeSeconds: z.number().default(60),
     raidActions: z.array(raidActionSchema).default([]),
+});
+
+export const saveRaidDetectionConfigSchema = raidDetectionInputSchema.superRefine((data, ctx) => {
+    if (data.enabled && data.raidActions.length === 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "At least one raid mitigation action must be selected when raid protection is enabled!",
+            path: ["raidActions"],
+        });
+    }
 });
 
 export const raidDetectionConfigSchema = raidDetectionInputSchema;

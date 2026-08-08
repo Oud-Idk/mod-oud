@@ -1,24 +1,24 @@
+import { z } from "zod";
 import redis from "@/lib/redis";
 import {
     cachedStatsSchema,
     raidDetectionConfigSchema,
     raidStatusSnapshotSchema,
     type RaidDetectionConfig,
-    type RaidDetectionInput,
     type RaidStatusSnapshot,
 } from "./types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
 export async function getRaidDetectionConfig(guildId: string): Promise<RaidDetectionConfig> {
-    const dbConfig = await getGuildConfigField<unknown>(guildId, "raid_detection");
+    const validGuildId = z.string().min(1).parse(guildId);
+    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "raid_detection");
     return raidDetectionConfigSchema.parse(dbConfig ?? {});
 }
 
 export async function saveRaidDetectionConfig(
     guildId: string,
-    rawConfig: RaidDetectionInput
+    config: RaidDetectionConfig
 ): Promise<RaidDetectionConfig> {
-    const config = raidDetectionConfigSchema.parse(rawConfig);
     await saveGuildConfigField(guildId, "raid_detection", config);
 
     const statsCacheKey = `guild:${guildId}:stats_cache`;
@@ -36,12 +36,16 @@ export async function getRaidStatus(
     windowSizeSeconds: number,
     minSafeLimit: number
 ): Promise<RaidStatusSnapshot> {
-    const joinsKey = `guild:${guildId}:recent_joins`;
-    const statsCacheKey = `guild:${guildId}:stats_cache`;
-    const activeKey = `raid_active:${guildId}`;
+    const validGuildId = z.string().min(1).parse(guildId);
+    const validWindowSizeSeconds = z.number().int().positive().parse(windowSizeSeconds);
+    const validMinSafeLimit = z.number().int().positive().parse(minSafeLimit);
+
+    const joinsKey = `guild:${validGuildId}:recent_joins`;
+    const statsCacheKey = `guild:${validGuildId}:stats_cache`;
+    const activeKey = `raid_active:${validGuildId}`;
 
     const nowTs = Math.floor(Date.now() / 1000);
-    const cutoff = nowTs - windowSizeSeconds;
+    const cutoff = nowTs - validWindowSizeSeconds;
 
     const pipeline = redis.pipeline();
     pipeline.zremrangebyscore(joinsKey, "-inf", cutoff);
@@ -57,14 +61,14 @@ export async function getRaidStatus(
         redis.exists(activeKey),
     ]);
 
-    const windowMinutes = windowSizeSeconds / 60;
+    const windowMinutes = validWindowSizeSeconds / 60;
     const isRaidActive = Boolean(isActive);
 
     if (!rawStats) {
         return raidStatusSnapshotSchema.parse({
             currentJoinsInWindow,
-            windowSizeSeconds,
-            calculatedThreshold: minSafeLimit,
+            windowSizeSeconds: validWindowSizeSeconds,
+            calculatedThreshold: validMinSafeLimit,
             avgJoinsPerMin: 0,
             stdDevPerMin: 0,
             isRaidActive,
@@ -77,7 +81,7 @@ export async function getRaidStatus(
 
     return raidStatusSnapshotSchema.parse({
         currentJoinsInWindow,
-        windowSizeSeconds,
+        windowSizeSeconds: validWindowSizeSeconds,
         calculatedThreshold: stats.threshold,
         avgJoinsPerMin: Math.round((stats.mean_window / windowMinutes) * 100) / 100,
         stdDevPerMin: Math.round((stats.std_dev_window / Math.sqrt(windowMinutes)) * 100) / 100,

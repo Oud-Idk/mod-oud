@@ -1,6 +1,6 @@
 use crate::core::config::state::WebState;
 use crate::shared;
-use crate::shared::embed::{DiscordEmbed, EmbedGetters, Format, DEFAULT_EMBED};
+use crate::shared::embed::{DiscordEmbed, MessageGetter, Format, DEFAULT_EMBED};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -34,7 +34,7 @@ pub struct SendCustomEmbedResponse {
 }
 
 // Fixed trait implementation to match EmbedGetters signatures exactly
-impl EmbedGetters for SendCustomEmbedPayload {
+impl MessageGetter for SendCustomEmbedPayload {
     fn content(&self) -> &str {
         self.content.as_deref().unwrap_or("")
     }

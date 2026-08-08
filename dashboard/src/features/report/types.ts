@@ -1,43 +1,50 @@
+import { z } from "zod";
+import { messageLayoutSchema, TogglableMessageSchema } from "@/features/_shared/embed";
 
-import { DiscordEmbed, Format } from "@/features/_shared/embed";
+export const simpleReportActionSchema = z.enum(["ACTIONED", "DISMISSED"]);
+export const reportActionSchema = z.enum(["UNDER_REVIEW", "ACTIONED", "DISMISSED"]);
+export const timeUnitSchema = z.enum(["MINUTES", "HOURS", "DAYS"]);
 
-export type SimpleReportAction = 'ACTIONED' | 'DISMISSED';
-export type ReportAction = 'UNDER_REVIEW' | SimpleReportAction;
-export type TimeUnit = "MINUTES" | "HOURS" | "DAYS";
+export const DEFAULT_REPORT_DM_MESSAGE = {
+    enabled: false,
+    message: {
+        format: "TEXT" as const,
+        content: "",
+        embed: {},
+    }
+};
 
-export interface MessageLayout {
-    enabled: boolean;
-    format: Format;
-    content: string;
-    embed: DiscordEmbed;
-}
+export const reportedMessageSchema = z.object({
+    id: z.coerce.number(),
+    guild_id: z.string(),
+    channel_id: z.string(),
+    message_id: z.string(),
+    author_id: z.string(),
+    reporter_id: z.string(),
+    content: z.string().default(""),
+    attachment_url: z.string().nullish().default(null),
+    reason: z.string().default(""),
+    status: reportActionSchema.default("UNDER_REVIEW"),
+    moderator_id: z.string().nullish().default(null),
+    moderator_notes: z.string().nullish().default(null),
+    created_at: z.string(),
+    resolved_at: z.string().nullish().default(null),
+    message_deleted: z.boolean().default(false),
+    user_warned: z.boolean().default(false),
+    user_timed_out: z.boolean().default(false),
+    user_banned: z.boolean().default(false),
+});
+
+export const reportConfigSchema = z.object({
+    enabled: z.boolean().default(false),
+    reportingChannel: z.string().nullish().default(null),
+    resolvedDm: TogglableMessageSchema.default(DEFAULT_REPORT_DM_MESSAGE),
+    dismissedDm: TogglableMessageSchema.default(DEFAULT_REPORT_DM_MESSAGE),
+});
 
 
-export interface ReportedMessage {
-    id: number;
-    guild_id: string;
-    channel_id: string;
-    message_id: string;
-    author_id: string;
-    reporter_id: string;
-    content: string;
-    attachment_url: string | null;
-    reason: string;
-    status: ReportAction;
-    moderator_id: string | null;
-    moderator_notes: string | null;
-    created_at: string;
-    resolved_at: string | null;
-    message_deleted: boolean;
-    user_warned: boolean;
-    user_timed_out: boolean;
-    user_banned: boolean;
-}
-
-export interface ReportConfig {
-    enabled: boolean;
-    reportingChannel?: string | null;
-    resolvedDm: MessageLayout;
-    dismissedDm: MessageLayout;
-}
-
+export type SimpleReportAction = z.infer<typeof simpleReportActionSchema>;
+export type ReportAction = z.infer<typeof reportActionSchema>;
+export type TimeUnit = z.infer<typeof timeUnitSchema>;
+export type ReportedMessage = z.infer<typeof reportedMessageSchema>;
+export type ReportConfig = z.infer<typeof reportConfigSchema>;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, SetStateAction, useEffect, useState } from "react";
+import React, { ReactNode, SetStateAction, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -9,9 +9,6 @@ import { StarboardMessage } from "@/features/starboard/components/StarboardMessa
 import { PlaceholderList } from "@/features/_shared/message-creator/components/PlaceholderList";
 import { PlaintextEditor } from "@/features/_shared/message-creator/components/PlaintextEditor";
 import { Tabs, TabItem } from "@/components/layout/Tabs";
-
-import { StarboardConfigInput } from "@/features/starboard/types";
-import { STARBOARD_CONFIG } from "@/features/starboard/builderConfigs";
 import EmbedBuilder, { convertToEmbedState } from "@/features/_shared/message-creator/components/EmbedBuilder";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { Button } from "@/components/ui/Button";
@@ -20,11 +17,9 @@ import { NumberInput } from "@/components/ui/NumberInput";
 import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";
 
-function validateIntervalFormat(value: string | null): boolean {
-    if (!value || value.trim() === "") return true;
-    const intervalRegex = /^(\d+\s+(year|month|week|day|hour|minute|second)s?(\s+|$))+$/i;
-    return intervalRegex.test(value.trim());
-}
+import { getAvailableChannelOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
+import { STARBOARD_CONFIG } from "@/features/starboard/builderConfigs";
+import { starboardConfigInputSchema, type StarboardConfigInput } from "../types";
 
 interface StarboardConfigProps {
     config: StarboardConfigInput;
@@ -34,6 +29,7 @@ interface StarboardConfigProps {
     onDelete: (id: string) => Promise<void>;
     onChange: (updated: StarboardConfigInput) => void;
     setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
+    isEmpty: boolean;
     guildId: string;
 }
 
@@ -55,12 +51,12 @@ export function StarboardConfigEditor({
     const [roleDropdownValue, setRoleDropdownValue] = useState("");
     const [channelDropdownValue, setChannelDropdownValue] = useState("");
     const [emojiInput, setEmojiInput] = useState("");
-    const [minAgeInput, setMinAgeInput] = useState<string>(config.min_message_age || "");
-    const [maxAgeInput, setMaxAgeInput] = useState<string>(config.max_message_age || "");
-    const [validationErrors, setValidationErrors] = useState<{
-        minAge?: string;
-        maxAge?: string;
-    }>({});
+
+    const validationResult = useMemo(() => {
+        return starboardConfigInputSchema.safeParse(config);
+    }, [config]);
+
+    const hasValidationErrors = !validationResult.success;
 
     const tabs: TabItem<TabValue>[] = [
         { value: "general", label: "General" },
@@ -68,7 +64,6 @@ export function StarboardConfigEditor({
         { value: "restrictions", label: "Restrictions" },
     ];
 
-    // Array modification helpers
     const toggleRoleSelection = (roleId: string): void => {
         const current = config.restricted_roles || [];
         const updated = current.includes(roleId)
@@ -112,61 +107,6 @@ export function StarboardConfigEditor({
             });
     };
 
-    const handleMinAgeChange = (value: string): void => {
-        setMinAgeInput(value);
-        const trimmedValue = value.trim();
-        if (trimmedValue === "") {
-            setValidationErrors((prev) => {
-                const next = { ...prev };
-                delete next.minAge;
-                return next;
-            });
-            onChange({ ...config, min_message_age: null });
-        } else if (validateIntervalFormat(trimmedValue)) {
-            setValidationErrors((prev) => {
-                const next = { ...prev };
-                delete next.minAge;
-                return next;
-            });
-            onChange({ ...config, min_message_age: trimmedValue });
-        } else {
-            setValidationErrors((prev) => ({
-                ...prev,
-                minAge: 'Use format patterns like "1 day", "5 hours", or "2 weeks"'
-            }));
-        }
-    };
-
-    const handleMaxAgeChange = (value: string): void => {
-        setMaxAgeInput(value);
-        const trimmedValue = value.trim();
-        if (trimmedValue === "") {
-            setValidationErrors((prev) => {
-                const next = { ...prev };
-                delete next.maxAge;
-                return next;
-            });
-            onChange({ ...config, max_message_age: null });
-        } else if (validateIntervalFormat(trimmedValue)) {
-            setValidationErrors((prev) => {
-                const next = { ...prev };
-                delete next.maxAge;
-                return next;
-            });
-            onChange({ ...config, max_message_age: trimmedValue });
-        } else {
-            setValidationErrors((prev) => ({
-                ...prev,
-                maxAge: 'Use format patterns like "90 days", "7 days", or "2 weeks"'
-            }));
-        }
-    };
-
-    useEffect(() => {
-        setMinAgeInput(config.min_message_age || "");
-        setMaxAgeInput(config.max_message_age || "");
-    }, [config.min_message_age, config.max_message_age]);
-
     const id = config.id;
 
     return (
@@ -174,7 +114,7 @@ export function StarboardConfigEditor({
             <div className="flex justify-between items-center">
                 <div>
                     <h3 className="text-lg font-bold text-foreground">
-                        #{channelMap[config.starboard_channel_id || ""] || "Starboard Configuration"}
+                        #{config.starboard_channel_id ? (channelMap[config.starboard_channel_id] || "starboard") : "Starboard Configuration"}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         Customize how and where starred messages are posted.
@@ -192,6 +132,15 @@ export function StarboardConfigEditor({
                 )}
             </div>
 
+            {hasValidationErrors && (
+                <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>
+                        {validationResult.error?.issues[0]?.message || "Please complete all required fields before saving."}
+                    </span>
+                </div>
+            )}
+
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
             <div className="space-y-6 pt-2">
@@ -201,12 +150,9 @@ export function StarboardConfigEditor({
                             <div className="space-y-2">
                                 <InputLabel required>Destination Channel</InputLabel>
                                 <Dropdown
-                                    options={Object.entries(channelMap).map(([id, name]) => ({
-                                        value: id,
-                                        label: `#${name}`,
-                                    }))}
-                                    value={config.starboard_channel_id || ""}
-                                    onChange={(val) => onChange({ ...config, starboard_channel_id: val ?? "" })}
+                                    options={getAvailableChannelOptions(channelMap)}
+                                    value={config.starboard_channel_id ?? ""}
+                                    onChange={(val) => onChange({ ...config, starboard_channel_id: val })}
                                     placeholder="Select channel..."
                                 />
                                 <p className="text-xs text-muted-foreground">
@@ -282,7 +228,7 @@ export function StarboardConfigEditor({
                             <InputLabel>Plaintext Message Template</InputLabel>
                             <PlaintextEditor
                                 value={config.plaintext_template || ""}
-                                onChange={v => onChange({ ...config, plaintext_template: v })}
+                                onChange={(v) => onChange({ ...config, plaintext_template: v })}
                                 setIsEmpty={setIsEmpty}
                                 emptyable
                             />
@@ -298,7 +244,7 @@ export function StarboardConfigEditor({
                                     <StarboardMessage
                                         config={STARBOARD_CONFIG}
                                         embed={convertToEmbedState(config.embed_template || {})}
-                                        text={config.plaintext_template || ''}
+                                        text={config.plaintext_template || ""}
                                     />
                                 )}
                                 enablePlaceholderList={false}
@@ -317,29 +263,19 @@ export function StarboardConfigEditor({
                                     <InputLabel>Min Message Age</InputLabel>
                                     <TextInput
                                         placeholder="e.g. 1 day"
-                                        value={minAgeInput}
-                                        onChange={(e) => handleMinAgeChange(e.target.value)}
-                                        className={validationErrors.minAge ? "border-danger focus-ring-danger" : ""}
+                                        value={config.min_message_age || ""}
+                                        onChange={(e) => onChange({ ...config, min_message_age: e.target.value || null })}
                                     />
-                                    {validationErrors.minAge ? (
-                                        <Footer className="text-danger font-medium">{validationErrors.minAge}</Footer>
-                                    ) : (
-                                        <Footer className="text-muted-foreground">e.g. &quot;1 hour&quot;, &quot;30 minutes&quot;</Footer>
-                                    )}
+                                    <Footer className="text-muted-foreground">e.g. &quot;1 hour&quot;, &quot;30 minutes&quot;</Footer>
                                 </div>
                                 <div className="space-y-0.5">
                                     <InputLabel>Max Message Age</InputLabel>
                                     <TextInput
                                         placeholder="e.g. 90 days"
-                                        value={maxAgeInput}
-                                        onChange={(e) => handleMaxAgeChange(e.target.value)}
-                                        className={validationErrors.maxAge ? "border-danger focus-ring-danger" : ""}
+                                        value={config.max_message_age || ""}
+                                        onChange={(e) => onChange({ ...config, max_message_age: e.target.value || null })}
                                     />
-                                    {validationErrors.maxAge ? (
-                                        <Footer className="text-danger font-medium">{validationErrors.maxAge}</Footer>
-                                    ) : (
-                                        <Footer className="text-muted-foreground">e.g. &quot;90 days&quot;, &quot;7 days&quot;</Footer>
-                                    )}
+                                    <Footer className="text-muted-foreground">e.g. &quot;90 days&quot;, &quot;7 days&quot;</Footer>
                                 </div>
                             </div>
                         </div>
@@ -358,7 +294,7 @@ export function StarboardConfigEditor({
                                     { value: "ONLY_THESE", label: "Allow Only Selected Roles (Whitelist)" },
                                 ]}
                                 value={config.role_restriction_type || "NONE"}
-                                onChange={(val) => onChange({ ...config, role_restriction_type: val ?? "NONE" })}
+                                onChange={(val) => onChange({ ...config, role_restriction_type: (val as StarboardConfigInput["role_restriction_type"]) ?? "NONE" })}
                                 className="max-w-md"
                             />
                             {config.role_restriction_type !== "NONE" && (
@@ -370,9 +306,9 @@ export function StarboardConfigEditor({
                                         prefix="@"
                                     />
                                     <Dropdown
-                                        options={Object.entries(roleMap)
-                                            .filter(([id]) => !(config.restricted_roles || []).includes(id))
-                                            .map(([id, name]) => ({ value: id, label: `@${name}` }))}
+                                        options={getAvailableRoleOptions(roleMap).filter(
+                                            (opt) => !(config.restricted_roles || []).includes(opt.value)
+                                        )}
                                         value={roleDropdownValue}
                                         onChange={(val) => {
                                             if (val) toggleRoleSelection(val);
@@ -399,7 +335,7 @@ export function StarboardConfigEditor({
                                     { value: "ONLY_THESE", label: "Allow Only Selected Channels (Whitelist)" },
                                 ]}
                                 value={config.channel_restriction_type || "NONE"}
-                                onChange={(val) => onChange({ ...config, channel_restriction_type: val ?? "NONE" })}
+                                onChange={(val) => onChange({ ...config, channel_restriction_type: (val as StarboardConfigInput["channel_restriction_type"]) ?? "NONE" })}
                                 className="max-w-md"
                             />
                             {config.channel_restriction_type !== "NONE" && (
@@ -411,9 +347,9 @@ export function StarboardConfigEditor({
                                         prefix="#"
                                     />
                                     <Dropdown
-                                        options={Object.entries(channelMap)
-                                            .filter(([id]) => !(config.restricted_channels || []).includes(id))
-                                            .map(([id, name]) => ({ value: id, label: `#${name}` }))}
+                                        options={getAvailableChannelOptions(channelMap).filter(
+                                            (opt) => !(config.restricted_channels || []).includes(opt.value)
+                                        )}
                                         value={channelDropdownValue}
                                         onChange={(val) => {
                                             if (val) toggleChannelSelection(val);

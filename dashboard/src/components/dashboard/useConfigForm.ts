@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { isDeepEqual } from "@/features/_shared/embed";
 
 interface UseConfigFormOptions<T> {
@@ -12,18 +12,12 @@ export function useConfigForm<T>({
 }: UseConfigFormOptions<T>) {
     const [config, setConfig] = useState<T>(initialConfig);
     const [isPending, startTransition] = useTransition();
+
     const [resetKey, setResetKey] = useState(0);
 
-    const [isEmpty, setIsEmpty] = useState(false);
-    const [targetChannelIsEmpty, setTargetChannelIsEmpty] = useState(false);
+    const isDirty = !isDeepEqual(config, initialConfig);
 
-    useEffect(() => {
-        setConfig(initialConfig);
-    }, [initialConfig]);
-
-    const isDirty = !isDeepEqual(config, initialConfig) && !isEmpty && !targetChannelIsEmpty;
-
-    const handleSave = useCallback(() => {
+    const handleSave = useCallback(async () => {
         startTransition(async () => {
             try {
                 await onSave(config);
@@ -36,18 +30,7 @@ export function useConfigForm<T>({
     const handleCancel = useCallback(() => {
         setConfig(initialConfig);
         setResetKey((prev) => prev + 1);
-        setIsEmpty(false);
-        setTargetChannelIsEmpty(false);
     }, [initialConfig]);
-
-    const handleChange = useCallback((updated: Partial<T> | T) => {
-        setConfig((prev) => {
-            if (typeof updated === "object" && updated !== null && !Array.isArray(updated)) {
-                return { ...prev, ...updated };
-            }
-            return updated as T;
-        });
-    }, []);
 
     return {
         config,
@@ -55,12 +38,7 @@ export function useConfigForm<T>({
         isPending,
         isDirty,
         resetKey,
-        isEmpty,
-        setIsEmpty,
-        targetChannelIsEmpty,
-        setTargetChannelIsEmpty,
         handleSave,
         handleCancel,
-        handleChange,
     };
 }

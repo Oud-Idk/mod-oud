@@ -56,7 +56,6 @@ export function CustomCommandConfig({
     };
 
     const defaultPayload: MessageLayout = {
-        enabled: true,
         format: "TEXT",
         content: "",
         embed: {},
@@ -80,7 +79,6 @@ export function CustomCommandConfig({
 
     const handleMessageChange = (updatedMsg: GenericMessageConfig): void => {
         const updatedLayout: MessageLayout = {
-            enabled: true,
             format: updatedMsg.format ?? "TEXT",
             content: updatedMsg.content ?? "",
             embed: updatedMsg.embed ?? {},

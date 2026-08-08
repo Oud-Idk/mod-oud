@@ -4,9 +4,22 @@ import {
     reminderRowSchema,
     saveableReminderSchema,
     type ReminderRow,
-    type SaveableReminder,
+    type SaveableReminderInput,
 } from "./types";
 
+function parseRowEmbed(embedRaw: unknown): Record<string, unknown> {
+    if (typeof embedRaw === "string") {
+        try {
+            return JSON.parse(embedRaw || "{}");
+        } catch {
+            return {};
+        }
+    }
+    if (typeof embedRaw === "object" && embedRaw !== null) {
+        return embedRaw as Record<string, unknown>;
+    }
+    return {};
+}
 
 function calculateNextTriggerJS(
     now: Date,
@@ -112,36 +125,63 @@ function calculateNextTriggerJS(
     return new Date(now.getTime() + 24 * 60 * 60 * 1000);
 }
 
+async function invalidateChannelReminderCache(channelId: string | null | undefined): Promise<void> {
+    if (!channelId) return;
+    const cacheKey = `reminders:channel:${channelId}`;
+    try {
+        await redis.del(cacheKey);
+        await redis.publish("reminder_updates", `invalidate:${channelId}`);
+    } catch (redisError) {
+        console.error(`Failed to clear cache for channel ${channelId}:`, redisError);
+    }
+}
 
 export async function getRemindersByChannels(channelIds: string[]): Promise<ReminderRow[]> {
     if (channelIds.length === 0) return [];
 
     const query = `
-    SELECT id::TEXT,
-           channel_id       AS "channelId",
-           format,
-           embed,
-           content,
-           r_type           AS "rType",
-           next_trigger_at  AS "nextTriggerAt",
-           days_of_week     AS "daysOfWeek",
-           time_start       AS "timeStart",
-           time_end         AS "timeEnd",
-           interval_seconds AS "intervalSeconds",
-           is_active        AS "isActive"
-    FROM reminders
-    WHERE channel_id = ANY ($1::BIGINT[])
-    ORDER BY next_trigger_at ASC
-  `;
+        SELECT id::TEXT,
+               channel_id       AS "channelId",
+               format,
+               embed,
+               content,
+               r_type           AS "rType",
+               next_trigger_at  AS "nextTriggerAt",
+               days_of_week     AS "daysOfWeek",
+               time_start       AS "timeStart",
+               time_end         AS "timeEnd",
+               interval_seconds AS "intervalSeconds",
+               is_active        AS "isActive"
+        FROM reminders
+        WHERE channel_id = ANY ($1::BIGINT[])
+        ORDER BY next_trigger_at ASC
+    `;
 
-    const res = await db.query(query, [channelIds]);
-    return res.rows.map((row) => reminderRowSchema.parse(row));
+    const res = await db.query(query, [channelIds] as unknown[]);
+    return res.rows.map((row) =>
+        reminderRowSchema.parse({
+            id: row.id,
+            channelId: row.channelId,
+            rType: row.rType,
+            nextTriggerAt: row.nextTriggerAt,
+            daysOfWeek: row.daysOfWeek,
+            timeStart: row.timeStart,
+            timeEnd: row.timeEnd,
+            intervalSeconds: row.intervalSeconds,
+            isActive: row.isActive,
+            message: {
+                format: row.format,
+                content: row.content,
+                embed: parseRowEmbed(row.embed),
+            },
+        })
+    );
 }
 
 export async function saveReminder(
-    rawReminder: SaveableReminder
+    rawReminder: SaveableReminderInput
 ): Promise<ReminderRow> {
-    // Validate raw input with Zod
+    // 1. Parse resolves default fallbacks so data.message is guaranteed to exist!
     const reminder = saveableReminderSchema.parse(rawReminder);
     const isEdit = Boolean(reminder.id);
 
@@ -157,43 +197,43 @@ export async function saveReminder(
     }
 
     let query: string;
-    let params: (string | number | boolean | number[] | null)[];
+    let params: unknown[];
 
     if (isEdit) {
         query = `
-      UPDATE reminders
-      SET channel_id       = $2,
-          format           = $3,
-          embed            = $4,
-          content          = $5,
-          r_type           = $6,
-          next_trigger_at  = $7,
-          days_of_week     = $8,
-          time_start       = $9,
-          time_end         = $10,
-          interval_seconds = $11,
-          is_active        = $12
-      WHERE id = $1
-      RETURNING
-          id::TEXT,
-          channel_id AS "channelId",
-          format,
-          embed,
-          content,
-          r_type AS "rType",
-          next_trigger_at AS "nextTriggerAt",
-          days_of_week AS "daysOfWeek",
-          time_start AS "timeStart",
-          time_end AS "timeEnd",
-          interval_seconds AS "intervalSeconds",
-          is_active AS "isActive"
-    `;
+            UPDATE reminders
+            SET channel_id       = $2,
+                format           = $3,
+                embed            = $4,
+                content          = $5,
+                r_type           = $6,
+                next_trigger_at  = $7,
+                days_of_week     = $8,
+                time_start       = $9,
+                time_end         = $10,
+                interval_seconds = $11,
+                is_active        = $12
+            WHERE id = $1
+            RETURNING
+                id::TEXT,
+                channel_id AS "channelId",
+                format,
+                embed,
+                content,
+                r_type AS "rType",
+                next_trigger_at AS "nextTriggerAt",
+                days_of_week AS "daysOfWeek",
+                time_start AS "timeStart",
+                time_end AS "timeEnd",
+                interval_seconds AS "intervalSeconds",
+                is_active AS "isActive"
+        `;
         params = [
             reminder.id ?? null,
             reminder.channelId,
-            reminder.format,
-            reminder.embed ? JSON.stringify(reminder.embed) : null,
-            reminder.content,
+            reminder.message.format, // 🟢 Guaranteed defined!
+            reminder.message.embed ? JSON.stringify(reminder.message.embed) : null,
+            reminder.message.content ?? "",
             reminder.rType,
             finalNextTrigger,
             reminder.daysOfWeek,
@@ -204,30 +244,30 @@ export async function saveReminder(
         ];
     } else {
         query = `
-      INSERT INTO reminders (
-        channel_id, format, embed, content, r_type, next_trigger_at,
-        days_of_week, time_start, time_end, interval_seconds, is_active
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING
-          id::TEXT,
-          channel_id AS "channelId",
-          format,
-          embed,
-          content,
-          r_type AS "rType",
-          next_trigger_at AS "nextTriggerAt",
-          days_of_week AS "daysOfWeek",
-          time_start AS "timeStart",
-          time_end AS "timeEnd",
-          interval_seconds AS "intervalSeconds",
-          is_active AS "isActive"
-    `;
+            INSERT INTO reminders (
+                channel_id, format, embed, content, r_type, next_trigger_at,
+                days_of_week, time_start, time_end, interval_seconds, is_active
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING
+                id::TEXT,
+                channel_id AS "channelId",
+                format,
+                embed,
+                content,
+                r_type AS "rType",
+                next_trigger_at AS "nextTriggerAt",
+                days_of_week AS "daysOfWeek",
+                time_start AS "timeStart",
+                time_end AS "timeEnd",
+                interval_seconds AS "intervalSeconds",
+                is_active AS "isActive"
+        `;
         params = [
             reminder.channelId,
-            reminder.format,
-            reminder.embed ? JSON.stringify(reminder.embed) : null,
-            reminder.content,
+            reminder.message.format, // 🟢 Guaranteed defined!
+            reminder.message.embed ? JSON.stringify(reminder.message.embed) : null,
+            reminder.message.content ?? "",
             reminder.rType,
             finalNextTrigger,
             reminder.daysOfWeek,
@@ -239,28 +279,28 @@ export async function saveReminder(
     }
 
     const res = await db.query(query, params);
+    await invalidateChannelReminderCache(reminder.channelId);
 
-    // Evict Redis Cache
-    const cacheKey = `reminders:channel:${reminder.channelId}`;
-    try {
-        await redis.del(cacheKey);
-        await redis.publish("reminder_updates", `invalidate:${reminder.channelId}`);
-    } catch (redisError) {
-        console.error(`Failed to clear cache for channel ${reminder.channelId}:`, redisError);
-    }
-
-    return reminderRowSchema.parse(res.rows[0]);
+    const row = res.rows[0];
+    return reminderRowSchema.parse({
+        id: row.id,
+        channelId: row.channelId,
+        rType: row.rType,
+        nextTriggerAt: row.nextTriggerAt,
+        daysOfWeek: row.daysOfWeek,
+        timeStart: row.timeStart,
+        timeEnd: row.timeEnd,
+        intervalSeconds: row.intervalSeconds,
+        isActive: row.isActive,
+        message: {
+            format: row.format,
+            content: row.content,
+            embed: parseRowEmbed(row.embed),
+        },
+    });
 }
-
-export async function deleteReminder(id: string, channelId: string): Promise<void> {
+export async function deleteReminder(id: string, channelId: string | null): Promise<void> {
     const query = `DELETE FROM reminders WHERE id = $1`;
-    await db.query(query, [id]);
-
-    const cacheKey = `reminders:channel:${channelId}`;
-    try {
-        await redis.del(cacheKey);
-        await redis.publish("reminder_updates", `invalidate:${channelId}`);
-    } catch (redisError) {
-        console.error(`Failed to clear cache for channel ${channelId}:`, redisError);
-    }
+    await db.query(query, [id] as unknown[]);
+    await invalidateChannelReminderCache(channelId);
 }

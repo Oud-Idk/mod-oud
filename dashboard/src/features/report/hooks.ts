@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { banUser, deleteReportedMessage, resolveReportStatus, timeoutUser, warnUser } from "@/features/report/actions";
-import { SimpleReportAction } from "@/features/report/types";
+import {
+    banUserAction,
+    deleteReportedMessageAction,
+    resolveReportStatusAction,
+    timeoutUserAction,
+    warnUserAction,
+} from "./actions";
+import type { SimpleReportAction } from "./types";
 
-export function useReportActions() {
-    // UI Loading & Interaction States
+export function useReportActions(guildId: string) {
     const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
     const [resolvingIds, setResolvingIds] = useState<Set<number>>(new Set());
 
@@ -19,40 +24,34 @@ export function useReportActions() {
     const handleDeleteMessage = async (reportId: number, channelId: string, messageId: string) => {
         if (deletingIds.has(reportId)) return;
 
-        setDeletingIds((prev) => {
-            const next = new Set(prev);
-            next.add(reportId);
-            return next;
-        });
-
-        await deleteReportedMessage(reportId, channelId, messageId);
-
-        setDeletingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(reportId);
-            return next;
-        });
+        setDeletingIds((prev) => new Set(prev).add(reportId));
+        try {
+            await deleteReportedMessageAction(guildId, reportId, channelId, messageId);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to delete message.");
+        } finally {
+            setDeletingIds((prev) => {
+                const next = new Set(prev);
+                next.delete(reportId);
+                return next;
+            });
+        }
     };
 
     const handleResolveReport = async (reportId: number, targetStatus: SimpleReportAction) => {
         if (resolvingIds.has(reportId)) return;
 
-        setResolvingIds((prev) => {
-            const next = new Set(prev);
-            next.add(reportId);
-            return next;
-        });
-
-        const result = await resolveReportStatus(reportId, targetStatus);
-
-        setResolvingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(reportId);
-            return next;
-        });
-
-        if (!result.success) {
-            alert("Error updating report status. Please try again.");
+        setResolvingIds((prev) => new Set(prev).add(reportId));
+        try {
+            await resolveReportStatusAction(guildId, reportId, targetStatus);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to resolve report.");
+        } finally {
+            setResolvingIds((prev) => {
+                const next = new Set(prev);
+                next.delete(reportId);
+                return next;
+            });
         }
     };
 
@@ -60,13 +59,13 @@ export function useReportActions() {
         if (!timeoutReportId || isTimingOut) return;
 
         setIsTimingOut(true);
-        const result = await timeoutUser(timeoutReportId, durationMins, reason);
-        setIsTimingOut(false);
-
-        if (result.success) {
+        try {
+            await timeoutUserAction(guildId, timeoutReportId, durationMins, reason);
             setTimeoutReportId(null);
-        } else {
-            alert("Error applying timeout. Please try again.");
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Error applying timeout.");
+        } finally {
+            setIsTimingOut(false);
         }
     };
 
@@ -74,13 +73,13 @@ export function useReportActions() {
         if (!warnReportId || isWarning) return;
 
         setIsWarning(true);
-        const result = await warnUser(warnReportId, reason);
-        setIsWarning(false);
-
-        if (result.success) {
+        try {
+            await warnUserAction(guildId, warnReportId, reason);
             setWarnReportId(null);
-        } else {
-            alert("Error applying warning. Please try again.");
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Error applying warning.");
+        } finally {
+            setIsWarning(false);
         }
     };
 
@@ -88,13 +87,13 @@ export function useReportActions() {
         if (!banReportId || isBanning) return;
 
         setIsBanning(true);
-        const result = await banUser(banReportId, durationMins, reason);
-        setIsBanning(false);
-
-        if (result.success) {
+        try {
+            await banUserAction(guildId, banReportId, durationMins, reason);
             setBanReportId(null);
-        } else {
-            alert("Error applying ban. Please try again.");
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Error applying ban.");
+        } finally {
+            setIsBanning(false);
         }
     };
 

@@ -39,27 +39,21 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
         setStatusMessage(null);
 
         try {
-            const result = await sendEmbedAction(guildId, {
+            const { messageId } = await sendEmbedAction(guildId, {
                 channelId: selectedChannel,
                 embedState: embedState,
             });
 
-            if (result.success) {
-                setStatusMessage({
-                    type: "SUCCESS",
-                    text: `Embed dispatched successfully. Message ID: ${result.messageId}`,
-                });
-            } else {
-                setStatusMessage({
-                    type: "ERROR",
-                    text: result.error || "An error occurred while sending.",
-                });
-            }
+            setStatusMessage({
+                type: "SUCCESS",
+                text: `Embed dispatched successfully. Message ID: ${messageId}`,
+            });
         } catch (error) {
             console.error("Failed to dispatch embed:", error);
+
             setStatusMessage({
                 type: "ERROR",
-                text: "An unexpected network error occurred while sending the embed.",
+                text: error instanceof Error ? error.message : "An error occurred while sending the embed.",
             });
         } finally {
             setIsSending(false);

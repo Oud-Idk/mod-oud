@@ -42,9 +42,9 @@ pub async fn handle_edit_reaction_role_message(
     let message_id = MessageId::new(message_id_u64);
 
     let custom_msg_opt = build_custom_msg(
-        &config_row.format,
-        config_row.content.as_deref(),
-        config_row.embed.as_deref(),
+        config_row.message.format,
+        &config_row.message.content,
+        &config_row.message.embed,
     )?;
     let mut edit_builder = convert_create_to_edit_message(custom_msg_opt);
 

@@ -1,30 +1,27 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useSSEInfiniteScroll } from "@/lib/hooks/useSSEInfiniteScroll";
-import { useReportActions } from "@/features/report/hooks";
-import { fetchMoreReports } from "@/features/report/actions";
-import { TimeoutModal } from "@/features/report/components/Modals/TimeoutModal";
-import { WarnModal } from "@/features/report/components/Modals/WarnModal";
-import { BanModal } from "@/features/report/components/Modals/BanModal";
+import { useReportActions } from "../hooks";
+import { fetchMoreReportsAction } from "../actions";
+import { TimeoutModal } from "./Modals/TimeoutModal";
+import { WarnModal } from "./Modals/WarnModal";
+import { BanModal } from "./Modals/BanModal";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { Modal } from "@/components/ui/Modal";
-import { HistoryTab } from "@/features/report/components/Tabs/HistoryTab";
-import { NotificationsTab, ReportTabValue } from "@/features/report/components/Tabs/NotificationsTab";
+import { HistoryTab } from "./Tabs/HistoryTab";
+import { NotificationsTab, type ReportTabValue } from "./Tabs/NotificationsTab";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import { ReportConfig, ReportedMessage } from "@/features/report/types";
-import { ViewTicketStatus } from "@/features/tickets/types";
-
-
-import { DiscordChannel } from "@/features/_shared/channels.types";
-import { getReportConfig } from "@/features/report/queries";
+import type { ReportConfig, ReportedMessage } from "../types";
+import type { ViewTicketStatus } from "@/features/tickets/types";
+import type { DiscordChannel } from "@/features/_shared/channels.types";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 
-interface ReportBodyConfig {
+interface ReportBodyProps {
     reportConfig: ReportConfig;
     channels: DiscordChannel[];
     initialReports: ReportedMessage[];
@@ -43,27 +40,29 @@ const MAIN_REPORT_TABS: TabItem<ReportMainTab>[] = [
 
 export function ReportBody({
     reportConfig,
-    channels,
     initialReports,
     guildId,
     onSave,
     textChannelMap,
-}: ReportBodyConfig) {
-    const normalizedReportConfig = useMemo(() => reportConfig, [reportConfig]);
+}: ReportBodyProps) {
+    const [, setIsEmpty] = useState(false);
 
     const {
         config,
+        setConfig,
         isPending,
         isDirty,
         resetKey,
-        setIsEmpty,
         handleSave,
         handleCancel,
-        handleChange,
-    } = useConfigForm({
-        initialConfig: normalizedReportConfig,
+    } = useConfigForm<ReportConfig>({
+        initialConfig: reportConfig,
         onSave,
     });
+
+    const handleChange = useCallback((updated: Partial<ReportConfig>) => {
+        setConfig((prev) => ({ ...prev, ...updated }));
+    }, [setConfig]);
 
     const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<ViewTicketStatus>("OPEN");
@@ -71,10 +70,9 @@ export function ReportBody({
     const [activeMainTab, setActiveMainTab] = useState<ReportMainTab>("HISTORY");
 
     const channelOptions = useMemo(() => {
-        const available = getAvailableChannelOptions(textChannelMap);
         return [
             { value: "", label: "None (Disabled)" },
-            ...available
+            ...getAvailableChannelOptions(textChannelMap),
         ];
     }, [textChannelMap]);
 
@@ -95,26 +93,24 @@ export function ReportBody({
         handleTimeoutUser,
         handleWarnUser,
         handleBanUser,
-    } = useReportActions();
+    } = useReportActions(guildId);
 
     const { logs, status, isLoadingMore, observerTarget } = useSSEInfiniteScroll<ReportedMessage>({
-        sseUrl: `http://localhost:8080/api/sse/events?guild_id=${guildId}`,
+        sseUrl: `/api/sse/events?guild_id=${guildId}`,
         initialHistory: initialReports,
-        guildId: guildId,
-        fetchMoreAction: fetchMoreReports,
+        guildId,
+        fetchMoreAction: (gid, beforeId) => fetchMoreReportsAction(gid, beforeId),
         eventName: "message-report",
     });
 
     const filteredLogs = useMemo(() => {
         return logs.filter((log) => {
             const currentStatus = log.status?.toLowerCase();
-
             if (statusFilter === "OPEN") {
                 return currentStatus === "under_review";
             }
             if (statusFilter === "CLOSED") {
-                // Changed "actioned" to "action"
-                return currentStatus === "action" || currentStatus === "dismissed";
+                return currentStatus === "actioned" || currentStatus === "dismissed";
             }
             return true;
         });
@@ -124,19 +120,19 @@ export function ReportBody({
         <div className="flex-1 scrollbar-thin space-y-4">
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={v => handleChange({ enabled: v })}
+                onChange={(v) => handleChange({ enabled: v })}
                 disabled={false}
                 text="Enable Reporting"
             />
 
-            {/* If reporting is enabled, show the high-level tab selector */}
             {config.enabled && (
                 <Tabs
-                    tabs={MAIN_REPORT_TABS} activeTab={activeMainTab} onChange={setActiveMainTab}
+                    tabs={MAIN_REPORT_TABS}
+                    activeTab={activeMainTab}
+                    onChange={setActiveMainTab}
                 />
             )}
 
-            {/* Conditionally render the active tab view */}
             {config.enabled && activeMainTab === "REPORTER_NOTIFICATIONS" && (
                 <NotificationsTab
                     activeDmTab={activeDmTab}
@@ -171,13 +167,20 @@ export function ReportBody({
             {config.enabled && activeMainTab === "MODERATOR_NOTIFICATIONS" && (
                 <div>
                     <InputLabel>Send a Message for Every Report to</InputLabel>
-                    <Dropdown value={config.reportingChannel ?? ""} onChange={c => handleChange({reportingChannel: c})} options={channelOptions} placeholder="Select a channel..."/>
+                    <Dropdown
+                        value={config.reportingChannel ?? ""}
+                        onChange={(c) => handleChange({ reportingChannel: c || null })}
+                        options={channelOptions}
+                        placeholder="Select a channel..."
+                    />
                 </div>
             )}
 
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
                 />
             )}
 
@@ -204,7 +207,8 @@ export function ReportBody({
 
             {activeImageUrl && (
                 <Modal
-                    headerText="Attachment Preview" onClose={() => setActiveImageUrl(null)}
+                    headerText="Attachment Preview"
+                    onClose={() => setActiveImageUrl(null)}
                 >
                     <div className="flex justify-center items-center overflow-hidden max-h-[75vh]">
                         <img

@@ -26,17 +26,16 @@ export async function getCustomCommands(guildId: string): Promise<CustomCommand[
         ORDER BY id DESC;
     `;
 
-    const res = await db.query(query, [guildId]);
+    const res = await db.query(query, [guildId] as unknown[]);
 
     return res.rows.map((row) => customCommandSchema.parse(row));
 }
 
-export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise<CustomCommand> {
-    const data = SaveCustomCommandSchema.parse(rawData);
+export async function saveCustomCommand(data: SaveCustomCommandData): Promise<CustomCommand> {
     const actionsJson = JSON.stringify(data.actions);
 
     let query: string;
-    let params: (string | number | boolean | string[])[];
+    let params: unknown[];
 
     if (data.id) {
         query = `
@@ -58,7 +57,7 @@ export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise
         `;
         params = [
             data.name,
-            data.description ?? "",
+            data.description ?? null,
             data.enabled,
             data.delete_trigger,
             data.cooldown_type,
@@ -84,7 +83,7 @@ export async function saveCustomCommand(rawData: SaveCustomCommandData): Promise
         params = [
             data.guild_id,
             data.name,
-            data.description ?? "",
+            data.description ?? null,
             data.enabled,
             data.delete_trigger,
             data.cooldown_type,

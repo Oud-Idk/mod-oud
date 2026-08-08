@@ -1,12 +1,14 @@
 import { db } from "@/lib/db";
-import {
-    TicketConfig,
-    TicketConfigSchema,
-    SaveTicketConfigSchema,
-    TicketHistory,
-    Ticket
-} from "@/features/tickets/types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
+import {
+    SaveTicketConfigSchema,
+    TicketConfigSchema,
+    TicketHistorySchema,
+    TicketSchema,
+    type Ticket,
+    type TicketConfig,
+    type TicketHistory,
+} from "./types";
 
 export async function getTicketHistory(
     channelId: string
@@ -28,7 +30,7 @@ export async function getTicketHistory(
                                        'author_id', tm.author_id::TEXT,
                                        'content', tm.content,
                                        'created_at', tm.created_at,
-                                       'is_ticket_manager', tm.is_ticket_manager -- Fixed typo here
+                                       'is_ticket_manager', tm.is_ticket_manager
                                ) ORDER BY tm.created_at
                                        ) FILTER (WHERE tm.id IS NOT NULL),
                                '[]'::JSON
@@ -39,18 +41,10 @@ export async function getTicketHistory(
         GROUP BY t.id;
     `;
 
-    try {
-        const res = await db.query<TicketHistory>(query, [channelId]);
+    const res = await db.query(query, [channelId] as unknown[]);
+    if (res.rows.length === 0) return null;
 
-        if (res.rows.length === 0) {
-            return null;
-        }
-
-        return res.rows[0];
-    } catch (error) {
-        console.error('Error fetching ticket history:', error);
-        throw error;
-    }
+    return TicketHistorySchema.parse(res.rows[0]);
 }
 
 export async function getTicketList(guildId: string): Promise<Ticket[]> {
@@ -66,17 +60,15 @@ export async function getTicketList(guildId: string): Promise<Ticket[]> {
         WHERE guild_id = $1
         ORDER BY created_at DESC;
     `;
-    const res = await db.query<Ticket>(query, [guildId]);
-    return res.rows; // Fixed: Returning res.rows array
+    const res = await db.query(query, [guildId] as unknown[]);
+    return res.rows.map((row) => TicketSchema.parse(row));
 }
 
 export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
-    const dbConfig = await getGuildConfigField<unknown>(guildId, 'tickets');
-
+    const dbConfig = await getGuildConfigField<unknown>(guildId, "tickets");
     return TicketConfigSchema.parse(dbConfig ?? {});
 }
 
 export async function saveTicketConfig(guildId: string, config: TicketConfig): Promise<void> {
-    const validatedConfig = SaveTicketConfigSchema.parse(config);
-    await saveGuildConfigField(guildId, 'tickets', validatedConfig);
+    await saveGuildConfigField(guildId, "tickets", config);
 }

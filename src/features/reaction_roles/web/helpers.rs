@@ -55,16 +55,12 @@ pub async fn fetch_and_build_buttons(
 pub fn build_custom_msg(
     format: Format,
     content: &str,
-    embed_str: &str,
+    embed: &DiscordEmbed,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
-    let embed_data = serde_json::from_str(embed_str)
-        .inspect_err(|err| { warn!(error = ?err, "Failed to parse stored JSON layout string"); })
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid embed data format".to_string()))?;
-
     build_custom_message(
         format,
         content,
-        embed_data,
+        embed,
         |text| text.to_string(),
     )
         .map_err(|e| {

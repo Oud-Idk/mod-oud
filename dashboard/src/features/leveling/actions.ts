@@ -16,7 +16,7 @@ import {
     SaveXpMultiplierInput,
     saveLevelRewardInputSchema,
     saveXpMultiplierInputSchema,
-    levelingConfigSchema
+    levelingConfigSchema, saveLevelingConfigSchema
 } from "@/features/leveling/types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
@@ -103,7 +103,7 @@ export async function fetchMoreLevelsAction(guildId: string, currentLowestXp: nu
 export async function saveLevelingConfigAction(guildId: string, data: LevelingConfig) {
     try {
         await verifyGuildAccess(guildId);
-        const validConfig = levelingConfigSchema.parse(data);
+        const validConfig = saveLevelingConfigSchema.parse(data);
         await saveLevelingConfig(guildId, validConfig);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error) {
