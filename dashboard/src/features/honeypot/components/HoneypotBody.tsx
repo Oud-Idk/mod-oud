@@ -1,7 +1,6 @@
 "use client";
 
-import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import React, { ReactNode, useState, useEffect, useTransition } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -10,10 +9,11 @@ import Footer from "@/components/layout/Footer";
 import { setupHoneypotAction } from "@/features/honeypot/actions";
 import { TextInput } from "@/components/ui/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
+import { getAvailableRoleOptions, getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
 import parse from "parse-duration";
-import { HoneypotConfig } from "@/features/honeypot/types";
+import { HoneypotConfig, honeypotConfigSchema } from "@/features/honeypot/types";
+import { isDeepEqual } from "@/features/_shared/embed";
 
 interface HoneypotBodyProps {
     honeypotConfig: HoneypotConfig;
@@ -23,124 +23,191 @@ interface HoneypotBodyProps {
     guildId: string;
 }
 
-export function HoneypotBody({ honeypotConfig, onSave, textChannelMap, guildId, roleMap }: HoneypotBodyProps): ReactNode {
-    const normalizedLeaveConfig = useMemo(() => honeypotConfig, [honeypotConfig]);
+export function HoneypotBody({
+    honeypotConfig,
+    onSave,
+    textChannelMap,
+    guildId,
+    roleMap,
+}: HoneypotBodyProps): ReactNode {
+    const [config, setConfig] = useState<HoneypotConfig>(honeypotConfig);
+    const [isPending, startTransition] = useTransition();
     const [isSettingUp, setIsSettingUp] = useState(false);
     const [channelName, setChannelName] = useState("bot-hunt");
     const [timeInput, setTimeInput] = useState<string>("");
+    const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     useEffect(() => {
-        setConfig({ ...config, duration: parse(timeInput) });
-    }, [timeInput])
+        setConfig(honeypotConfig);
+        setValidationError(null);
+    }, [honeypotConfig]);
 
-    // New state for inline messages
-    const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const isDirty = !isDeepEqual(config, honeypotConfig);
 
-    const channelOptions = useMemo(() => {
-        return Object.entries(textChannelMap).map(([id, name]) => ({
-            label: name,
-            value: id,
-        }));
-    }, [textChannelMap]);
+    const channelOptions = getAvailableChannelOptions(textChannelMap);
     const roleOptions = getAvailableRoleOptions(roleMap);
 
-    const { config, setConfig, isDirty, handleSave, handleCancel, isPending } = useConfigForm({
-        initialConfig: normalizedLeaveConfig,
-        onSave,
-    });
+    const handleDurationChange = (val: string) => {
+        setTimeInput(val);
+        const parsedMs = val.trim() === "" ? null : parse(val);
+        setConfig((prev) => ({
+            ...prev,
+            duration: parsedMs,
+        }));
+    };
+
+    const handleSave = () => {
+        setValidationError(null);
+        const result = honeypotConfigSchema.safeParse(config);
+        if (!result.success) {
+            setValidationError(result.error.issues[0]?.message || "Invalid configuration.");
+            return;
+        }
+
+        startTransition(async () => {
+            try {
+                await onSave(result.data);
+                setStatus({ type: "success", message: "Configuration saved successfully!" });
+            } catch (err) {
+                setValidationError(err instanceof Error ? err.message : "Failed to save configuration.");
+            }
+        });
+    };
+
+    const handleCancel = () => {
+        setConfig(honeypotConfig);
+        setTimeInput("");
+        setValidationError(null);
+    };
 
     const handleSetup = async (): Promise<void> => {
-        setStatus(null); // Clear any old messages
+        setStatus(null);
+        setValidationError(null);
         setIsSettingUp(true);
 
         const result = await setupHoneypotAction(guildId, channelName);
         setIsSettingUp(false);
 
         if (result.success && result.channelId) {
-            setConfig({
-                ...config,
+            setConfig((prev) => ({
+                ...prev,
                 channelId: result.channelId,
                 enabled: true,
-            });
+            }));
             setStatus({ type: "success", message: "Honeypot channel set up successfully!" });
         } else if (!result.success) {
             setStatus({ type: "error", message: result.error || "Failed to set up channel." });
         }
     };
 
-    return <div className="space-y-2">
-        <ToggleSwitch
-            checked={config.enabled} onChange={e => setConfig({ ...config, enabled: e })} text="Enable Honeypot Channel"
-        />
+    return (
+        <div className="space-y-4">
+            {validationError && (
+                <div className="p-3 mb-4 text-sm text-danger bg-danger-subtle rounded-md font-medium">
+                    {validationError}
+                </div>
+            )}
 
-        {config.enabled && (
-            <div className="space-y-2 max-w-md">
-                <InputLabel>Channel</InputLabel>
-                <Dropdown
-                    value={config.channelId}
-                    onChange={c => setConfig({ ...config, channelId: c ?? ""})}
-                    options={channelOptions}
-                    placeholder="Select Channel"
-                />
+            <ToggleSwitch
+                checked={config.enabled}
+                onChange={(e) => setConfig((prev) => ({ ...prev, enabled: e }))}
+                text="Enable Honeypot Channel"
+            />
 
-                <InputLabel>Exempt Roles</InputLabel>
-                <Dropdown
-                    multiple
-                    value={config.exemptRoles}
-                    onChange={r => setConfig({ ...config, exemptRoles: r })}
-                    options={roleOptions}
-                    placeholder="Select Roles to Exempt"
-                />
-
-                <InputLabel>Delete Messages Before (DMD)</InputLabel>
-                <NumberInput
-                    value={config.dmd}
-                    onChange={v => setConfig({ ...config, dmd: v ?? 0 })}
-                    min={0}
-                    max={7}
-                />
-
-                <InputLabel>Reason</InputLabel>
-                <TextInput
-                    value={config.reason ?? "Sending a message in a honeypot channel"}
-                    onChange={r => setConfig({ ...config, reason: r.target.value })}
-                    placeholder="Sending a message in a honeypot channel"
-                />
-
-                <InputLabel>Duration</InputLabel>
-                <TextInput
-                    value={timeInput}
-                    onChange={i => setTimeInput(i.target.value)}
-                    placeholder="Leave blank for permanent"
-                />
-                <Footer>{config.duration === null ? "Time is either invalid or empty. Assuming permanent" : `${config.duration} ms`}</Footer>
-
-                {config.channelId.trim() === "" && (
-                    <>
-                        <InputLabel>Channel Name</InputLabel>
-                        <TextInput
-                            value={channelName} onChange={s => setChannelName(s.target.value)}
+            {config.enabled && (
+                <div className="space-y-4 max-w-md">
+                    <div className="space-y-2">
+                        <InputLabel>Channel</InputLabel>
+                        <Dropdown
+                            value={config.channelId ?? undefined}
+                            onChange={(c) => setConfig((prev) => ({ ...prev, channelId: c ?? null }))}
+                            options={channelOptions}
+                            placeholder="Select Channel"
                         />
-                        <div className="flex flex-col gap-2 items-start">
-                            <PrimaryButton
-                                onClick={handleSetup} disabled={isDirty || isSettingUp}
-                            >
-                                {isSettingUp ? "Setting up..." : "Set Up For Me!"}
-                            </PrimaryButton>
-                            {status && (
-                                <p className={`text-sm ${status.type === "success" ? "text-green-500" : "text-red-500"}`}>
-                                    {status.message}
-                                </p>
-                            )}
-                            {isDirty && (<Footer>Save first before you can set it up, dummy.</Footer>)}
-                        </div>
-                    </>
-                )}
-            </div>
-        )}
+                    </div>
 
-        {isDirty && (
-            <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}/>
-        )}
-    </div>
+                    <div className="space-y-2">
+                        <InputLabel>Exempt Roles</InputLabel>
+                        <Dropdown
+                            multiple
+                            value={config.exemptRoles}
+                            onChange={(r) => setConfig((prev) => ({ ...prev, exemptRoles: r ?? [] }))}
+                            options={roleOptions}
+                            placeholder="Select Roles to Exempt"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <InputLabel>Delete Messages Before (DMD)</InputLabel>
+                        <NumberInput
+                            value={config.dmd}
+                            onChange={(v) => setConfig((prev) => ({ ...prev, dmd: v ?? 0 }))}
+                            min={0}
+                            max={7}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <InputLabel>Reason</InputLabel>
+                        <TextInput
+                            value={config.reason ?? "Sending a message in a honeypot channel"}
+                            onChange={(r) => setConfig((prev) => ({ ...prev, reason: r.target.value }))}
+                            placeholder="Sending a message in a honeypot channel"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <InputLabel>Duration</InputLabel>
+                        <TextInput
+                            value={timeInput}
+                            onChange={(i) => handleDurationChange(i.target.value)}
+                            placeholder="Leave blank for permanent"
+                        />
+                        <Footer>
+                            {config.duration === null
+                                ? "Time is either invalid or empty. Assuming permanent."
+                                : `${config.duration} ms`}
+                        </Footer>
+                    </div>
+
+                    {!config.channelId && (
+                        <div className="space-y-2 pt-2 border-t border-border-subtle">
+                            <InputLabel>Channel Name</InputLabel>
+                            <TextInput
+                                value={channelName}
+                                onChange={(s) => setChannelName(s.target.value)}
+                            />
+                            <div className="flex flex-col gap-2 items-start pt-1">
+                                <PrimaryButton
+                                    onClick={handleSetup}
+                                    disabled={isDirty || isSettingUp || isPending}
+                                >
+                                    {isSettingUp ? "Setting up..." : "Set Up For Me!"}
+                                </PrimaryButton>
+
+                                {status && (
+                                    <p
+                                        className={`text-sm ${
+                                            status.type === "success" ? "text-green-500" : "text-red-500"
+                                        }`}
+                                    >
+                                        {status.message}
+                                    </p>
+                                )}
+
+                                {isDirty && (
+                                    <Footer>Save your changes first before setting up the channel.</Footer>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {isDirty && (
+                <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending} />
+            )}
+        </div>
+    );
 }

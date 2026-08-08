@@ -6,6 +6,7 @@ import { AutomodLog } from "@/features/logs/types";
 import { getAutomodLogsAction } from "@/features/logs/actions";
 import { TableSkeleton } from "@/features/logs/components/TableSkeleton";
 import { EmptyLogsState } from "@/features/logs/components/EmptyLogState";
+import { InfiniteLoadingIndicator } from "@/features/logs/components/InfiniteLoadingIndicator";
 
 interface AutomodTabProps {
     guildId: string;
@@ -13,15 +14,6 @@ interface AutomodTabProps {
 
 const LIMIT = 20;
 const HEADERS = ["User ID", "Rule Type", "Triggered By", "Original Content", "Actions Taken", "Timestamp"];
-
-function InfiniteLoadingIndicator(props: {
-    ref: React.RefObject<HTMLDivElement | null>,
-    loadingMore: boolean,
-    hasMore: boolean,
-    logsLength: number
-}) {
-    return null;
-}
 
 export function AutomodTab({ guildId }: AutomodTabProps): ReactNode {
     const [logs, setLogs] = useState<AutomodLog[]>([]);

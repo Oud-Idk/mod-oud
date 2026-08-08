@@ -42,13 +42,14 @@ export default function TicketingTab({
     isDirty,
     status,
 }: TicketingTabProps) {
-    // Check missing fields directly on honest state (null / empty)
     const targetCategoryIsEmpty = !config.categoryId;
     const targetRoleIsEmpty = !config.ticketRoleId;
     const targetChannelIsEmpty = !config.channelId;
 
     const panelMessageConfig = useMemo<GenericMessageConfig>(() => ({
-        ...config.panelMessage,
+        format: config.panelMessage.message.format,
+        content: config.panelMessage.message.content,
+        embed: config.panelMessage.message.embed,
         enabled: config.enabled ?? config.panelMessage?.enabled ?? false,
         channel_id: config.channelId,
     }), [config.panelMessage, config.enabled, config.channelId]);
@@ -65,9 +66,9 @@ export default function TicketingTab({
                 prev.enabled === nextEnabled &&
                 prev.channelId === nextChannelId &&
                 prev.panelMessage.enabled === nextEnabled &&
-                prev.panelMessage.format === nextFormat &&
-                prev.panelMessage.content === nextContent &&
-                isDeepEqual(prev.panelMessage.embed, nextEmbed)
+                prev.panelMessage.message.format === nextFormat &&
+                prev.panelMessage.message.content === nextContent &&
+                isDeepEqual(prev.panelMessage.message.embed, nextEmbed)
             ) {
                 return prev;
             }
@@ -78,9 +79,11 @@ export default function TicketingTab({
                 channelId: nextChannelId,
                 panelMessage: {
                     enabled: nextEnabled,
-                    format: nextFormat,
-                    content: nextContent,
-                    embed: nextEmbed,
+                    message: {
+                        format: nextFormat,
+                        content: nextContent,
+                        embed: nextEmbed,
+                    },
                 },
             };
         });

@@ -174,18 +174,20 @@ export function GiveawayConfig({
             <div className="pt-4 border-t border-border-subtle">
                 <MessageConfigEditor
                     config={{
-                        format: config.format,
-                        content: config.content ?? "",
-                        embed: config.embed ?? {},
+                        format: config.message.format,
+                        content: config.message.content ?? "",
+                        embed: config.message.embed ?? {},
                         channel_id: config.channel_id ?? undefined,
                     }}
                     onChange={(v) =>
                         onChange({
                             ...config,
                             channel_id: v.channel_id ?? config.channel_id,
-                            content: v.content ?? "",
-                            embed: v.embed ?? {},
-                            format: v.format,
+                            message: {
+                                format: v.format ?? config.message.format,
+                                content: v.content ?? config.message.content,
+                                embed: v.embed ?? config.message.embed,
+                            },
                         })
                     }
                     embedTemplateConfig={GIVEAWAY_TEMPLATE_CONFIG}

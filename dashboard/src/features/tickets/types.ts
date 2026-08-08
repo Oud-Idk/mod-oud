@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
-    DEFAULT_MESSAGE_LAYOUT,
-    MessageLayoutSchema
+    DEFAULT_MESSAGE_LAYOUT, DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT,
+    MessageLayoutSchema, TogglableMessageSchema
 } from "@/features/_shared/embed";
 
 export const FormatSchema = z.enum(["TEXT", "EMBED"]).default("TEXT");
@@ -18,8 +18,8 @@ export const TicketConfigSchema = z.object({
 
     enabled: z.boolean().default(false),
 
-    panelMessage: MessageLayoutSchema.default(DEFAULT_MESSAGE_LAYOUT),
-    welcomeMessage: MessageLayoutSchema.default(DEFAULT_MESSAGE_LAYOUT),
+    panelMessage: TogglableMessageSchema.default(DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT),
+    welcomeMessage: TogglableMessageSchema.default(DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT),
 
     warnThreshold: z.number().default(30),
     deleteThreshold: z.number().default(45),

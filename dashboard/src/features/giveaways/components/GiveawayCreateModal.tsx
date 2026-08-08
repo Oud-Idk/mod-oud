@@ -49,7 +49,6 @@ export function GiveawayCreateModal({
                     prize,
                     winner_count: 1,
                     end_time: defaultEndTime,
-                    format: "TEXT",
                 });
 
                 onClose();

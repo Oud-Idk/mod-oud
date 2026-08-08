@@ -1,4 +1,4 @@
-use crate::core::config::settings::MessageLayout;
+use crate::core::config::settings::{MessageLayout, TogglableMessage};
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, NoneAsEmptyString, serde_as, serde_conv};
 use std::time::Duration;
@@ -42,7 +42,7 @@ pub struct TicketConfig {
     #[serde_as(as = "DurationMinutes")]
     pub bump_every: Duration,
     #[serde(default)]
-    pub panel_message: MessageLayout,
+    pub panel_message: TogglableMessage,
     #[serde(default)]
-    pub welcome_message: MessageLayout,
+    pub welcome_message: TogglableMessage,
 }

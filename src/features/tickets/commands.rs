@@ -80,27 +80,25 @@ pub async fn setup_tickets(
     let serenity_guild_id = serenity::GuildId::new(guild_id as u64);
 
     debug!(guild_id, "Compiling ticket panel layouts and assets");
-    // Build the message to send, respecting any existing configurations
     let message_builder = if let Some(ref ticket_cfg) = settings.tickets {
         build_ticket_message_payload(
             ctx.http(),
             serenity_guild_id,
             ticket_role_id,
-            Some(&ticket_cfg.panel_message.format),
-            Some(&ticket_cfg.panel_message.content),
-            ticket_cfg.panel_message.embed.as_ref(),
+            ticket_cfg.panel_message.message.format,
+            &ticket_cfg.panel_message.message.content,
+            &ticket_cfg.panel_message.message.embed,
         )
             .await?
     } else {
-        build_ticket_message_payload(
-            ctx.http(),
-            serenity_guild_id,
-            ticket_role_id,
-            None,
-            None,
-            None,
+        debug!(guild_id, "Ticket setup blocked: no message configured");
+        ctx.send(
+            CreateReply::default()
+                .content("Please set a message for the ticket panel using the dashboard/config first.")
+                .ephemeral(true),
         )
-            .await?
+            .await?;
+        return Ok(());
     };
 
     debug!(guild_id, target_channel_id, "Dispatching ticket panel message to Discord API");

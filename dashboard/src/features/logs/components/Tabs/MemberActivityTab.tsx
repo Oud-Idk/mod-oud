@@ -6,6 +6,7 @@ import { JoinLeaveLog } from "@/features/logs/types";
 import { getJoinLeaveLogsAction } from "@/features/logs/actions";
 import { TableSkeleton } from "@/features/logs/components/TableSkeleton";
 import { EmptyLogsState } from "@/features/logs/components/EmptyLogState";
+import { InfiniteLoadingIndicator } from "@/features/logs/components/InfiniteLoadingIndicator";
 
 interface MemberActivityTabProps {
     guildId: string;
@@ -13,15 +14,6 @@ interface MemberActivityTabProps {
 
 const LIMIT = 20;
 const HEADERS = ["User ID", "Action", "Timestamp"];
-
-function InfiniteLoadingIndicator(props: {
-    ref: React.RefObject<HTMLDivElement | null>,
-    loadingMore: boolean,
-    hasMore: boolean,
-    logsLength: number
-}) {
-    return null;
-}
 
 export function MemberActivityTab({ guildId }: MemberActivityTabProps): ReactNode {
     const [logs, setLogs] = useState<JoinLeaveLog[]>([]);
@@ -119,7 +111,6 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): ReactNod
                 </TableBody>
             </Table>
 
-            {/* Bottom Infinite Loading Indicator */}
             <InfiniteLoadingIndicator
                 ref={observerTarget}
                 loadingMore={loadingMore}

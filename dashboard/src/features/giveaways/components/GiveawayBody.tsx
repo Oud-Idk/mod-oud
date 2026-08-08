@@ -4,7 +4,7 @@ import React, { ReactNode, useState, useEffect, useTransition } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { Giveaway, SaveGiveawayData, SaveGiveawaySchema } from "@/features/giveaways/types";
+import { Giveaway, SaveGiveawayData, SaveGiveawaySchema, DEFAULT_GIVEAWAY_MESSAGE } from "@/features/giveaways/types";
 import { GiveawayConfig } from "@/features/giveaways/components/GiveawayConfig";
 import { GiveawayCreateModal } from "@/features/giveaways/components/GiveawayCreateModal";
 import { isDeepEqual } from "@/features/_shared/embed";
@@ -144,14 +144,12 @@ export function GiveawaysBody({
                     onSave({
                         channel_id: v.channel_id ?? null,
                         guild_id: guildId,
-                        format: "TEXT",
                         prize: v.prize || "New Giveaway",
                         winner_count: v.winner_count || 1,
                         end_time: v.end_time || new Date().toISOString(),
-                        embed: {},
-                        content: "",
                         host_id: userId,
                         message_id: null,
+                        message: DEFAULT_GIVEAWAY_MESSAGE,
                     })
                 }
                 channelMap={channelMap}

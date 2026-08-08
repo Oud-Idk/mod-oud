@@ -4,9 +4,10 @@ import React, { ReactNode, useCallback, useEffect, useRef, useState, useTransiti
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
-import { InviteTrackerConfig, LeaderboardEntry } from "@/features/invite-tracking/types";
+import { InviteTrackerConfig, LeaderboardEntry, inviteTrackerConfigSchema } from "@/features/invite-tracking/types";
 import { fetchInviteLeaderboardAction } from "@/features/invite-tracking/actions";
 import Emphasis from "@/components/layout/Emphasis";
+import { isDeepEqual } from "@/features/_shared/embed";
 
 interface InviteTrackerBodyProps {
     guildId: string;
@@ -24,6 +25,7 @@ export function InviteTrackingBody({
     onSave,
 }: InviteTrackerBodyProps): ReactNode {
     const [config, setConfig] = useState<InviteTrackerConfig>(initialConfig);
+    const [error, setError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
 
     // Infinite scroll states
@@ -34,24 +36,34 @@ export function InviteTrackingBody({
     // Observer sentinel reference
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-    const isDirty = config.enabled !== initialConfig.enabled;
+    // Deep equality check
+    const isDirty = !isDeepEqual(config, initialConfig);
 
     const handleToggle = (checked: boolean): void => {
         setConfig((prev) => ({ ...prev, enabled: checked }));
     };
 
     const handleSave = (): void => {
+        // Pre-validate locally before calling server action
+        const validation = inviteTrackerConfigSchema.safeParse(config);
+        if (!validation.success) {
+            setError(validation.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
+
+        setError(null);
         startTransition(async () => {
             try {
-                await onSave(config);
-            } catch (error) {
-                console.error("Failed to save invite tracker config:", error);
+                await onSave(validation.data);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to save configuration");
             }
         });
     };
 
     const handleCancel = (): void => {
         setConfig(initialConfig);
+        setError(null);
     };
 
     // Load next batch of leaderboard items
@@ -70,8 +82,8 @@ export function InviteTrackingBody({
             if (newEntries.length > 0) {
                 setLeaderboard((prev) => [...prev, ...newEntries]);
             }
-        } catch (error) {
-            console.error("Error loading more leaderboard entries:", error);
+        } catch (err) {
+            console.error("Error loading more leaderboard entries:", err);
         } finally {
             setIsLoadingMore(false);
         }
@@ -131,8 +143,17 @@ export function InviteTrackingBody({
 
     return (
         <div className="flex-1">
+            {error && (
+                <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
+                    {error}
+                </div>
+            )}
+
             <ToggleSwitch
-                checked={config.enabled} onChange={handleToggle} disabled={isPending} text="Enable Tracking"
+                checked={config.enabled}
+                onChange={handleToggle}
+                disabled={isPending}
+                text="Enable Tracking"
             />
 
             {config.enabled && (
@@ -167,12 +188,12 @@ export function InviteTrackingBody({
                                 </TableBody>
                             </Table>
                             <div ref={sentinelRef} className="py-3 text-center text-xs text-muted-foreground">
-                            {isLoadingMore && <p>Loading more entries...</p>}
+                                {isLoadingMore && <p>Loading more entries...</p>}
                                 {!hasMore && leaderboard.length > pageSize && (
                                     <p>Reached end of leaderboard.</p>
                                 )}
-                        </div>
-                    </>
+                            </div>
+                        </>
                     )}
                 </>
             )}
@@ -180,7 +201,9 @@ export function InviteTrackingBody({
             {/* Unsaved Popup Notification */}
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

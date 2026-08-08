@@ -6,11 +6,11 @@ export const automodLogSchema = z.object({
     id: z.coerce.string(),
     guild_id: z.string(),
     user_id: z.string(),
-    channel_id: z.string().nullable().optional().default(null),
-    message_id: z.string().nullable().optional().default(null),
+    channel_id: z.string().nullish().default(null),
+    message_id: z.string().nullish().default(null),
     rule_type: z.string(),
-    trigger_content: z.string().nullable().optional().default(null),
-    original_content: z.string().nullable().optional().default(null),
+    trigger_content: z.string().nullish().default(null),
+    original_content: z.string().nullish().default(null),
     actions_taken: z.array(z.string()).default([]),
     created_at: z.coerce.string(),
 });
@@ -26,12 +26,19 @@ export const joinLeaveLogSchema = z.object({
 export const moderationLogSchema = z.object({
     case_id: z.coerce.string(),
     guild_id: z.string(),
-    target_id: z.string().nullable().optional().default(null),
+    target_id: z.string().nullish().default(null),
     moderator_id: z.string(),
     action_type: z.string(),
-    reason: z.string().nullable().optional().default(null),
-    duration: z.string().nullable().optional().default(null),
+    reason: z.string().nullish().default(null),
+    duration: z.string().nullish().default(null),
     created_at: z.coerce.string(),
+});
+
+export const getLogsInputSchema = z.object({
+    guildId: z.string().min(1),
+    limit: z.number().int().positive().default(20),
+    cursorCreatedAt: z.string().nullish().default(null),
+    cursorId: z.string().nullish().default(null),
 });
 
 export type JoinLeaveAction = z.infer<typeof joinLeaveActionSchema>;

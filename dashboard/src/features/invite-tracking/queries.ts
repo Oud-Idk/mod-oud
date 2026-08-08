@@ -3,22 +3,24 @@ import {
     InviteTrackerConfig,
     LeaderboardEntry,
     inviteTrackerConfigSchema,
-    defaultInviteTrackerConfig,
     leaderboardEntrySchema,
     getLeaderboardInputSchema
 } from "@/features/invite-tracking/types";
 import { db } from "@/lib/db";
-
-import { getGuildConfigField } from "@/features/_shared/guild";
+import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
 export async function getInviteTrackerConfig(guildId: string): Promise<InviteTrackerConfig> {
     const validGuildId = z.string().parse(guildId);
 
     const dbConfig = await getGuildConfigField<unknown>(validGuildId, "invite_tracker");
-    if (!dbConfig) return defaultInviteTrackerConfig;
+    return inviteTrackerConfigSchema.parse(dbConfig ?? {});
+}
 
-    const result = inviteTrackerConfigSchema.safeParse(dbConfig);
-    return result.success ? result.data : defaultInviteTrackerConfig;
+export async function saveInviteTrackerConfig(guildId: string, config: InviteTrackerConfig): Promise<void> {
+    const validGuildId = z.string().parse(guildId);
+    const validConfig = inviteTrackerConfigSchema.parse(config);
+
+    await saveGuildConfigField(validGuildId, "invite_tracker", validConfig);
 }
 
 export async function getInviteLeaderboard(
@@ -43,7 +45,6 @@ export async function getInviteLeaderboard(
             validParams.offset
         ]);
 
-        // Validate returned database rows with Zod
         return z.array(leaderboardEntrySchema).parse(res.rows);
     } catch (error) {
         console.error("Failed to fetch invite leaderboard:", error);

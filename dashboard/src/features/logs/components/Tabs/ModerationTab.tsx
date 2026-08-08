@@ -7,6 +7,7 @@ import { getModerationLogsAction } from "@/features/logs/actions";
 import { cn } from "@/lib/cn";
 import { TableSkeleton } from "@/features/logs/components/TableSkeleton";
 import { EmptyLogsState } from "@/features/logs/components/EmptyLogState";
+import { InfiniteLoadingIndicator } from "@/features/logs/components/InfiniteLoadingIndicator";
 
 interface ModerationTabProps {
     guildId: string;
@@ -14,15 +15,6 @@ interface ModerationTabProps {
 
 const LIMIT = 20;
 const HEADERS = ["Case ID", "Action", "Target Username", "Moderator Username", "Reason", "Duration", "Timestamp"];
-
-function InfiniteLoadingIndicator(props: {
-    ref: React.RefObject<HTMLDivElement | null>,
-    loadingMore: boolean,
-    hasMore: boolean,
-    logsLength: number
-}) {
-    return null;
-}
 
 export function ModerationTab({ guildId }: ModerationTabProps): ReactNode {
     const [logs, setLogs] = useState<ModerationLog[]>([]);
@@ -151,7 +143,6 @@ export function ModerationTab({ guildId }: ModerationTabProps): ReactNode {
                 </TableBody>
             </Table>
 
-            {/* Bottom Infinite Loading Indicator */}
             <InfiniteLoadingIndicator
                 ref={observerTarget}
                 loadingMore={loadingMore}

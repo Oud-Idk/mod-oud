@@ -1,9 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { saveHoneypotConfig, setupHoneypot, SetupHoneypotResult } from "./queries";
+import { saveHoneypotConfig, setupHoneypot } from "./queries";
 import { type HoneypotConfigInput, honeypotConfigSchema } from "./types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
+import { z } from "zod";
+
+export type SetupHoneypotResult =
+    | { success: true; channelId: string }
+    | { success: false; error: string };
 
 export async function setupHoneypotAction(
     guildId: string,
@@ -22,6 +27,7 @@ export async function setupHoneypotAction(
         };
     }
 }
+
 export async function saveHoneypotConfigAction(
     guildId: string,
     rawData: HoneypotConfigInput
@@ -33,6 +39,9 @@ export async function saveHoneypotConfigAction(
         revalidatePath(`/dashboard/${guildId}/honeypot`);
     } catch (error) {
         console.error("Failed to save honeypot config:", error);
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0]?.message || "Invalid honeypot configuration.");
+        }
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }

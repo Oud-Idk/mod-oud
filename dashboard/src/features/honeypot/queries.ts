@@ -16,11 +16,8 @@ export async function getHoneypotConfig(guildId: string): Promise<HoneypotConfig
 const backendHoneypotResponseSchema = z.object({
     channel_id: z.string(),
 });
-export type SetupHoneypotResult =
-    | { success: true; channelId: string }
-    | { success: false; error: string };
 
-export async function setupHoneypot(guildId: string, channelName: string) {
+export async function setupHoneypot(guildId: string, channelName: string): Promise<{ channelId: string }> {
     const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
 
     const res = await fetch(`${backendUrl}/api/guilds/${guildId}/honeypot`, {
@@ -48,9 +45,10 @@ export async function setupHoneypot(guildId: string, channelName: string) {
     }
 
     const currentConfig = await getHoneypotConfig(guildId);
-    const updatedConfig = {
+    const updatedConfig: HoneypotConfig = {
         ...currentConfig,
         channelId: data.channel_id,
+        enabled: true,
     };
 
     await saveHoneypotConfig(guildId, updatedConfig);

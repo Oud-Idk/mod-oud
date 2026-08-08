@@ -13,9 +13,11 @@ CREATE TABLE IF NOT EXISTS giveaways
 
     message_layout JSONB       NOT NULL DEFAULT '{
       "enabled": true,
-      "format": "TEXT",
-      "content": "",
-      "embed": {}
+      "message": {
+        "format": "TEXT",
+        "content": "",
+        "embed": {}
+      }
     }'::jsonb
 );
 

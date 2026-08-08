@@ -4,7 +4,7 @@ import { useOptimistic, useState, useTransition } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
-import { TargetType, XpMultiplier } from "@/features/leveling/types";
+import { SaveXpMultiplierInput, TargetType, XpMultiplier } from "@/features/leveling/types";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { Button } from "@/components/ui/Button";
 import Emphasis from "@/components/layout/Emphasis";
@@ -13,9 +13,7 @@ import Footer from "@/components/layout/Footer";
 export interface MultiplierTabProps {
     guildId: string;
     multipliers: XpMultiplier[];
-    onSave: (
-        targets: Array<{ targetId: string; targetType: TargetType; multiplier: number | undefined }>
-    ) => Promise<void>;
+    onSave: (targets: SaveXpMultiplierInput[]) => Promise<void>;
     onDelete: (targetIds: string[]) => Promise<void>;
     channelMap: Record<string, string>;
     roleMap: Record<string, string>;
@@ -64,17 +62,19 @@ export function MultiplierTab({
     const handleAddMultipliers = () => {
         if (selectedTargetIds.length === 0) return;
 
-        const targetsToSave = selectedTargetIds.map((id) => ({
+        const effectiveMultiplier = multiplierValue ?? 1.0;
+
+        const targetsToSave: SaveXpMultiplierInput[] = selectedTargetIds.map((id) => ({
             targetId: id,
             targetType,
-            multiplier: multiplierValue,
+            multiplier: effectiveMultiplier,
         }));
 
         const optimisticPayload: XpMultiplier[] = selectedTargetIds.map((id) => ({
             guild_id: guildId,
             target_id: id,
             target_type: targetType,
-            multiplier: multiplierValue ?? 0,
+            multiplier: effectiveMultiplier,
         }));
 
         startMutation(async () => {

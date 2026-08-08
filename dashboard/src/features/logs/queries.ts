@@ -1,17 +1,16 @@
+import { z } from "zod";
 import { db } from "@/lib/db";
 import {
     automodLogSchema,
     joinLeaveLogSchema,
     moderationLogSchema,
+    getLogsInputSchema,
+    joinLeaveActionSchema,
     type AutomodLog,
     type JoinLeaveLog,
     type ModerationLog,
     type JoinLeaveAction,
 } from "./types";
-
-// ==========================================
-// 🔒 LOCAL DATABASE INTERFACES & HELPERS
-// ==========================================
 
 interface PgInterval {
     years?: number;
@@ -51,36 +50,43 @@ export async function getAutomodLogs(
     cursorCreatedAt?: string | null,
     cursorId?: string | null
 ): Promise<AutomodLog[]> {
+    const params = getLogsInputSchema.parse({
+        guildId,
+        limit,
+        cursorCreatedAt,
+        cursorId,
+    });
+
     const query = `
-    SELECT id::TEXT,
-           guild_id,
-           user_id,
-           channel_id,
-           message_id,
-           rule_type,
-           trigger_content,
-           original_content,
-           actions_taken,
-           created_at
-    FROM automod_logs
-    WHERE guild_id = $1
-      AND (
-        $2::TEXT IS NULL OR $3::BIGINT IS NULL OR
-        created_at < $2::TIMESTAMPTZ OR
-        (created_at = $2::TIMESTAMPTZ AND id < $3::BIGINT)
-      )
-    ORDER BY created_at DESC, id DESC
-    LIMIT $4;
-  `;
+        SELECT id::TEXT,
+               guild_id,
+               user_id,
+               channel_id,
+               message_id,
+               rule_type,
+               trigger_content,
+               original_content,
+               actions_taken,
+               created_at
+        FROM automod_logs
+        WHERE guild_id = $1
+          AND (
+            $2::TEXT IS NULL OR $3::BIGINT IS NULL OR
+            created_at < $2::TIMESTAMPTZ OR
+            (created_at = $2::TIMESTAMPTZ AND id < $3::BIGINT)
+          )
+        ORDER BY created_at DESC, id DESC
+        LIMIT $4;
+    `;
 
     const result = await db.query(query, [
-        guildId,
-        cursorCreatedAt || null,
-        cursorId || null,
-        limit,
+        params.guildId,
+        params.cursorCreatedAt,
+        params.cursorId,
+        params.limit,
     ]);
 
-    return result.rows.map((row) => automodLogSchema.parse(row));
+    return z.array(automodLogSchema).parse(result.rows);
 }
 
 export async function getJoinLeaveLogs(
@@ -90,6 +96,15 @@ export async function getJoinLeaveLogs(
     cursorCreatedAt?: string | null,
     cursorId?: string | null
 ): Promise<JoinLeaveLog[]> {
+    const params = getLogsInputSchema.parse({
+        guildId,
+        limit,
+        cursorCreatedAt,
+        cursorId,
+    });
+
+    const validAction = action ? joinLeaveActionSchema.parse(action) : null;
+
     const query = `
         SELECT id::TEXT,
                user_id::TEXT,
@@ -98,25 +113,25 @@ export async function getJoinLeaveLogs(
                created_at
         FROM join_leave_logs
         WHERE guild_id = $1
-          AND ($2::TEXT IS NULL OR action = $2::LOG_ACTION) -- ✨ The magic fix is right here! ✨
+          AND ($2::TEXT IS NULL OR action = $2::LOG_ACTION) 
           AND (
             $3::TEXT IS NULL OR $4::BIGINT IS NULL OR
             created_at < $3::TIMESTAMPTZ OR
             (created_at = $3::TIMESTAMPTZ AND id < $4::BIGINT)
-            )
+          )
         ORDER BY created_at DESC, id DESC
         LIMIT $5;
     `;
 
     const result = await db.query(query, [
-        guildId,
-        action || null,
-        cursorCreatedAt || null,
-        cursorId || null,
-        limit,
+        params.guildId,
+        validAction,
+        params.cursorCreatedAt,
+        params.cursorId,
+        params.limit,
     ]);
 
-    return result.rows.map((row) => joinLeaveLogSchema.parse(row));
+    return z.array(joinLeaveLogSchema).parse(result.rows);
 }
 
 export async function getModerationLogs(
@@ -125,38 +140,45 @@ export async function getModerationLogs(
     cursorCreatedAt?: string | null,
     cursorCaseId?: string | null
 ): Promise<ModerationLog[]> {
+    const params = getLogsInputSchema.parse({
+        guildId,
+        limit,
+        cursorCreatedAt,
+        cursorId: cursorCaseId,
+    });
+
     const query = `
-    SELECT case_id::TEXT,
-           guild_id::TEXT,
-           target_id::TEXT,
-           moderator_id::TEXT,
-           action_type,
-           reason,
-           duration,
-           created_at
-    FROM moderation_logs
-    WHERE guild_id = $1
-      AND (
-        $2::TEXT IS NULL OR $3::INTEGER IS NULL OR
-        created_at < $2::TIMESTAMPTZ OR
-        (created_at = $2::TIMESTAMPTZ AND case_id < $3::INTEGER)
-      )
-    ORDER BY created_at DESC, case_id DESC
-    LIMIT $4;
-  `;
+        SELECT case_id::TEXT,
+               guild_id::TEXT,
+               target_id::TEXT,
+               moderator_id::TEXT,
+               action_type,
+               reason,
+               duration,
+               created_at
+        FROM moderation_logs
+        WHERE guild_id = $1
+          AND (
+            $2::TEXT IS NULL OR $3::INTEGER IS NULL OR
+            created_at < $2::TIMESTAMPTZ OR
+            (created_at = $2::TIMESTAMPTZ AND case_id < $3::INTEGER)
+          )
+        ORDER BY created_at DESC, case_id DESC
+        LIMIT $4;
+    `;
 
     const result = await db.query<RawModerationLog>(query, [
-        guildId,
-        cursorCreatedAt || null,
-        cursorCaseId || null,
-        limit,
+        params.guildId,
+        params.cursorCreatedAt,
+        params.cursorId,
+        params.limit,
     ]);
 
-    return result.rows.map((row) => {
-        return moderationLogSchema.parse({
-            ...row,
-            duration: formatDuration(row.duration),
-            created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
-        });
-    });
+    const formattedRows = result.rows.map((row) => ({
+        ...row,
+        duration: formatDuration(row.duration),
+        created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+    }));
+
+    return z.array(moderationLogSchema).parse(formattedRows);
 }

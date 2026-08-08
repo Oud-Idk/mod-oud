@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import * as queries from "./queries";
 import type { AutomodLog, JoinLeaveLog, ModerationLog, JoinLeaveAction } from "./types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
@@ -10,9 +11,11 @@ export async function getAutomodLogsAction(
     cursorCreatedAt?: string | null,
     cursorId?: string | null
 ): Promise<AutomodLog[]> {
+    await verifyGuildAccess(guildId);
+
     try {
-        await verifyGuildAccess(guildId);
-        return await queries.getAutomodLogs(guildId, limit, cursorCreatedAt, cursorId);
+        const validGuildId = z.string().min(1).parse(guildId);
+        return await queries.getAutomodLogs(validGuildId, limit, cursorCreatedAt, cursorId);
     } catch (error) {
         console.error("Action error fetching automod logs:", error);
         return [];
@@ -26,9 +29,11 @@ export async function getJoinLeaveLogsAction(
     cursorCreatedAt?: string | null,
     cursorId?: string | null
 ): Promise<JoinLeaveLog[]> {
+    await verifyGuildAccess(guildId);
+
     try {
-        await verifyGuildAccess(guildId);
-        return await queries.getJoinLeaveLogs(guildId, action, limit, cursorCreatedAt, cursorId);
+        const validGuildId = z.string().min(1).parse(guildId);
+        return await queries.getJoinLeaveLogs(validGuildId, action, limit, cursorCreatedAt, cursorId);
     } catch (error) {
         console.error("Action error fetching join leave logs:", error);
         return [];
@@ -41,9 +46,11 @@ export async function getModerationLogsAction(
     cursorCreatedAt?: string | null,
     cursorCaseId?: string | null
 ): Promise<ModerationLog[]> {
+    await verifyGuildAccess(guildId);
+
     try {
-        await verifyGuildAccess(guildId);
-        return await queries.getModerationLogs(guildId, limit, cursorCreatedAt, cursorCaseId);
+        const validGuildId = z.string().min(1).parse(guildId);
+        return await queries.getModerationLogs(validGuildId, limit, cursorCreatedAt, cursorCaseId);
     } catch (error) {
         console.error("Action error fetching moderation logs:", error);
         return [];

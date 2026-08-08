@@ -20,7 +20,6 @@ use crate::features::raid_detection::RaidDetectionConfig;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
-// #[serde(rename_all = "camelCase")]
 pub struct GuildSettings {
     pub welcome: Option<WelcomeConfig>,
     pub leave: Option<LeaveConfig>,
@@ -47,7 +46,6 @@ impl GuildSettings {
             })
     }
 }
-
 
 /// Retrieves settings. Returns a default struct if none exists in the DB.
 pub async fn get_settings_inner(
@@ -82,16 +80,16 @@ pub async fn get_settings_inner(
                     s
                 }
                 Err(err) => {
-                    let path = err.path().to_string(); // e.g. "member_counter.counters[0].id"
-                    let inner_error = err.into_inner(); // The actual Serde error
+                    let path = err.path().to_string();
+                    let inner_error = err.into_inner();
 
                     error!(
-                    error = %inner_error,
-                    field_path = %path,
-                    guild_id,
-                    raw_json = %raw_json,
-                    "Failed to deserialize database JSON; falling back to default settings"
-                );
+                        error = %inner_error,
+                        field_path = %path,
+                        guild_id,
+                        raw_json = %raw_json,
+                        "Failed to deserialize database JSON; falling back to default settings"
+                    );
                     GuildSettings::default()
                 }
             }
@@ -183,46 +181,67 @@ pub async fn get_settings(
     Box::pin(get_settings_inner(db, redis, cache, guild_id)).await
 }
 
+/// Pure representation of a Discord message layout.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageLayout {
-    #[serde(default = "default_true")]
-    pub enabled: bool,
     #[serde(default)]
     pub format: Format,
     #[serde(default)]
     pub content: String,
     #[serde(default)]
-    pub embed: DiscordEmbed, // 👈 Direct DiscordEmbed struct (defaults to empty embed)
+    pub embed: DiscordEmbed,
 }
 
-fn default_true() -> bool { true }
+/// A wrapper for features/messages that can be toggled on/off.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TogglableMessage {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub message: MessageLayout,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl TogglableMessage {
+    /// Returns a reference to the inner message layout if enabled.
+    pub fn message_if_enabled(&self) -> Option<&MessageLayout> {
+        if self.enabled {
+            Some(&self.message)
+        } else {
+            None
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ModerationDMsConfig {
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub warn: Option<MessageLayout>,
+    pub warn: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub pardon_warn: Option<MessageLayout>,
+    pub pardon_warn: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub unpardon_warn: Option<MessageLayout>,
+    pub unpardon_warn: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub unpardon_delete_warn: Option<MessageLayout>,
+    pub unpardon_delete_warn: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub mute: Option<MessageLayout>,
+    pub mute: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub unmute: Option<MessageLayout>,
+    pub unmute: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub kick: Option<MessageLayout>,
+    pub kick: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub ban: Option<MessageLayout>,
+    pub ban: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub softban: Option<MessageLayout>,
+    pub softban: Option<TogglableMessage>,
     #[serde(default, deserialize_with = "ok_or_none")]
-    pub honeypot: Option<MessageLayout>,
+    pub honeypot: Option<TogglableMessage>,
 }
-
 
 /// Saves updated settings to Database, updates Redis cache, updates local Moka cache,
 /// and publishes an invalidation event to the "config_updates" Pub/Sub channel.

@@ -40,13 +40,18 @@ export function LeaveBody({
     });
 
     const handleEmbedChange = useCallback((embed: DiscordEmbed) => {
-        setConfig((prev) => ({ ...prev, embed }));
+        setConfig((prev) => ({
+            ...prev,
+            message: { ...prev.message, embed },
+        }));
     }, [setConfig]);
 
-    // Bridge camelCase (LeaveConfig) to snake_case (MessageConfigEditor)
     const editorConfig = useMemo(() => ({
-        ...config,
-        channel_id: config.channelId || "",
+        enabled: config.enabled,
+        channel_id: config.channelId ?? "",
+        format: config.message.format,
+        content: config.message.content,
+        embed: config.message.embed,
     }), [config]);
 
     return (
@@ -55,11 +60,14 @@ export function LeaveBody({
                 config={editorConfig}
                 onChange={(updated) =>
                     handleChange({
-                        enabled: updated.enabled ?? false,
-                        channelId: updated.channel_id ?? "",
-                        content: updated.content ?? "",
-                        embed: updated.embed ?? {},
-                        format: updated.format,
+                        enabled: updated.enabled ?? config.enabled,
+                        channelId: updated.channel_id || null,
+                        message: {
+                            ...config.message,
+                            format: updated.format ?? config.message.format,
+                            content: updated.content ?? "",
+                            embed: updated.embed ?? {},
+                        },
                     })
                 }
                 onEmbedChange={handleEmbedChange}

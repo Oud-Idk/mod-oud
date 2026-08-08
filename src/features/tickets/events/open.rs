@@ -184,9 +184,9 @@ async fn send_welcome_message(
 
     let mut message_builder = if let Some(cfg) = ticket_cfg.map(|c| &c.welcome_message) {
         let custom_layout = build_custom_message(
-            &cfg.format,
-            Some(&cfg.content),
-            cfg.embed.as_ref(),
+            cfg.message.format,
+            &cfg.message.content,
+            &cfg.message.embed,
             |text| {
                 replace_ticket_welcome_placeholders(
                     text,

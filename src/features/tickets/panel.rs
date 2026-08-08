@@ -12,9 +12,9 @@ pub async fn build_ticket_message_payload(
     http: &serenity::all::Http,
     guild_id: serenity::all::GuildId,
     ticket_role_id: u64,
-    format: Option<&Format>,
-    content: Option<&str>,
-    embed_json: Option<&DiscordEmbed>,
+    format: Format,
+    content: &str,
+    embed_json: &DiscordEmbed,
 ) -> Result<CreateMessage, Error> {
     let guild_id_u64 = guild_id.get();
     trace!(
@@ -41,7 +41,7 @@ pub async fn build_ticket_message_payload(
     let gctx = get_guild_ctx(guild_id, http).await?;
 
     let custom_msg_opt = build_custom_message(
-        format.unwrap_or(&Format::Embed),
+        format,
         content,
         embed_json,
         |text| {

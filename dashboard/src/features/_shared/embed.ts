@@ -96,15 +96,12 @@ export const isEmbedEmpty = (embed: Record<string, any> | undefined | null): boo
 };
 
 export const BaseMessageLayoutSchema = z.object({
-    enabled: z.boolean().default(false),
     format: FormatSchema,
     content: z.string().default(""),
     embed: DiscordEmbedSchema.default({}),
 });
 
 export const MessageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ctx) => {
-    if (!data.enabled) return;
-
     if (data.format === "TEXT") {
         if (!data.content || data.content.trim() === "") {
             ctx.addIssue({
@@ -123,6 +120,16 @@ export const MessageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ct
         }
     }
 });
+
+export const DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT = Object.freeze({
+    enabled: false,
+    message: DEFAULT_MESSAGE_LAYOUT,
+});
+
+export const TogglableMessageSchema = z.object({
+    enabled: z.boolean().default(false),
+    message: MessageLayoutSchema,
+}).default(DEFAULT_TOGGLEABLE_MESSAGE_LAYOUT);
 
 export type MessageLayout = z.infer<typeof MessageLayoutSchema>;
 

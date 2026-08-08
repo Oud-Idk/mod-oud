@@ -71,7 +71,7 @@ export function MessageConfigEditor({
 
     return (
         <>
-            {enableToggle && (
+            {(enableToggle && config.enabled !== undefined) && (
                 <ToggleSwitch
                     checked={isEnabled}
                     disabled={disabled}

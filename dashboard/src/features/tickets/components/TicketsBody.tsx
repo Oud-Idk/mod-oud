@@ -63,14 +63,15 @@ export function TicketsBody({
         setConfig((prev) => ({
             ...prev,
             welcomeMessage: {
-                format: updated.format ?? prev.welcomeMessage.format,
-                content: updated.content ?? prev.welcomeMessage.content,
-                embed: updated.embed ?? prev.welcomeMessage.embed,
                 enabled: updated.enabled ?? prev.welcomeMessage.enabled ?? false,
+                message: {
+                    format: updated.format ?? prev.welcomeMessage.message.format,
+                    content: updated.content ?? prev.welcomeMessage.message.content,
+                    embed: updated.embed ?? prev.welcomeMessage.message.embed,
+                },
             },
         }));
     };
-
     return (
         <div className="flex flex-col">
             <Tabs tabs={TICKETS_TABS} activeTab={activeTab} onChange={setActiveTab} />

@@ -59,9 +59,9 @@ pub async fn handle_send_ticket_message(
         &state.http,
         serenity_guild_id,
         ticket_role_id,
-        Some(&ticket_cfg.panel_message.format),
-        Some(&ticket_cfg.panel_message.content),
-        ticket_cfg.panel_message.embed.as_ref(),
+        ticket_cfg.panel_message.message.format,
+        &ticket_cfg.panel_message.message.content,
+        &ticket_cfg.panel_message.message.embed,
     )
         .await
         .inspect_err(|e| warn!(error = ?e, guild_id, "Failed to compile custom ticket layout payload"))

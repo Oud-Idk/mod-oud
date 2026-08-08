@@ -34,7 +34,7 @@ export async function LevelingFeature({ guildId }: LevelingFeatureProps) {
         getXpMultipliers(guildId),
         getLevelRewards(guildId),
         getGuildChannels(guildId),
-        getLevels(guildId), // TODO cache this mf
+        getLevels(guildId),
     ]);
 
     const onSave = saveLevelingConfigAction.bind(null, guildId);

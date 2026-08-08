@@ -38,28 +38,33 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
             value: "DM",
             label: "DMs",
         },
-    ]
+    ];
 
     return (
         <div className="space-y-2 max-w-md">
             <div>
                 <InputLabel>Level Cap</InputLabel>
                 <NumberInput
-                    value={config.levelCap} onChange={v => handleChange({ levelCap: v })}
+                    value={config.levelCap}
+                    onChange={(v) => handleChange({ levelCap: v })}
                 />
                 <Footer>Set to 0 to remove cap</Footer>
             </div>
             <div>
                 <InputLabel>Choose where to send your level up message</InputLabel>
                 <Dropdown
-                    options={options} value={config.notify.scope} onChange={(val) => {
-                    if (val) handleChange({
-                        notify: {
-                            ...config.notify,
-                            scope: val
-                        }
-                    })
-                }} placeholder={"Choose where to send your level up message"}
+                    options={options}
+                    value={config.notify.scope}
+                    onChange={(val) => {
+                        if (val)
+                            handleChange({
+                                notify: {
+                                    ...config.notify,
+                                    scope: val,
+                                },
+                            });
+                    }}
+                    placeholder={"Choose where to send your level up message"}
                 />
             </div>
 
@@ -72,17 +77,37 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
 
             {config.notify.scope !== "NONE" && (
                 <MessageConfigEditor
-                    config={{ ...config.notify, enabled: true }} // assumed true cuz this is case of not none
-                    onChange={updatedConfig => handleChange({
-                        notify: {
-                            ...config.notify,
-                            content: updatedConfig.content ?? "",
-                            format: updatedConfig.format,
-                            embed: updatedConfig.embed ?? {},
-                            channelId: updatedConfig.channel_id ?? ""
-                        },
-                    })}
-                    onEmbedChange={embed => handleChange({ notify: { ...config.notify, embed } })}
+                    config={{
+                        format: config.notify.message.format,
+                        content: config.notify.message.content,
+                        embed: config.notify.message.embed,
+                        channel_id: config.notify.channelId ?? "",
+                    }}
+                    onChange={(updatedConfig) =>
+                        handleChange({
+                            notify: {
+                                ...config.notify,
+                                channelId: updatedConfig.channel_id || null,
+                                message: {
+                                    ...config.notify.message,
+                                    content: updatedConfig.content ?? "",
+                                    format: updatedConfig.format,
+                                    embed: updatedConfig.embed ?? {},
+                                },
+                            },
+                        })
+                    }
+                    onEmbedChange={(embed) =>
+                        handleChange({
+                            notify: {
+                                ...config.notify,
+                                message: {
+                                    ...config.notify.message,
+                                    embed,
+                                },
+                            },
+                        })
+                    }
                     enableToggle={false}
                     embedTemplateConfig={LEVEL_NOTIFY_CONFIG}
                     channels={config.notify.scope === "SPECIFIED_CHANNEL" ? channels : undefined}
@@ -91,10 +116,10 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
             )}
             <ScopeSettings
                 scope={config.scope}
-                onChange={v => handleChange({ scope: v })}
+                onChange={(v) => handleChange({ scope: v })}
                 channelMap={channelMap}
                 roleMap={roleMap}
             />
         </div>
-    )
+    );
 }

@@ -4,7 +4,7 @@ import { MessageLayoutSchema } from "@/features/_shared/embed";
 export const DEFAULT_BIRTHDAY_MESSAGE = {
     enabled: true,
     format: "TEXT" as const,
-    content: "Happy birthday!\n{user.list}!\n🎉",
+    content: "Happy birthday 🎉!\n{user.list}!",
     embed: {},
 };
 

@@ -1,15 +1,27 @@
 import { z } from "zod";
-import { DiscordEmbed, Format } from "@/features/_shared/embed";
+import { MessageLayoutSchema } from "@/features/_shared/embed";
 
-const formatSchema = z.custom<Format>((val) => typeof val === "string");
-const discordEmbedSchema = z.custom<DiscordEmbed>((val) => typeof val === "object" && val !== null);
+export const DEFAULT_LEAVE_MESSAGE = {
+    enabled: true,
+    format: "EMBED" as const,
+    content: "",
+    embed: {},
+};
 
 export const leaveConfigSchema = z.object({
     enabled: z.boolean().default(false),
-    channelId: z.string().default(""),
-    format: formatSchema.default("EMBED"),
-    content: z.string().default(""),
-    embed: discordEmbedSchema.default({}),
+    channelId: z.string().nullish().default(null),
+    message: MessageLayoutSchema.default(DEFAULT_LEAVE_MESSAGE),
+});
+
+export const saveLeaveConfigSchema = leaveConfigSchema.superRefine((data, ctx) => {
+    if (data.enabled && !data.channelId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Please select a channel for leave messages!",
+            path: ["channelId"],
+        });
+    }
 });
 
 export type LeaveConfig = z.infer<typeof leaveConfigSchema>;

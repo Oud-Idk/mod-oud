@@ -11,8 +11,14 @@ import { RewardTab } from "@/features/leveling/components/Tabs/RewardTab";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { LeaderboardTab } from "@/features/leveling/components/Tabs/LeaderboardTab";
 import { ImageCardTab } from "@/features/leveling/components/Tabs/ImageCardTab";
-import { UserLevel, LevelingConfig, LevelReward, XpMultiplier } from "@/features/leveling/types";
-
+import {
+    UserLevel,
+    LevelingConfig,
+    LevelReward,
+    XpMultiplier,
+    SaveXpMultiplierInput,
+    SaveLevelRewardInput
+} from "@/features/leveling/types";
 
 import { DiscordChannel } from "@/features/_shared/channels.types";
 
@@ -24,8 +30,8 @@ interface LevelingBodyProps {
     roleMap: Record<string, string>;
     multipliers: XpMultiplier[];
     rewards: LevelReward[];
-    onSaveMultipliers: (targets: any[]) => Promise<void>;
-    onSaveRewards: (rewards: any[]) => Promise<void>;
+    onSaveMultipliers: (targets: SaveXpMultiplierInput[]) => Promise<void>;
+    onSaveRewards: (rewards: SaveLevelRewardInput[]) => Promise<void>;
     onDeleteMultipliers: (targetIds: string[]) => Promise<void>;
     onDeleteRewards: (ids: number[]) => Promise<void>;
     channels: DiscordChannel[];

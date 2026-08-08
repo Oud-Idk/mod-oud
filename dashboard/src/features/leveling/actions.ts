@@ -1,64 +1,90 @@
 "use server";
 
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import {
-    deleteLevelRewards, deleteXpMultipliers,
+    deleteLevelRewards,
+    deleteXpMultipliers,
     fetchMoreLevels,
-    saveLevelingConfig, saveLevelRewards,
+    saveLevelingConfig,
+    saveLevelRewards,
     saveXpMultipliers
 } from "@/features/leveling/queries";
-import { LevelingConfig, TargetType } from "@/features/leveling/types";
+import {
+    LevelingConfig,
+    SaveLevelRewardInput,
+    SaveXpMultiplierInput,
+    saveLevelRewardInputSchema,
+    saveXpMultiplierInputSchema,
+    levelingConfigSchema
+} from "@/features/leveling/types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
 export async function deleteMultipliersAction(guildId: string, targetIds: string[]) {
     try {
         await verifyGuildAccess(guildId);
-        await deleteXpMultipliers(guildId, targetIds);
+        const validIds = z.array(z.string()).parse(targetIds);
+        await deleteXpMultipliers(guildId, validIds);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error) {
         console.error("Failed to delete multipliers:", error);
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0]?.message || "Validation Error");
+        }
         throw new Error(error instanceof Error ? error.message : "Could not delete multipliers.");
     }
 }
 
 export async function saveMultipliersAction(
     guildId: string,
-    targets: Array<{ targetId: string; targetType: TargetType; multiplier: number }>
+    targets: SaveXpMultiplierInput[]
 ) {
     try {
         await verifyGuildAccess(guildId);
-        await saveXpMultipliers(guildId, targets);
+        const validTargets = z.array(saveXpMultiplierInputSchema).parse(targets);
+        await saveXpMultipliers(guildId, validTargets);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error) {
         console.error("Failed to save multipliers:", error);
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0]?.message || "Validation Error");
+        }
         throw new Error(error instanceof Error ? error.message : "Could not save multipliers.");
     }
 }
 
 export async function saveRewardsAction(
     guildId: string,
-    rewards: Array<{ levelRequirement: number; rolesToAdd: string[]; removePreviousRoles: boolean }>
+    rewards: SaveLevelRewardInput[]
 ) {
     try {
         await verifyGuildAccess(guildId);
-        await saveLevelRewards(guildId, rewards);
+        const validRewards = z.array(saveLevelRewardInputSchema).parse(rewards);
+        await saveLevelRewards(guildId, validRewards);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error) {
         console.error("Failed to save rewards:", error);
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0]?.message || "Validation Error");
+        }
         throw new Error(error instanceof Error ? error.message : "Could not save rewards.");
     }
 }
 
 export async function deleteRewardsAction(
     guildId: string,
-    ids: number[],
+    ids: number[]
 ) {
     try {
         await verifyGuildAccess(guildId);
-        await deleteLevelRewards(guildId, ids);
+        const validIds = z.array(z.number().int()).parse(ids);
+        await deleteLevelRewards(guildId, validIds);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error) {
         console.error("Failed to delete rewards:", error);
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0]?.message || "Validation Error");
+        }
         throw new Error(error instanceof Error ? error.message : "Could not delete rewards.");
     }
 }
@@ -66,20 +92,25 @@ export async function deleteRewardsAction(
 export async function fetchMoreLevelsAction(guildId: string, currentLowestXp: number) {
     try {
         await verifyGuildAccess(guildId);
-        return await fetchMoreLevels(guildId, currentLowestXp);
+        const validXp = z.number().parse(currentLowestXp);
+        return await fetchMoreLevels(guildId, validXp);
     } catch (error) {
-        console.error("Failed to fetch edited messages:", error);
-        throw new Error("Could not fetch messages.");
+        console.error("Failed to fetch levels:", error);
+        throw new Error("Could not fetch levels.");
     }
 }
 
 export async function saveLevelingConfigAction(guildId: string, data: LevelingConfig) {
     try {
         await verifyGuildAccess(guildId);
-        await saveLevelingConfig(guildId, data);
+        const validConfig = levelingConfigSchema.parse(data);
+        await saveLevelingConfig(guildId, validConfig);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error) {
-        console.error("Failed to delete leveling config:", error);
-        throw new Error(error instanceof Error ? error.message : "Could not delete configuration.");
+        console.error("Failed to save leveling config:", error);
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0]?.message || "Validation Error");
+        }
+        throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
 }

@@ -100,7 +100,6 @@ export function BirthdaysBody({
 
     const handleMsgChange = useCallback((updated: GenericMessageConfig): void => {
         const updatedLayout: MessageLayout = {
-            enabled: true,
             format: updated.format ?? "TEXT",
             content: updated.content ?? "",
             embed: updated.embed ?? {},

@@ -1,83 +1,123 @@
+import { z } from "zod";
+import { MessageLayoutSchema } from "@/features/_shared/embed";
 
-import { DiscordEmbed, Format } from "@/features/_shared/embed";
+export const notificationScopeSchema = z
+    .enum(["CURRENT_CHANNEL", "SPECIFIED_CHANNEL", "DM", "NONE"])
+    .default("NONE");
 
-export type NotificationScope = "CURRENT_CHANNEL" | "SPECIFIED_CHANNEL" | "DM" | "NONE";
-export type TargetType = "CHANNEL" | "ROLE";
-export type ScopeActionMode = "EXEMPT" | "ENFORCED";
+export const targetTypeSchema = z.enum(["CHANNEL", "ROLE"]);
 
-export interface Scope {
-    mode: ScopeActionMode;
-    roles: string[];
-    channels: string[];
-}
+export const scopeActionModeSchema = z
+    .enum(["EXEMPT", "ENFORCED"])
+    .default("EXEMPT");
 
-export interface UserLevel {
-    guild_id: string;
-    user_id: string;
-    cumulative_xp: number;
-    current_level: number;
-    current_xp: number;
-    username: string;
-}
+export const scopeSchema = z.object({
+    mode: scopeActionModeSchema,
+    roles: z.array(z.string()).default([]),
+    channels: z.array(z.string()).default([]),
+});
 
-export interface NotificationSettings {
-    scope: NotificationScope;
-    channelId?: string;
-    format: Format;
-    content: string;
-    embed: DiscordEmbed;
-}
+export const userLevelSchema = z.object({
+    guild_id: z.string(),
+    user_id: z.string(),
+    cumulative_xp: z.number().int().nonnegative().default(0),
+    current_level: z.number().int().nonnegative().default(0),
+    current_xp: z.number().int().nonnegative().default(0),
+    username: z.string().default(""),
+});
 
-export interface ImageCardSettings {
-    textColor: string;
-    barForegroundColor: string;
-    barBackgroundColor: string;
-    accentColor: string;
-    lineSeparatorColor: string;
-    usernameColor: string;
-    statisticsColor: string;
-    backgroundColor: string;
-}
+export const DEFAULT_LEVEL_NOTIFY_MESSAGE = {
+    enabled: true,
+    format: "TEXT" as const,
+    content: "",
+    embed: {},
+};
 
-interface Range {
-    min: number;
-    max: number;
-}
+export const notificationSettingsSchema = z.object({
+    scope: notificationScopeSchema,
+    channelId: z.string().nullish().default(null),
+    message: MessageLayoutSchema.default(DEFAULT_LEVEL_NOTIFY_MESSAGE),
+});
 
-export interface TextSettings {
-    enabled: boolean;
-    xpCooldown: number;
-    xpRange: Range;
-    xpOnTickets: boolean;
-}
+export const imageCardSettingsSchema = z.object({
+    textColor: z.string().default("#FFFFFF"),
+    barForegroundColor: z.string().default("#5865f2"),
+    barBackgroundColor: z.string().default("#FFFFFF"),
+    accentColor: z.string().default("#5865f2"),
+    lineSeparatorColor: z.string().default("#FFFFFF"),
+    usernameColor: z.string().default("#FFFFFF"),
+    statisticsColor: z.string().default("#FFFFFF"),
+    backgroundColor: z.string().default("#000000"),
+});
 
-export interface VoiceSettings {
-    enabled: boolean;
-    xpRange: Range;
-}
+export const rangeSchema = z.object({
+    min: z.number().default(15),
+    max: z.number().default(25),
+});
 
-export interface LevelingConfig {
-    text: TextSettings;
-    voice: VoiceSettings;
-    scope: Scope;
-    notify: NotificationSettings;
-    imageCard: ImageCardSettings;
+export const textSettingsSchema = z.object({
+    enabled: z.boolean().default(false),
+    xpCooldown: z.number().default(60),
+    xpRange: rangeSchema.default({ min: 15, max: 25 }),
+    xpOnTickets: z.boolean().default(false),
+});
 
-    levelCap: number;
-    keepLevelOnLeave: boolean;
-}
+export const voiceSettingsSchema = z.object({
+    enabled: z.boolean().default(false),
+    xpRange: rangeSchema.default({ min: 25, max: 50 }),
+});
 
-export interface XpMultiplier {
-    guild_id: string;
-    target_id: string;
-    target_type: TargetType;
-    multiplier: number;
-}
+// .parse({}) gives sensible defaults to the defaults
+export const levelingConfigSchema = z.object({
+    text: textSettingsSchema.default(textSettingsSchema.parse({})),
+    voice: voiceSettingsSchema.default(voiceSettingsSchema.parse({})),
+    scope: scopeSchema.default(scopeSchema.parse({})),
+    notify: notificationSettingsSchema.default(notificationSettingsSchema.parse({})),
+    imageCard: imageCardSettingsSchema.default(imageCardSettingsSchema.parse({})),
+    levelCap: z.number().default(40),
+    keepLevelOnLeave: z.boolean().default(false),
+});
 
-export interface LevelReward {
-    id: number;
-    guild_id: string;
-    level_requirement: number;
-    roles_to_add: string[];
-    remove_previous_roles: boolean;
-}
+export const xpMultiplierSchema = z.object({
+    guild_id: z.string(),
+    target_id: z.string(),
+    target_type: targetTypeSchema,
+    multiplier: z.number().default(1),
+});
+
+export const saveXpMultiplierInputSchema = z.object({
+    targetId: z.string().min(1, "Target ID is required"),
+    targetType: targetTypeSchema,
+    multiplier: z.number().positive().default(1),
+});
+
+export const levelRewardSchema = z.object({
+    id: z.number().int().optional(),
+    guild_id: z.string().optional(),
+    level_requirement: z.number().int().min(1),
+    roles_to_add: z.array(z.string()).default([]),
+    remove_previous_roles: z.boolean().default(false),
+});
+
+export const saveLevelRewardInputSchema = z.object({
+    levelRequirement: z.number().int().min(1, "Level requirement must be at least 1"),
+    rolesToAdd: z.array(z.string()).default([]),
+    removePreviousRoles: z.boolean().default(false),
+});
+
+export type NotificationScope = z.infer<typeof notificationScopeSchema>;
+export type TargetType = z.infer<typeof targetTypeSchema>;
+export type ScopeActionMode = z.infer<typeof scopeActionModeSchema>;
+export type Scope = z.infer<typeof scopeSchema>;
+export type UserLevel = z.infer<typeof userLevelSchema>;
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+export type ImageCardSettings = z.infer<typeof imageCardSettingsSchema>;
+export type TextSettings = z.infer<typeof textSettingsSchema>;
+export type VoiceSettings = z.infer<typeof voiceSettingsSchema>;
+export type LevelingConfig = z.infer<typeof levelingConfigSchema>;
+export type XpMultiplier = z.infer<typeof xpMultiplierSchema>;
+export type LevelReward = z.infer<typeof levelRewardSchema>;
+export type SaveXpMultiplierInput = z.infer<typeof saveXpMultiplierInputSchema>;
+export type SaveLevelRewardInput = z.infer<typeof saveLevelRewardInputSchema>;
+
+export const defaultLevelingConfig: LevelingConfig = levelingConfigSchema.parse({});
