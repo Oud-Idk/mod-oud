@@ -6,6 +6,7 @@ use crate::features::birthday::placeholders::replace_birthday_placeholders;
 use crate::features::birthday::types::{BirthdayMember, ExpiredRole, UserBirthdayRecord};
 use crate::features::birthday::{BirthdayConfig, announcements, database};
 use chrono::{Datelike, Timelike, Utc};
+use chrono_tz::Tz;
 use fred::clients::Client;
 use serenity::all::{
     ChannelId, CreateMessage, GuildId, RoleId, UserId,
@@ -72,26 +73,38 @@ pub async fn run_birthday_announcements(
             _ => continue,
         };
 
-        let local_now = now + chrono::Duration::hours(birthday_cfg.timezone_offset_hours as i64);
+        // Parse timezone string into chrono_tz::Tz, falling back to UTC if invalid
+        let tz: Tz = match birthday_cfg.timezone.parse() {
+            Ok(parsed_tz) => parsed_tz,
+            Err(_) => {
+                warn!(
+                    guild_id,
+                    tz = %birthday_cfg.timezone,
+                    "Invalid timezone in config, falling back to UTC"
+                );
+                chrono_tz::UTC
+            }
+        };
+
+        let local_now = now.with_timezone(&tz);
 
         let guild_month = local_now.month() as i16;
         let guild_day = local_now.day() as i16;
         let guild_year = local_now.year();
 
         let Some(chan_id) = birthday_cfg.channel_id else {
-            warn!("Channel ID is empty, skipping");
-            return Ok(());
+            warn!("Channel ID is empty, skipping guild {}", guild_id);
+            continue;
         };
 
         let channel_id = ChannelId::new(chan_id);
 
-        // Pass the guild's local month, day, and year to the query
         let birthday_records = database::get_unannounced_birthdays(
             db,
             guild_month,
             guild_day,
             guild_year,
-            guild_id
+            guild_id,
         ).await?;
 
         if birthday_records.is_empty() {
@@ -106,6 +119,7 @@ pub async fn run_birthday_announcements(
 
     Ok(())
 }
+
 pub async fn cleanup_expired_birthday_roles(
     pool: &PgPool,
     ctx: &Context,

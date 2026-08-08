@@ -26,8 +26,6 @@ fn default_timezone() -> String {
 #[serde(rename_all = "camelCase")]
 pub struct BirthdayConfig {
     pub enabled: bool,
-    #[serde_as(as = "DisplayFromStr")]
-    pub guild_id: u64,
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub channel_id: Option<u64>,
     pub announcement_hour: i16,
@@ -35,11 +33,11 @@ pub struct BirthdayConfig {
     pub timezone: String,
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub birthday_role_id: Option<u64>,
-    pub timezone_offset_hours: i16,
     pub require_year: bool,
     pub message_with_year: Value,
     pub message_without_year: Value,
 }
+
 #[derive(sqlx::FromRow)]
 pub struct UserBirthdayRecord {
     pub user_id: i64,
