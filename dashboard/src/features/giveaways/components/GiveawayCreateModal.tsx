@@ -8,6 +8,7 @@ import { TextInput } from "@/components/ui/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import type { Giveaway } from "../types";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
 
 interface GiveawayCreateModalProps {
     isOpen: boolean;
@@ -35,7 +36,7 @@ export function GiveawayCreateModal({
     const handleSubmit = (e: React.FormEvent): void => {
         e.preventDefault();
         if (!channelId || !prize) {
-            alert("Please fill in all fields.");
+            toast.error("Please fill in all fields.");
             return;
         }
 
@@ -51,12 +52,13 @@ export function GiveawayCreateModal({
                     end_time: defaultEndTime,
                 });
 
+                toast.success("Giveaway created successfully");
                 onClose();
                 if (newConfig?.id) {
                     router.push(`/dashboard/${guildId}/giveaways?id=${newConfig.id}`);
                 }
-            } catch {
-                alert("Failed to create giveaway.");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to create giveaway.");
             }
         });
     };

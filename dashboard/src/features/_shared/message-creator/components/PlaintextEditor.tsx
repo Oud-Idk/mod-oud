@@ -43,7 +43,7 @@ export function PlaintextEditor({
                 disabled={disabled}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className={`mb-0 ${isEmpty ? "border-danger-subtle" : ""}`}
+                className={`mb-0 ${isEmpty ? "border-danger-border" : ""}`}
             />
 
             {/* Aesthetic Error Message */}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { saveTempVoiceHubAction, setupTempVoiceAction } from "../actions";
 import { HubForm } from "./HubForm";
 import type { TempVoiceHub } from "../types";
+import { toast } from "sonner";
 
 interface TempVoiceBodyProps {
     guildId: string;
@@ -25,7 +26,6 @@ export function TempVoiceBody({
     const [hubs, setHubs] = useState<TempVoiceHub[]>(initialHubs);
     const [activeHubId, setActiveHubId] = useState<string | "new" | null>(null);
     const [isSettingUp, setIsSettingUp] = useState(false);
-    const [setupError, setSetupError] = useState<string | null>(null);
 
     const [categories, setCategories] = useState(initialCategoryMap);
     const [voiceChannels, setVoiceChannels] = useState(initialVoiceChannelMap);
@@ -61,7 +61,6 @@ export function TempVoiceBody({
 
     async function handleSetupTempVoice(): Promise<void> {
         setIsSettingUp(true);
-        setSetupError(null);
 
         const defaultCategoryName = "Temporary Channels";
         const defaultHubName = "🔊 Join to Create";
@@ -95,11 +94,12 @@ export function TempVoiceBody({
 
             setHubs((prev) => [...prev, hub]);
             setActiveHubId(hub.id);
+            toast.success("Temporary voice channels set up successfully");
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Failed to setup temporary voice.";
             console.error("Setup failed:", error);
-            setSetupError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setIsSettingUp(false);
         }
@@ -156,12 +156,6 @@ export function TempVoiceBody({
                             Configure Manually
                         </Button>
                     </div>
-
-                    {setupError && (
-                        <p className="text-sm text-danger">
-                            Error: {setupError}
-                        </p>
-                    )}
                 </div>
             }
         >

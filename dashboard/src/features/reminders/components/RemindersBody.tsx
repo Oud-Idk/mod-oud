@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/Button";
 import { ReminderCreateModal } from "./ReminderCreateModal";
 import { ReminderConfig } from "./ReminderConfig";
 import type { ReminderRow, SaveableReminderInput } from "../types";
+import { saveableReminderSchema } from "../types";
+import { toast } from "sonner";
 
 interface RemindersBodyProps {
     reminders: ReminderRow[];
@@ -36,7 +38,7 @@ export function RemindersBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave,
+        handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm<ReminderRow | null>({
         initialConfig: activeReminder,
@@ -50,6 +52,16 @@ export function RemindersBody({
         },
     });
 
+    const handleSave = useCallback(async () => {
+        if (!config) return;
+        const result = saveableReminderSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
+
     const handleChange = useCallback((updated: Partial<ReminderRow>) => {
         setConfig((prev) => (prev ? { ...prev, ...updated } : null));
     }, [setConfig]);
@@ -57,8 +69,13 @@ export function RemindersBody({
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     const handleDelete = async (id: string, channelId: string | null): Promise<void> => {
-        await onDelete(id, channelId);
-        router.push(`/dashboard/${guildId}/reminders`);
+        try {
+            await onDelete(id, channelId);
+            toast.success("Reminder deleted successfully");
+            router.push(`/dashboard/${guildId}/reminders`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to delete reminder");
+        }
     };
 
     return (

@@ -9,6 +9,7 @@ import { deleteTempVoiceHubAction, saveTempVoiceHubAction } from "../actions";
 import { saveTempVoiceHubInputSchema, type TempVoiceHub } from "../types";
 import { InterfaceMessageTab } from "./FormTabs/InterfaceMessageTab";
 import { MainConfigTab } from "./FormTabs/MainConfigTab";
+import { toast } from "sonner";
 
 interface HubFormProps {
     guildId: string;
@@ -78,9 +79,10 @@ export function HubForm({
         startDeleteTransition(async () => {
             try {
                 await deleteTempVoiceHubAction(guildId, initialHub.id);
+                toast.success("Voice hub deleted successfully");
                 onDeleteSuccess();
             } catch (error) {
-                console.error(error);
+                toast.error(error instanceof Error ? error.message : "Failed to delete voice hub");
             }
         });
     }

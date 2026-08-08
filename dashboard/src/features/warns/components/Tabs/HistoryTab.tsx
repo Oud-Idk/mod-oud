@@ -1,7 +1,6 @@
 "use client";
 
 import React, { ChangeEvent, ReactNode, useState } from "react";
-import { Pad } from "@/components/layout/Pad";
 import Footer from "@/components/layout/Footer";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { Button } from "@/components/ui/Button";

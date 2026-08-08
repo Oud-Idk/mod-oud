@@ -2,6 +2,7 @@ import { auth, signIn } from "@/lib/auth";
 import { getWelcomeConfig } from "@/features/welcome/queries";
 import VerifyForm from "./VerifyForm";
 import Emphasis from "@/components/layout/Emphasis";
+import { Button } from "@/components/ui/Button";
 
 interface VerifyFeatureProps {
     searchParams: { [key: string]: string | string[] | undefined };
@@ -20,10 +21,10 @@ export async function VerificationFeature({ searchParams }: VerifyFeatureProps) 
 
     if (settings.verification.useOauth && !session?.accessToken) {
         return (
-            <main className="flex min-h-screen flex-col items-center justify-center p-4 text-white">
-                <div className="bg-neutral-300/10 p-8 rounded-lg text-center max-w-sm w-full shadow-lg border border-neutral-800">
+            <main className="flex min-h-screen flex-col items-center justify-center p-4">
+                <div className="border border-border bg-surface">
                     <Emphasis className="text-xl font-bold">Discord Login Required</Emphasis>
-                    <p className="my-4 text-sm text-neutral-300">
+                    <p className="my-4 text-sm">
                         This server requires you to log in to prove this is your account.
                     </p>
 
@@ -33,12 +34,7 @@ export async function VerificationFeature({ searchParams }: VerifyFeatureProps) 
                             await signIn("discord", { redirectTo: currentUrl });
                         }}
                     >
-                        <button
-                            type="submit"
-                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-md font-semibold transition cursor-pointer"
-                        >
-                            Login with Discord
-                        </button>
+                        <Button type="submit">Login with Discord</Button>
                     </form>
                 </div>
             </main>
@@ -46,7 +42,7 @@ export async function VerificationFeature({ searchParams }: VerifyFeatureProps) 
     }
 
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-4 text-white">
+        <main className="flex min-h-screen flex-col items-center justify-center p-4">
             <VerifyForm
                 userId={userId}
                 guildId={guildId}

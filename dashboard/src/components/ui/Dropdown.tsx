@@ -69,7 +69,7 @@ export function Dropdown<T extends string>({
 
                             // State Based Colors (Normal vs Error)
                             error
-                                ? "border-danger-subtle"
+                                ? "border-danger-border"
                                 : "border-border focus-visible:ring-focus-ring"
                         )}
                     >

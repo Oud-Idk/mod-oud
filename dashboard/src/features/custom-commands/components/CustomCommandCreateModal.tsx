@@ -5,6 +5,7 @@ import { TextInput } from "@/components/ui/TextInput";
 import { Modal } from "@/components/ui/Modal";
 import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { toast } from "sonner";
 
 interface CustomCommandCreateModalProps {
     isOpen: boolean;
@@ -24,14 +25,18 @@ export function CustomCommandCreateModal({
     if (!isOpen) return null;
 
     const handleCreate = async (): Promise<void> => {
-        if (!name.trim()) return;
+        if (!name.trim()) {
+            toast.error("Command name is required");
+            return;
+        }
         setIsSaving(true);
         try {
             await onSave({ name, description });
+            toast.success("Custom command created successfully");
             setName("");
             setDescription("");
         } catch (err) {
-            console.error("Failed to create command:", err);
+            toast.error(err instanceof Error ? err.message : "Failed to create command");
         } finally {
             setIsSaving(false);
         }

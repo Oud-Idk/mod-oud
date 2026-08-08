@@ -1,5 +1,6 @@
 import { useCallback, useState, useTransition } from "react";
 import { isDeepEqual } from "@/features/_shared/embed";
+import { toast } from "sonner";
 
 interface UseConfigFormOptions<T> {
     initialConfig: T;
@@ -21,8 +22,9 @@ export function useConfigForm<T>({
         startTransition(async () => {
             try {
                 await onSave(config);
+                toast.success("Configuration saved successfully");
             } catch (error) {
-                console.error("Failed to save configuration:", error);
+                toast.error(error instanceof Error ? error.message : "Failed to save configuration");
             }
         });
     }, [config, onSave]);

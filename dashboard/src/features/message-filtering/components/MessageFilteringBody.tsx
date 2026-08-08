@@ -22,6 +22,7 @@ import {
     SaveableBadWordRuleset,
     messageFilteringConfigSchema
 } from "@/features/message-filtering/types";
+import { toast } from "sonner";
 
 type TabValue =
     | "bad_words"
@@ -107,7 +108,11 @@ export function MessageFilteringBody({
     }, [setConfig]);
 
     const onValidatedSave = (): void => {
-        messageFilteringConfigSchema.parse(config);
+        const result = messageFilteringConfigSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
         handleSave();
     };
 

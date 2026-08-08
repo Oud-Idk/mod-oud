@@ -6,9 +6,10 @@ import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { BadWordCreateModal } from "./BadWordCreateModal";
 import { BadWordRulesetConfig } from "./BadWordRulesetConfig";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { BadWordRuleset } from "@/features/message-filtering/types";
+import { BadWordRuleset, saveBadWordRulesetInputSchema } from "@/features/message-filtering/types";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
 
 type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {
     id?: string;
@@ -42,7 +43,7 @@ export function BadWordTab({
         setConfig,
         isPending,
         isDirty,
-        handleSave,
+        handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm<SaveableBadWordRuleset | null>({
         initialConfig: activeRuleset,
@@ -50,6 +51,16 @@ export function BadWordTab({
             if (updatedConfig) await onSave(updatedConfig);
         },
     });
+
+    const handleSave = useCallback(async () => {
+        if (!config) return;
+        const result = saveBadWordRulesetInputSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid ruleset configuration");
+            return;
+        }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<SaveableBadWordRuleset>) => {
         setConfig((prev) => (prev ? { ...prev, ...updated } : null));

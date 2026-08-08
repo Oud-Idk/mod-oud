@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useState, useCallback } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
@@ -10,7 +10,9 @@ import { WELCOME_CONFIG } from "../builderConfigs";
 import { AutoAssignRole } from "./AutoAssignRole";
 import { VerificationTab } from "./VerificationTab";
 import type { WelcomeConfig } from "../types";
+import { saveWelcomeConfigSchema } from "../types";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
+import { toast } from "sonner";
 
 export interface DiscordRole {
     id: string;
@@ -56,12 +58,21 @@ export function WelcomeBody({
         isPending,
         isDirty,
         resetKey,
-        handleSave,
+        handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm({
         initialConfig: welcomeConfig,
         onSave,
     });
+
+    const handleSave = useCallback(async () => {
+        const result = saveWelcomeConfigSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
 
     const isSystemConfigured = !!(
         config.verification?.verificationChannelId &&

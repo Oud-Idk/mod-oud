@@ -1,10 +1,11 @@
 "use client";
 
-import React, { ReactNode, useState, useEffect, useTransition } from "react";
+import React, { ReactNode, useState, useEffect, useRef } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
+import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { Dropdown } from "@/components/ui/Dropdown";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
+import { Button } from "@/components/ui/Button";
 import Footer from "@/components/layout/Footer";
 import { setupHoneypotAction } from "@/features/honeypot/actions";
 import { TextInput } from "@/components/ui/TextInput";
@@ -13,7 +14,7 @@ import { getAvailableRoleOptions, getAvailableChannelOptions } from "@/features/
 import { NumberInput } from "@/components/ui/NumberInput";
 import parse from "parse-duration";
 import { HoneypotConfig, honeypotConfigSchema } from "@/features/honeypot/types";
-import { isDeepEqual } from "@/features/_shared/embed";
+import { toast } from "sonner";
 
 interface HoneypotBodyProps {
     honeypotConfig: HoneypotConfig;
@@ -30,20 +31,31 @@ export function HoneypotBody({
     guildId,
     roleMap,
 }: HoneypotBodyProps): ReactNode {
-    const [config, setConfig] = useState<HoneypotConfig>(honeypotConfig);
-    const [isPending, startTransition] = useTransition();
     const [isSettingUp, setIsSettingUp] = useState(false);
     const [channelName, setChannelName] = useState("bot-hunt");
     const [timeInput, setTimeInput] = useState<string>("");
-    const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
-    const [validationError, setValidationError] = useState<string | null>(null);
 
-    useEffect(() => {
-        setConfig(honeypotConfig);
-        setValidationError(null);
-    }, [honeypotConfig]);
+    const {
+        config,
+        setConfig,
+        isPending,
+        isDirty,
+        resetKey,
+        handleSave: originalHandleSave,
+        handleCancel,
+    } = useConfigForm({
+        initialConfig: honeypotConfig,
+        onSave,
+    });
 
-    const isDirty = !isDeepEqual(config, honeypotConfig);
+    const handleSave = () => {
+        const result = honeypotConfigSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration.");
+            return;
+        }
+        originalHandleSave();
+    };
 
     const channelOptions = getAvailableChannelOptions(textChannelMap);
     const roleOptions = getAvailableRoleOptions(roleMap);
@@ -57,33 +69,12 @@ export function HoneypotBody({
         }));
     };
 
-    const handleSave = () => {
-        setValidationError(null);
-        const result = honeypotConfigSchema.safeParse(config);
-        if (!result.success) {
-            setValidationError(result.error.issues[0]?.message || "Invalid configuration.");
-            return;
-        }
-
-        startTransition(async () => {
-            try {
-                await onSave(result.data);
-                setStatus({ type: "success", message: "Configuration saved successfully!" });
-            } catch (err) {
-                setValidationError(err instanceof Error ? err.message : "Failed to save configuration.");
-            }
-        });
-    };
-
-    const handleCancel = () => {
-        setConfig(honeypotConfig);
+    const handleCancelWrapper = () => {
+        handleCancel();
         setTimeInput("");
-        setValidationError(null);
     };
 
     const handleSetup = async (): Promise<void> => {
-        setStatus(null);
-        setValidationError(null);
         setIsSettingUp(true);
 
         const result = await setupHoneypotAction(guildId, channelName);
@@ -95,20 +86,14 @@ export function HoneypotBody({
                 channelId: result.channelId,
                 enabled: true,
             }));
-            setStatus({ type: "success", message: "Honeypot channel set up successfully!" });
+            toast.success("Honeypot channel set up successfully!");
         } else if (!result.success) {
-            setStatus({ type: "error", message: result.error || "Failed to set up channel." });
+            toast.error(result.error || "Failed to set up channel.");
         }
     };
 
     return (
         <div className="space-y-4">
-            {validationError && (
-                <div className="p-3 mb-4 text-sm text-danger bg-danger-subtle rounded-md font-medium">
-                    {validationError}
-                </div>
-            )}
-
             <ToggleSwitch
                 checked={config.enabled}
                 onChange={(e) => setConfig((prev) => ({ ...prev, enabled: e }))}
@@ -120,7 +105,7 @@ export function HoneypotBody({
                     <div className="space-y-2">
                         <InputLabel>Channel</InputLabel>
                         <Dropdown
-                            value={config.channelId ?? undefined}
+                            value={config.channelId ?? ""}
                             onChange={(c) => setConfig((prev) => ({ ...prev, channelId: c ?? null }))}
                             options={channelOptions}
                             placeholder="Select Channel"
@@ -179,22 +164,12 @@ export function HoneypotBody({
                                 onChange={(s) => setChannelName(s.target.value)}
                             />
                             <div className="flex flex-col gap-2 items-start pt-1">
-                                <PrimaryButton
+                                <Button
                                     onClick={handleSetup}
                                     disabled={isDirty || isSettingUp || isPending}
                                 >
                                     {isSettingUp ? "Setting up..." : "Set Up For Me!"}
-                                </PrimaryButton>
-
-                                {status && (
-                                    <p
-                                        className={`text-sm ${
-                                            status.type === "success" ? "text-green-500" : "text-red-500"
-                                        }`}
-                                    >
-                                        {status.message}
-                                    </p>
-                                )}
+                                </Button>
 
                                 {isDirty && (
                                     <Footer>Save your changes first before setting up the channel.</Footer>
@@ -206,7 +181,7 @@ export function HoneypotBody({
             )}
 
             {isDirty && (
-                <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending} />
+                <SavePopup handleCancel={handleCancelWrapper} handleSave={handleSave} isSaving={isPending} />
             )}
         </div>
     );

@@ -2,13 +2,14 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
-import { LevelReward } from "@/features/leveling/types";
+import { LevelReward, saveLevelRewardInputSchema } from "@/features/leveling/types";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Button } from "@/components/ui/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { NumberInput } from "@/components/ui/NumberInput";
 import Footer from "@/components/layout/Footer";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export interface LevelRewardsTabProps {
     guildId: string;
@@ -120,20 +121,30 @@ export function RewardTab({
     const handleSaveAll = async () => {
         setIsSaving(true);
         try {
+            // Validate with Zod
+            const rewardsToSave = localRewards.map((r) => ({
+                levelRequirement: Number(r.levelRequirement),
+                rolesToAdd: r.rolesToAdd,
+                removePreviousRoles: r.removePreviousRoles,
+            }));
+
+            for (const reward of rewardsToSave) {
+                const result = saveLevelRewardInputSchema.safeParse(reward);
+                if (!result.success) {
+                    toast.error(result.error.issues[0]?.message || "Invalid reward configuration");
+                    return;
+                }
+            }
+
             if (deletedIds.length > 0) {
                 await onDelete(deletedIds);
                 setDeletedIds([]);
             }
-            await onSave(
-                localRewards.map((r) => ({
-                    levelRequirement: Number(r.levelRequirement),
-                    rolesToAdd: r.rolesToAdd,
-                    removePreviousRoles: r.removePreviousRoles,
-                }))
-            );
+            await onSave(rewardsToSave);
+            toast.success("Level rewards saved successfully");
             router.refresh();
         } catch (err) {
-            console.error("Failed to save level rewards:", err);
+            toast.error(err instanceof Error ? err.message : "Failed to save level rewards");
         } finally {
             setIsSaving(false);
         }

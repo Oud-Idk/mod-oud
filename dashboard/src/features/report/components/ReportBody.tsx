@@ -15,11 +15,13 @@ import { HistoryTab } from "./Tabs/HistoryTab";
 import { NotificationsTab, type ReportTabValue } from "./Tabs/NotificationsTab";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import type { ReportConfig, ReportedMessage } from "../types";
+import { reportConfigSchema } from "../types";
 import type { ViewTicketStatus } from "@/features/tickets/types";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { toast } from "sonner";
 
 interface ReportBodyProps {
     reportConfig: ReportConfig;
@@ -53,12 +55,21 @@ export function ReportBody({
         isPending,
         isDirty,
         resetKey,
-        handleSave,
+        handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm<ReportConfig>({
         initialConfig: reportConfig,
         onSave,
     });
+
+    const handleSave = useCallback(async () => {
+        const result = reportConfigSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<ReportConfig>) => {
         setConfig((prev) => ({ ...prev, ...updated }));

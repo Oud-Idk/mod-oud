@@ -27,7 +27,7 @@ export const LongTextInput = forwardRef<HTMLTextAreaElement, LongTextInputProps>
 
                     // Default vs Error State
                     error
-                        ? "border-danger focus:border-danger focus:ring-danger/30"
+                        ? "border-danger-border focus:border-danger-border focus:ring-danger/30"
                         : "border-border",
 
                     className

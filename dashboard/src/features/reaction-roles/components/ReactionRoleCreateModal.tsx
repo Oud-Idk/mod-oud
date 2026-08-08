@@ -6,6 +6,7 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
 import { Modal } from "@/components/ui/Modal";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import { toast } from "sonner";
 import type { ReactionMessage } from "../types";
 
 interface ReactionRoleCreateModalProps {
@@ -25,19 +26,17 @@ export function ReactionRoleCreateModal({
     const [isPending, startTransition] = useTransition();
     const [modalChannelId, setModalChannelId] = useState<string | null>(null);
     const [modalName, setModalName] = useState("");
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const handleCreateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setErrorMessage(null);
 
         if (!modalChannelId) {
-            setErrorMessage("Please choose a target channel.");
+            toast.error("Please choose a target channel.");
             return;
         }
 
         if (!modalName.trim()) {
-            setErrorMessage("Please enter a configuration name.");
+            toast.error("Please enter a configuration name.");
             return;
         }
 
@@ -48,6 +47,7 @@ export function ReactionRoleCreateModal({
                     name: modalName.trim(),
                 });
 
+                toast.success("Reaction role created successfully");
                 onClose();
                 setModalChannelId(null);
                 setModalName("");
@@ -56,7 +56,7 @@ export function ReactionRoleCreateModal({
                     router.push(`/dashboard/${newConfig.guild_id}/reaction-roles?id=${newConfig.id}`);
                 }
             } catch (err) {
-                setErrorMessage(err instanceof Error ? err.message : "Failed to create reaction role.");
+                toast.error(err instanceof Error ? err.message : "Failed to create reaction role.");
             }
         });
     };
@@ -73,12 +73,6 @@ export function ReactionRoleCreateModal({
                 <p className="text-xs text-muted-foreground -mt-1">
                     Select target destination channel and set a internal configuration name.
                 </p>
-
-                {errorMessage && (
-                    <div className="p-2.5 rounded-md border border-danger/30 bg-danger-subtle text-danger-foreground text-xs font-medium">
-                        {errorMessage}
-                    </div>
-                )}
 
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-foreground">Destination Channel</label>

@@ -6,6 +6,7 @@ import SecondaryButton from "@/components/ui/buttons/SecondaryButton";
 import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { TextInput } from "@/components/ui/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { toast } from "sonner";
 
 import { BadWordRuleset } from "@/features/message-filtering/types";
 
@@ -28,7 +29,10 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
     const handleSubmit = async (e: React.SyntheticEvent) => {
         e.preventDefault();
         const trimmed = name.trim();
-        if (!trimmed) return;
+        if (!trimmed) {
+            toast.error("Ruleset name is required");
+            return;
+        }
 
         setIsSaving(true);
         try {
@@ -40,10 +44,11 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
                 timeoutDurationSeconds: null,
                 scope: { mode: "EXEMPT", roles: [], channels: [] },
             });
+            toast.success("Ruleset created successfully");
             setName("");
             onClose();
         } catch (err) {
-            console.error("Error creating ruleset:", err);
+            toast.error(err instanceof Error ? err.message : "Failed to create ruleset");
         } finally {
             setIsSaving(false);
         }

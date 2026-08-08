@@ -19,6 +19,7 @@ import {
 } from "@/features/moderation-dms/builderConfigs";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { toast } from "sonner";
 
 interface ModerationDMsBodyProps {
     moderationDMsConfig: ModerationDMsConfig;
@@ -113,7 +114,11 @@ export function ModerationDMsBody({
     });
 
     const onValidatedSave = (): void => {
-        moderationDMsConfigSchema.parse(config);
+        const result = moderationDMsConfigSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
         handleSave();
     };
 

@@ -8,6 +8,7 @@ import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { Session } from "next-auth";
 import Image from "next/image";
 import { CaptchaType } from "@/features/welcome/types";
+import { Button } from "@/components/ui/Button";
 
 interface VerifyFormProps {
     userId: string;
@@ -68,7 +69,7 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
     };
 
     return (
-        <div className="bg-neutral-300/10 p-8 rounded-lg text-center max-w-sm w-full shadow-lg border">
+        <div className="bg-surface p-8 rounded-lg text-center max-w-sm w-full shadow-lg border border-border">
             <Emphasis className="text-xl font-bold">Prove You're Human</Emphasis>
             <p className="my-2">A quick check to prove that you're a human and not a clanker.</p>
             {(session?.user?.name && session?.user?.image && useOauth) && (
@@ -103,13 +104,13 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
                 )}
             </div>
 
-            <PrimaryButton
+            <Button
                 onClick={handleSubmit}
                 disabled={!token || status === 'VERIFYING' || status === 'SUCCESS'}
                 className="w-full"
             >
                 {status === 'VERIFYING' ? 'Verifying...' : 'Verify Me'}
-            </PrimaryButton>
+            </Button>
 
             {message && (
                 <p className={`mt-4 text-sm font-semibold ${status === 'SUCCESS' ? 'text-green-400' : 'text-red-400'}`}>

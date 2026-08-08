@@ -8,6 +8,8 @@ import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
 import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBuilder";
 import { DiscordEmbed } from "@/features/_shared/embed";
+import { toast } from "sonner";
+import { SendEmbedPayloadSchema } from "@/features/embed-builder/types";
 
 interface EmbedBuilderBodyProps {
     channelMap: Record<string, string>;
@@ -21,7 +23,6 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
     const [isEmpty, setIsEmpty] = useState<boolean>(true);
 
     const [isSending, setIsSending] = useState<boolean>(false);
-    const [statusMessage, setStatusMessage] = useState<{ type: "SUCCESS" | "ERROR"; text: string } | null>(null);
 
     const channelOptions = useMemo(() => {
         return Object.entries(channelMap).map(([id, name]) => ({
@@ -30,13 +31,29 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
         }));
     }, [channelMap]);
 
-    const canSend = Boolean(selectedChannel) && !isEmpty && !isSending;
-
     const handleSendEmbed = async (): Promise<void> => {
-        if (!canSend || !selectedChannel) return;
+        if (!selectedChannel) {
+            toast.error("Please select a channel");
+            return;
+        }
+
+        if (isEmpty) {
+            toast.error("Embed must have at least a title, description, or visible content!");
+            return;
+        }
+
+        const validationResult = SendEmbedPayloadSchema.safeParse({
+            channelId: selectedChannel,
+            embedState: embedState,
+        });
+
+        if (!validationResult.success) {
+            const firstMessage = validationResult.error.issues[0]?.message || "Invalid embed configuration";
+            toast.error(firstMessage);
+            return;
+        }
 
         setIsSending(true);
-        setStatusMessage(null);
 
         try {
             const { messageId } = await sendEmbedAction(guildId, {
@@ -44,17 +61,9 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                 embedState: embedState,
             });
 
-            setStatusMessage({
-                type: "SUCCESS",
-                text: `Embed dispatched successfully. Message ID: ${messageId}`,
-            });
+            toast.success(`Embed dispatched successfully. Message ID: ${messageId}`);
         } catch (error) {
-            console.error("Failed to dispatch embed:", error);
-
-            setStatusMessage({
-                type: "ERROR",
-                text: error instanceof Error ? error.message : "An error occurred while sending the embed.",
-            });
+            toast.error(error instanceof Error ? error.message : "An error occurred while sending the embed.");
         } finally {
             setIsSending(false);
         }
@@ -81,20 +90,10 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                         />
                     </div>
 
-                    <PrimaryButton onClick={handleSendEmbed} disabled={!canSend}>
+                    <PrimaryButton onClick={handleSendEmbed} disabled={isSending}>
                         {isSending ? "Sending Embed..." : "Send Embed"}
                     </PrimaryButton>
                 </div>
-
-                {statusMessage && (
-                    <div
-                        className={`text-sm mt-1 font-medium ${
-                            statusMessage.type === "ERROR" ? "text-danger" : "text-success"
-                        }`}
-                    >
-                        {statusMessage.text}
-                    </div>
-                )}
             </div>
 
             <EmbedBuilder

@@ -1,13 +1,14 @@
 "use client";
 
-import React, { ReactNode, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import React, { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
+import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { InviteTrackerConfig, LeaderboardEntry, inviteTrackerConfigSchema } from "@/features/invite-tracking/types";
 import { fetchInviteLeaderboardAction } from "@/features/invite-tracking/actions";
 import Emphasis from "@/components/layout/Emphasis";
-import { isDeepEqual } from "@/features/_shared/embed";
+import { toast } from "sonner";
 
 interface InviteTrackerBodyProps {
     guildId: string;
@@ -24,11 +25,6 @@ export function InviteTrackingBody({
     pageSize = 15,
     onSave,
 }: InviteTrackerBodyProps): ReactNode {
-    const [config, setConfig] = useState<InviteTrackerConfig>(initialConfig);
-    const [error, setError] = useState<string | null>(null);
-    const [isPending, startTransition] = useTransition();
-
-    // Infinite scroll states
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(initialLeaderboard);
     const [hasMore, setHasMore] = useState<boolean>(initialLeaderboard.length >= pageSize);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -36,35 +32,31 @@ export function InviteTrackingBody({
     // Observer sentinel reference
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-    // Deep equality check
-    const isDirty = !isDeepEqual(config, initialConfig);
+    const {
+        config,
+        setConfig,
+        isPending,
+        isDirty,
+        resetKey,
+        handleSave: originalHandleSave,
+        handleCancel,
+    } = useConfigForm({
+        initialConfig,
+        onSave,
+    });
 
-    const handleToggle = (checked: boolean): void => {
-        setConfig((prev) => ({ ...prev, enabled: checked }));
-    };
-
-    const handleSave = (): void => {
-        // Pre-validate locally before calling server action
+    const handleSave = useCallback(async () => {
         const validation = inviteTrackerConfigSchema.safeParse(config);
         if (!validation.success) {
-            setError(validation.error.issues[0]?.message || "Invalid configuration");
+            toast.error(validation.error.issues[0]?.message || "Invalid configuration");
             return;
         }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
 
-        setError(null);
-        startTransition(async () => {
-            try {
-                await onSave(validation.data);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to save configuration");
-            }
-        });
-    };
-
-    const handleCancel = (): void => {
-        setConfig(initialConfig);
-        setError(null);
-    };
+    const handleToggle = useCallback((checked: boolean): void => {
+        setConfig((prev) => ({ ...prev, enabled: checked }));
+    }, [setConfig]);
 
     // Load next batch of leaderboard items
     const loadMore = useCallback(async () => {
@@ -83,7 +75,7 @@ export function InviteTrackingBody({
                 setLeaderboard((prev) => [...prev, ...newEntries]);
             }
         } catch (err) {
-            console.error("Error loading more leaderboard entries:", err);
+            toast.error(err instanceof Error ? err.message : "Error loading more leaderboard entries");
         } finally {
             setIsLoadingMore(false);
         }
@@ -143,12 +135,6 @@ export function InviteTrackingBody({
 
     return (
         <div className="flex-1">
-            {error && (
-                <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
-                    {error}
-                </div>
-            )}
-
             <ToggleSwitch
                 checked={config.enabled}
                 onChange={handleToggle}

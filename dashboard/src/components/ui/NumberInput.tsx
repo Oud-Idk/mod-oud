@@ -99,7 +99,7 @@ export function NumberInput({
             <div
                 className={cn(
                     "flex items-center w-full rounded-md border bg-surface overflow-hidden transition-all duration-150",
-                    error ? "border-danger" : "border-border",
+                    error ? "border-danger-border" : "border-border",
                     disabled && "opacity-50 cursor-not-allowed bg-surface-muted"
                 )}
             >

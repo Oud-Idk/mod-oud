@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -11,6 +11,8 @@ import { cn } from "@/lib/cn";
 import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfigEditor } from "./StarboardConfigEditor";
 import type { StarboardConfig, StarboardConfigInput } from "../types";
+import { starboardConfigInputSchema } from "../types";
+import { toast } from "sonner";
 
 interface StarboardBodyProps {
     guildId: string;
@@ -39,7 +41,7 @@ export function StarboardBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave,
+        handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm<StarboardConfigInput | null>({
         initialConfig: activeConfig,
@@ -52,6 +54,16 @@ export function StarboardBody({
             }
         },
     });
+
+    const handleSave = useCallback(async () => {
+        if (!config) return;
+        const result = starboardConfigInputSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 

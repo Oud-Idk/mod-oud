@@ -89,7 +89,7 @@ export function ModerationTab({ guildId }: ModerationTabProps): ReactNode {
         switch (action.toLowerCase()) {
             case "ban":
             case "softban":
-                return "bg-danger-subtle text-danger border-danger/15";
+                return "bg-danger-subtle text-danger border-danger-border";
             case "kick":
                 return "bg-warning-subtle text-warning border-warning/15";
             case "mute":

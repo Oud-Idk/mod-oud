@@ -10,6 +10,7 @@ import { REACTION_ROLES_CONFIG } from "@/features/reaction-roles/builderConfigs"
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import { getAvailableChannelOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { saveReactionMessageInputSchema } from "../types";
+import { toast } from "sonner";
 
 import type {
     ReactionMessage,
@@ -65,28 +66,30 @@ export function ReactionRoleConfig({
         setIsDeleting(true);
         try {
             await onDelete(id);
+            toast.success("Reaction role deleted successfully");
             router.push(`/dashboard/${guildId}/reaction-roles`);
-        } catch {
-            alert("Failed to delete configuration.");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to delete configuration.");
             setIsDeleting(false);
         }
     };
 
     const handleSend = async (): Promise<void> => {
         if (isDirty) {
-            alert("Please save your changes before sending the message to Discord.");
+            toast.error("Please save your changes before sending the message to Discord.");
             return;
         }
         if (hasValidationErrors) {
             const firstErr = validationResult.error?.issues[0]?.message || "Invalid configuration.";
-            alert(`Cannot send to Discord: ${firstErr}`);
+            toast.error(`Cannot send to Discord: ${firstErr}`);
             return;
         }
         setIsSending(true);
         try {
             await onSend(config.id);
+            toast.success("Message sent to Discord successfully");
         } catch (err) {
-            alert(err instanceof Error ? err.message : "Failed to send message to Discord.");
+            toast.error(err instanceof Error ? err.message : "Failed to send message to Discord.");
         } finally {
             setIsSending(false);
         }
@@ -152,8 +155,9 @@ export function ReactionRoleConfig({
         try {
             await onDeleteDiscordMessage(config.id);
             onChange({ ...config, message_id: null });
+            toast.success("Discord message deleted successfully");
         } catch (err) {
-            alert(err instanceof Error ? err.message : "Failed to delete message from Discord.");
+            toast.error(err instanceof Error ? err.message : "Failed to delete message from Discord.");
         } finally {
             setIsActionPending(false);
         }

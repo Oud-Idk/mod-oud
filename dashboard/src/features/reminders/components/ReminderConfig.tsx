@@ -11,6 +11,7 @@ import { NumberInput } from "@/components/ui/NumberInput";
 import { TimeInput } from "@/components/ui/TimeInput";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { saveableReminderSchema, type ReminderFormat, type ReminderRow, type ReminderType } from "../types";
+import { toast } from "sonner";
 
 interface ReminderConfigProps {
     config: ReminderRow;
@@ -42,6 +43,15 @@ export function ReminderConfig({
     const validationResult = useMemo(() => {
         return saveableReminderSchema.safeParse(config);
     }, [config]);
+
+    const handleDelete = async (): Promise<void> => {
+        try {
+            await onDelete(config.id);
+            toast.success("Reminder deleted successfully");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to delete reminder");
+        }
+    };
 
     const hasValidationErrors = !validationResult.success;
 
@@ -105,7 +115,7 @@ export function ReminderConfig({
                 <Button
                     variant="danger"
                     type="button"
-                    onClick={() => onDelete(config.id)}
+                    onClick={handleDelete}
                     disabled={isPending}
                 >
                     Delete Reminder

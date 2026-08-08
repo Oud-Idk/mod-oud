@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useCallback, useTransition } from "react";
+import { toast } from "sonner";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -51,7 +52,6 @@ export function BirthdaysBody({
 }: BirthdaysBodyProps): ReactNode | null {
     const [config, setConfig] = useState<BirthdayConfig>(initialConfig);
     const [isPending, startTransition] = useTransition();
-    const [validationError, setValidationError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"withYear" | "withoutYear">("withYear");
 
     // Honest Dirty Check
@@ -112,39 +112,30 @@ export function BirthdaysBody({
     }, [activeTab]);
 
     const handleSave = () => {
-        setValidationError(null);
-
         // Strict Validation via superRefine on Save click
         const result = SaveBirthdayConfigSchema.safeParse(config);
         if (!result.success) {
             const firstMessage = result.error.issues[0]?.message || "Invalid birthday configuration.";
-            setValidationError(firstMessage);
+            toast.error(firstMessage);
             return;
         }
 
         startTransition(async () => {
             try {
                 await onSave(config);
-                setValidationError(null);
+                toast.success("Birthday configuration saved successfully.");
             } catch (err) {
-                setValidationError(err instanceof Error ? err.message : "Failed to save configuration.");
+                toast.error(err instanceof Error ? err.message : "Failed to save configuration.");
             }
         });
     };
 
     const handleCancel = () => {
         setConfig(initialConfig);
-        setValidationError(null);
     };
 
     return (
         <div className="space-y-6">
-            {validationError && (
-                <div className="p-3 text-sm text-danger bg-danger-subtle rounded-md">
-                    {validationError}
-                </div>
-            )}
-
             <ToggleSwitch
                 checked={config.enabled}
                 onChange={(checked) => setConfig((prev) => ({ ...prev, enabled: checked }))}

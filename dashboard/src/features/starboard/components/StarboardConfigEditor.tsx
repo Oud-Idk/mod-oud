@@ -16,6 +16,7 @@ import { TextInput } from "@/components/ui/TextInput";
 import { NumberInput } from "@/components/ui/NumberInput";
 import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";
+import { toast } from "sonner";
 
 import { getAvailableChannelOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { STARBOARD_CONFIG } from "@/features/starboard/builderConfigs";
@@ -100,10 +101,11 @@ export function StarboardConfigEditor({
     const handleDelete = (id: string): void => {
         onDelete(id)
             .then(() => {
+                toast.success("Starboard deleted successfully");
                 router.push(`/dashboard/${guildId}/starboard`);
             })
-            .catch(() => {
-                alert("Failed to delete configuration.");
+            .catch((err) => {
+                toast.error(err instanceof Error ? err.message : "Failed to delete configuration.");
             });
     };
 

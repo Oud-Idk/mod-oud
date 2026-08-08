@@ -9,6 +9,7 @@ import { GiveawayConfig } from "@/features/giveaways/components/GiveawayConfig";
 import { GiveawayCreateModal } from "@/features/giveaways/components/GiveawayCreateModal";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { cn } from "@/lib/cn";
+import { toast } from "sonner";
 
 interface GiveawaysBodyProps {
     giveaways: Giveaway[];
@@ -36,19 +37,16 @@ export function GiveawaysBody({
     const router = useRouter();
     const [config, setConfig] = useState<Giveaway | null>(activeConfig);
     const [isPending, startTransition] = useTransition();
-    const [validationError, setValidationError] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
         setConfig(activeConfig);
-        setValidationError(null);
     }, [activeConfig]);
 
     const isDirty = !isDeepEqual(config, activeConfig);
 
     const handleSave = () => {
         if (!config) return;
-        setValidationError(null);
 
         const payload: SaveGiveawayData = {
             ...config,
@@ -58,33 +56,26 @@ export function GiveawaysBody({
         const result = SaveGiveawaySchema.safeParse(payload);
         if (!result.success) {
             const firstMessage = result.error.issues[0]?.message || "Invalid giveaway configuration.";
-            setValidationError(firstMessage);
+            toast.error(firstMessage);
             return;
         }
 
         startTransition(async () => {
             try {
                 await onSave(payload);
-                setValidationError(null);
+                toast.success("Giveaway saved successfully");
             } catch (err) {
-                setValidationError(err instanceof Error ? err.message : "Failed to save giveaway.");
+                toast.error(err instanceof Error ? err.message : "Failed to save giveaway.");
             }
         });
     };
 
     const handleCancel = () => {
         setConfig(activeConfig);
-        setValidationError(null);
     };
 
     return (
         <div>
-            {validationError && (
-                <div className="p-3 mb-4 text-sm text-danger bg-danger-subtle rounded-md font-medium">
-                    {validationError}
-                </div>
-            )}
-
             <ConfigListLayout<Giveaway>
                 title="Giveaways"
                 onCreateClick={() => setIsCreateModalOpen(true)}

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
+import { toast } from "sonner";
 
 import {
     deleteWarnThresholdsAction,
@@ -75,7 +76,6 @@ export function WarnThresholdTab({
 
     const [localThresholds, setLocalThresholds] = useState<LocalThresholdState[]>(initialThresholds);
     const [deletedIds, setDeletedIds] = useState<number[]>([]);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const isDirty = useMemo(() => {
         if (deletedIds.length > 0) return true;
@@ -135,12 +135,9 @@ export function WarnThresholdTab({
     const handleCancel = () => {
         setLocalThresholds(initialThresholds);
         setDeletedIds([]);
-        setErrorMessage(null);
     };
 
     const handleSaveAll = async () => {
-        setErrorMessage(null);
-
         const payload: SaveWarnThresholdInput[] = localThresholds.map((t) => ({
             warnCount: Number(t.warnCount),
             actionType: t.actionType,
@@ -151,7 +148,7 @@ export function WarnThresholdTab({
 
         const validation = saveWarnThresholdsInputSchema.safeParse(payload);
         if (!validation.success) {
-            setErrorMessage(validation.error.issues[0]?.message || "Invalid threshold configuration.");
+            toast.error(validation.error.issues[0]?.message || "Invalid threshold configuration.");
             return;
         }
 
@@ -162,9 +159,10 @@ export function WarnThresholdTab({
                 }
                 await saveWarnThresholdsAction(guildId, payload);
                 setDeletedIds([]);
+                toast.success("Warn thresholds saved successfully");
                 router.refresh();
             } catch (err) {
-                setErrorMessage(err instanceof Error ? err.message : "Failed to save warn thresholds.");
+                toast.error(err instanceof Error ? err.message : "Failed to save warn thresholds.");
             }
         });
     };
@@ -182,12 +180,6 @@ export function WarnThresholdTab({
                     + Add Threshold
                 </Button>
             </div>
-
-            {errorMessage && (
-                <div className="p-3 rounded-lg border border-danger/30 bg-danger-subtle text-danger-foreground text-xs font-medium">
-                    {errorMessage}
-                </div>
-            )}
 
             {localThresholds.length === 0 && (
                 <div className="text-center py-12 border border-dashed border-border rounded-lg bg-surface-muted/30">

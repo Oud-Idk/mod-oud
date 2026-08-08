@@ -36,7 +36,7 @@ export function SegmentedControl<T extends string | number | boolean>({
                 className={cn(
                     // Outer track: muted background gives contrast to active pill
                     "inline-flex items-center gap-1 p-0.5 rounded-lg border bg-surface w-fit transition-colors",
-                    error ? "border-danger" : "border-border"
+                    error ? "border-danger-border" : "border-border"
                 )}
             >
                 {options.map((option) => {

@@ -49,7 +49,7 @@ export function DeletedMessageLogViewer({
                     return (
                         <div
                             key={log.id}
-                            className="p-3.5 border border-danger-subtle bg-surface-muted/30 hover:border-border-active rounded-lg transition-all space-y-2"
+                            className="p-3.5 border border-danger-border bg-surface-muted/30 hover:border-border-active rounded-lg transition-all space-y-2"
                         >
                             <div className="flex justify-between items-center text-xs">
                                 <span className="font-semibold text-foreground flex items-center gap-2">

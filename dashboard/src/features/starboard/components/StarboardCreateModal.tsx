@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { StarboardConfigInput } from "@/features/starboard/types";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import { toast } from "sonner";
 
 interface StarboardCreateModalProps {
     isOpen: boolean;
@@ -34,6 +35,7 @@ export function StarboardCreateModal({
     const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
         e.preventDefault();
         if (!modalChannelId) {
+            toast.error("Please select a destination channel.");
             return;
         }
 
@@ -56,6 +58,7 @@ export function StarboardCreateModal({
                     plaintext_template: "{starboard.first_emoji} {message.stars_count} | {message.link}",
                 });
 
+                toast.success("Starboard created successfully");
                 onClose();
                 setModalChannelId("");
                 setModalThreshold(3);
@@ -63,8 +66,8 @@ export function StarboardCreateModal({
                 if (id) {
                     router.push(`/dashboard/${guildId}/starboard?id=${id}`);
                 }
-            } catch {
-                alert("Failed to create starboard.");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to create starboard.");
             }
         });
     };
@@ -82,11 +85,6 @@ export function StarboardCreateModal({
                         onChange={(val) => setModalChannelId(val)}
                         placeholder="Choose channel..."
                     />
-                    {!modalChannelId && (
-                        <p className="text-xs text-danger font-medium pt-0.5">
-                            Please select a destination channel to continue.
-                        </p>
-                    )}
                 </div>
 
                 <div className="space-y-1.5">

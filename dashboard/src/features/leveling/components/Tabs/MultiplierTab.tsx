@@ -4,11 +4,12 @@ import { useOptimistic, useState, useTransition } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
-import { SaveXpMultiplierInput, TargetType, XpMultiplier } from "@/features/leveling/types";
+import { SaveXpMultiplierInput, TargetType, XpMultiplier, saveXpMultiplierInputSchema } from "@/features/leveling/types";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { Button } from "@/components/ui/Button";
 import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";
+import { toast } from "sonner";
 
 export interface MultiplierTabProps {
     guildId: string;
@@ -60,7 +61,10 @@ export function MultiplierTab({
     });
 
     const handleAddMultipliers = () => {
-        if (selectedTargetIds.length === 0) return;
+        if (selectedTargetIds.length === 0) {
+            toast.error("Please select at least one role or channel");
+            return;
+        }
 
         const effectiveMultiplier = multiplierValue ?? 1.0;
 
@@ -69,6 +73,15 @@ export function MultiplierTab({
             targetType,
             multiplier: effectiveMultiplier,
         }));
+
+        // Validate with Zod
+        for (const target of targetsToSave) {
+            const result = saveXpMultiplierInputSchema.safeParse(target);
+            if (!result.success) {
+                toast.error(result.error.issues[0]?.message || "Invalid multiplier configuration");
+                return;
+            }
+        }
 
         const optimisticPayload: XpMultiplier[] = selectedTargetIds.map((id) => ({
             guild_id: guildId,
@@ -83,30 +96,29 @@ export function MultiplierTab({
 
             try {
                 await onSave(targetsToSave);
+                toast.success("Multipliers added successfully");
             } catch (err) {
-                alert("Failed to save multipliers.");
+                toast.error(err instanceof Error ? err.message : "Failed to save multipliers");
             }
         });
     };
 
     const handleDeleteSingle = (targetId: string) => {
-        if (!confirm("Are you sure you want to remove this multiplier?")) return;
-
         startMutation(async () => {
             setOptimisticMultipliers({ type: "delete", targetIds: [targetId] });
             setSelectedActiveIds((prev) => prev.filter((id) => id !== targetId));
 
             try {
                 await onDelete([targetId]);
+                toast.success("Multiplier deleted successfully");
             } catch (err) {
-                alert("Failed to delete multiplier.");
+                toast.error(err instanceof Error ? err.message : "Failed to delete multiplier");
             }
         });
     };
 
     const handleDeleteSelected = () => {
         if (selectedActiveIds.length === 0) return;
-        if (!confirm(`Are you sure you want to remove the ${selectedActiveIds.length} selected multiplier(s)?`)) return;
 
         const targetsToDelete = [...selectedActiveIds];
 
@@ -116,8 +128,9 @@ export function MultiplierTab({
 
             try {
                 await onDelete(targetsToDelete);
+                toast.success("Multipliers deleted successfully");
             } catch (err) {
-                alert("Failed to delete selected multipliers.");
+                toast.error(err instanceof Error ? err.message : "Failed to delete selected multipliers");
             }
         });
     };

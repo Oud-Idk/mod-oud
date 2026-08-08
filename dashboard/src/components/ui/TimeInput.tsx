@@ -18,7 +18,7 @@ export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
                     "disabled:opacity-50 disabled:cursor-not-allowed",
                     "[&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100",
                     error
-                        ? "border-danger focus:border-danger focus:ring-danger/30"
+                        ? "border-danger-border focus:border-danger-border focus:ring-danger/30"
                         : "border-border",
                     className
                 )}

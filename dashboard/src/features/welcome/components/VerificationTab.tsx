@@ -16,6 +16,7 @@ import { setupVerificationAction, teardownVerificationAction } from "@/features/
 import { WELCOME_CONFIG } from "@/features/welcome/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
 
 interface VerificationTabProps {
     config: WelcomeConfig;
@@ -49,7 +50,6 @@ export function VerificationTab({
     channelMap,
 }: VerificationTabProps): ReactNode {
     const [activeTab, setActiveTab] = useState<TabValue>("GENERAL");
-    const [setupStatus, setSetupStatus] = useState<{ type: "SUCCESS" | "ERROR"; text: string } | null>(null);
     const [isProcessingSetup, setIsProcessingSetup] = useState<boolean>(false);
     const [empty, setEmpty] = useState<boolean>(false);
 
@@ -66,7 +66,6 @@ export function VerificationTab({
 
     const handleRunSetup = async (): Promise<void> => {
         setIsProcessingSetup(true);
-        setSetupStatus(null);
         try {
             const res = await setupVerificationAction(guildId, {
                 content: config.verification.message.content,
@@ -75,10 +74,7 @@ export function VerificationTab({
             });
 
             if (res.success) {
-                setSetupStatus({
-                    type: "SUCCESS",
-                    text: "Verification environment dispatched successfully.",
-                });
+                toast.success("Verification environment dispatched successfully.");
                 setConfig((prev) => ({
                     ...prev,
                     verification: {
@@ -90,16 +86,10 @@ export function VerificationTab({
                     },
                 }));
             } else {
-                setSetupStatus({
-                    type: "ERROR",
-                    text: res.error || "Could not complete manual verification environment setup.",
-                });
+                toast.error(res.error || "Could not complete manual verification environment setup.");
             }
         } catch (err) {
-            setSetupStatus({
-                type: "ERROR",
-                text: err instanceof Error ? err.message : "An unexpected error occurred during execution.",
-            });
+            toast.error(err instanceof Error ? err.message : "An unexpected error occurred during execution.");
         } finally {
             setIsProcessingSetup(false);
         }
@@ -107,12 +97,11 @@ export function VerificationTab({
 
     const handleRunTeardown = async (): Promise<void> => {
         if (!config.verification.verificationChannelId || !config.verification.verificationRoleId) {
-            setSetupStatus({ type: "ERROR", text: "Missing active components to complete teardown execution." });
+            toast.error("Missing active components to complete teardown execution.");
             return;
         }
 
         setIsProcessingSetup(true);
-        setSetupStatus(null);
         try {
             const res = await teardownVerificationAction(guildId, {
                 verification_channel_id: config.verification.verificationChannelId,
@@ -120,10 +109,7 @@ export function VerificationTab({
             });
 
             if (res.success) {
-                setSetupStatus({
-                    type: "SUCCESS",
-                    text: "Verification channels and roles deleted successfully.",
-                });
+                toast.success("Verification channels and roles deleted successfully.");
                 setConfig((prev) => ({
                     ...prev,
                     verification: {
@@ -135,16 +121,10 @@ export function VerificationTab({
                     },
                 }));
             } else {
-                setSetupStatus({
-                    type: "ERROR",
-                    text: res.error || "The removal execution was rejected by the server.",
-                });
+                toast.error(res.error || "The removal execution was rejected by the server.");
             }
         } catch (err) {
-            setSetupStatus({
-                type: "ERROR",
-                text: err instanceof Error ? err.message : "An unexpected error occurred during execution.",
-            });
+            toast.error(err instanceof Error ? err.message : "An unexpected error occurred during execution.");
         } finally {
             setIsProcessingSetup(false);
         }
@@ -332,12 +312,6 @@ export function VerificationTab({
                             </div>
                         ) : (
                             <Footer>Please enable verification from the General tab first</Footer>
-                        )}
-
-                        {setupStatus && (
-                            <div className={`text-xs mt-3 font-semibold ${setupStatus.type === "ERROR" ? "text-red-500" : "text-green-500"}`}>
-                                {setupStatus.text}
-                            </div>
                         )}
                     </div>
 

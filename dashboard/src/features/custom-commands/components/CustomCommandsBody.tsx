@@ -10,6 +10,7 @@ import { CustomCommand, SaveCustomCommandData, SaveCustomCommandSchema } from "@
 import { Button } from "@/components/ui/Button";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { cn } from "@/lib/cn";
+import { toast } from "sonner";
 
 interface CustomCommandsBodyProps {
     commands: CustomCommand[];
@@ -33,50 +34,40 @@ export function CustomCommandsBody({
     const router = useRouter();
     const [config, setConfig] = useState<CustomCommand | null>(activeConfig);
     const [isPending, startTransition] = useTransition();
-    const [validationError, setValidationError] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
         setConfig(activeConfig);
-        setValidationError(null);
     }, [activeConfig]);
 
     const isDirty = !isDeepEqual(config, activeConfig);
 
     const handleSave = () => {
         if (!config) return;
-        setValidationError(null);
 
         const result = SaveCustomCommandSchema.safeParse(config);
         if (!result.success) {
             const firstMessage = result.error.issues[0]?.message || "Invalid custom command configuration.";
-            setValidationError(firstMessage);
+            toast.error(firstMessage);
             return;
         }
 
         startTransition(async () => {
             try {
                 await onSave(config);
-                setValidationError(null);
+                toast.success("Custom command saved successfully");
             } catch (err) {
-                setValidationError(err instanceof Error ? err.message : "Failed to save custom command.");
+                toast.error(err instanceof Error ? err.message : "Failed to save custom command.");
             }
         });
     };
 
     const handleCancel = () => {
         setConfig(activeConfig);
-        setValidationError(null);
     };
 
     return (
         <div>
-            {validationError && (
-                <div className="p-3 mb-4 text-sm text-danger bg-danger-subtle rounded-md">
-                    {validationError}
-                </div>
-            )}
-
             <ConfigListLayout<CustomCommand>
                 title="Custom Commands"
                 onCreateClick={() => setIsCreateModalOpen(true)}

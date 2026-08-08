@@ -7,6 +7,7 @@ import { LongTextInput } from "@/components/ui/LongTextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { Button } from "@/components/ui/Button";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import { toast } from "sonner";
 import type { ReminderRow, ReminderType, SaveableReminderInput } from "../types";
 
 interface ReminderCreateModalProps {
@@ -26,16 +27,14 @@ export function ReminderCreateModal({
     const [channelId, setChannelId] = useState<string | null>(null);
     const [content, setContent] = useState("");
     const [rType, setRType] = useState<ReminderType>("SINGLE");
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     if (!isOpen) return null;
 
     const handleSubmit = (e: FormEvent): void => {
         e.preventDefault();
-        setErrorMessage(null);
 
         if (!channelId) {
-            setErrorMessage("Please select a target channel.");
+            toast.error("Please select a target channel.");
             return;
         }
 
@@ -56,11 +55,12 @@ export function ReminderCreateModal({
                     intervalSeconds: rType === "RECURRING" ? 3600 : null,
                     isActive: true,
                 });
+                toast.success("Reminder created successfully");
                 onClose();
                 setChannelId(null);
                 setContent("");
             } catch (error) {
-                setErrorMessage(error instanceof Error ? error.message : "Failed to create reminder.");
+                toast.error(error instanceof Error ? error.message : "Failed to create reminder.");
             }
         });
     };
@@ -70,12 +70,6 @@ export function ReminderCreateModal({
             <p className="-mt-1 mb-5 text-xs text-muted-foreground">
                 Add a quick single or recurring announcement for your community.
             </p>
-
-            {errorMessage && (
-                <div className="mb-4 p-2.5 rounded-md border border-danger/30 bg-danger-subtle text-danger-foreground text-xs font-medium">
-                    {errorMessage}
-                </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">

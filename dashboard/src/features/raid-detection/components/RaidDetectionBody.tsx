@@ -8,6 +8,7 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { AlertTriangle, ShieldAlert, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 import {
     RaidActionKind,
@@ -129,7 +130,7 @@ export function RaidDetectionBody({
     const onValidatedSave = (): void => {
         const validation = raidDetectionConfigSchema.safeParse(config);
         if (!validation.success) {
-            alert(validation.error.issues[0]?.message || "Invalid configuration.");
+            toast.error(validation.error.issues[0]?.message || "Invalid configuration.");
             return;
         }
         handleSave();
@@ -147,7 +148,7 @@ export function RaidDetectionBody({
                 <div className="space-y-6">
                     {raidStatus?.isRaidActive && (
                         <div
-                            className="p-4 bg-danger-subtle border border-danger/40 rounded-xl flex items-start justify-between gap-4 text-danger animate-pulse">
+                            className="p-4 bg-danger-subtle border border-danger-border rounded-xl flex items-start justify-between gap-4 text-danger animate-pulse">
                             <div className="flex items-start gap-3">
                                 <ShieldAlert className="w-6 h-6 shrink-0 mt-0.5"/>
                                 <div>
@@ -174,7 +175,7 @@ export function RaidDetectionBody({
                                 </span>
                                 {raidStatus?.isRaidActive ? (
                                     <span
-                                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger-subtle text-danger border border-danger/30">
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger-subtle text-danger border border-danger-border">
                                         <span className="relative flex h-2 w-2">
                                             <span
                                                 className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>

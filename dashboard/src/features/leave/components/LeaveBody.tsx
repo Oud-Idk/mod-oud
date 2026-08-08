@@ -3,11 +3,12 @@
 import { JSX, useCallback, useMemo, useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { LeaveConfig } from "@/features/leave/types";
+import { LeaveConfig, saveLeaveConfigSchema } from "@/features/leave/types";
 import { DiscordEmbed } from "@/features/_shared/embed";
 import { LEAVE_CONFIG } from "@/features/leave/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import { DiscordChannel } from "@/features/_shared/channels.types";
+import { toast } from "sonner";
 
 interface LeaveBodyProps {
     leaveConfig: LeaveConfig;
@@ -31,12 +32,21 @@ export function LeaveBody({
         isPending,
         isDirty,
         resetKey,
-        handleSave,
+        handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm({
         initialConfig: normalizedLeaveConfig,
         onSave,
     });
+
+    const handleSave = useCallback(async () => {
+        const result = saveLeaveConfigSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<LeaveConfig>) => {
         setConfig((prev) => ({ ...prev, ...updated }));

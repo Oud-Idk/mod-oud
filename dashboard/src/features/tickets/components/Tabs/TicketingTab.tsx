@@ -26,7 +26,6 @@ interface TicketingTabProps {
     onPostPanel: () => Promise<void>;
     isProcessing: boolean;
     isDirty: boolean;
-    status: { type: "SUCCESS" | "ERROR"; message: string } | null;
 }
 
 export default function TicketingTab({
@@ -40,7 +39,6 @@ export default function TicketingTab({
     onPostPanel,
     isProcessing,
     isDirty,
-    status,
 }: TicketingTabProps) {
     const targetCategoryIsEmpty = !config.categoryId;
     const targetRoleIsEmpty = !config.ticketRoleId;
@@ -188,12 +186,6 @@ export default function TicketingTab({
                         <span className="text-sm text-warning italic">
                             Please save your changes first to enable actions.
                         </span>
-                    )}
-
-                    {status && (
-                        <p className={`text-sm ${status.type === "SUCCESS" ? "text-success" : "text-danger"}`}>
-                            {status.message}
-                        </p>
                     )}
                 </div>
             )}

@@ -49,8 +49,6 @@ export function TicketsBody({
         isPending,
         isProcessingAction,
         isWarnThresholdInvalid,
-        status,
-        validationError,
         handleSave,
         handleCancel,
         handleSendLiveMessage,
@@ -77,15 +75,8 @@ export function TicketsBody({
         <div className="flex flex-col">
             <Tabs tabs={TICKETS_TABS} activeTab={activeTab} onChange={setActiveTab} />
 
-            {validationError && (
-                <div className="p-3 mb-4 text-sm text-danger bg-danger-subtle rounded-md">
-                    {validationError}
-                </div>
-            )}
-
             {activeTab === "TICKETING" && (
                 <TicketingTab
-                    status={status}
                     config={config}
                     setConfig={setConfig}
                     channels={channels}

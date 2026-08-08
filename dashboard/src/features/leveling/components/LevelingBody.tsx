@@ -17,8 +17,10 @@ import {
     LevelReward,
     XpMultiplier,
     SaveXpMultiplierInput,
-    SaveLevelRewardInput
+    SaveLevelRewardInput,
+    saveLevelingConfigSchema
 } from "@/features/leveling/types";
+import { toast } from "sonner";
 
 import { DiscordChannel } from "@/features/_shared/channels.types";
 
@@ -76,12 +78,21 @@ export function LevelingBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave,
+        handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm({
         initialConfig: normalizedLevelingConfig,
         onSave,
     });
+
+    const handleSave = useCallback(async () => {
+        const result = saveLevelingConfigSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<LevelingConfig>) => {
         setConfig((prev) => ({ ...prev, ...updated }));

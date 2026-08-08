@@ -31,11 +31,11 @@ export const EmbedBuilderForm = ({
         <div
             className={cn(
                 "space-y-4 rounded-xl border p-4 bg-surface transition-colors",
-                isEmpty ? "border-danger-subtle" : "border-border"
+                isEmpty ? "border-danger-border" : "border-border"
             )}
         >
             {isEmpty && (
-                <div className="p-3 rounded-lg bg-danger-subtle border border-danger/20 text-danger text-sm font-semibold">
+                <div className="p-3 rounded-lg bg-danger-subtle border border-danger-border text-danger text-sm font-semibold">
                     Embed cannot be completely empty. Add a title, description, field, or image.
                 </div>
             )}

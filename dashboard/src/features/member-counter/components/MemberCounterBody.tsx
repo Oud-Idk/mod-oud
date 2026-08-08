@@ -13,6 +13,7 @@ import { InputLabel } from "@/components/layout/InputLabel";
 import Footer from "@/components/layout/Footer";
 import Emphasis from "@/components/layout/Emphasis";
 import { TextInput } from "@/components/ui/TextInput";
+import { toast } from "sonner";
 
 interface MemberCounterBodyProps {
     guildId: string;
@@ -42,7 +43,6 @@ export function MemberCounterBody({
 }: MemberCounterBodyProps): ReactNode {
     const normalizedConfig = useMemo(() => memberCounterConfig, [memberCounterConfig]);
     const [isCreatingChannels, setIsCreatingChannels] = useState(false);
-    const [createError, setCreateError] = useState<string | null>(null);
 
     const {
         config,
@@ -108,7 +108,6 @@ export function MemberCounterBody({
 
     const handleAutoCreateChannels = async (targetCounterId?: string): Promise<void> => {
         setIsCreatingChannels(true);
-        setCreateError(null);
 
         const countersToProcess = targetCounterId
             ? (config.counters || []).filter((c) => c.id === targetCounterId)
@@ -128,8 +127,9 @@ export function MemberCounterBody({
                 ...config,
                 counters: updatedCounters,
             });
+            toast.success("Channels created successfully");
         } else {
-            setCreateError(result.error || "Failed to auto-create Discord channels.");
+            toast.error(result.error || "Failed to auto-create Discord channels.");
         }
     };
 
@@ -145,7 +145,7 @@ export function MemberCounterBody({
     const onValidatedSave = (): void => {
         const validation = memberCounterConfigSchema.safeParse(config);
         if (!validation.success) {
-            setCreateError(validation.error.issues[0]?.message || "Invalid configuration.");
+            toast.error(validation.error.issues[0]?.message || "Invalid configuration.");
             return;
         }
         handleSave();
@@ -162,20 +162,6 @@ export function MemberCounterBody({
 
             {config.enabled && (
                 <div className="space-y-2">
-                    {/* Error Banner */}
-                    {createError && (
-                        <div className="p-3.5 bg-danger-subtle border border-danger/30 text-danger text-xs rounded-xl flex items-center justify-between">
-                            <span>{createError}</span>
-                            <button
-                                onClick={() => setCreateError(null)}
-                                className="font-bold ml-2 hover:opacity-80 cursor-pointer"
-                                aria-label="Dismiss error"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    )}
-
                     <div className="max-w-md">
                         <InputLabel>Update Frequency</InputLabel>
                         <Dropdown

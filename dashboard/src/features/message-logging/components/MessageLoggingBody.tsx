@@ -12,6 +12,7 @@ import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { DeletedMessage, EditedMessage, MessageLoggingConfig, messageLoggingConfigSchema } from "@/features/message-logging/types";
+import { toast } from "sonner";
 
 interface MessageLoggingBodyProps {
     messageLoggingConfig: MessageLoggingConfig;
@@ -69,7 +70,7 @@ export function MessageLoggingBody({
         if (!trimmed) return;
 
         if (!/^\d+$/.test(trimmed)) {
-            alert("Please enter a valid Discord User ID.");
+            toast.error("Please enter a valid Discord User ID.");
             return;
         }
 
@@ -106,7 +107,7 @@ export function MessageLoggingBody({
     const onValidatedSave = (): void => {
         const validation = messageLoggingConfigSchema.safeParse(config);
         if (!validation.success) {
-            alert(validation.error.issues[0]?.message || "Invalid configuration.");
+            toast.error(validation.error.issues[0]?.message || "Invalid configuration.");
             return;
         }
         handleSave();

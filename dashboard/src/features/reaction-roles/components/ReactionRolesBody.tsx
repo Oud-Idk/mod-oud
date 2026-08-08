@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -9,7 +9,9 @@ import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { ReactionRoleCreateModal } from "./ReactionRoleCreateModal";
 import { ReactionRoleConfig } from "./ReactionRoleConfig";
 import type { ReactionMessage, SaveReactionMessageInput } from "../types";
+import { saveReactionMessageInputSchema } from "../types";
 import { cn } from "@/lib/cn";
+import { toast } from "sonner";
 
 interface ReactionRolesBodyProps {
     guildId: string;
@@ -42,7 +44,7 @@ export function ReactionRolesBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave,
+        handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm<ReactionMessage | null>({
         initialConfig: activeConfig,
@@ -50,6 +52,16 @@ export function ReactionRolesBody({
             if (updatedConfig) await onSave(updatedConfig);
         },
     });
+
+    const handleSave = useCallback(async () => {
+        if (!config) return;
+        const result = saveReactionMessageInputSchema.safeParse(config);
+        if (!result.success) {
+            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            return;
+        }
+        await originalHandleSave();
+    }, [config, originalHandleSave]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
