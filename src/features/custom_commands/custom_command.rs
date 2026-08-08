@@ -49,7 +49,8 @@ pub async fn handle_custom_command(
         if !key.is_empty() {
             let is_on_cooldown: bool = redis.exists(&key).await?;
             if is_on_cooldown {
-                return Ok(()); // TODO send a quick cooldown notice
+                msg.reply(&ctx.http, "You are on cooldown!").await?;
+                return Ok(());
             }
             let _: () = redis.set(&key, "1", Some(Expiration::EX(command.cooldown_seconds as i64)), None, false).await?;
         }
