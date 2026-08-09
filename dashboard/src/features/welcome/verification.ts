@@ -6,14 +6,14 @@ import {
     type WelcomeConfig, TeardownVerificationPayload,
 } from "./types";
 import { MessageLayout } from "@/features/_shared/embed";
-
-const getBackendUrl = (): string => process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+import { config } from "@/config";
 
 export async function setupVerificationService(
     guildId: string,
     payload: MessageLayout
 ): Promise<SetupVerificationResult> {
-    const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/verification`, {
+    const backendUrl = config.backendInternalUrl;
+    const response = await fetch(`${backendUrl}/api/guilds/${guildId}/verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -59,7 +59,8 @@ export async function teardownVerificationService(
     guildId: string,
     payload: TeardownVerificationPayload
 ): Promise<void> {
-    const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/verification`, {
+    const backendUrl = config.backendInternalUrl;
+    const response = await fetch(`${backendUrl}/api/guilds/${guildId}/verification`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
