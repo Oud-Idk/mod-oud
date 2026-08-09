@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import redis from "@/lib/redis";
 import { type ReminderRow, reminderRowSchema, type SaveableReminderInput, saveableReminderSchema, } from "./types";
 
-function calculateNextTriggerJS(
+export function calculateNextTriggerJS(
     now: Date,
     rule: {
         daysOfWeek: number[] | null;
