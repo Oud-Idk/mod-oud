@@ -29,7 +29,7 @@ interface MockSession {
     expires: string;
 }
 
-const mockAuth = vi.hoisted(() => vi.fn<() => Promise<MockSession>>());
+const mockAuth = vi.hoisted(() => vi.fn<() => Promise<MockSession | null>>());
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -144,6 +144,14 @@ describe("Report Action Module", () => {
                 deleteReportedMessageAction("guild_123", 1, "chan_1", "msg_1")
             ).rejects.toThrow("backend down");
         });
+
+        it("should throw fallback error message when thrown value is not an Error instance", async () => {
+            vi.mocked(deleteReportedMessageCommand).mockRejectedValue("string error");
+
+            await expect(
+                deleteReportedMessageAction("guild_123", 1, "chan_1", "msg_1")
+            ).rejects.toThrow("Failed to delete message.");
+        });
     });
 
     describe("resolveReportStatusAction", () => {
@@ -154,13 +162,38 @@ describe("Report Action Module", () => {
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/report");
         });
 
+        // Kills Moderator name fallback mutant (?? "Moderator")
+        it("should fall back to 'Moderator' if session user name is missing", async () => {
+            mockAuth.mockResolvedValue({ user: { name: null }, expires: "2026-01-01" });
+
+            await resolveReportStatusAction("guild_123", 1, "ACTIONED");
+
+            expect(resolveReportStatusCommand).toHaveBeenCalledWith(1, "ACTIONED", "Moderator");
+        });
+
         it("should throw Unauthorized when there is no session user", async () => {
             mockAuth.mockResolvedValue({ user: undefined, expires: "2026-01-01" });
 
             await expect(resolveReportStatusAction("guild_123", 1, "ACTIONED")).rejects.toThrow(
                 "Unauthorized."
             );
-            expect(resolveReportStatusCommand).not.toHaveBeenCalled();
+        });
+
+        // Kills session?.user OptionalChaining mutant
+        it("should throw Unauthorized when session is null", async () => {
+            mockAuth.mockResolvedValue(null);
+
+            await expect(resolveReportStatusAction("guild_123", 1, "ACTIONED")).rejects.toThrow(
+                "Unauthorized."
+            );
+        });
+
+        it("should throw fallback error message on non-Error failure", async () => {
+            vi.mocked(resolveReportStatusCommand).mockRejectedValue("string error");
+
+            await expect(resolveReportStatusAction("guild_123", 1, "ACTIONED")).rejects.toThrow(
+                "Failed to resolve report."
+            );
         });
     });
 
@@ -172,26 +205,100 @@ describe("Report Action Module", () => {
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/report");
         });
 
+        it("should fall back to 'Moderator' if session user name is missing", async () => {
+            mockAuth.mockResolvedValue({ user: { name: null }, expires: "2026-01-01" });
+
+            await timeoutUserAction("guild_123", 1, 60, "Spam");
+
+            expect(timeoutUserCommand).toHaveBeenCalledWith(1, 60, "Moderator", "Spam");
+        });
+
         it("should throw Unauthorized when there is no session user", async () => {
             mockAuth.mockResolvedValue({ user: undefined, expires: "2026-01-01" });
 
             await expect(timeoutUserAction("guild_123", 1, 60)).rejects.toThrow("Unauthorized.");
         });
+
+        it("should throw fallback error message on non-Error failure", async () => {
+            vi.mocked(timeoutUserCommand).mockRejectedValue("string error");
+
+            await expect(timeoutUserAction("guild_123", 1, 60)).rejects.toThrow(
+                "Failed to timeout user."
+            );
+        });
     });
 
     describe("warnUserAction", () => {
-        it("should send the warn command with the moderator's name and reason", async () => {
+        it("should send the warn command with the moderator's name and revalidate", async () => {
             await warnUserAction("guild_123", 1, "Toxicity");
 
             expect(warnUserCommand).toHaveBeenCalledWith(1, "Mod", "Toxicity");
+            // Kills revalidatePath mutant
+            expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/report");
+        });
+
+        it("should fall back to 'Moderator' if session user name is missing", async () => {
+            mockAuth.mockResolvedValue({ user: { name: null }, expires: "2026-01-01" });
+
+            await warnUserAction("guild_123", 1, "Toxicity");
+
+            expect(warnUserCommand).toHaveBeenCalledWith(1, "Moderator", "Toxicity");
+        });
+
+        // Kills Unauthorized block/string mutants
+        it("should throw Unauthorized when there is no session user", async () => {
+            mockAuth.mockResolvedValue({ user: undefined, expires: "2026-01-01" });
+
+            await expect(warnUserAction("guild_123", 1)).rejects.toThrow("Unauthorized.");
+        });
+
+        it("should throw underlying error on command failure", async () => {
+            vi.mocked(warnUserCommand).mockRejectedValue(new Error("Warn error"));
+
+            await expect(warnUserAction("guild_123", 1)).rejects.toThrow("Warn error");
+        });
+
+        it("should throw fallback error message on non-Error failure", async () => {
+            vi.mocked(warnUserCommand).mockRejectedValue("string error");
+
+            await expect(warnUserAction("guild_123", 1)).rejects.toThrow("Failed to warn user.");
         });
     });
 
     describe("banUserAction", () => {
-        it("should send the ban command with the moderator's name", async () => {
+        it("should send the ban command with the moderator's name and revalidate", async () => {
             await banUserAction("guild_123", 1, 1440, "Raid");
 
             expect(banUserCommand).toHaveBeenCalledWith(1, "Mod", 1440, "Raid");
+            // Kills revalidatePath mutant
+            expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/report");
+        });
+
+        it("should fall back to 'Moderator' if session user name is missing", async () => {
+            mockAuth.mockResolvedValue({ user: { name: null }, expires: "2026-01-01" });
+
+            await banUserAction("guild_123", 1, 1440, "Raid");
+
+            expect(banUserCommand).toHaveBeenCalledWith(1, "Moderator", 1440, "Raid");
+        });
+
+        // Kills Unauthorized block/string mutants
+        it("should throw Unauthorized when there is no session user", async () => {
+            mockAuth.mockResolvedValue({ user: undefined, expires: "2026-01-01" });
+
+            await expect(banUserAction("guild_123", 1)).rejects.toThrow("Unauthorized.");
+        });
+
+        it("should throw underlying error on command failure", async () => {
+            vi.mocked(banUserCommand).mockRejectedValue(new Error("Ban error"));
+
+            await expect(banUserAction("guild_123", 1)).rejects.toThrow("Ban error");
+        });
+
+        it("should throw fallback error message on non-Error failure", async () => {
+            vi.mocked(banUserCommand).mockRejectedValue("string error");
+
+            await expect(banUserAction("guild_123", 1)).rejects.toThrow("Failed to ban user.");
         });
     });
 
@@ -223,6 +330,22 @@ describe("Report Action Module", () => {
 
             await expect(saveReportConfigAction("guild_123", { enabled: true })).rejects.toThrow(
                 "Validation Error"
+            );
+        });
+
+        it("should throw underlying error message on non-ZodError failure", async () => {
+            vi.mocked(saveReportConfig).mockRejectedValue(new Error("Database write failure"));
+
+            await expect(saveReportConfigAction("guild_123", { enabled: true })).rejects.toThrow(
+                "Database write failure"
+            );
+        });
+
+        it("should throw fallback error message on non-Error failure", async () => {
+            vi.mocked(saveReportConfig).mockRejectedValue("string error");
+
+            await expect(saveReportConfigAction("guild_123", { enabled: true })).rejects.toThrow(
+                "Could not save configuration."
             );
         });
     });

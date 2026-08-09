@@ -97,6 +97,28 @@ describe("Warns Query Module", () => {
 
             expect(result).toEqual([]);
         });
+
+        it("should return parsed thresholds and pass correct query parameters", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        id: "1",
+                        guild_id: "guild_123",
+                        warn_count: 3,
+                        action_type: ["KICK"],
+                        roles_to_add: [],
+                        roles_to_remove: [],
+                        duration: null,
+                    },
+                ],
+            });
+
+            const result = await getWarnThresholds("guild_123");
+
+            expect(result[0].id).toBe(1);
+            expect(result[0].warn_count).toBe(3);
+            expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["guild_123"]);
+        });
     });
 
     describe("saveWarnThresholds", () => {
@@ -158,6 +180,48 @@ describe("Warns Query Module", () => {
 
             expect(client.query).toHaveBeenCalledWith("ROLLBACK");
             expect(client.release).toHaveBeenCalled();
+        });
+
+        it("should upsert multiple thresholds with correct placeholder offsets and params", async () => {
+            const client = {
+                query: vi.fn<(sql: string, params?: unknown[]) => Promise<{ rows?: unknown[] }>>(),
+                release: vi.fn(),
+            };
+            mockConnect.mockResolvedValue(client);
+
+            const thresholds: SaveWarnThresholdInput[] = [
+                {
+                    warnCount: 3,
+                    actionType: ["KICK"],
+                    rolesToAdd: ["role_1"],
+                    rolesToRemove: undefined,
+                    duration: null,
+                },
+                {
+                    warnCount: 5,
+                    actionType: ["BAN"],
+                    rolesToAdd: undefined,
+                    rolesToRemove: ["role_2"],
+                    duration: "7d",
+                },
+            ];
+
+            await saveWarnThresholds("guild_123", thresholds);
+
+            const upsertSql = client.query.mock.calls[1][0];
+            expect(upsertSql).toContain("($1, $2, $3, $4, $5, $6), ($7, $8, $9, $10, $11, $12)");
+
+            const upsertParams = client.query.mock.calls[1][1];
+            expect(upsertParams).toEqual([
+                "guild_123", 3, ["KICK"], ["role_1"], null, null,
+                "guild_123", 5, ["BAN"], null, ["role_2"], "7d",
+            ]);
+
+            const deleteParams = client.query.mock.calls[2][1];
+            expect(deleteParams).toEqual(["guild_123", [3, 5]]);
+
+            expect(client.query).toHaveBeenCalledWith("COMMIT");
+            expect(mockDel).toHaveBeenCalledWith("warn_thresholds:guild_123");
         });
     });
 

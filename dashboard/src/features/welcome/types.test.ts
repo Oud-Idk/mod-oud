@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import {
     publicWelcomeConfigSchema,
     privateWelcomeConfigSchema,
@@ -18,6 +19,7 @@ describe("publicWelcomeConfigSchema", () => {
         expect(parsed.channel_id).toBeNull();
         expect(parsed.message.format).toBe("EMBED");
         expect(parsed.message.content).toBe("");
+        expect(parsed.message.embed).toEqual({});
     });
 
     it("should keep provided values", () => {
@@ -57,7 +59,8 @@ describe("privateWelcomeConfigSchema", () => {
 });
 
 describe("verificationConfigSchema", () => {
-    it("should apply defaults when parsing an empty object", () => {
+    // Kills defaultVerificationEmbed & verificationConfigSchema default mutants
+    it("should apply exact defaults when parsing an empty object", () => {
         const parsed = verificationConfigSchema.parse({});
 
         expect(parsed.enabled).toBe(false);
@@ -66,7 +69,22 @@ describe("verificationConfigSchema", () => {
         expect(parsed.verificationMessageId).toBeNull();
         expect(parsed.verificationChannelId).toBeNull();
         expect(parsed.verificationRoleId).toBeNull();
-        expect(parsed.message.format).toBe("EMBED");
+        expect(parsed.message).toEqual({
+            format: "EMBED",
+            content: "Please complete the verification below to gain access to the server.",
+            embed: {
+                title: "Server Verification Required",
+                description:
+                    "Click the verification button below to verify your account and gain full access.",
+                color: 0x55ee77,
+            },
+        });
+    });
+
+    // Kills HCAPTCHA enum mutant
+    it("should accept HCAPTCHA as a valid captcha type", () => {
+        const parsed = verificationConfigSchema.parse({ captchaType: "HCAPTCHA" });
+        expect(parsed.captchaType).toBe("HCAPTCHA");
     });
 
     it("should REJECT an invalid captcha type", () => {
@@ -77,12 +95,45 @@ describe("verificationConfigSchema", () => {
 });
 
 describe("welcomeConfigSchema", () => {
-    it("should apply defaults when parsing an empty object", () => {
+    it("should apply exact defaults when parsing an empty object", () => {
         const parsed = welcomeConfigSchema.parse({});
 
-        expect(parsed.public.enabled).toBe(false);
-        expect(parsed.private.enabled).toBe(false);
-        expect(parsed.verification.enabled).toBe(false);
+        expect(parsed.public).toEqual({
+            enabled: false,
+            channel_id: null,
+            message: {
+                format: "EMBED",
+                content: "",
+                embed: {},
+            },
+        });
+        expect(parsed.private).toEqual({
+            enabled: false,
+            message: {
+                enabled: false,
+                format: "TEXT",
+                content: "",
+                embed: {},
+            },
+        });
+        expect(parsed.verification).toEqual({
+            enabled: false,
+            useOauth: false,
+            captchaType: "TURNSTILE",
+            verificationMessageId: null,
+            verificationChannelId: null,
+            verificationRoleId: null,
+            message: {
+                format: "EMBED",
+                content: "Please complete the verification below to gain access to the server.",
+                embed: {
+                    title: "Server Verification Required",
+                    description:
+                        "Click the verification button below to verify your account and gain full access.",
+                    color: 0x55ee77,
+                },
+            },
+        });
         expect(parsed.joinRoleIds).toEqual([]);
     });
 
@@ -96,15 +147,25 @@ describe("welcomeConfigSchema", () => {
 });
 
 describe("saveWelcomeConfigSchema", () => {
-    it("should REJECT public welcome messages without a channel", () => {
-        const result = saveWelcomeConfigSchema.safeParse({
+    // Kills .trim() whitespace mutants and path: ["public", "channel_id"] mutant
+    it("should REJECT public welcome messages without a channel or with whitespace", () => {
+        const resultNull = saveWelcomeConfigSchema.safeParse({
             public: { enabled: true, channel_id: null },
         });
 
-        expect(result.success).toBe(false);
-        if (!result.success) {
-            expect(result.error.issues.some((i) => i.path[0] === "public")).toBe(true);
+        expect(resultNull.success).toBe(false);
+        if (!resultNull.success) {
+            expect(resultNull.error.issues).toContainEqual({
+                code: z.ZodIssueCode.custom,
+                message: "Please select a channel for public welcome messages.",
+                path: ["public", "channel_id"],
+            });
         }
+
+        const resultSpace = saveWelcomeConfigSchema.safeParse({
+            public: { enabled: true, channel_id: "   " },
+        });
+        expect(resultSpace.success).toBe(false);
     });
 
     it("should accept public welcome messages with a channel", () => {
@@ -192,12 +253,16 @@ describe("teardownVerificationPayloadSchema", () => {
         expect(result.success).toBe(false);
     });
 
-    it("should REJECT a missing role id", () => {
+    // Kills verification_role_id error message mutant
+    it("should REJECT a missing role id with exact error message", () => {
         const result = teardownVerificationPayloadSchema.safeParse({
             verification_channel_id: "channel_1",
             verification_role_id: "",
         });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("Verification Role ID is required");
+        }
     });
 });

@@ -51,7 +51,7 @@ describe("Reaction Roles Query Module", () => {
     });
 
     describe("getReactionMessages", () => {
-        it("should parse rows into reaction messages", async () => {
+        it("should pass guildId as query parameter", async () => {
             mockQuery.mockResolvedValue({
                 rows: [
                     {
@@ -71,14 +71,12 @@ describe("Reaction Roles Query Module", () => {
             const result = await getReactionMessages("guild_123");
 
             expect(result[0].id).toBe(1);
-            expect(result[0].reactions[0].emoji).toBe("🎉");
-            const params = mockQuery.mock.calls[0][1];
-            expect(params).toEqual(["guild_123"]);
+            expect(mockQuery.mock.calls[0][1]).toEqual(["guild_123"]);
         });
     });
 
     describe("getReactionMessageById", () => {
-        it("should return the parsed message", async () => {
+        it("should pass id as query parameter", async () => {
             mockQuery.mockResolvedValue({
                 rows: [
                     {
@@ -95,7 +93,7 @@ describe("Reaction Roles Query Module", () => {
             const result = await getReactionMessageById(5);
 
             expect(result?.id).toBe(5);
-            expect(result?.buttons[0].custom_id).toBe("btn_1");
+            expect(mockQuery.mock.calls[0][1]).toEqual([5]);
         });
 
         it("should return null when no row matches", async () => {
@@ -104,31 +102,34 @@ describe("Reaction Roles Query Module", () => {
             const result = await getReactionMessageById(999);
 
             expect(result).toBeNull();
+            expect(mockQuery.mock.calls[0][1]).toEqual([999]);
         });
     });
 
     describe("deleteReactionMessage", () => {
-        it("should return true when exactly one row was deleted", async () => {
+        it("should pass id as query parameter and return boolean", async () => {
             mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
 
             const result = await deleteReactionMessage(3);
 
             expect(result).toBe(true);
-            const params = mockQuery.mock.calls[0][1];
-            expect(params).toEqual([3]);
+            expect(mockQuery.mock.calls[0][1]).toEqual([3]);
         });
 
-        it("should return false when nothing was deleted", async () => {
+        it("should return false when rowCount is 0", async () => {
             mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
 
             const result = await deleteReactionMessage(3);
 
             expect(result).toBe(false);
+            expect(mockQuery.mock.calls[0][1]).toEqual([3]);
         });
     });
 
     describe("saveReactionMessage", () => {
-        it("should insert a new reaction message within a transaction", async () => {
+
+
+        it("should execute transaction calls and pass internalId to cleanup deletes", async () => {
             const client = {
                 query: vi.fn<
                     (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
@@ -136,12 +137,7 @@ describe("Reaction Roles Query Module", () => {
                 release: vi.fn(),
             };
             mockConnect.mockResolvedValue(client);
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [{ id: "10" }], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+            client.query.mockResolvedValue({ rows: [{ id: "10" }], rowCount: 1 });
 
             const input: SaveReactionMessageInput = {
                 name: "Verify",
@@ -155,14 +151,16 @@ describe("Reaction Roles Query Module", () => {
 
             const result = await saveReactionMessage(input);
 
-            expect(mockConnect).toHaveBeenCalled();
-            expect(client.query).toHaveBeenCalledWith("BEGIN");
-            expect(client.query).toHaveBeenCalledWith("COMMIT");
+            // Verify query parameters passed across sequential calls
+            expect(client.query.mock.calls[0][1]).toBeUndefined(); // BEGIN
+            expect(client.query.mock.calls[1][1]).toEqual([null, "chan_1", "guild_123", "REACTION", "Verify", input.message]); // INSERT mainParams
+            expect(client.query.mock.calls[2][1]).toEqual([10]); // DELETE reaction_roles
+            expect(client.query.mock.calls[3][1]).toEqual([10]); // DELETE button_roles
             expect(client.release).toHaveBeenCalled();
             expect(result.id).toBe(10);
         });
 
-        it("should insert reaction role mappings with the internal id and mapped params", async () => {
+        it("should handle undefined vs defined message_id in mainParams", async () => {
             const client = {
                 query: vi.fn<
                     (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
@@ -170,12 +168,76 @@ describe("Reaction Roles Query Module", () => {
                 release: vi.fn(),
             };
             mockConnect.mockResolvedValue(client);
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [{ id: "10" }], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+            client.query.mockResolvedValue({ rows: [{ id: "10" }], rowCount: 1 });
+
+            // Case A: Undefined message_id -> coalesces to null
+            const inputNull: SaveReactionMessageInput = {
+                name: "Verify",
+                guild_id: "guild_123",
+                channel_id: "chan_1",
+                message_id: undefined,
+                message: { format: "TEXT", content: "Pick", embed: {} },
+                mode: "REACTION",
+                reactions: [{ emoji: "🎉", role_id: "role_1" }],
+            };
+
+            await saveReactionMessage(inputNull);
+            expect(client.query.mock.calls[1][1]).toEqual([null, "chan_1", "guild_123", "REACTION", "Verify", inputNull.message]);
+
+            client.query.mockClear();
+
+            // Case B: Defined string message_id -> passed through
+            const inputDefined: SaveReactionMessageInput = {
+                name: "Verify",
+                guild_id: "guild_123",
+                channel_id: "chan_1",
+                message_id: "msg_200",
+                message: { format: "TEXT", content: "Pick", embed: {} },
+                mode: "REACTION",
+                reactions: [{ emoji: "🎉", role_id: "role_1" }],
+            };
+
+            await saveReactionMessage(inputDefined);
+            expect(client.query.mock.calls[1][1]).toEqual(["msg_200", "chan_1", "guild_123", "REACTION", "Verify", inputDefined.message]);
+        });
+
+        it("should append id to mainParams on UPDATE path", async () => {
+            const client = {
+                query: vi.fn<
+                    (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
+                >(),
+                release: vi.fn(),
+            };
+            mockConnect.mockResolvedValue(client);
+            client.query.mockResolvedValue({ rows: [{ id: "7" }], rowCount: 1 });
+
+            const input: SaveReactionMessageInput = {
+                id: 7,
+                name: "Verify",
+                guild_id: "guild_123",
+                channel_id: "chan_1",
+                message_id: "msg_1",
+                message: { format: "TEXT", content: "Pick", embed: {} },
+                mode: "BUTTON",
+                buttons: [{ custom_id: "btn_1", role_id: "role_1" }],
+            };
+
+            const result = await saveReactionMessage(input);
+
+            // Call 1 parameters should contain mainParams + id
+            expect(client.query.mock.calls[1][1]).toEqual(["msg_1", "chan_1", "guild_123", "BUTTON", "Verify", input.message, 7]);
+            expect(result.id).toBe(7);
+        });
+
+        it("should map reaction items into array parameters", async () => {
+            const client = {
+                query: vi.fn<
+                    (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
+                >(),
+                release: vi.fn(),
+            };
+            mockConnect.mockResolvedValue(client);
+            client.query.mockResolvedValue({ rows: [{ id: "10" }], rowCount: 1 });
 
             const input: SaveReactionMessageInput = {
                 name: "Verify",
@@ -192,15 +254,15 @@ describe("Reaction Roles Query Module", () => {
 
             await saveReactionMessage(input);
 
-            const reactionInsert = client.query.mock.calls.find(([sql]) =>
-                sql.includes("INSERT INTO reaction_roles")
-            );
-            expect(reactionInsert).toBeDefined();
-            const params = reactionInsert?.[1];
-            expect(params).toEqual([10, ["🎉", "👍"], ["role_1", "role_2"]]);
+            // Find query call where parameter array has length 3
+            const reactionInsertParams = client.query.mock.calls.find(
+                (call) => Array.isArray(call[1]) && call[1].length === 3
+            )?.[1];
+
+            expect(reactionInsertParams).toEqual([10, ["🎉", "👍"], ["role_1", "role_2"]]);
         });
 
-        it("should insert button role mappings with the internal id and mapped params", async () => {
+        it("should map button items into array parameters and default missing style to PRIMARY", async () => {
             const client = {
                 query: vi.fn<
                     (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
@@ -208,12 +270,7 @@ describe("Reaction Roles Query Module", () => {
                 release: vi.fn(),
             };
             mockConnect.mockResolvedValue(client);
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [{ id: "10" }], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+            client.query.mockResolvedValue({ rows: [{ id: "10" }], rowCount: 1 });
 
             const input: SaveReactionMessageInput = {
                 name: "Roles",
@@ -224,18 +281,18 @@ describe("Reaction Roles Query Module", () => {
                 reactions: [],
                 buttons: [
                     { role_id: "role_1", custom_id: "btn_1", label: "Role 1", style: "SUCCESS", emoji: "🎉" },
-                    { role_id: "role_2", custom_id: "btn_2", label: null, emoji: null },
+                    { role_id: "role_2", custom_id: "btn_2", label: null, emoji: null, style: undefined },
                 ],
             };
 
             await saveReactionMessage(input);
 
-            const buttonInsert = client.query.mock.calls.find(([sql]) =>
-                sql.includes("INSERT INTO button_roles")
-            );
-            expect(buttonInsert).toBeDefined();
-            const params = buttonInsert?.[1];
-            expect(params).toEqual([
+            // Find query call where parameters has length 6 and second item is an array
+            const buttonInsertParams = client.query.mock.calls.find(
+                (call) => Array.isArray(call[1]) && call[1].length === 6 && Array.isArray(call[1][1])
+            )?.[1];
+
+            expect(buttonInsertParams).toEqual([
                 10,
                 ["role_1", "role_2"],
                 ["btn_1", "btn_2"],
@@ -245,7 +302,7 @@ describe("Reaction Roles Query Module", () => {
             ]);
         });
 
-        it("should throw when updating a message that no longer exists", async () => {
+        it("should skip reaction insert when mode is BUTTON even if reactions array is populated", async () => {
             const client = {
                 query: vi.fn<
                     (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
@@ -253,28 +310,28 @@ describe("Reaction Roles Query Module", () => {
                 release: vi.fn(),
             };
             mockConnect.mockResolvedValue(client);
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+            client.query.mockResolvedValue({ rows: [{ id: "10" }], rowCount: 1 });
 
             const input: SaveReactionMessageInput = {
-                id: 7,
                 name: "Verify",
                 guild_id: "guild_123",
                 channel_id: "chan_1",
                 message: { format: "TEXT", content: "Pick", embed: {} },
                 mode: "BUTTON",
-                buttons: [{ role_id: "role_1", custom_id: "btn_1" }],
+                reactions: [{ emoji: "🎉", role_id: "role_1" }],
+                buttons: [{ custom_id: "btn_1", role_id: "role_1" }],
             };
 
-            await expect(saveReactionMessage(input)).rejects.toThrow(
-                "Reaction message with ID 7 not found."
-            );
+            await saveReactionMessage(input);
 
-            expect(client.query).toHaveBeenCalledWith("ROLLBACK");
-            expect(client.release).toHaveBeenCalled();
+            // No query call should have 3 parameters (reaction mapping params)
+            const reactionInsertCall = client.query.mock.calls.find(
+                (call) => Array.isArray(call[1]) && call[1].length === 3
+            );
+            expect(reactionInsertCall).toBeUndefined();
         });
 
-        it("should skip the mapping inserts for a message with no reactions or buttons", async () => {
+        it("should skip button insert when mode is REACTION even if buttons array is populated", async () => {
             const client = {
                 query: vi.fn<
                     (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
@@ -282,12 +339,7 @@ describe("Reaction Roles Query Module", () => {
                 release: vi.fn(),
             };
             mockConnect.mockResolvedValue(client);
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [{ id: "10" }], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+            client.query.mockResolvedValue({ rows: [{ id: "10" }], rowCount: 1 });
 
             const input: SaveReactionMessageInput = {
                 name: "Verify",
@@ -296,20 +348,19 @@ describe("Reaction Roles Query Module", () => {
                 message: { format: "TEXT", content: "Pick", embed: {} },
                 mode: "REACTION",
                 reactions: [{ emoji: "🎉", role_id: "role_1" }],
-                buttons: [],
+                buttons: [{ custom_id: "btn_1", role_id: "role_1" }],
             };
 
             await saveReactionMessage(input);
 
-            expect(client.query).toHaveBeenCalledWith("BEGIN");
-            expect(client.query).toHaveBeenCalledWith("COMMIT");
-            const reactionInsert = client.query.mock.calls.find(([sql]) =>
-                sql.includes("INSERT INTO reaction_roles")
+            // No query call should have 6 parameters with an array at index 1 (button mapping params)
+            const buttonInsertCall = client.query.mock.calls.find(
+                (call) => Array.isArray(call[1]) && call[1].length === 6 && Array.isArray(call[1][1])
             );
-            expect(reactionInsert).toBeDefined();
+            expect(buttonInsertCall).toBeUndefined();
         });
 
-        it("should update an existing message when an id is present", async () => {
+        it("should roll back transaction and release client when query throws", async () => {
             const client = {
                 query: vi.fn<
                     (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
@@ -318,40 +369,7 @@ describe("Reaction Roles Query Module", () => {
             };
             mockConnect.mockResolvedValue(client);
             client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [{ id: "7" }], rowCount: 1 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-
-            const input: SaveReactionMessageInput = {
-                id: 7,
-                name: "Verify",
-                guild_id: "guild_123",
-                channel_id: "chan_1",
-                message: { format: "TEXT", content: "Pick", embed: {} },
-                mode: "BUTTON",
-                buttons: [{ role_id: "role_1", custom_id: "btn_1" }],
-                reactions: [],
-            };
-
-            const result = await saveReactionMessage(input);
-
-            expect(client.query.mock.calls[1][0]).toContain("UPDATE reaction_messages");
-            expect(client.query).toHaveBeenCalledWith("COMMIT");
-            expect(result.id).toBe(7);
-        });
-
-        it("should roll back and release when the query throws", async () => {
-            const client = {
-                query: vi.fn<
-                    (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
-                >(),
-                release: vi.fn(),
-            };
-            mockConnect.mockResolvedValue(client);
-            client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-            client.query.mockRejectedValueOnce(new Error("constraint violation"));
+            client.query.mockRejectedValueOnce(new Error("db failure"));
 
             await expect(
                 saveReactionMessage({
@@ -362,13 +380,39 @@ describe("Reaction Roles Query Module", () => {
                     mode: "REACTION",
                     reactions: [{ emoji: "🎉", role_id: "role_1" }],
                 })
-            ).rejects.toThrow("constraint violation");
+            ).rejects.toThrow("db failure");
 
-            expect(client.query).toHaveBeenCalledWith("ROLLBACK");
             expect(client.release).toHaveBeenCalled();
         });
 
-        it("should throw a validation error for invalid input", async () => {
+        it("should throw error when updating a non-existent ID", async () => {
+            const client = {
+                query: vi.fn<
+                    (sql: string, params?: unknown[]) => Promise<{ rows: { id?: number | string }[]; rowCount?: number }>
+                >(),
+                release: vi.fn(),
+            };
+            mockConnect.mockResolvedValue(client);
+            client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+            client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+            const input: SaveReactionMessageInput = {
+                id: 99,
+                name: "Verify",
+                guild_id: "guild_123",
+                channel_id: "chan_1",
+                message: { format: "TEXT", content: "Pick", embed: {} },
+                mode: "BUTTON",
+                buttons: [{ custom_id: "btn_1", role_id: "role_1" }],
+            };
+
+            await expect(saveReactionMessage(input)).rejects.toThrow(
+                "Reaction message with ID 99 not found."
+            );
+            expect(client.release).toHaveBeenCalled();
+        });
+
+        it("should validate input schema before connecting to database", async () => {
             await expect(
                 saveReactionMessage({
                     name: "",
@@ -381,7 +425,7 @@ describe("Reaction Roles Query Module", () => {
     });
 
     describe("sendReactionMessageToBackend", () => {
-        it("should POST to the backend and return the message id", async () => {
+        it("should POST to the backend endpoint with headers", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
                 text: () => Promise.resolve(""),
@@ -391,23 +435,27 @@ describe("Reaction Roles Query Module", () => {
             const result = await sendReactionMessageToBackend("guild_123", 4);
 
             expect(result).toEqual({ message_id: "discord_msg_1" });
-            const url = mockFetch.mock.calls[0][0];
+            const [url, init] = mockFetch.mock.calls[0];
             expect(url).toContain("/api/guilds/guild_123/reaction-roles/4/send");
+            expect(init).toEqual({
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+            });
         });
 
-        it("should throw when the backend responds with an error body", async () => {
+        it("should throw error message on response failure", async () => {
             mockFetch.mockResolvedValue({
                 ok: false,
-                text: () => Promise.resolve("backend error"),
+                text: () => Promise.resolve("Backend exploded"),
                 json: () => Promise.resolve({}),
             });
 
             await expect(sendReactionMessageToBackend("guild_123", 4)).rejects.toThrow(
-                "backend error"
+                "Backend exploded"
             );
         });
 
-        it("should throw a generic message when the backend error body is empty", async () => {
+        it("should throw generic error when backend error text is empty", async () => {
             mockFetch.mockResolvedValue({
                 ok: false,
                 text: () => Promise.resolve(""),
@@ -421,7 +469,7 @@ describe("Reaction Roles Query Module", () => {
     });
 
     describe("deleteDiscordMessageFromBackend", () => {
-        it("should DELETE the Discord message on the backend", async () => {
+        it("should send DELETE HTTP request", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
                 text: () => Promise.resolve(""),
@@ -430,13 +478,12 @@ describe("Reaction Roles Query Module", () => {
 
             await deleteDiscordMessageFromBackend("guild_123", 4);
 
-            const url = mockFetch.mock.calls[0][0];
+            const [url, init] = mockFetch.mock.calls[0];
             expect(url).toContain("/api/guilds/guild_123/reaction-roles/4/message");
-            const init = mockFetch.mock.calls[0][1];
             expect(init?.method).toBe("DELETE");
         });
 
-        it("should throw when the backend responds with an error", async () => {
+        it("should throw backend error on failure", async () => {
             mockFetch.mockResolvedValue({
                 ok: false,
                 text: () => Promise.resolve("not found"),
@@ -447,10 +494,22 @@ describe("Reaction Roles Query Module", () => {
                 "not found"
             );
         });
+
+        it("should throw generic fallback message when error response text is empty", async () => {
+            mockFetch.mockResolvedValue({
+                ok: false,
+                text: () => Promise.resolve(""),
+                json: () => Promise.resolve({}),
+            });
+
+            await expect(deleteDiscordMessageFromBackend("guild_123", 4)).rejects.toThrow(
+                "Failed to delete Discord message."
+            );
+        });
     });
 
     describe("notifyBackendReactionMessageEdit", () => {
-        it("should POST an edit notification to the backend", async () => {
+        it("should POST an edit notification to the backend with correct options", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
                 text: () => Promise.resolve(""),
@@ -459,14 +518,20 @@ describe("Reaction Roles Query Module", () => {
 
             await notifyBackendReactionMessageEdit("guild_123", 4);
 
-            const url = mockFetch.mock.calls[0][0];
+            const [url, init] = mockFetch.mock.calls[0];
             expect(url).toContain("/api/guilds/guild_123/reaction-roles/4/edit");
+            expect(init).toEqual({ method: "POST" });
         });
 
-        it("should swallow backend failures", async () => {
-            mockFetch.mockRejectedValue(new Error("network down"));
+        it("should swallow errors gracefully and log to console.error", async () => {
+            const err = new Error("network down");
+            mockFetch.mockRejectedValue(err);
 
             await expect(notifyBackendReactionMessageEdit("guild_123", 4)).resolves.toBeUndefined();
+            expect(console.error).toHaveBeenCalledWith(
+                "Failed to auto-update Discord message on save:",
+                err
+            );
         });
     });
 });

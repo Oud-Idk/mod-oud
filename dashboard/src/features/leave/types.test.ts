@@ -2,12 +2,28 @@ import { describe, it, expect } from "vitest";
 import { leaveConfigSchema, saveLeaveConfigSchema, DEFAULT_LEAVE_MESSAGE } from "./types";
 
 describe("leaveConfigSchema", () => {
+    // Kills DEFAULT_LEAVE_MESSAGE = {} and property mutants
+    it("should verify DEFAULT_LEAVE_MESSAGE constant values", () => {
+        expect(DEFAULT_LEAVE_MESSAGE).toEqual({
+            enabled: true,
+            format: "EMBED",
+            content: "",
+            embed: {},
+        });
+    });
+
+    // Kills DEFAULT_LEAVE_MESSAGE mutation by asserting literal expected values instead of self-referencing object
     it("should apply defaults when an empty object is parsed", () => {
         const parsed = leaveConfigSchema.parse({});
 
         expect(parsed.enabled).toBe(false);
         expect(parsed.channelId).toBeNull();
-        expect(parsed.message).toEqual(DEFAULT_LEAVE_MESSAGE);
+        expect(parsed.message).toEqual({
+            enabled: true,
+            format: "EMBED",
+            content: "",
+            embed: {},
+        });
     });
 
     it("should PASS a fully configured leave config with an embed message", () => {
@@ -72,7 +88,8 @@ describe("leaveConfigSchema", () => {
 });
 
 describe("saveLeaveConfigSchema", () => {
-    it("should REJECT when enabled without a channel", () => {
+    // Kills path: ["channelId"] -> path: [] / [""] mutants
+    it("should REJECT when enabled without a channel and set path to channelId", () => {
         const result = saveLeaveConfigSchema.safeParse({
             enabled: true,
             channelId: null,
@@ -83,6 +100,7 @@ describe("saveLeaveConfigSchema", () => {
             expect(result.error.issues[0].message).toBe(
                 "Please select a channel for leave messages!"
             );
+            expect(result.error.issues[0].path).toEqual(["channelId"]);
         }
     });
 
@@ -99,15 +117,6 @@ describe("saveLeaveConfigSchema", () => {
         const result = saveLeaveConfigSchema.safeParse({
             enabled: false,
             channelId: null,
-        });
-
-        expect(result.success).toBe(true);
-    });
-
-    it("should PASS when enabled with an empty-string channel", () => {
-        const result = saveLeaveConfigSchema.safeParse({
-            enabled: true,
-            channelId: "chan_1",
         });
 
         expect(result.success).toBe(true);

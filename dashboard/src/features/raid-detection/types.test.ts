@@ -1,11 +1,34 @@
 import { describe, it, expect } from "vitest";
 import {
+    raidActionKindSchema,
     raidDetectionInputSchema,
     saveRaidDetectionConfigSchema,
     raidActionSchema,
     cachedStatsSchema,
     raidStatusSnapshotSchema,
 } from "./types";
+
+// Kills all 7 raidActionKindSchema mutants
+describe("raidActionKindSchema", () => {
+    it("should accept all valid action kinds", () => {
+        const kinds = [
+            "ALERT",
+            "LOCKDOWN_SERVER",
+            "PAUSE_INVITES",
+            "BUMP_VERIFICATION",
+            "AUTO_BAN_NEW_ACCOUNTS",
+            "TIMEOUT_NEW_JOINS",
+        ] as const;
+
+        kinds.forEach((kind) => {
+            expect(raidActionKindSchema.safeParse(kind).success).toBe(true);
+        });
+    });
+
+    it("should REJECT an invalid action kind", () => {
+        expect(raidActionKindSchema.safeParse("INVALID_KIND").success).toBe(false);
+    });
+});
 
 describe("raidDetectionInputSchema", () => {
     it("should apply defaults when an empty object is parsed", () => {
@@ -40,18 +63,34 @@ describe("raidActionSchema (discriminated union)", () => {
         expect(raidActionSchema.safeParse({ type: "LOCKDOWN_SERVER" }).success).toBe(true);
     });
 
+    // Kills BUMP_VERIFICATION literal mutant
+    it("should accept a BUMP_VERIFICATION action", () => {
+        expect(raidActionSchema.safeParse({ type: "BUMP_VERIFICATION" }).success).toBe(true);
+    });
+
     it("should accept an ALERT action with a channel", () => {
         const result = raidActionSchema.safeParse({ type: "ALERT", channelId: "chan_1" });
         expect(result.success).toBe(true);
     });
 
-    it("should REJECT an ALERT action without a channel", () => {
-        const result = raidActionSchema.safeParse({ type: "ALERT" });
+    // Kills ALERT error message mutant ("Alert channel is required")
+    it("should REJECT an ALERT action with an empty channel and set correct error message", () => {
+        const result = raidActionSchema.safeParse({ type: "ALERT", channelId: "" });
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("Alert channel is required");
+        }
     });
 
     it("should REJECT a PAUSE_INVITES action with a zero hour", () => {
         expect(raidActionSchema.safeParse({ type: "PAUSE_INVITES", hour: 0 }).success).toBe(false);
+    });
+
+    // Kills TIMEOUT_NEW_JOINS literal mutant
+    it("should accept a TIMEOUT_NEW_JOINS action with valid mins", () => {
+        expect(raidActionSchema.safeParse({ type: "TIMEOUT_NEW_JOINS", mins: 10 }).success).toBe(
+            true
+        );
     });
 
     it("should REJECT a TIMEOUT_NEW_JOINS action with a zero mins", () => {
@@ -60,13 +99,27 @@ describe("raidActionSchema (discriminated union)", () => {
         );
     });
 
+    // Kills AUTO_BAN_NEW_ACCOUNTS literal mutant and .min(1) vs .max(1) mutant
+    it("should accept an AUTO_BAN_NEW_ACCOUNTS action with valid maxAgeHours (> 1)", () => {
+        expect(
+            raidActionSchema.safeParse({ type: "AUTO_BAN_NEW_ACCOUNTS", maxAgeHours: 24 }).success
+        ).toBe(true);
+    });
+
+    it("should REJECT an AUTO_BAN_NEW_ACCOUNTS action with zero maxAgeHours", () => {
+        expect(
+            raidActionSchema.safeParse({ type: "AUTO_BAN_NEW_ACCOUNTS", maxAgeHours: 0 }).success
+        ).toBe(false);
+    });
+
     it("should REJECT an unknown action type", () => {
         expect(raidActionSchema.safeParse({ type: "BAN_EVERYONE" }).success).toBe(false);
     });
 });
 
 describe("saveRaidDetectionConfigSchema", () => {
-    it("should REJECT when enabled with no raid actions", () => {
+    // Kills path: ["raidActions"] -> path: [] / [""] mutants
+    it("should REJECT when enabled with no raid actions and set path to raidActions", () => {
         const result = saveRaidDetectionConfigSchema.safeParse({
             enabled: true,
             raidActions: [],
@@ -77,6 +130,7 @@ describe("saveRaidDetectionConfigSchema", () => {
             expect(result.error.issues[0].message).toBe(
                 "At least one raid mitigation action must be selected when raid protection is enabled!"
             );
+            expect(result.error.issues[0].path).toEqual(["raidActions"]);
         }
     });
 

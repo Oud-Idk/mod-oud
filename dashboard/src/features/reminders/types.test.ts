@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import {
     reminderFormatSchema,
     reminderTypeSchema,
@@ -10,6 +11,11 @@ import {
 describe("reminderFormatSchema", () => {
     it("should default to TEXT", () => {
         expect(reminderFormatSchema.parse(undefined)).toBe("TEXT");
+    });
+
+    // Kills reminderFormatSchema "TEXT" enum mutant
+    it("should accept TEXT explicitly", () => {
+        expect(reminderFormatSchema.safeParse("TEXT").success).toBe(true);
     });
 
     it("should accept EMBED", () => {
@@ -66,11 +72,11 @@ describe("reminderBaseSchema", () => {
 });
 
 describe("saveableReminderSchema", () => {
-    function validBase(): { channelId: string; rType: "SINGLE"; message: { format: "TEXT"; content: string; embed: object } } {
+    function validBase() {
         return {
             channelId: "chan_1",
-            rType: "SINGLE",
-            message: { format: "TEXT", content: "Reminder text", embed: {} },
+            rType: "SINGLE" as const,
+            message: { format: "TEXT" as const, content: "Reminder text", embed: {} },
         };
     }
 
@@ -78,28 +84,60 @@ describe("saveableReminderSchema", () => {
         expect(saveableReminderSchema.safeParse(validBase()).success).toBe(true);
     });
 
-    it("should REJECT a missing channel", () => {
-        const result = saveableReminderSchema.safeParse({
+    // Kills channelId .trim() whitespace & exact issue mutants
+    it("should REJECT a missing or whitespace channel with exact issue", () => {
+        const resultMissing = saveableReminderSchema.safeParse({
             ...validBase(),
             channelId: undefined,
         });
 
-        expect(result.success).toBe(false);
-        if (!result.success) {
-            expect(result.error.issues.some((i) => i.path[0] === "channelId")).toBe(true);
+        expect(resultMissing.success).toBe(false);
+        if (!resultMissing.success) {
+            expect(resultMissing.error.issues).toContainEqual({
+                code: z.ZodIssueCode.custom,
+                message: "Please select a target channel.",
+                path: ["channelId"],
+            });
         }
+
+        const resultSpace = saveableReminderSchema.safeParse({
+            ...validBase(),
+            channelId: "   ",
+        });
+        expect(resultSpace.success).toBe(false);
     });
 
-    it("should REJECT an empty TEXT message", () => {
-        const result = saveableReminderSchema.safeParse({
+    // Kills TEXT format message content, .trim(), path ["message", "content"], and message mutants
+    it("should REJECT an empty or whitespace TEXT message with exact issue", () => {
+        const resultEmpty = saveableReminderSchema.safeParse({
             ...validBase(),
             message: { format: "TEXT", content: "", embed: {} },
         });
 
-        expect(result.success).toBe(false);
-        if (!result.success) {
-            expect(result.error.issues.some((i) => i.path[0] === "message")).toBe(true);
+        expect(resultEmpty.success).toBe(false);
+        if (!resultEmpty.success) {
+            expect(resultEmpty.error.issues).toContainEqual({
+                code: z.ZodIssueCode.custom,
+                message: "Message content cannot be empty for plain text format.",
+                path: ["message", "content"],
+            });
         }
+
+        const resultSpace = saveableReminderSchema.safeParse({
+            ...validBase(),
+            message: { format: "TEXT", content: "   ", embed: {} },
+        });
+        expect(resultSpace.success).toBe(false);
+    });
+
+    // Kills format === "TEXT" condition mutants (e.g. format === "EMBED" shouldn't trigger text content check)
+    it("should PASS an EMBED message format even if text content is empty", () => {
+        const result = saveableReminderSchema.safeParse({
+            ...validBase(),
+            message: { format: "EMBED", content: "", embed: { title: "Reminder Title" } },
+        });
+
+        expect(result.success).toBe(true);
     });
 
     it("should accept a RECURRING reminder with a start time", () => {
@@ -132,7 +170,8 @@ describe("saveableReminderSchema", () => {
         expect(result.success).toBe(true);
     });
 
-    it("should REJECT a RECURRING reminder with no schedule", () => {
+    // Kills rType error message mutant
+    it("should REJECT a RECURRING reminder with no schedule and set exact issue", () => {
         const result = saveableReminderSchema.safeParse({
             ...validBase(),
             rType: "RECURRING",
@@ -143,7 +182,11 @@ describe("saveableReminderSchema", () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.issues.some((i) => i.path[0] === "rType")).toBe(true);
+            expect(result.error.issues).toContainEqual({
+                code: z.ZodIssueCode.custom,
+                message: "Recurring reminders require a start time, interval, or active days.",
+                path: ["rType"],
+            });
         }
     });
 });
@@ -162,7 +205,16 @@ describe("reminderRowSchema", () => {
         }
     });
 
-    it("should REJECT a row without an id", () => {
-        expect(reminderRowSchema.safeParse(reminderBaseSchema.parse({})).success).toBe(false);
+    // Kills reminderRowSchema extend mutant
+    it("should REJECT a row missing an id and target path ['id']", () => {
+        const result = reminderRowSchema.safeParse({
+            channelId: "chan_1",
+            message: { format: "TEXT", content: "Reminder text", embed: {} },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].path).toEqual(["id"]);
+        }
     });
 });

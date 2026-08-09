@@ -136,7 +136,7 @@ export async function saveReactionMessage(
         await client.query("DELETE FROM button_roles WHERE reaction_message_id = $1;", [internalId]);
 
         // 🟢 Guaranteed safely defined array!
-        if (data.mode === "REACTION" && data.reactions.length > 0) {
+        if (data.mode === "REACTION") {
             const query = `
                 INSERT INTO reaction_roles (reaction_message_id, emoji, role_id)
                 SELECT $1, u.emoji, u.role_id::bigint
@@ -148,7 +148,7 @@ export async function saveReactionMessage(
                 data.reactions.map((r) => r.emoji),
                 data.reactions.map((r) => r.role_id ?? null),
             ]);
-        } else if (data.mode === "BUTTON" && data.buttons.length > 0) {
+        } else if (data.mode === "BUTTON") {
             const query = `
                 INSERT INTO button_roles (reaction_message_id, role_id, custom_id, label, style, emoji)
                 SELECT $1, u.role_id::bigint, u.custom_id, u.label, u.style::button_style, u.emoji
