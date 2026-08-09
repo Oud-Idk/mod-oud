@@ -128,6 +128,14 @@ describe("sendEmbedAction", () => {
                 sendEmbedAction(validGuildId, validPayload)
             ).rejects.toThrow("Failed to communicate with the backend server.");
         });
+
+        it("should propagate an Error thrown by verifyGuildAccess", async () => {
+            vi.spyOn(global, "fetch");
+            vi.mocked(verifyGuildAccess).mockRejectedValueOnce(new Error("Access denied"));
+
+            await expect(sendEmbedAction(validGuildId, validPayload)).rejects.toThrow("Access denied");
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
     });
 
     describe("Validation Handling (Zod Integration)", () => {

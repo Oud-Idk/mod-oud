@@ -85,6 +85,12 @@ describe("Custom Commands Query Module", () => {
             expect(result).toEqual([]);
         });
 
+        it("should propagate a database error", async () => {
+            mockQuery.mockRejectedValue(new Error("connection lost"));
+
+            await expect(getCustomCommands("guild_123")).rejects.toThrow("connection lost");
+        });
+
         it("should map and coerce multiple rows correctly", async () => {
             const rows = [
                 { id: 1, guild_id: "g1", name: "a", description: "", enabled: true, delete_trigger: false, cooldown_type: "NONE", cooldown_seconds: 0, allowed_roles: [], ignored_roles: [], allowed_channels: [], ignored_channels: [], actions: [] },

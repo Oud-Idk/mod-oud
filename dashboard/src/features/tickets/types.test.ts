@@ -3,6 +3,9 @@ import {
     TicketConfigSchema,
     SaveTicketConfigSchema,
     TicketHistorySchema,
+    TicketSchema,
+    TicketMessageSchema,
+    ViewTicketStatusSchema,
 } from "./types";
 
 describe("Ticket Schemas Unit Tests", () => {
@@ -147,6 +150,99 @@ describe("Ticket Schemas Unit Tests", () => {
             const result = TicketHistorySchema.safeParse(validHistory);
 
             expect(result.success).toBe(true);
+        });
+    });
+
+    describe("TicketSchema (DB rows)", () => {
+        const baseRow = {
+            id: 1,
+            channel_id: "chan_123",
+            opener_id: "user_789",
+            status: "OPEN",
+            created_at: "2026-01-01T00:00:00.000Z",
+            closed_at: null,
+        };
+
+        it("should coerce a string id to a number and Date created_at to ISO", () => {
+            const result = TicketSchema.safeParse({
+                ...baseRow,
+                id: "42",
+                created_at: new Date("2026-01-01T00:00:00.000Z"),
+            });
+
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.id).toBe(42);
+                expect(result.data.created_at).toBe("2026-01-01T00:00:00.000Z");
+            }
+        });
+
+        it("should default message_count to 0 when omitted", () => {
+            const result = TicketSchema.safeParse(baseRow);
+
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.message_count).toBe(0);
+            }
+        });
+
+        it("should reject a non-positive id", () => {
+            const result = TicketSchema.safeParse({ ...baseRow, id: 0 });
+
+            expect(result.success).toBe(false);
+        });
+
+        it("should reject an invalid status", () => {
+            const result = TicketSchema.safeParse({ ...baseRow, status: "PENDING" });
+
+            expect(result.success).toBe(false);
+        });
+
+        it("should reject a negative message_count", () => {
+            const result = TicketSchema.safeParse({ ...baseRow, message_count: -1 });
+
+            expect(result.success).toBe(false);
+        });
+    });
+
+    describe("TicketMessageSchema", () => {
+        it("should default content and is_ticket_manager when omitted", () => {
+            const result = TicketMessageSchema.safeParse({
+                message_id: "msg_1",
+                author_id: "user_1",
+                created_at: "2026-01-01T00:00:00.000Z",
+            });
+
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.content).toBe("");
+                expect(result.data.is_ticket_manager).toBe(false);
+            }
+        });
+
+        it("should convert a Date created_at to an ISO string", () => {
+            const result = TicketMessageSchema.safeParse({
+                message_id: "msg_1",
+                author_id: "user_1",
+                created_at: new Date("2026-01-02T00:00:00.000Z"),
+            });
+
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.created_at).toBe("2026-01-02T00:00:00.000Z");
+            }
+        });
+    });
+
+    describe("ViewTicketStatusSchema", () => {
+        it("should accept ALL, OPEN, and CLOSED", () => {
+            expect(ViewTicketStatusSchema.safeParse("ALL").success).toBe(true);
+            expect(ViewTicketStatusSchema.safeParse("OPEN").success).toBe(true);
+            expect(ViewTicketStatusSchema.safeParse("CLOSED").success).toBe(true);
+        });
+
+        it("should reject an unknown status", () => {
+            expect(ViewTicketStatusSchema.safeParse("PENDING").success).toBe(false);
         });
     });
 });

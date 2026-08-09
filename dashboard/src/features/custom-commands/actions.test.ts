@@ -143,6 +143,22 @@ describe("Custom Commands Server Actions", (): void => {
 
             expect(saveCustomCommand).not.toHaveBeenCalled();
         });
+
+        it("should REJECT save when enabled = true but actions is empty", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+
+            const invalidCommand = {
+                ...validCommand,
+                enabled: true,
+                actions: [],
+            };
+
+            await expect(
+                saveCustomCommandAction("guild_123", invalidCommand)
+            ).rejects.toThrow("At least one action is required for a custom command!");
+
+            expect(saveCustomCommand).not.toHaveBeenCalled();
+        });
     });
 
     describe("deleteCustomCommandAction", (): void => {

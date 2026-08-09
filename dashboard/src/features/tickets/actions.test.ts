@@ -36,13 +36,17 @@ const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
 describe("Ticket Server Actions", () => {
+    const originalEnv = process.env;
+
     beforeEach(() => {
         vi.resetAllMocks();
+        process.env = { ...originalEnv };
         vi.spyOn(console, "error").mockImplementation(() => {return});
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
+        process.env = originalEnv;
     });
 
     describe("saveTicketsConfigAction", () => {
@@ -177,6 +181,60 @@ describe("Ticket Server Actions", () => {
                 sendTicketMessageAction("guild_123", "chan_1")
             ).rejects.toThrow("Network connection reset");
         });
+
+        it("should respect BACKEND_INTERNAL_URL if configured", async () => {
+            process.env.BACKEND_INTERNAL_URL = "http://backend-service:5000";
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            vi.mocked(getTicketConfig).mockResolvedValue(TicketConfigSchema.parse({
+                enabled: true,
+                categoryId: "cat_1",
+                channelId: "chan_1",
+                ticketRoleId: "role_1",
+                postedMessageId: null,
+            }));
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: () => ({ message_id: "discord_msg_env" }),
+            });
+            vi.mocked(saveTicketConfig).mockResolvedValue(undefined);
+
+            await sendTicketMessageAction("guild_123", "chan_1");
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                "http://backend-service:5000/api/guilds/guild_123/tickets/send-message",
+                expect.anything()
+            );
+        });
+
+        it("should throw fallback message when a non-Error exception occurs", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            mockFetch.mockRejectedValueOnce("string failure");
+
+            await expect(
+                sendTicketMessageAction("guild_123", "chan_1")
+            ).rejects.toThrow("Could not post ticket panel.");
+        });
+
+        it("should propagate a DB error while persisting the posted message", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            vi.mocked(getTicketConfig).mockResolvedValue(TicketConfigSchema.parse({
+                enabled: true,
+                categoryId: "cat_1",
+                channelId: "chan_1",
+                ticketRoleId: "role_1",
+                postedMessageId: null,
+            }));
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: () => ({ message_id: "discord_msg_999" }),
+            });
+            vi.mocked(saveTicketConfig).mockRejectedValue(new Error("db write failed"));
+
+            await expect(
+                sendTicketMessageAction("guild_123", "chan_1")
+            ).rejects.toThrow("db write failed");
+            expect(revalidatePath).not.toHaveBeenCalled();
+        });
     });
 
     describe("deleteTicketMessageAction", () => {
@@ -227,12 +285,39 @@ describe("Ticket Server Actions", () => {
 
             mockFetch.mockResolvedValueOnce({
                 ok: false,
-                text: async () => "",
+                text: () => "",
             });
 
             await expect(
                 deleteTicketMessageAction("guild_123", "chan_1", "msg_999")
             ).rejects.toThrow("Could not instruct the bot to delete the message.");
+        });
+
+        it("should throw fallback message when a non-Error exception occurs", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            mockFetch.mockRejectedValueOnce("string failure");
+
+            await expect(
+                deleteTicketMessageAction("guild_123", "chan_1", "msg_999")
+            ).rejects.toThrow("Could not delete ticket panel.");
+        });
+
+        it("should propagate a DB error while clearing postedMessageId", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            vi.mocked(getTicketConfig).mockResolvedValue(TicketConfigSchema.parse({
+                enabled: true,
+                categoryId: "cat_1",
+                channelId: "chan_1",
+                ticketRoleId: "role_1",
+                postedMessageId: "discord_msg_999",
+            }));
+            mockFetch.mockResolvedValueOnce({ ok: true });
+            vi.mocked(saveTicketConfig).mockRejectedValue(new Error("db write failed"));
+
+            await expect(
+                deleteTicketMessageAction("guild_123", "chan_1", "msg_999")
+            ).rejects.toThrow("db write failed");
+            expect(revalidatePath).not.toHaveBeenCalled();
         });
     });
 

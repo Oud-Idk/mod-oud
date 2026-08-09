@@ -41,6 +41,12 @@ describe("Birthdays Query Module", () => {
             expect(result.timezone).toBe("America/New_York");
             expect(result.announcementHour).toBe(9); // Injected by Zod default!
         });
+
+        it("should propagate a database error from getGuildConfigField", async () => {
+            vi.mocked(getGuildConfigField).mockRejectedValue(new Error("connection lost"));
+
+            await expect(getBirthdayConfig("guild_123")).rejects.toThrow("connection lost");
+        });
     });
 
     describe("saveBirthdayConfig", () => {
@@ -64,6 +70,22 @@ describe("Birthdays Query Module", () => {
                 validConfig
             );
             expect(result).toEqual(validConfig);
+        });
+
+        it("should propagate a database error from saveGuildConfigField", async () => {
+            const validConfig: BirthdayConfig = {
+                enabled: true,
+                channelId: "channel_999",
+                announcementHour: 10,
+                timezone: "UTC",
+                birthdayRoleId: null,
+                requireYear: false,
+                messageWithYear: DEFAULT_BIRTHDAY_MESSAGE,
+                messageWithoutYear: DEFAULT_BIRTHDAY_MESSAGE,
+            };
+            vi.mocked(saveGuildConfigField).mockRejectedValue(new Error("connection lost"));
+
+            await expect(saveBirthdayConfig("guild_123", validConfig)).rejects.toThrow("connection lost");
         });
     });
 });

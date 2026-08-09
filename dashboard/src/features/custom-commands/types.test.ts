@@ -286,6 +286,40 @@ describe("Custom Commands Schemas", () => {
             expect(result.success).toBe(false);
         });
 
+        it("should REJECT send_channel_message with empty channel_id", () => {
+            const invalid = {
+                guild_id: "guild_123",
+                name: "send-msg-cmd",
+                enabled: true,
+                actions: [
+                    {
+                        type: "send_channel_message",
+                        data: {
+                            channel_id: "",
+                            message_layout: { messages: [{ format: "TEXT", content: "hello" }] },
+                        },
+                    },
+                ],
+            };
+
+            const result = SaveCustomCommandSchema.safeParse(invalid);
+
+            expect(result.success).toBe(false);
+        });
+
+        it("should REJECT add_role with empty role_id", () => {
+            const invalid = {
+                guild_id: "guild_123",
+                name: "add-role-cmd",
+                enabled: true,
+                actions: [{ type: "add_role", data: { role_id: "" } }],
+            };
+
+            const result = SaveCustomCommandSchema.safeParse(invalid);
+
+            expect(result.success).toBe(false);
+        });
+
         it("should REJECT an unknown action type", () => {
             const invalid = {
                 guild_id: "guild_123",

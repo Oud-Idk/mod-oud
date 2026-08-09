@@ -5,13 +5,19 @@ import {
     getTicketList,
     getTicketHistory
 } from "./queries";
-import { db } from "@/lib/db";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { TicketConfig } from "@/features/tickets/types";
 
+const mockQuery = vi.hoisted(() =>
+    vi.fn<(sql: string, params?: unknown[]) => Promise<{
+        rows?: unknown[];
+        rowCount?: number | null;
+    }>>()
+);
+
 vi.mock("@/lib/db", () => ({
     db: {
-        query: vi.fn(),
+        query: mockQuery,
     },
 }));
 
@@ -50,6 +56,12 @@ describe("Tickets Query Module", () => {
             expect(result.categoryId).toBe("cat_999");
             expect(result.warnThreshold).toBe(30);
             expect(result.deleteThreshold).toBe(45);
+        });
+
+        it("should propagate a database error from getGuildConfigField", async () => {
+            vi.mocked(getGuildConfigField).mockRejectedValue(new Error("connection lost"));
+
+            await expect(getTicketConfig("guild_123")).rejects.toThrow("connection lost");
         });
     });
 
@@ -95,15 +107,10 @@ describe("Tickets Query Module", () => {
                 messages: [],
             };
 
-            vi.mocked(db.query).mockResolvedValue({
+            mockQuery.mockResolvedValue({
                 rows: [mockHistory],
                 rowCount: 1,
-                command: "",
-                oid: 0,
-                fields: [],
-                _parsers: [],
-                _types: { builtins: {} },
-            } as never);
+            });
 
             const result = await getTicketHistory("chan_456");
 
@@ -113,23 +120,24 @@ describe("Tickets Query Module", () => {
                 created_at: now.toISOString(),
                 last_activity: now.toISOString(),
             });
-            expect(db.query).toHaveBeenCalledWith(expect.any(String), ["chan_456"]);
+            expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["chan_456"]);
         });
 
         it("should return null when no ticket history is found", async () => {
-            vi.mocked(db.query).mockResolvedValue({
+            mockQuery.mockResolvedValue({
                 rows: [],
                 rowCount: 0,
-                command: "",
-                oid: 0,
-                fields: [],
-                _parsers: [],
-                _types: { builtins: {} },
-            } as never);
+            });
 
             const result = await getTicketHistory("non_existent_channel");
 
             expect(result).toBeNull();
+        });
+
+        it("should propagate a database error", async () => {
+            mockQuery.mockRejectedValue(new Error("connection lost"));
+
+            await expect(getTicketHistory("chan_456")).rejects.toThrow("connection lost");
         });
     });
 
@@ -148,14 +156,10 @@ describe("Tickets Query Module", () => {
                 },
             ];
 
-            vi.mocked(db.query).mockResolvedValue({
+            mockQuery.mockResolvedValue({
                 rows: mockRows,
-                command: "",
-                oid: 0,
-                fields: [],
-                _parsers: [],
-                _types: { builtins: {} },
-            } as never);
+                rowCount: 1,
+            });
 
             const res = await getTicketList("guild_123");
 
@@ -166,7 +170,24 @@ describe("Tickets Query Module", () => {
                     created_at: now.toISOString(),
                 },
             ]);
-            expect(db.query).toHaveBeenCalledWith(expect.any(String), ["guild_123"]);
+            expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["guild_123"]);
+        });
+
+        it("should return an empty array when no tickets exist", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [],
+                rowCount: 0,
+            });
+
+            const res = await getTicketList("guild_empty");
+
+            expect(res).toEqual([]);
+        });
+
+        it("should propagate a database error", async () => {
+            mockQuery.mockRejectedValue(new Error("connection lost"));
+
+            await expect(getTicketList("guild_123")).rejects.toThrow("connection lost");
         });
     });
 });
