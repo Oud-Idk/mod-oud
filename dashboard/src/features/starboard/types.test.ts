@@ -44,6 +44,7 @@ describe("starboardConfigInputSchema", () => {
             expect(result.error.issues[0].message).toBe(
                 "Please select a destination channel for the starboard."
             );
+            expect(result.error.issues[0].path).toEqual(["starboard_channel_id"]);
         }
     });
 
@@ -55,6 +56,7 @@ describe("starboardConfigInputSchema", () => {
             expect(result.error.issues[0].message).toBe(
                 "Please select a destination channel for the starboard."
             );
+            expect(result.error.issues[0].path).toEqual(["starboard_channel_id"]);
         }
     });
 
@@ -67,6 +69,7 @@ describe("starboardConfigInputSchema", () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues[0].message).toBe("At least one reaction emoji is required.");
+            expect(result.error.issues[0].path).toEqual(["emojis"]);
         }
     });
 
@@ -112,6 +115,51 @@ describe("starboardConfigInputSchema", () => {
             ).toBe(true);
         });
 
+        it("should accept singular, zero, and mixed-unit intervals", () => {
+            const valid = ["1 hour", "0 days", "1 hour 30 minutes", "2 days 3 hours"];
+            for (const value of valid) {
+                expect(
+                    starboardConfigInputSchema.safeParse({
+                        starboard_channel_id: "chan_1",
+                        min_message_age: value,
+                    }).success
+                ).toBe(true);
+            }
+        });
+
+        it("should accept intervals case-insensitively", () => {
+            expect(
+                starboardConfigInputSchema.safeParse({
+                    starboard_channel_id: "chan_1",
+                    min_message_age: "1 HOUR",
+                }).success
+            ).toBe(true);
+        });
+
+        it("should accept intervals with extra or trailing whitespace", () => {
+            const valid = [" 1 hour ", "1  hour  30  minutes ", "30 minutes  "];
+            for (const value of valid) {
+                expect(
+                    starboardConfigInputSchema.safeParse({
+                        starboard_channel_id: "chan_1",
+                        min_message_age: value,
+                    }).success
+                ).toBe(true);
+            }
+        });
+
+        it("should accept empty and whitespace-only message ages", () => {
+            const valid = ["", "   "];
+            for (const value of valid) {
+                expect(
+                    starboardConfigInputSchema.safeParse({
+                        starboard_channel_id: "chan_1",
+                        min_message_age: value,
+                    }).success
+                ).toBe(true);
+            }
+        });
+
         it("should reject an invalid min_message_age format", () => {
             const result = starboardConfigInputSchema.safeParse({
                 starboard_channel_id: "chan_1",
@@ -121,6 +169,7 @@ describe("starboardConfigInputSchema", () => {
             expect(result.success).toBe(false);
             if (!result.success) {
                 expect(result.error.issues[0].message).toContain("Invalid min message age format");
+                expect(result.error.issues[0].path).toEqual(["min_message_age"]);
             }
         });
 
@@ -133,6 +182,31 @@ describe("starboardConfigInputSchema", () => {
             expect(result.success).toBe(false);
             if (!result.success) {
                 expect(result.error.issues[0].message).toContain("Invalid max message age format");
+                expect(result.error.issues[0].path).toEqual(["max_message_age"]);
+            }
+        });
+
+        it("should reject intervals with leading or trailing garbage", () => {
+            const invalid = ["1 hour extra", "x 1 hour"];
+            for (const value of invalid) {
+                expect(
+                    starboardConfigInputSchema.safeParse({
+                        starboard_channel_id: "chan_1",
+                        min_message_age: value,
+                    }).success
+                ).toBe(false);
+            }
+        });
+
+        it("should reject malformed amounts and units", () => {
+            const invalid = ["1hour", "1.5 hours", "-1 hour"];
+            for (const value of invalid) {
+                expect(
+                    starboardConfigInputSchema.safeParse({
+                        starboard_channel_id: "chan_1",
+                        min_message_age: value,
+                    }).success
+                ).toBe(false);
             }
         });
     });
@@ -153,6 +227,28 @@ describe("starboardConfigInputSchema", () => {
         });
 
         expect(result.success).toBe(false);
+    });
+
+    it("should accept all valid role_restriction_type values", () => {
+        for (const value of ["NONE", "ALL_EXCEPT", "ONLY_THESE"]) {
+            expect(
+                starboardConfigInputSchema.safeParse({
+                    starboard_channel_id: "chan_1",
+                    role_restriction_type: value,
+                }).success
+            ).toBe(true);
+        }
+    });
+
+    it("should accept all valid channel_restriction_type values", () => {
+        for (const value of ["NONE", "ALL_EXCEPT", "ONLY_THESE"]) {
+            expect(
+                starboardConfigInputSchema.safeParse({
+                    starboard_channel_id: "chan_1",
+                    channel_restriction_type: value,
+                }).success
+            ).toBe(true);
+        }
     });
 
     it("should coerce a string id to a number", () => {
@@ -210,5 +306,44 @@ describe("starboardConfigSchema (DB rows)", () => {
         });
 
         expect(result.success).toBe(false);
+    });
+
+    it("should apply defaults when optional fields are omitted from a DB row", () => {
+        const parsed = starboardConfigSchema.parse({
+            id: "1",
+            guild_id: "guild_123",
+            created_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-02T00:00:00.000Z",
+        });
+
+        expect(parsed.starboard_channel_id).toBeNull();
+        expect(parsed.emojis).toEqual(["⭐"]);
+        expect(parsed.reaction_threshold).toBe(3);
+        expect(parsed.min_message_age).toBeNull();
+        expect(parsed.max_message_age).toBeNull();
+        expect(parsed.prevent_self_star).toBe(true);
+        expect(parsed.allow_bot_messages).toBe(false);
+        expect(parsed.role_restriction_type).toBe("NONE");
+        expect(parsed.restricted_roles).toEqual([]);
+        expect(parsed.channel_restriction_type).toBe("NONE");
+        expect(parsed.restricted_channels).toEqual([]);
+        expect(parsed.embed_template).toEqual({});
+        expect(parsed.plaintext_template).toBe("");
+        expect(parsed.keep_deleted_messages).toBe(true);
+    });
+
+    it("should accept all valid restriction enum values from a DB row", () => {
+        for (const value of ["NONE", "ALL_EXCEPT", "ONLY_THESE"]) {
+            expect(
+                starboardConfigSchema.safeParse({
+                    id: "1",
+                    guild_id: "guild_123",
+                    role_restriction_type: value,
+                    channel_restriction_type: value,
+                    created_at: "2026-01-01T00:00:00.000Z",
+                    updated_at: "2026-01-02T00:00:00.000Z",
+                }).success
+            ).toBe(true);
+        }
     });
 });
