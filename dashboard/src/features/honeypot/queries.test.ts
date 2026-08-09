@@ -117,7 +117,7 @@ describe("Honeypot Query Module", () => {
                 expect.objectContaining({ method: "POST" })
             );
             const [, init] = mockFetch.mock.calls[0];
-            const bodyText = typeof init?.body === "string" ? init.body : "";
+            const bodyText = typeof init?.body === "string" ? init.body : "{}";
             expect(JSON.parse(bodyText)).toEqual({ channel_name: "dont-talk" });
 
             expect(invalidateGuildChannelCache).toHaveBeenCalledWith("guild_123");
