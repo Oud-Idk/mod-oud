@@ -1,3 +1,4 @@
+import { config } from "@/config"
 import { db } from "@/lib/db";
 import {
     tempVoiceHubSchema,
@@ -66,7 +67,7 @@ export async function deleteTempVoiceHub(guildId: string, hubId: string): Promis
         const row: Record<string, unknown> = dbRes.rows[0];
         const categoryId = row.category_id;
 
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = config.backendInternalUrl;
         const res = await fetch(`${backendUrl}/api/guilds/${guildId}/category/delete-entire`, {
             method: "DELETE",
             headers: {

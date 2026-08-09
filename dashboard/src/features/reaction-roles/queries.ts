@@ -1,3 +1,4 @@
+import { config } from "@/config";
 import { db } from "@/lib/db";
 import {
     reactionMessageSchema,
@@ -186,7 +187,7 @@ export async function sendReactionMessageToBackend(
     guildId: string,
     id: number
 ): Promise<{ message_id: string }> {
-    const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+    const backendUrl = config.backendInternalUrl;
     const response = await fetch(
         `${backendUrl}/api/guilds/${guildId}/reaction-roles/${id}/send`,
         {
@@ -208,7 +209,7 @@ export async function deleteDiscordMessageFromBackend(
     guildId: string,
     id: number
 ): Promise<void> {
-    const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+    const backendUrl = config.backendInternalUrl;
     const response = await fetch(
         `${backendUrl}/api/guilds/${guildId}/reaction-roles/${id}/message`,
         { method: "DELETE" }
@@ -225,7 +226,7 @@ export async function notifyBackendReactionMessageEdit(
     id: number
 ): Promise<void> {
     try {
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = config.backendInternalUrl;
         await fetch(
             `${backendUrl}/api/guilds/${guildId}/reaction-roles/${id}/edit`,
             { method: "POST" }

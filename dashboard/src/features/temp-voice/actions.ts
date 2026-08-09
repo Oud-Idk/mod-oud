@@ -1,5 +1,6 @@
 "use server";
 
+import { config } from "@/config"
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
@@ -67,7 +68,7 @@ export async function setupTempVoiceAction(
         await verifyGuildAccess(guildId);
         const validPayload = setupTempVoicePayloadSchema.parse(payload);
 
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = config.backendInternalUrl;
         const response = await fetch(`${backendUrl}/api/guilds/${guildId}/temp-voice/setup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -113,7 +114,7 @@ export async function sendInterfaceMessageAction(
 
         await verifyGuildAccess(validGuildId);
 
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = config.backendInternalUrl;
         const endpoint = `${backendUrl}/api/guilds/${validGuildId}/temp-voice/interface/setup`;
 
         return await sendEmbedAction(endpoint, validPayload);

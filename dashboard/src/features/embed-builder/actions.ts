@@ -1,5 +1,6 @@
 "use server";
 
+import { config } from "@/config"
 import { z } from "zod";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import {
@@ -19,7 +20,7 @@ export async function sendEmbedAction(
 
         await verifyGuildAccess(validGuildId);
 
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = config.backendInternalUrl;
         const endpoint = `${backendUrl}/api/guilds/${validGuildId}/embeds/send`;
 
         const response = await fetch(endpoint, {

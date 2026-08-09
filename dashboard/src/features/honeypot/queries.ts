@@ -2,6 +2,7 @@ import { type HoneypotConfig, honeypotConfigSchema } from "./types";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
 import { z } from "zod";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
+import { config } from "@/config";
 
 export async function saveHoneypotConfig(guildId: string, config: HoneypotConfig): Promise<void> {
     await saveGuildConfigField(guildId, "honeypot", config);
@@ -17,7 +18,7 @@ const backendHoneypotResponseSchema = z.object({
 });
 
 export async function setupHoneypot(guildId: string, channelName: string): Promise<{ channelId: string }> {
-    const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+    const backendUrl = config.backendInternalUrl;
 
     const res = await fetch(`${backendUrl}/api/guilds/${guildId}/honeypot`, {
         method: "POST",

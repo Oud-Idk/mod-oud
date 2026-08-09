@@ -12,6 +12,7 @@ import {
 } from "@/features/giveaways/types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { z } from "zod";
+import { config as globalConfig } from "@/config"
 
 export async function saveGiveawayAction(guildId: string, config: SaveGiveawayData): Promise<Giveaway> {
     try {
@@ -21,7 +22,7 @@ export async function saveGiveawayAction(guildId: string, config: SaveGiveawayDa
 
         if (ret?.message_id) {
             try {
-                const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+                const backendUrl = globalConfig.backendInternalUrl;
                 await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${ret.id}/edit`, { method: "POST" });
             } catch (err) {
                 console.error("Failed to auto-update Discord message on save:", err);
@@ -54,7 +55,7 @@ export async function sendGiveawayAction(guildId: string, id: number): Promise<S
         const validatedInput = sendGiveawayInputSchema.parse({ guildId, id });
         await verifyGuildAccess(validatedInput.guildId);
 
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = globalConfig.backendInternalUrl;
         const response = await fetch(
             `${backendUrl}/api/guilds/${validatedInput.guildId}/giveaways/${validatedInput.id}/send`,
             { method: "POST" }
@@ -76,7 +77,7 @@ export async function sendGiveawayAction(guildId: string, id: number): Promise<S
 export async function deleteGiveawayDiscordMessageAction(guildId: string, id: number): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = globalConfig.backendInternalUrl;
         const response = await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${id}/message`, { method: "DELETE" });
 
         if (!response.ok) {

@@ -1,3 +1,4 @@
+import { config } from "@/config";
 import { z } from "zod";
 import {
     CounterChannel,
@@ -24,7 +25,7 @@ export async function setupMemberCounterChannels(
     guildId: string,
     counters: CounterChannel[]
 ) {
-    const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+    const backendUrl = config.backendInternalUrl;
 
     const response = await fetch(`${backendUrl}/api/guilds/${guildId}/member-counter/setup`, {
         method: "POST",

@@ -1,5 +1,6 @@
 "use server";
 
+import { config } from "@/config"
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { verifyGuildAccess } from "@/features/_shared/guild";
@@ -39,7 +40,7 @@ export async function getTicketHistoryAction(guildId: string, channelId: string)
 export async function sendTicketMessageAction(guildId: string, channelId: string): Promise<string> {
     try {
         await verifyGuildAccess(guildId);
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = config.backendInternalUrl;
 
         const response = await fetch(`${backendUrl}/api/guilds/${guildId}/tickets/send-message`, {
             method: "POST",
@@ -73,7 +74,7 @@ export async function sendTicketMessageAction(guildId: string, channelId: string
 export async function deleteTicketMessageAction(guildId: string, channelId: string, messageId: string): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
-        const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
+        const backendUrl = config.backendInternalUrl;
 
         const response = await fetch(`${backendUrl}/api/guilds/${guildId}/tickets/delete-message`, {
             method: "POST",
