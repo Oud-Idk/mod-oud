@@ -81,11 +81,11 @@ pub async fn handle_verification_setup(
     let roles = guild_id.roles(http)
         .await
         .inspect_err(|e| warn!(error = ?e, guild_id = guild_id.get(), "Failed to get roles for guild"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Cannot get roles".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     let Some(everyone_role) = roles.get(&everyone_role_id) else {
         warn!("Cannot get @everyone from roles.");
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, "Server error".to_string()));
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()));
     };
 
     match execute_setup(http, guild_id, everyone_role_id, everyone_role, &payload).await {
@@ -109,9 +109,7 @@ async fn execute_setup(
     if let Err(e) = remove_perms_from_everyone(http, guild_id, everyone_role_id, everyone_role).await {
         warn!(error = ?e, guild_id = guild_id.get(), "Failed to remove perms from everyone for guild");
         return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Cannot modify @everyone permissions".to_string(),
-            rollback_state,
+            StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(), rollback_state,
         ));
     }
     rollback_state.original_everyone_permissions = Some(everyone_role.permissions);
@@ -121,9 +119,7 @@ async fn execute_setup(
         Err(e) => {
             warn!(error = ?e, guild_id = guild_id.get(), "Failed to create verify role for guild");
             return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Cannot create verification role".to_string(),
-                rollback_state,
+                StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(), rollback_state,
             ));
         }
     };
@@ -134,8 +130,7 @@ async fn execute_setup(
         Err(e) => {
             warn!(error = ?e, guild_id = guild_id.get(), "Failed to create verification channel for guild");
             return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Cannot create verification channel".to_string(),
+                StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(),
                 rollback_state,
             ));
         }
@@ -183,7 +178,7 @@ async fn send_verification_panel(
         .inspect_err(|e| {
             warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "Failed to build verification panel for guild")
         })
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to build message.".to_string()))?
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
         .ok_or_else(|| {
             warn!(guild_id = verify_channel.guild_id.get(), payload = ?payload.embed, "Failed to build verification panel for guild. Check payload?");
             (StatusCode::BAD_REQUEST, "Invalid embed configuration".to_string())
@@ -196,7 +191,7 @@ async fn send_verification_panel(
         .inspect_err(|e| {
             warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "Failed to send verification panel for guild")
         })
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Error sending panel message".to_string()))
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))
 }
 
 async fn create_verify_channel(

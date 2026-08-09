@@ -34,10 +34,10 @@ pub async fn handle_edit_giveaway_message(
 
     let host_user = UserId::from(record.host_id as u64).to_user(&state.http).await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get user through HTTP"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Couldn't fetch user.".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
     let gctx = get_guild_ctx(GuildId::from(guild_id as u64), &state.http).await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get guild ctx"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Couldn't fetch guild ctx.".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     let custom_msg_opt = build_giveaway_msg(
         record.message.format,

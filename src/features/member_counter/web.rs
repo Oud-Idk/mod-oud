@@ -60,7 +60,7 @@ pub async fn handle_setup_member_counter(
 
     let mut guild_settings = get_settings(&state.db, &state.redis, &state.guild_configs, guild_id.get() as i64).await
         .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to get settings"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to get settings".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
     let mut verified_category_id = None;
 
@@ -92,7 +92,7 @@ pub async fn handle_setup_member_counter(
                 .create_channel(&state.http, category_builder)
                 .await
                 .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create category"))
-                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create category".to_string()))?;
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
             guild_settings.member_counter
                 .get_or_insert_with(Default::default)
@@ -100,7 +100,7 @@ pub async fn handle_setup_member_counter(
 
             save_settings(&state.db, &state.redis, &state.guild_configs, guild_id.get() as i64, &guild_settings).await
                 .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to save settings"))
-                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save settings".to_string()))?;
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
             category.id
         }
@@ -129,7 +129,7 @@ pub async fn handle_setup_member_counter(
                 .create_channel(&state.http, voice_builder)
                 .await
                 .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create voice channel"))
-                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create counter channel".to_string()))?;
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
             counter.channel_id = Some(voice_channel.id.get());
         }

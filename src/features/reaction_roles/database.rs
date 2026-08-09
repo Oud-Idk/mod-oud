@@ -91,7 +91,7 @@ pub async fn fetch_reaction_message(
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed to load reaction roles database record"))
         .map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Database lookup error".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())
         })?
         .ok_or_else(|| {
             warn!(id = config_id, "Reaction message not found.");
@@ -115,7 +115,7 @@ pub async fn fetch_active_reactions(
     )
         .fetch_all(pool).await
         .inspect_err(|e| warn!(error = ?e, "Failed fetching reaction list"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Database lookup failed".to_string()))
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))
 }
 
 pub async fn fetch_buttons(pool: &PgPool, reaction_message_id: i64) -> Result<Vec<ButtonRole>, (StatusCode, String)> {
@@ -130,7 +130,7 @@ pub async fn fetch_buttons(pool: &PgPool, reaction_message_id: i64) -> Result<Ve
     )
         .fetch_all(pool).await
         .inspect_err(|e| warn!(error = ?e, "Failed to fetch button details"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Database lookup failed".to_string()))
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))
 }
 
 pub async fn delete_message_from_db(state: &Arc<WebState>, config_id: i64) -> Result<(), (StatusCode, String)> {
@@ -140,7 +140,7 @@ pub async fn delete_message_from_db(state: &Arc<WebState>, config_id: i64) -> Re
     )
         .execute(&state.db).await
         .inspect_err(|e| warn!(error = ?e, "Failed to clear message ID in database"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Database cleanup error".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
     Ok(())
 }
 

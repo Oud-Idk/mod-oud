@@ -44,12 +44,12 @@ pub async fn handle_send_giveaway_message(
         .to_user(&state.http)
         .await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get user through HTTP"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Couldn't fetch user.".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     let gctx = get_guild_ctx(GuildId::from(guild_id as u64), &state.http)
         .await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get guild ctx"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Couldn't fetch guild ctx.".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     // Updated: Access format, content, and embed via nested `record.message`
     let custom_msg_opt = build_giveaway_msg(
@@ -68,7 +68,7 @@ pub async fn handle_send_giveaway_message(
         .send_message(&state.http, message_builder)
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed to send giveaway message to Discord"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed sending giveaway message.".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     // Auto-apply the 🎉 entry emoji
     let emoji = ReactionType::Unicode("🎉".to_string());
@@ -80,7 +80,7 @@ pub async fn handle_send_giveaway_message(
     giveaways::database::update_giveaway_message_id(&state.db, config_id, message_id as i64)
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed updating message ID in DB"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed updating message ID in DB.".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     info!(guild_id = guild_id_str, message_id = message_id, "Giveaway dispatched");
 

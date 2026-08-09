@@ -60,7 +60,7 @@ pub async fn handle_verify(
 
     let settings = get_settings(&state.db, &state.redis, &state.guild_configs, guild_id_u64 as i64).await
         .inspect_err(|e| warn!(error = ?e, "Failed to get settings!"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Couldn't get settings.".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     let maybe_verification = settings.welcome
         .as_ref()
@@ -96,7 +96,7 @@ pub async fn handle_verify(
                 let discord_user: DiscordUser = resp.json().await
                     .map_err(|e| {
                         warn!(error = ?e, "Failed to parse Discord user JSON");
-                        (StatusCode::INTERNAL_SERVER_ERROR, "Discord API error".to_string())
+                        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())
                     })?;
                 if discord_user.id != payload.user_id_str {
                     warn!("User ID mismatch! URL ID: {}, Auth ID: {}", payload.user_id_str, discord_user.id);
@@ -116,12 +116,12 @@ pub async fn handle_verify(
         CaptchaType::Turnstile => {
             (verified, reject_reasons) = verify_turnstile(&state.req_client, cf_secret_key, payload.captcha_token.as_str()).await
                 .inspect_err(|e| warn!(error = ?e, "Failed to verify using Turnstile"))
-                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to verify using Turnstile.".to_string()))?;
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
         }
         CaptchaType::HCaptcha => {
             (verified, reject_reasons) = verify_hcaptcha_token(&payload.captcha_token, &client_ip, &state.req_client, hc_secret_key, hc_site_key).await
                 .inspect_err(|e| warn!(error = ?e, "Failed to verify using hCaptcha"))
-                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to verify using hCaptcha.".to_string()))?;
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
         }
     }
 
@@ -142,7 +142,7 @@ pub async fn handle_verify(
         .and_then(|v| v.verification_role_id)
     else {
         warn!("Endpoint is fetched, but verification Role ID is empty");
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, "Verification Role ID is empty".to_string()));
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()));
     };
 
     let role_id = RoleId::from(role_id_u64);
@@ -157,7 +157,7 @@ pub async fn handle_verify(
     )
         .await
         .inspect_err(|e| error!(error = ?e, "Failed to add role to user"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to assign Discord role".to_string()))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
     info!(user_id = payload.user_id_str, role_id = role_id_u64, "Added role to user");
 
@@ -169,8 +169,7 @@ fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (Statu
         error!("VERIFICATION_SECRET environment variable is not set!");
 
         return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Server configuration error. Please contact an administrator.".to_string()
+            StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()
         ));
     };
 
@@ -178,8 +177,7 @@ fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (Statu
         error!("TURNSTILE_SECRET environment variable is not set!");
 
         return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Server configuration error. Please contact an administrator.".to_string()
+            StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()
         ))
     };
 
@@ -187,8 +185,7 @@ fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (Statu
         error!("HCAPTCHA_SECRET environment variable is not set!");
 
         return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Server configuration error. Please contact an administrator.".to_string()
+            StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()
         ))
     };
 
@@ -196,8 +193,7 @@ fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (Statu
         error!("HCAPTCHA_SITE_KEY environment variable is not set!");
 
         return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Server configuration error. Please contact an administrator.".to_string()
+            StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()
         ))
     };
     Ok((shared_secret, cf_secret_key, hc_secret_key, hc_site_key))
