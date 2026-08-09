@@ -45,7 +45,7 @@ export async function sendEmbedAction(
         return {
             messageId: data.message_id,
         };
-    } catch (error: unknown) {
+    } catch (error) {
         if (error instanceof z.ZodError) {
             throw new Error(error.issues[0]?.message || "Validation failed.");
         }

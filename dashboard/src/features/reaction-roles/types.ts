@@ -1,13 +1,8 @@
 import { z } from "zod";
-import { DiscordEmbedSchema, messageLayoutSchema } from "@/features/_shared/embed";
+import { DEFAULT_MESSAGE_LAYOUT, messageLayoutSchema } from "@/features/_shared/embed";
 
-export const formatSchema = z.enum(["EMBED", "TEXT"]);
 export const reactionRoleModeSchema = z.enum(["REACTION", "BUTTON"]);
 export const buttonStyleSchema = z.enum(["PRIMARY", "SECONDARY", "SUCCESS", "DANGER"]);
-
-export type Format = z.infer<typeof formatSchema>;
-export type ReactionRoleMode = z.infer<typeof reactionRoleModeSchema>;
-export type ButtonStyle = z.infer<typeof buttonStyleSchema>;
 
 export const reactionRoleItemSchema = z.object({
     emoji: z.string().default(""),
@@ -29,12 +24,10 @@ export const saveReactionMessageInputSchema = z
         message_id: z.string().nullish(),
         channel_id: z.string().nullish(),
         guild_id: z.string().min(1, "Guild ID is required"),
-        format: formatSchema.default("TEXT"),
         mode: reactionRoleModeSchema.default("REACTION"),
-        embed: DiscordEmbedSchema.optional().default({}),
-        content: z.string().nullish().default(""),
         reactions: z.array(reactionRoleItemSchema).default([]),
         buttons: z.array(buttonRoleItemSchema).default([]),
+        message: messageLayoutSchema.default(DEFAULT_MESSAGE_LAYOUT),
     })
     .superRefine((data, ctx) => {
         if (!data.channel_id || data.channel_id.trim() === "") {

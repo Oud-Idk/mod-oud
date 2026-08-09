@@ -12,6 +12,7 @@ import type { ReactionMessage, SaveReactionMessageInput } from "../types";
 import { saveReactionMessageInputSchema } from "../types";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
+import { DEFAULT_MESSAGE_LAYOUT } from "@/features/_shared/embed";
 
 interface ReactionRolesBodyProps {
     guildId: string;
@@ -150,11 +151,9 @@ export function ReactionRolesBody({
                     return await onSave({
                         channel_id: v.channel_id || null,
                         guild_id: guildId,
-                        format: "TEXT",
                         name: v.name || "",
-                        embed: {},
-                        content: "",
                         mode: v.mode || "REACTION",
+                        message: DEFAULT_MESSAGE_LAYOUT,
                     });
                 }}
             />

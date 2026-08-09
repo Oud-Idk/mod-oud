@@ -12,7 +12,7 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 export async function getInviteTrackerConfig(guildId: string): Promise<InviteTrackerConfig> {
     const validGuildId = z.string().parse(guildId);
 
-    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "invite_tracker");
+    const dbConfig = await getGuildConfigField(validGuildId, "invite_tracker");
     return inviteTrackerConfigSchema.parse(dbConfig ?? {});
 }
 
@@ -40,7 +40,7 @@ export async function getInviteLeaderboard(
             validParams.guildId,
             validParams.limit,
             validParams.offset
-        ] as unknown[]);
+        ]);
 
         return z.array(leaderboardEntrySchema).parse(res.rows);
     } catch (error) {

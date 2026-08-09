@@ -2,7 +2,7 @@ import { BirthdayConfigSchema, BirthdayConfig } from "./types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
 export async function getBirthdayConfig(guildId: string): Promise<BirthdayConfig> {
-    const dbBirthday = await getGuildConfigField<unknown>(guildId, "birthday");
+    const dbBirthday = await getGuildConfigField(guildId, "birthday");
     return BirthdayConfigSchema.parse(dbBirthday ?? {});
 }
 

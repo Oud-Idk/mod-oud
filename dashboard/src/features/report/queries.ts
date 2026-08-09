@@ -5,7 +5,7 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
 
 export async function getReportConfig(guildId: string): Promise<ReportConfig> {
-    const dbReport = await getGuildConfigField<unknown>(guildId, "report");
+    const dbReport = await getGuildConfigField(guildId, "report");
     return reportConfigSchema.parse(dbReport ?? {});
 }
 
@@ -33,7 +33,7 @@ export async function getMoreReportsFromDb(guildId: string, beforeId: number): P
            AND id < $2
          ORDER BY id DESC
          LIMIT 10`,
-        [guildId, beforeId] as unknown[]
+        [guildId, beforeId]
     );
     return result.rows.map((row) => reportedMessageSchema.parse(row));
 }

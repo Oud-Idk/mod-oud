@@ -19,7 +19,7 @@ export async function getTempVoiceHubs(guildId: string): Promise<TempVoiceHub[]>
         WHERE guild_id = $1
         ORDER BY created_at ASC;
     `;
-    const res = await db.query(query, [guildId] as unknown[]);
+    const res = await db.query(query, [guildId]);
     return res.rows.map((row) => tempVoiceHubSchema.parse(row));
 }
 
@@ -27,7 +27,6 @@ export async function saveTempVoiceHub(
     guildId: string,
     hub: SaveTempVoiceHubInput
 ): Promise<TempVoiceHub> {
-
     const query = `
         INSERT INTO temp_voice_hubs (id, guild_id, name, hub_channel_id, category_id, user_limit, interface_channel_id,
                                      default_channel_name)
@@ -50,7 +49,7 @@ export async function saveTempVoiceHub(
         hub.user_limit ?? null,
         hub.interface_channel_id ?? null,
         hub.default_channel_name,
-    ] as unknown[]);
+    ]);
 
     return tempVoiceHubSchema.parse(res.rows[0]);
 }
@@ -61,10 +60,11 @@ export async function deleteTempVoiceHub(guildId: string, hubId: string): Promis
                    WHERE id = $1
                      AND guild_id = $2
                    RETURNING category_id;`;
-    const dbRes = await db.query(query, [hubId, guildId] as unknown[]);
+    const dbRes = await db.query(query, [hubId, guildId]);
 
     if (dbRes.rows.length > 0) {
-        const categoryId = dbRes.rows[0].category_id as string;
+        const row: Record<string, unknown> = dbRes.rows[0];
+        const categoryId = row.category_id;
 
         const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
         const res = await fetch(`${backendUrl}/api/guilds/${guildId}/category/delete-entire`, {

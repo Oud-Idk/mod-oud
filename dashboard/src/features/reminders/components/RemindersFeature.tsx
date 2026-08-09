@@ -25,7 +25,7 @@ export async function RemindersFeature({
 
     return (
         <div>
-            <DashboardHeader>Channel Reminders</DashboardHeader>
+            <DashboardHeader>Reminders</DashboardHeader>
             <RemindersBody
                 reminders={reminders}
                 activeReminder={activeReminder}

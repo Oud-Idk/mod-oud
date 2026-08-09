@@ -6,27 +6,10 @@ import {
     type StarboardConfigInput,
 } from "./types";
 
-function parseRowEmbed(embedRaw: unknown): Record<string, unknown> {
-    if (typeof embedRaw === "string") {
-        try {
-            return JSON.parse(embedRaw || "{}");
-        } catch {
-            return {};
-        }
-    }
-    if (typeof embedRaw === "object" && embedRaw !== null) {
-        return embedRaw as Record<string, unknown>;
-    }
-    return {};
-}
-
 export async function getStarboardConfigs(guildId: string): Promise<StarboardConfig[]> {
-    const res = await db.query(`SELECT * FROM starboards WHERE guild_id = $1`, [guildId] as unknown[]);
+    const res = await db.query(`SELECT * FROM starboards WHERE guild_id = $1`, [guildId]);
     return res.rows.map((row) =>
-        starboardConfigSchema.parse({
-            ...row,
-            embed_template: parseRowEmbed(row.embed_template),
-        })
+        starboardConfigSchema.parse(row)
     );
 }
 
@@ -142,7 +125,7 @@ export async function upsertStarboardConfig(
         ];
     }
 
-    const res = await db.query(query, values as unknown[]);
+    const res = await db.query(query, values);
 
     try {
         await redis.del(`starboard:config:${guildId}`);
@@ -151,10 +134,7 @@ export async function upsertStarboardConfig(
     }
 
     const savedRow = res.rows[0];
-    return starboardConfigSchema.parse({
-        ...savedRow,
-        embed_template: parseRowEmbed(savedRow.embed_template),
-    });
+    return starboardConfigSchema.parse(savedRow);
 }
 
 export async function deleteStarboardConfig(id: string, guildId: string): Promise<boolean> {
@@ -165,7 +145,7 @@ export async function deleteStarboardConfig(id: string, guildId: string): Promis
     `;
 
     try {
-        const res = await db.query<{ id: number | string }>(query, [id, guildId] as unknown[]);
+        const res = await db.query(query, [id, guildId]);
         const deleted = (res.rowCount ?? 0) > 0;
 
         if (deleted) {

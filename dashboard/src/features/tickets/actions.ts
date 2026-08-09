@@ -10,6 +10,7 @@ import {
     saveTicketConfig,
 } from "./queries";
 import {
+    SaveTicketConfig,
     SaveTicketConfigSchema,
     type Ticket,
     type TicketHistory,
@@ -53,7 +54,7 @@ export async function sendTicketMessageAction(guildId: string, channelId: string
             throw new Error(errorText || "Could not instruct the bot to send the message.");
         }
 
-        const data = (await response.json()) as { message_id: string };
+        const data = await response.json();
 
         const currentConfig = await getTicketConfig(guildId);
         await saveTicketConfig(guildId, {
@@ -97,7 +98,7 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
     }
 }
 
-export async function saveTicketsConfigAction(guildId: string, data: unknown): Promise<void> {
+export async function saveTicketsConfigAction(guildId: string, data: SaveTicketConfig): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
 

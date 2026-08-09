@@ -7,7 +7,7 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 
 export async function getModerationDMsConfig(guildId: string): Promise<ModerationDMsConfig> {
     const validGuildId = z.string().min(1).parse(guildId);
-    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "moderation_dms");
+    const dbConfig = await getGuildConfigField(validGuildId, "moderation_dms");
     return moderationDMsConfigSchema.parse(dbConfig ?? {});
 }
 

@@ -2,35 +2,21 @@ import { invalidateGuildChannelCache } from "@/features/_shared/channels";
 import { getWelcomeConfig, saveWelcomeConfig } from "./queries";
 import {
     setupBackendResponseSchema,
-    setupVerificationPayloadSchema,
-    teardownVerificationPayloadSchema,
     type SetupVerificationResult,
-    type WelcomeConfig,
+    type WelcomeConfig, TeardownVerificationPayload,
 } from "./types";
+import { MessageLayout } from "@/features/_shared/embed";
 
 const getBackendUrl = (): string => process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
 
 export async function setupVerificationService(
     guildId: string,
-    rawPayload: unknown
+    payload: MessageLayout
 ): Promise<SetupVerificationResult> {
-    const payload = setupVerificationPayloadSchema.parse(rawPayload);
-
-    let parsedEmbed = null;
-    if (payload.message.format === "EMBED" && payload.message.embed) {
-        parsedEmbed = typeof payload.message.embed === "string"
-            ? JSON.parse(payload.message.embed)
-            : payload.message.embed;
-    }
-
     const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            content: payload.message.content || null,
-            embed: parsedEmbed,
-            format: payload.message.format,
-        }),
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -56,11 +42,7 @@ export async function setupVerificationService(
             verificationMessageId: data.verification_message_id,
             verificationChannelId: data.verification_channel_id,
             verificationRoleId: data.verification_role_id,
-            message: {
-                format: payload.message.format,
-                content: payload.message.content || currentConfig.verification.message.content,
-                embed: payload.message.embed || currentConfig.verification.message.embed,
-            },
+            message: payload,
         },
     };
 
@@ -75,10 +57,8 @@ export async function setupVerificationService(
 
 export async function teardownVerificationService(
     guildId: string,
-    rawPayload: unknown
+    payload: TeardownVerificationPayload
 ): Promise<void> {
-    const payload = teardownVerificationPayloadSchema.parse(rawPayload);
-
     const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/verification`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },

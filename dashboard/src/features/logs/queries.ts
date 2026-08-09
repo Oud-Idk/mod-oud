@@ -79,12 +79,13 @@ export async function getAutomodLogs(
         LIMIT $4;
     `;
 
+
     const result = await db.query(query, [
         params.guildId,
         params.cursorCreatedAt,
         params.cursorId,
         params.limit,
-    ] as unknown[]);
+    ]);
 
     return z.array(automodLogSchema).parse(result.rows);
 }
@@ -129,7 +130,7 @@ export async function getJoinLeaveLogs(
         params.cursorCreatedAt,
         params.cursorId,
         params.limit,
-    ] as unknown[]);
+    ]);
 
     return z.array(joinLeaveLogSchema).parse(result.rows);
 }
@@ -172,12 +173,12 @@ export async function getModerationLogs(
         params.cursorCreatedAt,
         params.cursorId,
         params.limit,
-    ] as unknown[]);
+    ]);
 
     const formattedRows = result.rows.map((row) => ({
         ...row,
         duration: formatDuration(row.duration),
-        created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+        created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     }));
 
     return z.array(moderationLogSchema).parse(formattedRows);

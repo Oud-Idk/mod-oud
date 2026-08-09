@@ -72,23 +72,20 @@ export function VerificationTab({
                 format: config.verification.message.format,
             });
 
-            if (res.success) {
-                toast.success("Verification environment dispatched successfully.");
-                setConfig((prev) => ({
-                    ...prev,
-                    verification: {
-                        ...prev.verification,
-                        enabled: true,
-                        verificationChannelId: res.verificationChannelId ?? null,
-                        verificationRoleId: res.verificationRoleId ?? null,
-                        verificationMessageId: res.verificationMessageId ?? null,
-                    },
-                }));
-            } else {
-                toast.error(res.error || "Could not complete manual verification environment setup.");
-            }
+            // The action succeeded if no error was thrown
+            toast.success("Verification environment dispatched successfully.");
+            setConfig((prev) => ({
+                ...prev,
+                verification: {
+                    ...prev.verification,
+                    enabled: true,
+                    verificationChannelId: res.verificationChannelId ?? null,
+                    verificationRoleId: res.verificationRoleId ?? null,
+                    verificationMessageId: res.verificationMessageId ?? null,
+                },
+            }));
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "An unexpected error occurred during execution.");
+            toast.error(err instanceof Error ? err.message : "Could not complete manual verification environment setup.");
         } finally {
             setIsProcessingSetup(false);
         }
@@ -102,28 +99,25 @@ export function VerificationTab({
 
         setIsProcessingSetup(true);
         try {
-            const res = await teardownVerificationAction(guildId, {
+            await teardownVerificationAction(guildId, {
                 verification_channel_id: config.verification.verificationChannelId,
                 verification_role_id: config.verification.verificationRoleId,
             });
 
-            if (res.success) {
-                toast.success("Verification channels and roles deleted successfully.");
-                setConfig((prev) => ({
-                    ...prev,
-                    verification: {
-                        ...prev.verification,
-                        enabled: false,
-                        verificationChannelId: null,
-                        verificationRoleId: null,
-                        verificationMessageId: null,
-                    },
-                }));
-            } else {
-                toast.error(res.error || "The removal execution was rejected by the server.");
-            }
+            // The action succeeded if no error was thrown
+            toast.success("Verification channels and roles deleted successfully.");
+            setConfig((prev) => ({
+                ...prev,
+                verification: {
+                    ...prev.verification,
+                    enabled: false,
+                    verificationChannelId: null,
+                    verificationRoleId: null,
+                    verificationMessageId: null,
+                },
+            }));
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "An unexpected error occurred during execution.");
+            toast.error(err instanceof Error ? err.message : "The removal execution was rejected by the server.");
         } finally {
             setIsProcessingSetup(false);
         }

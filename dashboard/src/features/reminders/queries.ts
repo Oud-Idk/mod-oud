@@ -1,11 +1,6 @@
 import { db } from "@/lib/db";
 import redis from "@/lib/redis";
-import {
-    reminderRowSchema,
-    saveableReminderSchema,
-    type ReminderRow,
-    type SaveableReminderInput,
-} from "./types";
+import { type ReminderRow, reminderRowSchema, type SaveableReminderInput, saveableReminderSchema, } from "./types";
 
 function calculateNextTriggerJS(
     now: Date,
@@ -166,13 +161,12 @@ export async function saveReminder(
 
     let finalNextTrigger = reminder.nextTriggerAt;
     if (reminder.rType === "RECURRING") {
-        const computedDate = calculateNextTriggerJS(new Date(), {
+        finalNextTrigger = calculateNextTriggerJS(new Date(), {
             daysOfWeek: reminder.daysOfWeek,
             timeStart: reminder.timeStart,
             timeEnd: reminder.timeEnd,
             intervalSeconds: reminder.intervalSeconds,
         });
-        finalNextTrigger = computedDate.toISOString();
     }
 
     let query: string;

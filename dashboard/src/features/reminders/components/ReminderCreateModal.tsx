@@ -48,7 +48,7 @@ export function ReminderCreateModal({
                         embed: {},
                     },
                     rType,
-                    nextTriggerAt: new Date(Date.now() + 60 * 1000 * 5).toISOString(),
+                    nextTriggerAt: new Date(Date.now() + 60 * 1000 * 5),
                     daysOfWeek: null,
                     timeStart: null,
                     timeEnd: null,

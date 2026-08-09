@@ -6,7 +6,7 @@ import { toast } from "sonner";
 export function useTicketConfig(
     initialConfig: TicketConfig,
     onSave: (config: TicketConfig) => Promise<void>,
-    onSendTicketMessage: (channelId: string) => Promise<string | void>,
+    onSendTicketMessage: (channelId: string) => Promise<string | undefined>,
     onDeleteTicketMessage: (channelId: string, messageId: string) => Promise<void>
 ) {
     const [config, setConfig] = useState<TicketConfig>(initialConfig);
@@ -38,7 +38,7 @@ export function useTicketConfig(
         setConfig(initialConfig);
     }, [initialConfig]);
 
-    const handleSendLiveMessage = async () => {
+    const handleSendLiveMessage = async (): Promise<void> => {
         if (!config.channelId) return;
         setIsProcessingAction(true);
         try {
@@ -51,7 +51,7 @@ export function useTicketConfig(
         }
     };
 
-    const handleDeleteLiveMessage = async () => {
+    const handleDeleteLiveMessage = async (): Promise<void> => {
         if (!config.channelId || !config.postedMessageId) return;
         setIsProcessingAction(true);
         try {

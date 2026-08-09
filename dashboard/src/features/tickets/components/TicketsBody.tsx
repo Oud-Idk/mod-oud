@@ -34,9 +34,9 @@ const TICKETS_TABS: TabItem<TabValue>[] = [
 
 export function TicketsBody({
     guildId,
-    categoryMap = {},
-    roleMap = {},
-    channels = [],
+    categoryMap,
+    roleMap,
+    channels,
     ticketConfig,
     onSave,
     onSendTicketMessage,

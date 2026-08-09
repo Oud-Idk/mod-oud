@@ -25,7 +25,7 @@ export async function getLevels(guildId: string): Promise<UserLevel[]> {
         LIMIT 40;
     `;
     try {
-        const res = await db.query(query, [validGuildId] as unknown[]);
+        const res = await db.query(query, [validGuildId]);
         return z.array(userLevelSchema).parse(res.rows);
     } catch (error) {
         console.error(`Error fetching levels for guild ${guildId}:`, error);
@@ -46,7 +46,7 @@ export async function fetchMoreLevels(guildId: string, currentLowestXp: number):
         LIMIT 20;
     `;
     try {
-        const res: QueryResult = await db.query(query, [validGuildId, validLowestXp] as unknown[]);
+        const res: QueryResult = await db.query(query, [validGuildId, validLowestXp]);
         return z.array(userLevelSchema).parse(res.rows);
     } catch (err) {
         console.error("Failed to fetch lower levels for guild:", err);
@@ -56,7 +56,7 @@ export async function fetchMoreLevels(guildId: string, currentLowestXp: number):
 
 export async function getLevelingConfig(guildId: string): Promise<LevelingConfig> {
     const validGuildId = z.string().min(1).parse(guildId);
-    const dbLeveling = await getGuildConfigField<unknown>(validGuildId, "leveling");
+    const dbLeveling = await getGuildConfigField(validGuildId, "leveling");
     return levelingConfigSchema.parse(dbLeveling ?? {});
 }
 
@@ -68,7 +68,7 @@ export async function getXpMultipliers(guildId: string): Promise<XpMultiplier[]>
     const validGuildId = z.string().min(1).parse(guildId);
     const { rows } = await db.query(
         "SELECT guild_id, target_id, target_type, multiplier FROM xp_multipliers WHERE guild_id = $1",
-        [validGuildId] as unknown[]
+        [validGuildId]
     );
     return z.array(xpMultiplierSchema).parse(rows);
 }
@@ -77,7 +77,7 @@ export async function getLevelRewards(guildId: string): Promise<LevelReward[]> {
     const validGuildId = z.string().min(1).parse(guildId);
     const { rows } = await db.query(
         "SELECT id, guild_id, level_requirement, roles_to_add, remove_previous_roles FROM level_rewards WHERE guild_id = $1",
-        [validGuildId] as unknown[]
+        [validGuildId]
     );
     return z.array(levelRewardSchema).parse(rows);
 }
@@ -85,7 +85,7 @@ export async function getLevelRewards(guildId: string): Promise<LevelReward[]> {
 export async function saveLevelRewards(
     guildId: string,
     rewards: SaveLevelRewardInput[]
-) {
+): Promise<void> {
     if (rewards.length === 0) return;
 
     const payload = rewards.map((r) => ({
@@ -105,23 +105,23 @@ export async function saveLevelRewards(
          ON CONFLICT (guild_id, level_requirement)
              DO UPDATE SET roles_to_add          = EXCLUDED.roles_to_add,
                            remove_previous_roles = EXCLUDED.remove_previous_roles`,
-        [guildId, JSON.stringify(payload)] as unknown[]
+        [guildId, JSON.stringify(payload)]
     );
 }
 
-export async function deleteXpMultipliers(guildId: string, targetIds: string[]) {
+export async function deleteXpMultipliers(guildId: string, targetIds: string[]): Promise<void> {
     if (targetIds.length === 0) return;
 
     await db.query(
         "DELETE FROM xp_multipliers WHERE guild_id = $1 AND target_id = ANY($2)",
-        [guildId, targetIds] as unknown[]
+        [guildId, targetIds]
     );
 }
 
 export async function saveXpMultipliers(
     guildId: string,
     targets: SaveXpMultiplierInput[]
-) {
+): Promise<void> {
     if (targets.length === 0) return;
 
     const targetIds = targets.map((t) => t.targetId);
@@ -138,15 +138,15 @@ export async function saveXpMultipliers(
          FROM UNNEST($2::TEXT[], $3::TEXT[], $4::NUMERIC[]) AS u(target_id, target_type, multiplier)
          ON CONFLICT (guild_id, target_id)
              DO UPDATE SET multiplier = EXCLUDED.multiplier`,
-        [guildId, targetIds, targetTypes, multipliers] as unknown[]
+        [guildId, targetIds, targetTypes, multipliers]
     );
 }
 
-export async function deleteLevelRewards(guildId: string, ids: number[]) {
+export async function deleteLevelRewards(guildId: string, ids: number[]): Promise<void> {
     if (ids.length === 0) return;
 
     await db.query(
         "DELETE FROM level_rewards WHERE guild_id = $1 AND id = ANY($2::INTEGER[])",
-        [guildId, ids] as unknown[]
+        [guildId, ids]
     );
 }

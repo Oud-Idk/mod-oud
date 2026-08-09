@@ -14,7 +14,7 @@ export const reminderBaseSchema = z.object({
 
     rType: reminderTypeSchema,
 
-    nextTriggerAt: z.string().default(() => new Date().toISOString()),
+    nextTriggerAt: z.date().default(() => new Date()),
     daysOfWeek: z.array(z.number()).nullish().default(null),
     timeStart: z.string().nullish().default(null),
     timeEnd: z.string().nullish().default(null),

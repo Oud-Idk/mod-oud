@@ -98,7 +98,12 @@ describe("Tickets Query Module", () => {
             vi.mocked(db.query).mockResolvedValue({
                 rows: [mockHistory],
                 rowCount: 1,
-            } as any);
+                command: "",
+                oid: 0,
+                fields: [],
+                _parsers: [],
+                _types: { builtins: {} },
+            } as never);
 
             const result = await getTicketHistory("chan_456");
 
@@ -115,7 +120,12 @@ describe("Tickets Query Module", () => {
             vi.mocked(db.query).mockResolvedValue({
                 rows: [],
                 rowCount: 0,
-            } as any);
+                command: "",
+                oid: 0,
+                fields: [],
+                _parsers: [],
+                _types: { builtins: {} },
+            } as never);
 
             const result = await getTicketHistory("non_existent_channel");
 
@@ -140,7 +150,12 @@ describe("Tickets Query Module", () => {
 
             vi.mocked(db.query).mockResolvedValue({
                 rows: mockRows,
-            } as any);
+                command: "",
+                oid: 0,
+                fields: [],
+                _parsers: [],
+                _types: { builtins: {} },
+            } as never);
 
             const res = await getTicketList("guild_123");
 

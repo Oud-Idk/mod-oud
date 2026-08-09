@@ -1,14 +1,6 @@
 import { db } from "@/lib/db";
 import redis from "@/lib/redis";
-import { z } from "zod";
-import {
-    saveWarnThresholdsInputSchema,
-    warnSchema,
-    warnThresholdSchema,
-    type SaveWarnThresholdInput,
-    type Warn,
-    type WarnThreshold,
-} from "./types";
+import { type SaveWarnThresholdInput, type Warn, warnSchema, type WarnThreshold, warnThresholdSchema, } from "./types";
 
 export async function searchWarns(guildId: string, userId: string): Promise<Warn[]> {
     const query = `
@@ -19,7 +11,7 @@ export async function searchWarns(guildId: string, userId: string): Promise<Warn
         ORDER BY created_at DESC;
     `;
 
-    const res = await db.query(query, [guildId, userId] as unknown[]);
+    const res = await db.query(query, [guildId, userId]);
     return res.rows.map((row) => warnSchema.parse(row));
 }
 
@@ -38,7 +30,7 @@ export async function getWarnThresholds(guildId: string): Promise<WarnThreshold[
     `;
 
     try {
-        const res = await db.query(query, [guildId] as unknown[]);
+        const res = await db.query(query, [guildId]);
         return res.rows.map((row) => warnThresholdSchema.parse(row));
     } catch (error) {
         console.error(`Error loading warn thresholds for guild ${guildId}:`, error);
@@ -56,7 +48,7 @@ export async function saveWarnThresholds(
         await client.query("BEGIN");
 
         if (thresholds.length === 0) {
-            await client.query(`DELETE FROM warn_thresholds WHERE guild_id = $1`, [guildId] as unknown[]);
+            await client.query(`DELETE FROM warn_thresholds WHERE guild_id = $1`, [guildId]);
         } else {
             const values: unknown[] = [];
             const warnCounts: number[] = [];
@@ -87,7 +79,7 @@ export async function saveWarnThresholds(
                 roles_to_remove = EXCLUDED.roles_to_remove,
                 duration = EXCLUDED.duration;
             `;
-            await client.query(upsertQuery, values as unknown[]);
+            await client.query(upsertQuery, values);
 
             await client.query(
                 `
@@ -96,7 +88,7 @@ export async function saveWarnThresholds(
                     WHERE guild_id = $1
                       AND NOT (warn_count = ANY ($2::INT[]));
                 `,
-                [guildId, warnCounts] as unknown[]
+                [guildId, warnCounts]
             );
         }
 
@@ -123,7 +115,7 @@ export async function deleteWarnThresholds(guildId: string, ids: number[]): Prom
         WHERE guild_id = $1
           AND id = ANY ($2::INT[]);
     `;
-    await db.query(query, [guildId, ids] as unknown[]);
+    await db.query(query, [guildId, ids]);
 
     try {
         await redis.del(`warn_thresholds:${guildId}`);

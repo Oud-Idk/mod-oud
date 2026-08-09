@@ -47,14 +47,18 @@ export const DEFAULT_MESSAGE_LAYOUT = Object.freeze({
     embed: {},
 });
 
-export const isDeepEqual = (obj1: any, obj2: any): boolean => {
+const isObject = (val: unknown): val is Record<string, unknown> => {
+    return typeof val === "object" && val !== null;
+};
+
+export const isDeepEqual = (obj1: unknown, obj2: unknown): boolean => {
     if (obj1 === obj2) return true;
 
-    const isEmpty = (val: any) => val === undefined || val === null || val === "";
+    const isEmpty = (val: unknown): boolean => val === undefined || val === null || val === "";
 
     if (isEmpty(obj1) && isEmpty(obj2)) return true;
 
-    if (typeof obj1 !== "object" || typeof obj2 !== "object" || obj1 == null || obj2 == null) {
+    if (!isObject(obj1) || !isObject(obj2)) {
         return false;
     }
 
@@ -82,7 +86,7 @@ export const isDeepEqual = (obj1: any, obj2: any): boolean => {
     return true;
 };
 
-export const isEmbedEmpty = (embed: Record<string, any> | undefined | null): boolean => {
+export const isEmbedEmpty = (embed: DiscordEmbed): boolean => {
     if (!embed) return true;
     const hasTitle = Boolean(embed.title?.trim());
     const hasDescription = Boolean(embed.description?.trim());

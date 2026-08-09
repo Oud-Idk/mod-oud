@@ -28,7 +28,7 @@ export async function OverviewFeature() {
             </div>
 
             {session ? (
-                <div className={`${mutualGuilds.length === 0 ? 'block max-w-3/4 mx-auto' : 'grid grid-cols-2 gap-4'}`}>
+                <div className={mutualGuilds.length === 0 ? 'block max-w-3/4 mx-auto' : 'grid grid-cols-2 gap-4'}>
                     {mutualGuilds.length > 0 && (<MutualServers mutualGuilds={mutualGuilds}/>)}
                     {inviteableGuilds.length > 0 && (<InviteableServers inviteableGuilds={inviteableGuilds}/>)}
                 </div>

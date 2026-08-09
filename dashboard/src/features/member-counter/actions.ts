@@ -6,7 +6,6 @@ import {
     CounterChannel,
     MemberCounterConfig,
     counterChannelSchema,
-    memberCounterConfigSchema,
 } from "@/features/member-counter/types";
 import { saveMemberCounterConfig, setupMemberCounterChannels } from "@/features/member-counter/queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";

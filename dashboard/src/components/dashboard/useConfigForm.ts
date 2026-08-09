@@ -1,4 +1,5 @@
-import { Dispatch, SetStateAction, useCallback, useState, useTransition } from "react";
+// path to your useConfigForm file
+import { Dispatch, SetStateAction, useCallback, useState, useTransition, useEffect } from "react";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { toast } from "sonner";
 
@@ -23,8 +24,11 @@ export function useConfigForm<T>({
 }: UseConfigFormOptions<T>): UseConfigFormReturn<T> {
     const [config, setConfig] = useState<T>(initialConfig);
     const [isPending, startTransition] = useTransition();
-
     const [resetKey, setResetKey] = useState(0);
+
+    useEffect(() => {
+        setConfig(initialConfig);
+    }, [initialConfig]);
 
     const isDirty = !isDeepEqual(config, initialConfig);
 

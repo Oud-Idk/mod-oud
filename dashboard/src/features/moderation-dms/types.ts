@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { messageLayoutSchema, TogglableMessageSchema } from "@/features/_shared/embed";
+import { TogglableMessageSchema } from "@/features/_shared/embed";
 
 export const DEFAULT_DM_TEMPLATE = {
     enabled: false,

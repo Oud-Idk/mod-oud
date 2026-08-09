@@ -13,7 +13,7 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 
 export async function getMessageFilteringConfig(guildId: string): Promise<MessageFilteringConfig> {
     const validGuildId = z.string().min(1).parse(guildId);
-    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "message_filtering");
+    const dbConfig = await getGuildConfigField(validGuildId, "message_filtering");
     return messageFilteringConfigSchema.parse(dbConfig ?? {});
 }
 
@@ -38,7 +38,7 @@ export async function getBadWordRulesets(guildId: string): Promise<BadWordRulese
         WHERE guild_id = $1
         ORDER BY created_at ASC
     `;
-    const res = await db.query(query, [validGuildId] as unknown[]);
+    const res = await db.query(query, [validGuildId]);
     return z.array(badWordRulesetSchema).parse(res.rows);
 }
 
@@ -71,7 +71,7 @@ export async function saveBadWordRuleset(
             updated_at AS "updatedAt"
     `;
 
-    const params = [
+    const res = await db.query(query, [
         ruleset.id ?? null,
         guildId,
         ruleset.name,
@@ -80,9 +80,7 @@ export async function saveBadWordRuleset(
         JSON.stringify(ruleset.actions),
         ruleset.timeoutDurationSeconds ?? null,
         JSON.stringify(ruleset.scope),
-    ];
-
-    const res = await db.query(query, params as unknown[]);
+    ]);
 
     // Keep Redis cache in sync
     const cacheKey = `config:guild:${guildId}:bad_words`;
@@ -103,7 +101,7 @@ export async function deleteBadWordRuleset(guildId: string, id: string): Promise
         WHERE id = $1
           AND guild_id = $2
     `;
-    await db.query(query, [id, guildId] as unknown[]);
+    await db.query(query, [id, guildId]);
 
     const badWordsCacheKey = `config:guild:${guildId}:bad_words`;
 

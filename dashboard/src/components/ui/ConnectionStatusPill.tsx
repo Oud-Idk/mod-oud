@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 import { JSX } from "react";
 
 export interface ConnectionStatusPillProps {
-    status: "CONNECTED" | "DISCONNECTED" | string;
+    status: string;
     connectedText?: string;
     disconnectedText?: string;
     className?: string;

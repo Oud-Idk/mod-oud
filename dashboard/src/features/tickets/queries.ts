@@ -64,7 +64,7 @@ export async function getTicketList(guildId: string): Promise<Ticket[]> {
 }
 
 export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
-    const dbConfig = await getGuildConfigField<unknown>(guildId, "tickets");
+    const dbConfig = await getGuildConfigField(guildId, "tickets");
     return TicketConfigSchema.parse(dbConfig ?? {});
 }
 

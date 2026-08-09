@@ -8,7 +8,7 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 export async function getLeaveConfig(guildId: string): Promise<LeaveConfig> {
     const validGuildId = z.string().min(1).parse(guildId);
 
-    const dbLeave = await getGuildConfigField<unknown>(validGuildId, "leave");
+    const dbLeave = await getGuildConfigField(validGuildId, "leave");
     return leaveConfigSchema.parse(dbLeave ?? {});
 }
 

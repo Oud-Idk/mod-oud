@@ -16,7 +16,7 @@ export async function saveCustomCommandAction(guildId: string, config: SaveCusto
 
         const ret = await saveCustomCommand(config);
 
-        if (ret && ret.name) {
+        if (ret?.name) {
             const cacheKey = `cmd:${guildId}:${ret.name.toLowerCase()}`;
             try {
                 await redis.del(cacheKey);

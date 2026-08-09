@@ -8,7 +8,7 @@ export async function saveHoneypotConfig(guildId: string, config: HoneypotConfig
 }
 
 export async function getHoneypotConfig(guildId: string): Promise<HoneypotConfig> {
-    const dbHoneypot = await getGuildConfigField<unknown>(guildId, "honeypot");
+    const dbHoneypot = await getGuildConfigField(guildId, "honeypot");
     return honeypotConfigSchema.parse(dbHoneypot ?? {});
 }
 
@@ -34,7 +34,7 @@ export async function setupHoneypot(guildId: string, channelName: string): Promi
         throw new Error(errorText || "Rust backend request failed.");
     }
 
-    const rawJson: unknown = await res.json();
+    const rawJson = await res.json();
     const data = backendHoneypotResponseSchema.parse(rawJson);
 
     try {

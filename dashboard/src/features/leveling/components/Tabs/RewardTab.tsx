@@ -15,7 +15,7 @@ export interface LevelRewardsTabProps {
     guildId: string;
     rewards: LevelReward[];
     onSave: (
-        rewards: Array<{ levelRequirement: number; rolesToAdd: string[]; removePreviousRoles: boolean }>
+        rewards: { levelRequirement: number; rolesToAdd: string[]; removePreviousRoles: boolean }[]
     ) => Promise<void>;
     onDelete: (ids: number[]) => Promise<void>;
     roleMap: Record<string, string>;
@@ -123,7 +123,7 @@ export function RewardTab({
         try {
             // Validate with Zod
             const rewardsToSave = localRewards.map((r) => ({
-                levelRequirement: Number(r.levelRequirement),
+                levelRequirement: r.levelRequirement,
                 rolesToAdd: r.rolesToAdd,
                 removePreviousRoles: r.removePreviousRoles,
             }));

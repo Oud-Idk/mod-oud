@@ -5,7 +5,7 @@ import {
 } from "./types";
 
 export async function getWelcomeConfig(guildId: string): Promise<WelcomeConfig> {
-    const dbWelcome = await getGuildConfigField<unknown>(guildId, "welcome");
+    const dbWelcome = await getGuildConfigField(guildId, "welcome");
     return welcomeConfigSchema.parse(dbWelcome ?? {});
 }
 

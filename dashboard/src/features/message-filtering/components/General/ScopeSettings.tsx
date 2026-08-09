@@ -40,7 +40,7 @@ export function ScopeSettings({
         roles: rawScope?.roles ?? DEFAULT_SCOPE.roles,
     };
 
-    const currentMode = String(scope.mode).toUpperCase();
+    const currentMode = scope.mode.toUpperCase();
     const isExempt = currentMode === "EXEMPT";
 
     const handleModeChange = (mode: ScopeActionMode) => {

@@ -6,20 +6,6 @@ import {
     type SaveReactionMessageInput,
 } from "./types";
 
-function parseRowEmbed(embedRaw: unknown): Record<string, unknown> {
-    if (typeof embedRaw === "string") {
-        try {
-            return JSON.parse(embedRaw || "{}");
-        } catch {
-            return {};
-        }
-    }
-    if (typeof embedRaw === "object" && embedRaw !== null) {
-        return embedRaw as Record<string, unknown>;
-    }
-    return {};
-}
-
 export async function getReactionMessages(guildId: string): Promise<ReactionMessage[]> {
     const query = `
         SELECT rm.id,
@@ -27,10 +13,8 @@ export async function getReactionMessages(guildId: string): Promise<ReactionMess
                rm.message_id,
                rm.channel_id,
                rm.guild_id,
-               rm.format,
                rm.mode,
-               COALESCE(rm.embed, '{}'::json)         AS embed,
-               COALESCE(rm.content, '')               AS content,
+               rm.message,
                (SELECT COALESCE(
                                JSON_AGG(JSON_BUILD_OBJECT('emoji', rr.emoji, 'role_id', rr.role_id::TEXT)),
                                '[]'
@@ -53,13 +37,10 @@ export async function getReactionMessages(guildId: string): Promise<ReactionMess
         WHERE rm.guild_id = $1;
     `;
 
-    const res = await db.query(query, [guildId] as unknown[]);
+    const res = await db.query(query, [guildId]);
 
     return res.rows.map((row) =>
-        reactionMessageSchema.parse({
-            ...row,
-            embed: parseRowEmbed(row.embed),
-        })
+        reactionMessageSchema.parse(row)
     );
 }
 
@@ -70,10 +51,8 @@ export async function getReactionMessageById(id: number): Promise<ReactionMessag
                rm.message_id,
                rm.channel_id,
                rm.guild_id,
-               rm.format,
                rm.mode,
-               COALESCE(rm.embed, '{}'::json)         AS embed,
-               COALESCE(rm.content, '')               AS content,
+               rm.message,
                (SELECT COALESCE(
                                JSON_AGG(JSON_BUILD_OBJECT('emoji', rr.emoji, 'role_id', rr.role_id::TEXT)),
                                '[]'
@@ -96,26 +75,22 @@ export async function getReactionMessageById(id: number): Promise<ReactionMessag
         WHERE rm.id = $1;
     `;
 
-    const res = await db.query(query, [id] as unknown[]);
+    const res = await db.query(query, [id]);
     if (res.rows.length === 0) return null;
 
     const row = res.rows[0];
-    return reactionMessageSchema.parse({
-        ...row,
-        embed: parseRowEmbed(row.embed),
-    });
+    return reactionMessageSchema.parse(row);
 }
 
 export async function deleteReactionMessage(id: number): Promise<boolean> {
     const query = `DELETE FROM reaction_messages WHERE id = $1`;
-    const res = await db.query(query, [id] as unknown[]);
+    const res = await db.query(query, [id]);
     return (res.rowCount ?? 0) === 1;
 }
 
 export async function saveReactionMessage(
     rawData: SaveReactionMessageInput
 ): Promise<ReactionMessage> {
-    // 1. Resolves default values so reactions/buttons are guaranteed to be arrays!
     const data = saveReactionMessageInputSchema.parse(rawData);
 
     const client = await db.connect();
@@ -123,15 +98,13 @@ export async function saveReactionMessage(
     try {
         await client.query("BEGIN");
 
-        const mainParams = [
+        const mainParams: unknown[] = [
             data.message_id ?? null,
             data.channel_id ?? null,
             data.guild_id,
-            data.format, // 🟢 Guaranteed "TEXT" or "EMBED"
-            data.mode,   // 🟢 Guaranteed "REACTION" or "BUTTON"
-            data.embed ? JSON.stringify(data.embed) : null,
-            data.content ?? null,
+            data.mode,
             data.name,
+            data.message,
         ];
 
         let internalId: number;
@@ -139,9 +112,9 @@ export async function saveReactionMessage(
         if (data.id) {
             const updateQuery = `
                 UPDATE reaction_messages
-                SET message_id = $1, channel_id = $2, guild_id = $3, format = $4,
-                    mode = $5, embed = $6, content = $7, name = $8
-                WHERE id = $9 RETURNING id;
+                SET message_id = $1, channel_id = $2, guild_id = $3,
+                    mode = $4, name = $5, message = $6
+                WHERE id = $7 RETURNING id;
             `;
             const res = await client.query(updateQuery, [...mainParams, data.id]);
 
@@ -151,8 +124,8 @@ export async function saveReactionMessage(
             internalId = Number(res.rows[0].id);
         } else {
             const insertQuery = `
-                INSERT INTO reaction_messages (message_id, channel_id, guild_id, format, mode, embed, content, name)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;
+                INSERT INTO reaction_messages (message_id, channel_id, guild_id, mode, name, message)
+                VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;
             `;
             const res = await client.query(insertQuery, mainParams);
             internalId = Number(res.rows[0].id);
@@ -173,7 +146,7 @@ export async function saveReactionMessage(
                 internalId,
                 data.reactions.map((r) => r.emoji),
                 data.reactions.map((r) => r.role_id ?? null),
-            ] as unknown[]);
+            ]);
         } else if (data.mode === "BUTTON" && data.buttons.length > 0) {
             const query = `
                 INSERT INTO button_roles (reaction_message_id, role_id, custom_id, label, style, emoji)
@@ -194,7 +167,7 @@ export async function saveReactionMessage(
                 data.buttons.map((b) => b.label ?? null),
                 data.buttons.map((b) => b.style ?? "PRIMARY"),
                 data.buttons.map((b) => b.emoji ?? null),
-            ] as unknown[]);
+            ]);
         }
 
         await client.query("COMMIT");
@@ -227,7 +200,7 @@ export async function sendReactionMessageToBackend(
         throw new Error(errorText || "Failed to dispatch reaction roles.");
     }
 
-    const json = (await response.json()) as { message_id: string };
+    const json: { message_id: string } = await response.json();
     return json;
 }
 

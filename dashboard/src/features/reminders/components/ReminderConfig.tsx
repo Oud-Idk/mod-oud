@@ -12,6 +12,7 @@ import { TimeInput } from "@/components/ui/TimeInput";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { saveableReminderSchema, type ReminderFormat, type ReminderRow, type ReminderType } from "../types";
 import { toast } from "sonner";
+import { TextInput } from "@/components/ui/TextInput";
 
 interface ReminderConfigProps {
     config: ReminderRow;
@@ -184,7 +185,7 @@ export function ReminderConfig({
                                 rType: val ?? "SINGLE",
                                 nextTriggerAt:
                                     val === "RECURRING"
-                                        ? new Date().toISOString()
+                                        ? new Date()
                                         : config.nextTriggerAt,
                             });
                         }}
@@ -199,17 +200,16 @@ export function ReminderConfig({
                             {new Date(config.nextTriggerAt).toLocaleString()}
                         </div>
                     ) : (
-                        <input
+                        <TextInput
                             type="datetime-local"
-                            value={getFormattedDateTime(config.nextTriggerAt)}
+                            value={getFormattedDateTime(config.nextTriggerAt.toISOString())}
                             onChange={(e) => {
                                 if (e.target.value) {
                                     onChange({
-                                        nextTriggerAt: new Date(e.target.value).toISOString(),
+                                        nextTriggerAt: new Date(e.target.value),
                                     });
                                 }
                             }}
-                            className="w-full bg-surface-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus-ring"
                         />
                     )}
                 </div>

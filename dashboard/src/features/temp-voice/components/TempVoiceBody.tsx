@@ -24,7 +24,7 @@ export function TempVoiceBody({
     textChannelMap: initialTextChannelMap,
 }: TempVoiceBodyProps): JSX.Element {
     const [hubs, setHubs] = useState<TempVoiceHub[]>(initialHubs);
-    const [activeHubId, setActiveHubId] = useState<string | "new" | null>(null);
+    const [activeHubId, setActiveHubId] = useState<string | null>(null);
     const [isSettingUp, setIsSettingUp] = useState(false);
 
     const [categories, setCategories] = useState(initialCategoryMap);

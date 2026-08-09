@@ -8,7 +8,7 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 
 export async function getMemberCounterConfig(guildId: string): Promise<MemberCounterConfig> {
     const validGuildId = z.string().min(1).parse(guildId);
-    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "member_counter");
+    const dbConfig = await getGuildConfigField(validGuildId, "member_counter");
     return memberCounterConfigSchema.parse(dbConfig ?? {});
 }
 

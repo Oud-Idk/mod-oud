@@ -37,7 +37,7 @@ interface LocalThresholdState {
     duration: number | null;
 }
 
-const PUNISHMENT_OPTIONS: Array<{ value: ModerationAction; label: string }> = [
+const PUNISHMENT_OPTIONS: { value: ModerationAction; label: string }[] = [
     { value: "TIMEOUT", label: "Timeout User" },
     { value: "KICK", label: "Kick User" },
     { value: "BAN", label: "Ban User" },
@@ -139,11 +139,11 @@ export function WarnThresholdTab({
 
     const handleSaveAll = async () => {
         const payload: SaveWarnThresholdInput[] = localThresholds.map((t) => ({
-            warnCount: Number(t.warnCount),
+            warnCount: t.warnCount,
             actionType: t.actionType,
             rolesToAdd: t.actionType.includes("ROLE_ADD") ? t.rolesToAdd : [],
             rolesToRemove: t.actionType.includes("ROLE_REMOVE") ? t.rolesToRemove : [],
-            duration: t.actionType.includes("TIMEOUT") ? (t.duration ? Number(t.duration) : null) : null,
+            duration: t.actionType.includes("TIMEOUT") ? t.duration : null,
         }));
 
         const validation = saveWarnThresholdsInputSchema.safeParse(payload);

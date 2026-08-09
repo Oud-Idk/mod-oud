@@ -112,7 +112,7 @@ export default function EmbedBuilder({
     }, [initialEmbedState]);
 
     const isEmbedEmptyMemo = useMemo(() => {
-        return isEmbedEmpty(embed);
+        return isEmbedEmpty(convertToDiscordEmbed(embed));
     }, [embed]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {

@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { sendEmbedAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { isEmbedEmpty } from "@/features/_shared/embed";
-import { z } from "zod";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
 }));
 
-vi.mock("@/features/_shared/embed", () => {
+vi.mock("@/features/_shared/embed", async () => {
+    const { z } = await import("zod");
     return {
         DiscordEmbedSchema: z.object({
             title: z.string().optional(),

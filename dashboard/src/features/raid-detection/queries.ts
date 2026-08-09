@@ -11,7 +11,7 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 
 export async function getRaidDetectionConfig(guildId: string): Promise<RaidDetectionConfig> {
     const validGuildId = z.string().min(1).parse(guildId);
-    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "raid_detection");
+    const dbConfig = await getGuildConfigField(validGuildId, "raid_detection");
     return raidDetectionConfigSchema.parse(dbConfig ?? {});
 }
 

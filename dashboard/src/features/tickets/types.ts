@@ -94,7 +94,7 @@ export type ViewTicketStatus = z.infer<typeof ViewTicketStatusSchema>;
 
 export type MessageLayout = z.infer<typeof messageLayoutSchema>;
 export type TicketConfig = z.infer<typeof TicketConfigSchema>;
-export type SaveTicketConfig = z.infer<typeof SaveTicketConfigSchema>;
+export type SaveTicketConfig = z.input<typeof SaveTicketConfigSchema>;
 
 export type TicketMessage = z.infer<typeof TicketMessageSchema>;
 export type Ticket = z.infer<typeof TicketSchema>;

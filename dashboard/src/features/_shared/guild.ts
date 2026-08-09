@@ -23,7 +23,7 @@ export interface GuildLists {
 export async function verifyGuildAccess(guildId: string): Promise<User> {
     const session = await auth();
 
-    if (!session || !session.user) {
+    if (!session?.user) {
         throw new Error("Unauthorized: Please sign in.");
     }
 
@@ -61,7 +61,7 @@ export async function getGuildConfigField<T>(guildId: string, key: string): Prom
  * Uses the Postgres || operator to merge new frontend config
  * over the existing config, preserving backend-only keys like category_id.
  */
-export async function saveGuildConfigField<T>(guildId: string, key: string, value: T): Promise<void> {
+export async function saveGuildConfigField(guildId: string, key: string, value: unknown): Promise<void> {
     const query = `
         INSERT INTO guild_configs (guild_id, settings)
         VALUES ($1, JSONB_BUILD_OBJECT($2::TEXT, $3::JSONB))

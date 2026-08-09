@@ -96,6 +96,8 @@ export type PublicWelcomeConfig = z.infer<typeof publicWelcomeConfigSchema>;
 export type PrivateWelcomeConfig = z.infer<typeof privateWelcomeConfigSchema>;
 export type VerificationConfig = z.infer<typeof verificationConfigSchema>;
 export type WelcomeConfig = z.infer<typeof welcomeConfigSchema>;
+export type TeardownVerificationPayload = z.infer<typeof teardownVerificationPayloadSchema>;
+export type SetupVerificationPayload = z.infer<typeof setupVerificationPayloadSchema>;
 
 export interface SetupVerificationResult {
     verificationMessageId: string;

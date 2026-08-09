@@ -115,6 +115,6 @@ export async function deleteGiveaway(id: number, guildId: string): Promise<boole
     const validId = z.number().int().positive().parse(id);
     const validGuildId = z.string().parse(guildId);
 
-    const res = await db.query(`DELETE FROM giveaways WHERE id = $1 AND guild_id = $2`, [validId, validGuildId] as unknown[]);
+    const res = await db.query(`DELETE FROM giveaways WHERE id = $1 AND guild_id = $2`, [validId, validGuildId]);
     return (res.rowCount ?? 0) > 0;
 }

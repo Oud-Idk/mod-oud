@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode } from "react";
+import React, { JSX, ReactNode } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { Button } from "@/components/ui/Button";
 import Emphasis from "@/components/layout/Emphasis";
@@ -39,7 +39,7 @@ export function ConfigListLayout<T>({
     handleSave,
     handleCancel,
     children,
-}: ConfigListLayoutProps<T>) {
+}: ConfigListLayoutProps<T>): JSX.Element {
     return (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-stretch mt-4">
             <div className="md:col-span-1 flex flex-col min-h-100 p-4 rounded-lg border border-border bg-surface overflow-hidden">

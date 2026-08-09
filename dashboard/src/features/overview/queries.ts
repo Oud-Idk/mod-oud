@@ -24,7 +24,7 @@ export async function getGuildStats(guildId: string): Promise<GuildStats> {
                       AND status = 'OPEN'::TICKET_STATUS)   AS open_tickets;
         `;
 
-        const result = await db.query(query, [guildId] as unknown[]);
+        const result = await db.query(query, [guildId]);
         const row = result.rows[0];
 
         if (!row) return defaultStats;

@@ -19,7 +19,7 @@ export async function saveGiveawayAction(guildId: string, config: SaveGiveawayDa
         const validated = SaveGiveawaySchema.parse(config);
         const ret = await saveGiveaway(validated);
 
-        if (ret && ret.message_id) {
+        if (ret?.message_id) {
             try {
                 const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:8080";
                 await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${ret.id}/edit`, { method: "POST" });

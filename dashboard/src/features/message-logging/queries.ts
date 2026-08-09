@@ -37,7 +37,7 @@ async function queryEditedMessages(
     `;
 
     try {
-        const res = await db.query(sql, params as unknown[]);
+        const res = await db.query(sql, params);
         return z.array(editedMessageSchema).parse(res.rows);
     } catch (err) {
         console.error("Failed to fetch edited message history:", err);
@@ -78,7 +78,7 @@ async function queryDeletedMessages(
     `;
 
     try {
-        const res = await db.query(sql, params as unknown[]);
+        const res = await db.query(sql, params);
         return z.array(deletedMessageSchema).parse(res.rows);
     } catch (err) {
         console.error("Failed to fetch deleted message history:", err);
@@ -94,7 +94,7 @@ export const fetchMoreDeletedMessages = (guildId: string, beforeId: number): Pro
 
 export async function getMessageLoggingConfig(guildId: string): Promise<MessageLoggingConfig> {
     const validGuildId = z.string().min(1).parse(guildId);
-    const dbConfig = await getGuildConfigField<unknown>(validGuildId, "message_logging");
+    const dbConfig = await getGuildConfigField(validGuildId, "message_logging");
     return messageLoggingConfigSchema.parse(dbConfig ?? {});
 }
 

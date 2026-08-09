@@ -20,7 +20,8 @@ vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
 }));
 
-vi.mock("@/features/tickets/queries", () => ({
+// Changed from "@/features/tickets/queries" to match the import path used in the files
+vi.mock("./queries", () => ({
     getTicketList: vi.fn(),
     getTicketHistory: vi.fn(),
     getTicketConfig: vi.fn(),
@@ -36,7 +37,7 @@ vi.stubGlobal("fetch", mockFetch);
 
 describe("Ticket Server Actions", () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         vi.spyOn(console, "error").mockImplementation(() => {return});
     });
 
@@ -183,6 +184,9 @@ describe("Ticket Server Actions", () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(getTicketConfig).mockResolvedValue(TicketConfigSchema.parse({
                 enabled: true,
+                categoryId: "cat_1",
+                channelId: "chan_1",
+                ticketRoleId: "role_1",
                 postedMessageId: "discord_msg_999",
             }));
 
@@ -234,7 +238,17 @@ describe("Ticket Server Actions", () => {
 
     describe("Read-only Action Wrappers", () => {
         it("getTicketsListAction should verify guild access and return rows", async () => {
-            const mockRows = [TicketSchema.parse({ id: 1, status: "OPEN" })];
+            // Populated to satisfy constraints in TicketSchema
+            const mockRows = [
+                TicketSchema.parse({
+                    id: 1,
+                    status: "OPEN",
+                    channel_id: "chan_123",
+                    opener_id: "user_123",
+                    created_at: "2026-01-01T00:00:00.000Z",
+                    closed_at: "2026-01-02T00:00:00.000Z",
+                }),
+            ];
             vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(getTicketList).mockResolvedValue(mockRows);
 
@@ -253,7 +267,17 @@ describe("Ticket Server Actions", () => {
         });
 
         it("getTicketHistoryAction should verify guild access and return history", async () => {
-            const mockHistory = TicketHistorySchema.parse({ ticket_id: 1 });
+            // Populated to satisfy constraints in TicketHistorySchema
+            const mockHistory = TicketHistorySchema.parse({
+                ticket_id: 1,
+                guild_id: "guild_123",
+                channel_id: "chan_123",
+                opener_id: "user_123",
+                status: "OPEN",
+                created_at: "2026-01-01T00:00:00.000Z",
+                closed_at: "2026-01-02T00:00:00.000Z",
+                last_activity: "2026-01-03T00:00:00.000Z",
+            });
             vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(getTicketHistory).mockResolvedValue(mockHistory);
 
