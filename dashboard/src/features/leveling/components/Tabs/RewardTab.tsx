@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, JSX } from "react";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { LevelReward, saveLevelRewardInputSchema } from "@/features/leveling/types";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -36,12 +36,12 @@ const areArraysEqual = (a: string[], b: string[]) => {
 };
 
 export function RewardTab({
-    guildId,
+    guildId: _guildId,
     rewards,
     onSave,
     onDelete,
     roleMap,
-}: LevelRewardsTabProps) {
+}: LevelRewardsTabProps): JSX.Element {
     const availableRoles = getAvailableRoleOptions(roleMap);
 
     // Normalize initial server props for comparison

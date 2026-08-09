@@ -2,28 +2,31 @@ import { TicketConfig } from "@/features/tickets/types";
 import { TICKETS_WELCOME_CONFIG } from "@/features/tickets/builderConfigs";
 import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { DiscordEmbed } from "@/features/_shared/embed";
+import { JSX } from "react";
 
-export default function InitialMessageTab(props: {
+interface InitialMessageTabProps {
     config: TicketConfig,
     onChange: (updated: GenericMessageConfig) => void,
-    onEmbedChange: (embed: any) => void,
+    onEmbedChange: (embed: DiscordEmbed) => void,
     disabled: boolean,
     resetKey: number,
-    isEmpty: (value: (((prevState: boolean) => boolean) | boolean)) => void
-}) {
+}
+
+
+export default function InitialMessageTab({ config, onChange, onEmbedChange, disabled, resetKey }: InitialMessageTabProps): JSX.Element {
     return <div className="flex flex-col gap-3">
             <MessageConfigEditor
-                config={props.config.welcomeMessage.message}
-                onChange={props.onChange}
-                onEmbedChange={props.onEmbedChange}
+                config={config.welcomeMessage.message}
+                onChange={onChange}
+                onEmbedChange={onEmbedChange}
                 channels={[]}
-                disabled={props.disabled}
+                disabled={disabled}
                 toggleLabel="Customize Welcome Message"
                 embedTemplateConfig={TICKETS_WELCOME_CONFIG}
-                resetKey={`${props.resetKey}_welcome`}
+                resetKey={`${resetKey}_welcome`}
                 modeLabel="Message Mode (Welcome Message)"
                 placeholderText="Hello {member.mention}, welcome to your ticket. Please describe your issue."
-                setIsEmpty={props.isEmpty}
                 noChannels
             />
     </div>

@@ -8,9 +8,19 @@ vi.mock("@/lib/db", () => ({
     },
 }));
 
-const mockQuery = vi.mocked(db.query) as unknown as ReturnType<
-    typeof vi.fn<(sql: string, params?: any[]) => Promise<any>>
->;
+const mockQuery = vi.hoisted(() =>
+    vi.fn<(sql: string, params?: unknown[]) => Promise<{
+        rows?: unknown[];
+        rowCount?: number | null;
+    }>>()
+);
+
+vi.mock("@/lib/db", () => ({
+    db: {
+        query: mockQuery,
+    },
+}));
+
 
 type SaveCommandInput = Parameters<typeof saveCustomCommand>[0];
 

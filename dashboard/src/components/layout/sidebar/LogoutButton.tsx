@@ -2,8 +2,9 @@
 
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
+import { JSX } from "react";
 
-export function LogoutButton() {
+export function LogoutButton(): JSX.Element {
     return (
         <button
             onClick={() => signOut()}

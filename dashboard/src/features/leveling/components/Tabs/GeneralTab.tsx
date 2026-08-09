@@ -2,7 +2,7 @@ import { NumberInput } from "@/components/ui/NumberInput";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import ScopeSettings from "@/features/message-filtering/components/General/ScopeSettings";
 import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
-import { SetStateAction } from "react";
+import { JSX } from "react";
 import { LevelingConfig, NotificationScope } from "@/features/leveling/types";
 import { LEVEL_NOTIFY_CONFIG } from "@/features/leveling/builderConfigs";
 
@@ -17,10 +17,9 @@ export interface GeneralTabProps {
     channelMap: Record<string, string>;
     roleMap: Record<string, string>;
     channels: DiscordChannel[];
-    setIsEmpty: (value: SetStateAction<boolean>) => void;
 }
 
-export function GeneralTab({ config, handleChange, channelMap, roleMap, channels, setIsEmpty }: GeneralTabProps) {
+export function GeneralTab({ config, handleChange, channelMap, roleMap, channels }: GeneralTabProps): JSX.Element {
     const options: DropdownOption<NotificationScope>[] = [
         {
             value: "NONE",
@@ -111,7 +110,6 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                     enableToggle={false}
                     embedTemplateConfig={LEVEL_NOTIFY_CONFIG}
                     channels={config.notify.scope === "SPECIFIED_CHANNEL" ? channels : undefined}
-                    setIsEmpty={setIsEmpty}
                 />
             )}
             <ScopeSettings

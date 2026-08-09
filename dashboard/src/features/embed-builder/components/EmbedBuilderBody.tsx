@@ -1,26 +1,24 @@
 "use client";
 
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { JSX, useMemo, useState } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { sendEmbedAction } from "@/features/embed-builder/actions";
 import { InputLabel } from "@/components/layout/InputLabel";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
 import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBuilder";
 import { DiscordEmbed } from "@/features/_shared/embed";
 import { toast } from "sonner";
 import { SendEmbedPayloadSchema } from "@/features/embed-builder/types";
+import { Button } from "@/components/ui/Button";
 
 interface EmbedBuilderBodyProps {
     channelMap: Record<string, string>;
     guildId: string;
 }
 
-export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps): ReactNode {
-    // 1. Honest nullable state for channel & typed DiscordEmbed state
+export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps): JSX.Element {
     const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
     const [embedState, setEmbedState] = useState<DiscordEmbed>({});
-    const [isEmpty, setIsEmpty] = useState<boolean>(true);
 
     const [isSending, setIsSending] = useState<boolean>(false);
 
@@ -34,11 +32,6 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
     const handleSendEmbed = async (): Promise<void> => {
         if (!selectedChannel) {
             toast.error("Please select a channel");
-            return;
-        }
-
-        if (isEmpty) {
-            toast.error("Embed must have at least a title, description, or visible content!");
             return;
         }
 
@@ -90,9 +83,9 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                         />
                     </div>
 
-                    <PrimaryButton onClick={handleSendEmbed} disabled={isSending}>
+                    <Button onClick={handleSendEmbed} disabled={isSending} className="py-2">
                         {isSending ? "Sending Embed..." : "Send Embed"}
-                    </PrimaryButton>
+                    </Button>
                 </div>
             </div>
 
@@ -100,7 +93,6 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                 config={config}
                 initialEmbedState={embedState}
                 setEmbedState={setEmbedState}
-                setIsEmpty={setIsEmpty}
                 enablePlaceholderList={true}
                 placeholderConfig={config}
             />

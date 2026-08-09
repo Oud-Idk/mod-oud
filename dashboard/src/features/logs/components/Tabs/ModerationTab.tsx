@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { ModerationLog } from "@/features/logs/types";
 import { getModerationLogsAction } from "@/features/logs/actions";
@@ -16,7 +16,8 @@ interface ModerationTabProps {
 const LIMIT = 20;
 const HEADERS = ["Case ID", "Action", "Target Username", "Moderator Username", "Reason", "Duration", "Timestamp"];
 
-export function ModerationTab({ guildId }: ModerationTabProps): ReactNode {
+export function ModerationTab({ guildId }: ModerationTabProps):
+    JSX.Element {
     const [logs, setLogs] = useState<ModerationLog[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);

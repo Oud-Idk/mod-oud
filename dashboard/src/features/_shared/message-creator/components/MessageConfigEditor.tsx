@@ -22,7 +22,6 @@ interface MessageConfigEditorProps {
     resetKey?: string | number;
     modeLabel?: string;
     placeholderText?: string;
-    setIsEmpty?: (value: SetStateAction<boolean>) => void;
     targetChannelIsEmpty?: boolean;
     setTargetChannelIsEmpty?: (value: SetStateAction<boolean>) => void;
     noChannels?: boolean;
@@ -32,7 +31,6 @@ interface MessageConfigEditorProps {
 export function MessageConfigEditor({
     config,
     onChange,
-    onEmbedChange,
     toggleLabel,
     embedTemplateConfig,
     channels,
@@ -41,21 +39,12 @@ export function MessageConfigEditor({
     modeLabel,
     placeholderText,
     enableToggle = true,
-    setIsEmpty = () => {},
-    targetChannelIsEmpty,
     setTargetChannelIsEmpty,
     noChannels = false,
     customFields: CustomFields,
 }: MessageConfigEditorProps): JSX.Element {
     const isEnabled = config.enabled ?? true;
     const isChannelError = isEnabled && !config.channel_id;
-
-    // Reset emptiness status when the message configuration is disabled
-    useEffect(() => {
-        if (!isEnabled) {
-            setIsEmpty(false);
-        }
-    }, [isEnabled, setIsEmpty]);
 
     // Handle target channel emptiness validation
     useEffect(() => {
@@ -108,7 +97,6 @@ export function MessageConfigEditor({
                             placeholderConfig={embedTemplateConfig}
                             disabled={disabled}
                             onChange={(val) => onChange({ ...config, content: val })}
-                            setIsEmpty={setIsEmpty}
                         />
                     ) : (
                         <EmbedBuilder
@@ -117,7 +105,6 @@ export function MessageConfigEditor({
                             setEmbedState={embed => onChange({ ...config, embed: embed })}
                             config={embedTemplateConfig}
                             initialEmbedState={config.embed}
-                            setIsEmpty={setIsEmpty}
                         />
                     )}
                 </>

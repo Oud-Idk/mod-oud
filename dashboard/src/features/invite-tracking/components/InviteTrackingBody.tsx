@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
@@ -24,7 +24,7 @@ export function InviteTrackingBody({
     initialLeaderboard,
     pageSize = 15,
     onSave,
-}: InviteTrackerBodyProps): ReactNode {
+}: InviteTrackerBodyProps): JSX.Element {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(initialLeaderboard);
     const [hasMore, setHasMore] = useState<boolean>(initialLeaderboard.length >= pageSize);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -37,7 +37,6 @@ export function InviteTrackingBody({
         setConfig,
         isPending,
         isDirty,
-        resetKey,
         handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm({
@@ -104,7 +103,7 @@ export function InviteTrackingBody({
         };
     }, [loadMore]);
 
-    const renderRankBadge = (rank: number) => {
+    const renderRankBadge = (rank: number): JSX.Element => {
         if (rank === 1) {
             return (
                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-warning-subtle text-warning text-xs font-bold border border-warning/30">

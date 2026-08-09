@@ -3,13 +3,13 @@ import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels";
 import { getBirthdayConfig } from "../queries";
 import { saveBirthdayConfigAction } from "../actions";
 import { BirthdaysBody } from "./BirthdaysBody";
-import { ReactNode } from "react";
+import { JSX} from "react";
 
 interface BirthdayFeatureProps {
     guildId: string;
 }
 
-export async function BirthdayFeature({ guildId }: BirthdayFeatureProps): Promise<ReactNode> {
+export async function BirthdayFeature({ guildId }: BirthdayFeatureProps): Promise<JSX.Element> {
     const [config, channelMap, roleMap] = await Promise.all([
         getBirthdayConfig(guildId),
         getTextChannelMap(guildId),

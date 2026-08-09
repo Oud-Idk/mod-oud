@@ -16,7 +16,7 @@ import {
     SaveXpMultiplierInput,
     saveLevelRewardInputSchema,
     saveXpMultiplierInputSchema,
-    levelingConfigSchema, saveLevelingConfigSchema
+    saveLevelingConfigSchema
 } from "@/features/leveling/types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 

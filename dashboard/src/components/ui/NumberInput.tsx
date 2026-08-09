@@ -1,5 +1,5 @@
-import { Button, Field, Input, Label } from "@headlessui/react";
-import React from "react";
+import { Button, Field, Input } from "@headlessui/react";
+import React, { JSX } from "react";
 import { cn } from "@/lib/cn";
 import { InputLabel } from "@/components/layout/InputLabel";
 
@@ -31,14 +31,14 @@ export function NumberInput({
     required = false,
     error = false,
     placeholder = "",
-}: NumberInputProps) {
+}: NumberInputProps): JSX.Element {
     // Helper to check if the value is empty
     const isEmpty = value === undefined || value === null;
 
     // The raw string value used purely by the HTML input element
     const displayValue = isEmpty ? "" : value;
 
-    const increment = () => {
+    const increment = (): void => {
         if (disabled) return;
         const base = isEmpty ? (min ?? 0) : value;
         const next = base + step;
@@ -50,7 +50,7 @@ export function NumberInput({
         }
     };
 
-    const decrement = () => {
+    const decrement = (): void => {
         if (disabled) return;
         const base = isEmpty ? (min ?? 0) : value;
         const next = base - step;
@@ -62,7 +62,7 @@ export function NumberInput({
         }
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         if (disabled) return;
 
         const rawValue = e.target.value;
@@ -77,7 +77,7 @@ export function NumberInput({
         }
     };
 
-    const handleBlur = () => {
+    const handleBlur = (): void => {
         if (disabled || isEmpty || !clamp) return;
 
         if (min !== undefined && value < min) onChange(min);

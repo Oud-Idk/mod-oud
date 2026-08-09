@@ -10,10 +10,8 @@ import {
     userLevelSchema,
     xpMultiplierSchema,
     levelRewardSchema,
-    saveXpMultiplierInputSchema,
-    saveLevelRewardInputSchema,
     SaveXpMultiplierInput,
-    SaveLevelRewardInput, saveLevelingConfigSchema,
+    SaveLevelRewardInput,
 } from "@/features/leveling/types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 

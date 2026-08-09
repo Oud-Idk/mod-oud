@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { JSX } from "react";
 
 interface ReportContentProps {
     authorName: string;
@@ -18,7 +19,7 @@ export function ReportContent({
     reason,
     attachmentUrl,
     onImageClick,
-}: ReportContentProps) {
+}: ReportContentProps): JSX.Element {
     const cleanContent = (messageContent ?? "").trim();
     const attachments = attachmentUrl ? attachmentUrl.split(",").map(u => u.trim()) : [];
 
@@ -31,7 +32,7 @@ export function ReportContent({
 
             {cleanContent !== "" && (
                 <div className="p-1 rounded text-[0.9rem] my-1">
-                    "{cleanContent}" </div>
+                    &quot;{cleanContent}&quot; </div>
             )}
 
             <div className="mb-0">

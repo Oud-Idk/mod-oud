@@ -1,4 +1,4 @@
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { JSX, useMemo, useState } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TempVoiceHub } from "@/features/temp-voice/types";
 import { sendInterfaceMessageAction } from "@/features/temp-voice/actions";
@@ -18,14 +18,13 @@ export function InterfaceMessageTab({
     guildId,
     voiceConfig,
     handleChange,
-}: InterfaceMessageTabProps): ReactNode {
+}: InterfaceMessageTabProps): JSX.Element {
     const [embedState, setEmbedState] = useState<object>({
         title: "Temp Voice Interface",
         description:
             "This interface can be used to manage temporary voice channels. More options are available with /voice commands.",
         color: 0x55ee77,
     });
-    const [isEmpty, setIsEmpty] = useState<boolean>(true);
     const selectedChannel = voiceConfig.interface_channel_id ?? "";
 
     const [isSending, setIsSending] = useState<boolean>(false);
@@ -38,7 +37,7 @@ export function InterfaceMessageTab({
         }));
     }, [channelMap]);
 
-    const canSend = selectedChannel && !isEmpty && !isSending;
+    const canSend = selectedChannel && !isSending;
 
     const handleSendEmbed = async (): Promise<void> => {
         if (!canSend || !selectedChannel) return;
@@ -111,7 +110,6 @@ export function InterfaceMessageTab({
                 config={TEMP_VOICE_CHANNEL_BUILDER_CONFIG}
                 initialEmbedState={embedState}
                 setEmbedState={setEmbedState}
-                setIsEmpty={setIsEmpty}
                 enablePlaceholderList={true}
                 placeholderConfig={TEMP_VOICE_CHANNEL_BUILDER_CONFIG}
             />

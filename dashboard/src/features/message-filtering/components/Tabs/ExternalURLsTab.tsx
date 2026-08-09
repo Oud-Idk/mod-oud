@@ -2,14 +2,14 @@ import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Radio, RadioGroup } from "@headlessui/react";
 import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
 import { TextInput } from "@/components/ui/TextInput";
-import React, { useState } from "react";
+import React, { JSX, useState } from "react";
 import { isFQDN } from "validator";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
 
-interface ExternalURLsTabProps {
+export interface ExternalURLsTabProps {
     config: MessageFilteringConfig;
     handleChange: (data: MessageFilteringConfig) => void;
     channelMap?: Record<string, string>;
@@ -21,23 +21,23 @@ export function ExternalURLsTab({
     handleChange,
     channelMap,
     roleMap,
-}: ExternalURLsTabProps) {
+}: ExternalURLsTabProps): JSX.Element {
     const [inputUrl, setInputUrl] = useState<string>("");
     const filterConfig = config.externalLinks;
 
     const updateFilter = createFilterUpdater(config, handleChange, "externalLinks");
 
-    const handleRemoveAllowedDomain = (d: string) => {
+    const handleRemoveAllowedDomain = (d: string): void => {
         const current = filterConfig.allowedDomains || [];
         updateFilter({ ...filterConfig, allowedDomains: current.filter((item) => item !== d) });
     };
 
-    const handleRemoveBlockedDomain = (d: string) => {
+    const handleRemoveBlockedDomain = (d: string): void => {
         const current = filterConfig.blockedDomains || [];
         updateFilter({ ...filterConfig, blockedDomains: current.filter((item) => item !== d) });
     };
 
-    const validateUrl = (url: string) => {
+    const validateUrl = (url: string): string | undefined => {
         const trimmed = url.trim();
         if (!trimmed) return;
 
@@ -50,7 +50,7 @@ export function ExternalURLsTab({
         return trimmed;
     }
 
-    const handleAddAllowUrl = () => {
+    const handleAddAllowUrl = (): void => {
         const url = validateUrl(inputUrl);
         if (!url) return;
         const current = filterConfig.allowedDomains || [];
@@ -60,7 +60,7 @@ export function ExternalURLsTab({
         setInputUrl("");
     };
 
-    const handleAddBlockedUrl = () => {
+    const handleAddBlockedUrl = (): void => {
         const url = validateUrl(inputUrl);
         if (!url) return;
         const current = filterConfig.blockedDomains || [];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import TicketingTab from "./Tabs/TicketingTab";
@@ -19,7 +19,7 @@ interface TicketsBodyProps {
     channels: DiscordChannel[];
     ticketConfig: TicketConfig;
     onSave: (config: TicketConfig) => Promise<void>;
-    onSendTicketMessage: (channelId: string) => Promise<string | void>;
+    onSendTicketMessage: (channelId: string) => Promise<string>;
     onDeleteTicketMessage: (channelId: string, messageId: string) => Promise<void>;
 }
 
@@ -41,7 +41,7 @@ export function TicketsBody({
     onSave,
     onSendTicketMessage,
     onDeleteTicketMessage,
-}: TicketsBodyProps) {
+}: TicketsBodyProps): JSX.Element {
     const {
         config,
         setConfig,
@@ -57,7 +57,7 @@ export function TicketsBody({
 
     const [activeTab, setActiveTab] = useState<TabValue>("TICKETING");
 
-    const handleWelcomeChange = (updated: GenericMessageConfig) => {
+    const handleWelcomeChange = (updated: GenericMessageConfig): void => {
         setConfig((prev) => ({
             ...prev,
             welcomeMessage: {
@@ -102,7 +102,6 @@ export function TicketsBody({
                     }
                     disabled={isPending}
                     resetKey={0}
-                    isEmpty={() => {}}
                 />
             )}
 

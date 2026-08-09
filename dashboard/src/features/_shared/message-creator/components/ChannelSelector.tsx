@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { JSX, useMemo } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { DiscordChannel } from "@/features/_shared/channels.types";
@@ -19,7 +19,7 @@ export function ChannelSelector({
     onChange,
     disabled,
     error,
-}: ChannelSelectorProps) {
+}: ChannelSelectorProps): JSX.Element {
     const options = useMemo(() => {
         return channels.map((channel) => ({
             value: channel.id,

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { JSX} from "react";
 import { LogViewer } from "./LogViewer";
 import { EditedMessage } from "@/features/message-logging/types";
 
@@ -18,7 +18,7 @@ export function EditedMessageLogViewer({
     channelMap = {},
     guildId,
     fetchMoreAction,
-}: EditedMessageLogViewerProps): ReactNode {
+}: EditedMessageLogViewerProps): JSX.Element {
     return (
         <LogViewer<EditedMessage>
             title="Edit Logs"

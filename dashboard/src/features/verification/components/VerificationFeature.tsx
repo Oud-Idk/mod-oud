@@ -3,18 +3,23 @@ import { getWelcomeConfig } from "@/features/welcome/queries";
 import VerifyForm from "./VerifyForm";
 import Emphasis from "@/components/layout/Emphasis";
 import { Button } from "@/components/ui/Button";
+import { JSX } from "react";
 
 interface VerifyFeatureProps {
-    searchParams: { [key: string]: string | string[] | undefined };
+    searchParams: Record<string, string | string[] | undefined>;
 }
 
-export async function VerificationFeature({ searchParams }: VerifyFeatureProps) {
+export async function VerificationFeature({ searchParams }: VerifyFeatureProps): Promise<JSX.Element> {
     const session = await auth();
 
-    const userId = (searchParams.user_id as string) || "";
-    const guildId = (searchParams.guild_id as string) || "";
-    const expires = (searchParams.expires as string) || "";
-    const sig = (searchParams.sig as string) || "";
+    const userId = (searchParams.user_id) ?? "";
+    const guildId = (searchParams.guild_id) ?? "";
+    const expires = (searchParams.expires) ?? "";
+    const sig = (searchParams.sig) ?? "";
+
+    if (typeof userId !== "string" || typeof guildId !== "string" || typeof expires !== "string" || typeof sig !== "string") {
+        return <p>Invalid search params!</p>
+    }
 
     const settings = await getWelcomeConfig(guildId);
     const currentUrl = `/verify?user_id=${userId}&guild_id=${guildId}&expires=${expires}&sig=${sig}`;

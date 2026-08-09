@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Card } from "@/features/overview/components/Card";
 
 import { getGuildDetails, getGuildStats } from "@/features/overview/queries";
+import { JSX } from "react";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -11,7 +12,7 @@ interface PageProps {
 
 async function getBotProcessStatus(): Promise<boolean> {
     try {
-        const response = await fetch(`${process.env.BOT_API || ""}/health`, {
+        const response = await fetch(`${process.env.BOT_API ?? ""}/health`, {
             signal: AbortSignal.timeout(1000)
         });
         return response.ok;
@@ -20,7 +21,7 @@ async function getBotProcessStatus(): Promise<boolean> {
     }
 }
 
-export default async function DashboardOverviewPage({ params }: PageProps) {
+export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
     const [status, guildDetails, stats] = await Promise.all([
@@ -30,7 +31,7 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
     ]);
 
     if (!guildDetails) {
-        return <BotNotSetup permissions={process.env.PERMISSION || ""} guild_id={guild_id}/>;
+        return <BotNotSetup permissions={process.env.PERMISSION ?? ""} guild_id={guild_id}/>;
     }
 
     const iconUrl = guildDetails.icon
@@ -76,22 +77,22 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
                     icon={<Users/>}
                     title="Total Members"
                     main={guildDetails.approximate_member_count?.toString() || "X"}
-                    footer={`Online: ${guildDetails.approximate_presence_count}`}
+                    footer={`Online: ${guildDetails.approximate_presence_count ?? "X"}`}
                 />
                 <Card
                     icon={<Gavel/>}
                     title="Moderation Actions Count"
-                    main={weeklyModerationCount?.toString() || "X"}
+                    main={weeklyModerationCount.toString() || "X"}
                     footer="This Week"
                 />
                 <Card
                     icon={<TicketX/>}
                     title="Resolved Tickets Count"
-                    main={weeklyResolvedTicketCount?.toString() || "X"}
+                    main={weeklyResolvedTicketCount.toString() || "X"}
                     footer="Lifetime"
                 />
                 <Card
-                    icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount?.toString() || "X"} footer="Now"
+                    icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount.toString() || "X"} footer="Now"
                 />
                 <Card
                     icon={<CircleArrowUp/>}

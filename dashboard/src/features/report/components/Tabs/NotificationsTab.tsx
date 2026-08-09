@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction } from "react";
+import React, { Dispatch, JSX, SetStateAction } from "react";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { ReportConfig } from "@/features/report/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
@@ -11,7 +11,6 @@ interface NotificationsTabProps {
     handleChange: (updated: Partial<ReportConfig> | ReportConfig) => void;
     isPending: boolean;
     resetKey: number;
-    setIsEmpty: Dispatch<SetStateAction<boolean>>;
 }
 
 export type ReportTabValue = "RESOLVED_DM" | "DISMISSED_DM";
@@ -39,8 +38,7 @@ export function NotificationsTab({
     handleChange,
     isPending,
     resetKey,
-    setIsEmpty,
-}: NotificationsTabProps) {
+}: NotificationsTabProps): JSX.Element {
     const activeKey = TAB_TO_CONFIG_KEY[activeDmTab];
 
     return (
@@ -74,7 +72,6 @@ export function NotificationsTab({
                         activeDmTab === "RESOLVED_DM" ? "Actioned" : "Dismissed"
                     })`}
                     placeholderText={REPORT_PLACEHOLDER_TEXTS[activeDmTab]}
-                    setIsEmpty={setIsEmpty}
                     noChannels
                 />
             </div>

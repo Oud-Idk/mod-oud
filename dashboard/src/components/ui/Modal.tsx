@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useEffect } from "react";
+import React, { JSX, ReactNode, useEffect } from "react";
 import { cn } from "@/lib/cn";
 
 interface ModalProps {
@@ -10,10 +10,10 @@ interface ModalProps {
     className?: string;
 }
 
-export function Modal({ children, onClose, headerText, className }: ModalProps) {
+export function Modal({ children, onClose, headerText, className }: ModalProps): JSX.Element {
     // Esc Key listener
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
+        const handleKeyDown = (e: KeyboardEvent): void => {
             if (e.key === "Escape") {
                 onClose();
             }
@@ -26,7 +26,7 @@ export function Modal({ children, onClose, headerText, className }: ModalProps) 
     }, [onClose]);
 
     // Close only when clicking outside the modal boundary
-    const onBgClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const onBgClick = (e: React.MouseEvent<HTMLDivElement>): void => {
         if (e.target === e.currentTarget) {
             onClose();
         }

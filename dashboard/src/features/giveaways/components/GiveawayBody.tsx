@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, JSX } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -33,7 +33,8 @@ export function GiveawaysBody({
     onDeleteDiscordMessage,
     userId,
     guildId
-}: GiveawaysBodyProps): ReactNode {
+}: GiveawaysBodyProps):
+    JSX.Element {
     const router = useRouter();
     const [config, setConfig] = useState<Giveaway | null>(activeConfig);
     const [isPending, startTransition] = useTransition();
@@ -45,7 +46,7 @@ export function GiveawaysBody({
 
     const isDirty = !isDeepEqual(config, activeConfig);
 
-    const handleSave = () => {
+    const handleSave = (): void => {
         if (!config) return;
 
         const payload: SaveGiveawayData = {
@@ -70,7 +71,7 @@ export function GiveawaysBody({
         });
     };
 
-    const handleCancel = () => {
+    const handleCancel = (): void => {
         setConfig(activeConfig);
     };
 

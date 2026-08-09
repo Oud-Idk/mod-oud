@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { JSX } from "react";
 import { getCategoryMap, getTextChannelMap, getVoiceChannelMap } from "@/features/_shared/channels";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { TempVoiceBody } from "@/features/temp-voice/components/TempVoiceBody";
@@ -8,7 +8,7 @@ interface TempVoiceFeatureProps {
     guildId: string;
 }
 
-export async function TempVoiceFeature({ guildId }: TempVoiceFeatureProps): Promise<ReactNode> {
+export async function TempVoiceFeature({ guildId }: TempVoiceFeatureProps): Promise<JSX.Element> {
     const [hubs, voiceChannelMap, categoryMap, textChannelMap] = await Promise.all([
         getTempVoiceHubs(guildId),
         getVoiceChannelMap(guildId),

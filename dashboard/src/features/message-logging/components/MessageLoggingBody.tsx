@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, JSX } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -36,7 +36,7 @@ export function MessageLoggingBody({
     fetchMoreDeletedAction,
     fetchMoreEditedAction,
     guildId,
-}: MessageLoggingBodyProps): ReactNode {
+}: MessageLoggingBodyProps): JSX.Element {
     const normalizedConfig = useMemo(() => messageLoggingConfig, [messageLoggingConfig]);
 
     const {

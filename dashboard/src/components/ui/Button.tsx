@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 import { Button as HeadlessButton } from "@headlessui/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
@@ -33,7 +33,7 @@ export interface ButtonProps
     extends React.ComponentPropsWithoutRef<typeof HeadlessButton>,
         VariantProps<typeof buttonVariants> {}
 
-export function Button({ variant, size, className, children, ...props }: ButtonProps) {
+export function Button({ variant, size, className, children, ...props }: ButtonProps): JSX.Element {
     return (
         <HeadlessButton
             className={cn(buttonVariants({ variant, size }), className)}

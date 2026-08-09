@@ -21,20 +21,6 @@
     "next-env.d.ts"
   ],
   "rules": {
-    "eslint/id-match": [
-      "error",
-      "^_?[a-zA-Z][a-zA-Z0-9]*$",
-      {
-        "properties": false,
-        "onlyDeclarations": true
-      }
-    ],
-    "unicorn/filename-case": [
-      "error",
-      {
-        "case": "camelCase"
-      }
-    ],
     "no-array-constructor": "error",
     "no-unused-expressions": "error",
     "no-unused-vars": [

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, JSX } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { BadWordCreateModal } from "./BadWordCreateModal";
@@ -20,7 +20,7 @@ interface BadWordsBodyProps {
     activeRuleset: BadWordRuleset | null;
     channelMap: Record<string, string>;
     roleMap?: Record<string, string>;
-    onSave: (ruleset: SaveableBadWordRuleset) => Promise<any>;
+    onSave: (ruleset: SaveableBadWordRuleset) => Promise<BadWordRuleset>;
     onDelete: (id: string) => Promise<void>;
 }
 
@@ -31,12 +31,14 @@ export function BadWordTab({
     roleMap,
     onSave,
     onDelete,
-}: BadWordsBodyProps) {
+}: BadWordsBodyProps): JSX.Element {
     const router = useRouter();
     const params = useParams();
-    const guildId = params?.guild_id as string;
+    if (typeof params?.guild_id !== "string") {
+        throw new Error("Missing or invalid guild_id parameter");
+    }
 
-    const [, setIsEmpty] = useState(false);
+    const guildId = params.guild_id;
 
     const {
         config,
@@ -45,7 +47,7 @@ export function BadWordTab({
         isDirty,
         handleSave: originalHandleSave,
         handleCancel,
-    } = useConfigForm<SaveableBadWordRuleset | null>({
+    } = useConfigForm<BadWordRuleset | null>({
         initialConfig: activeRuleset,
         onSave: async (updatedConfig) => {
             if (updatedConfig) await onSave(updatedConfig);
@@ -63,8 +65,8 @@ export function BadWordTab({
     }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<SaveableBadWordRuleset>) => {
-        setConfig((prev) => (prev ? { ...prev, ...updated } : null));
-    }, [setConfig]);
+        setConfig(config ? { ...config, ...updated } : null);
+    }, [setConfig, config]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -129,15 +131,16 @@ export function BadWordTab({
                     </div>
                 }
             >
-                <BadWordRulesetConfig
-                    config={config as BadWordRuleset}
-                    channelMap={channelMap}
-                    roleMap={roleMap}
-                    isPending={isPending}
-                    onDelete={onDelete}
-                    onChange={handleChange}
-                    setIsEmpty={setIsEmpty}
-                />
+                {config && (
+                    <BadWordRulesetConfig
+                        config={config}
+                        channelMap={channelMap}
+                        roleMap={roleMap}
+                        isPending={isPending}
+                        onDelete={onDelete}
+                        onChange={handleChange}
+                    />
+                )}
             </ConfigListLayout>
 
             <BadWordCreateModal

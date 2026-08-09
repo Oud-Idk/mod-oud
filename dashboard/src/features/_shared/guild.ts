@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { getGuildLists } from "@/features/_shared/servers";
 import { db } from "@/lib/db";
 import redis from "@/lib/redis";
+import { User } from "next-auth";
 
 export interface DiscordGuild {
     id: string;
@@ -19,14 +20,14 @@ export interface GuildLists {
  * Authenticates the user and verifies if they have management permissions
  * for the given guild where the bot is also present.
  */
-export async function verifyGuildAccess(guildId: string) {
+export async function verifyGuildAccess(guildId: string): Promise<User> {
     const session = await auth();
 
     if (!session || !session.user) {
         throw new Error("Unauthorized: Please sign in.");
     }
 
-    const accessToken = session.accessToken as string | undefined;
+    const accessToken = session.accessToken;
     if (!accessToken) {
         throw new Error("Unauthorized: Missing access token.");
     }

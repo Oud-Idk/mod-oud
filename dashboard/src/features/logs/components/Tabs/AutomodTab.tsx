@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { AutomodLog } from "@/features/logs/types";
 import { getAutomodLogsAction } from "@/features/logs/actions";
@@ -15,7 +15,7 @@ interface AutomodTabProps {
 const LIMIT = 20;
 const HEADERS = ["User ID", "Rule Type", "Triggered By", "Original Content", "Actions Taken", "Timestamp"];
 
-export function AutomodTab({ guildId }: AutomodTabProps): ReactNode {
+export function AutomodTab({ guildId }: AutomodTabProps): JSX.Element {
     const [logs, setLogs] = useState<AutomodLog[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);

@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
 import {
-    saveTempVoiceHubInputSchema,
     tempVoiceHubSchema,
     type SaveTempVoiceHubInput,
     type TempVoiceHub,

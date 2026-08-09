@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TextInput } from "@/components/ui/TextInput";
 import { NumberInput } from "@/components/ui/NumberInput";
@@ -40,7 +40,7 @@ export function CustomCommandConfig({
     guildId,
     onDelete,
     onChange,
-}: CustomCommandConfigProps): ReactNode {
+}: CustomCommandConfigProps): JSX.Element {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
     const [activeTab, setActiveTab] = useState<TabValue>("GENERAL");

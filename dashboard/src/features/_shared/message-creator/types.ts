@@ -18,5 +18,5 @@ export interface EmbedState {
     footerIcon: string;
     imageUrl: string;
     thumbnailUrl: string;
-    fields?: EmbedField[];
+    fields: EmbedField[];
 }

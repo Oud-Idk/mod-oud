@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useCallback } from "react";
+import React, { useState, useCallback, JSX } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -32,7 +32,7 @@ export function StarboardBody({
     roleMap,
     onSave,
     onDelete,
-}: StarboardBodyProps): ReactNode {
+}: StarboardBodyProps): JSX.Element {
     const router = useRouter();
     const [isEmpty, setIsEmpty] = useState(false);
 

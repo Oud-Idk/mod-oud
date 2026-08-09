@@ -2,6 +2,7 @@ import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
+import { JSX } from "react";
 
 interface ServerInvitesTabProps {
     config: MessageFilteringConfig;
@@ -15,7 +16,7 @@ export function ServerInvitesTab({
     handleChange,
     channelMap,
     roleMap,
-}: ServerInvitesTabProps) {
+}: ServerInvitesTabProps): JSX.Element {
     const filterConfig = config.serverInvites;
 
     const updateFilter = createFilterUpdater(config, handleChange, "serverInvites");

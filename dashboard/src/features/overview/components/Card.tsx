@@ -1,13 +1,13 @@
-import { ReactNode } from "react";
+import { JSX} from "react";
 
-type CardProps = {
-    icon: ReactNode;
+interface CardProps {
+    icon: JSX.Element;
     title: string;
     main: string;
     footer?: string;
 }
 
-export function Card({ icon, title, main, footer }: CardProps) {
+export function Card({ icon, title, main, footer }: CardProps): JSX.Element {
     return <div
         className="p-6 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center gap-4"
     >

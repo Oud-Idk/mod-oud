@@ -1,12 +1,11 @@
 import { InputLabel } from "@/components/layout/InputLabel";
 import { TextInput } from "@/components/ui/TextInput";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
-import AlertButton from "@/components/ui/buttons/AlertButton";
 import { Section } from "./Section";
 import { EmbedState } from "@/features/_shared/message-creator/types";
 import { EmbedField } from "@/features/_shared/embed";
 import { MoveUp, MoveDown, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { JSX } from "react";
 
 interface FieldsSectionProps {
     embed: EmbedState;
@@ -22,7 +21,7 @@ export function FieldsSection({
     addField,
     removeField,
     moveField,
-}: FieldsSectionProps) {
+}: FieldsSectionProps): JSX.Element {
     return (
         <Section
             title={`Fields (${embed.fields?.length || 0})`}

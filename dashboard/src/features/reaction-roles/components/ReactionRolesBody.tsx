@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useCallback } from "react";
+import React, { ReactNode, useState, useCallback, JSX } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -35,9 +35,8 @@ export function ReactionRolesBody({
     onDelete,
     onSend,
     onDeleteDiscordMessage,
-}: ReactionRolesBodyProps): ReactNode {
+}: ReactionRolesBodyProps): JSX.Element {
     const router = useRouter();
-    const [isEmpty, setIsEmpty] = useState(false);
 
     const {
         config,
@@ -138,8 +137,6 @@ export function ReactionRolesBody({
                         onSend={onSend}
                         guildId={guildId}
                         onChange={setConfig}
-                        setIsEmpty={setIsEmpty}
-                        isEmpty={isEmpty}
                         onDeleteDiscordMessage={onDeleteDiscordMessage}
                     />
                 )}

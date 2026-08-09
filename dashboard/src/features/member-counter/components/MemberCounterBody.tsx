@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ForwardRefExoticComponent, ReactNode, SVGProps, useMemo, useState } from "react";
+import React, { ForwardRefExoticComponent, JSX, SVGProps, useMemo, useState } from "react";
 import { Bot, Hash, Loader2, Plus, ShieldAlert, Sparkles, Trash2, UserCheck, Users, Wand2 } from "lucide-react";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
@@ -40,7 +40,7 @@ export function MemberCounterBody({
     memberCounterConfig,
     onSave,
     roleMap,
-}: MemberCounterBodyProps): ReactNode {
+}: MemberCounterBodyProps): JSX.Element {
     const normalizedConfig = useMemo(() => memberCounterConfig, [memberCounterConfig]);
     const [isCreatingChannels, setIsCreatingChannels] = useState(false);
 
@@ -244,7 +244,7 @@ export function MemberCounterBody({
                                                 }))}
                                                 value={counter.counterType}
                                                 onChange={(val) => {
-                                                    if (val) handleUpdateCounter(counter.id, "counterType", val as CounterType);
+                                                    if (val) handleUpdateCounter(counter.id, "counterType", val ?? "TOTAL_MEMBERS");
                                                 }}
                                                 placeholder="Select metric..."
                                                 className="w-full"

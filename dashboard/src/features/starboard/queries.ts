@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import redis from "@/lib/redis";
 import {
-    starboardConfigInputSchema,
     starboardConfigSchema,
     type StarboardConfig,
     type StarboardConfigInput,

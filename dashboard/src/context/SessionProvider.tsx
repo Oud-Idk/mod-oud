@@ -1,13 +1,13 @@
 'use client';
 
 import { SessionProvider as SP, signOut, useSession } from "next-auth/react";
-import { ReactNode, useEffect } from "react";
+import { JSX, ReactNode, useEffect } from "react";
 
 interface ProvidersProps {
     children: ReactNode;
 }
 
-const SessionInvalidator = () => {
+const SessionInvalidator = (): null => {
     const { data: session, status } = useSession();
 
     useEffect(() => {
@@ -21,7 +21,7 @@ const SessionInvalidator = () => {
     return null;
 };
 
-export function SessionProvider({ children }: ProvidersProps) {
+export function SessionProvider({ children }: ProvidersProps): JSX.Element {
     return (
         <SP refetchOnWindowFocus={false}>
             <SessionInvalidator/>

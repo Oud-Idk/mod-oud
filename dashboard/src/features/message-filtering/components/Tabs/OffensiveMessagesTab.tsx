@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
 import Link from "next/link";
 import { MessageFilteringConfig, FlagThreshold } from "@/features/message-filtering/types";
@@ -19,13 +19,13 @@ export function OffensiveMessagesTab({
     handleChange,
     channelMap,
     roleMap,
-}: OffensiveMessagesTabProps) {
+}: OffensiveMessagesTabProps): JSX.Element {
     const filterConfig = config.offensiveMessages;
     const [selected, setSelected] = useState<FlagThreshold>(filterConfig.flagThreshold);
 
     const updateFilter = createFilterUpdater(config, handleChange, "offensiveMessages");
 
-    const handleThresholdChange = (v: FlagThreshold | null) => {
+    const handleThresholdChange = (v: FlagThreshold | null): void => {
         if (!v) return;
         setSelected(v);
         updateFilter({ flagThreshold: v });

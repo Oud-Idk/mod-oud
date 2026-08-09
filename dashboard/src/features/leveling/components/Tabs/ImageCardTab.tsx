@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { JSX, useEffect, useMemo, useState } from "react";
 import { ImageCardSettings, LevelingConfig } from "@/features/leveling/types";
 import { TextInput } from "@/components/ui/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
@@ -16,7 +16,7 @@ interface ColorPickerInputProps {
     onChange: (value: string) => void;
 }
 
-function ColorPickerInput({ label, value, onChange }: ColorPickerInputProps) {
+function ColorPickerInput({ label, value, onChange }: ColorPickerInputProps): JSX.Element {
     return (
         <div className="flex flex-col">
             <InputLabel>{label}</InputLabel>
@@ -37,7 +37,7 @@ function ColorPickerInput({ label, value, onChange }: ColorPickerInputProps) {
     );
 }
 
-export function ImageCardTab({ config, handleChange }: ImageCardTabProps) {
+export function ImageCardTab({ config, handleChange }: ImageCardTabProps): JSX.Element {
     const [template, setTemplate] = useState<string>();
 
     useEffect(() => {
@@ -46,7 +46,7 @@ export function ImageCardTab({ config, handleChange }: ImageCardTabProps) {
             .then(svg => setTemplate(svg));
     }, []);
 
-    const updateImageCardSetting = (key: keyof ImageCardSettings, value: string) => {
+    const updateImageCardSetting = (key: keyof ImageCardSettings, value: string): void => {
         handleChange({
             imageCard: {
                 ...config.imageCard,
@@ -55,7 +55,7 @@ export function ImageCardTab({ config, handleChange }: ImageCardTabProps) {
         });
     };
 
-    const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max);
+    const clamp = (num: number, min: number, max: number): number => Math.min(Math.max(num, min), max);
 
     const dummyData = {
         username: "Oud",

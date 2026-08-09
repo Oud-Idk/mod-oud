@@ -1,6 +1,6 @@
 // features/tickets/components/Tabs/TicketingTab.tsx
 
-import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
+import { Dispatch, JSX, SetStateAction, useCallback, useMemo } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TicketConfig } from "@/features/tickets/types";
 import { TICKETS_PANEL_CONFIG } from "@/features/tickets/builderConfigs";
@@ -12,8 +12,6 @@ import Emphasis from "@/components/layout/Emphasis";
 import { Button } from "@/components/ui/Button";
 import { getAvailableCategoryOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { isDeepEqual } from "@/features/_shared/embed";
-
-type MessageConfigWithChannel = GenericMessageConfig & { channel_id?: string };
 
 interface TicketingTabProps {
     config: TicketConfig;
@@ -39,7 +37,7 @@ export default function TicketingTab({
     onPostPanel,
     isProcessing,
     isDirty,
-}: TicketingTabProps) {
+}: TicketingTabProps): JSX.Element {
     const targetCategoryIsEmpty = !config.categoryId;
     const targetRoleIsEmpty = !config.ticketRoleId;
     const targetChannelIsEmpty = !config.channelId;
@@ -118,7 +116,6 @@ export default function TicketingTab({
                 embedTemplateConfig={TICKETS_PANEL_CONFIG}
                 modeLabel="Message Mode (Tickets Panel)"
                 placeholderText="Click the button below to open a support ticket."
-                setIsEmpty={() => {}} // Dummy no-op if MessageConfigEditor still demands it
                 customFields={
                     <div className="max-w-md flex flex-col">
                         <div>

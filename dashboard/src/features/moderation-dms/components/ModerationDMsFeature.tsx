@@ -1,14 +1,14 @@
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader"; // Generic UI
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { getModerationDMsConfig } from "../queries";
 import { saveModerationDMsConfigAction } from "../actions";
 import { ModerationDMsBody } from "./ModerationDMsBody";
-import { ReactNode } from "react";
+import { JSX } from "react";
 
 interface ModerationDMsFeatureProps {
     guildId: string;
 }
 
-export async function ModerationDMsFeature({ guildId }: ModerationDMsFeatureProps): Promise<ReactNode> {
+export async function ModerationDMsFeature({ guildId }: ModerationDMsFeatureProps): Promise<JSX.Element> {
     const moderationDMsConfig = await getModerationDMsConfig(guildId);
     const handleSave = saveModerationDMsConfigAction.bind(null, guildId);
 

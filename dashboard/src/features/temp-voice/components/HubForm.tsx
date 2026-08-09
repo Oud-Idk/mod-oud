@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useMemo, useState, useTransition, useCallback } from "react";
+import React, { useMemo, useState, useTransition, useCallback, JSX } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
@@ -36,7 +36,7 @@ export function HubForm({
     categories,
     onSaveSuccess,
     onDeleteSuccess,
-}: HubFormProps): ReactNode {
+}: HubFormProps): JSX.Element {
     const [isDeleting, startDeleteTransition] = useTransition();
     const [activeTab, setActiveTab] = useState<TabValue>("GENERAL");
 

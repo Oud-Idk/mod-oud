@@ -12,7 +12,6 @@ import {
 import {
     SaveTicketConfigSchema,
     type Ticket,
-    type TicketConfig,
     type TicketHistory,
 } from "./types";
 

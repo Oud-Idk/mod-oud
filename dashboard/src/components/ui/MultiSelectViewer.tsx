@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 import { cn } from "@/lib/cn";
 
 interface MultiSelectViewerProps {
@@ -17,7 +17,7 @@ export function MultiSelectViewer({
     placeholder,
     prefix,
     className,
-}: MultiSelectViewerProps) {
+}: MultiSelectViewerProps): JSX.Element | null {
     if (selectedList.length === 0) {return null}
 
     return (

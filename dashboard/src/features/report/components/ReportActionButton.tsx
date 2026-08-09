@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 
 interface ReportActionButtonProps {
     children?: React.ReactNode;
@@ -7,7 +7,7 @@ interface ReportActionButtonProps {
     color: string
 }
 
-export function ReportActionButton({ children, onClick, disabled, color }: ReportActionButtonProps) {
+export function ReportActionButton({ children, onClick, disabled, color }: ReportActionButtonProps): JSX.Element {
     return <button
         type="button"
         onClick={onClick}

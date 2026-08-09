@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 import { twMerge } from "tailwind-merge";
 
 interface EmphasisProps {
@@ -6,6 +6,6 @@ interface EmphasisProps {
     className?: string;
 }
 
-export default function Footer({ children, className }: EmphasisProps) {
+export default function Footer({ children, className }: EmphasisProps): JSX.Element {
     return <footer className={twMerge("text-sm text-muted-foreground", className)}>{children}</footer>
 }

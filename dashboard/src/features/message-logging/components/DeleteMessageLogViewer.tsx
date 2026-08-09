@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { JSX, useState } from "react";
 import Image from "next/image";
 import { LogViewer } from "./LogViewer";
 import { Modal } from "@/components/ui/Modal";
@@ -21,7 +21,7 @@ export function DeletedMessageLogViewer({
     channelMap = {},
     guildId,
     fetchMoreAction,
-}: DeletedMessageLogViewerProps): ReactNode {
+}: DeletedMessageLogViewerProps): JSX.Element {
     const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
 
     return (

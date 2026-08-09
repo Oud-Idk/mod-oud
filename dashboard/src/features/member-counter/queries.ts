@@ -3,7 +3,6 @@ import {
     CounterChannel,
     MemberCounterConfig,
     memberCounterConfigSchema,
-    counterChannelSchema, saveMemberCounterConfigSchema,
 } from "./types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 

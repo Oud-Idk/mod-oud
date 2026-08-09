@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "@/components/layout/ThemeToggle"; // Import your ThemeToggle here
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
-export function MobileNav({ children }: { children: React.ReactNode }) {
+export function MobileNav({ children }: { children: React.ReactNode }): JSX.Element {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
 

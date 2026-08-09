@@ -2,7 +2,6 @@
 
 import { JSX } from "react";
 import { Radio, RadioGroup } from "@headlessui/react";
-import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { ScopeActionMode } from "@/features/message-filtering/types";
 import { cn } from "@/lib/cn";

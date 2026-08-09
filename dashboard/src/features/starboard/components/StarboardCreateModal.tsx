@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { JSX, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
@@ -25,7 +25,7 @@ export function StarboardCreateModal({
     channelMap,
     onSave,
     guildId,
-}: StarboardCreateModalProps) {
+}: StarboardCreateModalProps): JSX.Element | null {
     const router = useRouter();
 
     const [isPending, startTransition] = useTransition();

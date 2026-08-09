@@ -16,7 +16,7 @@ interface RoleOptionProps {
     onToggle: (roleId: string, checked: boolean) => void;
 }
 
-function RoleOption({ role, isSelected, isPending, onToggle }: RoleOptionProps) {
+function RoleOption({ role, isSelected, isPending, onToggle }: RoleOptionProps): JSX.Element {
     const roleColorHex = role.color
         ? `#${role.color.toString(16).padStart(6, "0")}`
         : "var(--muted-foreground)";

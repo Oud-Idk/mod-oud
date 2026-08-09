@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { JSX, useOptimistic, useState, useTransition } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
@@ -31,7 +31,7 @@ export function MultiplierTab({
     onDelete,
     channelMap,
     roleMap,
-}: MultiplierTabProps) {
+}: MultiplierTabProps): JSX.Element {
     const [targetType, setTargetType] = useState<TargetType>("ROLE");
     const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
     const [multiplierValue, setMultiplierValue] = useState<number | undefined>(1.5);
@@ -60,7 +60,7 @@ export function MultiplierTab({
         }
     });
 
-    const handleAddMultipliers = () => {
+    const handleAddMultipliers = (): void => {
         if (selectedTargetIds.length === 0) {
             toast.error("Please select at least one role or channel");
             return;
@@ -103,7 +103,7 @@ export function MultiplierTab({
         });
     };
 
-    const handleDeleteSingle = (targetId: string) => {
+    const handleDeleteSingle = (targetId: string): void => {
         startMutation(async () => {
             setOptimisticMultipliers({ type: "delete", targetIds: [targetId] });
             setSelectedActiveIds((prev) => prev.filter((id) => id !== targetId));
@@ -117,7 +117,7 @@ export function MultiplierTab({
         });
     };
 
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = (): void => {
         if (selectedActiveIds.length === 0) return;
 
         const targetsToDelete = [...selectedActiveIds];
@@ -140,7 +140,7 @@ export function MultiplierTab({
     const isAllSelected = optimisticMultipliers.length > 0 && selectedActiveIds.length === optimisticMultipliers.length;
     const isSomeSelected = selectedActiveIds.length > 0 && selectedActiveIds.length < optimisticMultipliers.length;
 
-    const handleToggleSelectAll = () => {
+    const handleToggleSelectAll = (): void => {
         if (isAllSelected) {
             setSelectedActiveIds([]);
         } else {
@@ -148,7 +148,7 @@ export function MultiplierTab({
         }
     };
 
-    const handleToggleSelect = (targetId: string) => {
+    const handleToggleSelect = (targetId: string): void => {
         setSelectedActiveIds((prev) =>
             prev.includes(targetId)
                 ? prev.filter((id) => id !== targetId)
@@ -186,7 +186,7 @@ export function MultiplierTab({
                             ]}
                             value={targetType}
                             onChange={(val) => {
-                                setTargetType(val as TargetType);
+                                setTargetType(val ?? "CHANNEL");
                                 setSelectedTargetIds([]);
                             }}
                         />
@@ -200,7 +200,7 @@ export function MultiplierTab({
                             multiple
                             options={filteredOptions}
                             value={selectedTargetIds}
-                            onChange={(val) => setSelectedTargetIds(val as string[])}
+                            onChange={(val) => setSelectedTargetIds(val)}
                             placeholder={targetType === "ROLE" ? "Choose roles..." : "Choose channels..."}
                             disabled={filteredOptions.length === 0}
                         />

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useEffect, useRef } from "react";
+import React, { JSX, useState } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
@@ -30,7 +30,7 @@ export function HoneypotBody({
     textChannelMap,
     guildId,
     roleMap,
-}: HoneypotBodyProps): ReactNode {
+}: HoneypotBodyProps): JSX.Element {
     const [isSettingUp, setIsSettingUp] = useState(false);
     const [channelName, setChannelName] = useState("bot-hunt");
     const [timeInput, setTimeInput] = useState<string>("");
@@ -40,7 +40,6 @@ export function HoneypotBody({
         setConfig,
         isPending,
         isDirty,
-        resetKey,
         handleSave: originalHandleSave,
         handleCancel,
     } = useConfigForm({
@@ -48,7 +47,7 @@ export function HoneypotBody({
         onSave,
     });
 
-    const handleSave = () => {
+    const handleSave = (): void => {
         const result = honeypotConfigSchema.safeParse(config);
         if (!result.success) {
             toast.error(result.error.issues[0]?.message || "Invalid configuration.");
@@ -60,7 +59,7 @@ export function HoneypotBody({
     const channelOptions = getAvailableChannelOptions(textChannelMap);
     const roleOptions = getAvailableRoleOptions(roleMap);
 
-    const handleDurationChange = (val: string) => {
+    const handleDurationChange = (val: string): void => {
         setTimeInput(val);
         const parsedMs = val.trim() === "" ? null : parse(val);
         setConfig((prev) => ({
@@ -69,7 +68,7 @@ export function HoneypotBody({
         }));
     };
 
-    const handleCancelWrapper = () => {
+    const handleCancelWrapper = (): void => {
         handleCancel();
         setTimeInput("");
     };

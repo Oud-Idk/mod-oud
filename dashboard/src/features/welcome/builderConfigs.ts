@@ -1,8 +1,6 @@
 import {
     BuilderConfig,
     COMMON_PLACEHOLDERS,
-    MEMBER_PLACEHOLDERS,
-    SERVER_PLACEHOLDERS
 } from "@/features/_shared/builderConfig";
 
 export const WELCOME_CONFIG: BuilderConfig = {

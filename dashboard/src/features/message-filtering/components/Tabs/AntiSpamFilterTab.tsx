@@ -3,6 +3,7 @@ import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
+import { JSX } from "react";
 
 interface AntiSpamFilterTabProps {
     config: MessageFilteringConfig;
@@ -16,7 +17,7 @@ export function AntiSpamFilterTab({
     channelMap,
     roleMap,
     handleChange,
-}: AntiSpamFilterTabProps) {
+}: AntiSpamFilterTabProps): JSX.Element {
     const filterConfig = config.antiSpam;
 
     const updateFilter = createFilterUpdater(config, handleChange, "antiSpam");

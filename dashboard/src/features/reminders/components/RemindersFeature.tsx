@@ -1,9 +1,9 @@
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader"; // Generic UI
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { getTextChannelMap } from "@/features/_shared/channels";
 import { getRemindersByChannels } from "../queries";
 import { deleteReminderAction, saveReminderAction } from "../actions";
 import { RemindersBody } from "./RemindersBody";
-import { ReactNode } from "react";
+import { JSX } from "react";
 
 interface RemindersFeatureProps {
     guildId: string;
@@ -13,7 +13,7 @@ interface RemindersFeatureProps {
 export async function RemindersFeature({
     guildId,
     activeReminderId,
-}: RemindersFeatureProps): Promise<ReactNode> {
+}: RemindersFeatureProps): Promise<JSX.Element> {
     const channelMap = await getTextChannelMap(guildId);
     const channelIds = Object.keys(channelMap);
     const reminders = await getRemindersByChannels(channelIds);

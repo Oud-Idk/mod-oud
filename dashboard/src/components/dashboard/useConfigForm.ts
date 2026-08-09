@@ -1,16 +1,26 @@
-import { useCallback, useState, useTransition } from "react";
+import { Dispatch, SetStateAction, useCallback, useState, useTransition } from "react";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { toast } from "sonner";
 
 interface UseConfigFormOptions<T> {
     initialConfig: T;
-    onSave: (config: T) => Promise<void> | Promise<any>;
+    onSave: (config: T) => Promise<void> | Promise<T>;
+}
+
+interface UseConfigFormReturn<T> {
+    config: T;
+    setConfig: Dispatch<SetStateAction<T>>;
+    isPending: boolean;
+    isDirty: boolean;
+    resetKey: number;
+    handleSave: () => Promise<void>;
+    handleCancel: () => void;
 }
 
 export function useConfigForm<T>({
     initialConfig,
     onSave,
-}: UseConfigFormOptions<T>) {
+}: UseConfigFormOptions<T>): UseConfigFormReturn<T> {
     const [config, setConfig] = useState<T>(initialConfig);
     const [isPending, startTransition] = useTransition();
 

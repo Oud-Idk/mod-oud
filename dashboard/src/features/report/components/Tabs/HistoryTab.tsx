@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction } from "react";
+import React, { Dispatch, JSX, SetStateAction } from "react";
 import { ReportedMessageCard } from "@/features/report/components/ReportMessageCard/ReportedMessageCard";
 import { ReportedMessage, SimpleReportAction } from "@/features/report/types";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
@@ -37,9 +37,9 @@ export function HistoryTab({
     setBanReportId,
     setWarnReportId,
     setActiveImageUrl,
-    observerTarget,
+    observerTarget: _observerTarget,
     isLoadingMore,
-}: HistoryTabProps) {
+}: HistoryTabProps): JSX.Element {
     return (
         <div className="border border-border rounded-xl bg-surface p-4 flex flex-col space-y-4 shadow-sm">
             {/* Header + Status & Filters */}

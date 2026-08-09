@@ -7,13 +7,14 @@ import {
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MessageFilteringBody } from "@/features/message-filtering/components/MessageFilteringBody";
 import { getBadWordRulesets, getMessageFilteringConfig } from "@/features/message-filtering/queries";
+import { JSX } from "react";
 
 interface MessageFilteringFeatureProps {
     guildId: string;
     rulesetId?: string;
 }
 
-export async function MessageFilteringFeature({ guildId, rulesetId }: MessageFilteringFeatureProps) {
+export async function MessageFilteringFeature({ guildId, rulesetId }: MessageFilteringFeatureProps): Promise<JSX.Element> {
     const [
         messageFilteringConfig,
         badWordRulesets,

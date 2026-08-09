@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { JSX} from "react";
 import { getGuildChannels } from "@/features/_shared/channels";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { LeaveBody } from "@/features/leave/components/LeaveBody";
@@ -9,7 +9,7 @@ interface LeaveFeatureProps {
     guildId: string;
 }
 
-export async function LeaveFeature({ guildId }: LeaveFeatureProps): Promise<ReactNode> {
+export async function LeaveFeature({ guildId }: LeaveFeatureProps): Promise<JSX.Element> {
     const [leaveConfig, channels] = await Promise.all([
         getLeaveConfig(guildId),
         getGuildChannels(guildId)

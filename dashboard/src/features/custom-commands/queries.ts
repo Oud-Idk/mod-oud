@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import {
     customCommandSchema,
-    SaveCustomCommandSchema,
     type CustomCommand,
     type SaveCustomCommandData,
 } from "./types";
@@ -26,7 +25,7 @@ export async function getCustomCommands(guildId: string): Promise<CustomCommand[
         ORDER BY id DESC;
     `;
 
-    const res = await db.query(query, [guildId] as unknown[]);
+    const res = await db.query(query, [guildId]);
 
     return res.rows.map((row) => customCommandSchema.parse(row));
 }

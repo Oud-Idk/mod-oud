@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import {
-    SaveTicketConfigSchema,
     TicketConfigSchema,
     TicketHistorySchema,
     TicketSchema,
@@ -41,7 +40,7 @@ export async function getTicketHistory(
         GROUP BY t.id;
     `;
 
-    const res = await db.query(query, [channelId] as unknown[]);
+    const res = await db.query(query, [channelId]);
     if (res.rows.length === 0) return null;
 
     return TicketHistorySchema.parse(res.rows[0]);
@@ -60,7 +59,7 @@ export async function getTicketList(guildId: string): Promise<Ticket[]> {
         WHERE guild_id = $1
         ORDER BY created_at DESC;
     `;
-    const res = await db.query(query, [guildId] as unknown[]);
+    const res = await db.query(query, [guildId]);
     return res.rows.map((row) => TicketSchema.parse(row));
 }
 

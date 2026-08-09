@@ -1,7 +1,7 @@
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import ActionsSettings from "@/features/message-filtering/components/General/ActionsSettings";
 import ScopeSettings from "@/features/message-filtering/components/General/ScopeSettings";
-import { ReactNode } from "react";
+import { JSX, ReactNode } from "react";
 import { BaseRule, RuleAction, Scope } from "@/features/message-filtering/types";
 
 interface FilterLayoutProps {
@@ -30,7 +30,7 @@ export function FilterLayout({
     channelMap,
     roleMap,
     children,
-}: FilterLayoutProps) {
+}: FilterLayoutProps): JSX.Element {
     return (
         <div>
             <ToggleSwitch
@@ -70,7 +70,7 @@ export function FilterLayoutWrapper<T extends BaseRule>({
     toggleText,
     channelMap,
     roleMap,
-}: FilterLayoutWrapperProps<T>) {
+}: FilterLayoutWrapperProps<T>): JSX.Element {
     return (
         <FilterLayout
             enabled={config.enabled}

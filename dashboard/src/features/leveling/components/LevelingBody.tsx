@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, JSX } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { TextTab } from "@/features/leveling/components/Tabs/TextTab";
@@ -68,10 +68,9 @@ export function LevelingBody({
     channels,
     levels,
     fetchMoreLevels,
-}: LevelingBodyProps) {
+}: LevelingBodyProps): JSX.Element {
     const normalizedLevelingConfig = useMemo(() => levelingConfig, [levelingConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("TEXT");
-    const [, setIsEmpty] = useState(false);
 
     const {
         config,
@@ -110,7 +109,6 @@ export function LevelingBody({
                     channelMap={channelMap}
                     roleMap={roleMap}
                     channels={channels}
-                    setIsEmpty={setIsEmpty}
                 />
             )}
             {activeTab === "MULTIPLIERS" && (

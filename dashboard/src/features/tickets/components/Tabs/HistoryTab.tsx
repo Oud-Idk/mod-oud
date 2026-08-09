@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { JSX, useEffect, useState, useTransition } from "react";
 import { getTicketHistoryAction, getTicketsListAction } from "@/features/tickets/actions";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Ticket, TicketHistory, ViewTicketStatus } from "@/features/tickets/types";
@@ -10,7 +10,7 @@ interface HistoryTabProps {
     guildId: string;
 }
 
-export default function HistoryTab({ guildId }: HistoryTabProps) {
+export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<TicketHistory | null>(null);
@@ -43,7 +43,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
         setFilteredTickets(result);
     }, [statusFilter, tickets]);
 
-    const handleViewHistory = async (channelId: string) => {
+    const handleViewHistory = async (channelId: string): Promise<void> => {
         setLoadingChannelId(channelId);
         setDrawerOpen(true);
         try {
@@ -56,7 +56,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
         }
     };
 
-    const closeDrawer = () => {
+    const closeDrawer = (): void => {
         setDrawerOpen(false);
         setTimeout(() => setSelectedTicket(null), 200);
     };
@@ -72,7 +72,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps) {
                     <span className="text-sm font-medium text-muted-foreground">Status Filter:</span>
                     <Dropdown
                         value={statusFilter}
-                        onChange={(v) => setStatusFilter(v as ViewTicketStatus)}
+                        onChange={(v) => setStatusFilter(v || "ALL")}
                         options={[
                             { value: "ALL", label: "All Tickets" },
                             { value: "OPEN", label: "Open" },

@@ -1,5 +1,7 @@
 "use client";
 
+import { JSX } from "react";
+
 interface ReportHeaderProps {
     id: number;
     status?: string;
@@ -14,7 +16,7 @@ export function ReportHeader({
     userWarned,
     userTimedOut,
     userBanned,
-}: ReportHeaderProps) {
+}: ReportHeaderProps): JSX.Element {
     const isActioned = status === "ACTIONED";
 
     return (

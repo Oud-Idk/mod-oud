@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { JSX} from "react";
 import { useSSEInfiniteScroll } from "@/lib/hooks/useSSEInfiniteScroll";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 
@@ -12,7 +12,7 @@ interface LogViewerProps<T> {
     fetchMoreAction: (guild_id: string, before_id: number) => Promise<T[]>;
     eventName: string;
     emptyText?: string;
-    renderItem: (log: T) => ReactNode;
+    renderItem: (log: T) => JSX.Element;
 }
 
 export function LogViewer<T extends { id: number }>({
@@ -24,7 +24,7 @@ export function LogViewer<T extends { id: number }>({
     eventName,
     emptyText = "No activity recorded yet...",
     renderItem,
-}: LogViewerProps<T>): ReactNode {
+}: LogViewerProps<T>): JSX.Element {
     const { logs, status, hasMore, isLoadingMore, observerTarget } = useSSEInfiniteScroll<T>({
         sseUrl,
         initialHistory,

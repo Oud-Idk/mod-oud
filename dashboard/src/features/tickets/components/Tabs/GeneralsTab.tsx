@@ -1,6 +1,7 @@
 import { NumberInput } from "@/components/ui/NumberInput";
 import { TicketConfig } from "@/features/tickets/types";
 import Footer from "@/components/layout/Footer";
+import { JSX } from "react";
 
 interface GeneralsTabProps {
     config: TicketConfig;
@@ -12,8 +13,8 @@ export default function GeneralsTab({
     config,
     onChange,
     warnThresholdInvalid,
-}: GeneralsTabProps) {
-    const updateConfig = (updates: Partial<TicketConfig>) => {
+}: GeneralsTabProps): JSX.Element {
+    const updateConfig = (updates: Partial<TicketConfig>): void => {
         onChange({ ...config, ...updates });
     };
 

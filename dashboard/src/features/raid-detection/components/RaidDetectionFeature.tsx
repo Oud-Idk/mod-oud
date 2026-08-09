@@ -3,14 +3,14 @@ import { getTextChannelMap } from "@/features/_shared/channels";
 import { getRaidDetectionConfig, getRaidStatus } from "../queries";
 import { saveRaidDetectionConfigAction } from "../actions";
 import { RaidDetectionBody } from "./RaidDetectionBody";
-import { ReactNode } from "react";
+import { JSX} from "react";
 import { getWelcomeConfig } from "@/features/welcome/queries";
 
 interface RaidDetectionFeatureProps {
     guildId: string;
 }
 
-export async function RaidDetectionFeature({ guildId }: RaidDetectionFeatureProps): Promise<ReactNode> {
+export async function RaidDetectionFeature({ guildId }: RaidDetectionFeatureProps): Promise<JSX.Element> {
     const [raidDetectionConfig, welcomeConfig, channelMap] = await Promise.all([
         getRaidDetectionConfig(guildId),
         getWelcomeConfig(guildId),

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 
 import { auth } from "@/lib/auth";
 import { User } from "lucide-react";
@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SidebarLinks } from "@/components/layout/sidebar/SidebarLinks";
 import { DiscordGuild } from "@/features/_shared/guild";
 
-export async function Sidebar() {
+export async function Sidebar(): Promise<JSX.Element> {
     const session = await auth();
     let mutualGuilds: DiscordGuild[] = [];
 
@@ -27,7 +27,7 @@ export async function Sidebar() {
             <div
                 className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 bg-white dark:bg-black shrink-0"
             >
-                <Link href="/public" className="font-bold">Mod Oud</Link>
+                <Link href="/" className="font-bold">Mod Oud</Link>
                 <div className="hidden md:block">
                     <ThemeToggle/>
                 </div>

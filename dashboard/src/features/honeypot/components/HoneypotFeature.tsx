@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { JSX } from "react";
 import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { HoneypotBody } from "@/features/honeypot/components/HoneypotBody";
@@ -10,7 +10,7 @@ interface HoneypotFeatureProps {
     guildId: string;
 }
 
-export async function HoneypotFeature({ guildId }: HoneypotFeatureProps): Promise<ReactNode> {
+export async function HoneypotFeature({ guildId }: HoneypotFeatureProps): Promise<JSX.Element> {
     const [textChannelMap, roleMap, settings] = await Promise.all([
         getTextChannelMap(guildId),
         getRoleMap(guildId),

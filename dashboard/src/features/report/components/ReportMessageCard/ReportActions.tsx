@@ -2,6 +2,7 @@
 
 import { ReportActionButton } from "@/features/report/components/ReportActionButton";
 import { ReportedMessage, SimpleReportAction } from "@/features/report/types";
+import { JSX } from "react";
 
 interface ReportActionsProps {
     log: ReportedMessage;
@@ -23,7 +24,7 @@ export function ReportActions({
     onTimeoutClick,
     onBanClick,
     onWarnClick,
-}: ReportActionsProps) {
+}: ReportActionsProps): JSX.Element {
     const statusLower = log.status?.toLowerCase();
     const isResolved = statusLower === "ACTIONED" || statusLower === "DISMISSED";
     const isMessageDeleted = log.message_deleted;

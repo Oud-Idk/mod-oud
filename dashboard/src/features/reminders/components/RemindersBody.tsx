@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useCallback } from "react";
+import React, { useState, useCallback, JSX } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -29,7 +29,7 @@ export function RemindersBody({
     onSave,
     onDelete,
     guildId,
-}: RemindersBodyProps): ReactNode {
+}: RemindersBodyProps): JSX.Element {
     const router = useRouter();
     const [isEmpty, setIsEmpty] = useState(false);
 

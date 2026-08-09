@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { JSX } from "react";
 import { getTextChannelMap } from "@/features/_shared/channels";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { EmbedBuilderBody } from "@/features/embed-builder/components/EmbedBuilderBody";
@@ -7,7 +7,7 @@ interface EmbedBuilderFeatureProps {
     guildId: string;
 }
 
-export async function EmbedBuilderFeature({ guildId }: EmbedBuilderFeatureProps): Promise<ReactNode> {
+export async function EmbedBuilderFeature({ guildId }: EmbedBuilderFeatureProps): Promise<JSX.Element> {
     const channelMap = await getTextChannelMap(guildId);
 
     return <div>

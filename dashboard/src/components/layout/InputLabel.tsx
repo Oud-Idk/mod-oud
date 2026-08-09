@@ -1,5 +1,4 @@
-import React from "react";
-import { twMerge } from "tailwind-merge";
+import React, { JSX } from "react";
 import { cn } from "@/lib/cn";
 
 interface InputLabelProps {
@@ -8,6 +7,6 @@ interface InputLabelProps {
     required?: boolean;
 }
 
-export function InputLabel({ className, children, required = false }: InputLabelProps) {
+export function InputLabel({ className, children, required = false }: InputLabelProps): JSX.Element {
     return <label className={cn("mb-1 mt-2 block font-medium", className)}>{children} {required && <span className="text-danger">*</span>}</label>;
 }

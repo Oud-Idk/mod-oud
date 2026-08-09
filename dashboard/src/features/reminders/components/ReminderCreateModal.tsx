@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, ReactNode, useState, useTransition } from "react";
+import React, { FormEvent, JSX, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { LongTextInput } from "@/components/ui/LongTextInput";
@@ -22,7 +22,7 @@ export function ReminderCreateModal({
     onClose,
     onSave,
     channelMap,
-}: ReminderCreateModalProps): ReactNode {
+}: ReminderCreateModalProps): JSX.Element | null {
     const [isPending, startTransition] = useTransition();
     const [channelId, setChannelId] = useState<string | null>(null);
     const [content, setContent] = useState("");
@@ -101,7 +101,7 @@ export function ReminderCreateModal({
                             { value: "RECURRING", label: "Recurring Interval" },
                         ]}
                         value={rType}
-                        onChange={(val) => setRType((val as ReminderType) ?? "SINGLE")}
+                        onChange={(val) => setRType(val ?? "SINGLE")}
                         placeholder="Select schedule type"
                     />
                 </div>

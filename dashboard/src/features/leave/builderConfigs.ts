@@ -2,7 +2,6 @@ import {
     BuilderConfig,
     CHANNEL_PLACEHOLDERS,
     COMMON_PLACEHOLDERS,
-    MEMBER_PLACEHOLDERS
 } from "@/features/_shared/builderConfig";
 
 export const LEAVE_CONFIG: BuilderConfig = {

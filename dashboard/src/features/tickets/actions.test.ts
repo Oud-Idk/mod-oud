@@ -14,6 +14,7 @@ import {
     getTicketHistory,
 } from "./queries";
 import { revalidatePath } from "next/cache";
+import { TicketConfigSchema, TicketHistorySchema, TicketSchema } from "@/features/tickets/types";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -36,7 +37,7 @@ vi.stubGlobal("fetch", mockFetch);
 describe("Ticket Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => {return});
     });
 
     afterEach(() => {
@@ -45,10 +46,10 @@ describe("Ticket Server Actions", () => {
 
     describe("saveTicketsConfigAction", () => {
         it("should verify access and save valid configuration", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(saveTicketConfig).mockResolvedValue(undefined);
 
-            const validDraftConfig: any = {
+            const validDraftConfig = {
                 enabled: false,
                 categoryId: null,
                 channelId: null,
@@ -63,9 +64,9 @@ describe("Ticket Server Actions", () => {
         });
 
         it("should REJECT save and throw friendly Zod message when enabled = true but category is null", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
-            const invalidConfig: any = {
+            const invalidConfig = {
                 enabled: true,
                 categoryId: null,
                 channelId: "chan_123",
@@ -83,15 +84,15 @@ describe("Ticket Server Actions", () => {
             vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Unauthorized access!"));
 
             await expect(
-                saveTicketsConfigAction("unauthorized_guild", {} as any)
+                saveTicketsConfigAction("unauthorized_guild", {})
             ).rejects.toThrow("Unauthorized access!");
         });
 
         it("should catch non-Zod DB error and throw generic error message", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(saveTicketConfig).mockRejectedValue(new Error("Database write error"));
 
-            const validDraftConfig: any = { enabled: false };
+            const validDraftConfig = { enabled: false };
 
             await expect(
                 saveTicketsConfigAction("guild_123", validDraftConfig)
@@ -99,25 +100,25 @@ describe("Ticket Server Actions", () => {
         });
 
         it("should throw fallback error string if non-Error exception is thrown", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(saveTicketConfig).mockRejectedValue("string exception");
 
             await expect(
-                saveTicketsConfigAction("guild_123", { enabled: false } as any)
+                saveTicketsConfigAction("guild_123", { enabled: false })
             ).rejects.toThrow("Could not save configuration.");
         });
     });
 
     describe("sendTicketMessageAction", () => {
         it("should call Discord bot backend, save message_id, and revalidate path", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
-            vi.mocked(getTicketConfig).mockResolvedValue({
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            vi.mocked(getTicketConfig).mockResolvedValue(TicketConfigSchema.parse({
                 enabled: true,
                 categoryId: "cat_1",
                 channelId: "chan_1",
                 ticketRoleId: "role_1",
                 postedMessageId: null,
-            } as any);
+            }));
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -142,7 +143,7 @@ describe("Ticket Server Actions", () => {
         });
 
         it("should throw error if the Discord bot backend responds with HTTP error text", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             mockFetch.mockResolvedValueOnce({
                 ok: false,
@@ -155,7 +156,7 @@ describe("Ticket Server Actions", () => {
         });
 
         it("should throw fallback message if backend returns empty error text", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             mockFetch.mockResolvedValueOnce({
                 ok: false,
@@ -168,7 +169,7 @@ describe("Ticket Server Actions", () => {
         });
 
         it("should catch network errors when fetch rejects", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
             mockFetch.mockRejectedValueOnce(new Error("Network connection reset"));
 
             await expect(
@@ -179,11 +180,11 @@ describe("Ticket Server Actions", () => {
 
     describe("deleteTicketMessageAction", () => {
         it("should instruct bot to delete message and reset postedMessageId in DB", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
-            vi.mocked(getTicketConfig).mockResolvedValue({
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            vi.mocked(getTicketConfig).mockResolvedValue(TicketConfigSchema.parse({
                 enabled: true,
                 postedMessageId: "discord_msg_999",
-            } as any);
+            }));
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -205,7 +206,7 @@ describe("Ticket Server Actions", () => {
         });
 
         it("should throw error if backend returns error during message deletion", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             mockFetch.mockResolvedValueOnce({
                 ok: false,
@@ -218,7 +219,7 @@ describe("Ticket Server Actions", () => {
         });
 
         it("should throw default message when backend response text is empty on deletion error", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             mockFetch.mockResolvedValueOnce({
                 ok: false,
@@ -233,8 +234,8 @@ describe("Ticket Server Actions", () => {
 
     describe("Read-only Action Wrappers", () => {
         it("getTicketsListAction should verify guild access and return rows", async () => {
-            const mockRows = [{ id: 1, status: "OPEN" }] as any;
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            const mockRows = [TicketSchema.parse({ id: 1, status: "OPEN" })];
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(getTicketList).mockResolvedValue(mockRows);
 
             const result = await getTicketsListAction("guild_123");
@@ -252,8 +253,8 @@ describe("Ticket Server Actions", () => {
         });
 
         it("getTicketHistoryAction should verify guild access and return history", async () => {
-            const mockHistory = { ticket_id: 1 } as any;
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            const mockHistory = TicketHistorySchema.parse({ ticket_id: 1 });
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(getTicketHistory).mockResolvedValue(mockHistory);
 
             const result = await getTicketHistoryAction("guild_123", "chan_123");
@@ -263,7 +264,7 @@ describe("Ticket Server Actions", () => {
         });
 
         it("getTicketHistoryAction should catch errors and throw friendly error message", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(getTicketHistory).mockRejectedValue(new Error("Database error"));
 
             await expect(getTicketHistoryAction("guild_123", "chan_123")).rejects.toThrow(

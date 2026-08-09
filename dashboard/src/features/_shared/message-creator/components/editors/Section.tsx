@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { JSX, ReactNode } from "react";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -17,7 +17,7 @@ export function Section({
     action,
     children,
     className,
-}: EmbedSectionProps) {
+}: EmbedSectionProps): JSX.Element {
     return (
         <Disclosure
             as="div"

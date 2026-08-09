@@ -8,7 +8,7 @@ import {
     sendReactionMessageAction,
 } from "../actions";
 import { ReactionRolesBody } from "./ReactionRolesBody";
-import { ReactNode } from "react";
+import { JSX} from "react";
 
 interface ReactionRolesFeatureProps {
     guildId: string;
@@ -18,7 +18,7 @@ interface ReactionRolesFeatureProps {
 export async function ReactionRolesFeature({
     guildId,
     activeId,
-}: ReactionRolesFeatureProps): Promise<ReactNode> {
+}: ReactionRolesFeatureProps): Promise<JSX.Element> {
     const [reactionRoles, channelMap, roleMap] = await Promise.all([
         getReactionMessages(guildId),
         getTextChannelMap(guildId),

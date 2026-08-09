@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, useState } from "react";
+import React, { ChangeEvent, JSX, useState } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
@@ -18,7 +18,6 @@ interface BadWordRulesetConfigProps {
     isPending: boolean;
     onDelete: (id: string) => Promise<void>;
     onChange: (config: Partial<BadWordRuleset>) => void;
-    setIsEmpty: (isEmpty: boolean) => void;
 }
 
 export function BadWordRulesetConfig({
@@ -28,14 +27,14 @@ export function BadWordRulesetConfig({
     isPending,
     onDelete,
     onChange,
-}: BadWordRulesetConfigProps) {
+}: BadWordRulesetConfigProps): JSX.Element {
     const [wordInput, setWordInput] = useState("");
     const [strategyInput, setStrategyInput] = useState<StrategyType>("EXACT");
 
     const patterns = config.patterns || [];
     const displayList = patterns.map((p) => `${p.value} [${p.strategy}]`);
 
-    const addPattern = (e?: FormEvent) => {
+    const addPattern = (e: ChangeEvent): void => {
         if (e) e.preventDefault();
         const trimmed = wordInput.trim();
         if (!trimmed) return;
@@ -52,7 +51,7 @@ export function BadWordRulesetConfig({
         setWordInput("");
     };
 
-    const removePattern = (displayString: string) => {
+    const removePattern = (displayString: string): void => {
         const updated = patterns.filter(
             (p) => `${p.value} [${p.strategy}]` !== displayString
         );
@@ -112,7 +111,7 @@ export function BadWordRulesetConfig({
                                         { value: "REGEX", label: "Regex" },
                                     ]}
                                     value={strategyInput}
-                                    onChange={(strategy) => setStrategyInput(strategy as StrategyType)}
+                                    onChange={(strategy) => setStrategyInput(strategy ?? "EXACT")}
                                     placeholder="Strategy"
                                 />
                             </div>

@@ -1,4 +1,4 @@
-import { BuilderConfig, COMMON_PLACEHOLDERS, SERVER_PLACEHOLDERS } from "@/features/_shared/builderConfig";
+import { BuilderConfig, COMMON_PLACEHOLDERS } from "@/features/_shared/builderConfig";
 
 export const CUSTOM_COMMAND_TEMPLATE_CONFIG: BuilderConfig = {
     id: "custom_commands",

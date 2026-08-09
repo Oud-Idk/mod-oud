@@ -3,14 +3,14 @@ import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels";
 import { getStarboardConfigs } from "../queries";
 import { StarboardBody } from "./StarboardBody";
 import { deleteStarboardConfigAction, saveStarboardConfigAction } from "@/features/starboard/actions";
-import { ReactNode } from "react";
+import { JSX} from "react";
 
 interface Props {
     guildId: string;
     activeConfigId?: string;
 }
 
-export async function StarboardFeature({ guildId, activeConfigId }: Props): Promise<ReactNode> {
+export async function StarboardFeature({ guildId, activeConfigId }: Props): Promise<JSX.Element> {
     const [starboardConfigs, channelMap, roleMap] = await Promise.all([
         getStarboardConfigs(guildId),
         getTextChannelMap(guildId),

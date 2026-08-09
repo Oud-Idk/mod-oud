@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { JSX, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import SecondaryButton from "@/components/ui/buttons/SecondaryButton";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { TextInput } from "@/components/ui/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { toast } from "sonner";
 
 import { BadWordRuleset } from "@/features/message-filtering/types";
+import { Button } from "@/components/ui/Button";
 
 type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {
     id?: string;
@@ -17,16 +16,16 @@ type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" |
 interface BadWordCreateModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (ruleset: SaveableBadWordRuleset) => Promise<any>;
+    onSave: (ruleset: SaveableBadWordRuleset) => Promise<BadWordRuleset>;
 }
 
-export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateModalProps) {
+export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateModalProps): JSX.Element | null {
     const [name, setName] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
     if (!isOpen) return null;
 
-    const handleSubmit = async (e: React.SyntheticEvent) => {
+    const handleSubmit = async (e: React.SyntheticEvent): Promise<void> => {
         e.preventDefault();
         const trimmed = name.trim();
         if (!trimmed) {
@@ -67,10 +66,10 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-                <SecondaryButton onClick={onClose} disabled={isSaving}>Cancel</SecondaryButton>
-                <PrimaryButton disabled={isSaving || !name.trim()} onClick={handleSubmit}>
+                <Button onClick={onClose} disabled={isSaving} variant="secondary">Cancel</Button>
+                <Button disabled={isSaving || !name.trim()} onClick={handleSubmit}>
                     {isSaving ? "Creating..." : "Create"}
-                </PrimaryButton>
+                </Button>
             </div>
         </Modal>
     );

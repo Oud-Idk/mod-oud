@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { UserLevel } from "@/features/leveling/types";
 import Footer from "@/components/layout/Footer";
 
@@ -12,7 +12,7 @@ interface LeaderboardTabProps {
 export function LeaderboardTab({
     levels = [],
     fetchMoreLevels,
-}: LeaderboardTabProps) {
+}: LeaderboardTabProps): JSX.Element {
     const [displayedLevels, setDisplayedLevels] = useState<UserLevel[]>(levels);
     const [isLoading, setIsLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);

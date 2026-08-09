@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, SetStateAction, useMemo, useState } from "react";
+import React, { JSX, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
@@ -16,7 +16,6 @@ import type {
     ReactionMessage,
     ReactionRoleItem,
     ButtonRoleItem,
-    ButtonStyle,
 } from "../types";
 
 interface ReactionRoleConfigProps {
@@ -29,9 +28,7 @@ interface ReactionRoleConfigProps {
     onSend: (id: number) => Promise<{ message_id: string }>;
     onChange: (updated: ReactionMessage) => void;
     guildId: string;
-    setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
     onDeleteDiscordMessage: (id: number) => Promise<{ success: boolean }>;
-    isEmpty: boolean;
 }
 
 export function ReactionRoleConfig({
@@ -44,10 +41,8 @@ export function ReactionRoleConfig({
     onDelete,
     onSend,
     onChange,
-    setIsEmpty,
     onDeleteDiscordMessage,
-    isEmpty,
-}: ReactionRoleConfigProps): ReactNode {
+}: ReactionRoleConfigProps): JSX.Element {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -164,7 +159,7 @@ export function ReactionRoleConfig({
     };
 
     const isDisabled = isPending || isDeleting || isSending;
-    const sendToDiscordIsDisabled = isDisabled || isDirty || isEmpty || hasValidationErrors;
+    const sendToDiscordIsDisabled = isDisabled || isDirty || hasValidationErrors;
     const isSent = Boolean(config.message_id && config.message_id.trim() !== "");
 
     return (
@@ -305,7 +300,7 @@ export function ReactionRoleConfig({
                                                 { value: "DANGER", label: "Danger (Red)" },
                                             ]}
                                             value={button.style || "PRIMARY"}
-                                            onChange={(val) => handleUpdateButton(index, "style", (val as ButtonStyle) ?? "PRIMARY")}
+                                            onChange={(val) => handleUpdateButton(index, "style", val ?? "PRIMARY")}
                                         />
                                     </div>
 
@@ -429,7 +424,6 @@ export function ReactionRoleConfig({
                         })
                     }
                     embedTemplateConfig={REACTION_ROLES_CONFIG}
-                    setIsEmpty={setIsEmpty}
                     enableToggle={false}
                 />
             </div>

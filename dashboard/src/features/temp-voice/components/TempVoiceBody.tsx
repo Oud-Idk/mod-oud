@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { Button } from "@/components/ui/Button";
 import { saveTempVoiceHubAction, setupTempVoiceAction } from "../actions";
@@ -22,7 +22,7 @@ export function TempVoiceBody({
     categoryMap: initialCategoryMap,
     voiceChannelMap: initialVoiceChannelMap,
     textChannelMap: initialTextChannelMap,
-}: TempVoiceBodyProps): ReactNode {
+}: TempVoiceBodyProps): JSX.Element {
     const [hubs, setHubs] = useState<TempVoiceHub[]>(initialHubs);
     const [activeHubId, setActiveHubId] = useState<string | "new" | null>(null);
     const [isSettingUp, setIsSettingUp] = useState(false);

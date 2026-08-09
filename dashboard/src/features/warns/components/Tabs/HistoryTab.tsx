@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ChangeEvent, ReactNode, useState } from "react";
+import React, { ChangeEvent, JSX, useState } from "react";
 import Footer from "@/components/layout/Footer";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +13,7 @@ interface HistoryTabProps {
     guildId: string;
 }
 
-export function HistoryTab({ guildId }: HistoryTabProps): ReactNode {
+function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
     const [userId, setUserId] = useState("");
     const [warns, setWarns] = useState<Warn[]>([]);
     const [searchedUserId, setSearchedUserId] = useState<string | null>(null);
@@ -108,3 +108,5 @@ export function HistoryTab({ guildId }: HistoryTabProps): ReactNode {
         </div>
     );
 }
+
+export default HistoryTab

@@ -1,6 +1,6 @@
 import { EmbedState } from "@/features/_shared/message-creator/types";
 import { DiscordEmbed, EmbedField, isEmbedEmpty } from "@/features/_shared/embed"; // <-- Removed FieldKey
-import React, { ReactNode, SetStateAction, useMemo, useEffect } from "react";
+import React, { ReactNode, useMemo, JSX } from "react";
 import { PlaceholderList } from "@/features/_shared/message-creator/components/PlaceholderList";
 import { EmbedBuilderForm } from "@/features/_shared/message-creator/components/EmbedBuilderForm";
 import { EmbedPreview } from "@/features/_shared/message-creator/components/EmbedPreview";
@@ -12,7 +12,6 @@ interface Props {
     initialEmbedState?: string | object;
     enablePlaceholderList?: boolean;
     customPreview?: ReactNode;
-    setIsEmpty: (value: SetStateAction<boolean>) => void;
     placeholderConfig?: BuilderConfig;
 }
 
@@ -82,29 +81,20 @@ export function convertToEmbedState(embed: DiscordEmbed): EmbedState {
     };
 }
 
-export const parseSavedEmbed = (savedValue?: string | object, defaultValues?: EmbedState): EmbedState => {
-    if (!savedValue) return defaultValues || ({ color: "#000000" } as EmbedState);
-    try {
-        const parsed: DiscordEmbed = typeof savedValue === "string" ? JSON.parse(savedValue) : (savedValue as DiscordEmbed);
+export const parseSavedEmbed = (
+    savedValue?: string | DiscordEmbed,
+    defaultValues: EmbedState = emptyState
+): EmbedState => {
+    if (!savedValue) return defaultValues;
 
-        return {
-            title: parsed.title || "",
-            description: parsed.description || "",
-            color: decimalToHex(parsed.color),
-            thumbnailUrl: parsed.thumbnail?.url || "",
-            authorName: parsed.author?.name || "",
-            authorIcon: parsed.author?.icon_url || "",
-            footerText: parsed.footer?.text || "",
-            footerIcon: parsed.footer?.icon_url || "",
-            imageUrl: parsed.image?.url || "",
-            fields: parsed.fields ? parsed.fields.map(f => ({
-                name: f.name === "\u200B" ? "" : f.name,
-                value: f.value === "\u200B" ? "" : f.value,
-                inline: f.inline || false
-            })) : [],
-        };
-    } catch (e) {
-        return defaultValues || ({ color: "#000000" } as EmbedState);
+    try {
+        const parsed: DiscordEmbed = typeof savedValue === "string"
+            ? JSON.parse(savedValue)
+            : savedValue;
+
+        return convertToEmbedState(parsed);
+    } catch {
+        return defaultValues;
     }
 };
 
@@ -114,9 +104,8 @@ export default function EmbedBuilder({
     initialEmbedState,
     enablePlaceholderList = true,
     customPreview: CustomPreview,
-    setIsEmpty,
     placeholderConfig
-}: Props) {
+}: Props): JSX.Element {
     const embed = useMemo<EmbedState>(() => {
         const parsed = parseSavedEmbed(initialEmbedState, emptyState);
         return { ...emptyState, ...parsed, fields: parsed.fields || [] };
@@ -126,25 +115,20 @@ export default function EmbedBuilder({
         return isEmbedEmpty(embed);
     }, [embed]);
 
-    useEffect(() => {
-        setIsEmpty(isEmbedEmptyMemo);
-    }, [isEmbedEmptyMemo, setIsEmpty]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
         const { name, value } = e.target;
         const updated = { ...embed, [name]: value };
         setEmbedState(convertToDiscordEmbed(updated));
     };
 
-    // FIX 1: Use `keyof EmbedField` instead of `FieldKey` to match the exact properties in the array
-    const handleFieldChange = (index: number, key: keyof EmbedField, value: string | boolean) => {
+    const handleFieldChange = (index: number, key: keyof EmbedField, value: string | boolean): void => {
         const updatedFields = [...(embed.fields || [])];
         updatedFields[index] = { ...updatedFields[index], [key]: value };
         const updated = { ...embed, fields: updatedFields };
         setEmbedState(convertToDiscordEmbed(updated));
     };
 
-    const addField = () => {
+    const addField = (): void => {
         const updated = {
             ...embed,
             fields: [...(embed.fields || []), { name: "", value: "", inline: false }],
@@ -152,7 +136,7 @@ export default function EmbedBuilder({
         setEmbedState(convertToDiscordEmbed(updated));
     };
 
-    const removeField = (index: number) => {
+    const removeField = (index: number): void => {
         const updated = {
             ...embed,
             fields: (embed.fields || []).filter((_, i) => i !== index),
@@ -161,7 +145,7 @@ export default function EmbedBuilder({
     };
 
     // FIX 2: Added moveField support for the Up/Down arrows in EmbedBuilderForm
-    const moveField = (fromIndex: number, toIndex: number) => {
+    const moveField = (fromIndex: number, toIndex: number): void => {
         const updatedFields = [...(embed.fields || [])];
         const [movedItem] = updatedFields.splice(fromIndex, 1);
         updatedFields.splice(toIndex, 0, movedItem);

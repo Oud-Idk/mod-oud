@@ -4,13 +4,13 @@ import { saveWelcomeConfigAction } from "../actions";
 import { getWelcomeConfig } from "../queries";
 import { WelcomeBody } from "./WelcomeBody";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { ReactNode } from "react";
+import { JSX} from "react";
 
 interface WelcomeFeatureProps {
     guildId: string;
 }
 
-export async function WelcomeFeature({ guildId }: WelcomeFeatureProps): Promise<ReactNode> {
+export async function WelcomeFeature({ guildId }: WelcomeFeatureProps): Promise<JSX.Element> {
     const session = await auth();
 
     const [welcomeConfig, channels, roles, channelMap] = await Promise.all([

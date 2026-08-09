@@ -23,7 +23,6 @@ export function LeaveBody({
 }: LeaveBodyProps): JSX.Element {
     const normalizedLeaveConfig = useMemo(() => leaveConfig, [leaveConfig]);
 
-    const [, setIsEmpty] = useState(false);
     const [targetChannelIsEmpty, setTargetChannelIsEmpty] = useState(false);
 
     const {
@@ -91,7 +90,6 @@ export function LeaveBody({
                 resetKey={`${resetKey}_public`}
                 modeLabel="Message Mode (Leave)"
                 placeholderText="{user.username} has left the server. Goodbye!"
-                setIsEmpty={setIsEmpty}
                 setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                 targetChannelIsEmpty={targetChannelIsEmpty}
             />

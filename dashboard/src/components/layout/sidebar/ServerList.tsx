@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { JSX, useMemo } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DiscordGuild } from "@/features/_shared/guild";
 
@@ -9,11 +9,15 @@ interface ServerListProps {
     guilds: DiscordGuild[];
 }
 
-export function ServerList({ guilds }: ServerListProps) {
+export function ServerList({ guilds }: ServerListProps): JSX.Element {
     const params = useParams();
     const router = useRouter();
 
-    const currentGuildId = params?.guild_id as string | undefined;
+    if (typeof params?.guild_id !== "string") {
+        throw new Error("Guild ID is not string!");
+    }
+
+    const currentGuildId = params?.guild_id;
     const selected = guilds.find((g) => g.id === currentGuildId) || guilds[0] || null;
 
     const options = useMemo(() => {
@@ -29,7 +33,7 @@ export function ServerList({ guilds }: ServerListProps) {
         );
     }
 
-    const handleSelect = (id: string | null) => {
+    const handleSelect = (id: string | null): void => {
         if (id && id !== currentGuildId) {
             router.push(`/dashboard/${id}`);
         }

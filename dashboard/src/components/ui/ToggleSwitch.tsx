@@ -3,6 +3,7 @@
 import { Switch } from "@headlessui/react";
 import { twMerge } from "tailwind-merge";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { JSX } from "react";
 
 export interface ToggleSwitchProps {
     checked: boolean;
@@ -20,7 +21,7 @@ export function ToggleSwitch({
     text,
     className,
     shrink = false,
-}: ToggleSwitchProps) {
+}: ToggleSwitchProps): JSX.Element {
     return (
         <InputLabel
             className={twMerge(

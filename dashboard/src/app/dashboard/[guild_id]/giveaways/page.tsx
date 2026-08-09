@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { JSX} from "react";
 import { GiveawayFeature } from "@/features/giveaways";
 
 export interface PageProps {
@@ -6,7 +6,7 @@ export interface PageProps {
     searchParams: Promise<{ id?: string }>;
 }
 
-export default async function GiveawayPage({ params, searchParams }: PageProps): Promise<ReactNode> {
+export default async function GiveawayPage({ params, searchParams }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
     const { id: activeId } = await searchParams;
 

@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { JSX, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 interface TableProps {
@@ -6,7 +6,7 @@ interface TableProps {
     className?: string;
 }
 
-export function Table({ children, className }: TableProps) {
+export function Table({ children, className }: TableProps): JSX.Element {
     return (
         <div className={cn("overflow-x-auto w-full border border-border rounded-lg bg-surface shadow-sm", className)}>
             <table className="min-w-full divide-y divide-border text-left text-sm">
@@ -21,7 +21,7 @@ interface TableHeaderProps {
     className?: string;
 }
 
-export function TableHeader({ headers, className }: TableHeaderProps) {
+export function TableHeader({ headers, className }: TableHeaderProps): JSX.Element {
     return (
         <thead className={cn("bg-surface-muted border-b border-border", className)}>
         <tr>
@@ -44,7 +44,7 @@ interface TableBodyProps {
     className?: string;
 }
 
-export function TableBody({ children, className }: TableBodyProps) {
+export function TableBody({ children, className }: TableBodyProps): JSX.Element {
     return (
         <tbody className={cn("divide-y divide-border-subtle bg-surface", className)}>
         {children}
@@ -57,7 +57,7 @@ interface TableRowProps {
     className?: string;
 }
 
-export function TableRow({ children, className }: TableRowProps) {
+export function TableRow({ children, className }: TableRowProps): JSX.Element {
     return (
         <tr className={cn("hover:bg-surface-active/35 transition-colors duration-150", className)}>
             {children}
@@ -70,7 +70,7 @@ interface TableCellProps {
     className?: string;
 }
 
-export function TableCell({ children, className }: TableCellProps) {
+export function TableCell({ children, className }: TableCellProps): JSX.Element {
     return (
         <td className={cn("px-6 py-4 text-sm text-foreground", className)}>
             {children}

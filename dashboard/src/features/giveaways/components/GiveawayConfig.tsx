@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
@@ -29,7 +29,7 @@ function formatToLocalDateTime(isoString?: string): string {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return "";
 
-    const pad = (n: number) => String(n).padStart(2, "0");
+    const pad = (n: number): string => String(n).padStart(2, "0");
     const year = date.getFullYear();
     const month = pad(date.getMonth() + 1);
     const day = pad(date.getDate());
@@ -49,7 +49,8 @@ export function GiveawayConfig({
     onSend,
     onChange,
     onDeleteDiscordMessage,
-}: GiveawayConfigProps): ReactNode {
+}: GiveawayConfigProps):
+    JSX.Element {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSending, setIsSending] = useState(false);

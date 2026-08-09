@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useMemo } from "react";
+import React, { JSX, useMemo } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Button } from "@/components/ui/Button";
@@ -39,7 +39,7 @@ export function ReminderConfig({
     isPending,
     onDelete,
     onChange,
-}: ReminderConfigProps): ReactNode {
+}: ReminderConfigProps): JSX.Element {
     const validationResult = useMemo(() => {
         return saveableReminderSchema.safeParse(config);
     }, [config]);
@@ -181,7 +181,7 @@ export function ReminderConfig({
                         value={config.rType}
                         onChange={(val) => {
                             onChange({
-                                rType: val as ReminderType,
+                                rType: val ?? "SINGLE",
                                 nextTriggerAt:
                                     val === "RECURRING"
                                         ? new Date().toISOString()

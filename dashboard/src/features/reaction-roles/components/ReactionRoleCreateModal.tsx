@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { JSX, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
@@ -21,13 +21,13 @@ export function ReactionRoleCreateModal({
     onClose,
     onSave,
     channelMap,
-}: ReactionRoleCreateModalProps) {
+}: ReactionRoleCreateModalProps): JSX.Element | null {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [modalChannelId, setModalChannelId] = useState<string | null>(null);
     const [modalName, setModalName] = useState("");
 
-    const handleCreateSubmit = (e: React.FormEvent) => {
+    const handleCreateSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
 
         if (!modalChannelId) {

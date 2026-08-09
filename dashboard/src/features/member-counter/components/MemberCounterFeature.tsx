@@ -3,13 +3,13 @@ import { getRoleMap } from "@/features/_shared/channels";
 import { getMemberCounterConfig } from "../queries";
 import { saveMemberCounterConfigAction } from "../actions";
 import { MemberCounterBody } from "./MemberCounterBody";
-import { ReactNode } from "react";
+import { JSX} from "react";
 
 interface MemberCounterFeatureProps {
     guildId: string;
 }
 
-export async function MemberCounterFeature({ guildId }: MemberCounterFeatureProps): Promise<ReactNode> {
+export async function MemberCounterFeature({ guildId }: MemberCounterFeatureProps): Promise<JSX.Element> {
     const [memberCounterConfig, roleMap] = await Promise.all([
         getMemberCounterConfig(guildId),
         getRoleMap(guildId),

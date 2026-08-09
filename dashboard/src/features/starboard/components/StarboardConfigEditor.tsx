@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, SetStateAction, useMemo, useState } from "react";
+import React, { JSX, SetStateAction, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -45,7 +45,7 @@ export function StarboardConfigEditor({
     onChange,
     setIsEmpty,
     guildId,
-}: StarboardConfigProps): ReactNode {
+}: StarboardConfigProps): JSX.Element {
     const router = useRouter();
 
     const [activeTab, setActiveTab] = useState<TabValue>("general");
@@ -250,7 +250,6 @@ export function StarboardConfigEditor({
                                     />
                                 )}
                                 enablePlaceholderList={false}
-                                setIsEmpty={setIsEmpty}
                             />
                         </div>
                     </div>
@@ -296,7 +295,7 @@ export function StarboardConfigEditor({
                                     { value: "ONLY_THESE", label: "Allow Only Selected Roles (Whitelist)" },
                                 ]}
                                 value={config.role_restriction_type || "NONE"}
-                                onChange={(val) => onChange({ ...config, role_restriction_type: (val as StarboardConfigInput["role_restriction_type"]) ?? "NONE" })}
+                                onChange={(val) => onChange({ ...config, role_restriction_type: val ?? "NONE" })}
                                 className="max-w-md"
                             />
                             {config.role_restriction_type !== "NONE" && (
@@ -337,7 +336,7 @@ export function StarboardConfigEditor({
                                     { value: "ONLY_THESE", label: "Allow Only Selected Channels (Whitelist)" },
                                 ]}
                                 value={config.channel_restriction_type || "NONE"}
-                                onChange={(val) => onChange({ ...config, channel_restriction_type: (val as StarboardConfigInput["channel_restriction_type"]) ?? "NONE" })}
+                                onChange={(val) => onChange({ ...config, channel_restriction_type: val ?? "NONE" })}
                                 className="max-w-md"
                             />
                             {config.channel_restriction_type !== "NONE" && (

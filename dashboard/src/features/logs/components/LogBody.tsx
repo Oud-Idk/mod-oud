@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { JSX, useState } from "react";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { AutomodTab } from "./Tabs/AutomodTab";
 import { MemberActivityTab } from "./Tabs/MemberActivityTab";
@@ -18,7 +18,7 @@ interface LogBodyProps {
     guildId: string;
 }
 
-export function LogBody({ guildId }: LogBodyProps): ReactNode {
+export function LogBody({ guildId }: LogBodyProps): JSX.Element {
     const [activeTab, setActiveTab] = useState<TabValue>("AUTOMOD");
 
     return (

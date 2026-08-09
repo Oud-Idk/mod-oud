@@ -3,6 +3,7 @@ import { RangeSlider } from "@/components/ui/RangeSlider";
 import { LevelingConfig } from "@/features/leveling/types";
 import { InputLabel } from "@/components/layout/InputLabel";
 import Footer from "@/components/layout/Footer";
+import { JSX } from "react";
 
 interface VoiceTabProps {
     config: LevelingConfig;
@@ -12,7 +13,7 @@ interface VoiceTabProps {
 export function VoiceTab({
     config,
     handleChange,
-}: VoiceTabProps) {
+}: VoiceTabProps): JSX.Element {
     return (
         <div className="max-w-md">
             <ToggleSwitch

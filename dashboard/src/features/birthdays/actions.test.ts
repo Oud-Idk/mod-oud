@@ -3,6 +3,7 @@ import { saveBirthdayConfigAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveBirthdayConfig } from "@/features/birthdays/queries";
 import { revalidatePath } from "next/cache";
+import { BirthdayConfigSchema } from "@/features/birthdays/types";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -19,22 +20,28 @@ vi.mock("next/cache", () => ({
 describe("Birthdays Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
+    const mockUser: Awaited<ReturnType<typeof verifyGuildAccess>> = {
+        id: "user_123",
+        name: "Test User"
+    };
+
+    const validDraftConfig = BirthdayConfigSchema.parse({
+        enabled: false,
+        channelId: null,
+    });
+
+    const mockSavedConfig: Awaited<ReturnType<typeof saveBirthdayConfig>> = validDraftConfig;
+
     describe("saveBirthdayConfigAction", () => {
         it("should verify access and save valid configuration", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
-            vi.mocked(saveBirthdayConfig).mockResolvedValue({} as any);
-
-            const validDraftConfig: any = {
-                enabled: false,
-                channelId: null,
-            };
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveBirthdayConfig).mockResolvedValue(mockSavedConfig);
 
             await saveBirthdayConfigAction("guild_123", validDraftConfig);
 
@@ -44,12 +51,12 @@ describe("Birthdays Server Actions", () => {
         });
 
         it("should REJECT save and throw friendly message when enabled = true but channelId is null", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
-            const invalidConfig: any = {
+            const invalidConfig = BirthdayConfigSchema.parse({
                 enabled: true,
                 channelId: null,
-            };
+            });
 
             await expect(
                 saveBirthdayConfigAction("guild_123", invalidConfig)
@@ -62,27 +69,25 @@ describe("Birthdays Server Actions", () => {
             vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Unauthorized access!"));
 
             await expect(
-                saveBirthdayConfigAction("unauthorized_guild", {} as any)
+                saveBirthdayConfigAction("unauthorized_guild", validDraftConfig)
             ).rejects.toThrow("Unauthorized access!");
         });
 
         it("should catch database execution error and throw friendly message", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(saveBirthdayConfig).mockRejectedValue(new Error("Database connection lost"));
 
-            const validConfig: any = { enabled: false };
-
             await expect(
-                saveBirthdayConfigAction("guild_123", validConfig)
+                saveBirthdayConfigAction("guild_123", validDraftConfig)
             ).rejects.toThrow("Database connection lost");
         });
 
         it("should throw default message when non-Error exception is thrown", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(saveBirthdayConfig).mockRejectedValue("Fatal string error");
 
             await expect(
-                saveBirthdayConfigAction("guild_123", { enabled: false } as any)
+                saveBirthdayConfigAction("guild_123", validDraftConfig)
             ).rejects.toThrow("Could not save configuration.");
         });
     });

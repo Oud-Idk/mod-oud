@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { verifyGuildAccess } from "@/features/_shared/guild";
-import { reportConfigSchema, type ReportAction, type ReportConfig, type ReportedMessage } from "./types";
+import { reportConfigSchema, type ReportAction, type ReportedMessage } from "./types";
 import {
     banUserCommand,
     deleteReportedMessageCommand,

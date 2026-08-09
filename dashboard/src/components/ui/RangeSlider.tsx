@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { JSX } from 'react';
 import * as Slider from '@radix-ui/react-slider';
 import Footer from "@/components/layout/Footer";
 
@@ -16,7 +16,7 @@ export function RangeSlider({
     min = 0,
     max = 100,
     onChange,
-}: RangeSliderProps) {
+}: RangeSliderProps): JSX.Element {
     return (
         <div className="pt-2">
             <form>

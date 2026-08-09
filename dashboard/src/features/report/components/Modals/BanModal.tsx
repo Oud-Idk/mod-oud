@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { JSX, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { LongTextInput } from "@/components/ui/LongTextInput";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
@@ -15,7 +15,7 @@ interface BanModalProps {
     isSubmitting: boolean;
 }
 
-export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalProps) {
+export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalProps): JSX.Element | null {
     const [isTemporary, setIsTemporary] = useState<boolean>(false);
     const [duration, setDuration] = useState<number | undefined>(7);
     const [unit, setUnit] = useState<TimeUnit>("DAYS");
@@ -23,7 +23,7 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
 
         let durationMins: number | undefined = undefined;
@@ -69,7 +69,7 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
                             />
                             <Dropdown
                                 value={unit}
-                                onChange={v => v && setUnit(v as TimeUnit)}
+                                onChange={v => v && setUnit(v ?? "MINUTES")}
                                 options={[
                                     { value: "MINUTES", label: "Minutes" },
                                     { value: "HOURS", label: "Hours" },

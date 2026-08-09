@@ -10,12 +10,13 @@ import Math from "@/components/ui/Math";
 import { Pad } from "@/components/layout/Pad";
 import { LevelingBody } from "@/features/leveling/components/LevelingBody";
 import { getLevelingConfig, getLevelRewards, getLevels, getXpMultipliers } from "@/features/leveling/queries";
+import { JSX } from "react";
 
 interface LevelingFeatureProps {
     guildId: string;
 }
 
-export async function LevelingFeature({ guildId }: LevelingFeatureProps) {
+export async function LevelingFeature({ guildId }: LevelingFeatureProps): Promise<JSX.Element> {
     const formula = "f(l) = 5l^2 + 50l + 100";
     const cumulativeFormula = "\\sum_{i=0}^{N-1} (5i^2 + 50i + 100) = \\frac{5N(N-1)(2N-1)}{6} + 25N(N-1) + 100N";
 

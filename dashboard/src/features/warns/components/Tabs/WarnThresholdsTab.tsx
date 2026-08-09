@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useMemo, useState, useTransition } from "react";
+import React, { JSX, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { InputLabel } from "@/components/layout/InputLabel";
@@ -57,7 +57,7 @@ export function WarnThresholdTab({
     guildId,
     thresholds,
     roleMap,
-}: WarnThresholdTabProps): ReactNode {
+}: WarnThresholdTabProps): JSX.Element {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 

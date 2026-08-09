@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { JSX, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { LongTextInput } from "@/components/ui/LongTextInput";
 
@@ -11,12 +11,12 @@ interface WarnModalProps {
     isSubmitting: boolean;
 }
 
-export function WarnModal({ isOpen, onClose, onSubmit, isSubmitting }: WarnModalProps) {
+export function WarnModal({ isOpen, onClose, onSubmit, isSubmitting }: WarnModalProps): JSX.Element | null {
     const [reason, setReason] = useState<string>("");
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>): void => {
         e.preventDefault();
         onSubmit(reason);
     };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, JSX } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -30,7 +30,7 @@ export function CustomCommandsBody({
     channelMap,
     roleMap,
     guildId
-}: CustomCommandsBodyProps): ReactNode {
+}: CustomCommandsBodyProps): JSX.Element {
     const router = useRouter();
     const [config, setConfig] = useState<CustomCommand | null>(activeConfig);
     const [isPending, startTransition] = useTransition();
@@ -42,7 +42,7 @@ export function CustomCommandsBody({
 
     const isDirty = !isDeepEqual(config, activeConfig);
 
-    const handleSave = () => {
+    const handleSave = (): void => {
         if (!config) return;
 
         const result = SaveCustomCommandSchema.safeParse(config);
@@ -62,7 +62,7 @@ export function CustomCommandsBody({
         });
     };
 
-    const handleCancel = () => {
+    const handleCancel = (): void => {
         setConfig(activeConfig);
     };
 

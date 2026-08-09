@@ -10,14 +10,14 @@ import {
     getMessageLoggingConfig,
 } from "../queries";
 import { MessageLoggingBody } from "./MessageLoggingBody";
-import { ReactNode } from "react";
+import { JSX} from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 
 interface MessageLoggingFeatureProps {
     guildId: string;
 }
 
-export async function MessageLoggingFeature({ guildId }: MessageLoggingFeatureProps): Promise<ReactNode> {
+export async function MessageLoggingFeature({ guildId }: MessageLoggingFeatureProps): Promise<JSX.Element> {
     const [
         messageLoggingConfig,
         deletedMessagesHistory,

@@ -1,11 +1,11 @@
 "use client";
 
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import { ComponentType, JSX, useMemo, useState, useCallback } from "react";
+import { JSX, useMemo, useState, useCallback } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { OffensiveMessagesTab } from "@/features/message-filtering/components/Tabs/OffensiveMessagesTab";
 import { ServerInvitesTab } from "@/features/message-filtering/components/Tabs/ServerInvitesTab";
-import { ExternalURLsTab } from "@/features/message-filtering/components/Tabs/ExternalURLsTab";
+import { ExternalURLsTab, ExternalURLsTabProps } from "@/features/message-filtering/components/Tabs/ExternalURLsTab";
 import { ExcessiveCapsTab } from "@/features/message-filtering/components/Tabs/ExcessiveCapsTab";
 import { ExcessiveEmojisTab } from "@/features/message-filtering/components/Tabs/ExcessiveEmojisTab";
 import { ExcessiveSpoilersTab } from "@/features/message-filtering/components/Tabs/ExcessiveSpoilersTab";
@@ -25,53 +25,55 @@ import {
 import { toast } from "sonner";
 
 type TabValue =
-    | "bad_words"
-    | "offensive_messages"
-    | "server_invites"
-    | "external_links"
-    | "excessive_caps"
-    | "excessive_spoilers"
-    | "excessive_emojis"
-    | "excessive_mentions"
-    | "zalgo"
-    | "anti_spam"
-    | "crypto_addresses"
-    | "global_scope";
+    | "BAD_WORDS"
+    | "OFFENSIVE_MESSAGES"
+    | "SERVER_INVITES"
+    | "EXTERNAL_LINKS"
+    | "EXCESSIVE_CAPS"
+    | "EXCESSIVE_SPOILERS"
+    | "EXCESSIVE_EMOJIS"
+    | "EXCESSIVE_MENTIONS"
+    | "ZALGO"
+    | "ANTI_SPAM"
+    | "CRYPTO_ADDRESSES"
+    | "GLOBAL_SCOPE";
 
 const FILTERING_TABS: TabItem<TabValue>[] = [
-    { value: "bad_words", label: "Bad Words" },
-    { value: "offensive_messages", label: "Offensive Messages" },
-    { value: "server_invites", label: "External Server Invites" },
-    { value: "external_links", label: "External URLs" },
-    { value: "excessive_caps", label: "Excessive Caps" },
-    { value: "excessive_emojis", label: "Excessive Emojis" },
-    { value: "excessive_spoilers", label: "Excessive Spoilers" },
-    { value: "excessive_mentions", label: "Excessive Mentions" },
-    { value: "zalgo", label: "Zalgo" },
-    { value: "anti_spam", label: "Anti Spam" },
-    { value: "crypto_addresses", label: "Crypto Addresses" },
-    { value: "global_scope", label: "Global Scope" },
+    { value: "BAD_WORDS", label: "Bad Words" },
+    { value: "OFFENSIVE_MESSAGES", label: "Offensive Messages" },
+    { value: "SERVER_INVITES", label: "External Server Invites" },
+    { value: "EXTERNAL_LINKS", label: "External URLs" },
+    { value: "EXCESSIVE_CAPS", label: "Excessive Caps" },
+    { value: "EXCESSIVE_EMOJIS", label: "Excessive Emojis" },
+    { value: "EXCESSIVE_SPOILERS", label: "Excessive Spoilers" },
+    { value: "EXCESSIVE_MENTIONS", label: "Excessive Mentions" },
+    { value: "ZALGO", label: "Zalgo" },
+    { value: "ANTI_SPAM", label: "Anti Spam" },
+    { value: "CRYPTO_ADDRESSES", label: "Crypto Addresses" },
+    { value: "GLOBAL_SCOPE", label: "Global Scope" },
 ];
 
-const TAB_MAP: Record<Exclude<TabValue, "bad_words">, ComponentType<any>> = {
-    offensive_messages: OffensiveMessagesTab,
-    server_invites: ServerInvitesTab,
-    external_links: ExternalURLsTab,
-    excessive_caps: ExcessiveCapsTab,
-    excessive_emojis: ExcessiveEmojisTab,
-    excessive_spoilers: ExcessiveSpoilersTab,
-    excessive_mentions: ExcessiveMentionsTab,
-    zalgo: ZalgoTab,
-    anti_spam: AntiSpamFilterTab,
-    crypto_addresses: CryptoAddressTab,
-    global_scope: GlobalScopeTab,
+type TabSignature = ({ config, handleChange, channelMap, roleMap }: ExternalURLsTabProps) => JSX.Element;
+
+const TAB_MAP: Record<Exclude<TabValue, "BAD_WORDS">, TabSignature> = {
+    OFFENSIVE_MESSAGES: OffensiveMessagesTab,
+    SERVER_INVITES: ServerInvitesTab,
+    EXTERNAL_LINKS: ExternalURLsTab,
+    EXCESSIVE_CAPS: ExcessiveCapsTab,
+    EXCESSIVE_EMOJIS: ExcessiveEmojisTab,
+    EXCESSIVE_SPOILERS: ExcessiveSpoilersTab,
+    EXCESSIVE_MENTIONS: ExcessiveMentionsTab,
+    ZALGO: ZalgoTab,
+    ANTI_SPAM: AntiSpamFilterTab,
+    CRYPTO_ADDRESSES: CryptoAddressTab,
+    GLOBAL_SCOPE: GlobalScopeTab,
 };
 
 interface MessageFilteringBodyProps {
     messageFilteringConfig: MessageFilteringConfig;
     badWordRulesets: BadWordRuleset[];
     activeRuleset: BadWordRuleset | null;
-    onSaveRuleset: (ruleset: SaveableBadWordRuleset) => Promise<any>;
+    onSaveRuleset: (ruleset: SaveableBadWordRuleset) => Promise<BadWordRuleset>;
     onDeleteRuleset: (id: string) => Promise<void>;
     channelMap?: Record<string, string>;
     roleMap?: Record<string, string>;
@@ -88,7 +90,7 @@ export function MessageFilteringBody({
     roleMap,
     onSave,
 }: MessageFilteringBodyProps): JSX.Element {
-    const [activeTab, setActiveTab] = useState<TabValue>("bad_words");
+    const [activeTab, setActiveTab] = useState<TabValue>("BAD_WORDS");
     const normalizedConfig = useMemo(() => messageFilteringConfig, [messageFilteringConfig]);
 
     const {
@@ -104,8 +106,8 @@ export function MessageFilteringBody({
     });
 
     const handleChange = useCallback((updated: Partial<MessageFilteringConfig>) => {
-        setConfig((prev) => ({ ...prev, ...updated }));
-    }, [setConfig]);
+        setConfig(({ ...config, ...updated }));
+    }, [setConfig, config]);
 
     const onValidatedSave = (): void => {
         const result = messageFilteringConfigSchema.safeParse(config);
@@ -116,14 +118,14 @@ export function MessageFilteringBody({
         handleSave();
     };
 
-    const ActiveTabComponent = activeTab !== "bad_words" ? TAB_MAP[activeTab] : null;
+    const ActiveTabComponent = activeTab !== "BAD_WORDS" ? TAB_MAP[activeTab] : null;
 
     return (
         <div>
             <Tabs tabs={FILTERING_TABS} activeTab={activeTab} onChange={setActiveTab}/>
 
             <div className="tab-content">
-                {activeTab === "bad_words" ? (
+                {activeTab === "BAD_WORDS" ? (
                     <BadWordTab
                         rulesets={badWordRulesets}
                         activeRuleset={activeRuleset}
@@ -144,7 +146,7 @@ export function MessageFilteringBody({
                 )}
             </div>
 
-            {isDirty && activeTab !== "bad_words" && (
+            {isDirty && activeTab !== "BAD_WORDS" && (
                 <SavePopup
                     handleCancel={handleCancel}
                     handleSave={onValidatedSave}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, ReactNode, useCallback, useTransition } from "react";
+import React, { useState, useMemo, useCallback, useTransition, JSX } from "react";
 import { toast } from "sonner";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
@@ -45,22 +45,17 @@ const COMMON_TIMEZONES = [
 
 export function BirthdaysBody({
     initialConfig,
-    guildId,
     onSave,
     channelMap,
     roleMap,
-}: BirthdaysBodyProps): ReactNode | null {
+}: BirthdaysBodyProps): JSX.Element | null {
     const [config, setConfig] = useState<BirthdayConfig>(initialConfig);
     const [isPending, startTransition] = useTransition();
     const [activeTab, setActiveTab] = useState<"withYear" | "withoutYear">("withYear");
 
-    // Honest Dirty Check
     const isDirty = !isDeepEqual(config, initialConfig);
-
-    // Honest missing field checks for UI feedback
     const isChannelMissing = config.enabled && !config.channelId;
 
-    // Detect browser's timezone automatically
     const browserTz = useMemo(() => {
         if (typeof window !== "undefined") {
             return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -111,8 +106,7 @@ export function BirthdaysBody({
         }));
     }, [activeTab]);
 
-    const handleSave = () => {
-        // Strict Validation via superRefine on Save click
+    const handleSave = (): void => {
         const result = SaveBirthdayConfigSchema.safeParse(config);
         if (!result.success) {
             const firstMessage = result.error.issues[0]?.message || "Invalid birthday configuration.";
@@ -130,7 +124,7 @@ export function BirthdaysBody({
         });
     };
 
-    const handleCancel = () => {
+    const handleCancel = (): void => {
         setConfig(initialConfig);
     };
 

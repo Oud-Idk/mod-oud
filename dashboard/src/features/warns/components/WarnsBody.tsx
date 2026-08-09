@@ -1,8 +1,8 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { JSX, useState } from "react";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import { HistoryTab } from "./Tabs/HistoryTab";
+import HistoryTab from "./Tabs/HistoryTab";
 import { WarnThresholdTab } from "./Tabs/WarnThresholdsTab";
 import type { WarnThreshold } from "../types";
 
@@ -19,7 +19,7 @@ interface WarnsBodyProps {
     roleMap: Record<string, string>;
 }
 
-export function WarnsBody({ guildId, initialThresholds, roleMap }: WarnsBodyProps): ReactNode {
+export function WarnsBody({ guildId, initialThresholds, roleMap }: WarnsBodyProps): JSX.Element {
     const [activeTab, setActiveTab] = useState<TabValue>("HISTORY");
 
     return (

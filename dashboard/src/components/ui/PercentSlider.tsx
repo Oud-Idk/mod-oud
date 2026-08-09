@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 import * as Slider from "@radix-ui/react-slider";
 import { cn } from "@/lib/cn";
 
@@ -22,7 +22,7 @@ export function PercentSlider({
     step = 0.01,
     disabled = false,
     className,
-}: PercentSliderProps) {
+}: PercentSliderProps): JSX.Element {
     const percentageDisplay = `${Math.round(value * 100)}%`;
 
     return (

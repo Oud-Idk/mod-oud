@@ -1,4 +1,4 @@
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { JSX, useMemo, useState } from "react";
 import Link from "next/link";
 import Turnstile from "react-turnstile";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
@@ -11,7 +11,7 @@ import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DiscordRole } from "@/features/welcome/components/WelcomeBody";
-import { WelcomeConfig, CaptchaType } from "@/features/welcome/types";
+import { WelcomeConfig } from "@/features/welcome/types";
 import { setupVerificationAction, teardownVerificationAction } from "@/features/welcome/actions";
 import { WELCOME_CONFIG } from "@/features/welcome/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
@@ -48,10 +48,9 @@ export function VerificationTab({
     isDirty,
     roles,
     channelMap,
-}: VerificationTabProps): ReactNode {
+}: VerificationTabProps): JSX.Element {
     const [activeTab, setActiveTab] = useState<TabValue>("GENERAL");
     const [isProcessingSetup, setIsProcessingSetup] = useState<boolean>(false);
-    const [empty, setEmpty] = useState<boolean>(false);
 
     // Memoize derived options to prevent redundant mapping on every render
     const roleOptions = useMemo(
@@ -130,7 +129,7 @@ export function VerificationTab({
         }
     };
 
-    const sendDisabled = isProcessingSetup || isDirty || empty;
+    const sendDisabled = isProcessingSetup || isDirty;
 
     return (
         <div className="space-y-6">
@@ -194,7 +193,7 @@ export function VerificationTab({
                                         if (captchaType) {
                                             setConfig((prev) => ({
                                                 ...prev,
-                                                verification: { ...prev.verification, captchaType: captchaType as CaptchaType },
+                                                verification: { ...prev.verification, captchaType: captchaType },
                                             }));
                                         }
                                     }}
@@ -330,8 +329,6 @@ export function VerificationTab({
                             }))
                         }
                         embedTemplateConfig={WELCOME_CONFIG}
-                        setIsEmpty={setEmpty}
-                        enableToggle={false}
                     />
                 </div>
             )}

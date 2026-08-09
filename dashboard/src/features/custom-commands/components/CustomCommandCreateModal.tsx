@@ -1,11 +1,11 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
+import React, { JSX, useState } from "react";
 import { TextInput } from "@/components/ui/TextInput";
 import { Modal } from "@/components/ui/Modal";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/Button";
 
 interface CustomCommandCreateModalProps {
     isOpen: boolean;
@@ -17,7 +17,7 @@ export function CustomCommandCreateModal({
     isOpen,
     onClose,
     onSave,
-}: CustomCommandCreateModalProps): ReactNode | null {
+}: CustomCommandCreateModalProps): JSX.Element | null {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [isSaving, setIsSaving] = useState(false);
@@ -70,19 +70,19 @@ export function CustomCommandCreateModal({
                 </div>
 
                 <div className="flex justify-end gap-2">
-                    <button
+                    <Button
+                        variant="secondary"
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-semibold rounded-md bg-surface-active hover:bg-surface-muted text-foreground border border-border-subtle transition-all cursor-pointer"
                     >
                         Cancel
-                    </button>
-                    <PrimaryButton
+                    </Button>
+                    <Button
                         onClick={handleCreate}
                         disabled={isSaving || !name.trim()}
                     >
                         {isSaving ? "Creating..." : "Create Command"}
-                    </PrimaryButton>
+                    </Button>
                 </div>
             </div>
         </Modal>

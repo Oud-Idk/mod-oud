@@ -4,6 +4,7 @@ import { ReportHeader } from "./ReportHeader";
 import { ReportContent } from "./ReportContent";
 import { ReportActions } from "./ReportActions";
 import { ReportedMessage, SimpleReportAction } from "@/features/report/types";
+import { JSX } from "react";
 
 interface ReportedMessageCardProps {
     log: ReportedMessage;
@@ -27,7 +28,7 @@ export function ReportedMessageCard({
     onTimeoutClick,
     onBanClick,
     onWarnClick,
-}: ReportedMessageCardProps) {
+}: ReportedMessageCardProps): JSX.Element {
     return (
         <div className="p-3 border border-neutral-300 dark:border-neutral-700 rounded-lg space-y-2 text-sm dark:bg-neutral-300/5 bg-[#fcfcfc]">
             <ReportHeader

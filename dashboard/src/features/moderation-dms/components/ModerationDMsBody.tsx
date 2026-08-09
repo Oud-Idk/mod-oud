@@ -96,7 +96,6 @@ export function ModerationDMsBody({
 }: ModerationDMsBodyProps): JSX.Element {
     const normalizedConfig = useMemo(() => moderationDMsConfig, [moderationDMsConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("WARN");
-    const [, setIsEmpty] = useState(false);
 
     const activeKey = TAB_TO_CONFIG_KEY[activeTab];
 
@@ -151,7 +150,6 @@ export function ModerationDMsBody({
                 resetKey={`${resetKey}_${activeTab}`}
                 modeLabel={`Message Mode (${activeTab.replace(/_/g, " ")})`}
                 placeholderText={PLACEHOLDERS[activeTab]}
-                setIsEmpty={setIsEmpty}
             />
 
             {isDirty && (

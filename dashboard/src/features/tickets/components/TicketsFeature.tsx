@@ -7,12 +7,13 @@ import {
     sendTicketMessageAction
 } from "@/features/tickets/actions";
 import { getTicketConfig } from "@/features/tickets/queries";
+import { JSX } from "react";
 
 interface TicketsFeatureProps {
     guildId: string;
 }
 
-export async function TicketsFeature({ guildId }: TicketsFeatureProps) {
+export async function TicketsFeature({ guildId }: TicketsFeatureProps): Promise<JSX.Element> {
     const [categoryMap, roleMap, channels, ticketConfig] = await Promise.all([
         getCategoryMap(guildId),
         getRoleMap(guildId),

@@ -4,6 +4,7 @@ import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
+import { JSX } from "react";
 
 interface ExcessiveCapsProps {
     config: MessageFilteringConfig;
@@ -17,7 +18,7 @@ export function ExcessiveCapsTab({
     channelMap,
     roleMap,
     handleChange,
-}: ExcessiveCapsProps) {
+}: ExcessiveCapsProps): JSX.Element {
     const filterConfig = config.excessiveCaps;
 
     const updateFilter = createFilterUpdater(config, handleChange, "excessiveCaps");

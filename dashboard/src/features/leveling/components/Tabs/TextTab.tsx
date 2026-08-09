@@ -3,6 +3,7 @@ import { RangeSlider } from "@/components/ui/RangeSlider";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { LevelingConfig } from "@/features/leveling/types";
 import { InputLabel } from "@/components/layout/InputLabel";
+import { JSX } from "react";
 
 interface TextTabProps {
     config: LevelingConfig;
@@ -12,7 +13,7 @@ interface TextTabProps {
 export function TextTab({
     config,
     handleChange,
-}: TextTabProps) {
+}: TextTabProps): JSX.Element {
     return (
         <div>
             <ToggleSwitch

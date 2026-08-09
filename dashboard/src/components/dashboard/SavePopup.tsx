@@ -1,10 +1,12 @@
+import { JSX } from "react";
+
 interface SavePopupProps {
     handleCancel: () => void;
     handleSave: () => void;
     isSaving: boolean;
 }
 
-export function SavePopup({ handleCancel, handleSave, isSaving }: SavePopupProps) {
+export function SavePopup({ handleCancel, handleSave, isSaving }: SavePopupProps): JSX.Element {
     return <div
         className="fixed bottom-4 right-4 left-4 md:left-auto md:w-96 bg-white dark:bg-black border rounded-lg shadow-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>

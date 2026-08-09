@@ -23,14 +23,17 @@ import {
     Volume2Icon
 } from "lucide-react";
 import { FaceSmileIcon } from "@heroicons/react/24/outline";
+import { JSX } from "react";
 
-export function SidebarLinks() {
+export function SidebarLinks(): JSX.Element | null{
     const params = useParams();
     const pathname = usePathname();
 
-    const guildId = params?.guild_id as string | undefined;
+    if (typeof params?.guild_id !== "string") {
+        throw new Error("Guild ID is not string!");
+    }
 
-    if (!guildId) return null;
+    const guildId = params?.guild_id;
 
     const links = [
         {

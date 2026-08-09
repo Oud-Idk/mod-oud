@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, JSX } from "react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useSSEInfiniteScroll } from "@/lib/hooks/useSSEInfiniteScroll";
@@ -46,9 +46,7 @@ export function ReportBody({
     guildId,
     onSave,
     textChannelMap,
-}: ReportBodyProps) {
-    const [, setIsEmpty] = useState(false);
-
+}: ReportBodyProps): JSX.Element {
     const {
         config,
         setConfig,
@@ -152,7 +150,6 @@ export function ReportBody({
                     handleChange={handleChange}
                     isPending={isPending}
                     resetKey={resetKey}
-                    setIsEmpty={setIsEmpty}
                 />
             )}
 

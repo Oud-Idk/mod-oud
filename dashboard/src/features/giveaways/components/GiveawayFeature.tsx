@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { JSX } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getGiveaways } from "@/features/giveaways/queries";
@@ -17,7 +17,7 @@ interface GiveawayFeatureProps {
     activeId?: string;
 }
 
-export async function GiveawayFeature({ guildId, activeId }: GiveawayFeatureProps): Promise<ReactNode> {
+export async function GiveawayFeature({ guildId, activeId }: GiveawayFeatureProps): Promise<JSX.Element> {
     const session = await auth();
 
     console.log(session);

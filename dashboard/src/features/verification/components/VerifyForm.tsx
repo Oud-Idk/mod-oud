@@ -1,9 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import React, { JSX, useRef, useState } from 'react';
 import Turnstile from "react-turnstile";
 import Emphasis from "@/components/layout/Emphasis";
-import PrimaryButton from "@/components/ui/buttons/PrimaryButton";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { Session } from "next-auth";
 import Image from "next/image";
@@ -20,13 +19,13 @@ interface VerifyFormProps {
     useOauth?: boolean;
 }
 
-export default function VerifyForm({ userId, guildId, expires, sig, session, captchaType, useOauth }: VerifyFormProps) {
+export default function VerifyForm({ userId, guildId, expires, sig, session, captchaType, useOauth }: VerifyFormProps): JSX.Element {
     const [status, setStatus] = useState<'IDLE' | 'VERIFYING' | 'SUCCESS' | 'ERROR'>('IDLE');
     const [message, setMessage] = useState('');
     const [token, setToken] = useState<string | null>(null);
     const captchaRef = useRef<HCaptcha>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.SubmitEvent): Promise<void> => {
         e.preventDefault();
 
         if (!token || !userId || !guildId || !expires || !sig) {
@@ -62,7 +61,7 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
                 setStatus('ERROR');
                 setMessage(`Verification failed: ${errText}`);
             }
-        } catch (err) {
+        } catch {
             setStatus('ERROR');
             setMessage('Could not connect to the verification server.');
         }
@@ -70,8 +69,8 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
 
     return (
         <div className="bg-surface p-8 rounded-lg text-center max-w-sm w-full shadow-lg border border-border">
-            <Emphasis className="text-xl font-bold">Prove You're Human</Emphasis>
-            <p className="my-2">A quick check to prove that you're a human and not a clanker.</p>
+            <Emphasis className="text-xl font-bold">Prove You&apos;re Human</Emphasis>
+            <p className="my-2">A quick check to prove that you&apos;re a human and not a clanker.</p>
             {(session?.user?.name && session?.user?.image && useOauth) && (
                 <div className="flex flex-row items-center justify-center mb-4 gap-2 rounded-full">
                     <Image src={session.user.image} alt="Profile Picture" width={32} height={32}/>

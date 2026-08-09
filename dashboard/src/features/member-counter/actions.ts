@@ -6,7 +6,7 @@ import {
     CounterChannel,
     MemberCounterConfig,
     counterChannelSchema,
-    memberCounterConfigSchema, saveMemberCounterConfigSchema,
+    memberCounterConfigSchema,
 } from "@/features/member-counter/types";
 import { saveMemberCounterConfig, setupMemberCounterChannels } from "@/features/member-counter/queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
@@ -24,8 +24,7 @@ export async function saveMemberCounterConfigAction(
     await verifyGuildAccess(guildId);
 
     try {
-        const validConfig = saveMemberCounterConfigSchema.parse(data);
-        await saveMemberCounterConfig(guildId, validConfig);
+        await saveMemberCounterConfig(guildId, data);
         revalidatePath(`/dashboard/${guildId}/member-counter`);
     } catch (error) {
         console.error("Failed to save member counter config:", error);

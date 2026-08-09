@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useState, useCallback } from "react";
+import React, { useState, useCallback, JSX } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
@@ -47,9 +47,8 @@ export function WelcomeBody({
     roles,
     onSave,
     channelMap,
-}: WelcomeBodyProps): ReactNode {
+}: WelcomeBodyProps): JSX.Element {
     const [activeTab, setActiveTab] = useState<TabValue>("PUBLIC");
-    const [, setIsEmpty] = useState(false);
     const [targetChannelIsEmpty, setTargetChannelIsEmpty] = useState(false);
 
     const {
@@ -108,7 +107,6 @@ export function WelcomeBody({
                                 },
                             }))
                         }
-                        setIsEmpty={setIsEmpty}
                         onEmbedChange={(embed) =>
                             setConfig((prev) => ({
                                 ...prev,
@@ -162,7 +160,6 @@ export function WelcomeBody({
                                 },
                             }))
                         }
-                        setIsEmpty={setIsEmpty}
                         disabled={isPending}
                         toggleLabel="Send Direct Message (DM) when New User Joins"
                         embedTemplateConfig={WELCOME_CONFIG}

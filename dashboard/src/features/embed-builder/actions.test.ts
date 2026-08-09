@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { sendEmbedAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { isEmbedEmpty } from "@/features/_shared/embed";
+import { z } from "zod";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
 }));
 
 vi.mock("@/features/_shared/embed", () => {
-    const { z } = require("zod");
     return {
         DiscordEmbedSchema: z.object({
             title: z.string().optional(),
@@ -40,7 +40,7 @@ describe("sendEmbedAction", () => {
 
     describe("Server Action Logic", () => {
         it("should send embed successfully and return messageId", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             const mockResponseBody = { message_id: "msg-789" };
             vi.spyOn(global, "fetch").mockResolvedValueOnce(
@@ -71,7 +71,7 @@ describe("sendEmbedAction", () => {
 
         it("should respect process.env.BACKEND_INTERNAL_URL if configured", async () => {
             process.env.BACKEND_INTERNAL_URL = "http://backend-service:5000";
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             vi.spyOn(global, "fetch").mockResolvedValueOnce(
                 new Response(JSON.stringify({ message_id: "msg-789" }), { status: 200 })
@@ -86,7 +86,7 @@ describe("sendEmbedAction", () => {
         });
 
         it("should throw error if backend returns an HTTP error status", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             vi.spyOn(global, "fetch").mockResolvedValueOnce(
                 new Response("Forbidden: Bot lacks permissions", { status: 403 })
@@ -98,7 +98,7 @@ describe("sendEmbedAction", () => {
         });
 
         it("should throw fallback error if backend returns error with empty text", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             vi.spyOn(global, "fetch").mockResolvedValueOnce(
                 new Response("", { status: 500 })
@@ -110,7 +110,7 @@ describe("sendEmbedAction", () => {
         });
 
         it("should throw network failure error if fetch rejects", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(true as any);
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             vi.spyOn(global, "fetch").mockRejectedValueOnce(
                 new TypeError("Failed to fetch")

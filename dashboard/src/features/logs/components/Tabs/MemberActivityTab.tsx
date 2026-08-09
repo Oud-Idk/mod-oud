@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { JoinLeaveLog } from "@/features/logs/types";
 import { getJoinLeaveLogsAction } from "@/features/logs/actions";
@@ -15,7 +15,7 @@ interface MemberActivityTabProps {
 const LIMIT = 20;
 const HEADERS = ["User ID", "Action", "Timestamp"];
 
-export function MemberActivityTab({ guildId }: MemberActivityTabProps): ReactNode {
+export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Element {
     const [logs, setLogs] = useState<JoinLeaveLog[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);

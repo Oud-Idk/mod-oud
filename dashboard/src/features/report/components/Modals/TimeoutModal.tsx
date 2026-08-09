@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { JSX, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { LongTextInput } from "@/components/ui/LongTextInput";
 import { NumberInput } from "@/components/ui/NumberInput";
@@ -14,14 +14,14 @@ interface TimeoutModalProps {
     isSubmitting: boolean;
 }
 
-export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: TimeoutModalProps) {
+export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: TimeoutModalProps): JSX.Element | null {
     const [duration, setDuration] = useState<number | undefined>(10);
     const [unit, setUnit] = useState<TimeUnit>("MINUTES");
     const [reason, setReason] = useState<string>("");
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.SubmitEvent) => {
+    const handleSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
 
         let factor = 1;

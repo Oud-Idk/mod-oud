@@ -1,11 +1,12 @@
 import { Plus } from "lucide-react";
+import { JSX } from "react";
 
-type BotNotSetupProps = {
+interface BotNotSetupProps {
     permissions: string;
     guild_id: string;
 }
 
-export function BotNotSetup({ permissions, guild_id }: BotNotSetupProps) {
+export function BotNotSetup({ permissions, guild_id }: BotNotSetupProps): JSX.Element {
     const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${process.env.AUTH_DISCORD_ID}&permissions=${permissions}&integration_type=0&scope=bot+applications.commands&guild_id=${guild_id}&disable_guild_select=true`
 
     return (
@@ -16,7 +17,7 @@ export function BotNotSetup({ permissions, guild_id }: BotNotSetupProps) {
             </p>
             <a
                 href={inviteUrl}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-surface border border-border font-medium rounded-lg shadow transition-colors"
             >
                 <Plus className="w-5 h-5"/> Setup Mod Oud
             </a>

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { JSX } from "react";
 
 export interface ConnectionStatusPillProps {
     status: "CONNECTED" | "DISCONNECTED" | string;
@@ -14,7 +15,7 @@ export function ConnectionStatusPill({
     connectedText = "Live Stream",
     disconnectedText = "Disconnected",
     className,
-}: ConnectionStatusPillProps) {
+}: ConnectionStatusPillProps): JSX.Element {
     const isConnected = status === "CONNECTED";
 
     return (

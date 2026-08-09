@@ -5,7 +5,7 @@ import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels"; // 
 import { deleteCustomCommandAction, saveCustomCommandAction } from "../actions";
 import { CustomCommandsBody } from "@/features/custom-commands/components/CustomCommandsBody";
 import { getCustomCommands } from "@/features/custom-commands/queries";
-import { ReactNode } from "react";
+import { JSX } from "react";
 
 interface CustomCommandsFeatureProps {
     guildId: string;
@@ -15,7 +15,7 @@ interface CustomCommandsFeatureProps {
 export async function CustomCommandsFeature({
     guildId,
     activeId,
-}: CustomCommandsFeatureProps): Promise<ReactNode> {
+}: CustomCommandsFeatureProps): Promise<JSX.Element> {
     const session = await auth();
 
     if (!session?.user?.id) {

@@ -1,26 +1,23 @@
 'use client'
 
-import { Fragment } from 'react'
+import { Fragment, JSX } from 'react'
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from '@headlessui/react'
 import { signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 import Image from 'next/image'
 import {
     ArrowLeftEndOnRectangleIcon,
-    Cog6ToothIcon,
-    DocumentTextIcon, PhotoIcon // 1. Imported the new icon
 } from '@heroicons/react/24/outline'
-import Link from "next/link";
 
-function classNames(...classes: string[]) {
+function classNames(...classes: string[]): string {
     return classes.filter(Boolean).join(' ')
 }
 
-type ProfileDropdownProps = {
+interface ProfileDropdownProps {
     session: Session | null;
 };
 
-export function ProfileDropdown({ session }: ProfileDropdownProps) {
+export function ProfileDropdown({ session }: ProfileDropdownProps): JSX.Element | null {
     if (!session) return null;
     if (!session.user) return null;
 
@@ -67,7 +64,7 @@ export function ProfileDropdown({ session }: ProfileDropdownProps) {
                     <MenuItem>
                         {({ focus }) => (
                             <button
-                                onClick={() => signOut()}
+                                onClick={() => void signOut()}
                                 className={classNames(
                                     focus ? 'bg-neutral-100 dark:bg-neutral-800' : '',
                                     'w-full text-left flex items-center gap-x-2 px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 cursor-pointer'

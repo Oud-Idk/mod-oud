@@ -2,7 +2,6 @@ import { z } from "zod";
 import {
     LeaveConfig,
     leaveConfigSchema,
-    saveLeaveConfigSchema
 } from "@/features/leave/types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
