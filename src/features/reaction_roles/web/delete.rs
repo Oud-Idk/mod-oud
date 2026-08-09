@@ -41,7 +41,7 @@ pub async fn handle_delete_reaction_role_message(
                 error!(error = ?e, "Failed to delete message via Discord API");
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to delete Discord message: {}", e),
+                    "Internal Server Error".to_string(),
                 ));
             }
         }

@@ -13,7 +13,7 @@ pub async fn resolve_moderator_id(
             .await
             .map(|u| u.id.get())
             .inspect_err(|e| warn!(error = %e, "Failed to fetch fallback bot details from Discord API"))
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to fetch fallback bot details: {}", e)))?,
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?,
     };
     Ok(poise::serenity_prelude::UserId::new(id_val))
 }
@@ -26,7 +26,7 @@ pub async fn resolve_moderator_user(
     let mod_id = resolve_moderator_id(http, moderator_id).await?;
     mod_id.to_user(http).await
         .inspect_err(|e| warn!(error = %e, %mod_id, "Failed to retrieve moderator user details from Discord API"))
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("Failed to retrieve moderator details: {}", e)))
+        .map_err(|e| (StatusCode::BAD_GATEWAY, "Failed to retrieve moderator details.".to_string()))
 }
 
 #[instrument(skip(http))]
@@ -36,5 +36,5 @@ pub async fn resolve_target_user(
 ) -> Result<poise::serenity_prelude::User, (StatusCode, String)> {
     user_id.to_user(http).await
         .inspect_err(|e| warn!(error = %e, %user_id, "Failed to retrieve target user details from Discord API"))
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("Failed to retrieve target user: {}", e)))
+        .map_err(|e| (StatusCode::BAD_GATEWAY, "Failed to retrieve target user".to_string()))
 }

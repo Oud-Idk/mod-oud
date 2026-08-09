@@ -37,7 +37,7 @@ pub async fn handle_send_ticket_message(
     let settings = get_settings(&state.db, &state.redis.clone(), &state.guild_configs, guild_id)
         .await
         .inspect_err(|e| warn!(error = ?e, guild_id, "Failed to load guild configuration settings"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     let ticket_cfg = settings.tickets.ok_or_else(|| {
         debug!(guild_id, "Ticket dispatch failed: system is unconfigured");
@@ -67,13 +67,13 @@ pub async fn handle_send_ticket_message(
         .inspect_err(|e| warn!(error = ?e, guild_id, "Failed to compile custom ticket layout payload"))
         .map_err(|e| (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to build ticket message layout: {}", e),
+            "Internal server error.".to_string(),
         ))?;
 
     let message = channel
         .send_message(&state.http, message_builder).await
         .inspect_err(|e| warn!(error = ?e, guild_id, channel_id = payload.channel_id, "Failed to send Discord panel message"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed...: {e}")))?;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()))?;
 
     info!(guild_id, channel_id = payload.channel_id, message_id = message.id.get(), "Ticket panel message dispatched successfully via Web API!");
 

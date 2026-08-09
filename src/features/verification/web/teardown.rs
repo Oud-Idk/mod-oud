@@ -75,7 +75,7 @@ pub async fn handle_verification_teardown(
     if !execution_errors.is_empty() {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Teardown completed with errors: {}", execution_errors.join(", ")),
+            "Internal server error".to_string(),
         ));
     }
 

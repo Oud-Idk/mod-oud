@@ -27,12 +27,12 @@ pub async fn handle_delete_message(
                 warn!("Message already deleted (404) returned from Discord API");
             } else {
                 error!(error = %http_err, "Failed to delete message via HTTP");
-                return Err(WebError::BadGateway(format!("Discord API Error: {}", http_err)));
+                return Err(WebError::BadGateway("Message already deleted.".to_string()));
             }
         }
         Err(e) => {
             error!(error = %e, "Unexpected error deleting message");
-            return Err(WebError::BadGateway(format!("Discord API Error: {}", e)));
+            return Err(WebError::Internal);
         }
     }
 

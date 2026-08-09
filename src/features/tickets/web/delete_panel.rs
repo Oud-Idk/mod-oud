@@ -41,7 +41,7 @@ pub async fn handle_delete_ticket_message(
         .map(|_| StatusCode::NO_CONTENT)
         .map_err(|e| (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to delete Discord message: {}", e),
+            "Internal server error.".to_string(),
         ))
 }
 

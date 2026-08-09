@@ -69,7 +69,7 @@ pub async fn handle_send_custom_embed(
         .send_message(&state.http, message_builder)
         .await
         .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to deliver Discord message"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Discord API error: {}", e)))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     info!(
         guild_id = guild_id_u64,

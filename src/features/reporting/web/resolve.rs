@@ -23,10 +23,8 @@ pub async fn handle_resolve_report(
 
     let config = get_settings(&state.db, redis, &state.guild_configs, guild_id.get() as i64)
         .await
-        .map_err(|e| {
-            error!(error = %e, "Failed to resolve guild config");
-            WebError::Internal(e.to_string())
-        })?;
+        .inspect_err(|e| error!(error = %e, "Failed to resolve guild config"))
+        .map_err(|_| WebError::Internal)?;
 
     let Some(report_config) = config.report else {
         warn!("Report config was missing for target guild during report resolution");
@@ -39,10 +37,8 @@ pub async fn handle_resolve_report(
     )
         .fetch_one(&state.db)
         .await
-        .map_err(|e| {
-            error!(error = %e, "Failed to retrieve reporter ID from database");
-            WebError::Internal(format!("Failed to fetch reporter ID: {}", e))
-        })?;
+        .inspect_err(|e| error!(error = ?e, "Failed to retrieve reporter ID from database"))
+        .map_err(|e| WebError::Internal)?;
 
     let reporter_id_u64: u64 = reporter_id as u64;
     let reporter_id = UserId::new(reporter_id_u64);
@@ -53,10 +49,8 @@ pub async fn handle_resolve_report(
         ReportUpdate::Status(status.clone()),
     )
         .await
-        .map_err(|(_status_code, err_msg)| {
-            error!(error = %err_msg, "Database report status update failed");
-            WebError::Internal(err_msg)
-        })?;
+        .inspect_err(|e| error!(error = ?e, "Database report status update failed"))
+        .map_err(|_| { WebError::Internal })?;
 
     let dm_channel = reporter_id
         .create_dm_channel(&state.http)
@@ -86,10 +80,8 @@ pub async fn handle_resolve_report(
             &layout.message.embed,
             replace_fn,
         )
-            .map_err(|e| {
-                error!(error = %e, "Failed to generate custom messaging content layout");
-                WebError::Internal(format!("Failed to build custom message: {}", e))
-            })?
+            .inspect_err(|e| error!(error = %e, "Failed to generate custom messaging content layout"))
+            .map_err(|e| { WebError::Internal })?
     } else {
         None
     };

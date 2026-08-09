@@ -100,7 +100,7 @@ pub async fn handle_send_temp_voice_interface(
         .send_message(&state.http, message_builder)
         .await
         .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to deliver interface"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Discord API error: {}", e)))?;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     info!(
         channel_id = payload.channel_id,

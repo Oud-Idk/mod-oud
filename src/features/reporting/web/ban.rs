@@ -50,10 +50,8 @@ pub async fn handle_ban_user(
         &duration_label,
     )
         .await
-        .map_err(|e| {
-            error!(error = %e, "Failed to complete ban operation");
-            WebError::Internal(format!("Failed to issue ban: {}", e))
-        })?;
+        .inspect_err(|e| error!(error = %e, "Failed to complete ban operation"))
+        .map_err(|e| WebError::Internal)?;
 
     update_reported_message(&state.db, cmd.report_id, ReportUpdate::UserBanned).await?;
     Ok(StatusCode::OK)

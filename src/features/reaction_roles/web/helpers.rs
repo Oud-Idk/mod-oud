@@ -64,7 +64,7 @@ pub fn build_custom_msg(
         |text| text.to_string(),
     )
         .map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build target layouts: {}", e))
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
         })
 }
 

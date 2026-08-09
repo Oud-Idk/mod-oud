@@ -2,6 +2,7 @@ use crate::features::reporting::types::{ReportStatus, ReportUpdate, ReportedMess
 use axum::http::StatusCode;
 use serenity::all::{Message, User};
 use sqlx::{Error, PgPool};
+use tracing::{error, warn};
 
 pub struct Id {
     pub(crate) id: i64,
@@ -74,7 +75,8 @@ pub async fn fetch_target_report(
     )
         .fetch_optional(pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .inspect_err(|e| error!(error = ?e, report_id, "Failed to fetch reported message by ID"))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Report ID not found".to_string()))?;
 
     let guild_id = serenity::all::GuildId::new(report.guild_id as u64);
@@ -91,9 +93,9 @@ pub async fn update_reported_message(
     let result = match update {
         ReportUpdate::Status(status) => {
             let status_str = match status {
-                ReportStatus::UnderReview => "under_review",
-                ReportStatus::Actioned => "actioned",
-                ReportStatus::Dismissed => "dismissed",
+                ReportStatus::UnderReview => "UNDER_REVIEW",
+                ReportStatus::Actioned => "ACTIONED",
+                ReportStatus::Dismissed => "DISMISSED",
             };
             sqlx::query!(
                 "UPDATE reported_messages SET status = $1::text::report_status WHERE id = $2",
@@ -139,5 +141,6 @@ pub async fn update_reported_message(
 
     result
         .map(|_| ())
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .inspect_err(|e| warn!(error = ?e, "Failed to update reported message"))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))
 }

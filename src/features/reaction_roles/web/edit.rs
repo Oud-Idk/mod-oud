@@ -73,7 +73,7 @@ pub async fn handle_edit_reaction_role_message(
         .await
         .map_err(|e| {
             warn!(error = ?e, "Failed to edit Discord message");
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed editing Discord interaction message: {}", e))
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
         })?;
 
     if matches!(config_row.mode, InteractionMode::Reaction) {

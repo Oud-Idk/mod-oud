@@ -31,7 +31,7 @@ pub fn build_giveaway_msg(
         |text| placeholders::replace_giveaway_placeholders(text, prize, winner_count, &host_user, gctx, &end_time_str),
     )
         .map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build giveaway layout: {}", e))
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
         })?;
 
     // Fallback if no custom format is specified or empty

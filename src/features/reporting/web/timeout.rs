@@ -45,10 +45,8 @@ pub async fn handle_timeout(
         })?;
 
     let timestamp = poise::serenity_prelude::Timestamp::from_unix_timestamp(future_secs as i64)
-        .map_err(|e| {
-            error!(error = %e, "Failed to construct valid serenity Timestamp");
-            WebError::Internal(e.to_string())
-        })?;
+        .inspect_err(|e| error!(error = %e, "Failed to construct valid serenity Timestamp"))
+        .map_err(|e| { WebError::Internal })?;
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
 
@@ -65,10 +63,8 @@ pub async fn handle_timeout(
         timestamp,
     )
         .await
-        .map_err(|e| {
-            error!(error = %e, "Failed to issue mute inside core utilities");
-            WebError::Internal(format!("Failed to issue mute: {}", e))
-        })?;
+        .inspect_err(|e| error!(error = %e, "Failed to issue mute inside core utilities"))
+        .map_err(|e| { WebError::Internal })?;
 
     update_reported_message(&state.db, cmd.report_id, ReportUpdate::UserTimedOut).await?;
     Ok(StatusCode::OK)

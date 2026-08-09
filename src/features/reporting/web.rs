@@ -81,7 +81,7 @@ pub async fn handle_dashboard_command(
 
     if let Err(e) = broadcast_report_update(&state.db, &redis_conn, cmd.report_id).await {
         error!(error = ?e, "Failed to broadcast report update after moderation action");
-        return Err(WebError::Internal(e.to_string()));
+        return Err(WebError::Internal);
     }
 
     info!("Dashboard moderation command executed successfully");
