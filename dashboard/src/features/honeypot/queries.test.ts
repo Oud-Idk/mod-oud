@@ -13,6 +13,15 @@ vi.mock("@/features/_shared/channels", () => ({
     invalidateGuildChannelCache: vi.fn(),
 }));
 
+interface MockResponse {
+    ok: boolean;
+    json: () => Promise<unknown>;
+    text: () => Promise<string>;
+}
+const mockFetch = vi.hoisted(() =>
+    vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
+);
+
 describe("Honeypot Query Module", () => {
     const originalEnv = process.env;
 
@@ -81,15 +90,6 @@ describe("Honeypot Query Module", () => {
     });
 
     describe("setupHoneypot", () => {
-        interface MockResponse {
-            ok: boolean;
-            json: () => Promise<unknown>;
-            text: () => Promise<string>;
-        }
-        const mockFetch = vi.hoisted(() =>
-            vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
-        );
-
         beforeEach(() => {
             vi.stubGlobal("fetch", mockFetch);
         });

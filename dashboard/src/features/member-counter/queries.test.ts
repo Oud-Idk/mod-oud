@@ -11,6 +11,15 @@ vi.mock("@/features/_shared/guild", () => ({
     saveGuildConfigField: vi.fn(),
 }));
 
+interface MockResponse {
+    ok: boolean;
+    json: () => Promise<unknown>;
+    text: () => Promise<string>;
+}
+const mockFetchTyped = vi.hoisted(() =>
+    vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
+);
+
 describe("Member Counter Query Module", () => {
     const originalEnv = process.env;
 
@@ -88,15 +97,6 @@ describe("Member Counter Query Module", () => {
         const counters = [
             { id: "c1", channelId: null, counterType: "TOTAL_MEMBERS" as const, roleId: null, nameTemplate: "👥 {count}" },
         ];
-
-        interface MockResponse {
-            ok: boolean;
-            json: () => Promise<unknown>;
-            text: () => Promise<string>;
-        }
-        const mockFetchTyped = vi.hoisted(() =>
-            vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
-        );
 
         beforeEach(() => {
             vi.stubGlobal("fetch", mockFetchTyped);
