@@ -80,7 +80,7 @@ describe("Report Action Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
         vi.spyOn(console, "error").mockImplementation(() => undefined);
-        vi.mocked(mockAuth).mockResolvedValue({
+        mockAuth.mockResolvedValue({
             user: { name: "Mod" },
             expires: "2026-01-01",
         });
@@ -154,7 +154,7 @@ describe("Report Action Module", () => {
         });
 
         it("should throw Unauthorized when there is no session user", async () => {
-            vi.mocked(mockAuth).mockResolvedValue({ user: undefined, expires: "2026-01-01" });
+            mockAuth.mockResolvedValue({ user: undefined, expires: "2026-01-01" });
 
             await expect(resolveReportStatusAction("guild_123", 1, "ACTIONED")).rejects.toThrow(
                 "Unauthorized."
@@ -172,7 +172,7 @@ describe("Report Action Module", () => {
         });
 
         it("should throw Unauthorized when there is no session user", async () => {
-            vi.mocked(mockAuth).mockResolvedValue({ user: undefined, expires: "2026-01-01" });
+            mockAuth.mockResolvedValue({ user: undefined, expires: "2026-01-01" });
 
             await expect(timeoutUserAction("guild_123", 1, 60)).rejects.toThrow("Unauthorized.");
         });
