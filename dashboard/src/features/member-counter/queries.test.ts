@@ -5,6 +5,7 @@ import {
     setupMemberCounterChannels,
 } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
+import { config } from "@/config";
 
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
@@ -21,17 +22,17 @@ const mockFetchTyped = vi.hoisted(() =>
 );
 
 describe("Member Counter Query Module", () => {
-    const originalEnv = process.env;
+    const originalUrl = config.backendInternalUrl;
 
     beforeEach(() => {
         vi.resetAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
-        process.env = { ...originalEnv, BACKEND_INTERNAL_URL: "http://backend:8080" };
+        vi.spyOn(console, "error").mockImplementation(() => { return });
+        config.backendInternalUrl = "http://backend:8080";
     });
 
     afterEach(() => {
-        process.env = originalEnv;
         vi.restoreAllMocks();
+        config.backendInternalUrl = originalUrl;
     });
 
     describe("getMemberCounterConfig", () => {

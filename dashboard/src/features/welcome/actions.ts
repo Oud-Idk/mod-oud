@@ -36,7 +36,7 @@ export async function saveWelcomeConfigAction(
         revalidatePath(`/dashboard/${guildId}/welcome`);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid welcome configuration.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to save welcome config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
@@ -58,7 +58,7 @@ export async function setupVerificationAction(
         return data;
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid setup payload.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Error setting up server verification:", error);
         throw new Error(
@@ -80,7 +80,7 @@ export async function teardownVerificationAction(
         revalidatePath(`/dashboard/${guildId}/welcome`);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid teardown payload.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Error tearing down server verification:", error);
         throw new Error(

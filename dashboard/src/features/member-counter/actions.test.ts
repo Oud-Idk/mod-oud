@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import { saveMemberCounterConfigAction, setupMemberCounterChannelsAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import {
@@ -23,7 +24,7 @@ vi.mock("next/cache", () => ({
 describe("Member Counter Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
     });
 
     afterEach(() => {
@@ -80,6 +81,28 @@ describe("Member Counter Server Actions", () => {
 
             await expect(saveMemberCounterConfigAction("guild_123", validConfig)).rejects.toThrow(
                 "Could not save configuration."
+            );
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveMemberCounterConfig).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Member counter config validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveMemberCounterConfigAction("guild_123", validConfig)).rejects.toThrow(
+                "Member counter config validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveMemberCounterConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveMemberCounterConfigAction("guild_123", validConfig)).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

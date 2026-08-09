@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 import { saveReminderAction, deleteReminderAction } from "./actions";
 import { deleteReminder, saveReminder } from "./queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
@@ -39,6 +40,11 @@ function reminderRowFixture(): ReminderRow {
         isActive: true,
     };
 }
+
+const mockUser: Awaited<ReturnType<typeof verifyGuildAccess>> = {
+    id: "user_123",
+    name: "Test User",
+};
 
 describe("Reminders Action Module", () => {
     beforeEach(() => {
@@ -87,6 +93,26 @@ describe("Reminders Action Module", () => {
 
             await expect(saveReminderAction("guild_123", validInput)).rejects.toThrow(
                 "Could not save reminder."
+            );
+        });
+
+        it("should rethrow the first zod issue message when the query rejects with a ZodError", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveReminder).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Reminder validation failure", path: [] }])
+            );
+
+            await expect(saveReminderAction("guild_123", validInput)).rejects.toThrow(
+                "Reminder validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveReminder).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveReminderAction("guild_123", validInput)).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

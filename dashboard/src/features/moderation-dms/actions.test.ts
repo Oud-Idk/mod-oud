@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 import { saveModerationDMsConfigAction } from "./actions";
 import { saveModerationDMsConfig } from "@/features/moderation-dms/queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
@@ -45,6 +46,11 @@ describe("Moderation DMs Action Module", () => {
         vi.restoreAllMocks();
     });
 
+    const mockUser: Awaited<ReturnType<typeof verifyGuildAccess>> = {
+        id: "user_123",
+        name: "Test User",
+    };
+
     describe("saveModerationDMsConfigAction", () => {
         it("should verify access, save the config, and revalidate the path", async () => {
             await saveModerationDMsConfigAction("guild_123", validConfig);
@@ -68,6 +74,28 @@ describe("Moderation DMs Action Module", () => {
             await expect(
                 saveModerationDMsConfigAction("guild_123", validConfig)
             ).rejects.toThrow("Could not save configuration.");
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveModerationDMsConfig).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Moderation DMs config validation failure", path: [] },
+                ])
+            );
+
+            await expect(
+                saveModerationDMsConfigAction("guild_123", validConfig)
+            ).rejects.toThrow("Moderation DMs config validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveModerationDMsConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(
+                saveModerationDMsConfigAction("guild_123", validConfig)
+            ).rejects.toThrow("Validation Error");
         });
     });
 });

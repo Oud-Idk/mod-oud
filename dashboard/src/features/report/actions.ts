@@ -123,7 +123,7 @@ export async function saveReportConfigAction(guildId: string, rawData: unknown):
         revalidatePath(`/dashboard/${guildId}/report`);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid report configuration.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to save report config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");

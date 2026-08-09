@@ -37,7 +37,7 @@ export async function saveTempVoiceHubAction(
         return saved;
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid temp voice configuration.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to save temporary voice hub:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
@@ -52,7 +52,7 @@ export async function deleteTempVoiceHubAction(guildId: string, hubId: string): 
         revalidatePath(`/dashboard/${guildId}/temp-voice`);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid hub ID format.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to delete temporary voice hub:", error);
         throw new Error(error instanceof Error ? error.message : "Could not delete configuration.");
@@ -97,7 +97,7 @@ export async function setupTempVoiceAction(
         };
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid setup configuration.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to setup temporary voice hub:", error);
         throw new Error(error instanceof Error ? error.message : "Could not setup temp voice hub.");
@@ -120,7 +120,7 @@ export async function sendInterfaceMessageAction(
         return await sendEmbedAction(endpoint, validPayload);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid interface message data.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to send interface message:", error);
         throw new Error(error instanceof Error ? error.message : "Failed to communicate with backend server.");

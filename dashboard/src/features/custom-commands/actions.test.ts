@@ -5,6 +5,7 @@ import { saveCustomCommand, deleteCustomCommand } from "@/features/custom-comman
 import redis from "@/lib/redis";
 import { revalidatePath } from "next/cache";
 import { customCommandSchema, saveCustomCommandInputSchema } from "@/features/custom-commands/types";
+import { z } from "zod";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -158,6 +159,26 @@ describe("Custom Commands Server Actions", (): void => {
             ).rejects.toThrow("At least one action is required for a custom command!");
 
             expect(saveCustomCommand).not.toHaveBeenCalled();
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveCustomCommand).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Custom command validation failure", path: [] }])
+            );
+
+            await expect(
+                saveCustomCommandAction("guild_123", validCommand)
+            ).rejects.toThrow("Custom command validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveCustomCommand).mockRejectedValue(new z.ZodError([]));
+
+            await expect(
+                saveCustomCommandAction("guild_123", validCommand)
+            ).rejects.toThrow("Validation Error");
         });
     });
 

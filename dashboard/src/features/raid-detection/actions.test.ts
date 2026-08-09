@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import { saveRaidDetectionConfigAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveRaidDetectionConfig } from "@/features/raid-detection/queries";
 import { revalidatePath } from "next/cache";
-import { raidDetectionInputSchema } from "@/features/raid-detection/types";
+import { raidDetectionConfigSchema, raidDetectionInputSchema } from "@/features/raid-detection/types";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -78,6 +79,31 @@ describe("Raid Detection Server Actions", () => {
             await expect(saveRaidDetectionConfigAction("guild_123", validConfig)).rejects.toThrow(
                 "Could not save configuration."
             );
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.spyOn(raidDetectionConfigSchema, "parse").mockImplementation(() => {
+                throw new z.ZodError([
+                    { code: "custom", message: "First issue message", path: [] },
+                    { code: "custom", message: "Second issue message", path: [] },
+                ]);
+            });
+
+            await expect(
+                saveRaidDetectionConfigAction("guild_123", validConfig)
+            ).rejects.toThrow("First issue message");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.spyOn(raidDetectionConfigSchema, "parse").mockImplementation(() => {
+                throw new z.ZodError([]);
+            });
+
+            await expect(
+                saveRaidDetectionConfigAction("guild_123", validConfig)
+            ).rejects.toThrow("Validation Error");
         });
     });
 });

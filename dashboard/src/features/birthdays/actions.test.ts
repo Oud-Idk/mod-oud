@@ -4,6 +4,7 @@ import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveBirthdayConfig } from "@/features/birthdays/queries";
 import { revalidatePath } from "next/cache";
 import { BirthdayConfigSchema } from "@/features/birthdays/types";
+import { z } from "zod";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -89,6 +90,26 @@ describe("Birthdays Server Actions", () => {
             await expect(
                 saveBirthdayConfigAction("guild_123", validDraftConfig)
             ).rejects.toThrow("Could not save configuration.");
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveBirthdayConfig).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Birthday config validation failure", path: [] }])
+            );
+
+            await expect(
+                saveBirthdayConfigAction("guild_123", validDraftConfig)
+            ).rejects.toThrow("Birthday config validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveBirthdayConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(
+                saveBirthdayConfigAction("guild_123", validDraftConfig)
+            ).rejects.toThrow("Validation Error");
         });
     });
 });

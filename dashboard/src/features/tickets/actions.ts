@@ -109,7 +109,7 @@ export async function saveTicketsConfigAction(guildId: string, data: SaveTicketC
         revalidatePath(`/dashboard/${guildId}/tickets`);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid ticket configuration.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to save tickets config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");

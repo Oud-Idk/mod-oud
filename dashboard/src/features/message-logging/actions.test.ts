@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 import {
     saveMessageLoggingConfigAction,
     fetchMoreEditedMessagesAction,
@@ -37,15 +38,20 @@ describe("Message Logging Action Module", () => {
         vi.restoreAllMocks();
     });
 
+    const mockUser: Awaited<ReturnType<typeof verifyGuildAccess>> = {
+        id: "user_123",
+        name: "Test User",
+    };
+
+    const config: MessageLoggingConfig = {
+        ignoredChannels: [],
+        ignoredRoles: [],
+        ignoredUsers: [],
+        events: { messageDelete: true, messageEdit: true },
+    };
+
     describe("saveMessageLoggingConfigAction", () => {
         it("should verify access, save the config, and revalidate the path", async () => {
-            const config: MessageLoggingConfig = {
-                ignoredChannels: [],
-                ignoredRoles: [],
-                ignoredUsers: [],
-                events: { messageDelete: true, messageEdit: true },
-            };
-
             await saveMessageLoggingConfigAction("guild_123", config);
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
@@ -64,6 +70,28 @@ describe("Message Logging Action Module", () => {
                     events: { messageDelete: false, messageEdit: false },
                 })
             ).rejects.toThrow("db down");
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveMessageLoggingConfig).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Message logging config validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveMessageLoggingConfigAction("guild_123", config)).rejects.toThrow(
+                "Message logging config validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveMessageLoggingConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveMessageLoggingConfigAction("guild_123", config)).rejects.toThrow(
+                "Validation Error"
+            );
         });
     });
 

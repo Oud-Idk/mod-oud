@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import { saveStarboardConfigAction, deleteStarboardConfigAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { upsertStarboardConfig, deleteStarboardConfig } from "@/features/starboard/queries";
@@ -111,6 +112,28 @@ describe("Starboard Server Actions", () => {
 
             await expect(saveStarboardConfigAction("guild_123", validInput)).rejects.toThrow(
                 "Could not save configuration."
+            );
+        });
+
+        it("should rethrow the first zod issue message when the query rejects with a ZodError", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(upsertStarboardConfig).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Starboard config validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveStarboardConfigAction("guild_123", validInput)).rejects.toThrow(
+                "Starboard config validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(upsertStarboardConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveStarboardConfigAction("guild_123", validInput)).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 import {
     saveTempVoiceHubAction,
     deleteTempVoiceHubAction,
@@ -103,6 +104,26 @@ describe("Temp Voice Action Module", () => {
 
             await expect(saveTempVoiceHubAction("guild_123", validHub)).rejects.toThrow("db down");
         });
+
+        it("should rethrow the first zod issue message when saving rejects with a ZodError", async () => {
+            vi.mocked(saveTempVoiceHub).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Temp voice hub save validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveTempVoiceHubAction("guild_123", validHub)).rejects.toThrow(
+                "Temp voice hub save validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(saveTempVoiceHub).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveTempVoiceHubAction("guild_123", validHub)).rejects.toThrow(
+                "Validation Error"
+            );
+        });
     });
 
     describe("deleteTempVoiceHubAction", () => {
@@ -118,6 +139,26 @@ describe("Temp Voice Action Module", () => {
             vi.mocked(deleteTempVoiceHub).mockRejectedValue(new Error("db down"));
 
             await expect(deleteTempVoiceHubAction("guild_123", "hub_1")).rejects.toThrow("db down");
+        });
+
+        it("should rethrow the first zod issue message when deletion rejects with a ZodError", async () => {
+            vi.mocked(deleteTempVoiceHub).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Temp voice hub delete validation failure", path: [] },
+                ])
+            );
+
+            await expect(deleteTempVoiceHubAction("guild_123", "hub_1")).rejects.toThrow(
+                "Temp voice hub delete validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(deleteTempVoiceHub).mockRejectedValue(new z.ZodError([]));
+
+            await expect(deleteTempVoiceHubAction("guild_123", "hub_1")).rejects.toThrow(
+                "Validation Error"
+            );
         });
     });
 
@@ -140,6 +181,14 @@ describe("Temp Voice Action Module", () => {
 
             const url = mockFetch.mock.calls[0][0];
             expect(url).toContain("/api/guilds/guild_123/temp-voice/setup");
+            const init = mockFetch.mock.calls[0][1];
+            expect(init?.method).toBe("POST");
+            expect(init?.headers).toEqual({ "Content-Type": "application/json" });
+            expect(typeof init?.body).toBe("string");
+            const bodyText = typeof init?.body === "string" ? init.body : "";
+            expect(bodyText).toContain('"category_name":"Voice"');
+            expect(bodyText).toContain('"hub_channel_name":"Join to Create"');
+            expect(bodyText).toContain('"user_limit":null');
             expect(invalidateGuildChannelCache).toHaveBeenCalledWith("guild_123");
             expect(result).toEqual({
                 categoryId: "cat_1",
@@ -165,6 +214,39 @@ describe("Temp Voice Action Module", () => {
                 setupTempVoiceAction("guild_123", { categoryName: "", hubChannelName: "Join" })
             ).rejects.toThrow("Category name cannot be empty");
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it("should rethrow the first zod issue message when the backend response fails validation", async () => {
+            mockFetch.mockResolvedValue({
+                ok: true,
+                text: () => Promise.resolve(""),
+                json: () =>
+                    Promise.reject(
+                        new z.ZodError([
+                            {
+                                code: "custom",
+                                message: "Temp voice setup validation failure",
+                                path: [],
+                            },
+                        ])
+                    ),
+            });
+
+            await expect(
+                setupTempVoiceAction("guild_123", { categoryName: "Voice", hubChannelName: "Join" })
+            ).rejects.toThrow("Temp voice setup validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            mockFetch.mockResolvedValue({
+                ok: true,
+                text: () => Promise.resolve(""),
+                json: () => Promise.reject(new z.ZodError([])),
+            });
+
+            await expect(
+                setupTempVoiceAction("guild_123", { categoryName: "Voice", hubChannelName: "Join" })
+            ).rejects.toThrow("Validation Error");
         });
     });
 
@@ -192,6 +274,32 @@ describe("Temp Voice Action Module", () => {
                     embedState: { title: "Temp Voice" },
                 })
             ).rejects.toThrow("backend down");
+        });
+
+        it("should rethrow the first zod issue message when sendEmbedAction rejects with a ZodError", async () => {
+            vi.mocked(sendEmbedAction).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Interface message validation failure", path: [] },
+                ])
+            );
+
+            await expect(
+                sendInterfaceMessageAction("guild_123", {
+                    channelId: "chan_1",
+                    embedState: { title: "Temp Voice" },
+                })
+            ).rejects.toThrow("Interface message validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(sendEmbedAction).mockRejectedValue(new z.ZodError([]));
+
+            await expect(
+                sendInterfaceMessageAction("guild_123", {
+                    channelId: "chan_1",
+                    embedState: { title: "Temp Voice" },
+                })
+            ).rejects.toThrow("Validation Error");
         });
     });
 });

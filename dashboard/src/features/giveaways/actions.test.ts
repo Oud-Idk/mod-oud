@@ -9,6 +9,7 @@ import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveGiveaway, deleteGiveaway } from "@/features/giveaways/queries";
 import { revalidatePath } from "next/cache";
 import { saveGiveawayInputSchema, SaveGiveawaySchema, giveawaySchema } from "@/features/giveaways/types";
+import { z } from "zod";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -139,6 +140,26 @@ describe("Giveaways Server Actions", () => {
 
             await expect(saveGiveawayAction("guild_123", validSaveInput)).rejects.toThrow(
                 "Failed to save giveaway."
+            );
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveGiveaway).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Giveaway validation failure", path: [] }])
+            );
+
+            await expect(saveGiveawayAction("guild_123", validSaveInput)).rejects.toThrow(
+                "Giveaway validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveGiveaway).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveGiveawayAction("guild_123", validSaveInput)).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

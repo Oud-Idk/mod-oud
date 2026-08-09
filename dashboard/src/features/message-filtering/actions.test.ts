@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import {
     saveMessageFilteringConfigAction,
     saveBadWordRulesetAction,
@@ -34,7 +35,7 @@ vi.mock("next/cache", () => ({
 describe("Message Filtering Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
     });
 
     afterEach(() => {
@@ -85,6 +86,28 @@ describe("Message Filtering Server Actions", () => {
 
             await expect(saveMessageFilteringConfigAction("guild_123", validConfig)).rejects.toThrow(
                 "Could not save configuration."
+            );
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveMessageFilteringConfig).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Message filtering config validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveMessageFilteringConfigAction("guild_123", validConfig)).rejects.toThrow(
+                "Message filtering config validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveMessageFilteringConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveMessageFilteringConfigAction("guild_123", validConfig)).rejects.toThrow(
+                "Validation Error"
             );
         });
     });
@@ -144,6 +167,28 @@ describe("Message Filtering Server Actions", () => {
                 "Could not save ruleset settings. Please try again."
             );
         });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveBadWordRuleset).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Bad word ruleset save validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveBadWordRulesetAction("guild_123", validRuleset)).rejects.toThrow(
+                "Bad word ruleset save validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveBadWordRuleset).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveBadWordRulesetAction("guild_123", validRuleset)).rejects.toThrow(
+                "Validation Error"
+            );
+        });
     });
 
     describe("deleteBadWordRulesetAction", () => {
@@ -181,6 +226,28 @@ describe("Message Filtering Server Actions", () => {
 
             await expect(deleteBadWordRulesetAction("guild_123", "uuid_1")).rejects.toThrow(
                 "Could not delete ruleset. Please try again."
+            );
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteBadWordRuleset).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Bad word ruleset deletion validation failure", path: [] },
+                ])
+            );
+
+            await expect(deleteBadWordRulesetAction("guild_123", "uuid_1")).rejects.toThrow(
+                "Bad word ruleset deletion validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteBadWordRuleset).mockRejectedValue(new z.ZodError([]));
+
+            await expect(deleteBadWordRulesetAction("guild_123", "uuid_1")).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

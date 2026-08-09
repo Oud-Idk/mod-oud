@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 import {
     fetchInitialReportsAction,
     fetchMoreReportsAction,
@@ -205,6 +206,24 @@ describe("Report Action Module", () => {
         it("should throw the first zod issue message for invalid data", async () => {
             await expect(saveReportConfigAction("guild_123", { enabled: "yes" })).rejects.toThrow();
             expect(saveReportConfig).not.toHaveBeenCalled();
+        });
+
+        it("should rethrow the first zod issue message when the query rejects with a ZodError", async () => {
+            vi.mocked(saveReportConfig).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Report config validation failure", path: [] }])
+            );
+
+            await expect(saveReportConfigAction("guild_123", { enabled: true })).rejects.toThrow(
+                "Report config validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(saveReportConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveReportConfigAction("guild_123", { enabled: true })).rejects.toThrow(
+                "Validation Error"
+            );
         });
     });
 });

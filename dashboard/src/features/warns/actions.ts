@@ -39,7 +39,7 @@ export async function saveWarnThresholdsAction(
         revalidatePath(`/dashboard/${guildId}/warns`);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid warn thresholds configuration.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to save warn thresholds:", error);
         throw new Error(error instanceof Error ? error.message : "Failed to save warn thresholds.");
@@ -57,7 +57,7 @@ export async function deleteWarnThresholdsAction(
         revalidatePath(`/dashboard/${guildId}/warns`);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid IDs specified.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to delete warn thresholds:", error);
         throw new Error(error instanceof Error ? error.message : "Failed to delete warn thresholds.");

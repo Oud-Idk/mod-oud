@@ -20,7 +20,7 @@ export async function saveReminderAction(
         return savedRow;
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid reminder configuration.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error(`Failed to save reminder for guild ${guildId}:`, error);
         throw new Error(error instanceof Error ? error.message : "Could not save reminder.");

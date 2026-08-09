@@ -18,7 +18,7 @@ export async function saveBirthdayConfigAction(guildId: string, data: BirthdayCo
         console.error("Failed to save birthday config:", error);
 
         if (error instanceof z.ZodError) {
-            const firstErrorMessage = error.issues[0]?.message || "Invalid configuration.";
+            const firstErrorMessage = error.issues[0]?.message || "Validation Error";
             throw new Error(firstErrorMessage);
         }
 

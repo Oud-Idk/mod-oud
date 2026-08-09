@@ -4,6 +4,7 @@ import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveInviteTrackerConfig, getInviteLeaderboard } from "@/features/invite-tracking/queries";
 import { revalidatePath } from "next/cache";
 import { InviteTrackerConfig } from "@/features/invite-tracking/types";
+import { z } from "zod";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -72,6 +73,26 @@ describe("Invite Tracker Server Actions", () => {
 
             await expect(saveInviteTrackerConfigAction("guild_123", validConfig)).rejects.toThrow(
                 "Could not save configuration."
+            );
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveInviteTrackerConfig).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Invite tracker validation failure", path: [] }])
+            );
+
+            await expect(saveInviteTrackerConfigAction("guild_123", validConfig)).rejects.toThrow(
+                "Invite tracker validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveInviteTrackerConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveInviteTrackerConfigAction("guild_123", validConfig)).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

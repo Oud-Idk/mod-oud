@@ -3,6 +3,7 @@ import { getHoneypotConfig, saveHoneypotConfig, setupHoneypot } from "./queries"
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
 import type { HoneypotConfig } from "./types";
+import { config } from "@/config";
 
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
@@ -23,16 +24,16 @@ const mockFetch = vi.hoisted(() =>
 );
 
 describe("Honeypot Query Module", () => {
-    const originalEnv = process.env;
+    const originalBackend = config.backendInternalUrl;
 
     beforeEach(() => {
         vi.resetAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
-        process.env = { ...originalEnv, BACKEND_INTERNAL_URL: "http://backend:8080" };
+        vi.spyOn(console, "error").mockImplementation(() => {return});
+        config.backendInternalUrl = "http://backend:8080";
     });
 
     afterEach(() => {
-        process.env = originalEnv;
+        config.backendInternalUrl = originalBackend;
         vi.restoreAllMocks();
     });
 

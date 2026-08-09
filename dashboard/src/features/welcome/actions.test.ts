@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 import {
     saveWelcomeConfigAction,
     setupVerificationAction,
@@ -130,6 +131,26 @@ describe("Welcome Action Module", () => {
                 saveWelcomeConfigAction("guild_123", welcomeConfigFixture())
             ).rejects.toThrow("Could not save configuration.");
         });
+
+        it("should rethrow the first zod issue message when saving rejects with a ZodError", async () => {
+            mockSaveWelcomeConfig.mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Welcome config save validation failure", path: [] },
+                ])
+            );
+
+            await expect(
+                saveWelcomeConfigAction("guild_123", welcomeConfigFixture())
+            ).rejects.toThrow("Welcome config save validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            mockSaveWelcomeConfig.mockRejectedValue(new z.ZodError([]));
+
+            await expect(
+                saveWelcomeConfigAction("guild_123", welcomeConfigFixture())
+            ).rejects.toThrow("Validation Error");
+        });
     });
 
     describe("setupVerificationAction", () => {
@@ -177,6 +198,26 @@ describe("Welcome Action Module", () => {
                 "An error occurred while communicating with backend."
             );
         });
+
+        it("should rethrow the first zod issue message when the service rejects with a ZodError", async () => {
+            mockSetupVerificationService.mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Verification setup validation failure", path: [] },
+                ])
+            );
+
+            await expect(setupVerificationAction("guild_123", payload)).rejects.toThrow(
+                "Verification setup validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            mockSetupVerificationService.mockRejectedValue(new z.ZodError([]));
+
+            await expect(setupVerificationAction("guild_123", payload)).rejects.toThrow(
+                "Validation Error"
+            );
+        });
     });
 
     describe("teardownVerificationAction", () => {
@@ -207,6 +248,30 @@ describe("Welcome Action Module", () => {
 
             await expect(teardownVerificationAction("guild_123", payload)).rejects.toThrow(
                 "backend down"
+            );
+        });
+
+        it("should rethrow the first zod issue message when the service rejects with a ZodError", async () => {
+            mockTeardownVerificationService.mockRejectedValue(
+                new z.ZodError([
+                    {
+                        code: "custom",
+                        message: "Verification teardown validation failure",
+                        path: [],
+                    },
+                ])
+            );
+
+            await expect(teardownVerificationAction("guild_123", payload)).rejects.toThrow(
+                "Verification teardown validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            mockTeardownVerificationService.mockRejectedValue(new z.ZodError([]));
+
+            await expect(teardownVerificationAction("guild_123", payload)).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

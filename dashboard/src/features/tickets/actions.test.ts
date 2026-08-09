@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import {
     getTicketsListAction,
     getTicketHistoryAction,
@@ -15,6 +16,7 @@ import {
 } from "./queries";
 import { revalidatePath } from "next/cache";
 import { TicketConfigSchema, TicketHistorySchema, TicketSchema } from "@/features/tickets/types";
+import { config } from "@/config";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -33,7 +35,13 @@ vi.mock("next/cache", () => ({
 }));
 
 const mockFetch = vi.fn();
+const originalUrl = config.backendInternalUrl;
+
 vi.stubGlobal("fetch", mockFetch);
+
+afterEach(() => {
+    config.backendInternalUrl = originalUrl;
+});
 
 describe("Ticket Server Actions", () => {
     const originalEnv = process.env;
@@ -112,6 +120,26 @@ describe("Ticket Server Actions", () => {
                 saveTicketsConfigAction("guild_123", { enabled: false })
             ).rejects.toThrow("Could not save configuration.");
         });
+
+        it("should rethrow the first zod issue message when the query rejects with a ZodError", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            vi.mocked(saveTicketConfig).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Tickets config validation failure", path: [] }])
+            );
+
+            await expect(
+                saveTicketsConfigAction("guild_123", { enabled: false })
+            ).rejects.toThrow("Tickets config validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue({});
+            vi.mocked(saveTicketConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(
+                saveTicketsConfigAction("guild_123", { enabled: false })
+            ).rejects.toThrow("Validation Error");
+        });
     });
 
     describe("sendTicketMessageAction", () => {
@@ -183,7 +211,7 @@ describe("Ticket Server Actions", () => {
         });
 
         it("should respect BACKEND_INTERNAL_URL if configured", async () => {
-            process.env.BACKEND_INTERNAL_URL = "http://backend-service:5000";
+            config.backendInternalUrl = "http://backend-service:5000";
             vi.mocked(verifyGuildAccess).mockResolvedValue({});
             vi.mocked(getTicketConfig).mockResolvedValue(TicketConfigSchema.parse({
                 enabled: true,

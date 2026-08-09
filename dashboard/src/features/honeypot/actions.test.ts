@@ -3,6 +3,7 @@ import { saveHoneypotConfigAction, setupHoneypotAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveHoneypotConfig, setupHoneypot } from "@/features/honeypot/queries";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -105,6 +106,26 @@ describe("Honeypot Server Actions", () => {
             await expect(
                 saveHoneypotConfigAction("guild_123", { enabled: true })
             ).rejects.toThrow("Could not save configuration.");
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveHoneypotConfig).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Honeypot config validation failure", path: [] }])
+            );
+
+            await expect(
+                saveHoneypotConfigAction("guild_123", { enabled: true })
+            ).rejects.toThrow("Honeypot config validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveHoneypotConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(
+                saveHoneypotConfigAction("guild_123", { enabled: true })
+            ).rejects.toThrow("Validation Error");
         });
     });
 

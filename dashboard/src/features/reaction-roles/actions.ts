@@ -62,7 +62,7 @@ export async function saveReactionMessageAction(
         return ret;
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Invalid configuration.");
+            throw new Error(error.issues[0]?.message || "Validation Error");
         }
         console.error("Failed to save reaction message:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save message.");

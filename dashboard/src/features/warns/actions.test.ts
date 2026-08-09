@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 import {
     getWarnThresholdsAction,
     saveWarnThresholdsAction,
@@ -152,6 +153,26 @@ describe("Warns Action Module", () => {
                 "Failed to save warn thresholds."
             );
         });
+
+        it("should rethrow the first zod issue message when saving rejects with a ZodError", async () => {
+            mockSaveWarnThresholds.mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Warn thresholds save validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveWarnThresholdsAction("guild_123", validInput)).rejects.toThrow(
+                "Warn thresholds save validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            mockSaveWarnThresholds.mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveWarnThresholdsAction("guild_123", validInput)).rejects.toThrow(
+                "Validation Error"
+            );
+        });
     });
 
     describe("deleteWarnThresholdsAction", () => {
@@ -168,6 +189,30 @@ describe("Warns Action Module", () => {
 
             await expect(deleteWarnThresholdsAction("guild_123", [1])).rejects.toThrow(
                 "db down"
+            );
+        });
+
+        it("should rethrow the first zod issue message when deletion rejects with a ZodError", async () => {
+            mockDeleteWarnThresholds.mockRejectedValue(
+                new z.ZodError([
+                    {
+                        code: "custom",
+                        message: "Warn thresholds delete validation failure",
+                        path: [],
+                    },
+                ])
+            );
+
+            await expect(deleteWarnThresholdsAction("guild_123", [1])).rejects.toThrow(
+                "Warn thresholds delete validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            mockDeleteWarnThresholds.mockRejectedValue(new z.ZodError([]));
+
+            await expect(deleteWarnThresholdsAction("guild_123", [1])).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import {
     deleteMultipliersAction,
     saveMultipliersAction,
@@ -85,6 +86,28 @@ describe("Leveling Server Actions", () => {
                 "Could not delete multipliers."
             );
         });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteXpMultipliers).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Multiplier deletion validation failure", path: [] },
+                ])
+            );
+
+            await expect(deleteMultipliersAction("guild_123", ["role_1"])).rejects.toThrow(
+                "Multiplier deletion validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteXpMultipliers).mockRejectedValue(new z.ZodError([]));
+
+            await expect(deleteMultipliersAction("guild_123", ["role_1"])).rejects.toThrow(
+                "Validation Error"
+            );
+        });
     });
 
     describe("saveMultipliersAction", () => {
@@ -132,6 +155,28 @@ describe("Leveling Server Actions", () => {
                 "Could not save multipliers."
             );
         });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveXpMultipliers).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Multiplier save validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveMultipliersAction("guild_123", validTargets)).rejects.toThrow(
+                "Multiplier save validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveXpMultipliers).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveMultipliersAction("guild_123", validTargets)).rejects.toThrow(
+                "Validation Error"
+            );
+        });
     });
 
     describe("saveRewardsAction", () => {
@@ -169,6 +214,28 @@ describe("Leveling Server Actions", () => {
                 "Could not save rewards."
             );
         });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveLevelRewards).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Reward save validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveRewardsAction("guild_123", validRewards)).rejects.toThrow(
+                "Reward save validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveLevelRewards).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveRewardsAction("guild_123", validRewards)).rejects.toThrow(
+                "Validation Error"
+            );
+        });
     });
 
     describe("deleteRewardsAction", () => {
@@ -196,6 +263,28 @@ describe("Leveling Server Actions", () => {
 
             await expect(deleteRewardsAction("guild_123", [1])).rejects.toThrow(
                 "Could not delete rewards."
+            );
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteLevelRewards).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Reward deletion validation failure", path: [] },
+                ])
+            );
+
+            await expect(deleteRewardsAction("guild_123", [1])).rejects.toThrow(
+                "Reward deletion validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteLevelRewards).mockRejectedValue(new z.ZodError([]));
+
+            await expect(deleteRewardsAction("guild_123", [1])).rejects.toThrow(
+                "Validation Error"
             );
         });
     });
@@ -263,6 +352,28 @@ describe("Leveling Server Actions", () => {
 
             await expect(saveLevelingConfigAction("guild_123", validConfig)).rejects.toThrow(
                 "Could not save configuration."
+            );
+        });
+
+        it("should rethrow the first zod issue message on validation errors", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveLevelingConfig).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Leveling config validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveLevelingConfigAction("guild_123", validConfig)).rejects.toThrow(
+                "Leveling config validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveLevelingConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveLevelingConfigAction("guild_123", validConfig)).rejects.toThrow(
+                "Validation Error"
             );
         });
     });

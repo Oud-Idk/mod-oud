@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import { saveLeaveConfigAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveLeaveConfig } from "@/features/leave/queries";
@@ -19,7 +20,7 @@ vi.mock("next/cache", () => ({
 describe("Leave Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
     });
 
     afterEach(() => {
@@ -92,6 +93,28 @@ describe("Leave Server Actions", () => {
             await expect(
                 saveLeaveConfigAction("guild_123", validLeaveConfig)
             ).rejects.toThrow("Could not save configuration.");
+        });
+
+        it("should rethrow the first zod issue message when saving rejects with a ZodError", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveLeaveConfig).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Leave config save validation failure", path: [] },
+                ])
+            );
+
+            await expect(
+                saveLeaveConfigAction("guild_123", validLeaveConfig)
+            ).rejects.toThrow("Leave config save validation failure");
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveLeaveConfig).mockRejectedValue(new z.ZodError([]));
+
+            await expect(
+                saveLeaveConfigAction("guild_123", validLeaveConfig)
+            ).rejects.toThrow("Validation Error");
         });
     });
 });

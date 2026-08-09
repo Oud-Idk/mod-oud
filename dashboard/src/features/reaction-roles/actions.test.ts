@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 import {
     saveReactionMessageAction,
     deleteReactionMessageAction,
@@ -132,6 +133,26 @@ describe("Reaction Roles Action Module", () => {
 
             await expect(saveReactionMessageAction("guild_123", validInput)).rejects.toThrow(
                 "Could not save message."
+            );
+        });
+
+        it("should rethrow the first zod issue message when the query rejects with a ZodError", async () => {
+            vi.mocked(saveReactionMessage).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Reaction role validation failure", path: [] },
+                ])
+            );
+
+            await expect(saveReactionMessageAction("guild_123", validInput)).rejects.toThrow(
+                "Reaction role validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(saveReactionMessage).mockRejectedValue(new z.ZodError([]));
+
+            await expect(saveReactionMessageAction("guild_123", validInput)).rejects.toThrow(
+                "Validation Error"
             );
         });
 

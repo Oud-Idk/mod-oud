@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import { sendEmbedAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { isEmbedEmpty } from "@/features/_shared/embed";
+import { config } from "@/config";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -19,16 +21,14 @@ vi.mock("@/features/_shared/embed", async () => {
 });
 
 describe("sendEmbedAction", () => {
-    const originalEnv = process.env;
+    const originalBackend = config.backendInternalUrl;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        process.env = { ...originalEnv };
-        vi.mocked(isEmbedEmpty).mockReturnValue(false);
     });
 
     afterEach(() => {
-        process.env = originalEnv;
+        config.backendInternalUrl = originalBackend;
         vi.restoreAllMocks();
     });
 
@@ -70,7 +70,7 @@ describe("sendEmbedAction", () => {
         });
 
         it("should respect process.env.BACKEND_INTERNAL_URL if configured", async () => {
-            process.env.BACKEND_INTERNAL_URL = "http://backend-service:5000";
+            config.backendInternalUrl = "http://backend-service:5000";
             vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             vi.spyOn(global, "fetch").mockResolvedValueOnce(
@@ -135,6 +135,26 @@ describe("sendEmbedAction", () => {
 
             await expect(sendEmbedAction(validGuildId, validPayload)).rejects.toThrow("Access denied");
             expect(global.fetch).not.toHaveBeenCalled();
+        });
+
+        it("should rethrow the first zod issue message when verifyGuildAccess rejects with a ZodError", async () => {
+            vi.mocked(verifyGuildAccess).mockRejectedValue(
+                new z.ZodError([
+                    { code: "custom", message: "Embed send validation failure", path: [] },
+                ])
+            );
+
+            await expect(sendEmbedAction(validGuildId, validPayload)).rejects.toThrow(
+                "Embed send validation failure"
+            );
+        });
+
+        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new z.ZodError([]));
+
+            await expect(sendEmbedAction(validGuildId, validPayload)).rejects.toThrow(
+                "Validation Error"
+            );
         });
     });
 
