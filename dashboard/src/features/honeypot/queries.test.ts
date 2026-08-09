@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { getHoneypotConfig, saveHoneypotConfig, setupHoneypot } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
+import type { HoneypotConfig } from "./types";
 
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
@@ -80,7 +81,14 @@ describe("Honeypot Query Module", () => {
     });
 
     describe("setupHoneypot", () => {
-        const mockFetch = vi.fn();
+        interface MockResponse {
+            ok: boolean;
+            json: () => Promise<unknown>;
+            text: () => Promise<string>;
+        }
+        const mockFetch = vi.hoisted(() =>
+            vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
+        );
 
         beforeEach(() => {
             vi.stubGlobal("fetch", mockFetch);
@@ -90,10 +98,11 @@ describe("Honeypot Query Module", () => {
             vi.unstubAllGlobals();
         });
 
-        function mockBackendOk(channelId: string) {
+        function mockBackendOk(channelId: string): void {
             mockFetch.mockResolvedValue({
                 ok: true,
-                json: async () => ({ channel_id: channelId }),
+                json: () => Promise.resolve({ channel_id: channelId }),
+                text: () => Promise.resolve(""),
             });
         }
 
@@ -108,7 +117,8 @@ describe("Honeypot Query Module", () => {
                 expect.objectContaining({ method: "POST" })
             );
             const [, init] = mockFetch.mock.calls[0];
-            expect(JSON.parse(init.body)).toEqual({ channel_name: "dont-talk" });
+            const bodyText = typeof init?.body === "string" ? init.body : "";
+            expect(JSON.parse(bodyText)).toEqual({ channel_name: "dont-talk" });
 
             expect(invalidateGuildChannelCache).toHaveBeenCalledWith("guild_123");
             expect(saveGuildConfigField).toHaveBeenCalledWith(
@@ -146,7 +156,8 @@ describe("Honeypot Query Module", () => {
         it("should throw when the backend returns a non-OK response", async () => {
             mockFetch.mockResolvedValue({
                 ok: false,
-                text: async () => "backend exploded",
+                json: () => Promise.resolve({}),
+                text: () => Promise.resolve("backend exploded"),
             });
 
             await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow(
@@ -158,7 +169,8 @@ describe("Honeypot Query Module", () => {
         it("should throw a generic error when the backend returns no error text", async () => {
             mockFetch.mockResolvedValue({
                 ok: false,
-                text: async () => "",
+                json: () => Promise.resolve({}),
+                text: () => Promise.resolve(""),
             });
 
             await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow(
@@ -169,7 +181,8 @@ describe("Honeypot Query Module", () => {
         it("should REJECT an invalid backend response shape", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
-                json: async () => ({ unexpected: "shape" }),
+                json: () => Promise.resolve({ unexpected: "shape" }),
+                text: () => Promise.resolve(""),
             });
 
             await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow();
@@ -188,7 +201,7 @@ describe("Honeypot Query Module", () => {
     });
 });
 
-function honeypotConfigFixture() {
+function honeypotConfigFixture(): HoneypotConfig {
     return {
         enabled: false,
         channelId: null,

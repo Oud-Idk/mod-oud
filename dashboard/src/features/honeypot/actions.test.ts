@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { saveHoneypotConfigAction, setupHoneypotAction } from "./actions";
-import type { HoneypotConfigInput } from "./types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveHoneypotConfig, setupHoneypot } from "@/features/honeypot/queries";
 import { revalidatePath } from "next/cache";
@@ -80,11 +79,11 @@ describe("Honeypot Server Actions", () => {
             expect(revalidatePath).not.toHaveBeenCalled();
         });
 
-        it("should reject a non-boolean enabled value with a Zod message", async () => {
+        it("should reject an out-of-range dmd with a Zod message", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
             await expect(
-                saveHoneypotConfigAction("guild_123", { enabled: "yes" } as unknown as HoneypotConfigInput)
+                saveHoneypotConfigAction("guild_123", { enabled: true, dmd: 99 })
             ).rejects.toThrow();
 
             expect(saveHoneypotConfig).not.toHaveBeenCalled();

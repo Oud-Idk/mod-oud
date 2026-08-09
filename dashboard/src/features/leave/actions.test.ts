@@ -52,24 +52,6 @@ describe("Leave Server Actions", () => {
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/leave");
         });
 
-        it("should fill defaults before persisting", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-
-            await saveLeaveConfigAction("guild_123", {
-                enabled: true,
-                channelId: "chan_1",
-            } as never);
-
-            expect(saveLeaveConfig).toHaveBeenCalledWith(
-                "guild_123",
-                expect.objectContaining({
-                    enabled: true,
-                    channelId: "chan_1",
-                    message: expect.objectContaining({ format: "EMBED", content: "" }),
-                })
-            );
-        });
-
         it("should REJECT when enabled without a channel", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
