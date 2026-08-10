@@ -1,7 +1,8 @@
-use crate::features::birthday::{database, pagination};
 use crate::features::birthday::types::Month;
-use crate::shared::embed::send_ephemeral;
+use crate::features::birthday::{database, pagination};
+use crate::shared::messages::send_ephemeral;
 use crate::{Context, Error};
+use anyhow::Context as _;
 use chrono::Datelike;
 use poise::serenity_prelude as serenity;
 
@@ -64,7 +65,7 @@ async fn set(
 )]
 async fn test(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let guild_id = ctx.guild_id().ok_or("Must be run in a guild")?.get() as i64;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?.get() as i64;
 
     let settings = crate::core::config::settings::get_settings(
         &ctx.data().db,

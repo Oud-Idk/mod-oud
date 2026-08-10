@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Context as _, Result, bail};
 use crate::shared::command_context::GuildMetadata;
 use crate::{Context, Data, Error};
 use serenity::all::{Member, PartialGuild, UserId};
@@ -66,13 +67,13 @@ pub async fn check_hierarchy(
 
     let guild_id = ctx
         .guild_id()
-        .ok_or("This command must be run in a server.")?;
+        .with_context(|| "This command must be run in a server.")?;
 
     let guild = guild_id.to_partial_guild(&ctx).await?;
 
     if target_id == guild.owner_id {
         debug!(target_uid, "Hierarchy check failed: target is the server owner");
-        return Err("Cannot perform moderation actions on the server owner.".into());
+        bail!("Cannot perform moderation actions on the server owner.");
     }
 
     // If the target is not currently in the server (e.g., we are banning a user who left),
@@ -91,9 +92,9 @@ pub async fn check_hierarchy(
     let executor_member = ctx
         .author_member()
         .await
-        .ok_or_else(|| {
+        .with_context(|| "Failed to fetch executor member details.")
+        .inspect_err(|a| {
             warn!(target_uid, "Failed to resolve executor member details from context");
-            "Failed to fetch executor member details."
         })?;
 
     let bot_id = ctx.framework().bot_id;
@@ -118,7 +119,7 @@ pub async fn check_hierarchy(
         target_pos,
         bot_pos,
     )
-        .map_err(|err| {
+        .inspect_err(|err|
             debug!(
             target_uid,
             error = %err,
@@ -126,9 +127,7 @@ pub async fn check_hierarchy(
             target_pos,
             bot_pos,
             "Hierarchy validation rule violated"
-        );
-            err.into()
-        })
+        ))
 }
 
 /// Calculates the highest role position of a member.
@@ -151,23 +150,23 @@ pub fn validate_hierarchy(
     executor_pos: i16,
     target_pos: i16,
     bot_pos: i16,
-) -> Result<(), &'static str> {
+) -> Result<()> {
     // If the executor is the server owner, they bypass executor hierarchy checks.
     if executor_id == owner_id {
         if bot_pos <= target_pos {
-            return Err("I cannot moderate this user because their highest role is equal to or higher than mine.");
+            bail!("I cannot moderate this user because their highest role is equal to or higher than mine.");
         }
         return Ok(());
     }
 
     // Normal executor hierarchy check
     if executor_pos <= target_pos {
-        return Err("You cannot moderate this user because their highest role is equal to or higher than yours.");
+        bail!("You cannot moderate this user because their highest role is equal to or higher than yours.");
     }
 
     // Bot hierarchy check
     if bot_pos <= target_pos {
-        return Err("I cannot moderate this user because their highest role is equal to or higher than mine.");
+        bail!("I cannot moderate this user because their highest role is equal to or higher than mine.");
     }
 
     Ok(())

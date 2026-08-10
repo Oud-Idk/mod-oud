@@ -1,8 +1,8 @@
+use crate::features::temp_voice::interface::preflight_slash_check;
 use crate::features::temp_voice::service;
-use crate::shared::embed::send_ephemeral;
+use crate::shared::messages::send_ephemeral;
 use crate::{Context, Error};
 use serenity::all::User;
-use crate::features::temp_voice::interface::preflight_slash_check;
 
 /// Disconnect a user from your temporary voice channel.
 #[poise::command(slash_command)]

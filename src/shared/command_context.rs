@@ -1,4 +1,6 @@
-use crate::{Context, Error};
+use anyhow::Context as _;
+use anyhow::Result;
+use crate::{Context};
 
 /// Common metadata extracted from a guild-only command context.
 pub struct GuildMetadata {
@@ -10,20 +12,20 @@ pub struct GuildMetadata {
 
 impl GuildMetadata {
     /// Safely extracts guild ID, guild name, and author ID from the context.
-    pub fn extract(ctx: &Context<'_>) -> Result<Self, Error> {
+    pub fn extract(ctx: &Context<'_>) -> Result<Self> {
         let guild_id = ctx
             .guild_id()
-            .ok_or("This command must be executed within a server")?;
+            .with_context(|| "This command must be executed within a server")?;
 
         let guild_name = ctx
             .guild()
             .map(|g| g.name.clone())
-            .ok_or("Failed to retrieve guild information")?;
+            .with_context(|| "Failed to retrieve guild information")?;
 
         let guild_icon = ctx
             .guild()
             .map(|g| g.icon_url())
-            .ok_or("Failed to retrieve guild information")?;
+            .with_context(|| "Failed to retrieve guild information")?;
 
         Ok(Self {
             id: guild_id,

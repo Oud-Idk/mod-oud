@@ -21,7 +21,6 @@ import {
     type SetupTempVoiceResponse,
     type TempVoiceHub,
 } from "./types";
-import { sendEmbedAction } from "@/features/embed-builder";
 
 export async function saveTempVoiceHubAction(
     guildId: string,
@@ -117,7 +116,25 @@ export async function sendInterfaceMessageAction(
         const backendUrl = config.backendInternalUrl;
         const endpoint = `${backendUrl}/api/guilds/${validGuildId}/temp-voice/interface/setup`;
 
-        return await sendEmbedAction(endpoint, validPayload);
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                channelId: validPayload.channelId,
+                embedState: validPayload.embedState,
+            }),
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(errText || "Backend returned an error state.");
+        }
+
+        const data = await response.json();
+
+        return {
+            messageId: data.message_id,
+        };
     } catch (error) {
         if (error instanceof z.ZodError) {
             throw new Error(error.issues[0]?.message || "Validation Error");

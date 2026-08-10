@@ -102,10 +102,10 @@ export function StarboardBody({
                     );
                 }}
                 noActivePlaceholder={
-                    <div className="max-w-md mx-auto space-y-2 text-center">
-                        <div>
-                            <h3 className="text-sm font-semibold text-foreground mb-1">No Starboard Selected</h3>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
+                    <div className="max-w-md mx-auto space-y-4 text-center">
+                        <div className="space-y-1">
+                            <h3 className="font-semibold text-foreground">No Starboard Selected</h3>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
                                 Select an active starboard from the sidebar to edit its settings, or create a new board to start highlighting popular server messages.
                             </p>
                         </div>

@@ -1,5 +1,7 @@
+use anyhow::Context as _;
 use crate::{Context, Error};
 use crate::features::raid_detection::triggers::{resolve_raid_manual, trigger_raid_manual};
+use anyhow::Result;
 
 /// Raid management commands
 #[poise::command(
@@ -17,7 +19,7 @@ pub async fn raid(_ctx: Context<'_>) -> Result<(), Error> {
 pub async fn trigger(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
 
-    let guild_id = ctx.guild_id().ok_or("Must be run in a server")?.get();
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?.get();
     let author_name = ctx.author().name.clone();
 
     match trigger_raid_manual(ctx.serenity_context(), ctx.data(), guild_id, &author_name).await {
@@ -38,10 +40,10 @@ pub async fn trigger(ctx: Context<'_>) -> Result<(), Error> {
 
 /// Manually resolve an active raid and restore pre-raid permissions
 #[poise::command(slash_command, guild_only)]
-pub async fn resolve(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn resolve(ctx: Context<'_>) -> Result<()> {
     ctx.defer().await?;
 
-    let guild_id = ctx.guild_id().ok_or("Must be run in a server")?.get();
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?.get();
 
     match resolve_raid_manual(ctx.serenity_context(), ctx.data(), guild_id).await {
         Ok(true) => {

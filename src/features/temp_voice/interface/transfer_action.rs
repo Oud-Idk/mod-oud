@@ -1,10 +1,9 @@
 use crate::features::temp_voice::interface::create_ephemeral_msg;
+use crate::features::temp_voice::keys;
+use crate::features::temp_voice::keys::{pending_transfer_key, temp_vc_owners_key};
 use crate::{Data, Error};
 use fred::interfaces::{HashesInterface, KeysInterface};
-use serenity::all::{
-    ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
-    PermissionOverwrite, PermissionOverwriteType, Permissions, UserId,
-};
+use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId};
 use tracing::{debug, error, info, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(acceptor_id = %interaction.user.id.get()))]
@@ -37,7 +36,7 @@ pub(crate) async fn handle_accept_transfer(
     };
 
     let redis = &data.redis;
-    let pending_key = format!("temp_vc_pending_transfer:{}", channel_id);
+    let pending_key = pending_transfer_key(channel_id);
     let target_owner_str: Option<String> = redis.get(&pending_key).await?;
 
     let Some(target_owner) = target_owner_str else {
@@ -60,8 +59,8 @@ pub(crate) async fn handle_accept_transfer(
         return Ok(());
     }
 
-    let temp_vc_hash = format!("temp_vcs:{}", guild_id);
-    let owner_hash = format!("temp_vc_owners:{}", guild_id);
+    let temp_vc_hash = keys::temp_vcs_key(guild_id);
+    let owner_hash = temp_vc_owners_key(guild_id);
     let current_owner_str: Option<String> = redis.hget(&temp_vc_hash, channel_id.get().to_string()).await?;
 
     let Some(current_owner) = current_owner_str else {
@@ -187,7 +186,7 @@ pub(crate) async fn handle_decline_transfer(
     };
 
     let redis = &data.redis;
-    let pending_key = format!("temp_vc_pending_transfer:{}", channel_id);
+    let pending_key = pending_transfer_key(channel_id);
     let target_owner_str: Option<String> = redis.get(&pending_key).await?;
 
     let Some(target_owner) = target_owner_str else {

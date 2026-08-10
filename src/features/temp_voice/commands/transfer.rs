@@ -1,7 +1,7 @@
-use crate::{Context, Error};
 use crate::features::temp_voice::interface::preflight_slash_check;
 use crate::features::temp_voice::service;
-use crate::shared::embed::send_ephemeral;
+use crate::shared::messages::send_ephemeral;
+use crate::{Context, Error};
 use serenity::all::User;
 
 /// Transfer ownership of your temporary voice channel to another user.
@@ -19,7 +19,7 @@ pub async fn transfer(
 
     let response_message = service::initiate_temp_vc_transfer(
         ctx.serenity_context(),
-        &ctx.data().redis,
+        &ctx.data(),
         guild_id,
         channel_id,
         member.user.id,

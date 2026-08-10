@@ -1,4 +1,4 @@
-use crate::shared::embed;
+use crate::shared::messages;
 use crate::{Context, Error};
 
 /// Parses duration and yells at the user if they format it like a toddler.
@@ -9,7 +9,7 @@ pub async fn parse_duration(
     match duration_str::parse_std(duration) {
         Ok(dur) => Ok(Some(dur)),
         Err(_) => {
-            embed::send_ephemeral(
+            messages::send_ephemeral(
                 ctx,
                 "Invalid duration format. Please use formats like '30m', '2h', or '1d'.",
             )

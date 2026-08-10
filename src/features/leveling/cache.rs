@@ -1,3 +1,4 @@
+use crate::features::leveling;
 use crate::features::leveling::types::VcSession;
 use crate::features::leveling::types::{LevelingConfig, UserLevel, XpMultiplier};
 use crate::features::leveling::{database, keys};
@@ -180,7 +181,7 @@ pub async fn open_session(
     now: i64,
     start_clock: bool,
 ) -> Result<()> {
-    let key = features::keys::session_key(guild_id, user_id);
+    let key = leveling::keys::session_key(guild_id, user_id);
     trace!(
         guild_id = guild_id.get(),
         user_id = user_id.get(),
@@ -206,7 +207,7 @@ pub async fn resume_clock(
     user_id: UserId,
     now: i64,
 ) -> Result<()> {
-    let key = features::keys::session_key(guild_id, user_id);
+    let key = leveling::keys::session_key(guild_id, user_id);
     if let Some(mut s) = get_session(redis, &key).await? {
         if s.clock_started_at.is_none() {
             trace!(guild_id = guild_id.get(), user_id = user_id.get(), "Resuming voice XP clock");
@@ -225,7 +226,7 @@ pub async fn pause_clock(
     user_id: UserId,
     now: i64,
 ) -> Result<()> {
-    let key = features::keys::session_key(guild_id, user_id);
+    let key = leveling::keys::session_key(guild_id, user_id);
     if let Some(mut s) = get_session(redis, &key).await? {
         if let Some(started) = s.clock_started_at.take() {
             trace!(guild_id = guild_id.get(), user_id = user_id.get(), "Pausing voice XP clock (alone in channel)");

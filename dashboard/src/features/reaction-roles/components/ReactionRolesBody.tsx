@@ -13,6 +13,7 @@ import { saveReactionMessageInputSchema } from "../types";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
 import { DEFAULT_MESSAGE_LAYOUT } from "@/features/_shared/embed";
+import { Button } from "@/components/ui/Button";
 
 interface ReactionRolesBodyProps {
     guildId: string;
@@ -113,17 +114,24 @@ export function ReactionRolesBody({
                 handleSave={handleSave}
                 handleCancel={handleCancel}
                 noActivePlaceholder={
-                    <>
-                        <p className="text-sm text-muted-foreground">
-                            Select a reaction role message, or create a new one to begin.
-                        </p>
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="text-xs px-3.5 py-1.5 bg-surface-active rounded transition border border-border-subtle hover:bg-surface-muted cursor-pointer text-foreground font-medium"
-                        >
-                            Create Your First Reaction Role
-                        </button>
-                    </>
+                    <div className="max-w-md mx-auto space-y-4 flex items-center flex-col">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-foreground">
+                                Reaction Roles
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                                Create messages that grants roles upon a user when they click on a reaction or an interaction button.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                onClick={() => setIsCreateModalOpen(true)}
+                            >
+                                Create Your First Reaction Role
+                            </Button>
+                        </div>
+                    </div>
                 }
             >
                 {config && (

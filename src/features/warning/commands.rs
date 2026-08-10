@@ -4,10 +4,9 @@ use crate::features::warning::issuing::{issue_delete_warning, issue_warning};
 use crate::features::warning::modify_warns::set_warning_active_status;
 use crate::features::warning::pagination;
 use crate::shared::command_context::GuildMetadata;
-use crate::shared::embed::send_ephemeral;
+use crate::shared::messages::send_ephemeral;
 use crate::{Context, Error};
 use serenity::all::{Member, User};
-use tracing::{debug, info};
 
 // ==========================================
 // 1. TOP-LEVEL ACTION COMMAND

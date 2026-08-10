@@ -1,8 +1,10 @@
-use fred::interfaces::HashesInterface;
 use crate::features::temp_voice::cache;
-use crate::{Data, Error, Context as PoiseContext};
+use crate::features::temp_voice::keys::temp_vcs_key;
+use crate::shared::messages::send_ephemeral;
+use crate::{Context as PoiseContext, Data, Error};
+use anyhow::Context as _;
+use fred::interfaces::HashesInterface;
 use serenity::all::{ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, Context, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Interaction, Member, ModalInteraction};
-use crate::shared::embed::send_ephemeral;
 
 mod block;
 mod delete;
@@ -89,7 +91,7 @@ pub async fn preflight_slash_check(
 
     // Verify ownership via Redis
     let redis = &ctx.data().redis;
-    let temp_vc_hash = format!("temp_vcs:{}", guild_id);
+    let temp_vc_hash = temp_vcs_key(guild_id);
     let owner_id_str: Option<String> = redis.hget(&temp_vc_hash, channel_id.get().to_string()).await?;
 
     let is_owner = match owner_id_str {
@@ -102,7 +104,7 @@ pub async fn preflight_slash_check(
         return Ok(None);
     }
 
-    let member = ctx.author_member().await.ok_or("Failed to fetch member")?.into_owned();
+    let member = ctx.author_member().await.with_context(|| "Failed to fetch member.")?.into_owned();
 
     Ok(Some((channel_id, guild_id, member)))
 }

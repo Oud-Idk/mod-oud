@@ -68,4 +68,4 @@ export const saveWarnThresholdsInputSchema = z.array(saveWarnThresholdItemSchema
 export type ModerationAction = z.infer<typeof moderationActionSchema>;
 export type Warn = z.infer<typeof warnSchema>;
 export type WarnThreshold = z.infer<typeof warnThresholdSchema>;
-export type SaveWarnThresholdInput = z.infer<typeof saveWarnThresholdItemSchema>;
+export type SaveWarnThresholdInput = z.input<typeof saveWarnThresholdItemSchema>;

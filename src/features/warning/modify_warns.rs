@@ -1,6 +1,6 @@
 use crate::features::warning::issuing::issue_warning_status_change;
 use crate::shared::command_context::GuildMetadata;
-use crate::shared::embed::send_ephemeral;
+use crate::shared::messages::send_ephemeral;
 use crate::{Context, Error};
 use tracing::{debug, info, trace};
 

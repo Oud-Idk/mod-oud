@@ -1,4 +1,4 @@
-import { ChangeEvent } from "react";
+import { ChangeEvent, JSX } from "react";
 import { EmbedState } from "@/features/_shared/message-creator/types";
 import { EmbedField } from "@/features/_shared/embed";
 import { AuthorSection } from "./editors/AuthorSection";
@@ -26,7 +26,7 @@ export const EmbedBuilderForm = ({
     removeField,
     moveField,
     isEmpty,
-}: EmbedBuilderProps) => {
+}: EmbedBuilderProps): JSX.Element => {
     return (
         <div
             className={cn(

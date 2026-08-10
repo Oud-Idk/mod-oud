@@ -1,18 +1,15 @@
+use anyhow::Context as _;
 use crate::core::config::guild_ctx::{GuildCtx, get_guild_ctx};
 use crate::core::config::settings::get_settings;
 use crate::features::tickets;
 use crate::features::tickets::TicketConfig;
-use crate::features::tickets::cache::is_ticket_active;
-use crate::features::tickets::cache::{initialize_redis_state, update_activity_redis};
+use crate::features::tickets::cache::{initialize_redis_state};
 use crate::features::tickets::database::save_ticket_to_db;
 use crate::features::tickets::events::message;
 use crate::features::tickets::placeholders::replace_ticket_welcome_placeholders;
-use crate::features::tickets::types::TicketLogPayload;
 use crate::shared::embed::build_custom_message;
 use crate::{Data, Error};
-use fred::clients::Client;
 use serenity::all::{ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildChannel, GuildId, Message, MessageId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
-use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, info, instrument, trace, warn};
 
 #[instrument(skip(ctx, data, component), fields(guild_id = ?component.guild_id, user_id = %component.user.id
@@ -61,7 +58,7 @@ pub async fn on_open_ticket(
     let member = component
         .member
         .as_ref()
-        .ok_or_else(|| Error::from("Interaction missing member data"))?;
+        .with_context(|| "Interaction missing member data")?;
     let gctx = get_guild_ctx(guild_id, &ctx.http).await?;
 
     let ticket_category_id = settings

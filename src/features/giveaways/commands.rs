@@ -1,6 +1,7 @@
 use crate::features::giveaways::database::{create_giveaway, update_giveaway_message_id};
-use crate::shared::embed::send_ephemeral;
+use crate::shared::messages::send_ephemeral;
 use crate::{Context, Error};
+use anyhow::Context as _;
 use chrono::Utc;
 use rand::seq::IndexedRandom;
 use serenity::all::{ChannelId, CreateEmbed, CreateMessage, ReactionType};
@@ -38,7 +39,7 @@ pub async fn create(
 
     let winner_count = winners.unwrap_or(1).max(1);
     let target_channel = channel.unwrap_or(ctx.channel_id());
-    let guild_id = ctx.guild_id().ok_or("Must be run in a server")?.get() as i64;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?.get() as i64;
     let host_id = ctx.author().id.get() as i64;
 
     let end_time = Utc::now() + chrono::Duration::from_std(parsed_duration)?;

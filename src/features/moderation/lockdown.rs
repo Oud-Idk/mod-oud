@@ -5,25 +5,17 @@ use fred::types::SetOptions;
 use serde::{Deserialize, Serialize};
 use serenity::all::{ChannelId, GuildChannel, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, Context as SerenityContext, ChannelType};
 use std::time::{SystemTime, UNIX_EPOCH};
+use anyhow::Context as _;
 use tracing::{debug, trace, warn};
 use crate::shared::locking::acquire_lock;
+use anyhow::Result;
 
-/// How often the sweep lock's TTL is renewed while a global lock/unlock sweep is
-/// running. The lock's initial (and post-renewal) TTL is 3x this, per `acquire_lock`'s
-/// contract, so a sweep can safely take a few multiples of this long without losing
-/// ownership mid-way through.
 const GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS: u64 = 5;
 
-/// Redis key guarding server-wide lock/unlock sweeps for a guild. Shared between
-/// `apply_global_lock` and `apply_global_unlock` so the two can never run concurrently
-/// against each other, not just against themselves.
 fn global_sweep_lock_key(guild_id: GuildId) -> String {
     format!("lockdown:sweep-lock:{}", guild_id.get())
 }
 
-/// A cheap, sufficiently-unique token identifying this particular sweep attempt, so
-/// `acquire_lock`'s ownership check (GET == token) can tell "still us" apart from
-/// "someone else grabbed it after we lost it."
 fn generate_sweep_token() -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -32,33 +24,19 @@ fn generate_sweep_token() -> String {
     format!("{}-{}", std::process::id(), nanos)
 }
 
-/// Serializable snapshot of a channel's `@everyone` overwrite state, stored in Redis
-/// before a lockdown mutates it so `unlock` can restore the exact prior state.
-///
-/// This is explicit about the "no overwrite existed" case (`NoOverwrite`) rather than
-/// using key-absence to mean that, because key-absence is also what a *never-locked*
-/// channel looks like — and those two cases need to be distinguishable under
-/// write-once (`SET NX`) semantics (see `save_pre_lockdown_state`).
+
 #[derive(Debug, Serialize, Deserialize)]
 enum StoredOverwriteState {
     NoOverwrite,
     Existing { allow: u64, deny: u64 },
 }
 
-/// Snapshots the channel's current `@everyone` overwrite state into Redis before a
-/// lockdown is applied, using `SET NX` so the write only ever takes effect once.
-///
-/// This makes locking idempotent with respect to the snapshot: if `lock`/`global_lock`
-/// is run again on an already-locked channel, the second call sees the *already-locked*
-/// overwrite and must NOT let it clobber the true original — NX guarantees that only the
-/// very first snapshot (the real "before" state) survives, and it stays put until
-/// `restore_pre_lockdown_state` consumes and deletes it.
 pub async fn save_pre_lockdown_state(
     guild_id: GuildId,
     channel: &GuildChannel,
     everyone_role_id: RoleId,
     data: &Data,
-) -> Result<(), Error> {
+) -> Result<()> {
     let key = keys::lockdown_redis_key(guild_id, channel.id);
     let target_kind = PermissionOverwriteType::Role(everyone_role_id);
 
@@ -104,7 +82,7 @@ pub async fn restore_pre_lockdown_state(
     guild_id: GuildId,
     channel_id: ChannelId,
     everyone_role_id: RoleId,
-) -> Result<(), Error> {
+) -> Result<()> {
     let key = keys::lockdown_redis_key(guild_id, channel_id);
     let cached: Option<String> = data.redis.get(&key).await?;
 
@@ -169,7 +147,7 @@ pub async fn apply_global_lock(
     ctx: &SerenityContext,
     data: &Data,
     guild_id: GuildId,
-) -> Result<Option<GlobalLockdownReport>, Error> {
+) -> Result<Option<GlobalLockdownReport>> {
     let lock_key = global_sweep_lock_key(guild_id);
     let lock_token = generate_sweep_token();
 
@@ -249,7 +227,7 @@ pub async fn apply_global_unlock(
     ctx: &SerenityContext,
     data: &Data,
     guild_id: GuildId,
-) -> Result<Option<GlobalLockdownReport>, Error> {
+) -> Result<Option<GlobalLockdownReport>> {
     let lock_key = global_sweep_lock_key(guild_id);
     let lock_token = generate_sweep_token();
 
@@ -310,7 +288,7 @@ pub async fn apply_global_unlock(
 pub async fn resolve_target_channel(
     ctx: &Context<'_>,
     channel: Option<GuildChannel>,
-) -> Result<GuildChannel, Error> {
+) -> Result<GuildChannel> {
     trace!("Resolving target channel for lockdown operation");
     match channel {
         Some(ch) => {
@@ -324,7 +302,7 @@ pub async fn resolve_target_channel(
                 .to_channel(ctx.http())
                 .await?
                 .guild()
-                .ok_or("Failed to retrieve guild channel details")?;
+                .with_context(|| "Failed to retrieve guild channel details")?;
             Ok(guild_channel)
         }
     }

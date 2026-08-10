@@ -88,8 +88,8 @@ export function HubForm({
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-border-subtle">
+        <div className="space-y-2">
+            <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-foreground">
                     {initialHub.id ? "Edit Voice Hub" : "Create Voice Hub"}
                 </h3>

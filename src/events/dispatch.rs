@@ -1,5 +1,5 @@
 use crate::events::interact::on_interact;
-use crate::features::{automod, custom_commands, invite_tracking, join_leave, leveling, message_logging, raid_detection, reaction_roles, starboard, temp_voice, tickets};
+use crate::features::{automod, custom_commands, invite_tracking, join_leave, leveling, media_only, message_logging, raid_detection, reaction_roles, starboard, temp_voice, tickets};
 use crate::shared::store_username_relation;
 use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
@@ -41,6 +41,7 @@ pub async fn dispatch_events(
             tickets::handle_tickets(ctx, new_message, data).await?;
             leveling::handle_text_leveling(ctx, new_message, data).await?;
             custom_commands::handle_custom_cmd(ctx, new_message, data).await?;
+            media_only::handle_media_channel_message(ctx, new_message, data).await?;
         }
 
         FullEvent::GuildMemberAddition { new_member } => {
@@ -73,6 +74,7 @@ pub async fn dispatch_events(
 
         FullEvent::VoiceStateUpdate { old, new } => {
             temp_voice::handle_voice_event(ctx, old.as_ref(), new, data).await?;
+            temp_voice::handle_log_user_join(data, new).await?;
             leveling::handle_voice_leveling(ctx, old.as_ref(), new, data).await?;
         }
 

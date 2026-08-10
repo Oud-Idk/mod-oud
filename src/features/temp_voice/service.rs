@@ -1,11 +1,15 @@
-use serenity::all::{Channel, ChannelId, Context, EditChannel, EditMember, GuildId, Http, Member, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
+use crate::features::temp_voice::cache::get_user_vc;
+use crate::features::temp_voice::database::get_hub_info_by_category;
+use crate::features::temp_voice::keys;
+use crate::features::temp_voice::placeholders::replace_channel_placeholders;
+use crate::{Data, Error};
+use anyhow::Context as _;
 use fred::clients::Client as RedisClient;
 use fred::interfaces::{HashesInterface, KeysInterface};
 use fred::prelude::Expiration;
+use serenity::all::{Channel, ChannelId, Context, EditChannel, EditMember, GuildId, Http, Member, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
 use sqlx::PgPool;
-use crate::Error;
-use crate::features::temp_voice::database::get_hub_info_by_category;
-use crate::features::temp_voice::placeholders::replace_channel_placeholders;
+use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 
 /// Service: Rename Temp Voice Channel
 pub async fn rename_temp_vc(
@@ -20,16 +24,15 @@ pub async fn rename_temp_vc(
     let trimmed = raw_name.trim();
 
     let final_name = if trimmed.is_empty() {
-        // Fallback to default template if left blank
-        let guild_channel = Channel::guild(channel_id.to_channel(&ctx).await?).ok_or("Channel not found in cache")?;
-        let category_id = guild_channel.parent_id.ok_or("Channel has no category parent")?;
+        let guild_channel = Channel::guild(channel_id.to_channel(&ctx).await?).with_context(|| "Channel not found")?;
+        let category_id = guild_channel.parent_id.with_context(|| "Channel has no category parent")?;
 
         let cache_key = format!("temp_voice_hub_by_category:{}:{}", guild_id, category_id);
         let cached_json: Option<String> = redis.get(&cache_key).await?;
 
         let hub_info = get_hub_info_by_category(guild_id, redis, db, category_id, &cache_key, cached_json)
             .await?
-            .ok_or("No hub config found")?;
+            .with_context(|| "No hub config found")?;
 
         replace_channel_placeholders(&hub_info.default_channel_name, &guild_id, &ctx, member).await?
     } else {
@@ -172,7 +175,7 @@ pub async fn delete_temp_vc(
     channel_id: ChannelId,
     user_id: UserId,
 ) -> Result<String, Error> {
-    let temp_vc_hash = format!("temp_vcs:{}", guild_id);
+    let temp_vc_hash = temp_vcs_key(guild_id);
     let temp_vc_field = channel_id.get().to_string();
 
     let owner_id_str: Option<String> = redis.hget(&temp_vc_hash, &temp_vc_field).await?;
@@ -193,7 +196,7 @@ pub async fn delete_temp_vc(
         return Ok("Could not delete the channel. Do I have the 'Manage Channels' permission?".to_string());
     }
 
-    let owner_hash = format!("temp_vc_owners:{}", guild_id);
+    let owner_hash = temp_vc_owners_key(guild_id);
     let user_id_field = user_id.get().to_string();
 
     let del_vc_fut = redis.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field);
@@ -213,50 +216,31 @@ pub async fn delete_temp_vc(
 /// Service: Initiate a transfer of ownership for a temporary voice channel
 pub async fn initiate_temp_vc_transfer(
     ctx: &Context,
-    redis: &RedisClient,
+    data: &Data,
     guild_id: GuildId,
     channel_id: ChannelId,
     current_owner_id: UserId,
     new_owner_id: UserId,
 ) -> Result<String, Error> {
+    let redis = &data.redis;
+
     if new_owner_id == current_owner_id {
         return Ok("You can't transfer to yourself!".to_string());
     }
 
-    enum VoicePresence {
-        Confirmed(bool),
-        CacheMiss,
-    }
-
-    let presence = match ctx.cache.guild(guild_id) {
-        Some(guild) => {
-            let in_channel = guild
-                .voice_states
-                .get(&new_owner_id)
-                .and_then(|state| state.channel_id)
-                == Some(channel_id);
-            VoicePresence::Confirmed(in_channel)
-        }
-        None => VoicePresence::CacheMiss,
-    };
-
-    match presence {
-        VoicePresence::CacheMiss => {
-            tracing::warn!(guild_id = guild_id.get(), "Guild not in cache; cannot verify target's voice state");
-            return Ok("Couldn't verify the recipient right now, please try again in a moment!".to_string());
-        }
-        VoicePresence::Confirmed(false) => {
+    match get_user_vc(data, guild_id, new_owner_id).await? {
+        None => {
             tracing::debug!(
-                "Transfer rejected: Target user {} is not present in channel {}",
+                "Target user {} is not present in channel {}",
                 new_owner_id.get(),
                 channel_id.get()
             );
             return Ok("The recipient must be in the voice channel!".to_string());
         }
-        VoicePresence::Confirmed(true) => {}
+        _ => {}
     }
 
-    let owner_hash = format!("temp_vc_owners:{}", guild_id);
+    let owner_hash = temp_vc_owners_key(guild_id);
 
     let target_existing_vc: Option<String> = redis.hget(&owner_hash, new_owner_id.get().to_string()).await?;
     if target_existing_vc.is_some() {
@@ -264,7 +248,7 @@ pub async fn initiate_temp_vc_transfer(
         return Ok("That user already owns a temporary voice channel!".to_string());
     }
 
-    let pending_key = format!("temp_vc_pending_transfer:{}", channel_id);
+    let pending_key = keys::pending_transfer_key(channel_id);
     redis
         .set::<(), _, _>(
             &pending_key,

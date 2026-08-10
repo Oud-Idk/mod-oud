@@ -1,21 +1,22 @@
-use std::sync::OnceLock;
+use crate::core::config::settings::{GuildSettings, get_settings};
 use crate::features::leveling::calculation::{calculate_cumulative_xp, calculate_xp_needed};
 use crate::features::leveling::database::{get_user_level, update_level};
 use crate::features::leveling::{cache, database, keys};
-use crate::features::leveling::types::UserLevel;
-use crate::{Data, Error};
-use serenity::all::{CreateAttachment, CreateEmbed, GuildId, User, UserId};
+use crate::shared::messages::send_ephemeral;
+use crate::{Context, Error};
+use serenity::all::{CreateAttachment, CreateEmbed, User, UserId};
+use std::sync::OnceLock;
 use tracing::{debug, trace};
-use crate::core::config::settings::{get_settings, GuildSettings};
-use crate::shared::embed::send_ephemeral;
 
-use base64::engine::general_purpose::STANDARD;
+use anyhow::Context as _;
+use anyhow::Result;
 use base64::Engine as _;
-use resvg::tiny_skia::{Pixmap, Transform};
-use resvg::usvg::{fontdb, Options, Tree};
-use unit_prefix::NumberPrefix;
-use std::io::Cursor;
+use base64::engine::general_purpose::STANDARD;
 use image::ImageFormat;
+use resvg::tiny_skia::{Pixmap, Transform};
+use resvg::usvg::{Options, Tree};
+use std::io::Cursor;
+use unit_prefix::NumberPrefix;
 
 static RESVG_OPTIONS: OnceLock<Options<'static>> = OnceLock::new();
 
@@ -26,7 +27,7 @@ static RESVG_OPTIONS: OnceLock<Options<'static>> = OnceLock::new();
     subcommands("view", "card", "add", "remove"),
     rename = "level"
 )]
-pub async fn level(_: poise::Context<'_, Data, Error>) -> Result<(), Error> {
+pub async fn level(_: Context<'_>) -> Result<(), Error> {
     // Parent command function body is never executed for slash subcommands
     Ok(())
 }
@@ -34,10 +35,10 @@ pub async fn level(_: poise::Context<'_, Data, Error>) -> Result<(), Error> {
 /// Check your current level and experience progress as a text embed.
 #[poise::command(slash_command, guild_only, rename = "view")]
 pub async fn view(
-    ctx: poise::Context<'_, Data, Error>,
+    ctx: Context<'_>,
     #[description = "The user whose level you want to view"] user: Option<User>,
-) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command can only be used inside a server.")?;
+) -> Result<()> {
+    let guild_id = ctx.guild_id().with_context(|| "This command can only be used inside a server.")?;
     let target_user = user.as_ref().unwrap_or(ctx.author());
 
     let caller_id = ctx.author().id.get();
@@ -156,10 +157,10 @@ fn format_compact(num: u64) -> String {
 /// View your level card as a generated image.
 #[poise::command(slash_command, guild_only, rename = "card")]
 pub async fn card(
-    ctx: poise::Context<'_, Data, Error>,
+    ctx: Context<'_>,
     #[description = "The user whose level card you want to view"] user: Option<User>,
-) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command can only be used inside a server.")?;
+) -> Result<()> {
+    let guild_id = ctx.guild_id().with_context(|| "This command can only be used inside a server.")?;
     let target_user = user.as_ref().unwrap_or(ctx.author());
     let svg_template = include_str!("assets/level_template.svg");
 
@@ -280,11 +281,11 @@ pub async fn card(
 /// Add levels to a user (admin only).
 #[poise::command(slash_command, guild_only, required_permissions = "MANAGE_GUILD", rename = "add")]
 pub async fn add(
-    ctx: poise::Context<'_, Data, Error>,
+    ctx: Context<'_>,
     #[description = "The user to add levels to"] user: User,
     #[description = "Number of levels to add"] amount: i32,
-) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command can only be used inside a server.")?;
+) -> Result<()> {
+    let guild_id = ctx.guild_id().with_context(|| "This command can only be used inside a server.")?;
 
     if amount <= 0 {
         send_ephemeral(&ctx, "Amount must be greater than 0.").await?;
@@ -342,11 +343,11 @@ pub async fn add(
     rename = "remove"
 )]
 pub async fn remove(
-    ctx: poise::Context<'_, Data, Error>,
+    ctx: Context<'_>,
     #[description = "The user to remove levels from"] user: User,
     #[description = "Number of levels to remove"] amount: i32,
-) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command can only be used inside a server.")?;
+) -> Result<()> {
+    let guild_id = ctx.guild_id().with_context(|| "This command can only be used inside a server.")?;
 
     if amount <= 0 {
         send_ephemeral(&ctx, "Amount must be greater than 0.").await?;
@@ -407,9 +408,9 @@ fn get_options() -> &'static Options<'static> {
 }
 
 /// Helper function to convert SVG string to PNG bytes using resvg
-fn rasterize_svg(svg_str: &str, scale: f32) -> Result<Vec<u8>, Error> {
+fn rasterize_svg(svg_str: &str, scale: f32) -> Result<Vec<u8>> {
     let tree = Tree::from_str(svg_str, get_options())
-        .map_err(|e| format!("Failed to parse SVG template: {e}"))?;
+        .with_context(|| "Failed to parse SVG template")?;
 
     let size = tree.size().to_int_size();
 
@@ -418,13 +419,13 @@ fn rasterize_svg(svg_str: &str, scale: f32) -> Result<Vec<u8>, Error> {
     let height = (size.height() as f32 * scale).round() as u32;
 
     let mut pixmap = Pixmap::new(width, height)
-        .ok_or("Failed to allocate memory for PNG image")?;
+        .with_context(|| "Failed to allocate memory for PNG image")?;
 
     // Render with scale matrix
     resvg::render(&tree, Transform::from_scale(scale, scale), &mut pixmap.as_mut());
 
     let png_bytes = pixmap.encode_png()
-        .map_err(|e| format!("Failed to encode PNG: {e}"))?;
+        .with_context(|| "Failed to encode PNG")?;
 
     Ok(png_bytes)
 }

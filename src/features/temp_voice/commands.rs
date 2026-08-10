@@ -9,6 +9,7 @@ mod trust;
 mod untrust;
 mod block;
 mod unblock;
+mod invite;
 
 use crate::{Context, Error};
 use rename::rename;
@@ -22,6 +23,7 @@ use trust::trust;
 use untrust::untrust;
 use block::block;
 use unblock::unblock;
+use invite::invite;
 
 /// Control your temporary voice channel.
 #[poise::command(
@@ -38,7 +40,8 @@ use unblock::unblock;
         "unblock",
         "kick",
         "delete",
-        "transfer"
+        "transfer",
+        "invite",
     )
 )]
 pub async fn voice(_: Context<'_>) -> Result<(), Error> {

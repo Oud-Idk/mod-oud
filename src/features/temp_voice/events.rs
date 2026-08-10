@@ -1,11 +1,36 @@
 use crate::features::temp_voice;
-use crate::features::temp_voice::placeholders;
+use crate::features::temp_voice::{cache, placeholders};
 use crate::features::temp_voice::types::TempVoiceHub;
 use crate::{Data, Error};
 use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{ChannelId, ChannelType, Context, CreateChannel, GuildChannel, GuildId, Member, UserId, VoiceState};
 use tracing::{debug, trace, warn};
-use crate::features::temp_voice::cache::dispatch_refresh_temp_ttl;
+use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
+
+pub async fn handle_log_user_join(
+    data: &Data,
+    new: &VoiceState
+) -> Result<(), Error> {
+    let Some(guild_id) = new.guild_id else {
+        return Ok(());
+    };
+    let user_id = new.user_id;
+
+    debug!(user_id = user_id.get(), channel_id = ?new.channel_id, "Logging user VC join/leave");
+
+    match new.channel_id {
+        Some(channel_id) => {
+            // User joined a voice channel
+            cache::store_user_vc_on_join(data, guild_id, channel_id, user_id).await?;
+        },
+        None => {
+            // User left a voice channel
+            cache::delete_user_vc_on_leave(data, guild_id, user_id).await?;
+        },
+    }
+
+    Ok(())
+}
 
 pub async fn handle_join_hub_temp_vc(
     ctx: &Context,
@@ -48,9 +73,9 @@ pub async fn handle_join_hub_temp_vc(
         },
     };
 
-    let owner_hash = format!("temp_vc_owners:{}", guild_id);
+    let owner_hash = temp_vc_owners_key(guild_id);
     let owner_field = user_id.get().to_string();
-    let temp_vc_hash = format!("temp_vcs:{}", guild_id);
+    let temp_vc_hash = temp_vcs_key(guild_id);
 
     let existing_channel: Option<String> = redis.hget(&owner_hash, &owner_field).await?;
     if let Some(existing_channel_str) = existing_channel {
@@ -166,7 +191,7 @@ pub async fn handle_leave_temp_vc(
         return Ok(());
     };
 
-    let temp_vc_hash = format!("temp_vcs:{}", guild_id);
+    let temp_vc_hash = temp_vcs_key(guild_id);
     let temp_vc_field = old_channel_id.get().to_string();
 
     // Check if the left channel is a temporary VC
@@ -193,7 +218,7 @@ pub async fn handle_leave_temp_vc(
                 debug!(channel_id = old_channel_id.get(), "Deleted empty temp VC.");
             }
 
-            let owner_hash = format!("temp_vc_owners:{}", guild_id);
+            let owner_hash = temp_vc_owners_key(guild_id);
 
             if let Some(owner_id) = &is_temp {
                 let active_channel_id: Option<String> = redis.hget(&owner_hash, owner_id).await?;
@@ -241,7 +266,6 @@ pub async fn create_temp_vc(ctx: &Context, guild_id: &GuildId, member: &Member, 
 }
 
 pub async fn handle_voice_event(ctx: &Context, old: Option<&VoiceState>, new: &VoiceState, data: &Data) -> Result<(), Error> {
-    dispatch_refresh_temp_ttl(old, new, data).await?;
     handle_join_hub_temp_vc(ctx, new, data).await?;
     handle_leave_temp_vc(ctx, old, new, data).await?;
     Ok(())

@@ -144,7 +144,6 @@ export default function EmbedBuilder({
         setEmbedState(convertToDiscordEmbed(updated));
     };
 
-    // FIX 2: Added moveField support for the Up/Down arrows in EmbedBuilderForm
     const moveField = (fromIndex: number, toIndex: number): void => {
         const updatedFields = [...(embed.fields || [])];
         const [movedItem] = updatedFields.splice(fromIndex, 1);

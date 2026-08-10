@@ -5,7 +5,7 @@ use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::issuing::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};
 use crate::features::moderation::perms::pre_flight_check;
 use crate::shared::command_context::GuildMetadata;
-use crate::shared::embed::send_ephemeral;
+use crate::shared::messages::send_ephemeral;
 use crate::{Context, Error};
 use serenity::all::{GetMessages, Member, Message, MessageId, User};
 use std::time::{SystemTime, UNIX_EPOCH};

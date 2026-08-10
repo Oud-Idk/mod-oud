@@ -2,7 +2,7 @@ use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_but
 use crate::features::temp_voice::service;
 use crate::{Data, Error};
 use serenity::all::{ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse, CreateModal, InputTextStyle, ModalInteraction};
-use tracing::debug;
+use tracing::{debug, trace};
 pub(crate) async fn handle_set_limit_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
@@ -41,7 +41,7 @@ pub(crate) async fn handle_set_limit_vc_submit(
         return Ok(());
     };
 
-    debug!("Handling limit submit");
+    trace!("Handling limit submit");
 
     let limit_raw = crate::features::temp_voice::interface::get_input_value(&interaction, "new_limit").unwrap();
     let response_message = service::set_temp_vc_limit(ctx, channel_id, &limit_raw).await?;

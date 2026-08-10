@@ -23,3 +23,7 @@ pub fn flushing_levels_key(guild_id_str: &str) -> String {
 pub fn pending_levels_key(guild_id_str: &str) -> String {
     format!("levels:pending:{}", guild_id_str)
 }
+
+pub fn session_key(guild_id: GuildId, user_id: UserId) -> String {
+    format!("vc_session:{}:{}", guild_id.get(), user_id.get())
+}

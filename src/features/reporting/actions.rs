@@ -5,6 +5,7 @@ use crate::shared::store_username_relation;
 use fred::clients::Client;
 use futures_util::TryFutureExt;
 use tracing::{debug, trace, warn};
+use anyhow::Result;
 
 pub fn extract_image_urls(message: &serenity::all::Message) -> Vec<String> {
     let mut urls = Vec::new();
@@ -42,7 +43,7 @@ pub async fn issue_report(
     message: &serenity::all::Message,
     reporter: &serenity::all::User,
     reason: String,
-) -> Result<Option<i64>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<i64>> {
     trace!(
         guild_id = guild_id,
         channel_id = channel_id,

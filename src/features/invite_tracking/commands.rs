@@ -2,14 +2,15 @@ use crate::features::invite_tracking;
 use crate::{Context, Error};
 use fred::interfaces::HashesInterface;
 use serenity::all::Member;
+use anyhow::{Context as _, Result};
 
 /// Check who invited a particular member
 #[poise::command(slash_command)]
 pub async fn inviter(
     ctx: Context<'_>,
     #[description = "The member to check"] member: Member,
-) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command can only be used in a server")?;
+) -> Result<()> {
+    let guild_id = ctx.guild_id().with_context(|| "This command can only be used in a server")?;
     let db = &ctx.data().db;
 
     // Fetch the inviter details from Postgres
@@ -55,7 +56,7 @@ pub async fn invites(
     ctx: Context<'_>,
     #[description = "Optional member to check stats for"] member: Option<Member>,
 ) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command can only be used in a server")?;
+    let guild_id = ctx.guild_id().with_context(|| "This command can only be used in a server")?;
     let db = &ctx.data().db;
     let redis = &ctx.data().redis;
 
@@ -97,7 +98,7 @@ pub async fn invites(
 /// Display the invites leaderboard
 #[poise::command(slash_command, rename = "invites-leaderboard")]
 pub async fn invites_leaderboard(ctx: Context<'_>) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().ok_or("This command can only be used in a server")?;
+    let guild_id = ctx.guild_id().with_context(|| "This command can only be used in a server")?;
     let db = &ctx.data().db;
 
     // Fetch top 10 inviters with at least 1 invite

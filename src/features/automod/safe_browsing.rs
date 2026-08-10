@@ -1,4 +1,5 @@
 use crate::Error;
+use anyhow::{anyhow, Context, Result, bail};
 use prost::Message;
 use std::time::Duration;
 use tracing::{debug, error, instrument, trace};
@@ -30,7 +31,7 @@ impl SafeBrowsingClient {
         fields(url_count = urls.len()),
         err
     )]
-    pub async fn check_urls(&self, urls: &[&str]) -> Result<Vec<i32>, Error> {
+    pub async fn check_urls(&self, urls: &[&str]) -> Result<Vec<i32>> {
         let endpoint = "https://safebrowsing.googleapis.com/v5/urls:search";
         let mut query_params = vec![("key".to_string(), self.api_key.clone())];
         for url in urls {
@@ -48,7 +49,7 @@ impl SafeBrowsingClient {
                 error_body = %err_text,
                 "Safe Browsing API returned an error status"
             );
-            return Err(format!("Safe Browsing API Error: {}", err_text).into());
+            bail!(format!("Safe Browsing API Error: {}", err_text));
         }
 
         trace!("Reading payload response bytes");

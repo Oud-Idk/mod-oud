@@ -9,7 +9,6 @@ import {
 import { deleteTempVoiceHub, saveTempVoiceHub } from "./queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
-import { sendEmbedAction } from "@/features/embed-builder";
 import { revalidatePath } from "next/cache";
 import type { SaveTempVoiceHubInput, TempVoiceHub } from "./types";
 
@@ -34,10 +33,6 @@ vi.mock("@/features/_shared/channels", () => ({
 vi.mock("./queries", () => ({
     deleteTempVoiceHub: vi.fn(),
     saveTempVoiceHub: vi.fn(),
-}));
-
-vi.mock("@/features/embed-builder", () => ({
-    sendEmbedAction: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -251,22 +246,38 @@ describe("Temp Voice Action Module", () => {
     });
 
     describe("sendInterfaceMessageAction", () => {
-        it("should delegate to sendEmbedAction with the interface endpoint", async () => {
+        it("should call the backend interface endpoint with camelCase fields", async () => {
+            mockFetch.mockResolvedValue({
+                ok: true,
+                text: () => Promise.resolve(""),
+                json: () => Promise.resolve({ message_id: "msg_1" }),
+            });
+
             const payload = {
                 channelId: "chan_1",
                 embedState: { title: "Temp Voice" },
             };
-            vi.mocked(sendEmbedAction).mockResolvedValue({ messageId: "msg_1" });
 
             const result = await sendInterfaceMessageAction("guild_123", payload);
 
-            const endpoint = vi.mocked(sendEmbedAction).mock.calls[0][0];
-            expect(endpoint).toContain("/api/guilds/guild_123/temp-voice/interface/setup");
+            const url = mockFetch.mock.calls[0][0];
+            expect(url).toContain("/api/guilds/guild_123/temp-voice/interface/setup");
+            const init = mockFetch.mock.calls[0][1];
+            expect(init?.method).toBe("POST");
+            const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+            expect(body).toEqual({
+                channelId: "chan_1",
+                embedState: { title: "Temp Voice" },
+            });
             expect(result).toEqual({ messageId: "msg_1" });
         });
 
-        it("should throw the underlying error message", async () => {
-            vi.mocked(sendEmbedAction).mockRejectedValue(new Error("backend down"));
+        it("should throw the backend error text on failure", async () => {
+            mockFetch.mockResolvedValue({
+                ok: false,
+                text: () => Promise.resolve("backend down"),
+                json: () => Promise.resolve({}),
+            });
 
             await expect(
                 sendInterfaceMessageAction("guild_123", {
@@ -276,30 +287,14 @@ describe("Temp Voice Action Module", () => {
             ).rejects.toThrow("backend down");
         });
 
-        it("should rethrow the first zod issue message when sendEmbedAction rejects with a ZodError", async () => {
-            vi.mocked(sendEmbedAction).mockRejectedValue(
-                new z.ZodError([
-                    { code: "custom", message: "Interface message validation failure", path: [] },
-                ])
-            );
-
+        it("should throw the first zod issue message for invalid input", async () => {
             await expect(
                 sendInterfaceMessageAction("guild_123", {
-                    channelId: "chan_1",
+                    channelId: "",
                     embedState: { title: "Temp Voice" },
                 })
-            ).rejects.toThrow("Interface message validation failure");
-        });
-
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(sendEmbedAction).mockRejectedValue(new z.ZodError([]));
-
-            await expect(
-                sendInterfaceMessageAction("guild_123", {
-                    channelId: "chan_1",
-                    embedState: { title: "Temp Voice" },
-                })
-            ).rejects.toThrow("Validation Error");
+            ).rejects.toThrow("Channel ID is required");
+            expect(mockFetch).not.toHaveBeenCalled();
         });
     });
 });

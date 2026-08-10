@@ -1,13 +1,14 @@
-use std::borrow::Cow;
-use serenity::all::Message;
-use tracing::{debug, trace};
-use rustrict::{Censor, Type};
-use crate::features::automod::types::FilterVerdict;
+use super::super::rules::check_rule;
 use crate::features::automod;
 use crate::features::automod::events::external_urls;
 use crate::features::automod::patterns::DISCORD_FORMAT_REGEX;
+use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::{HasBaseRule, MessageFilteringConfig, ScopeMode};
-use super::super::rules::check_rule;
+use crate::shared::messages;
+use rustrict::{Censor, Type};
+use serenity::all::Message;
+use std::borrow::Cow;
+use tracing::{debug, trace};
 
 pub fn filter_offensive_messages<'a>(
     message: &Message,
@@ -69,7 +70,7 @@ fn get_rustrict_categories(analysis: &Type) -> Vec<&str> {
 
 /// Cleans raw text of URLs and specific Discord formatting elements.
 pub fn clean_message_content(content: &str) -> String {
-    let (cleaned_urls, _) = external_urls::remove_urls(content);
+    let (cleaned_urls, _) = messages::remove_urls(content);
 
     // Avoid allocating a duplicate string if no regex replacement was needed
     match DISCORD_FORMAT_REGEX.replace_all(&cleaned_urls, "") {

@@ -1,9 +1,9 @@
 use super::super::{cache, calculation, database, notifications, rewards, rules};
-use crate::features::leveling::types::UserLevel;
 use crate::Data;
 use crate::features::leveling::keys::member_stats_key;
+use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
-use crate::features::{keys, leveling};
+use crate::features::{leveling};
 use crate::shared::store_username_relation;
 use anyhow::Result;
 use fred::interfaces::KeysInterface;
@@ -35,7 +35,7 @@ pub async fn handle_voice_leveling(
 
     let member = new.member.as_ref();
     let redis = &data.redis;
-    let session_key = keys::session_key(guild_id, user_id);
+    let session_key = leveling::keys::session_key(guild_id, user_id);
     let now = chrono::Utc::now().timestamp();
 
     let old_channel = old.and_then(|o| o.channel_id);

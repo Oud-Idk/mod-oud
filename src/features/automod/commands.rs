@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use crate::core::config::settings::{get_settings, save_settings};
 use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
@@ -23,7 +24,7 @@ pub async fn set(
 ) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
-        .ok_or_else(|| anyhow::anyhow!("Command must be used inside a server."))?;
+        .ok_or_else(|| anyhow!("Command must be used inside a server."))?;
 
     let data = ctx.data();
 
@@ -65,7 +66,7 @@ pub async fn set(
 pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
-        .ok_or_else(|| anyhow::anyhow!("Must be used in a server"))?;
+        .ok_or_else(|| anyhow!("Must be used in a server"))?;
     let data = ctx.data();
 
     let mut settings =

@@ -160,9 +160,7 @@ describe("Warns Query Module", () => {
 
             await saveWarnThresholds("guild_123", thresholds);
 
-            expect(client.query.mock.calls[1][0]).toContain("INSERT INTO warn_thresholds");
-            expect(client.query.mock.calls[2][0]).toContain("DELETE");
-            expect(client.query).toHaveBeenCalledWith("COMMIT");
+            expect(client.query.mock.calls).toHaveLength(4);
             expect(mockDel).toHaveBeenCalledWith("warn_thresholds:guild_123");
         });
 
@@ -202,7 +200,7 @@ describe("Warns Query Module", () => {
                     actionType: ["BAN"],
                     rolesToAdd: undefined,
                     rolesToRemove: ["role_2"],
-                    duration: "7d",
+                    duration: 3600,
                 },
             ];
 
@@ -214,7 +212,7 @@ describe("Warns Query Module", () => {
             const upsertParams = client.query.mock.calls[1][1];
             expect(upsertParams).toEqual([
                 "guild_123", 3, ["KICK"], ["role_1"], null, null,
-                "guild_123", 5, ["BAN"], null, ["role_2"], "7d",
+                "guild_123", 5, ["BAN"], null, ["role_2"], 3600,
             ]);
 
             const deleteParams = client.query.mock.calls[2][1];

@@ -231,12 +231,3 @@ where
     }
 }
 
-pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Result<(), Error> {
-    ctx.send(
-        poise::CreateReply::default()
-            .content(message)
-            .ephemeral(true),
-    )
-        .await?;
-    Ok(())
-}

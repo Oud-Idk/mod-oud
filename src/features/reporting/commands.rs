@@ -1,11 +1,7 @@
 use crate::core::config::settings::get_settings;
-use crate::features::reporting::database::insert_reported_message;
-use crate::features::reporting::types::{ReportStatus, ReportedMessagePayload};
-use crate::features::reporting::{actions, cache};
-use crate::shared::store_username_relation;
+use crate::features::reporting::types::ReportedMessagePayload;
+use crate::features::reporting::{actions};
 use crate::{Context, Error};
-use fred::clients::Client;
-use futures_util::TryFutureExt;
 use poise::Modal;
 use tracing::{debug, info, trace, warn};
 

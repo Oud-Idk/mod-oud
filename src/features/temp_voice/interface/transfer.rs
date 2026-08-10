@@ -72,7 +72,7 @@ pub(crate) async fn handle_transfer_temp_vc_submit(
 
     let response_message = service::initiate_temp_vc_transfer(
         ctx,
-        &data.redis,
+        &data,
         guild_id,
         channel_id,
         current_owner_id,

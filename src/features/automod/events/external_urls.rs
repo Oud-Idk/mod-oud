@@ -1,9 +1,8 @@
 use super::super::rules::check_rule;
 use crate::Data;
-use crate::features::automod::patterns::LINK_FINDER;
 use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::{ExternalLinksRule, MessageFilteringConfig, Modes, ThreatType};
-use linkify::LinkKind;
+use crate::shared::messages;
 use serenity::all::Message;
 use std::borrow::Cow;
 use tracing::{debug, error, instrument, trace};
@@ -17,7 +16,7 @@ pub fn filter_external_urls<'a>(
     };
 
     trace!("Checking 'External URLs' filter rule");
-    let (_, urls) = remove_urls(&message.content);
+    let (_, urls) = messages::remove_urls(&message.content);
     if urls.is_empty() {
         return FilterVerdict::Pass;
     }
@@ -95,28 +94,6 @@ pub fn extract_domain(url: &str) -> Option<&str> {
     } else {
         Some(domain_without_port)
     }
-}
-
-pub fn remove_urls(input: &str) -> (String, Vec<&str>) {
-    let mut links_iter = LINK_FINDER.links(input).peekable();
-
-    if links_iter.peek().is_none() {
-        return (input.to_string(), Vec::new());
-    }
-
-    let mut cleaned = String::with_capacity(input.len());
-    let mut urls = Vec::new();
-    let mut last_pos = 0;
-
-    for link in links_iter {
-        if link.kind() == &LinkKind::Url {
-            cleaned.push_str(&input[last_pos..link.start()]);
-            urls.push(link.as_str());
-            last_pos = link.end();
-        }
-    }
-    cleaned.push_str(&input[last_pos..]);
-    (cleaned, urls)
 }
 
 fn any_breaking_rule_domain<'a>(external_links: &ExternalLinksRule, urls: &[&'a str]) -> Option<&'a str> {
