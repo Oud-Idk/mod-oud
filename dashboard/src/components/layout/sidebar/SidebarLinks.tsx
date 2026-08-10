@@ -20,7 +20,7 @@ import {
     TrendingUp,
     User,
     UserPlus,
-    Volume2Icon
+    Volume2Icon, Clapperboard
 } from "lucide-react";
 import { FaceSmileIcon } from "@heroicons/react/24/outline";
 import { JSX } from "react";
@@ -64,6 +64,12 @@ export function SidebarLinks(): JSX.Element | null{
             name: "Message Filtering",
             href: `/dashboard/${guildId}/message-filtering`,
             icon: MessageSquareWarning,
+            exact: false,
+        },
+        {
+            name: "Media Only",
+            href: `/dashboard/${guildId}/media-only`,
+            icon: Clapperboard,
             exact: false,
         },
         {

@@ -1,14 +1,19 @@
-import { Placeholder } from "@/features/_shared/builderConfig";
+import { JSX } from "react";
+
+interface PartialPlaceholder {
+    key: string;
+    label: string;
+}
 
 interface PlaceholderBuilderConfig {
-    placeholders: Placeholder[];
+    placeholders: PartialPlaceholder[];
 }
 
 interface PlaceholderListProps {
     config: PlaceholderBuilderConfig;
 }
 
-export const PlaceholderList = ({ config }: PlaceholderListProps) => {
+export const PlaceholderList = ({ config }: PlaceholderListProps): JSX.Element | null => {
     if (!config.placeholders?.length) return null;
 
     return (

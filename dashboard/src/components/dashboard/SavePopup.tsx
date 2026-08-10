@@ -1,4 +1,6 @@
 import { JSX } from "react";
+import { Button } from "@/components/ui/Button";
+import Footer from "@/components/layout/Footer";
 
 interface SavePopupProps {
     handleCancel: () => void;
@@ -8,34 +10,33 @@ interface SavePopupProps {
 
 export function SavePopup({ handleCancel, handleSave, isSaving }: SavePopupProps): JSX.Element {
     return <div
-        className="fixed bottom-4 right-4 left-4 md:left-auto md:w-96 bg-white dark:bg-black border rounded-lg shadow-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        className="fixed bottom-4 right-4 left-4 md:left-auto md:w-110 border border-border rounded-lg shadow-xl p-2 px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <p>
                 Unsaved changes
             </p>
-            <p className="text-xs text-neutral-500">
+            <Footer className="text-xs">
                 You have unsaved changes to your welcome settings.
-            </p>
+            </Footer>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto">
-            <button
+            <Button
+                variant="secondary"
                 onClick={handleCancel}
                 disabled={isSaving}
-                className="px-3 py-1.5 text-xs font-medium dark:hover:bg-neutral-500/40 rounded-md transition-colors disabled:opacity-50 cursor-pointer"
             >
                 Reset
-            </button>
-            <button
+            </Button>
+            <Button
                 onClick={() => {
                     if (!isSaving) {
                         handleSave();
                     }
                 }}
                 disabled={isSaving}
-                className="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 rounded-md transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1 cursor-pointer"
             >
                 {isSaving ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
         </div>
     </div>;
 }
