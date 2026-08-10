@@ -4,7 +4,7 @@ pub mod locking;
 pub mod error;
 pub mod command_context;
 mod serde_helpers;
-mod username_cache;
+pub mod username_cache;
 pub mod pagination;
 pub mod messages;
 

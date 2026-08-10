@@ -6,7 +6,6 @@ use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
 use crate::features::moderation::types::MODERATION_FOOTER;
 use crate::shared::embed::build_custom_message;
-use crate::shared::store_username_relation;
 use crate::{fetch_mod_ctx, send_mod_dm};
 use anyhow::Result;
 use chrono::TimeDelta;
@@ -32,9 +31,6 @@ pub async fn issue_kick(
     moderator: User,
     reason: &str,
 ) -> Result<()> {
-    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
-    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
-
     debug!("Retrieving moderation context for kick");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -112,9 +108,6 @@ pub async fn issue_ban(
     duration: Option<Duration>,
     duration_label: &str,
 ) -> Result<()> {
-    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
-    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
-
     debug!("Retrieving moderation context for ban");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
@@ -184,9 +177,6 @@ pub async fn issue_mute(
     duration: &Duration,
     timestamp: Timestamp,
 ) -> Result<()> {
-    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
-    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
-
     debug!("Retrieving moderation context for timeout");
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -231,9 +221,6 @@ pub async fn issue_unmute(
     user: User,
     moderator: User,
 ) -> Result<()> {
-    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
-    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
-
     debug!("Retrieving moderation context for unmute");
     let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -276,9 +263,6 @@ pub async fn issue_softban(
     reason: &str,
     dmd: u8,
 ) -> Result<()> {
-    store_username_relation(db, redis_conn, user.id.get(), &user.name).await?;
-    store_username_relation(db, redis_conn, moderator.id.get(), &moderator.name).await?;
-
     debug!("Retrieving moderation context for softban");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 

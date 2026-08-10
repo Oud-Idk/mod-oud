@@ -10,6 +10,7 @@ pub struct WebState {
     pub db: sqlx::PgPool,
     pub http: Arc<poise::serenity_prelude::Http>,
     pub redis: Client,
+    pub username_buf_tx: tokio::sync::mpsc::Sender<crate::UserUpdate>,
     pub guild_configs: moka::future::Cache<i64, GuildSettings>,
     pub req_client: reqwest::Client,
     pub shared_secret: Option<String>,

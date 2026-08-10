@@ -14,6 +14,11 @@ pub mod web;
 pub type Error = anyhow::Error;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
+pub struct UserUpdate {
+    pub id: u64,
+    pub name: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Data {
     pub db: sqlx::PgPool,
@@ -26,4 +31,5 @@ pub struct Data {
     pub ticket_log_tx: UnboundedSender<TicketLogPayload>,
     pub shared_secret: Option<String>,
     pub domain: String,
+    pub username_buf_tx: tokio::sync::mpsc::Sender<UserUpdate>
 }

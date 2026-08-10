@@ -1,5 +1,5 @@
 use super::database::log_automod_event;
-use crate::Data;
+use crate::{Data, UserUpdate};
 use crate::core::config::settings::GuildSettings;
 use crate::features::automod::types::{BaseRule, RuleAction};
 use crate::features::moderation::issue_mute;
@@ -56,7 +56,7 @@ async fn handle_automod(
                 }
             }
             RuleAction::Warn => {
-                apply_warning(ctx, rule_name, message, &data.db, &data.redis, &data.guild_configs).await;
+                apply_warning(ctx, rule_name, message, &data.db, &data.redis, &data.guild_configs, &data.username_buf_tx).await;
             }
             RuleAction::Timeout => {
                 apply_mute(ctx, rule_name, message, base, &data.db, &data.redis, &data.guild_configs).await;
@@ -84,6 +84,7 @@ async fn apply_warning(
     db: &sqlx::PgPool,
     redis_conn: &fred::clients::Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    username_buf_tx: &tokio::sync::mpsc::Sender<UserUpdate>,
 ) {
     let Some(guild_id) = message.guild_id else {
         trace!("Skipping automated warning: Message was not sent in a guild.");
@@ -100,7 +101,7 @@ async fn apply_warning(
     let http = ctx.http.clone();
 
     match issue_warning(
-        db, redis_conn, guild_configs, &http, guild_id, user_id, moderator_id,
+        db, redis_conn, guild_configs, &username_buf_tx, &http, guild_id, user_id, moderator_id,
         &reason_str, &moderator_username, &target_username,
     ).await {
         Ok(warn_id) => info!(warn_id, "Automated filter successfully issued warning and executed threshold actions"),
@@ -122,7 +123,7 @@ async fn apply_mute(
     let Some(guild_id) = message.guild_id else { return; };
     let Some(duration_secs) = base.timeout_duration_seconds else { return; };
 
-    let duration = Duration::from_secs(duration_secs as u64);
+    let duration = Duration::from_secs(duration_secs);
     let now_secs = Timestamp::now().unix_timestamp();
     let Some(timeout_until) = Timestamp::from_unix_timestamp(now_secs + duration_secs as i64).ok() else {
         error!("Could not calculate a valid mute timestamp");

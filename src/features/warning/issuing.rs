@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, UserUpdate};
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
@@ -21,6 +21,7 @@ pub async fn issue_warning(
     db: &PgPool,
     redis_conn: &Client,
     guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    username_buf: &tokio::sync::mpsc::Sender<UserUpdate>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user_id: UserId,
@@ -30,8 +31,8 @@ pub async fn issue_warning(
     target_username: &str,
 ) -> Result<i64, Error> {
     debug!("Inserting warning record into database");
-    store_username_relation(db, redis_conn, user_id.get(), target_username).await?;
-    store_username_relation(db, redis_conn, moderator_id.get(), moderator_username).await?;
+    store_username_relation(username_buf, user_id.get(), target_username).await?;
+    store_username_relation(username_buf, moderator_id.get(), moderator_username).await?;
 
     let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason).await?;
 

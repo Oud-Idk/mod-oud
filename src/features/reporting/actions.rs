@@ -6,6 +6,7 @@ use fred::clients::Client;
 use futures_util::TryFutureExt;
 use tracing::{debug, trace, warn};
 use anyhow::Result;
+use crate::UserUpdate;
 
 pub fn extract_image_urls(message: &serenity::all::Message) -> Vec<String> {
     let mut urls = Vec::new();
@@ -38,6 +39,7 @@ pub fn extract_image_urls(message: &serenity::all::Message) -> Vec<String> {
 pub async fn issue_report(
     db: &sqlx::PgPool,
     redis: &Client,
+    username_buf: &tokio::sync::mpsc::Sender<UserUpdate>,
     guild_id: i64,
     channel_id: i64,
     message: &serenity::all::Message,
@@ -81,7 +83,7 @@ pub async fn issue_report(
         return Ok(None);
     };
 
-    store_username_relation(db, redis, author.id.get(), &author_name).await?;
+    store_username_relation(username_buf, author.id.get(), &author_name).await?;
 
     let id = row.id;
     debug!(report_id = id, "Successfully saved reported message to database");

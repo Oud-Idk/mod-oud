@@ -4,7 +4,6 @@ use crate::features::leveling::keys::member_stats_key;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
 use crate::features::{leveling};
-use crate::shared::store_username_relation;
 use anyhow::Result;
 use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
@@ -124,8 +123,6 @@ async fn award_vc_xp_for_session(
 
     let member = &resolve_member(ctx, guild_id, user_id, member_opt).await?;
     let user_roles: Vec<u64> = member.roles.iter().map(|r| r.get()).collect();
-
-    store_username_relation(db, redis, member.user.id.get(), &member.user.name).await?;
 
     if rules::should_exclude_from_level_up(leveling_config, &user_roles, channel_id.get()) {
         trace!(guild_id = guild_id.get(), "Skipping voice XP: channel/user is excluded");

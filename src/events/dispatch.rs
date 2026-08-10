@@ -114,25 +114,43 @@ pub async fn dispatch_events(
 /// Centralized helper to capture user names across events before dispatching
 async fn extract_and_store_username(data: &Data, event: &FullEvent) -> Result<(), Error> {
     match event {
+        FullEvent::Message { new_message } => {
+            store_username_relation(&data.username_buf_tx, new_message.author.id.get(), &new_message.author.name).await?;
+        }
         FullEvent::MessageUpdate { old_if_available, .. } => {
             if let Some(message) = old_if_available {
-                store_username_relation(&data.db, &data.redis, message.author.id.get(), &message.author.name).await?;
+                store_username_relation(&data.username_buf_tx, message.author.id.get(), &message.author.name).await?;
             }
         }
         FullEvent::GuildMemberAddition { new_member } => {
-            store_username_relation(&data.db, &data.redis, new_member.user.id.get(), &new_member.user.name).await?;
+            store_username_relation(&data.username_buf_tx, new_member.user.id.get(), &new_member.user.name).await?;
         }
         FullEvent::GuildMemberRemoval { user, .. } => {
-            store_username_relation(&data.db, &data.redis, user.id.get(), &user.name).await?;
+            store_username_relation(&data.username_buf_tx, user.id.get(), &user.name).await?;
         }
-        FullEvent::VoiceStateUpdate { new, .. } => {
+        FullEvent::VoiceStateUpdate { old, new, .. } => {
             if let Some(member) = &new.member {
-                store_username_relation(&data.db, &data.redis, member.user.id.get(), &member.user.name).await?;
+                store_username_relation(&data.username_buf_tx, member.user.id.get(), &member.user.name).await?;
+            }
+            if let Some(member) = old.as_ref().and_then(|old| old.member.as_ref()) {
+                store_username_relation(&data.username_buf_tx, member.user.id.get(), &member.user.name).await?;
+            }
+        }
+        FullEvent::InteractionCreate { interaction } => {
+            let user = match interaction {
+                serenity::Interaction::Command(command) => Some(&command.user),
+                serenity::Interaction::Autocomplete(autocomplete) => Some(&autocomplete.user),
+                serenity::Interaction::Component(component) => Some(&component.user),
+                serenity::Interaction::Modal(modal) => Some(&modal.user),
+                _ => None,
+            };
+            if let Some(user) = user {
+                store_username_relation(&data.username_buf_tx, user.id.get(), &user.name).await?;
             }
         }
         FullEvent::InviteCreate { data: invite_data } => {
             if let Some(inviter) = &invite_data.inviter {
-                store_username_relation(&data.db, &data.redis, inviter.id.get(), &inviter.name).await?;
+                store_username_relation(&data.username_buf_tx, inviter.id.get(), &inviter.name).await?;
             }
         }
         _ => {}

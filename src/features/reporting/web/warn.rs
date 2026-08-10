@@ -30,6 +30,7 @@ pub async fn handle_warn(
         &state.db,
         redis,
         &state.guild_configs,
+        &state.username_buf_tx,
         &state.http,
         *guild_id,
         *user_id,

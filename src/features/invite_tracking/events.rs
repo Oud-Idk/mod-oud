@@ -29,7 +29,7 @@ pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &Data) ->
 
     for invite in &invites {
         if let Some(inviter) = &invite.inviter {
-            store_username_relation(db, redis, inviter.id.get(), &inviter.name).await?;
+            store_username_relation(&data.username_buf_tx, inviter.id.get(), &inviter.name).await?;
         }
     }
 

@@ -63,7 +63,7 @@ pub async fn report_message(
     if let Some(modal) = modal_data {
         debug!(caller_id, message_id, "Report modal submitted; issuing report");
         let result = actions::issue_report(
-            db, &ctx.data().redis,
+            db, &ctx.data().redis, &ctx.data().username_buf_tx,
             guild_id, message.channel_id.get() as i64,
             &message, ctx.author(), modal.reason,
         ).await?;

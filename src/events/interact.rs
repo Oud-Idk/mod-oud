@@ -1,5 +1,4 @@
 use crate::features::verification::generate_verification_link;
-use crate::shared::store_username_relation;
 
 use crate::features::{reaction_roles, tickets};
 use crate::features::{temp_voice};
@@ -17,7 +16,6 @@ pub async fn on_interact(
     match interaction {
         Interaction::Component(component) => {
             debug!(id = component.data.custom_id.as_str(), "Got component interaction");
-            store_username_relation(&data.db, &data.redis, component.user.id.get(), &component.user.name).await?;
 
             let custom_id = component.data.custom_id.as_str();
 

@@ -8,10 +8,6 @@ use crate::shared::messages::send_ephemeral;
 use crate::{Context, Error};
 use serenity::all::{Member, User};
 
-// ==========================================
-// 1. TOP-LEVEL ACTION COMMAND
-// ==========================================
-
 /// Warns a user in the server.
 #[poise::command(
     slash_command,
@@ -24,7 +20,6 @@ pub async fn warn(
     #[description = "The reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let target_id = member.user.id.get();
 
     let Some(meta) = pre_flight_check(&ctx, member.user.id, "warn").await? else {
         return Ok(());
@@ -36,6 +31,7 @@ pub async fn warn(
         &ctx.data().db,
         &ctx.data().redis,
         &ctx.data().guild_configs,
+        &ctx.data().username_buf_tx,
         &ctx.serenity_context().http,
         meta.id,
         member.user.id,

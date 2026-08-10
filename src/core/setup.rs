@@ -5,7 +5,7 @@ use crate::features::member_counter::start_member_counter_job;
 use crate::features::moderation::start_temp_ban_worker;
 use crate::features::reminder::start_reminder_worker;
 use crate::features::tickets::{TicketLogPayload, start_ticket_inactivity_worker, start_ticket_logger, sync_tickets};
-use crate::{Data, Error};
+use crate::{Data, Error, UserUpdate};
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::SetsInterface;
 use moka::future::Cache;
@@ -14,11 +14,13 @@ use sqlx::{Pool, Postgres};
 use std::env;
 use std::pin::Pin;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, error, info};
 use crate::features::birthday::start_birthday_worker;
 use crate::features::giveaways::start_giveaway_worker;
 use crate::features::raid_detection::reconcile_active_raids;
+use crate::shared::username_cache::{run_username_batch_worker, start_username_batch_worker};
 
 pub fn setup<'a>(
     safe_browsing_api_key: Option<String>,
@@ -27,10 +29,12 @@ pub fn setup<'a>(
     subscriber_client: SubscriberClient,
     guild_configs_cache: Cache<i64, GuildSettings>,
     ctx: &'a Context,
-    _ready: &'a Ready,
+    username_tx: mpsc::Sender<UserUpdate>,
+    username_rx: mpsc::Receiver<UserUpdate>,
+    ready: &'a Ready,
 ) -> Pin<Box<dyn Future<Output=Result<Data, Error>> + Send + 'a>> {
     Box::pin(async move {
-        info!("Logged in as {}", _ready.user.name);
+        info!("Logged in as {}", ready.user.name);
 
         let active_tickets_cache = Cache::new(20_000);
 
@@ -44,11 +48,11 @@ pub fn setup<'a>(
                 active_tickets_cache.insert(channel_id, ()).await;
             }
         }
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (tx, rx) = mpsc::unbounded_channel();
 
         debug!("Hydrated {} active tickets into local cache.", active_tickets_cache.entry_count());
 
-        start_jobs(&pool, &redis_client, &subscriber_client, &guild_configs_cache, ctx, &active_tickets_cache, rx);
+        start_jobs(&pool, &redis_client, &subscriber_client, &guild_configs_cache, ctx, &active_tickets_cache, rx, username_rx);
 
         let spam_tracker = SpamTracker::new(redis_client.clone());
         let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
@@ -68,6 +72,7 @@ pub fn setup<'a>(
             audit_log_cache,
             shared_secret,
             domain,
+            username_buf_tx: username_tx,
         };
 
         if let Err(e) = reconcile_active_raids(&ctx, &data).await {
@@ -78,7 +83,7 @@ pub fn setup<'a>(
     })
 }
 
-pub fn start_jobs(db: &Pool<Postgres>, redis_client: &Client, subscriber_client: &SubscriberClient, guild_configs_cache: &Cache<i64, GuildSettings>, ctx: &Context, active_tickets_cache: &Cache<u64, ()>, rx: UnboundedReceiver<TicketLogPayload>) {
+pub fn start_jobs(db: &Pool<Postgres>, redis_client: &Client, subscriber_client: &SubscriberClient, guild_configs_cache: &Cache<i64, GuildSettings>, ctx: &Context, active_tickets_cache: &Cache<u64, ()>, rx: UnboundedReceiver<TicketLogPayload>, username_rx: mpsc::Receiver<UserUpdate>) {
     sync_tickets(
         &redis_client,
         &subscriber_client,
@@ -112,6 +117,8 @@ pub fn start_jobs(db: &Pool<Postgres>, redis_client: &Client, subscriber_client:
     start_giveaway_worker(db.clone(), ctx.http.clone());
 
     start_birthday_worker(db.clone(), redis_client.clone(), guild_configs_cache.clone(), ctx.clone());
+
+    start_username_batch_worker(db.clone(), username_rx);
 }
 
 pub struct ShardManagerContainer;

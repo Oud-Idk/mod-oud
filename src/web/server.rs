@@ -27,6 +27,7 @@ pub async fn start_web_server(
     subscriber_client: SubscriberClient,
     guild_configs: Cache<i64, GuildSettings>,
     tx: broadcast::Sender<LogEvent>,
+    username_tx: tokio::sync::mpsc::Sender<crate::UserUpdate>,
 ) -> Result<(), Error> {
     if let Err(e) = live_feed::start_live_feed_subscriber(subscriber_client, tx.clone()).await {
         error!(error = ?e, "Failed to start live feed subscriber");
@@ -53,7 +54,8 @@ pub async fn start_web_server(
         shared_secret,
         cf_secret_key,
         hc_secret_key,
-        hc_site_key
+        hc_site_key,
+        username_buf_tx: username_tx,
     });
 
     let app = get_router(cors, shared_state);

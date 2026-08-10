@@ -3,7 +3,6 @@ use crate::core::config::settings::get_settings;
 use crate::features::invite_tracking::store_member_invite;
 use crate::features::join_leave::types::WelcomeConfig;
 use crate::features::join_leave::{database, log_join_to_db, messages, send};
-use crate::shared::store_username_relation;
 use crate::{Data, Error};
 use serenity::all::{ChannelId, Context, EditMember, GuildId, Member, RoleId, User};
 use std::collections::HashSet;
