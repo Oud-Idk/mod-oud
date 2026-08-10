@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
-use serenity::all::{ChannelId, Context, Http, Mentionable, Message, PartialMember, RoleId};
+use serenity::all::{ChannelId, Context, CreateThread, Http, Mentionable, Message, PartialMember, RoleId};
 use crate::Data;
 use anyhow::{Context as _, Result};
 use serenity::builder::CreateMessage;
@@ -31,6 +31,7 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
         return Ok(())
     };
 
+
     for attachment in &message.attachments {
         let Some(mime) = attachment.content_type.as_deref() else {
             trace!("Attachment missing content type.");
@@ -48,6 +49,20 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
     }
 
     trace!("Processing valid media-only channel message");
+
+    if let Some(thread_name_template) = config.thread_name_template {
+        if !config.auto_thread {
+            return Ok(())
+        }
+
+        let thread_name = thread_name_template
+            .replace("{user}", message.author.name.as_str())
+            .replace("{timestamp}", message.timestamp.to_rfc3339().unwrap_or_default().as_str());
+
+        let builder = CreateThread::new(thread_name);
+
+        ctx.http.create_thread_from_message(message.channel_id, message.id, &builder, None).await?;
+    }
 
     Ok(())
 }
