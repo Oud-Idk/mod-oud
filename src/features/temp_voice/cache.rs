@@ -27,27 +27,3 @@ pub async fn find_active_temp_vc(
         None => Ok(Err("You don't currently have an active temp voice channel.")),
     }
 }
-
-pub async fn store_user_vc_on_join(data: &Data, guild_id: GuildId, channel_id: ChannelId, user_id: UserId) -> Result<(), Error> {
-    let guild_vc_key = keys::guild_vc_key(guild_id);
-    let redis = &data.redis;
-    let _: () = redis.hset(&guild_vc_key, (user_id.get(), channel_id.get())).await?;
-
-    Ok(())
-}
-
-pub async fn delete_user_vc_on_leave(data: &Data, guild_id: GuildId, user_id: UserId) -> Result<(), Error> {
-    let guild_vc_key = keys::guild_vc_key(guild_id);
-    let redis = &data.redis;
-    let _: () = redis.hdel(&guild_vc_key, user_id.get()).await?;
-
-    Ok(())
-}
-
-pub async fn get_user_vc(data: &Data, guild_id: GuildId, user_id: UserId) -> Result<Option<ChannelId>, Error> {
-    let guild_vc_key = keys::guild_vc_key(guild_id);
-    let redis = &data.redis;
-    let channel_id: Option<u64> = redis.hget(&guild_vc_key, user_id.get()).await?;
-
-    Ok(channel_id.map(ChannelId::new))
-}

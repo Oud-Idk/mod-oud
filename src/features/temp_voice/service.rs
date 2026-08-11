@@ -1,7 +1,8 @@
-use crate::features::temp_voice::cache::get_user_vc;
 use crate::features::temp_voice::database::get_hub_info_by_category;
 use crate::features::temp_voice::keys;
+use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 use crate::features::temp_voice::placeholders::replace_channel_placeholders;
+use crate::shared::voice_state::get_user_vc_in_guild;
 use crate::{Data, Error};
 use anyhow::Context as _;
 use fred::clients::Client as RedisClient;
@@ -9,7 +10,6 @@ use fred::interfaces::{HashesInterface, KeysInterface};
 use fred::prelude::Expiration;
 use serenity::all::{Channel, ChannelId, Context, EditChannel, EditMember, GuildId, Http, Member, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
 use sqlx::PgPool;
-use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 
 /// Service: Rename Temp Voice Channel
 pub async fn rename_temp_vc(
@@ -228,7 +228,7 @@ pub async fn initiate_temp_vc_transfer(
         return Ok("You can't transfer to yourself!".to_string());
     }
 
-    match get_user_vc(data, guild_id, new_owner_id).await? {
+    match get_user_vc_in_guild(data, guild_id, new_owner_id).await? {
         None => {
             tracing::debug!(
                 "Target user {} is not present in channel {}",

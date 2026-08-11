@@ -1,14 +1,15 @@
-use std::sync::Arc;
-use std::time::Duration;
-use serenity::all::{ChannelId, Context, CreateThread, Http, Mentionable, Message, PartialMember, RoleId};
 use crate::Data;
-use anyhow::{Context as _, Result};
-use serenity::builder::CreateMessage;
-use tokio::time;
-use tracing::{trace, debug, warn};
 use crate::features::media_only::cache::get_channel_media;
 use crate::features::media_only::types::MediaOnlyChannel;
+use crate::features::media_only::violation;
 use crate::shared::messages::remove_urls;
+use anyhow::{Context as _, Result};
+use serenity::all::{ChannelId, Context, CreateThread, Http, Mentionable, Message, PartialMember, RoleId};
+use serenity::builder::CreateMessage;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::time;
+use tracing::{debug, trace, warn};
 
 fn has_matching_role(member: &Box<PartialMember>, roles: &[RoleId]) -> bool {
     member.roles.iter().any(|role_id| {
@@ -27,7 +28,7 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
     let (text, urls) = remove_urls(&message.content);
 
     if analyze_initial_text(&message, &config, text, urls) {
-        handle_violation(&ctx, &message, &config).await?;
+        violation::handle_violation(&ctx, &message, &config).await?;
         return Ok(())
     };
 
@@ -35,7 +36,7 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
     for attachment in &message.attachments {
         let Some(mime) = attachment.content_type.as_deref() else {
             trace!("Attachment missing content type.");
-            handle_violation(&ctx, &message, &config).await?;
+            violation::handle_violation(&ctx, &message, &config).await?;
             return Ok(());
         };
 
@@ -43,7 +44,7 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
 
         if !is_valid {
             trace!("Attachment with mime '{mime}' is not allowed.");
-            handle_violation(&ctx, &message, &config).await?;
+            violation::handle_violation(&ctx, &message, &config).await?;
             return Ok(());
         }
     }
@@ -132,60 +133,3 @@ fn analyze_initial_text(message: &Message, config: &MediaOnlyChannel, text: Stri
     false
 }
 
-async fn handle_violation(ctx: &Context, message: &Message, config: &MediaOnlyChannel) -> Result<()> {
-    let original_content = message.content.as_str();
-
-    let _ = message.delete(ctx).await
-        .inspect_err(|e| warn!(error = ?e, "Couldn't delete message. Was it already deleted?"));
-
-    send_dm_for_content(ctx, message, original_content).await;
-
-    let del_warning = config.delete_warning_after_secs as u64;
-    send_warning(ctx, message, del_warning).await?;
-
-    Ok(())
-}
-
-async fn send_dm_for_content(ctx: &Context, message: &Message, original_content: &str) {
-    let truncated_content = if original_content.chars().count() > 1800 {
-        format!("{}...", &original_content.chars().take(1800).collect::<String>())
-    } else {
-        original_content.to_string()
-    };
-
-    let mut original_dm_content = format!(
-        "Your message has been deleted in {} as that is a media-only channel.\n",
-        message.channel_id.mention(),
-    );
-
-    if !original_content.is_empty() {
-        original_dm_content.push_str(
-            &format!("Original content:\n```\n{}\n```", truncated_content)
-        );
-    }
-
-    let _ = message.author.dm(ctx, CreateMessage::new().content(original_dm_content)).await
-        .inspect_err(|e| debug!(error = ?e, "Couldn't resend message content to user."));
-}
-
-async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> Result<()> {
-    let http_clone = Arc::clone(&ctx.http);
-
-    if del_warning > 0 {
-        let sent_message = message.channel_id.send_message(ctx,
-            CreateMessage::new().content(format!(
-                "{}, Your message has been deleted as this is a media-only channel.",
-                message.author.mention()
-            ))
-        ).await?;
-
-        tokio::spawn(async move {
-            time::sleep(Duration::from_secs(del_warning)).await;
-            let _ = sent_message.delete(http_clone).await
-                .inspect_err(|e|
-                    warn!(error = ?e, "Couldn't delete warning message. Was it already deleted?")
-                );
-        });
-    }
-    Ok(())
-}

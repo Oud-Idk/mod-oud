@@ -19,6 +19,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, error, info};
 use crate::features::birthday::start_birthday_worker;
 use crate::features::giveaways::start_giveaway_worker;
+use crate::features::music::MusicState;
 use crate::features::raid_detection::reconcile_active_raids;
 use crate::shared::username_cache::{run_username_batch_worker, start_username_batch_worker};
 
@@ -31,6 +32,7 @@ pub fn setup<'a>(
     ctx: &'a Context,
     username_tx: mpsc::Sender<UserUpdate>,
     username_rx: mpsc::Receiver<UserUpdate>,
+    reqwest_client: reqwest::Client,
     ready: &'a Ready,
 ) -> Pin<Box<dyn Future<Output=Result<Data, Error>> + Send + 'a>> {
     Box::pin(async move {
@@ -61,6 +63,18 @@ pub fn setup<'a>(
         let shared_secret = env::var("VERIFICATION_SECRET").ok();
         let domain = env::var("DOMAIN").unwrap_or("localhost:3000".to_string());
 
+        let shard_index: u32 = env::var("SHARD_INDEX")
+            .unwrap_or_else(|_| "0".to_string())
+            .parse()
+            .expect("SHARD_INDEX must be a valid u32");
+
+        let total_shards: u32 = env::var("TOTAL_SHARDS")
+            .unwrap_or_else(|_| "1".to_string())
+            .parse()
+            .expect("TOTAL_SHARDS must be a valid u32");
+
+        let music_state = MusicState::default();
+
         let data = Data {
             db: pool,
             redis: redis_client,
@@ -73,6 +87,10 @@ pub fn setup<'a>(
             shared_secret,
             domain,
             username_buf_tx: username_tx,
+            shard_index,
+            total_shards,
+            reqwest_client,
+            music_state,
         };
 
         if let Err(e) = reconcile_active_raids(&ctx, &data).await {

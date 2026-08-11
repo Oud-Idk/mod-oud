@@ -4,7 +4,7 @@ use mod_oud::core::config;
 use mod_oud::core::error::on_error;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::features::live_feed::LogEvent;
-use mod_oud::features::{automod, birthday, custom_commands, general, invite_tracking, leveling, media_only, member_counter, moderation, raid_detection, reporting, temp_voice, tickets, warning};
+use mod_oud::features::{automod, birthday, custom_commands, general, invite_tracking, leveling, media_only, member_counter, moderation, music, raid_detection, reporting, temp_voice, tickets, warning};
 use mod_oud::web::server::start_web_server;
 use mod_oud::{events, Data, Error, UserUpdate};
 use poise::serenity_prelude as serenity;
@@ -15,6 +15,8 @@ use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use fred::rustls;
+use songbird::SerenityInit;
 use tokio::sync::{broadcast, mpsc};
 use tracing::log::LevelFilter;
 use tracing::{debug, info, trace, warn};
@@ -29,6 +31,7 @@ fn main() -> Result<(), Error> {
 }
 
 async fn async_main() -> Result<(), Error> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
     dotenvy::dotenv().ok();
 
     tracing_subscriber::fmt()
@@ -132,6 +135,8 @@ async fn async_main() -> Result<(), Error> {
     subscriber_client.manage_subscriptions();
     debug!("Connected to Redis with Subscriber as {}.", subscriber_client.client_config().username.as_deref().unwrap_or("default"));
 
+    let reqwest_client = reqwest::Client::new();
+
     let http = Arc::new(serenity::Http::new(&token));
 
     let guild_configs = moka::future::Cache::new(5000);
@@ -149,6 +154,7 @@ async fn async_main() -> Result<(), Error> {
             subscriber_client.clone(),
             guild_configs.clone(),
             tx,
+            reqwest_client.clone(),
             username_tx.clone(),
         ).await?;
     }
@@ -216,6 +222,7 @@ async fn async_main() -> Result<(), Error> {
             temp_voice::voice(),
             member_counter::counters(),
             media_only::media_only(),
+            music::music(),
             register(),
         ];
 
@@ -238,13 +245,14 @@ async fn async_main() -> Result<(), Error> {
                 ..Default::default()
             })
             .setup(move |ctx, _ready, _framework| {
-                setup(safe_browsing_api_key, pool, redis_client.clone(), subscriber_client.clone(), guild_configs_for_setup.clone(), ctx, username_tx.clone(), username_rx, _ready)
+                setup(safe_browsing_api_key, pool, redis_client.clone(), subscriber_client.clone(), guild_configs_for_setup.clone(), ctx, username_tx.clone(), username_rx, reqwest_client.clone(), _ready)
             })
             .build();
 
         let mut client = serenity::Client::builder(token, intents)
             .framework(framework)
             .cache_settings(cache_settings)
+            .register_songbird()
             .await?;
 
         {

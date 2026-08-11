@@ -27,6 +27,7 @@ pub async fn start_web_server(
     subscriber_client: SubscriberClient,
     guild_configs: Cache<i64, GuildSettings>,
     tx: broadcast::Sender<LogEvent>,
+    reqwest_client: reqwest::Client,
     username_tx: tokio::sync::mpsc::Sender<crate::UserUpdate>,
 ) -> Result<(), Error> {
     if let Err(e) = live_feed::start_live_feed_subscriber(subscriber_client, tx.clone()).await {
@@ -38,7 +39,6 @@ pub async fn start_web_server(
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
-    let reqwest_client = reqwest::Client::new();
     let shared_secret = env::var("VERIFICATION_SECRET").ok();
     let cf_secret_key = env::var("TURNSTILE_SECRET").ok();
     let hc_secret_key = env::var("HCAPTCHA_SECRET").ok();

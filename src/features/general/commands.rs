@@ -37,6 +37,12 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 
     let runners = shard_manager.runners.lock().await;
 
+    let shard_info_text = format!(
+        "Instance: {}/{}",
+        ctx.data().shard_index + 1,
+        ctx.data().total_shards
+    );
+
     if let Some(runner) = runners.get(&ctx.serenity_context().shard_id) {
         match runner.latency {
             Some(latency) => {
@@ -45,9 +51,10 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
                     "Responding with active gateway latency"
                 );
                 ctx.say(format!(
-                    "Pong!\n{}\n{}\nDon't forget Moka!\n{}\nMemory Usage: {}\nGateway Latency: {}ms\nWritten in Rust <:OwoFerris:1463892004885758014>",
+                    "Pong!\n{}\n{}\n{}\nDon't forget Moka!\n{}\nMemory Usage: {}\nGateway Latency: {}ms\nWritten in Rust <:OwoFerris:1463892004885758014>",
                     db_status,
                     redis_status,
+                    shard_info_text,
                     member_count_text,
                     memory_text,
                     latency.as_millis()
@@ -56,9 +63,10 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
             None => {
                 trace!("Responding without gateway latency (not yet provided by Discord)");
                 ctx.say(format!(
-                    "Pong!\n{}\n{}\nDon't forget Moka!\n{}\nMemory Usage: {}\nGateway Latency: Not **yet** provided by Discord\nWritten in Rust <:OwoFerris:1463892004885758014>",
+                    "Pong!\n{}\n{}\n{}\nDon't forget Moka!\n{}\nMemory Usage: {}\nGateway Latency: Not **yet** provided by Discord\nWritten in Rust <:OwoFerris:1463892004885758014>",
                     db_status,
                     redis_status,
+                    shard_info_text,
                     member_count_text,
                     memory_text,
                 )).await?;

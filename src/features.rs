@@ -21,3 +21,4 @@ pub mod custom_commands;
 pub mod birthday;
 pub mod raid_detection;
 pub mod media_only;
+pub mod music;

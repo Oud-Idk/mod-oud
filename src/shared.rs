@@ -7,6 +7,7 @@ mod serde_helpers;
 pub mod username_cache;
 pub mod pagination;
 pub mod messages;
+pub mod voice_state;
 
 pub use serde_helpers::{string_i64, opt_string_i64, ok_or_none};
 pub use username_cache::{store_username_relation, get_username};

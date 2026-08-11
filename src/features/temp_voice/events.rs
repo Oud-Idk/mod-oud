@@ -1,11 +1,12 @@
 use crate::features::temp_voice;
-use crate::features::temp_voice::{cache, placeholders};
+use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 use crate::features::temp_voice::types::TempVoiceHub;
+use crate::features::temp_voice::{cache, placeholders};
+use crate::shared::voice_state;
 use crate::{Data, Error};
 use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{ChannelId, ChannelType, Context, CreateChannel, GuildChannel, GuildId, Member, UserId, VoiceState};
 use tracing::{debug, trace, warn};
-use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 
 pub async fn handle_log_user_join(
     data: &Data,
@@ -21,11 +22,11 @@ pub async fn handle_log_user_join(
     match new.channel_id {
         Some(channel_id) => {
             // User joined a voice channel
-            cache::store_user_vc_on_join(data, guild_id, channel_id, user_id).await?;
+            voice_state::store_user_vc_on_join(data, guild_id, channel_id, user_id).await?;
         },
         None => {
             // User left a voice channel
-            cache::delete_user_vc_on_leave(data, guild_id, user_id).await?;
+            voice_state::delete_user_vc_on_leave(data, guild_id, user_id).await?;
         },
     }
 

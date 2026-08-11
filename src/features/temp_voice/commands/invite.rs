@@ -1,6 +1,6 @@
 use crate::Context;
-use crate::features::temp_voice::cache::get_user_vc;
 use crate::shared::messages::send_ephemeral;
+use crate::shared::voice_state::get_user_vc_in_guild;
 use anyhow::{Context as _, Result};
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage, Mentionable, User};
 
@@ -15,7 +15,7 @@ pub async fn invite(
 
     let guild_id = ctx.guild_id().with_context(|| "Not in guild")?;
     let author = ctx.author();
-    let Some(vc_id) = get_user_vc(&ctx.data(), guild_id, author.id).await? else {
+    let Some(vc_id) = get_user_vc_in_guild(&ctx.data(), guild_id, author.id).await? else {
         send_ephemeral(&ctx, "Either you are not in a voice channel or it isn't registered in my system. Try rejoining.").await?;
         return Ok(());
     };

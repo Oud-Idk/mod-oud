@@ -3,11 +3,6 @@ use serenity::all::{ChannelId, GuildId};
 pub fn temp_vc_owners_key(guild_id: GuildId) -> String {
     format!("temp_vc_owners:{}", guild_id)
 }
-
-pub fn guild_vc_key(guild_id: GuildId) -> String {
-    format!("vc:{guild_id}")
-}
-
 pub fn pending_transfer_key(channel_id: ChannelId) -> String {
     format!("temp_vc_pending_transfer:{}", channel_id)
 }

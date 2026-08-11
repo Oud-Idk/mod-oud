@@ -4,6 +4,7 @@ use crate::features::message_logging::CachedAuditLogs;
 use crate::features::tickets::TicketLogPayload;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
+use crate::features::music::MusicState;
 
 pub mod core;
 pub mod events;
@@ -31,5 +32,9 @@ pub struct Data {
     pub ticket_log_tx: UnboundedSender<TicketLogPayload>,
     pub shared_secret: Option<String>,
     pub domain: String,
-    pub username_buf_tx: tokio::sync::mpsc::Sender<UserUpdate>
+    pub username_buf_tx: tokio::sync::mpsc::Sender<UserUpdate>,
+    pub shard_index: u32,
+    pub total_shards: u32,
+    pub reqwest_client: reqwest::Client,
+    pub music_state: MusicState,
 }

@@ -4,6 +4,7 @@ use crate::shared::store_username_relation;
 use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::FullEvent;
+use crate::shared::voice_state::sync_guild_voice_state;
 
 pub async fn dispatch_events(
     ctx: &serenity::Context,
@@ -84,6 +85,7 @@ pub async fn dispatch_events(
 
         FullEvent::GuildCreate { guild, .. } => {
             invite_tracking::fetch_current_invites(ctx, guild, data).await?;
+            sync_guild_voice_state(guild, data).await?;
         }
 
         FullEvent::InviteCreate { data: invite_data } => {
