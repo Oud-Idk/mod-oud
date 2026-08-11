@@ -8,7 +8,8 @@ use tracing::debug;
 use crate::core::config::state::Context;
 use crate::features::music::actor::GuildCommand;
 use crate::features::music::player::format_duration;
-use crate::features::music::state::{QueueAddOutcome, StartedTrackInfo};
+use crate::features::music::state::{PlayOutcome, QueueAddOutcome, StartedTrackInfo};
+use crate::shared::pagination::paginate;
 use crate::shared::voice_state::get_user_vc_in_guild;
 
 const BRAND_COLOR: u32 = 0x4076f5;
@@ -114,18 +115,30 @@ pub async fn play(
     let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
-    let info = p.dispatch(|respond| GuildCommand::Play {
+    let outcome = p.dispatch(|respond| GuildCommand::Play {
         query,
         vc_channel_id,
         requested_by: ctx.author().clone(),
         respond,
     }).await?;
 
-    ctx.send(CreateReply::default().embed(track_embed(
-        ctx.author(),
-        format!("Playing {}", info.title),
-        info.thumbnail,
-    ))).await?;
+    match outcome {
+        PlayOutcome::Single(info) => {
+            ctx.send(CreateReply::default().embed(track_embed(
+                ctx.author(),
+                format!("Playing {}", info.title),
+                info.thumbnail,
+            ))).await?;
+        }
+        PlayOutcome::Playlist { first_track, count } => {
+            ctx.send(CreateReply::default().embed(track_embed(
+                ctx.author(),
+                format!("Playing {} (and queued {} remaining playlist tracks)", first_track.title, count - 1),
+                first_track.thumbnail,
+            ))).await?;
+        }
+    }
+
 
     Ok(())
 }
@@ -246,17 +259,21 @@ pub async fn add(
                 info.thumbnail,
             ))).await?;
         }
+        QueueAddOutcome::PlaylistQueued { count, first_track } => {
+            ctx.send(CreateReply::default().embed(track_embed(
+                ctx.author(),
+                format!("Queued {} tracks from Spotify Playlist!", count),
+                first_track.thumbnail,
+            ))).await?;
+        }
     }
 
     Ok(())
 }
 
-/// Lists all currently queued tracks.
+/// Lists all currently queued tracks with interactive pagination buttons!
 #[poise::command(slash_command, guild_only)]
-pub async fn list(
-    ctx: Context<'_>,
-    #[description = "Page number to view"] page: Option<usize>,
-) -> Result<()> {
+pub async fn list(ctx: Context<'_>) -> Result<()> {
     let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
 
     let snapshot = p.dispatch(|respond| GuildCommand::QueueList { respond }).await?;
@@ -270,45 +287,60 @@ pub async fn list(
     let total_tracks = snapshot.queue.len();
     let total_pages = total_tracks.div_ceil(per_page).max(1);
 
-    let page = page.unwrap_or(1).clamp(1, total_pages);
-    let start_idx = (page - 1) * per_page;
-    let end_idx = (start_idx + per_page).min(total_tracks);
+    paginate(ctx, total_pages, move |page_idx| {
+        let page = page_idx + 1; // 1-based page index for UI display
+        let start_idx = page_idx * per_page;
+        let end_idx = (start_idx + per_page).min(total_tracks);
 
-    let mut description = String::new();
+        let mut description = String::new();
 
-    if let Some(ref meta) = snapshot.current_meta {
-        let title = meta.title.as_deref().unwrap_or("Untitled");
-        let duration = format_duration(meta.duration);
-        let url = meta.source_url.as_deref().unwrap_or("#");
-        description.push_str(&format!("**Now Playing:**\n[{}]({}) | `{}`\n\n", title, url, duration));
-    }
+        if let Some(ref meta) = snapshot.current_meta {
+            let title = meta.title.as_deref().unwrap_or("Untitled");
+            let duration = format_duration(meta.duration);
 
-    if snapshot.queue.is_empty() {
-        description.push_str("**Up Next:**\nNo tracks in queue.");
-    } else {
-        description.push_str(&format!("**Up Next (Page {}/{}):**\n", page, total_pages));
-        for (i, track) in snapshot.queue[start_idx..end_idx].iter().enumerate() {
-            let track_num = start_idx + i + 1;
-            let title = track.metadata.title.as_deref().unwrap_or("Untitled");
-            let duration = format_duration(track.metadata.duration);
-            let url = track.metadata.source_url.as_deref().unwrap_or("#");
-            description.push_str(&format!(
-                "`{}.` [{}]({}) | `{}` (Requested by **{}**)\n",
-                track_num, title, url, duration, track.requested_by
-            ));
+            let title_fmt = match &meta.source_url {
+                Some(url) if url != "#" => format!("[{}]({})", title, url),
+                _ => format!("**{}**", title),
+            };
+
+            description.push_str(&format!("**Now Playing:**\n{} | `{}`\n\n", title_fmt, duration));
         }
-    }
 
-    let embed = CreateEmbed::new()
-        .title("Music Queue")
-        .description(description)
-        .color(BRAND_COLOR)
-        .footer(CreateEmbedFooter::new(format!(
-            "Total queued tracks: {} | Page {}/{}",
-            total_tracks, page, total_pages
-        )));
+        if snapshot.queue.is_empty() {
+            description.push_str("**Up Next:**\nNo tracks in queue.");
+        } else {
+            description.push_str(&format!("**Up Next (Page {}/{}):**\n", page, total_pages));
+            for (i, track) in snapshot.queue[start_idx..end_idx].iter().enumerate() {
+                let track_num = start_idx + i + 1;
+                let title = track.metadata.title.as_deref().unwrap_or("Untitled");
 
-    ctx.send(CreateReply::default().embed(embed)).await?;
+                let title_fmt = match &track.metadata.source_url {
+                    Some(url) if url != "#" => format!("[{}]({})", title, url),
+                    _ => format!("**{}**", title),
+                };
+
+                let duration_fmt = match track.metadata.duration {
+                    Some(_) => format!(" | `{}`", format_duration(track.metadata.duration)),
+                    None => String::new(),
+                };
+
+                description.push_str(&format!(
+                    "`{}.` {}{} (Requested by **{}**)\n",
+                    track_num, title_fmt, duration_fmt, track.requested_by
+                ));
+            }
+        }
+
+        CreateEmbed::new()
+            .title("Music Queue")
+            .description(description)
+            .color(BRAND_COLOR)
+            .footer(CreateEmbedFooter::new(format!(
+                "Total queued tracks: {} | Page {}/{}",
+                total_tracks, page, total_pages
+            )))
+    }).await?;
+
     Ok(())
 }
 

@@ -16,6 +16,15 @@ pub struct StartedTrackInfo {
 pub enum QueueAddOutcome {
     Played(StartedTrackInfo),
     Queued(StartedTrackInfo),
+    PlaylistQueued { count: usize, first_track: StartedTrackInfo },
+}
+
+pub enum PlayOutcome {
+    Single(StartedTrackInfo),
+    Playlist {
+        first_track: StartedTrackInfo,
+        count: usize,
+    },
 }
 
 #[derive(Clone)]
