@@ -1,10 +1,11 @@
-use songbird::{Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent};
-use songbird::input::{Compose, YoutubeDl};
+use songbird::{Event, EventContext, EventHandler as VoiceEventHandler};
 use serenity::all::GuildId;
 use std::sync::Arc;
 use songbird::Call;
 use tokio::sync::Mutex;
+use tracing::error;
 use uuid::Uuid;
+use crate::features::music::player::PlaybackServices;
 use crate::features::music::state::MusicState;
 
 pub struct TrackEndHandler {
@@ -34,32 +35,29 @@ impl VoiceEventHandler for TrackEndHandler {
 
         let Some(next) = next else { return None };
 
-        let mut src = YoutubeDl::new(self.reqwest_client.clone(), next.query.clone());
-        let metadata = match src.aux_metadata().await {
-            Ok(m) => m,
-            Err(_) => next.metadata.clone(),
+        let services = PlaybackServices {
+            reqwest_client: &self.reqwest_client,
+            music_state: &self.music_state,
+            guild_id: self.guild_id,
+        };
+        let started = match crate::features::music::player::prepare_and_play(
+            services,
+            &self.call,
+            next.query.clone(),
+            next.requested_by.clone(),
+            Some(next.metadata.clone()),
+        ).await {
+            Ok(started) => started,
+            Err(e) => {
+                error!(guild_id = %self.guild_id, error = ?e, "Failed to autoplay next queued track");
+                return None;
+            }
         };
 
-        let mut handler = self.call.lock().await;
-        let handle = handler.play_input(src.into());
-        let handle_uuid = handle.uuid();
-        drop(handler);
-
-        let _ = handle.add_event(
-            Event::Track(TrackEvent::End),
-            TrackEndHandler {
-                guild_id: self.guild_id,
-                expected_uuid: handle_uuid,
-                call: self.call.clone(),
-                music_state: self.music_state.clone(),
-                reqwest_client: self.reqwest_client.clone(),
-            },
-        );
-
         self.music_state.with_guild(self.guild_id, |p| {
-            p.current = Some(handle);
-            p.current_track = Some(next);
-            p.current_meta = Some(metadata);
+            p.current = Some(started.handle);
+            p.current_track = Some(started.track);
+            p.current_meta = Some(started.metadata);
         }).await;
 
         None

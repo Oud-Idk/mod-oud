@@ -1,15 +1,20 @@
+use std::sync::Arc;
 use std::time::Duration;
-use songbird::Event;
-use songbird::TrackEvent;
-use crate::Context;
-use crate::shared::messages::send_ephemeral;
+
 use anyhow::{bail, Context as _, Result};
 use poise::CreateReply;
-use serenity::all::{CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter};
-use songbird::input::{Compose, Input, YoutubeDl};
-use tracing::{debug, info, warn, error};
-use crate::features::music::events::TrackEndHandler;
-use crate::features::music::state::QueuedTrack;
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, GuildId, User};
+use songbird::Call;
+use songbird::Songbird;
+use songbird::tracks::TrackHandle;
+use tokio::sync::Mutex;
+use tracing::{debug, error, warn};
+
+use crate::Context;
+use crate::features::music::player::OldTrackDisposition;
+use crate::features::music::player::PlaybackServices;
+use crate::features::music::player::{fetch_metadata, install_new_track, prepare_and_play, start_streaming};
+use crate::features::music::state::{MusicState, QueuedTrack};
 use crate::shared::voice_state::get_user_vc_in_guild;
 
 const BRAND_COLOR: u32 = 0x4076f5;
@@ -90,7 +95,7 @@ async fn resolve_spotify_url(client: &reqwest::Client, url: &str) -> Option<Stri
                 } else {
                     format!("ytsearch:{}", title)
                 };
-                info!(url = %url, title = %title, author = %author, search_term = %search_term, "Resolved Spotify URL into YouTube search term");
+                debug!(url = %url, title = %title, author = %author, search_term = %search_term, "Resolved Spotify URL into YouTube search term");
                 return Some(search_term);
             } else {
                 warn!(url = %url, "Failed to parse Spotify oembed JSON payload");
@@ -118,6 +123,118 @@ async fn build_query_url(client: &reqwest::Client, query: &str) -> String {
     }
 }
 
+async fn reply(ctx: &Context<'_>, message: impl Into<String>) -> Result<()> {
+    ctx.send(CreateReply::default().content(message)).await?;
+    Ok(())
+}
+
+fn track_embed(author: &User, title: String, thumbnail: Option<String>) -> CreateEmbed {
+    CreateEmbed::new()
+        .author(CreateEmbedAuthor::new(&author.name).icon_url(author.face()))
+        .title(title)
+        .thumbnail(thumbnail.unwrap_or_default())
+        .color(BRAND_COLOR)
+}
+
+/// Resolved guild/songbird/VC prerequisites shared by playback commands.
+struct PlaybackContext {
+    reqwest_client: reqwest::Client,
+    music_state: MusicState,
+    guild_id: GuildId,
+    manager: Arc<Songbird>,
+    vc_channel_id: ChannelId,
+}
+
+impl PlaybackContext {
+    fn services(&self) -> PlaybackServices<'_> {
+        PlaybackServices {
+            reqwest_client: &self.reqwest_client,
+            music_state: &self.music_state,
+            guild_id: self.guild_id,
+        }
+    }
+}
+
+/// Resolves the guild, songbird manager, and the caller's voice channel; replies
+/// (and returns None) when any prerequisite is missing.
+async fn playback_context(ctx: &Context<'_>) -> Result<Option<PlaybackContext>> {
+    let Some(guild_id) = ctx.guild_id() else {
+        warn!(author = %ctx.author().name, "Command invoked outside of a guild");
+        return Ok(None);
+    };
+    let Some(manager) = songbird::get(ctx.serenity_context()).await else {
+        error!("Failed to retrieve Songbird manager");
+        return Err(anyhow::anyhow!("Cannot get songbird manager!"));
+    };
+    let Some(vc_channel_id) = get_user_vc_in_guild(ctx.data(), guild_id, ctx.author().id).await? else {
+        debug!(author = %ctx.author().name, guild_id = %guild_id, "User not in voice channel");
+        reply(ctx, "You are not in any voice channels!").await?;
+        return Ok(None);
+    };
+    Ok(Some(PlaybackContext {
+        reqwest_client: ctx.data().reqwest_client.clone(),
+        music_state: ctx.data().music_state.clone(),
+        guild_id,
+        manager,
+        vc_channel_id,
+    }))
+}
+
+async fn join_call(pb: &PlaybackContext) -> Result<Arc<Mutex<Call>>> {
+    match pb.manager.join(pb.guild_id, pb.vc_channel_id).await {
+        Ok(call) => {
+            debug!(guild_id = %pb.guild_id, vc_channel_id = %pb.vc_channel_id, "Joined voice channel");
+            Ok(call)
+        }
+        Err(e) => {
+            error!(guild_id = %pb.guild_id, vc_channel_id = %pb.vc_channel_id, error = ?e, "Failed to join voice channel");
+            Err(e).context("Failed to join voice channel")
+        }
+    }
+}
+
+/// Claims the per-guild transition lock, replying if another transition is mid-flight.
+async fn require_transition(ctx: &Context<'_>, music_state: &MusicState, guild_id: GuildId) -> Result<bool> {
+    let claimed = music_state.with_guild(guild_id, |p| {
+        if p.transitioning {
+            false
+        } else {
+            p.transitioning = true;
+            true
+        }
+    }).await;
+    if claimed {
+        Ok(true)
+    } else {
+        debug!(guild_id = %guild_id, "Transition lock active; rejecting duplicate command");
+        reply(ctx, "Already starting a track — try again in a moment.").await?;
+        Ok(false)
+    }
+}
+
+async fn release_transition(music_state: &MusicState, guild_id: GuildId) {
+    music_state.with_guild(guild_id, |p| p.transitioning = false).await;
+}
+
+async fn current_handle(music_state: &MusicState, guild_id: GuildId) -> Option<TrackHandle> {
+    music_state.with_guild(guild_id, |p| p.current.clone()).await
+}
+
+/// Fetches the active track handle, replying when nothing is playing.
+async fn require_current(
+    ctx: &Context<'_>,
+    music_state: &MusicState,
+    guild_id: GuildId,
+    message: &str,
+) -> Result<Option<TrackHandle>> {
+    let Some(handle) = current_handle(music_state, guild_id).await else {
+        debug!(guild_id = %guild_id, "Command requested but nothing is playing");
+        reply(ctx, message).await?;
+        return Ok(None);
+    };
+    Ok(Some(handle))
+}
+
 // Parent command
 #[poise::command(slash_command, guild_only, subcommands(
     "play", "skip", "prev", "restart", "stop", "pause", "resume", "queue", "seek"
@@ -142,289 +259,143 @@ pub async fn play(
     ctx: Context<'_>,
     #[description = "YouTube/Spotify URL or search query"] query: String
 ) -> Result<()> {
-    info!(author = %ctx.author().name, query = %query, "Executing /music play command");
+    debug!(author = %ctx.author().name, query = %query, "Executing /music play command");
     ctx.defer().await?;
 
-    let reqwest_client = ctx.data().reqwest_client.clone();
-    let music_state = ctx.data().music_state.clone();
-    let Some(guild_id) = ctx.guild_id() else {
-        warn!("Command invoked outside of a guild");
-        return Ok(());
-    };
-    let Some(manager) = songbird::get(ctx.serenity_context()).await else {
-        error!("Failed to retrieve Songbird manager");
-        bail!("Cannot get songbird manager!");
-    };
-    let Some(vc_channel_id) = get_user_vc_in_guild(&ctx.data(), guild_id, ctx.author().id).await? else {
-        debug!(author = %ctx.author().name, guild_id = %guild_id, "User not in voice channel");
-        send_ephemeral(&ctx, "You are not in any voice channels!").await?;
-        return Ok(());
-    };
-
-    let claimed = music_state.with_guild(guild_id, |p| {
-        if p.transitioning {
-            false
-        } else {
-            p.transitioning = true;
-            true
-        }
-    }).await;
-
-    if !claimed {
-        debug!(guild_id = %guild_id, "Transition lock active; rejecting duplicate play command");
-        send_ephemeral(&ctx, "Already starting a track — try again in a moment.").await?;
+    let Some(pb) = playback_context(&ctx).await? else { return Ok(()) };
+    if !require_transition(&ctx, &pb.music_state, pb.guild_id).await? {
         return Ok(());
     }
 
-    let query_url = build_query_url(&reqwest_client, &query).await;
-    debug!(guild_id = %guild_id, query_url = %query_url, "Fetching metadata via YoutubeDl");
+    let query_url = build_query_url(&pb.reqwest_client, &query).await;
+    debug!(guild_id = %pb.guild_id, query_url = %query_url, "Fetching metadata via YoutubeDl");
 
-    let mut src = YoutubeDl::new(reqwest_client.clone(), query_url.clone());
-    let metadata = match src.aux_metadata().await {
-        Ok(m) => {
-            debug!(guild_id = %guild_id, title = ?m.title, "Aux metadata successfully fetched");
-            m
-        }
+    let call = match join_call(&pb).await {
+        Ok(call) => call,
         Err(e) => {
-            error!(guild_id = %guild_id, error = ?e, "Error fetching track metadata");
-            music_state.with_guild(guild_id, |p| p.transitioning = false).await;
-            return Err(e).context("Error fetching track metadata");
+            release_transition(&pb.music_state, pb.guild_id).await;
+            return Err(e);
         }
     };
 
-    let call_handler = match manager.join(guild_id, vc_channel_id).await {
-        Ok(c) => {
-            debug!(guild_id = %guild_id, vc_channel_id = %vc_channel_id, "Joined voice channel");
-            c
-        }
+    let started = match prepare_and_play(pb.services(), &call, query_url, ctx.author().name.clone(), None).await {
+        Ok(started) => started,
         Err(e) => {
-            error!(guild_id = %guild_id, vc_channel_id = %vc_channel_id, error = ?e, "Failed to join voice channel");
-            music_state.with_guild(guild_id, |p| p.transitioning = false).await;
-            return Err(e).context("Failed to join voice channel");
+            release_transition(&pb.music_state, pb.guild_id).await;
+            return Err(e);
         }
     };
 
-    // Use resolved canonical URL for faster subsequent seeks
-    let resolved_query = metadata.source_url.clone().unwrap_or(query_url);
-    let new_track = QueuedTrack {
-        query: resolved_query,
-        metadata: metadata.clone(),
-        requested_by: ctx.author().name.clone(),
-    };
-
-    let old_handle = music_state.with_guild(guild_id, |p| {
-        if let Some(old_track) = p.current_track.take() {
-            debug!(guild_id = %guild_id, "Pushing active track to history");
-            p.history.push(old_track);
-        }
-        p.current.take()
-    }).await;
-
-    let source: Input = src.into();
-    let handle = {
-        let mut handler = call_handler.lock().await;
-        handler.play_input(source)
-    };
-    let handle_uuid = handle.uuid();
-    debug!(guild_id = %guild_id, uuid = %handle_uuid, "Started playing track input");
-
-    let _ = handle.add_event(
-        Event::Track(TrackEvent::End),
-        TrackEndHandler {
-            guild_id,
-            expected_uuid: handle_uuid,
-            call: call_handler.clone(),
-            music_state: music_state.clone(),
-            reqwest_client: reqwest_client.clone(),
-        },
-    );
-
-    music_state.with_guild(guild_id, |p| {
-        p.current = Some(handle);
-        p.current_track = Some(new_track);
-        p.current_meta = Some(metadata.clone());
-        p.transitioning = false;
-    }).await;
-
-    if let Some(old) = old_handle {
-        debug!(guild_id = %guild_id, "Stopping previous track handle");
-        let _ = old.stop();
+    let title = started.metadata.title.as_deref().unwrap_or("untitled").to_string();
+    let thumbnail = started.metadata.thumbnail.clone();
+    let old_handle = install_new_track(&pb.music_state, pb.guild_id, started, OldTrackDisposition::History).await;
+    if let Some(old_handle) = old_handle {
+        debug!(guild_id = %pb.guild_id, "Stopping previous track handle");
+        let _ = old_handle.stop();
     }
 
-    let track_title = metadata.title.as_deref().unwrap_or("untitled");
-    info!(guild_id = %guild_id, track_title = %track_title, "Now playing track");
-
-    ctx.send(CreateReply::default().embed(CreateEmbed::new()
-        .author(CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face()))
-        .title(format!("Playing {}", track_title))
-        .thumbnail(metadata.thumbnail.unwrap_or_default())
-        .color(BRAND_COLOR)
-    )).await?;
-
+    debug!(guild_id = %pb.guild_id, track_title = %title, "Now playing track");
+    ctx.send(CreateReply::default().embed(track_embed(ctx.author(), format!("Playing {}", title), thumbnail))).await?;
     Ok(())
 }
 
 /// Plays the previously played track from history.
 #[poise::command(slash_command, guild_only)]
 pub async fn prev(ctx: Context<'_>) -> Result<()> {
-    info!(author = %ctx.author().name, "Executing /music prev command");
+    debug!(author = %ctx.author().name, "Executing /music prev command");
     ctx.defer().await?;
 
-    let reqwest_client = ctx.data().reqwest_client.clone();
-    let music_state = ctx.data().music_state.clone();
-    let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
-    let Some(manager) = songbird::get(ctx.serenity_context()).await else {
-        error!("Cannot get songbird manager!");
-        bail!("Cannot get songbird manager!");
-    };
-    let Some(vc_channel_id) = get_user_vc_in_guild(&ctx.data(), guild_id, ctx.author().id).await? else {
-        debug!(author = %ctx.author().name, guild_id = %guild_id, "User not in voice channel");
-        send_ephemeral(&ctx, "You are not in any voice channels!").await?;
-        return Ok(());
-    };
+    let Some(pb) = playback_context(&ctx).await? else { return Ok(()) };
 
-    let prev_track = music_state.with_guild(guild_id, |p| p.history.pop()).await;
-
+    let prev_track = pb.music_state.with_guild(pb.guild_id, |p| p.history.pop()).await;
     let Some(prev_track) = prev_track else {
-        debug!(guild_id = %guild_id, "No history found to play previous track");
-        send_ephemeral(&ctx, "No previous tracks in history.").await?;
+        debug!(guild_id = %pb.guild_id, "No history found to play previous track");
+        reply(&ctx, "No previous tracks in history.").await?;
         return Ok(());
     };
 
-    let call_handler = match manager.join(guild_id, vc_channel_id).await {
-        Ok(c) => c,
-        Err(e) => {
-            error!(guild_id = %guild_id, error = ?e, "Failed to join voice channel for prev command");
-            return Err(e).context("Failed to join voice channel");
-        }
-    };
+    let call = join_call(&pb).await?;
 
-    let old_handle = music_state.with_guild(guild_id, |p| {
-        if let Some(current_track) = p.current_track.take() {
-            debug!(guild_id = %guild_id, "Pushing current track back to front of queue");
-            p.queue.push_front(current_track);
-        }
-        p.current.take()
-    }).await;
+    let started = prepare_and_play(
+        pb.services(),
+        &call,
+        prev_track.query.clone(),
+        prev_track.requested_by.clone(),
+        Some(prev_track.metadata.clone()),
+    ).await?;
 
-    let mut src = YoutubeDl::new(reqwest_client.clone(), prev_track.query.clone());
-    let metadata = match src.aux_metadata().await {
-        Ok(m) => m,
-        Err(_) => prev_track.metadata.clone(),
-    };
-
-    let source: Input = src.into();
-    let handle = {
-        let mut handler = call_handler.lock().await;
-        handler.play_input(source)
-    };
-    let handle_uuid = handle.uuid();
-    debug!(guild_id = %guild_id, uuid = %handle_uuid, "Started playing previous track");
-
-    let _ = handle.add_event(
-        Event::Track(TrackEvent::End),
-        TrackEndHandler {
-            guild_id,
-            expected_uuid: handle_uuid,
-            call: call_handler.clone(),
-            music_state: music_state.clone(),
-            reqwest_client: reqwest_client.clone(),
-        },
-    );
-
-    music_state.with_guild(guild_id, |p| {
-        p.current = Some(handle);
-        p.current_track = Some(prev_track.clone());
-        p.current_meta = Some(metadata.clone());
-    }).await;
-
-    if let Some(old) = old_handle {
-        let _ = old.stop();
+    let title = started.metadata.title.as_deref().unwrap_or("untitled").to_string();
+    let old_handle = install_new_track(&pb.music_state, pb.guild_id, started, OldTrackDisposition::QueueFront).await;
+    if let Some(old_handle) = old_handle {
+        let _ = old_handle.stop();
     }
 
-    let title = metadata.title.unwrap_or_else(|| "untitled".to_string());
-    info!(guild_id = %guild_id, track_title = %title, "Playing previous track");
-    send_ephemeral(&ctx, &format!("Playing previous track: **{}**.", title)).await?;
+    debug!(guild_id = %pb.guild_id, track_title = %title, "Playing previous track");
+    reply(&ctx, &format!("Playing previous track: **{}**.", title)).await?;
     Ok(())
 }
 
 /// Restarts the currently playing track from the beginning.
 #[poise::command(slash_command, guild_only)]
 pub async fn restart(ctx: Context<'_>) -> Result<()> {
-    info!(author = %ctx.author().name, "Executing /music restart command");
-    ctx.defer_ephemeral().await?;
+    debug!(author = %ctx.author().name, "Executing /music restart command");
+    ctx.defer().await?;
 
-    let reqwest_client = ctx.data().reqwest_client.clone();
-    let music_state = ctx.data().music_state.clone();
     let Some(guild_id) = ctx.guild_id() else {
         warn!("Guild ID unavailable for /music restart");
         return Ok(());
     };
+    let music_state = ctx.data().music_state.clone();
 
-    let (current_handle, current_track) = music_state.with_guild(guild_id, |p| {
-        (p.current.clone(), p.current_track.clone())
-    }).await;
-
-    let (Some(old_handle), Some(track)) = (current_handle, current_track) else {
+    let (old_handle, track) = music_state.with_guild(guild_id, |p| (p.current.clone(), p.current_track.clone())).await;
+    let (Some(old_handle), Some(track)) = (old_handle, track) else {
         debug!(guild_id = %guild_id, "Restart command issued, but nothing is playing");
-        send_ephemeral(&ctx, "Nothing is currently playing.").await?;
+        reply(&ctx, "Nothing is currently playing.").await?;
         return Ok(());
     };
 
-    let title = track.metadata.title.clone().unwrap_or_else(|| "untitled".to_string());
     let Some(manager) = songbird::get(ctx.serenity_context()).await else {
         error!("Songbird manager unavailable");
         bail!("Cannot get songbird manager!");
     };
 
     // Reuse existing call handler to avoid VC re-connects
-    let call_handler = match manager.get(guild_id) {
-        Some(c) => c,
+    let call = match manager.get(guild_id) {
+        Some(call) => call,
         None => {
-            let Some(vc_channel_id) = get_user_vc_in_guild(&ctx.data(), guild_id, ctx.author().id).await? else {
-                send_ephemeral(&ctx, "You are not in any voice channels!").await?;
+            let Some(vc_channel_id) = get_user_vc_in_guild(ctx.data(), guild_id, ctx.author().id).await? else {
+                reply(&ctx, "You are not in any voice channels!").await?;
                 return Ok(());
             };
             match manager.join(guild_id, vc_channel_id).await {
-                Ok(c) => c,
+                Ok(call) => call,
                 Err(e) => {
                     error!(guild_id = %guild_id, error = ?e, "Failed to join VC during restart");
-                    send_ephemeral(&ctx, "Failed to join voice channel.").await?;
+                    reply(&ctx, "Failed to join voice channel.").await?;
                     return Err(e).context("Failed to join voice channel");
                 }
             }
         }
     };
 
-    // Direct stream swap (Instant <10ms restart)
-    let mut src = YoutubeDl::new(reqwest_client.clone(), track.query.clone());
-    let source: Input = src.into();
-    let new_handle = {
-        let mut handler = call_handler.lock().await;
-        handler.play_input(source)
+    let requested_by = track.requested_by.clone();
+    let cached_meta = track.metadata.clone();
+    let title = track.metadata.title.clone().unwrap_or_else(|| "untitled".to_string());
+    let services = PlaybackServices {
+        reqwest_client: &ctx.data().reqwest_client,
+        music_state: &music_state,
+        guild_id,
     };
-    let handle_uuid = new_handle.uuid();
-
-    let _ = new_handle.add_event(
-        Event::Track(TrackEvent::End),
-        TrackEndHandler {
-            guild_id,
-            expected_uuid: handle_uuid,
-            call: call_handler.clone(),
-            music_state: music_state.clone(),
-            reqwest_client: reqwest_client.clone(),
-        },
-    );
+    let started = prepare_and_play(services, &call, track.query.clone(), requested_by, Some(cached_meta)).await?;
 
     music_state.with_guild(guild_id, |p| {
-        p.current = Some(new_handle);
+        p.transitioning = false;
+        p.current = Some(started.handle);
     }).await;
 
     let _ = old_handle.stop();
-
-    info!(guild_id = %guild_id, track_title = %title, "Restarted track via direct stream swap");
-    send_ephemeral(&ctx, &format!("Restarted **{}** from the beginning.", title)).await?;
-
+    debug!(guild_id = %guild_id, track_title = %title, "Restarted track via direct stream swap");
+    reply(&ctx, &format!("Restarted **{}** from the beginning.", title)).await?;
     Ok(())
 }
 
@@ -434,124 +405,62 @@ pub async fn add(
     ctx: Context<'_>,
     #[description = "YouTube/Spotify URL or search query"] query: String,
 ) -> Result<()> {
-    info!(author = %ctx.author().name, query = %query, "Executing /music queue add command");
+    debug!(author = %ctx.author().name, query = %query, "Executing /music queue add command");
     ctx.defer().await?;
 
-    let reqwest_client = ctx.data().reqwest_client.clone();
-    let music_state = ctx.data().music_state.clone();
-    let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
-    let Some(manager) = songbird::get(ctx.serenity_context()).await else {
-        error!("Cannot get songbird manager!");
-        bail!("Cannot get songbird manager!");
-    };
-    let Some(vc_channel_id) = get_user_vc_in_guild(&ctx.data(), guild_id, ctx.author().id).await? else {
-        debug!(author = %ctx.author().name, guild_id = %guild_id, "User not in voice channel");
-        send_ephemeral(&ctx, "You are not in any voice channels!").await?;
-        return Ok(());
-    };
-
-    let claimed = music_state.with_guild(guild_id, |p| {
-        if p.transitioning {
-            false
-        } else {
-            p.transitioning = true;
-            true
-        }
-    }).await;
-
-    if !claimed {
-        debug!(guild_id = %guild_id, "Transition lock active; rejecting duplicate add command");
-        send_ephemeral(&ctx, "Already starting a track — try again in a moment.").await?;
+    let Some(pb) = playback_context(&ctx).await? else { return Ok(()) };
+    if !require_transition(&ctx, &pb.music_state, pb.guild_id).await? {
         return Ok(());
     }
 
-    let query_url = build_query_url(&reqwest_client, &query).await;
-    debug!(guild_id = %guild_id, query_url = %query_url, "Fetching track metadata for add command");
+    let query_url = build_query_url(&pb.reqwest_client, &query).await;
+    debug!(guild_id = %pb.guild_id, query_url = %query_url, "Fetching track metadata for add command");
 
-    let mut src = YoutubeDl::new(reqwest_client.clone(), query_url.clone());
-    let metadata = match src.aux_metadata().await {
-        Ok(m) => m,
+    let metadata = match fetch_metadata(pb.services(), &query_url).await {
+        Ok(metadata) => metadata,
         Err(e) => {
-            error!(guild_id = %guild_id, error = ?e, "Error fetching track metadata");
-            music_state.with_guild(guild_id, |p| p.transitioning = false).await;
-            return Err(e).context("Error fetching track metadata");
+            release_transition(&pb.music_state, pb.guild_id).await;
+            return Err(e);
         }
     };
 
-    let call_handler = match manager.join(guild_id, vc_channel_id).await {
-        Ok(c) => c,
+    let call = match join_call(&pb).await {
+        Ok(call) => call,
         Err(e) => {
-            error!(guild_id = %guild_id, vc_channel_id = %vc_channel_id, error = ?e, "Failed to join voice channel");
-            music_state.with_guild(guild_id, |p| p.transitioning = false).await;
-            return Err(e).context("Failed to join voice channel");
+            release_transition(&pb.music_state, pb.guild_id).await;
+            return Err(e);
         }
     };
 
-    let resolved_query = metadata.source_url.clone().unwrap_or(query_url);
-    let new_track = QueuedTrack {
-        query: resolved_query,
-        metadata: metadata.clone(),
-        requested_by: ctx.author().name.clone(),
-    };
-
-    let is_playing = music_state.with_guild(guild_id, |p| p.current.is_some()).await;
+    let title = metadata.title.clone().unwrap_or_else(|| "untitled".to_string());
+    let thumbnail = metadata.thumbnail.clone();
+    let is_playing = pb.music_state.with_guild(pb.guild_id, |p| p.current.is_some()).await;
 
     if is_playing {
-        let title = metadata.title.clone().unwrap_or_else(|| "untitled".to_string());
-        music_state.with_guild(guild_id, |p| {
-            p.queue.push_back(new_track);
+        let track = QueuedTrack {
+            query: metadata.source_url.clone().unwrap_or(query_url),
+            metadata: metadata.clone(),
+            requested_by: ctx.author().name.clone(),
+        };
+        pb.music_state.with_guild(pb.guild_id, |p| {
+            p.queue.push_back(track);
             p.transitioning = false;
         }).await;
 
-        info!(guild_id = %guild_id, track_title = %title, "Queued track to end of queue");
-
-        ctx.send(CreateReply::default().embed(CreateEmbed::new()
-            .author(CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face()))
-            .title(format!("Queued {}", title))
-            .thumbnail(metadata.thumbnail.unwrap_or_default())
-            .color(BRAND_COLOR)
-        )).await?;
-
+        debug!(guild_id = %pb.guild_id, track_title = %title, "Queued track to end of queue");
+        ctx.send(CreateReply::default().embed(track_embed(ctx.author(), format!("Queued {}", title), thumbnail))).await?;
         return Ok(());
     }
 
     // Nothing is playing: start playing immediately
-    let source: Input = src.into();
-    let handle = {
-        let mut handler = call_handler.lock().await;
-        handler.play_input(source)
-    };
-    let handle_uuid = handle.uuid();
-    debug!(guild_id = %guild_id, uuid = %handle_uuid, "Nothing playing; starting track immediately");
+    let started = start_streaming(pb.services(), &call, query_url, metadata, ctx.author().name.clone()).await;
+    let old_handle = install_new_track(&pb.music_state, pb.guild_id, started, OldTrackDisposition::History).await;
+    if let Some(old_handle) = old_handle {
+        let _ = old_handle.stop();
+    }
 
-    let _ = handle.add_event(
-        Event::Track(TrackEvent::End),
-        TrackEndHandler {
-            guild_id,
-            expected_uuid: handle_uuid,
-            call: call_handler.clone(),
-            music_state: music_state.clone(),
-            reqwest_client: reqwest_client.clone(),
-        },
-    );
-
-    music_state.with_guild(guild_id, |p| {
-        p.current = Some(handle);
-        p.current_track = Some(new_track);
-        p.current_meta = Some(metadata.clone());
-        p.transitioning = false;
-    }).await;
-
-    let title = metadata.title.as_deref().unwrap_or("untitled");
-    info!(guild_id = %guild_id, track_title = %title, "Now playing track via add command");
-
-    ctx.send(CreateReply::default().embed(CreateEmbed::new()
-        .author(CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face()))
-        .title(format!("Playing {}", title))
-        .thumbnail(metadata.thumbnail.unwrap_or_default())
-        .color(BRAND_COLOR)
-    )).await?;
-
+    debug!(guild_id = %pb.guild_id, track_title = %title, "Now playing track via add command");
+    ctx.send(CreateReply::default().embed(track_embed(ctx.author(), format!("Playing {}", title), thumbnail))).await?;
     Ok(())
 }
 
@@ -561,7 +470,7 @@ pub async fn list(
     ctx: Context<'_>,
     #[description = "Page number to view"] page: Option<usize>,
 ) -> Result<()> {
-    info!(author = %ctx.author().name, page = ?page, "Executing /music queue list command");
+    debug!(author = %ctx.author().name, page = ?page, "Executing /music queue list command");
     ctx.defer().await?;
     let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
     let music_state = ctx.data().music_state.clone();
@@ -572,7 +481,7 @@ pub async fn list(
 
     if current_meta.is_none() && queue_snapshot.is_empty() {
         debug!(guild_id = %guild_id, "Queue is empty and nothing is currently playing");
-        send_ephemeral(&ctx, "The queue is currently empty and nothing is playing.").await?;
+        reply(&ctx, "The queue is currently empty and nothing is playing.").await?;
         return Ok(());
     }
 
@@ -628,7 +537,7 @@ pub async fn list(
 /// Clears all tracks from the queue.
 #[poise::command(slash_command, guild_only)]
 pub async fn clear(ctx: Context<'_>) -> Result<()> {
-    info!(author = %ctx.author().name, "Executing /music queue clear command");
+    debug!(author = %ctx.author().name, "Executing /music queue clear command");
     ctx.defer().await?;
     let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
     let music_state = ctx.data().music_state.clone();
@@ -641,10 +550,10 @@ pub async fn clear(ctx: Context<'_>) -> Result<()> {
 
     if count == 0 {
         debug!(guild_id = %guild_id, "Clear executed on empty queue");
-        send_ephemeral(&ctx, "The queue is already empty.").await?;
+        reply(&ctx, "The queue is already empty.").await?;
     } else {
-        info!(guild_id = %guild_id, cleared_count = count, "Cleared queue");
-        send_ephemeral(&ctx, &format!("Cleared **{}** tracks from the queue.", count)).await?;
+        debug!(guild_id = %guild_id, cleared_count = count, "Cleared queue");
+        reply(&ctx, &format!("Cleared **{}** tracks from the queue.", count)).await?;
     }
 
     Ok(())
@@ -656,14 +565,14 @@ pub async fn remove(
     ctx: Context<'_>,
     #[description = "Track position in queue to remove (1-based index)"] position: usize,
 ) -> Result<()> {
-    info!(author = %ctx.author().name, position = position, "Executing /music queue remove command");
+    debug!(author = %ctx.author().name, position = position, "Executing /music queue remove command");
     ctx.defer().await?;
     let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
     let music_state = ctx.data().music_state.clone();
 
     if position == 0 {
         debug!(guild_id = %guild_id, "Remove requested for invalid position 0");
-        send_ephemeral(&ctx, "Position must be 1 or greater.").await?;
+        reply(&ctx, "Position must be 1 or greater.").await?;
         return Ok(());
     }
 
@@ -678,12 +587,12 @@ pub async fn remove(
     match removed {
         Some(track) => {
             let title = track.metadata.title.unwrap_or_else(|| "untitled".to_string());
-            info!(guild_id = %guild_id, position = position, title = %title, "Removed track from queue");
-            send_ephemeral(&ctx, &format!("Removed **{}** from the queue.", title)).await?;
+            debug!(guild_id = %guild_id, position = position, title = %title, "Removed track from queue");
+            reply(&ctx, &format!("Removed **{}** from the queue.", title)).await?;
         }
         None => {
             warn!(guild_id = %guild_id, position = position, "Position out of bounds for queue removal");
-            send_ephemeral(&ctx, "Invalid position. Track not found in queue.").await?;
+            reply(&ctx, "Invalid position. Track not found in queue.").await?;
         }
     }
 
@@ -696,50 +605,36 @@ pub async fn seek(
     ctx: Context<'_>,
     #[description = "Timestamp or offset to seek (e.g. 1:30, +30, -15, +1:30)"] input: String,
 ) -> Result<()> {
-    info!(author = %ctx.author().name, input = %input, "Executing /music seek command");
-    ctx.defer_ephemeral().await?;
+    debug!(author = %ctx.author().name, input = %input, "Executing /music seek command");
+    ctx.defer().await?;
 
     let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
     let music_state = ctx.data().music_state.clone();
 
-    let (current_handle, current_meta) = music_state.with_guild(guild_id, |p| {
-        (p.current.clone(), p.current_meta.clone())
-    }).await;
-
-    let Some(handle) = current_handle else {
-        debug!(guild_id = %guild_id, "Seek requested but nothing is playing");
-        send_ephemeral(&ctx, "Nothing is currently playing.").await?;
+    let Some(handle) = require_current(&ctx, &music_state, guild_id, "Nothing is currently playing.").await? else {
         return Ok(());
     };
+
+    let current_meta = music_state.with_guild(guild_id, |p| p.current_meta.clone()).await;
 
     let Some(seek_mode) = parse_seek_input(&input) else {
         debug!(input = %input, "Invalid seek timestamp/offset format");
-        send_ephemeral(
+        reply(
             &ctx,
             "Invalid input! Use timestamps like `1:30` or relative offsets like `+30`, `-15`, `+1:30`.",
-        )
-            .await?;
+        ).await?;
         return Ok(());
     };
 
+    let current_pos = handle
+        .get_info()
+        .await
+        .map(|info| info.position)
+        .unwrap_or(Duration::ZERO);
     let target_duration = match seek_mode {
         SeekMode::Absolute(dur) => dur,
-        SeekMode::RelativeForward(delta) => {
-            let current_pos = handle
-                .get_info()
-                .await
-                .map(|info| info.position)
-                .unwrap_or(Duration::ZERO);
-            current_pos + delta
-        }
-        SeekMode::RelativeBackward(delta) => {
-            let current_pos = handle
-                .get_info()
-                .await
-                .map(|info| info.position)
-                .unwrap_or(Duration::ZERO);
-            current_pos.saturating_sub(delta)
-        }
+        SeekMode::RelativeForward(delta) => current_pos + delta,
+        SeekMode::RelativeBackward(delta) => current_pos.saturating_sub(delta),
     };
 
     debug!(guild_id = %guild_id, target_secs = target_duration.as_secs(), "Calculated target seek position");
@@ -748,14 +643,13 @@ pub async fn seek(
         if let Some(total_duration) = meta.duration {
             if target_duration > total_duration {
                 warn!(guild_id = %guild_id, target_secs = target_duration.as_secs(), total_secs = total_duration.as_secs(), "Target seek exceeds total track duration");
-                send_ephemeral(
+                reply(
                     &ctx,
                     &format!(
                         "Cannot seek past the end of the track (Duration: `{}`).",
                         format_duration(Some(total_duration))
                     ),
-                )
-                    .await?;
+                ).await?;
                 return Ok(());
             }
         }
@@ -763,16 +657,12 @@ pub async fn seek(
 
     match handle.seek_async(target_duration).await {
         Ok(_) => {
-            info!(guild_id = %guild_id, target_secs = target_duration.as_secs(), "Successfully seeked track");
-            send_ephemeral(
-                &ctx,
-                &format!("Seeked to `{}`.", format_duration(Some(target_duration))),
-            )
-                .await?;
+            debug!(guild_id = %guild_id, target_secs = target_duration.as_secs(), "Successfully seeked track");
+            reply(&ctx, &format!("Seeked to `{}`.", format_duration(Some(target_duration)))).await?;
         }
         Err(e) => {
             error!(guild_id = %guild_id, error = ?e, "Failed seek_async execution");
-            send_ephemeral(&ctx, "Failed to seek in the current audio stream.").await?;
+            reply(&ctx, "Failed to seek in the current audio stream.").await?;
         }
     }
 
@@ -781,15 +671,12 @@ pub async fn seek(
 
 #[poise::command(slash_command, guild_only)]
 pub async fn skip(ctx: Context<'_>) -> Result<()> {
-    info!(author = %ctx.author().name, "Executing /music skip command");
+    debug!(author = %ctx.author().name, "Executing /music skip command");
     ctx.defer().await?;
     let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
     let music_state = ctx.data().music_state.clone();
 
-    let handle = music_state.with_guild(guild_id, |p| p.current.clone()).await;
-    let Some(handle) = handle else {
-        debug!(guild_id = %guild_id, "Skip requested but nothing is playing");
-        send_ephemeral(&ctx, "Nothing is playing.").await?;
+    let Some(handle) = require_current(&ctx, &music_state, guild_id, "Nothing is playing.").await? else {
         return Ok(());
     };
 
@@ -797,17 +684,16 @@ pub async fn skip(ctx: Context<'_>) -> Result<()> {
         p.queue.front().map(|t| t.metadata.title.clone().unwrap_or("untitled".to_string()))
     }).await;
 
-    info!(guild_id = %guild_id, "Stopping active handle to trigger skip");
     handle.stop().context("Failed to skip track")?;
 
     match next_title {
         Some(title) => {
-            info!(guild_id = %guild_id, next_title = %title, "Skipped track; advancing to next track");
-            send_ephemeral(&ctx, &format!("Skipped. Now playing **{}**.", title)).await?;
+            debug!(guild_id = %guild_id, next_title = %title, "Skipped track; advancing to next track");
+            reply(&ctx, &format!("Skipped. Now playing **{}**.", title)).await?;
         }
         None => {
-            info!(guild_id = %guild_id, "Skipped track; queue is now empty");
-            send_ephemeral(&ctx, "Skipped. Queue is empty, nothing left to play.").await?;
+            debug!(guild_id = %guild_id, "Skipped track; queue is now empty");
+            reply(&ctx, "Skipped. Queue is empty, nothing left to play.").await?;
         }
     };
     Ok(())
@@ -815,7 +701,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<()> {
 
 #[poise::command(slash_command, guild_only)]
 pub async fn stop(ctx: Context<'_>) -> Result<()> {
-    info!(author = %ctx.author().name, "Executing /music stop command");
+    debug!(author = %ctx.author().name, "Executing /music stop command");
     ctx.defer().await?;
     let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
     let Some(manager) = songbird::get(ctx.serenity_context()).await else {
@@ -824,7 +710,7 @@ pub async fn stop(ctx: Context<'_>) -> Result<()> {
     };
     let music_state = ctx.data().music_state.clone();
 
-    info!(guild_id = %guild_id, "Clearing queue and stopping active track");
+    debug!(guild_id = %guild_id, "Clearing queue and stopping active track");
     music_state.with_guild(guild_id, |p| {
         p.queue.clear();
         if let Some(finished) = p.current_track.take() {
@@ -836,48 +722,40 @@ pub async fn stop(ctx: Context<'_>) -> Result<()> {
         p.current_meta = None;
     }).await;
 
-    info!(guild_id = %guild_id, "Leaving voice channel");
+    debug!(guild_id = %guild_id, "Leaving voice channel");
     manager.remove(guild_id).await.context("Failed to leave voice channel")?;
-    send_ephemeral(&ctx, "Stopped and left the voice channel.").await?;
+    reply(&ctx, "Stopped and left the voice channel.").await?;
     Ok(())
 }
 
 #[poise::command(slash_command, guild_only)]
 pub async fn pause(ctx: Context<'_>) -> Result<()> {
-    info!(author = %ctx.author().name, "Executing /music pause command");
+    debug!(author = %ctx.author().name, "Executing /music pause command");
     ctx.defer().await?;
     let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
     let music_state = ctx.data().music_state.clone();
 
-    let handle = music_state.with_guild(guild_id, |p| p.current.clone()).await;
-    let Some(handle) = handle else {
-        debug!(guild_id = %guild_id, "Pause requested but nothing is playing");
-        send_ephemeral(&ctx, "Nothing is playing.").await?;
+    let Some(handle) = require_current(&ctx, &music_state, guild_id, "Nothing is playing.").await? else {
         return Ok(());
     };
 
-    info!(guild_id = %guild_id, "Pausing playback");
     handle.pause().context("Failed to pause")?;
-    send_ephemeral(&ctx, "Paused.").await?;
+    reply(&ctx, "Paused.").await?;
     Ok(())
 }
 
 #[poise::command(slash_command, guild_only)]
 pub async fn resume(ctx: Context<'_>) -> Result<()> {
-    info!(author = %ctx.author().name, "Executing /music resume command");
+    debug!(author = %ctx.author().name, "Executing /music resume command");
     ctx.defer().await?;
     let Some(guild_id) = ctx.guild_id() else { return Ok(()) };
     let music_state = ctx.data().music_state.clone();
 
-    let handle = music_state.with_guild(guild_id, |p| p.current.clone()).await;
-    let Some(handle) = handle else {
-        debug!(guild_id = %guild_id, "Resume requested but nothing is playing");
-        send_ephemeral(&ctx, "Nothing is playing.").await?;
+    let Some(handle) = require_current(&ctx, &music_state, guild_id, "Nothing is playing.").await? else {
         return Ok(());
     };
 
-    info!(guild_id = %guild_id, "Resuming playback");
     handle.play().context("Failed to resume")?;
-    send_ephemeral(&ctx, "Resumed.").await?;
+    reply(&ctx, "Resumed.").await?;
     Ok(())
 }
