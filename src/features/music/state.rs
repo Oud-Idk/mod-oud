@@ -13,6 +13,17 @@ pub struct StartedTrackInfo {
     pub thumbnail: Option<String>,
 }
 
+pub enum QueueAddOutcome {
+    Played(StartedTrackInfo),
+    Queued(StartedTrackInfo),
+}
+
+#[derive(Clone)]
+pub struct QueueSnapshot {
+    pub current_meta: Option<AuxMetadata>,
+    pub queue: Vec<QueuedTrack>,
+}
+
 #[derive(Clone, Debug)]
 pub struct QueuedTrack {
     pub query: String,
