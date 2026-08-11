@@ -1,8 +1,9 @@
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
 use crate::features::message_logging::cache::{fetch_dist_cached_message, fetch_dist_edit_details};
 use crate::features::message_logging::filters;
 use crate::features::message_logging::types::{CachedAuditLogs, DeletedMessagePayload, ModifiedMessagePayload};
-use crate::{Data, Error, features};
+use crate::features;
 use fred::interfaces::FredResult;
 use serenity::all::{MessageAction, audit_log};
 use std::sync::Arc;
@@ -106,14 +107,14 @@ pub async fn message_log_delete(
     channel_id: &serenity::all::ChannelId,
     deleted_message_id: &serenity::all::MessageId,
     guild_id: &Option<serenity::all::GuildId>,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     trace!("Received message delete event.");
     let Some(g_id) = guild_id.map(|id| id.get() as i64) else {
         return Ok(());
     };
 
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, g_id).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, g_id).await?;
     let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };
@@ -126,7 +127,7 @@ pub async fn message_log_delete(
 
     let Some(msg) = (match filters::fetch_cached_message(&ctx.cache, channel_id, deleted_message_id) {
         Some(local_msg) => Some(local_msg),
-        None => fetch_dist_cached_message(&data.redis, *channel_id, *deleted_message_id).await?
+        None => fetch_dist_cached_message(&data.core.redis, *channel_id, *deleted_message_id).await?
     }) else {
         return Ok(());
     };
@@ -135,9 +136,9 @@ pub async fn message_log_delete(
         return Ok(());
     }
 
-    let pool = data.db.clone();
-    let redis = data.redis.clone();
-    let audit_log_cache = data.audit_log_cache.clone();
+    let pool = data.core.db.clone();
+    let redis = data.core.redis.clone();
+    let audit_log_cache = data.caches.audit_logs.clone();
     let ctx_clone = ctx.clone();
     let msg_clone = msg;
     let guild_id_opt = *guild_id;
@@ -205,19 +206,19 @@ pub async fn log_message_update(
     old_if_available: Option<&serenity::all::Message>,
     new: Option<&serenity::all::Message>,
     event: &serenity::all::MessageUpdateEvent,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     trace!("Received message update event.");
 
-    let redis = &data.redis;
-    let db = &data.db;
+    let redis = &data.core.redis;
+    let db = &data.core.db;
 
     let Some(g_id) = event.guild_id.map(|id| id.get() as i64) else {
         debug!("Message updated outside of a guild context; skipping logging");
         return Ok(());
     };
 
-    let settings = get_settings(db, redis, &data.guild_configs, g_id).await?;
+    let settings = get_settings(db, redis, &data.core.guild_configs_cache, g_id).await?;
     let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };
@@ -248,7 +249,7 @@ pub async fn log_message_update(
     }
 
     debug!("Inserting message modification history into the database");
-    features::message_logging::database::insert_modified_messages(&data.db, &details, g_id).await?;
+    features::message_logging::database::insert_modified_messages(&data.core.db, &details, g_id).await?;
 
     let payload = ModifiedMessagePayload {
         id: details.msg_id,

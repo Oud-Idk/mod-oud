@@ -1,9 +1,10 @@
 use super::database::log_automod_event;
-use crate::{Data, UserUpdate};
 use crate::core::config::settings::GuildSettings;
+use crate::core::config::state::BotData;
 use crate::features::automod::types::{BaseRule, RuleAction};
 use crate::features::moderation::issue_mute;
 use crate::features::warning::issue_warning;
+use crate::shared::username_cache::UserUpdate;
 use serenity::all::{ChannelId, CreateMessage, Mentionable, Message, Timestamp, User};
 use std::time::Duration;
 use tracing::{debug, error, info, instrument, trace, warn};
@@ -15,7 +16,7 @@ use tracing::{debug, error, info, instrument, trace, warn};
 )]
 pub async fn execute_rule_actions(
     ctx: &serenity::all::Context,
-    data: &Data,
+    data: &BotData,
     message: &Message,
     base: &BaseRule,
     rule_name: &str,
@@ -28,7 +29,7 @@ pub async fn execute_rule_actions(
     debug!(?actions_taken, "Executing configured actions for matched rule");
 
     if should_warn.unwrap_or(true) {
-        if let Err(e) = log_automod_event(&data.db, message, rule_name, trigger_content, &actions_taken).await {
+        if let Err(e) = log_automod_event(&data.core.db, message, rule_name, trigger_content, &actions_taken).await {
             error!(error = %e, "Failed to log automod event");
         }
     } // This if statement is to prevent spamming the shit out of my poor database
@@ -40,7 +41,7 @@ async fn handle_automod(
     ctx: &serenity::all::Context,
     message: &Message,
     base: &BaseRule,
-    data: &Data,
+    data: &BotData,
     rule_name: &str,
     should_warn: Option<bool>,
     custom_dm_message: Option<&str>,
@@ -56,10 +57,10 @@ async fn handle_automod(
                 }
             }
             RuleAction::Warn => {
-                apply_warning(ctx, rule_name, message, &data.db, &data.redis, &data.guild_configs, &data.username_buf_tx).await;
+                apply_warning(ctx, rule_name, message, &data.core.db, &data.core.redis, &data.core.guild_configs_cache, &data.core.username_tx).await;
             }
             RuleAction::Timeout => {
-                apply_mute(ctx, rule_name, message, base, &data.db, &data.redis, &data.guild_configs).await;
+                apply_mute(ctx, rule_name, message, base, &data.core.db, &data.core.redis, &data.core.guild_configs_cache).await;
             }
             RuleAction::RemindPublicly => {
                 if warn_enabled {

@@ -1,7 +1,7 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice::interface::create_ephemeral_msg;
 use crate::features::temp_voice::keys;
 use crate::features::temp_voice::keys::{pending_transfer_key, temp_vc_owners_key};
-use crate::{Data, Error};
 use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId};
 use tracing::{debug, error, info, instrument, warn};
@@ -10,7 +10,7 @@ use tracing::{debug, error, info, instrument, warn};
 pub(crate) async fn handle_accept_transfer(
     ctx: &Context,
     interaction: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let guild_id = match interaction.guild_id {
         Some(g) => g,
@@ -35,7 +35,7 @@ pub(crate) async fn handle_accept_transfer(
         return Ok(());
     };
 
-    let redis = &data.redis;
+    let redis = &data.core.redis;
     let pending_key = pending_transfer_key(channel_id);
     let target_owner_str: Option<String> = redis.get(&pending_key).await?;
 
@@ -160,7 +160,7 @@ pub(crate) async fn handle_accept_transfer(
 pub(crate) async fn handle_decline_transfer(
     ctx: &Context,
     interaction: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let guild_id = match interaction.guild_id {
         Some(g) => g,
@@ -185,7 +185,7 @@ pub(crate) async fn handle_decline_transfer(
         return Ok(());
     };
 
-    let redis = &data.redis;
+    let redis = &data.core.redis;
     let pending_key = pending_transfer_key(channel_id);
     let target_owner_str: Option<String> = redis.get(&pending_key).await?;
 

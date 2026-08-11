@@ -1,11 +1,11 @@
-use crate::{Data, Error};
+use crate::core::config::state::{BotData, Error};
 use fred::clients::Client;
 use fred::interfaces::{FredResult, HashesInterface, KeysInterface, LuaInterface, PubsubInterface, SetsInterface};
 use serenity::all::{ChannelId, GuildChannel};
 use tracing::debug;
 
-pub fn is_ticket_active(data: &Data, channel_id: u64) -> bool {
-    data.active_tickets.contains_key(&channel_id)
+pub fn is_ticket_active(data: &BotData, channel_id: u64) -> bool {
+    data.caches.active_tickets.contains_key(&channel_id)
 }
 
 pub async fn mark_ticket_as_closed_redis(channel_id: ChannelId, channel_id_str: &str, redis: &Client) -> Result<(), Error> {
@@ -62,7 +62,7 @@ pub async fn update_activity_redis(
 }
 
 pub async fn initialize_redis_state(
-    data: &Data,
+    data: &BotData,
     channel_id: ChannelId,
     welcome_msg_id: serenity::all::MessageId,
 ) -> Result<(), Error> {
@@ -74,7 +74,7 @@ pub async fn initialize_redis_state(
         .unwrap_or_default()
         .as_secs();
 
-    let pipeline = data.redis.pipeline();
+    let pipeline = data.core.redis.pipeline();
 
     let _: () = pipeline.sadd("active_tickets", &channel_id_str).await?;
 

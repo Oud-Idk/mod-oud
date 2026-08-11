@@ -22,7 +22,7 @@ pub async fn handle_verification_teardown(
     Path(guild_id_str): Path<String>,
     Json(payload): Json<TeardownVerificationRequest>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let http = &state.http;
+    let http = &state.serenity_http;
 
     let guild_id_u64 = guild_id_str
         .parse::<u64>()

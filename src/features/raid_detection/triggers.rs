@@ -1,13 +1,13 @@
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_lock;
 use crate::features::raid_detection::database;
-use crate::features::raid_detection::implementation::{clear_raid_active, DynamicRaidDetector};
+use crate::features::raid_detection::implementation::{DynamicRaidDetector, clear_raid_active};
 use crate::features::raid_detection::keys;
 use crate::features::raid_detection::raid_end::handle_raid_end;
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::RaidAction;
-use crate::{Data, Error};
 use fred::interfaces::KeysInterface;
 use serenity::all::{ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp};
 use tracing::{debug, error, info, instrument, warn};
@@ -21,7 +21,7 @@ use tracing::{debug, error, info, instrument, warn};
 )]
 pub async fn trigger_raid_manual(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     guild_id_u64: u64,
     mod_username: &str,
 ) -> Result<bool, Error> {
@@ -32,7 +32,7 @@ pub async fn trigger_raid_manual(
     );
 
     let detector = DynamicRaidDetector::new(
-        data.redis.clone(),
+        data.core.redis.clone(),
         60,
         3.0,
         5,
@@ -55,14 +55,14 @@ pub async fn trigger_raid_manual(
             mod_username,
             "Failed to save pre-raid state snapshot during manual raid trigger; rolling back active state"
         );
-        let _ = clear_raid_active(&data.redis, guild_id_u64).await;
+        let _ = clear_raid_active(&data.core.redis, guild_id_u64).await;
         return Err(e);
     }
 
     spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id_u64);
 
     let Some(raid_config) = get_settings(
-        &data.db, &data.redis, &data.guild_configs, guild_id_u64 as i64,
+        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64 as i64,
     ).await?.raid_detection else {
         warn!(
             guild_id = guild_id_u64,
@@ -87,7 +87,7 @@ pub async fn trigger_raid_manual(
             }
             RaidAction::BumpVerification => {
                 info!(guild_id = guild_id_u64, "Bumping server verification to hCaptcha and using auth (manual trigger)");
-                database::bump_verification_to_max(&data.db, guild_id_u64 as i64).await?;
+                database::bump_verification_to_max(&data.core.db, guild_id_u64 as i64).await?;
             }
             RaidAction::PauseInvites { hours } => {
                 info!(guild_id = guild_id_u64, hours, "Pausing server invites (manual trigger)");
@@ -124,7 +124,7 @@ pub async fn trigger_raid_manual(
 #[instrument(skip(ctx, data), fields(guild_id = guild_id_u64))]
 pub async fn resolve_raid_manual(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     guild_id_u64: u64,
 ) -> Result<bool, Error> {
     info!(guild_id = guild_id_u64, "Manual raid resolution requested");
@@ -132,8 +132,8 @@ pub async fn resolve_raid_manual(
     let active_key = keys::raid_active_key(guild_id_u64);
     let snapshot_key = keys::raid_snapshot_key(guild_id_u64);
 
-    let is_active: bool = data.redis.exists(&active_key).await.unwrap_or(false);
-    let has_snapshot: bool = data.redis.exists(&snapshot_key).await.unwrap_or(false);
+    let is_active: bool = data.core.redis.exists(&active_key).await.unwrap_or(false);
+    let has_snapshot: bool = data.core.redis.exists(&snapshot_key).await.unwrap_or(false);
 
     if !is_active && !has_snapshot {
         warn!(
@@ -143,7 +143,7 @@ pub async fn resolve_raid_manual(
         return Ok(false);
     }
 
-    let _: () = data.redis.del(&active_key).await?;
+    let _: () = data.core.redis.del(&active_key).await?;
 
     info!(guild_id = guild_id_u64, "Cleared active raid flag; initiating raid cleanup");
     handle_raid_end(ctx, data, guild_id_u64).await?;

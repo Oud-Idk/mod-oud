@@ -1,14 +1,14 @@
+use crate::core::config::state::{Context, BotData, Error};
 use crate::features::moderation::keys;
-use crate::{Context, Data, Error};
+use crate::shared::locking::acquire_lock;
+use anyhow::Context as _;
+use anyhow::Result;
 use fred::interfaces::KeysInterface;
 use fred::types::SetOptions;
 use serde::{Deserialize, Serialize};
-use serenity::all::{ChannelId, GuildChannel, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, Context as SerenityContext, ChannelType};
+use serenity::all::{ChannelId, ChannelType, Context as SerenityContext, GuildChannel, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId};
 use std::time::{SystemTime, UNIX_EPOCH};
-use anyhow::Context as _;
 use tracing::{debug, trace, warn};
-use crate::shared::locking::acquire_lock;
-use anyhow::Result;
 
 const GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS: u64 = 5;
 
@@ -35,7 +35,7 @@ pub async fn save_pre_lockdown_state(
     guild_id: GuildId,
     channel: &GuildChannel,
     everyone_role_id: RoleId,
-    data: &Data,
+    data: &BotData,
 ) -> Result<()> {
     let key = keys::lockdown_redis_key(guild_id, channel.id);
     let target_kind = PermissionOverwriteType::Role(everyone_role_id);
@@ -58,6 +58,7 @@ pub async fn save_pre_lockdown_state(
         "Attempting write-once cache of pre-lockdown overwrite state"
     );
     let wrote: Option<()> = data
+        .core
         .redis
         .set(key, json, None, Some(SetOptions::NX), false)
         .await?;
@@ -78,13 +79,13 @@ pub async fn save_pre_lockdown_state(
 /// restored and unlocked a second time).
 pub async fn restore_pre_lockdown_state(
     ctx: &SerenityContext,
-    data: &Data,
+    data: &BotData,
     guild_id: GuildId,
     channel_id: ChannelId,
     everyone_role_id: RoleId,
 ) -> Result<()> {
     let key = keys::lockdown_redis_key(guild_id, channel_id);
-    let cached: Option<String> = data.redis.get(&key).await?;
+    let cached: Option<String> = data.core.redis.get(&key).await?;
 
     match cached {
         Some(json) => {
@@ -112,7 +113,7 @@ pub async fn restore_pre_lockdown_state(
                         .await?;
                 }
             }
-            let _: () = data.redis.del(key).await?;
+            let _: () = data.core.redis.del(key).await?;
         }
         None => {
             trace!(
@@ -145,14 +146,14 @@ pub struct GlobalLockdownReport {
 /// rather than as an error.
 pub async fn apply_global_lock(
     ctx: &SerenityContext,
-    data: &Data,
+    data: &BotData,
     guild_id: GuildId,
 ) -> Result<Option<GlobalLockdownReport>> {
     let lock_key = global_sweep_lock_key(guild_id);
     let lock_token = generate_sweep_token();
 
     let guard = match acquire_lock(
-        &data.redis,
+        &data.core.redis,
         &lock_key,
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
@@ -225,14 +226,14 @@ pub async fn apply_global_lock(
 /// rather than as an error.
 pub async fn apply_global_unlock(
     ctx: &SerenityContext,
-    data: &Data,
+    data: &BotData,
     guild_id: GuildId,
 ) -> Result<Option<GlobalLockdownReport>> {
     let lock_key = global_sweep_lock_key(guild_id);
     let lock_token = generate_sweep_token();
 
     let guard = match acquire_lock(
-        &data.redis,
+        &data.core.redis,
         &lock_key,
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,

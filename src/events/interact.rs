@@ -1,9 +1,9 @@
 use crate::features::verification::generate_verification_link;
 
 use crate::features::{reaction_roles, tickets};
-use crate::features::{temp_voice};
+use crate::features::temp_voice;
 
-use crate::{Data, Error};
+use crate::core::config::state::{BotData, Error};
 use poise::serenity_prelude as serenity;
 use serenity::all::Interaction;
 use tracing::{debug, warn};
@@ -11,7 +11,7 @@ use tracing::{debug, warn};
 pub async fn on_interact(
     ctx: &serenity::Context,
     interaction: &Interaction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     match interaction {
         Interaction::Component(component) => {
@@ -37,7 +37,7 @@ pub async fn on_interact(
                     let Some(guild_id) = component.guild_id else {
                         return Ok(());
                     };
-                    let Some(shared_secret) = data.shared_secret.as_deref() else {
+                    let Some(shared_secret) = data.core.config.shared_secret.as_deref() else {
                         warn!("Shared secret not set up for verification");
                         return Ok(());
                     };
@@ -45,7 +45,7 @@ pub async fn on_interact(
                         component.user.id.get(),
                         guild_id.get(),
                         shared_secret.as_bytes(),
-                        data.domain.as_str(),
+                        data.core.config.domain.as_str(),
                     );
 
                     // Reusing our ephemeral reply helper!

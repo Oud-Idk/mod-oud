@@ -1,23 +1,22 @@
 use std::sync::Arc;
-
+use std::time::Duration;
 use anyhow::{Context as _, Result};
 use serenity::all::GuildId;
-use songbird::Call;
-use songbird::Event;
-use songbird::TrackEvent;
 use songbird::input::{AuxMetadata, Compose, Input, YoutubeDl};
 use songbird::tracks::TrackHandle;
-use tokio::sync::Mutex;
+use songbird::{Call, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent};
+use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, error};
+use uuid::Uuid;
 
-use crate::features::music::events::TrackEndHandler;
-use crate::features::music::state::{MusicState, QueuedTrack};
+use crate::features::music::actor::GuildCommand;
+use crate::features::music::state::{GuildPlayer, QueuedTrack};
 
 /// The bits of the app shared by every playback operation.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PlaybackServices<'a> {
     pub reqwest_client: &'a reqwest::Client,
-    pub music_state: &'a MusicState,
+    pub command_tx: mpsc::Sender<GuildCommand>,
     pub guild_id: GuildId,
 }
 
@@ -34,6 +33,32 @@ pub struct StartedTrack {
     pub handle: TrackHandle,
     pub track: QueuedTrack,
     pub metadata: AuxMetadata,
+}
+
+/// Lightweight handler that notifies the GuildActor when a track ends naturally.
+pub struct TrackEndHandler {
+    pub command_tx: mpsc::Sender<GuildCommand>,
+    pub expected_uuid: Uuid,
+}
+
+pub enum SeekMode {
+    Absolute(Duration),
+    RelativeForward(Duration),
+    RelativeBackward(Duration),
+}
+
+#[serenity::async_trait]
+impl VoiceEventHandler for TrackEndHandler {
+    async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
+        debug!(uuid = %self.expected_uuid, "Track ended event received, notifying GuildActor");
+        let _ = self
+            .command_tx
+            .send(GuildCommand::TrackEnded {
+                uuid: self.expected_uuid,
+            })
+            .await;
+        None
+    }
 }
 
 /// Fetches track metadata for a URL/query without starting playback.
@@ -69,14 +94,12 @@ pub async fn start_streaming(
     let handle_uuid = handle.uuid();
     debug!(guild_id = %services.guild_id, uuid = %handle_uuid, "Started playing track input");
 
+    // Install event listener that sends a command to the Actor when track finishes
     let _ = handle.add_event(
         Event::Track(TrackEvent::End),
         TrackEndHandler {
-            guild_id: services.guild_id,
+            command_tx: services.command_tx.clone(),
             expected_uuid: handle_uuid,
-            call: call.clone(),
-            music_state: services.music_state.clone(),
-            reqwest_client: services.reqwest_client.clone(),
         },
     );
 
@@ -86,7 +109,11 @@ pub async fn start_streaming(
         requested_by,
     };
 
-    StartedTrack { handle, track, metadata }
+    StartedTrack {
+        handle,
+        track,
+        metadata,
+    }
 }
 
 /// Fetches metadata (unless a cached copy is supplied) then immediately streams the source.
@@ -99,31 +126,74 @@ pub async fn prepare_and_play(
 ) -> Result<StartedTrack> {
     let metadata = match cached {
         Some(metadata) => metadata,
-        None => fetch_metadata(services, &query).await?,
+        None => fetch_metadata(services.clone(), &query).await?,
     };
     Ok(start_streaming(services, call, query, metadata, requested_by).await)
 }
 
-/// Swaps the active track in guild state, archiving/re-queueing the old one, and
-/// returns the previous track handle (if any) so the caller can stop it.
-pub async fn install_new_track(
-    music_state: &MusicState,
-    guild_id: GuildId,
+/// Swaps the active track directly inside the `GuildPlayer` state owned by the actor,
+/// archiving/re-queueing the old one, and returning the previous track handle (if any).
+pub fn install_new_track(
+    player: &mut GuildPlayer,
     started: StartedTrack,
     old_disposition: OldTrackDisposition,
 ) -> Option<TrackHandle> {
-    music_state.with_guild(guild_id, |p| {
-        if let Some(old_track) = p.current_track.take() {
-            match old_disposition {
-                OldTrackDisposition::History => p.history.push(old_track),
-                OldTrackDisposition::QueueFront => p.queue.push_front(old_track),
+    if let Some(old_track) = player.current_track.take() {
+        match old_disposition {
+            OldTrackDisposition::History => player.history.push(old_track),
+            OldTrackDisposition::QueueFront => player.queue.push_front(old_track),
+        }
+    }
+    let old_handle = player.current.take();
+    player.current = Some(started.handle);
+    player.current_track = Some(started.track);
+    player.current_meta = Some(started.metadata);
+    old_handle
+}
+
+/// Formats a `Duration` into a human-readable string like `03:45` or `01:15:30`.
+pub fn format_duration(duration: Option<Duration>) -> String {
+    match duration {
+        Some(d) => {
+            let total_secs = d.as_secs();
+            let hours = total_secs / 3600;
+            let mins = (total_secs % 3600) / 60;
+            let secs = total_secs % 60;
+
+            if hours > 0 {
+                format!("{:02}:{:02}:{:02}", hours, mins, secs)
+            } else {
+                format!("{:02}:{:02}", mins, secs)
             }
         }
-        let old_handle = p.current.take();
-        p.current = Some(started.handle);
-        p.current_track = Some(started.track);
-        p.current_meta = Some(started.metadata);
-        p.transitioning = false;
-        old_handle
-    }).await
+        None => "Unknown".to_string(),
+    }
+}
+
+/// Parses a string like "1:30", "01:15:30", or "90" into a `Duration`.
+pub fn parse_timestamp(input: &str) -> Option<Duration> {
+    let input = input.trim();
+
+    // Raw seconds (e.g. "90")
+    if let Ok(secs) = input.parse::<u64>() {
+        return Some(Duration::from_secs(secs));
+    }
+
+    let parts: Vec<&str> = input.split(':').collect();
+    match parts.as_slice() {
+        [mins, secs] => {
+            let m: u64 = mins.parse().ok()?;
+            let s: u64 = secs.parse().ok()?;
+            if s >= 60 { return None; }
+            Some(Duration::from_secs(m * 60 + s))
+        }
+        [hours, mins, secs] => {
+            let h: u64 = hours.parse().ok()?;
+            let m: u64 = mins.parse().ok()?;
+            let s: u64 = secs.parse().ok()?;
+            if m >= 60 || s >= 60 { return None; }
+            Some(Duration::from_secs(h * 3600 + m * 60 + s))
+        }
+        _ => None,
+    }
 }

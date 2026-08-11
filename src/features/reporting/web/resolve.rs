@@ -21,7 +21,7 @@ pub async fn handle_resolve_report(
 ) -> Result<StatusCode, WebError> {
     info!("Resolving report status and notifying reporter");
 
-    let config = get_settings(&state.db, redis, &state.guild_configs, guild_id.get() as i64)
+    let config = get_settings(&state.core.db, redis, &state.core.guild_configs_cache, guild_id.get() as i64)
         .await
         .inspect_err(|e| error!(error = %e, "Failed to resolve guild config"))
         .map_err(|_| WebError::Internal)?;
@@ -35,7 +35,7 @@ pub async fn handle_resolve_report(
         "SELECT reporter_id FROM reported_messages WHERE id = $1",
         cmd.report_id
     )
-        .fetch_one(&state.db)
+        .fetch_one(&state.core.db)
         .await
         .inspect_err(|e| error!(error = ?e, "Failed to retrieve reporter ID from database"))
         .map_err(|e| WebError::Internal)?;
@@ -44,7 +44,7 @@ pub async fn handle_resolve_report(
     let reporter_id = UserId::new(reporter_id_u64);
 
     update_reported_message(
-        &state.db,
+        &state.core.db,
         cmd.report_id,
         ReportUpdate::Status(status.clone()),
     )
@@ -53,7 +53,7 @@ pub async fn handle_resolve_report(
         .map_err(|_| { WebError::Internal })?;
 
     let dm_channel = reporter_id
-        .create_dm_channel(&state.http)
+        .create_dm_channel(&state.serenity_http)
         .await
         .map_err(|e| {
             error!(error = %e, "Failed to open direct message channel to the reporter");
@@ -88,7 +88,7 @@ pub async fn handle_resolve_report(
 
     let send_result = match custom_msg_builder {
         Some(builder) => {
-            dm_channel.send_message(&state.http, builder).await
+            dm_channel.send_message(&state.serenity_http, builder).await
         }
         None => {
             let status_label = match status {
@@ -100,7 +100,7 @@ pub async fn handle_resolve_report(
                 "Hello! Your report (ID: {}) has been resolved. Status: **{}**",
                 cmd.report_id, status_label
             );
-            dm_channel.say(&state.http, fallback_content).await
+            dm_channel.say(&state.serenity_http, fallback_content).await
         }
     };
 

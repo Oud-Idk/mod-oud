@@ -30,7 +30,7 @@ pub async fn handle_edit_reaction_role_message(
     );
 
     let config_id = parse_config_id(&config_id_str)?;
-    let config_row = fetch_reaction_message(&state.db, config_id, &guild_id_str).await?;
+    let config_row = fetch_reaction_message(&state.core.db, config_id, &guild_id_str).await?;
 
     let Some(channel_id_u64) = config_row.channel_id.map(|id| id as u64) else {
         debug!("Channel ID is not specified, skipping.");
@@ -54,7 +54,7 @@ pub async fn handle_edit_reaction_role_message(
 
     match config_row.mode {
         InteractionMode::Button => {
-            let button_components = fetch_and_build_buttons(&state.db, config_row.id).await?;
+            let button_components = fetch_and_build_buttons(&state.core.db, config_row.id).await?;
             if !button_components.is_empty() {
                 edit_builder = edit_builder.components(vec![
                     serenity::all::CreateActionRow::Buttons(button_components),
@@ -69,7 +69,7 @@ pub async fn handle_edit_reaction_role_message(
     }
 
     channel_id
-        .edit_message(&state.http, message_id, edit_builder)
+        .edit_message(&state.serenity_http, message_id, edit_builder)
         .await
         .map_err(|e| {
             warn!(error = ?e, "Failed to edit Discord message");

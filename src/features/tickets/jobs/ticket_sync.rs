@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use fred::types::scan::Scanner;

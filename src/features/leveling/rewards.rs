@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use crate::features::leveling::database::fetch_level_rewards;
 use crate::features::leveling::reward::{apply_role_modifications, determine_role_changes, fetch_member_roles};
 use crate::features::leveling::types::LevelReward;

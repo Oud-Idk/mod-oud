@@ -1,16 +1,16 @@
+use crate::core::config::state::BotData;
 use crate::features::media_only::database::{delete_media_only_from_db, fetch_media_only_from_db, store_media_only_in_db};
 use crate::features::media_only::keys;
 use crate::features::media_only::types::MediaOnlyChannel;
-use crate::{Data};
-use anyhow::{anyhow, Context as _};
+use anyhow::Result;
+use anyhow::{Context as _, anyhow};
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
+use fred::prelude::FredResult;
 use fred::types::Expiration;
 use serenity::all::ChannelId;
-use tracing::{debug, trace, warn};
-use anyhow::Result;
-use fred::prelude::FredResult;
 use sqlx::PgPool;
+use tracing::{debug, trace, warn};
 
 pub async fn store_media_only_channel_redis(redis: &Client, payload: &MediaOnlyChannel) -> Result<()> {
     let key = keys::media_channel_key(ChannelId::from(payload.channel_id as u64));
@@ -23,8 +23,8 @@ pub async fn store_negative_media_channel(redis: &Client, channel_id: ChannelId)
     redis.set(&key, "null", Some(Expiration::EX(60)), None, false).await.context("Failed to store media channel in cache")
 }
 
-pub async fn get_channel_media(data: &Data, channel_id: ChannelId) -> Result<Option<MediaOnlyChannel>> {
-    let redis = &data.redis;
+pub async fn get_channel_media(data: &BotData, channel_id: ChannelId) -> Result<Option<MediaOnlyChannel>> {
+    let redis = &data.core.redis;
     let key = keys::media_channel_key(channel_id);
 
     trace!("Getting media channel from cache");
@@ -37,7 +37,7 @@ pub async fn get_channel_media(data: &Data, channel_id: ChannelId) -> Result<Opt
 
     // Not found in Redis
     trace!("Cache miss; getting from DB");
-    let media_channel_from_db = fetch_media_only_from_db(&data.db, channel_id).await?;
+    let media_channel_from_db = fetch_media_only_from_db(&data.core.db, channel_id).await?;
     if let Some(media_channel_from_db) = media_channel_from_db {
         let _ = store_media_only_channel_redis(redis, &media_channel_from_db).await
             .inspect_err(|e| warn!(error = ?e, "Failed to store media only channel in redis")); // Redis is not too important, ignore Err
@@ -50,9 +50,9 @@ pub async fn get_channel_media(data: &Data, channel_id: ChannelId) -> Result<Opt
     Ok(None)
 }
 
-pub async fn delete_media_only_channel(data: &Data, channel_id: ChannelId) -> Result<bool> {
-    let redis = &data.redis;
-    let db = &data.db;
+pub async fn delete_media_only_channel(data: &BotData, channel_id: ChannelId) -> Result<bool> {
+    let redis = &data.core.redis;
+    let db = &data.core.db;
 
     let rows_affected = delete_media_only_from_db(&db, channel_id).await?;
     if rows_affected == 0 { return Ok(false) }

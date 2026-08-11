@@ -1,11 +1,11 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::automod;
 use crate::features::automod::types::FilterVerdict;
-use crate::{Data, Error};
 use serenity::all::Message;
 
 pub async fn execute_verdict(
     ctx: &serenity::all::Context,
-    data: &Data,
+    data: &BotData,
     message: &Message,
     verdict: FilterVerdict<'_>,
 ) -> Result<bool, Error> {

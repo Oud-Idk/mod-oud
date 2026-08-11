@@ -58,7 +58,7 @@ pub async fn handle_verify(
         return Err((StatusCode::BAD_REQUEST, "Invalid or expired link.".to_string()));
     }
 
-    let settings = get_settings(&state.db, &state.redis, &state.guild_configs, guild_id_u64 as i64).await
+    let settings = get_settings(&state.core.db, &state.core.redis, &state.core.guild_configs_cache, guild_id_u64 as i64).await
         .inspect_err(|e| warn!(error = ?e, "Failed to get settings!"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
@@ -85,7 +85,7 @@ pub async fn handle_verify(
             return Err((StatusCode::UNAUTHORIZED, "Discord authentication required.".to_string()));
         };
 
-        let discord_res = state.req_client
+        let discord_res = state.core.reqwest_client
             .get("https://discord.com/api/users/@me")
             .bearer_auth(token)
             .send()
@@ -114,12 +114,12 @@ pub async fn handle_verify(
 
     match payload.captcha_type {
         CaptchaType::Turnstile => {
-            (verified, reject_reasons) = verify_turnstile(&state.req_client, cf_secret_key, payload.captcha_token.as_str()).await
+            (verified, reject_reasons) = verify_turnstile(&state.core.reqwest_client, cf_secret_key, payload.captcha_token.as_str()).await
                 .inspect_err(|e| warn!(error = ?e, "Failed to verify using Turnstile"))
                 .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
         }
         CaptchaType::HCaptcha => {
-            (verified, reject_reasons) = verify_hcaptcha_token(&payload.captcha_token, &client_ip, &state.req_client, hc_secret_key, hc_site_key).await
+            (verified, reject_reasons) = verify_hcaptcha_token(&payload.captcha_token, &client_ip, &state.core.reqwest_client, hc_secret_key, hc_site_key).await
                 .inspect_err(|e| warn!(error = ?e, "Failed to verify using hCaptcha"))
                 .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
         }
@@ -149,7 +149,7 @@ pub async fn handle_verify(
     let user_id = UserId::from(user_id_u64);
     let guild_id = GuildId::from(guild_id_u64);
 
-    state.http.add_member_role(
+    state.serenity_http.add_member_role(
         guild_id,
         user_id,
         role_id,
@@ -165,7 +165,7 @@ pub async fn handle_verify(
 }
 
 fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (StatusCode, String)> {
-    let Some(shared_secret) = state.shared_secret.as_deref() else {
+    let Some(shared_secret) = state.core.config.shared_secret.as_deref() else {
         error!("VERIFICATION_SECRET environment variable is not set!");
 
         return Err((
@@ -173,7 +173,7 @@ fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (Statu
         ));
     };
 
-    let Some(cf_secret_key) = state.cf_secret_key.as_deref() else {
+    let Some(cf_secret_key) = state.core.config.cf_secret_key.as_deref() else {
         error!("TURNSTILE_SECRET environment variable is not set!");
 
         return Err((
@@ -181,7 +181,7 @@ fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (Statu
         ))
     };
 
-    let Some(hc_secret_key) = state.hc_secret_key.as_deref() else {
+    let Some(hc_secret_key) = state.core.config.hc_secret_key.as_deref() else {
         error!("HCAPTCHA_SECRET environment variable is not set!");
 
         return Err((
@@ -189,7 +189,7 @@ fn get_secrets(state: &Arc<WebState>) -> Result<(&str, &str, &str, &str), (Statu
         ))
     };
 
-    let Some(hc_site_key) = state.hc_site_key.as_deref() else {
+    let Some(hc_site_key) = state.core.config.hc_site_key.as_deref() else {
         error!("HCAPTCHA_SITE_KEY environment variable is not set!");
 
         return Err((

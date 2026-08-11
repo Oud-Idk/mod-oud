@@ -18,7 +18,7 @@ pub async fn handle_delete_message(
 
     info!(channel_id = %ch_id, message_id = %msg_id, "Attempting message deletion");
 
-    match state.http.delete_message(ch_id, msg_id, Some("Deleted via Moderation Dashboard")).await {
+    match state.serenity_http.delete_message(ch_id, msg_id, Some("Deleted via Moderation Dashboard")).await {
         Ok(_) => {
             info!("Discord message deleted successfully");
         }
@@ -36,6 +36,6 @@ pub async fn handle_delete_message(
         }
     }
 
-    update_reported_message(&state.db, cmd.report_id, ReportUpdate::MessageDeleted).await?;
+    update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::MessageDeleted).await?;
     Ok(StatusCode::OK)
 }

@@ -1,3 +1,4 @@
+use crate::core::config::settings::MessageLayout;
 use crate::features::reminder::timings::{RecurrenceRule, calculate_next_trigger};
 use crate::shared::embed::Format;
 use crate::shared::embed::{DiscordEmbed, MessageGetter, create_basic_embed};
@@ -6,10 +7,9 @@ use chrono::{DateTime, NaiveTime, Utc};
 use fred::prelude::*;
 use futures_util::StreamExt;
 use poise::serenity_prelude as serenity;
-use std::sync::Arc;
 use sqlx::types::Json;
+use std::sync::Arc;
 use tracing::{debug, error, info, instrument, trace, warn};
-use crate::core::config::settings::MessageLayout;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Default)]
 #[sqlx(type_name = "reminder_type", rename_all = "SCREAMING_SNAKE_CASE")]
@@ -79,7 +79,7 @@ async fn process_expired_reminders(
     db_pool: &sqlx::PgPool,
     http: &serenity::Http,
     now: DateTime<Utc>,
-) -> Result<(), crate::Error> {
+) -> Result<(), crate::core::config::state::Error> {
     let expired_reminders = sqlx::query_as!(
         ReminderRecord,
         r#"

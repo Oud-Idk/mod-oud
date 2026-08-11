@@ -1,21 +1,21 @@
-use fred::interfaces::{KeysInterface, SetsInterface};
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
+use crate::features::moderation::apply_global_unlock;
 use crate::features::raid_detection::snapshot::restore_preraid_state;
 use crate::features::raid_detection::types::RaidAction;
 use crate::features::raid_detection::{database, keys};
-use crate::{Data, Error};
+use fred::interfaces::{KeysInterface, SetsInterface};
 use serenity::all::{ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp};
 use tracing::{error, info};
-use crate::features::moderation::apply_global_unlock;
 
-pub fn spawn_raid_end_monitor(ctx: Context, data: Data, guild_id: u64) {
+pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: u64) {
     tokio::spawn(async move {
         let active_key = keys::raid_active_key(guild_id);
 
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
-            let is_active: bool = match data.redis.exists(&active_key).await {
+            let is_active: bool = match data.core.redis.exists(&active_key).await {
                 Ok(active) => active,
                 Err(e) => {
                     error!(error = ?e, "Failed to check raid status in Redis");
@@ -34,7 +34,7 @@ pub fn spawn_raid_end_monitor(ctx: Context, data: Data, guild_id: u64) {
     });
 }
 
-pub async fn handle_raid_end(ctx: &Context, data: &Data, guild_id_u64: u64) -> Result<(), Error> {
+pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id_u64: u64) -> Result<(), Error> {
     let guild_id = GuildId::new(guild_id_u64);
 
     let restored = restore_preraid_state(ctx, data, guild_id_u64).await
@@ -46,7 +46,7 @@ pub async fn handle_raid_end(ctx: &Context, data: &Data, guild_id_u64: u64) -> R
     }
 
     let Some(raid_config) = get_settings(
-        &data.db, &data.redis, &data.guild_configs, guild_id_u64 as i64,
+        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64 as i64,
     ).await?.raid_detection else {
         return Ok(());
     };
@@ -84,12 +84,12 @@ pub async fn handle_raid_end(ctx: &Context, data: &Data, guild_id_u64: u64) -> R
     Ok(())
 }
 
-pub async fn reconcile_active_raids(ctx: &Context, data: &Data) -> Result<(), Error> {
-    let tracked_guilds: Vec<u64> = data.redis.smembers("active_raids").await?;
+pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(), Error> {
+    let tracked_guilds: Vec<u64> = data.core.redis.smembers("active_raids").await?;
 
     for guild_id in tracked_guilds {
         let active_key = keys::raid_active_key(guild_id);
-        let is_active: bool = data.redis.exists(&active_key).await.unwrap_or(false);
+        let is_active: bool = data.core.redis.exists(&active_key).await.unwrap_or(false);
 
         if is_active {
             info!("Re-attaching raid monitor for active raid in guild {guild_id}");

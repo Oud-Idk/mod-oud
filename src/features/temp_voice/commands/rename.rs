@@ -1,7 +1,7 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::temp_voice::interface::preflight_slash_check;
 use crate::features::temp_voice::service;
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 
 /// Rename your temporary voice channel.
 #[poise::command(slash_command)]
@@ -20,8 +20,8 @@ pub async fn rename(
 
     let response_message = service::rename_temp_vc(
         ctx.serenity_context(),
-        &ctx.data().redis,
-        &ctx.data().db,
+        &ctx.data().core.redis,
+        &ctx.data().core.db,
         guild_id,
         channel_id,
         &member,

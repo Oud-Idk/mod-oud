@@ -1,5 +1,5 @@
+use crate::core::config::state::{Context, Error};
 use crate::shared::messages;
-use crate::{Context, Error};
 
 /// Parses duration and yells at the user if they format it like a toddler.
 pub async fn parse_duration(

@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use crate::features::birthday::types::{ExpiredRole, FullUserBirthdayRecord, UserBirthdayRecord};
 use serenity::all::{ChannelId, RoleId};
 use sqlx::PgPool;

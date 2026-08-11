@@ -1,6 +1,6 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::moderation::{ActionType, lockdown, log_moderation_action};
 use crate::shared::command_context::GuildMetadata;
-use crate::{Context, Error};
 use fred::prelude::*;
 use serde::{Deserialize, Serialize};
 use serenity::all::{
@@ -209,7 +209,7 @@ pub async fn log_action(
         "Dispatching moderation log to database and Discord integration"
     );
     log_moderation_action(
-        &ctx.data().db, guild_id, None, &ctx.author(), reason, action, None,
+        &ctx.data().core.db, guild_id, None, &ctx.author(), reason, action, None,
     ).await?;
     Ok(())
 }

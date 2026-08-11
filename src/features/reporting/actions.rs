@@ -2,11 +2,11 @@ use crate::features::reporting::cache;
 use crate::features::reporting::database::insert_reported_message;
 use crate::features::reporting::types::{ReportStatus, ReportedMessagePayload};
 use crate::shared::store_username_relation;
+use crate::shared::username_cache::UserUpdate;
+use anyhow::Result;
 use fred::clients::Client;
 use futures_util::TryFutureExt;
 use tracing::{debug, trace, warn};
-use anyhow::Result;
-use crate::UserUpdate;
 
 pub fn extract_image_urls(message: &serenity::all::Message) -> Vec<String> {
     let mut urls = Vec::new();

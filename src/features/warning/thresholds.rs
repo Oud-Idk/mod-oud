@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use crate::features::automod::insert_automod_row;
 use crate::features::warning::types::{WarnAction, WarnThreshold};
 use serenity::all::{Http, Member, RoleId, Timestamp};

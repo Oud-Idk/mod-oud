@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use std::time::Duration;
-use crate::{Error, UserUpdate};
+use crate::core::config::state::Error;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::prelude::Expiration;
 use sqlx::PgPool;
+use std::collections::HashMap;
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::interval;
 use tracing::debug;
@@ -99,4 +99,9 @@ async fn flush_updates(db: &PgPool, updates: &mut HashMap<u64, String>) {
     if let Err(e) = result {
         tracing::error!(error = %e, "Failed to flush username batch to DB");
     }
+}
+
+pub struct UserUpdate {
+    pub id: u64,
+    pub name: String,
 }

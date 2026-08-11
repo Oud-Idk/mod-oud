@@ -1,7 +1,7 @@
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
 use crate::features::raid_detection::{database, keys};
 use crate::features::verification::CaptchaType;
-use crate::{Data, Error};
 use fred::interfaces::{KeysInterface, SetsInterface};
 use fred::types::{Expiration, SetOptions};
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ pub struct PreRaidState {
 #[instrument(skip(ctx, data), fields(guild_id = guild_id))]
 pub async fn ensure_preraid_state_saved(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     guild_id: u64,
 ) -> Result<(), Error> {
     debug!(guild_id, "Fetching current guild state and permissions for pre-raid snapshot");
@@ -45,7 +45,7 @@ pub async fn ensure_preraid_state_saved(
         original_everyone_permissions: everyone_perms,
     };
 
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id as i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id as i64).await?;
     if let Some(verification_settings) = settings.welcome.and_then(|w| w.verification) {
         snapshot.original_verification_type = verification_settings.captcha_type;
         snapshot.original_oauth_required = verification_settings.use_oauth;
@@ -55,7 +55,7 @@ pub async fn ensure_preraid_state_saved(
     let serialized = serde_json::to_string(&snapshot)?;
 
     // Store in Redis with NX (Only set if not already present) and an expiration (24 hours)
-    let conn = &data.redis;
+    let conn = &data.core.redis;
     let res: Option<String> = conn
         .set(
             redis_key,
@@ -87,7 +87,7 @@ pub async fn ensure_preraid_state_saved(
 #[instrument(skip(ctx, data), fields(guild_id = guild_id))]
 pub async fn restore_preraid_state(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     guild_id: u64,
 ) -> Result<bool, Error> {
     info!(guild_id, "Initiating pre-raid state restoration");
@@ -95,7 +95,7 @@ pub async fn restore_preraid_state(
     let redis_key = keys::raid_snapshot_key(guild_id);
 
     // GETDEL atomically gets the string AND deletes the key in Redis
-    let json_str: Option<String> = data.redis.getdel(&redis_key).await?;
+    let json_str: Option<String> = data.core.redis.getdel(&redis_key).await?;
     let Some(json_str) = json_str else {
         // Another worker or manual intervention already claimed and processed this snapshot!
         debug!(guild_id, "Snapshot already claimed or non-existent; skipping duplicate restoration");
@@ -132,7 +132,7 @@ pub async fn restore_preraid_state(
 
     debug!(guild_id, "Restoring verification settings in database");
     database::restore_verification_settings(
-        &data.db,
+        &data.core.db,
         guild_id as i64,
         snapshot.original_oauth_required,
         captcha_str.as_deref(),
@@ -140,7 +140,7 @@ pub async fn restore_preraid_state(
         .await?;
 
     // Remove from active raids set
-    let _: () = data.redis.srem(keys::active_raids_key(), guild_id).await?;
+    let _: () = data.core.redis.srem(keys::active_raids_key(), guild_id).await?;
 
     info!(guild_id, "Successfully claimed and restored pre-raid state");
 

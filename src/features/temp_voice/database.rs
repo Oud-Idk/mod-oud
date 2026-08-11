@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use crate::features::temp_voice::types::TempVoiceHub;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;

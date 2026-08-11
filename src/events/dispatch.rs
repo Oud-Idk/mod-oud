@@ -1,16 +1,16 @@
+use crate::core::config::state::{BotData, Error};
 use crate::events::interact::on_interact;
 use crate::features::{automod, custom_commands, invite_tracking, join_leave, leveling, media_only, message_logging, raid_detection, reaction_roles, starboard, temp_voice, tickets};
 use crate::shared::store_username_relation;
-use crate::{Data, Error};
+use crate::shared::voice_state::sync_guild_voice_state;
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::FullEvent;
-use crate::shared::voice_state::sync_guild_voice_state;
 
 pub async fn dispatch_events(
     ctx: &serenity::Context,
     event: &FullEvent,
-    _framework: poise::FrameworkContext<'_, Data, Error>,
-    data: &Data,
+    _framework: poise::FrameworkContext<'_, BotData, Error>,
+    data: &BotData,
 ) -> Result<(), Error> {
     extract_and_store_username(data, event).await?;
 
@@ -20,7 +20,7 @@ pub async fn dispatch_events(
             deleted_message_id,
             guild_id,
         } => {
-            starboard::handle_cleanup_if_starboard(ctx, &data.db, deleted_message_id).await?;
+            starboard::handle_cleanup_if_starboard(ctx, &data.core.db, deleted_message_id).await?;
             message_logging::message_log_delete(ctx, channel_id, deleted_message_id, guild_id, data).await?;
         }
 
@@ -97,13 +97,13 @@ pub async fn dispatch_events(
         }
 
         FullEvent::AutoModRuleCreate { rule } => {
-            automod::cache_automod_name(&data.redis, &rule.id, rule).await?;
+            automod::cache_automod_name(&data.core.redis, &rule.id, rule).await?;
         }
         FullEvent::AutoModRuleDelete { rule } => {
-            automod::invalidate_rule_cache(&data.redis, &rule.id).await?;
+            automod::invalidate_rule_cache(&data.core.redis, &rule.id).await?;
         }
         FullEvent::AutoModRuleUpdate { rule } => {
-            automod::cache_automod_name(&data.redis, &rule.id, rule).await?;
+            automod::cache_automod_name(&data.core.redis, &rule.id, rule).await?;
         }
 
         _ => {}
@@ -114,28 +114,28 @@ pub async fn dispatch_events(
 
 
 /// Centralized helper to capture user names across events before dispatching
-async fn extract_and_store_username(data: &Data, event: &FullEvent) -> Result<(), Error> {
+async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result<(), Error> {
     match event {
         FullEvent::Message { new_message } => {
-            store_username_relation(&data.username_buf_tx, new_message.author.id.get(), &new_message.author.name).await?;
+            store_username_relation(&data.core.username_tx, new_message.author.id.get(), &new_message.author.name).await?;
         }
         FullEvent::MessageUpdate { old_if_available, .. } => {
             if let Some(message) = old_if_available {
-                store_username_relation(&data.username_buf_tx, message.author.id.get(), &message.author.name).await?;
+                store_username_relation(&data.core.username_tx, message.author.id.get(), &message.author.name).await?;
             }
         }
         FullEvent::GuildMemberAddition { new_member } => {
-            store_username_relation(&data.username_buf_tx, new_member.user.id.get(), &new_member.user.name).await?;
+            store_username_relation(&data.core.username_tx, new_member.user.id.get(), &new_member.user.name).await?;
         }
         FullEvent::GuildMemberRemoval { user, .. } => {
-            store_username_relation(&data.username_buf_tx, user.id.get(), &user.name).await?;
+            store_username_relation(&data.core.username_tx, user.id.get(), &user.name).await?;
         }
         FullEvent::VoiceStateUpdate { old, new, .. } => {
             if let Some(member) = &new.member {
-                store_username_relation(&data.username_buf_tx, member.user.id.get(), &member.user.name).await?;
+                store_username_relation(&data.core.username_tx, member.user.id.get(), &member.user.name).await?;
             }
             if let Some(member) = old.as_ref().and_then(|old| old.member.as_ref()) {
-                store_username_relation(&data.username_buf_tx, member.user.id.get(), &member.user.name).await?;
+                store_username_relation(&data.core.username_tx, member.user.id.get(), &member.user.name).await?;
             }
         }
         FullEvent::InteractionCreate { interaction } => {
@@ -147,12 +147,12 @@ async fn extract_and_store_username(data: &Data, event: &FullEvent) -> Result<()
                 _ => None,
             };
             if let Some(user) = user {
-                store_username_relation(&data.username_buf_tx, user.id.get(), &user.name).await?;
+                store_username_relation(&data.core.username_tx, user.id.get(), &user.name).await?;
             }
         }
         FullEvent::InviteCreate { data: invite_data } => {
             if let Some(inviter) = &invite_data.inviter {
-                store_username_relation(&data.username_buf_tx, inviter.id.get(), &inviter.name).await?;
+                store_username_relation(&data.core.username_tx, inviter.id.get(), &inviter.name).await?;
             }
         }
         _ => {}

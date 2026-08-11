@@ -1,7 +1,7 @@
 mod commands;
 mod state;
-mod events;
 mod player;
+mod actor;
 
 pub use commands::music;
 pub use state::MusicState;

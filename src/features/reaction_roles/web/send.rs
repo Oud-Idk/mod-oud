@@ -29,7 +29,7 @@ pub async fn handle_send_reaction_role_message(
     );
 
     let config_id = parse_config_id(&config_id_str)?;
-    let config_row = fetch_reaction_message(&state.db, config_id, &guild_id_str).await?;
+    let config_row = fetch_reaction_message(&state.core.db, config_id, &guild_id_str).await?;
 
     let Some(channel_id_u64) = config_row.channel_id.map(|id| id as u64) else {
         debug!("Channel ID is not specified, skipping.");
@@ -48,7 +48,7 @@ pub async fn handle_send_reaction_role_message(
 
     match config_row.mode {
         InteractionMode::Button => {
-            let button_components = fetch_and_build_buttons(&state.db, config_row.id).await?;
+            let button_components = fetch_and_build_buttons(&state.core.db, config_row.id).await?;
             if !button_components.is_empty() {
                 message_builder = message_builder.components(vec![
                     serenity::all::CreateActionRow::Buttons(button_components),
@@ -59,7 +59,7 @@ pub async fn handle_send_reaction_role_message(
     }
 
     let message = channel
-        .send_message(&state.http, message_builder)
+        .send_message(&state.serenity_http, message_builder)
         .await
         .map_err(|e| {
             warn!(error = ?e, "Failed to send payload to Discord channel");
@@ -67,10 +67,10 @@ pub async fn handle_send_reaction_role_message(
         })?;
 
     if matches!(config_row.mode, InteractionMode::Reaction) {
-        let reactions = fetch_active_reactions(&state.db, config_row.id).await?;
+        let reactions = fetch_active_reactions(&state.core.db, config_row.id).await?;
         for r in reactions {
             if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>() {
-                if let Err(err) = message.react(&state.http, emoji).await {
+                if let Err(err) = message.react(&state.serenity_http, emoji).await {
                     warn!(error = ?err, "Failed applying reaction emoji to post");
                 }
             }

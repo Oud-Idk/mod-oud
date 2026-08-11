@@ -1,4 +1,4 @@
-use crate::Context;
+use crate::core::config::state::Context;
 use crate::features::media_only::cache::{delete_media_only_channel, get_channel_media, store_media_only_channel};
 use crate::features::media_only::database::list_media_only_channels;
 use crate::features::media_only::types::MediaOnlyChannel;
@@ -53,7 +53,7 @@ pub async fn set(
     config.channel_id = channel_id.get() as i64;
     config.guild_id = guild_id.get() as i64;
 
-    store_media_only_channel(&data.db, &data.redis, config).await?;
+    store_media_only_channel(&data.core.db, &data.core.redis, config).await?;
     send_ephemeral(&ctx, format!("Enforcing media-only mode on {}", channel.mention())).await?;
 
     Ok(())
@@ -140,7 +140,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let channels = list_media_only_channels(&ctx.data().db, guild_id).await?;
+    let channels = list_media_only_channels(&ctx.data().core.db, guild_id).await?;
     if channels.is_empty() {
         send_ephemeral(&ctx, "No media-only set up yet.").await?;
         return Ok(());

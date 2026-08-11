@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use crate::features::leveling::cache;
 use crate::features::leveling::types::XpMultiplier;
 use crate::features::leveling::types::{LevelingConfig, ScopeMode};

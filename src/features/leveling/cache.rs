@@ -1,8 +1,9 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::leveling;
 use crate::features::leveling::types::VcSession;
 use crate::features::leveling::types::{LevelingConfig, UserLevel, XpMultiplier};
 use crate::features::leveling::{database, keys};
-use crate::{Data, Error, features};
+use crate::features;
 use anyhow::Result;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, HashesInterface, KeysInterface, SetsInterface, TransactionInterface};

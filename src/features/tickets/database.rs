@@ -1,18 +1,18 @@
-use crate::{Data, Error};
+use crate::core::config::state::{BotData, Error};
 use serenity::all::{ChannelId, GuildId, UserId};
 use tracing::{instrument, trace};
 
-pub async fn mark_ticket_as_closed_db(data: &&Data, channel_id: ChannelId) -> Result<(), Error> {
+pub async fn mark_ticket_as_closed_db(data: &&BotData, channel_id: ChannelId) -> Result<(), Error> {
     sqlx::query!(
         "UPDATE tickets SET status = 'CLOSED', closed_at = NOW() WHERE channel_id = $1",
         channel_id.get() as i64
     )
-        .execute(&data.db)
+        .execute(&data.core.db)
         .await?;
     Ok(())
 }
 
-pub async fn update_close_button_db(data: &&Data, channel_id: ChannelId, new_msg_id_i64: i64) -> Result<(), anyhow::Error> {
+pub async fn update_close_button_db(data: &&BotData, channel_id: ChannelId, new_msg_id_i64: i64) -> Result<(), anyhow::Error> {
     sqlx::query!(
             r#"
             UPDATE tickets
@@ -25,7 +25,7 @@ pub async fn update_close_button_db(data: &&Data, channel_id: ChannelId, new_msg
             new_msg_id_i64,
             channel_id.get() as i64
         )
-        .execute(&data.db)
+        .execute(&data.core.db)
         .await?;
 
     Ok(())
@@ -33,7 +33,7 @@ pub async fn update_close_button_db(data: &&Data, channel_id: ChannelId, new_msg
 
 #[instrument(skip(data))]
 pub async fn save_ticket_to_db(
-    data: &Data,
+    data: &BotData,
     guild_id: GuildId,
     channel_id: ChannelId,
     user_id: UserId,
@@ -51,7 +51,7 @@ pub async fn save_ticket_to_db(
         user_id.get() as i64,
         welcome_msg_id.get() as i64,
     )
-        .execute(&data.db)
+        .execute(&data.core.db)
         .await?;
     Ok(())
 }

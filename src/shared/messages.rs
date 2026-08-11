@@ -1,6 +1,6 @@
-use std::sync::LazyLock;
-use crate::{Context, Error};
+use crate::core::config::state::{Context, Error};
 use linkify::{LinkFinder, LinkKind};
+use std::sync::LazyLock;
 
 pub static LINK_FINDER: LazyLock<LinkFinder> = LazyLock::new(LinkFinder::new);
 

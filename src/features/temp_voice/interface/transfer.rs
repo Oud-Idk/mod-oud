@@ -1,6 +1,6 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
 use crate::features::temp_voice::service;
-use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
 use serenity::all::{
     ButtonStyle, ComponentInteraction, Context, CreateActionRow, CreateButton,
@@ -13,7 +13,7 @@ use tracing::{debug, info, instrument, warn};
 pub(crate) async fn handle_transfer_temp_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     debug!("Starting voice channel transfer workflow");
 
@@ -55,7 +55,7 @@ pub(crate) async fn handle_transfer_temp_vc(
 pub(crate) async fn handle_transfer_temp_vc_submit(
     ctx: &Context,
     interaction: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
     target_user_ids: Vec<UserId>,
 ) -> Result<(), Error> {
     let Ok(Some((channel_id, guild_id))) = preflight_button_check(ctx, interaction, data).await else {

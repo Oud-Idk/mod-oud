@@ -1,5 +1,5 @@
-use crate::Error;
 use crate::core::config::guild_ctx::GuildCtx;
+use crate::core::config::state::Error;
 use crate::features::join_leave::messages;
 use crate::features::join_leave::types::WelcomeConfig;
 use serenity::all::{ChannelId, GuildChannel};

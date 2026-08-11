@@ -1,9 +1,9 @@
-use anyhow::anyhow;
 use crate::core::config::settings::{get_settings, save_settings};
-use crate::{Context, Error};
-use poise::serenity_prelude as serenity;
-use serenity::all::{GuildChannel};
+use crate::core::config::state::{Context, Error};
 use crate::features::automod::HoneypotConfig;
+use anyhow::anyhow;
+use poise::serenity_prelude as serenity;
+use serenity::all::GuildChannel;
 
 /// Parent command group for Honeypot management
 #[poise::command(
@@ -30,7 +30,7 @@ pub async fn set(
 
     // Fetch existing guild settings
     let mut settings =
-        get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+        get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
 
     // Get or initialize HoneypotConfig
     let mut honeypot = settings.honeypot.unwrap_or_else(|| HoneypotConfig {
@@ -47,9 +47,9 @@ pub async fn set(
     settings.honeypot = Some(honeypot);
 
     save_settings(
-        &data.db,
-        &data.redis,
-        &data.guild_configs,
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
         guild_id.get() as i64,
         &settings,
     )
@@ -70,15 +70,15 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
     let data = ctx.data();
 
     let mut settings =
-        get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+        get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
 
     if let Some(ref mut honeypot) = settings.honeypot {
         honeypot.enabled = Some(false);
 
         save_settings(
-            &data.db,
-            &data.redis,
-            &data.guild_configs,
+            &data.core.db,
+            &data.core.redis,
+            &data.core.guild_configs_cache,
             guild_id.get() as i64,
             &settings,
         )

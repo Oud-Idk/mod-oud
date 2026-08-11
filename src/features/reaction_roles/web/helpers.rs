@@ -98,9 +98,9 @@ pub fn convert_create_to_edit_message(
 }
 
 pub async fn edit_reactions(state: &Arc<WebState>, config_row: &ReactionMessage, channel_id: &ChannelId, message_id: &MessageId) -> Result<(), (StatusCode, String)> {
-    let reactions = fetch_active_reactions(&state.db, config_row.id).await?;
+    let reactions = fetch_active_reactions(&state.core.db, config_row.id).await?;
 
-    if let Ok(message) = channel_id.message(&state.http, message_id).await {
+    if let Ok(message) = channel_id.message(&state.serenity_http, message_id).await {
         for existing_reaction in message.reactions {
             let emoji_type = existing_reaction.reaction_type;
 
@@ -113,8 +113,8 @@ pub async fn edit_reactions(state: &Arc<WebState>, config_row: &ReactionMessage,
             });
 
             if !is_still_active {
-                if state.http.delete_message_reaction_emoji(*channel_id, *message_id, &emoji_type).await.is_err() {
-                    let _ = state.http.delete_reaction_me(*channel_id, *message_id, &emoji_type).await;
+                if state.serenity_http.delete_message_reaction_emoji(*channel_id, *message_id, &emoji_type).await.is_err() {
+                    let _ = state.serenity_http.delete_reaction_me(*channel_id, *message_id, &emoji_type).await;
                 }
             }
         }
@@ -122,7 +122,7 @@ pub async fn edit_reactions(state: &Arc<WebState>, config_row: &ReactionMessage,
 
     for r in reactions {
         if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>() {
-            if let Err(err) = state.http.create_reaction(*channel_id, *message_id, &emoji).await {
+            if let Err(err) = state.serenity_http.create_reaction(*channel_id, *message_id, &emoji).await {
                 warn!(error = ?err, "Failed applying reaction emoji to edited post");
             }
         }

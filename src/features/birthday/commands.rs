@@ -1,7 +1,7 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::birthday::types::Month;
 use crate::features::birthday::{database, pagination};
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 use anyhow::Context as _;
 use chrono::Datelike;
 use poise::serenity_prelude as serenity;
@@ -45,7 +45,7 @@ async fn set(
     }
 
     let uid = ctx.author().id.get();
-    database::set_birthday(&ctx.data().db, uid, month_num, day, year).await?;
+    database::set_birthday(&ctx.data().core.db, uid, month_num, day, year).await?;
 
     let year_str = year.map(|y| format!(", {}", y)).unwrap_or_default();
     ctx.send(
@@ -68,9 +68,9 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?.get() as i64;
 
     let settings = crate::core::config::settings::get_settings(
-        &ctx.data().db,
-        &ctx.data().redis,
-        &ctx.data().guild_configs,
+        &ctx.data().core.db,
+        &ctx.data().core.redis,
+        &ctx.data().core.guild_configs_cache,
         guild_id,
     ).await?;
 
@@ -116,7 +116,7 @@ pub async fn upcoming(
 ) -> Result<(), Error> {
     let lookahead_days = days.unwrap_or(14).min(60) as i32;
 
-    let records = database::get_upcoming_birthdays(&ctx.data().db, lookahead_days).await?;
+    let records = database::get_upcoming_birthdays(&ctx.data().core.db, lookahead_days).await?;
 
     if records.is_empty() {
         send_ephemeral(&ctx, format!("No upcoming birthdays in the next **{}** days.", lookahead_days)).await?;
@@ -139,7 +139,7 @@ async fn view(
     ctx.defer_ephemeral().await?;
     let uid = ctx.author().id.get();
 
-    let birthday = database::get_user_birthday(&ctx.data().db, uid).await?;
+    let birthday = database::get_user_birthday(&ctx.data().core.db, uid).await?;
 
     match birthday {
         Some(b) => {
@@ -177,14 +177,14 @@ async fn remove(
     ctx.defer_ephemeral().await?;
     let uid = ctx.author().id.get();
 
-    let birthday = database::get_user_birthday(&ctx.data().db, uid).await?;
+    let birthday = database::get_user_birthday(&ctx.data().core.db, uid).await?;
 
     if birthday.is_none() {
         send_ephemeral(&ctx, "You don't have a birthday registered.").await?;
         return Ok(());
     }
 
-    database::remove_birthday(&ctx.data().db, uid).await?;
+    database::remove_birthday(&ctx.data().core.db, uid).await?;
     send_ephemeral(&ctx, "Your birthday has been removed.").await?;
 
     Ok(())
@@ -216,7 +216,7 @@ async fn force_set(
     }
 
     let uid = user.id.get();
-    database::set_birthday(&ctx.data().db, uid, month_num, day, year).await?;
+    database::set_birthday(&ctx.data().core.db, uid, month_num, day, year).await?;
 
     let year_str = year.map(|y| format!(", {}", y)).unwrap_or_default();
     ctx.send(
@@ -241,14 +241,14 @@ async fn force_remove(
     ctx.defer_ephemeral().await?;
     let uid = user.id.get();
 
-    let birthday = database::get_user_birthday(&ctx.data().db, uid).await?;
+    let birthday = database::get_user_birthday(&ctx.data().core.db, uid).await?;
 
     if birthday.is_none() {
         send_ephemeral(&ctx, format!("**{}** doesn't have a birthday registered.", user.name)).await?;
         return Ok(());
     }
 
-    database::remove_birthday(&ctx.data().db, uid).await?;
+    database::remove_birthday(&ctx.data().core.db, uid).await?;
     send_ephemeral(&ctx, format!("Removed birthday for **{}**.", user.name)).await?;
 
     Ok(())

@@ -1,29 +1,28 @@
+use crate::core::config::settings::MessageLayout;
+use crate::core::config::state::{BotData, Error, WebState};
 use crate::features::reaction_roles::types::ButtonStyle;
-use crate::core::config::state::WebState;
 use crate::features::reaction_roles::types::{ButtonRole, InteractionMode, ReactionMessage, ReactionRole};
-use crate::{Data, Error};
+use crate::shared::embed::Format;
 use axum::http::StatusCode;
+use fred::bytes_utils::Str;
 use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
 use serenity::all::RoleId;
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
-use std::sync::Arc;
-use fred::bytes_utils::Str;
 use sqlx::types::Json;
+use std::sync::Arc;
 use tracing::{error, trace, warn};
-use crate::core::config::settings::MessageLayout;
-use crate::shared::embed::Format;
 
 /// Retrieves the Role ID associated with a message and emoji, utilizing Redis caching.
 pub async fn get_reaction_role(
-    data: &Data,
+    data: &BotData,
     message_id: i64,
     emoji: &str,
 ) -> Result<Option<RoleId>, Error> {
     let cache_key = format!("reaction_role:{}:{}", message_id, emoji);
 
-    match data.redis.get::<Option<String>, _>(&cache_key).await {
+    match data.core.redis.get::<Option<String>, _>(&cache_key).await {
         Ok(Some(cached_val)) => {
             if cached_val == "none" {
                 return Ok(None);
@@ -48,18 +47,18 @@ pub async fn get_reaction_role(
         message_id,
         emoji
     )
-        .fetch_optional(&data.db)
+        .fetch_optional(&data.core.db)
         .await?;
 
     if let Some(record) = row {
         let role_id_u64 = record.role_id as u64;
-        if let Err(e) = data.redis.set::<(), _, _>(&cache_key, role_id_u64, None, None, false).await {
+        if let Err(e) = data.core.redis.set::<(), _, _>(&cache_key, role_id_u64, None, None, false).await {
             warn!("Failed to write reaction role to Redis: {}", e);
         }
         Ok(Some(RoleId::new(role_id_u64)))
     } else {
         let expiration = Expiration::EX(300);
-        if let Err(e) = data.redis.set::<(), _, _>(&cache_key, "none", Some(expiration), None, false).await {
+        if let Err(e) = data.core.redis.set::<(), _, _>(&cache_key, "none", Some(expiration), None, false).await {
             warn!("Failed to write negative cache result to Redis: {}", e);
         }
         Ok(None)
@@ -138,7 +137,7 @@ pub async fn delete_message_from_db(state: &Arc<WebState>, config_id: i64) -> Re
         "UPDATE reaction_messages SET message_id = NULL WHERE id = $1",
         config_id
     )
-        .execute(&state.db).await
+        .execute(&state.core.db).await
         .inspect_err(|e| warn!(error = ?e, "Failed to clear message ID in database"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
     Ok(())
@@ -150,17 +149,17 @@ pub async fn add_message_to_db(state: &Arc<WebState>, config_row: ReactionMessag
         message_id,
         config_row.id
     )
-        .execute(&state.db)
+        .execute(&state.core.db)
         .await
 }
 
 pub async fn get_button_role(
-    data: &Data,
+    data: &BotData,
     custom_id: &str,
 ) -> Result<Option<RoleId>, Error> {
     let cache_key = format!("button_role:{}", custom_id);
 
-    match data.redis.get::<Option<String>, _>(&cache_key).await {
+    match data.core.redis.get::<Option<String>, _>(&cache_key).await {
         Ok(Some(cached_val)) => {
             if cached_val == "none" {
                 return Ok(None);
@@ -183,18 +182,18 @@ pub async fn get_button_role(
         "#,
         custom_id
     )
-        .fetch_optional(&data.db)
+        .fetch_optional(&data.core.db)
         .await?;
 
     if let Some(record) = row {
         let role_id_u64 = record.role_id as u64;
-        if let Err(e) = data.redis.set::<(), _, _>(&cache_key, role_id_u64, None, None, false).await {
+        if let Err(e) = data.core.redis.set::<(), _, _>(&cache_key, role_id_u64, None, None, false).await {
             warn!("Failed to write button role to Redis: {}", e);
         }
         Ok(Some(RoleId::new(role_id_u64)))
     } else {
         let expiration = Expiration::EX(300);
-        if let Err(e) = data.redis.set::<(), _, _>(&cache_key, "none", Some(expiration), None, false).await {
+        if let Err(e) = data.core.redis.set::<(), _, _>(&cache_key, "none", Some(expiration), None, false).await {
             warn!("Failed to write negative cache result to Redis: {}", e);
         }
         Ok(None)

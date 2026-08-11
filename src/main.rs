@@ -1,22 +1,24 @@
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
+use fred::rustls;
 use mod_oud::core::config;
+use mod_oud::core::config::state::{BotData, Error};
 use mod_oud::core::error::on_error;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
+use mod_oud::events;
 use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::{automod, birthday, custom_commands, general, invite_tracking, leveling, media_only, member_counter, moderation, music, raid_detection, reporting, temp_voice, tickets, warning};
+use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::start_web_server;
-use mod_oud::{events, Data, Error, UserUpdate};
 use poise::serenity_prelude as serenity;
 use serenity::prelude::GatewayIntents;
+use songbird::SerenityInit;
 use sqlx::ConnectOptions;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use fred::rustls;
-use songbird::SerenityInit;
 use tokio::sync::{broadcast, mpsc};
 use tracing::log::LevelFilter;
 use tracing::{debug, info, trace, warn};
@@ -282,7 +284,7 @@ async fn async_main() -> Result<(), Error> {
 }
 
 #[poise::command(prefix_command, owners_only, hide_in_help)]
-async fn register(ctx: poise::Context<'_, Data, Error>) -> Result<(), Error> {
+async fn register(ctx: poise::Context<'_, BotData, Error>) -> Result<(), Error> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }

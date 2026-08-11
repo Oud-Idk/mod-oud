@@ -1,9 +1,9 @@
-use crate::{Context, Error};
+use crate::core::config::state::{Context, Error};
+use crate::core::setup::ShardManagerContainer;
 use fred::interfaces::ClientLike;
 use std::time::Instant;
 use sysinfo::{ProcessesToUpdate, System};
 use tracing::{debug, trace, warn};
-use crate::core::setup::ShardManagerContainer;
 
 /// Pong!
 #[poise::command(slash_command)]
@@ -11,8 +11,8 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
     debug!(caller_id, "Invoked ping diagnostic command");
 
-    let pool = &ctx.data().db;
-    let redis = &ctx.data().redis;
+    let pool = &ctx.data().core.db;
+    let redis = &ctx.data().core.redis;
     let data = ctx.serenity_context().data.read().await;
 
     let shard_manager = match data.get::<ShardManagerContainer>() {
@@ -39,8 +39,8 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 
     let shard_info_text = format!(
         "Instance: {}/{}",
-        ctx.data().shard_index + 1,
-        ctx.data().total_shards
+        ctx.data().shard_info.id.0 + 1,
+        ctx.data().shard_info.total
     );
 
     if let Some(runner) = runners.get(&ctx.serenity_context().shard_id) {

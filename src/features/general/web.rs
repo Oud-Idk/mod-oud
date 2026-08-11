@@ -66,7 +66,7 @@ pub async fn handle_send_custom_embed(
     let message_builder = shared::embed::create_embed_for_web(&payload, |text| text.to_string())?;
 
     let message = target_channel
-        .send_message(&state.http, message_builder)
+        .send_message(&state.serenity_http, message_builder)
         .await
         .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to deliver Discord message"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;

@@ -40,7 +40,7 @@ pub async fn setup_honeypot_channel(
     let channel_builder = CreateChannel::new(payload.channel_name)
         .permissions(vec![permission_overwrite]);
 
-    let channel = guild_id.create_channel(&state.http, channel_builder).await
+    let channel = guild_id.create_channel(&state.serenity_http, channel_builder).await
         .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to create channel"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 

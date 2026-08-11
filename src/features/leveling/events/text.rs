@@ -1,5 +1,6 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
 use crate::features::leveling;
 use crate::features::leveling::calculation::clamp_to_level_cap;
 use crate::features::leveling::calculation::process_level_ups;
@@ -10,20 +11,19 @@ use crate::features::leveling::types::{LevelingConfig, NotificationScope};
 use crate::features::leveling::{cache, keys, notifications, rewards, rules};
 use crate::shared::embed::DiscordEmbed;
 use crate::shared::embed::build_custom_message;
-use crate::{Data, Error};
 use serenity::all::{Context, CreateMessage, GuildId, Message, User};
 use tracing::{debug, info, trace, warn};
 
 pub async fn handle_text_leveling(
     ctx: &Context,
     message: &Message,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     if message.author.bot { return Ok(()); }
 
     let Some(guild_id) = &message.guild_id else { return Ok(()) };
 
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
     let config_maybe = settings.leveling;
     let Some(leveling_config) = config_maybe else { return Ok(()) };
     if !leveling_config.text.enabled { return Ok(()) };
@@ -35,8 +35,8 @@ pub async fn handle_text_leveling(
     let guild_id_u64 = guild_id.get();
     let author_id = message.author.id.get();
     let author = &message.author;
-    let db = &data.db;
-    let redis = &data.redis;
+    let db = &data.core.db;
+    let redis = &data.core.redis;
 
     let cooldown_key = keys::cooldown_key(guild_id, author);
     let set_cooldown = cache::create_redis_cooldown(&cooldown_key, &leveling_config, &redis).await?;
@@ -97,13 +97,13 @@ pub async fn handle_text_leveling(
 
 pub fn should_skip_leveling(
     message: &Message,
-    data: &Data,
+    data: &BotData,
     config: &LevelingConfig,
 ) -> bool {
     let guild_id = message.guild_id.map(|g| g.get()).unwrap_or(0);
     let channel_id_u64 = message.channel_id.get();
 
-    if data.active_tickets.contains_key(&channel_id_u64) {
+    if data.caches.active_tickets.contains_key(&channel_id_u64) {
         trace!(guild_id, channel_id = %channel_id_u64, "Skipping leveling XP: channel is marked as a ticket");
         return true;
     }

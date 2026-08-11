@@ -1,7 +1,7 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::temp_voice::interface::preflight_slash_check;
 use crate::features::temp_voice::service;
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 
 /// Delete your temporary voice channel.
 #[poise::command(slash_command)]
@@ -17,7 +17,7 @@ pub async fn delete(
 
     let response_message = service::delete_temp_vc(
         &ctx.serenity_context().http,
-        &ctx.data().redis,
+        &ctx.data().core.redis,
         guild_id,
         channel_id,
         member.user.id,

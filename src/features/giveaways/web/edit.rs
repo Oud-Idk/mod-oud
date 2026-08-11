@@ -19,7 +19,7 @@ pub async fn handle_edit_giveaway_message(
         warn!(error = ?e, guild_id_str, "Invalid guild_id format");
         (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
     })?;
-    let record = giveaways::database::fetch_giveaway(&state.db, config_id, guild_id).await?;
+    let record = giveaways::database::fetch_giveaway(&state.core.db, config_id, guild_id).await?;
 
     let Some(message_id_i64) = record.message_id else {
         return Err((StatusCode::BAD_REQUEST, "Cannot edit a giveaway message that hasn't been sent yet!".to_string()));
@@ -32,10 +32,10 @@ pub async fn handle_edit_giveaway_message(
     let channel_id = ChannelId::new(channel_id_i64 as u64);
     let message_id = MessageId::new(message_id_i64 as u64);
 
-    let host_user = UserId::from(record.host_id as u64).to_user(&state.http).await
+    let host_user = UserId::from(record.host_id as u64).to_user(&state.serenity_http).await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get user through HTTP"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
-    let gctx = get_guild_ctx(GuildId::from(guild_id as u64), &state.http).await
+    let gctx = get_guild_ctx(GuildId::from(guild_id as u64), &state.serenity_http).await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get guild ctx"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
@@ -53,7 +53,7 @@ pub async fn handle_edit_giveaway_message(
     let edit_builder = convert_create_to_edit_message(custom_msg_opt);
 
     channel_id
-        .edit_message(&state.http, message_id, edit_builder)
+        .edit_message(&state.serenity_http, message_id, edit_builder)
         .await
         .map_err(|e| {
             warn!(error = ?e, "Failed to edit Discord giveaway message");

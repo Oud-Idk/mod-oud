@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use crate::features::raid_detection::types::{RaidCheckResult, Stats};
 use crate::features::raid_detection::{cache, keys};
 use crate::shared::locking::acquire_lock;

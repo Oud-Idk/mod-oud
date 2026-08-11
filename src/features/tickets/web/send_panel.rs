@@ -34,7 +34,7 @@ pub async fn handle_send_ticket_message(
     let guild_id = guild_id_str.parse::<i64>()
         .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string()))?;
 
-    let settings = get_settings(&state.db, &state.redis.clone(), &state.guild_configs, guild_id)
+    let settings = get_settings(&state.core.db, &state.core.redis.clone(), &state.core.guild_configs_cache, guild_id)
         .await
         .inspect_err(|e| warn!(error = ?e, guild_id, "Failed to load guild configuration settings"))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
@@ -56,7 +56,7 @@ pub async fn handle_send_ticket_message(
     };
 
     let message_builder = build_ticket_message_payload(
-        &state.http,
+        &state.serenity_http,
         serenity_guild_id,
         ticket_role_id,
         ticket_cfg.panel_message.message.format,
@@ -71,7 +71,7 @@ pub async fn handle_send_ticket_message(
         ))?;
 
     let message = channel
-        .send_message(&state.http, message_builder).await
+        .send_message(&state.serenity_http, message_builder).await
         .inspect_err(|e| warn!(error = ?e, guild_id, channel_id = payload.channel_id, "Failed to send Discord panel message"))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()))?;
 

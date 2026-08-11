@@ -1,10 +1,11 @@
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
 use crate::features::invite_tracking::cache::collect_pairs;
 use crate::features::invite_tracking::database::{attribute_join, get_inviter_count, upsert_invited_member};
 use crate::features::invite_tracking::keys;
 use crate::shared::store_username_relation;
-use crate::{Data, Error, features};
+use crate::features;
 use fred::clients::Client;
 use fred::interfaces::{HashesInterface, KeysInterface};
 use moka::future::Cache;
@@ -13,10 +14,10 @@ use sqlx::PgPool;
 use std::collections::HashMap;
 use tracing::{debug, warn};
 
-pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &Data) -> Result<(), Error> {
-    let redis = &data.redis;
-    let db = &data.db;
-    let cache = &data.guild_configs;
+pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &BotData) -> Result<(), Error> {
+    let redis = &data.core.redis;
+    let db = &data.core.db;
+    let cache = &data.core.guild_configs_cache;
 
     let is_enabled = check_if_enabled(redis, db, cache, guild.id).await?;
 
@@ -29,7 +30,7 @@ pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &Data) ->
 
     for invite in &invites {
         if let Some(inviter) = &invite.inviter {
-            store_username_relation(&data.username_buf_tx, inviter.id.get(), &inviter.name).await?;
+            store_username_relation(&data.core.username_tx, inviter.id.get(), &inviter.name).await?;
         }
     }
 
@@ -65,10 +66,10 @@ pub async fn fetch_current_invites(ctx: &Context, guild: &Guild, data: &Data) ->
     Ok(())
 }
 
-pub async fn store_invite(_: &Context, invite_data: &InviteCreateEvent, data: &Data) -> Result<(), Error> {
-    let redis = &data.redis;
-    let db = &data.db;
-    let cache = &data.guild_configs;
+pub async fn store_invite(_: &Context, invite_data: &InviteCreateEvent, data: &BotData) -> Result<(), Error> {
+    let redis = &data.core.redis;
+    let db = &data.core.db;
+    let cache = &data.core.guild_configs_cache;
 
     let Some(guild_id) = invite_data.guild_id else {
         debug!(guild_id = invite_data.code, "Couldn't get guild_id for invite");
@@ -98,10 +99,10 @@ pub async fn store_invite(_: &Context, invite_data: &InviteCreateEvent, data: &D
     Ok(())
 }
 
-pub async fn delete_invite(_: &Context, invite_data: &InviteDeleteEvent, data: &Data) -> Result<(), Error> {
-    let redis = &data.redis;
-    let db = &data.db;
-    let cache = &data.guild_configs;
+pub async fn delete_invite(_: &Context, invite_data: &InviteDeleteEvent, data: &BotData) -> Result<(), Error> {
+    let redis = &data.core.redis;
+    let db = &data.core.db;
+    let cache = &data.core.guild_configs_cache;
 
     let Some(guild_id) = invite_data.guild_id else {
         debug!(guild_id = invite_data.code, "Couldn't get guild_id for invite");
@@ -135,11 +136,11 @@ pub async fn check_if_enabled(redis: &Client, db: &PgPool, cache: &Cache<i64, Gu
         .unwrap_or(false))
 }
 
-pub async fn store_member_invite(ctx: &Context, new_member: &Member, data: &Data) -> Result<(), Error> {
+pub async fn store_member_invite(ctx: &Context, new_member: &Member, data: &BotData) -> Result<(), Error> {
     let guild_id = new_member.guild_id;
-    let redis = &data.redis;
-    let db = &data.db;
-    let cache = &data.guild_configs;
+    let redis = &data.core.redis;
+    let db = &data.core.db;
+    let cache = &data.core.guild_configs_cache;
 
     if !check_if_enabled(redis, db, cache, guild_id).await? {
         debug!("Invite tracking isn't enabled. Skipping.");

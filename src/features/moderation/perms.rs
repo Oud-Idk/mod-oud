@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Context as _, Result, bail};
+use crate::core::config::state::{Context, BotData, Error};
 use crate::shared::command_context::GuildMetadata;
-use crate::{Context, Data, Error};
+use anyhow::{Context as _, Result, anyhow, bail};
 use serenity::all::{Member, PartialGuild, UserId};
 use tracing::{debug, trace, warn};
 
@@ -59,7 +59,7 @@ pub async fn check_self_moderation(
 
 /// Main entry point to perform Discord hierarchy validation checks.
 pub async fn check_hierarchy(
-    ctx: poise::Context<'_, Data, Error>,
+    ctx: poise::Context<'_, BotData, Error>,
     target_id: UserId,
 ) -> Result<(), Error> {
     let target_uid = target_id.get();

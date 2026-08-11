@@ -1,6 +1,6 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::giveaways::database::{create_giveaway, update_giveaway_message_id};
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 use anyhow::Context as _;
 use chrono::Utc;
 use rand::seq::IndexedRandom;
@@ -47,7 +47,7 @@ pub async fn create(
 
     // 1. Insert into DB
     let giveaway_id = create_giveaway(
-        &ctx.data().db,
+        &ctx.data().core.db,
         guild_id,
         host_id,
         target_channel.get() as i64,
@@ -70,7 +70,7 @@ pub async fn create(
 
     msg.react(&ctx.serenity_context().http, ReactionType::Unicode("🎉".to_string())).await?;
 
-    update_giveaway_message_id(&ctx.data().db, giveaway_id, msg.id.get() as i64).await?;
+    update_giveaway_message_id(&ctx.data().core.db, giveaway_id, msg.id.get() as i64).await?;
     send_ephemeral(&ctx, format!("Giveaway **#{}** created in <#{}>!", giveaway_id, target_channel)).await?;
 
     Ok(())

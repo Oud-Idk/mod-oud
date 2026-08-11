@@ -1,6 +1,6 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
 use crate::features::temp_voice::service;
-use crate::{Data, Error};
 use serenity::all::{
     ComponentInteraction, Context, CreateActionRow, CreateInteractionResponse,
     CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuKind, UserId,
@@ -10,7 +10,7 @@ use tracing::debug;
 pub(crate) async fn handle_trust_temp_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let Ok(Some(_)) = preflight_button_check(ctx, interaction, data).await else {
         return Ok(());
@@ -43,7 +43,7 @@ pub(crate) async fn handle_trust_temp_vc(
 pub(crate) async fn handle_trust_temp_vc_submit(
     ctx: &Context,
     interaction: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
     target_user_ids: Vec<UserId>,
 ) -> Result<(), Error> {
     let Ok(Some((channel_id, _))) = preflight_button_check(ctx, interaction, data).await else {

@@ -58,7 +58,7 @@ pub async fn handle_setup_member_counter(
         ));
     }
 
-    let mut guild_settings = get_settings(&state.db, &state.redis, &state.guild_configs, guild_id.get() as i64).await
+    let mut guild_settings = get_settings(&state.core.db, &state.core.redis, &state.core.guild_configs_cache, guild_id.get() as i64).await
         .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to get settings"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
@@ -67,7 +67,7 @@ pub async fn handle_setup_member_counter(
     if let Some(saved_id) = guild_settings.member_counter.as_ref().and_then(|c| c.category_id) {
         let cid = ChannelId::new(saved_id); // Assuming saved_id is u64
 
-        match state.http.get_channel(cid).await {
+        match state.serenity_http.get_channel(cid).await {
             Ok(serenity::Channel::Guild(channel)) if channel.kind == serenity::ChannelType::Category => {
                 verified_category_id = Some(cid);
             }
@@ -89,7 +89,7 @@ pub async fn handle_setup_member_counter(
             info!(guild_id = guild_id_u64, "Creating 'Server Stats' category for member counters");
 
             let category = guild_id
-                .create_channel(&state.http, category_builder)
+                .create_channel(&state.serenity_http, category_builder)
                 .await
                 .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create category"))
                 .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
@@ -98,7 +98,7 @@ pub async fn handle_setup_member_counter(
                 .get_or_insert_with(Default::default)
                 .category_id = Some(category.id.get());
 
-            save_settings(&state.db, &state.redis, &state.guild_configs, guild_id.get() as i64, &guild_settings).await
+            save_settings(&state.core.db, &state.core.redis, &state.core.guild_configs_cache, guild_id.get() as i64, &guild_settings).await
                 .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to save settings"))
                 .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
@@ -126,7 +126,7 @@ pub async fn handle_setup_member_counter(
             );
 
             let voice_channel = guild_id
-                .create_channel(&state.http, voice_builder)
+                .create_channel(&state.serenity_http, voice_builder)
                 .await
                 .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create voice channel"))
                 .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;

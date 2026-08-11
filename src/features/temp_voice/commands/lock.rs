@@ -1,7 +1,7 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::temp_voice::interface::preflight_slash_check;
 use crate::features::temp_voice::service;
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 
 /// Lock your temporary voice channel.
 #[poise::command(slash_command)]

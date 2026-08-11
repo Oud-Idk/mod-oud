@@ -1,11 +1,12 @@
-use crate::{Data, Error};
-pub async fn log_join_to_db(user_id: i64, guild_id: i64, data: &Data) -> Result<(), Error> {
+use crate::core::config::state::{BotData, Error};
+
+pub async fn log_join_to_db(user_id: i64, guild_id: i64, data: &BotData) -> Result<(), Error> {
     sqlx::query!(
         "INSERT INTO join_leave_logs (user_id, guild_id, action) VALUES ($1, $2, 'JOIN')",
         user_id,
         guild_id
     )
-        .execute(&data.db)
+        .execute(&data.core.db)
         .await?;
     Ok(())
 }

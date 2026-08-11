@@ -27,8 +27,8 @@ pub async fn handle_timeout(
     info!(duration_minutes = duration_mins, "Issuing timeout to user");
 
     let (user, moderator) = tokio::try_join!(
-        resolve_target_user(&state.http, *user_id),
-        resolve_moderator_user(&state.http, mod_id)
+        resolve_target_user(&state.serenity_http, *user_id),
+        resolve_moderator_user(&state.serenity_http, mod_id)
     )?;
 
     let reason_str = cmd.reason.as_deref().unwrap_or("Timeout applied via Moderation Dashboard");
@@ -51,10 +51,10 @@ pub async fn handle_timeout(
     let duration = std::time::Duration::from_secs(duration_mins * 60);
 
     issue_mute(
-        &state.db,
+        &state.core.db,
         redis,
-        &state.guild_configs,
-        &state.http,
+        &state.core.guild_configs_cache,
+        &state.serenity_http,
         *guild_id,
         user,
         moderator,
@@ -66,6 +66,6 @@ pub async fn handle_timeout(
         .inspect_err(|e| error!(error = %e, "Failed to issue mute inside core utilities"))
         .map_err(|e| { WebError::Internal })?;
 
-    update_reported_message(&state.db, cmd.report_id, ReportUpdate::UserTimedOut).await?;
+    update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserTimedOut).await?;
     Ok(StatusCode::OK)
 }

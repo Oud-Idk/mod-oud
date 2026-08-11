@@ -1,14 +1,14 @@
-use crate::{Data, Error};
+use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::state::{BotData, Error};
 use crate::features::message_logging::types::{DistributedCachedMessage, EditDetails, MessageDetails};
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface, PubsubInterface};
 use fred::prelude::Expiration;
 use serenity::all::Message;
 use tracing::{debug, error, instrument};
-use crate::core::config::settings::{get_settings, GuildSettings};
 
 pub async fn spawn_cache_message_in_redis(
-    data: &Data,
+    data: &BotData,
     msg: &Message,
 ) -> Result<(), Error> {
     if msg.author.bot { return Ok(()); }
@@ -17,13 +17,13 @@ pub async fn spawn_cache_message_in_redis(
         return Ok(());
     };
 
-    let config = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
 
     if !config.is_message_logging_enabled() {
         return Ok(());
     }
 
-    let redis_conn = data.redis.clone();
+    let redis_conn = data.core.redis.clone();
     let msg_clone = msg.clone();
 
     tokio::spawn(async move {

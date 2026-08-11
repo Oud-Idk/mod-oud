@@ -1,7 +1,7 @@
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{Context, Error};
 use crate::features::reporting::types::ReportedMessagePayload;
-use crate::features::reporting::{actions};
-use crate::{Context, Error};
+use crate::features::reporting::actions;
 use poise::Modal;
 use tracing::{debug, info, trace, warn};
 
@@ -40,9 +40,9 @@ pub async fn report_message(
         "Invoked report_message context menu command"
     );
 
-    let db = &ctx.data().db;
-    let redis = ctx.data().redis.clone();
-    let guild_configs = &ctx.data().guild_configs;
+    let db = &ctx.data().core.db;
+    let redis = ctx.data().core.redis.clone();
+    let guild_configs = &ctx.data().core.guild_configs_cache;
 
     trace!(guild_id, "Fetching server settings for report configuration check");
     let config = get_settings(db, &redis, guild_configs, guild_id as i64).await?;
@@ -63,7 +63,7 @@ pub async fn report_message(
     if let Some(modal) = modal_data {
         debug!(caller_id, message_id, "Report modal submitted; issuing report");
         let result = actions::issue_report(
-            db, &ctx.data().redis, &ctx.data().username_buf_tx,
+            db, &ctx.data().core.redis, &ctx.data().core.username_tx,
             guild_id, message.channel_id.get() as i64,
             &message, ctx.author(), modal.reason,
         ).await?;

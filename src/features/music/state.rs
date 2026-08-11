@@ -1,9 +1,17 @@
+use crate::features::music::actor::GuildActor;
+use crate::features::music::actor::GuildCommand;
+use serenity::all::GuildId;
+use songbird::Songbird;
+use songbird::input::AuxMetadata;
+use songbird::tracks::TrackHandle;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use serenity::all::GuildId;
-use songbird::tracks::TrackHandle;
-use tokio::sync::Mutex;
-use songbird::input::AuxMetadata;
+use tokio::sync::{Mutex, mpsc};
+
+pub struct StartedTrackInfo {
+    pub title: String,
+    pub thumbnail: Option<String>,
+}
 
 #[derive(Clone, Debug)]
 pub struct QueuedTrack {
@@ -19,21 +27,31 @@ pub struct GuildPlayer {
     pub current_meta: Option<AuxMetadata>,
     pub queue: VecDeque<QueuedTrack>,
     pub history: Vec<QueuedTrack>,
-    pub transitioning: bool,
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default)]
 pub struct MusicState {
-    pub guilds: Arc<Mutex<HashMap<GuildId, GuildPlayer>>>,
+    pub actors: Arc<Mutex<HashMap<GuildId, mpsc::Sender<GuildCommand>>>>,
 }
 
 impl MusicState {
-    pub async fn with_guild<F, R>(&self, guild_id: GuildId, f: F) -> R
-    where
-        F: FnOnce(&mut GuildPlayer) -> R,
-    {
-        let mut map = self.guilds.lock().await;
-        let player = map.entry(guild_id).or_default();
-        f(player)
+    /// Gets the actor sender for a guild, spawning a new `GuildActor` task if one isn't running.
+    pub async fn get_or_spawn_actor(
+        &self,
+        guild_id: GuildId,
+        manager: Arc<Songbird>,
+        reqwest_client: reqwest::Client,
+    ) -> mpsc::Sender<GuildCommand> {
+        let mut map = self.actors.lock().await;
+
+        if let Some(tx) = map.get(&guild_id) {
+            if !tx.is_closed() {
+                return tx.clone();
+            }
+        }
+
+        let tx = GuildActor::spawn(guild_id, manager, reqwest_client);
+        map.insert(guild_id, tx.clone());
+        tx
     }
 }

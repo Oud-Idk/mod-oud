@@ -1,7 +1,7 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::birthday::format::format_ordinal;
 use crate::features::birthday::types::FullUserBirthdayRecord;
 use crate::shared::pagination::paginate;
-use crate::{Context, Error};
 use chrono::{Datelike, Utc};
 
 const MONTH_NAMES: [&str; 12] = [

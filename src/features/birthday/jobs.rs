@@ -1,7 +1,6 @@
-use std::time::Duration;
-use crate::Error;
 use crate::core::config::guild_ctx::{GuildCtx, get_guild_ctx};
 use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::state::Error;
 use crate::features::birthday::placeholders::replace_birthday_placeholders;
 use crate::features::birthday::types::{BirthdayMember, ExpiredRole, UserBirthdayRecord};
 use crate::features::birthday::{BirthdayConfig, announcements, database};
@@ -13,6 +12,7 @@ use serenity::all::{
 };
 use serenity::client::Context;
 use sqlx::PgPool;
+use std::time::Duration;
 use tracing::{debug, error, info, trace, warn};
 
 async fn get_display_name(ctx: &Context, guild_id: GuildId, user_id: UserId) -> String {

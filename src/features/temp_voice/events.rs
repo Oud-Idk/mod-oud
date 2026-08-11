@@ -1,15 +1,15 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice;
 use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 use crate::features::temp_voice::types::TempVoiceHub;
 use crate::features::temp_voice::{cache, placeholders};
 use crate::shared::voice_state;
-use crate::{Data, Error};
 use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{ChannelId, ChannelType, Context, CreateChannel, GuildChannel, GuildId, Member, UserId, VoiceState};
 use tracing::{debug, trace, warn};
 
 pub async fn handle_log_user_join(
-    data: &Data,
+    data: &BotData,
     new: &VoiceState
 ) -> Result<(), Error> {
     let Some(guild_id) = new.guild_id else {
@@ -36,11 +36,11 @@ pub async fn handle_log_user_join(
 pub async fn handle_join_hub_temp_vc(
     ctx: &Context,
     new: &VoiceState,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let user_id = new.user_id;
-    let redis = &data.redis;
-    let db = &data.db;
+    let redis = &data.core.redis;
+    let db = &data.core.db;
 
     let Some(guild_id) = new.guild_id else {
         return Ok(());
@@ -174,9 +174,9 @@ pub async fn handle_leave_temp_vc(
     ctx: &Context,
     old: Option<&VoiceState>,
     new: &VoiceState,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
-    let redis = &data.redis;
+    let redis = &data.core.redis;
 
     let Some(guild_id) = new.guild_id else {
         return Ok(());
@@ -266,7 +266,7 @@ pub async fn create_temp_vc(ctx: &Context, guild_id: &GuildId, member: &Member, 
     Ok(new_channel)
 }
 
-pub async fn handle_voice_event(ctx: &Context, old: Option<&VoiceState>, new: &VoiceState, data: &Data) -> Result<(), Error> {
+pub async fn handle_voice_event(ctx: &Context, old: Option<&VoiceState>, new: &VoiceState, data: &BotData) -> Result<(), Error> {
     handle_join_hub_temp_vc(ctx, new, data).await?;
     handle_leave_temp_vc(ctx, old, new, data).await?;
     Ok(())

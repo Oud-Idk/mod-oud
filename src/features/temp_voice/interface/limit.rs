@@ -1,12 +1,13 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check, preflight_modal_check};
 use crate::features::temp_voice::service;
-use crate::{Data, Error};
 use serenity::all::{ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse, CreateModal, InputTextStyle, ModalInteraction};
 use tracing::{debug, trace};
+
 pub(crate) async fn handle_set_limit_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let Ok(Some((_, _))) = preflight_button_check(
         &ctx, interaction, data
@@ -35,7 +36,7 @@ pub(crate) async fn handle_set_limit_vc(
 pub(crate) async fn handle_set_limit_vc_submit(
     ctx: &Context,
     interaction: &ModalInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let Some((channel_id, _)) = preflight_modal_check(&ctx, interaction, data).await? else {
         return Ok(());

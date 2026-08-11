@@ -1,4 +1,3 @@
-use crate::Error;
 use crate::core::config::guild_ctx::{GuildCtx, get_guild_ctx};
 use crate::shared::placeholders::get_placeholder_regex;
 use regex::Captures;

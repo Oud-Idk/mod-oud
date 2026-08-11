@@ -1,6 +1,6 @@
-use crate::Data;
 use crate::core::config::guild_ctx::get_guild_ctx;
-use crate::core::config::settings::{get_settings, GuildSettings};
+use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::state::BotData;
 use crate::features::automod::insert_automod_row;
 use crate::features::moderation::{replace_system_ban_placeholders, schedule_unban};
 use crate::shared::embed::build_custom_message;
@@ -15,14 +15,14 @@ use tracing::{info, instrument};
 pub async fn handle_honeypot(
     ctx: &Context,
     message: &Message,
-    data: &Data,
+    data: &BotData,
 ) -> Result<bool> {
     if message.author.bot { return Ok(false); }
 
     let Some(guild_id) = message.guild_id else {
         return Ok(false);
     };
-    let config = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
 
     let Some(honeypot) = config.honeypot.as_ref() else {
         return Ok(false);
@@ -65,7 +65,7 @@ pub async fn handle_honeypot(
     let gctx = get_guild_ctx(guild_id, ctx).await?;
 
     insert_automod_row(
-        &data.db,
+        &data.core.db,
         guild_id.get() as i64,
         message.author.id.get() as i64,
         None, None, "Honeypot", None,
@@ -104,7 +104,7 @@ pub async fn handle_honeypot(
         .context("Failed to ban honeypot offender")?;
 
     if let Some(dur) = duration {
-        schedule_unban(&data.db, guild_id, &message.author, dur)
+        schedule_unban(&data.core.db, guild_id, &message.author, dur)
             .await
             .context("Failed to schedule temp unban for honeypot offender")?;
     }

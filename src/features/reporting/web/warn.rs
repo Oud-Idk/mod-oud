@@ -21,17 +21,17 @@ pub async fn handle_warn(
     moderator_username: &str,
     target_username: &str,
 ) -> Result<StatusCode, WebError> {
-    let moderator_id = user_lookup::resolve_moderator_id(&state.http, mod_id).await?;
+    let moderator_id = user_lookup::resolve_moderator_id(&state.serenity_http, mod_id).await?;
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
 
     info!(moderator_id = %moderator_id, "Issuing warning to user");
 
     issue_warning(
-        &state.db,
+        &state.core.db,
         redis,
-        &state.guild_configs,
-        &state.username_buf_tx,
-        &state.http,
+        &state.core.guild_configs_cache,
+        &state.core.username_tx,
+        &state.serenity_http,
         *guild_id,
         *user_id,
         moderator_id,
@@ -43,6 +43,6 @@ pub async fn handle_warn(
         .inspect_err(|e| error!(error = %e, "Failed to execute warning issuance"))
         .map_err(|e| { WebError::Internal })?;
 
-    update_reported_message(&state.db, cmd.report_id, ReportUpdate::UserWarned).await?;
+    update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserWarned).await?;
     Ok(StatusCode::OK)
 }

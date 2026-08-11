@@ -1,6 +1,6 @@
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{Context, Error};
 use crate::features::tickets::panel::build_ticket_message_payload;
-use crate::{Context, Error};
 use poise::{CreateReply, serenity_prelude as serenity};
 use serenity::all::{GuildChannel, Role};
 use tracing::{debug, info, warn};
@@ -30,7 +30,7 @@ pub async fn setup_tickets(
         "Moderator invoked setup_tickets slash command"
     );
 
-    let settings = get_settings(&ctx.data().db, &ctx.data().redis, &ctx.data().guild_configs, guild_id).await?;
+    let settings = get_settings(&ctx.data().core.db, &ctx.data().core.redis, &ctx.data().core.guild_configs_cache, guild_id).await?;
 
     if let Some(ref ticket_cfg) = settings.tickets {
         if let None = ticket_cfg.posted_message_id {
@@ -138,7 +138,7 @@ pub async fn setup_tickets(
             "tickets": tickets_payload
         }),
     )
-        .execute(&ctx.data().db)
+        .execute(&ctx.data().core.db)
         .await
         .map_err(|e| {
             warn!(error = ?e, guild_id, "Failed to persist new ticket configuration to database");

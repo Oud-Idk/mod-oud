@@ -1,5 +1,5 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::moderation::channels::delete_entire_category;
-use crate::{Context, Error};
 use serenity::all::GuildChannel;
 use tracing::debug;
 

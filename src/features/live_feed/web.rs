@@ -31,7 +31,7 @@ pub async fn sse_handler(
 ) -> Result<Sse<impl Stream<Item=Result<Event, Infallible>>>, StatusCode> {
     debug!("New SSE subscription request received");
 
-    let rx = state.tx.subscribe();
+    let rx = state.message_event_tx.subscribe();
 
     let stream = BroadcastStream::new(rx)
         .filter_map(|msg| {

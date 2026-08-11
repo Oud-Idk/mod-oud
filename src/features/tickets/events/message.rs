@@ -1,8 +1,8 @@
-use crate::core::config::settings::{get_settings, GuildSettings};
+use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::state::{BotData, Error};
 use crate::features::tickets;
 use crate::features::tickets::cache::{is_ticket_active, update_activity_redis};
 use crate::features::tickets::types::TicketLogPayload;
-use crate::{Data, Error};
 use fred::clients::Client;
 use serenity::all::{ChannelId, ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, Message, MessageId, RoleId};
 use tokio::sync::mpsc::UnboundedSender;
@@ -16,7 +16,7 @@ use tracing::{debug, info, instrument, trace};
         author = %message.author.id
     )
 )]
-pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Result<(), Error> {
+pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) -> Result<(), Error> {
     if message.author.bot {
         return Ok(());
     }
@@ -25,7 +25,7 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Re
     let channel_id_str = channel_id.get().to_string();
     let Some(guild_id) = message.guild_id else { return Ok(()) };
 
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
 
     let Some(ticket_config) = settings.tickets.as_ref().filter(|cfg| cfg.enabled) else {
         return Ok(());
@@ -56,7 +56,7 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &Data) -> Re
     log_message_to_db(&data.ticket_log_tx, channel_id, message, message.author.name.clone(), has_role);
 
     let ticket_key = format!("ticket:{}", channel_id_str);
-    let mut redis_conn = data.redis.clone();
+    let mut redis_conn = data.core.redis.clone();
 
     let bump_every_mins = (ticket_config.bump_every.as_secs() / 60) as i32;
 
@@ -94,7 +94,7 @@ fn log_message_to_db(
 #[instrument(skip(ctx, data, redis))]
 async fn rotate_close_button(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     redis: &Client,
     channel_id: ChannelId,
     ticket_key: &str,

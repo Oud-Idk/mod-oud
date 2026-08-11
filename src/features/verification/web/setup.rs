@@ -1,4 +1,5 @@
-use crate::Error;
+use crate::core::config::settings::MessageLayout;
+use crate::core::config::state::Error;
 use crate::core::config::state::WebState;
 use crate::shared::embed::DiscordEmbed;
 use crate::shared::embed::Format;
@@ -7,11 +8,10 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ButtonStyle, ChannelId, ChannelType, CreateActionRow, CreateButton, CreateChannel, EditRole, GuildChannel, GuildId, Http, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, Role, RoleId};
 use std::sync::Arc;
-use serde_with::{serde_as, DisplayFromStr};
 use tracing::{trace, warn};
-use crate::core::config::settings::MessageLayout;
 
 #[serde_as]
 #[derive(Serialize, Clone, Debug)]
@@ -69,7 +69,7 @@ pub async fn handle_verification_setup(
     Path(guild_id_str): Path<String>,
     Json(payload): Json<MessageLayout>,
 ) -> Result<(StatusCode, Json<SetupVerificationResponse>), (StatusCode, String)> {
-    let http = &state.http;
+    let http = &state.serenity_http;
 
     let guild_id_u64 = guild_id_str
         .parse::<u64>()

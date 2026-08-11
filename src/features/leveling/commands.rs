@@ -3,11 +3,11 @@ use crate::features::leveling::calculation::{calculate_cumulative_xp, calculate_
 use crate::features::leveling::database::{get_user_level, update_level};
 use crate::features::leveling::{cache, database, keys};
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 use serenity::all::{CreateAttachment, CreateEmbed, User, UserId};
 use std::sync::OnceLock;
 use tracing::{debug, trace};
 
+use crate::core::config::state::{Context, Error};
 use anyhow::Context as _;
 use anyhow::Result;
 use base64::Engine as _;
@@ -53,9 +53,9 @@ pub async fn view(
         "Invoked level view slash command"
     );
 
-    let redis = &ctx.data().redis;
-    let db = &ctx.data().db;
-    let guild_configs_cache = &ctx.data().guild_configs;
+    let redis = &ctx.data().core.redis;
+    let db = &ctx.data().core.db;
+    let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
     let settings = get_settings(db, redis, guild_configs_cache, guild_id.get() as i64).await?;
     if !is_leveling_enabled(&settings) {
@@ -164,9 +164,9 @@ pub async fn card(
     let target_user = user.as_ref().unwrap_or(ctx.author());
     let svg_template = include_str!("assets/level_template.svg");
 
-    let redis = &ctx.data().redis;
-    let db = &ctx.data().db;
-    let guild_configs_cache = &ctx.data().guild_configs;
+    let redis = &ctx.data().core.redis;
+    let db = &ctx.data().core.db;
+    let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
     let settings = get_settings(db, redis, guild_configs_cache, guild_id.get() as i64).await?;
 
@@ -292,9 +292,9 @@ pub async fn add(
         return Ok(());
     }
 
-    let redis = &ctx.data().redis;
-    let db = &ctx.data().db;
-    let guild_configs_cache = &ctx.data().guild_configs;
+    let redis = &ctx.data().core.redis;
+    let db = &ctx.data().core.db;
+    let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
     let settings = get_settings(db, redis, guild_configs_cache, guild_id.get() as i64).await?;
     if !is_leveling_enabled(&settings) {
@@ -354,9 +354,9 @@ pub async fn remove(
         return Ok(());
     }
 
-    let redis = &ctx.data().redis;
-    let db = &ctx.data().db;
-    let guild_configs_cache = &ctx.data().guild_configs;
+    let redis = &ctx.data().core.redis;
+    let db = &ctx.data().core.db;
+    let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
     let settings = get_settings(db, redis, guild_configs_cache, guild_id.get() as i64).await?;
     if !is_leveling_enabled(&settings) {

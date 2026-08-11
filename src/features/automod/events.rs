@@ -18,7 +18,7 @@ use crate::features::{automod, bad_words};
 use anyhow::Result;
 pub use honeypot::handle_honeypot;
 pub use native_rules::store_automod;
-use crate::{Data, Error};
+use crate::core::config::state::{BotData, Error};
 use poise::serenity_prelude::{Context, GuildId, Message};
 use std::result;
 use tracing::{debug, instrument, trace};
@@ -35,7 +35,7 @@ use tracing::{debug, instrument, trace};
 )]
 pub async fn check_for_filter(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     message: &Message,
 ) -> Result<bool, Error> {
     if message.author.bot { return Ok(false); }
@@ -45,7 +45,7 @@ pub async fn check_for_filter(
         return Ok(false);
     };
 
-    let config = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64).await?;
+    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
 
     let guild_id_u64 = guild_id.get();
     tracing::Span::current().record("guild_id", guild_id_u64);
@@ -129,7 +129,7 @@ pub async fn check_for_filter(
     Ok(false)
 }
 
-pub async fn handle_automod(ctx: &Context, message: &Message, data: &Data) -> Result<bool, Error> {
+pub async fn handle_automod(ctx: &Context, message: &Message, data: &BotData) -> Result<bool, Error> {
     if handle_honeypot(ctx, message, data).await? {
         return Ok(true);
     }

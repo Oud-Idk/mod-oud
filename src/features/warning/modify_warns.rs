@@ -1,7 +1,7 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::warning::issuing::issue_warning_status_change;
 use crate::shared::command_context::GuildMetadata;
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 use tracing::{debug, info, trace};
 
 /// Helper function to handle both pardoning and unpardoning warnings.
@@ -19,9 +19,9 @@ pub async fn set_warning_active_status(
     let meta = GuildMetadata::extract(&ctx)?;
 
     let result = issue_warning_status_change(
-        &ctx.data().db,
-        &ctx.data().redis,
-        &ctx.data().guild_configs,
+        &ctx.data().core.db,
+        &ctx.data().core.redis,
+        &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
         id,

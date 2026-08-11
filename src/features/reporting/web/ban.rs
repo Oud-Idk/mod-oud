@@ -22,8 +22,8 @@ pub async fn handle_ban_user(
     info!("Issuing ban to user");
 
     let (user, moderator) = tokio::try_join!(
-        resolve_target_user(&state.http, *user_id),
-        resolve_moderator_user(&state.http, mod_id)
+        resolve_target_user(&state.serenity_http, *user_id),
+        resolve_moderator_user(&state.serenity_http, mod_id)
     )?;
 
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
@@ -37,10 +37,10 @@ pub async fn handle_ban_user(
     };
 
     issue_ban(
-        &state.db,
+        &state.core.db,
         redis,
-        &state.guild_configs,
-        &state.http,
+        &state.core.guild_configs_cache,
+        &state.serenity_http,
         *guild_id,
         user,
         moderator,
@@ -53,6 +53,6 @@ pub async fn handle_ban_user(
         .inspect_err(|e| error!(error = %e, "Failed to complete ban operation"))
         .map_err(|e| WebError::Internal)?;
 
-    update_reported_message(&state.db, cmd.report_id, ReportUpdate::UserBanned).await?;
+    update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserBanned).await?;
     Ok(StatusCode::OK)
 }

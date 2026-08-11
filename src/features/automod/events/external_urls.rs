@@ -1,5 +1,5 @@
 use super::super::rules::check_rule;
-use crate::Data;
+use crate::core::config::state::BotData;
 use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::{ExternalLinksRule, MessageFilteringConfig, Modes, ThreatType};
 use crate::shared::messages;
@@ -132,11 +132,11 @@ fn any_breaking_rule_domain<'a>(external_links: &ExternalLinksRule, urls: &[&'a 
     fields(url_count = urls.len())
 )]
 pub async fn resolve_safe_browsing<'a>(
-    data: &Data,
+    data: &BotData,
     external_links: &'a ExternalLinksRule,
     urls: &[String],
 ) -> FilterVerdict<'a> {
-    let Some(client) = &data.safe_browsing_client else {
+    let Some(client) = &data.security.safe_browsing else {
         trace!("Safe Browsing client is not configured; passing evaluation");
         return FilterVerdict::Pass;
     };

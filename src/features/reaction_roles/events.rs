@@ -1,12 +1,12 @@
 use super::database::{get_button_role, get_reaction_role};
-use crate::{Data, Error};
+use crate::core::config::state::{BotData, Error};
 use fred::interfaces::KeysInterface;
 use fred::prelude::Expiration;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, Reaction, RoleId};
 use tracing::{error, info, warn};
 
-pub async fn handle_reaction_role_add(ctx: &Context, reaction: &Reaction, data: &Data) -> Result<(), Error> {
+pub async fn handle_reaction_role_add(ctx: &Context, reaction: &Reaction, data: &BotData) -> Result<(), Error> {
     let Some(guild_id) = reaction.guild_id else { return Ok(()); };
     let Some(user_id) = reaction.user_id else { return Ok(()); };
     if user_id == ctx.cache.current_user().id {
@@ -24,7 +24,7 @@ pub async fn handle_reaction_role_add(ctx: &Context, reaction: &Reaction, data: 
     Ok(())
 }
 
-pub async fn handle_reaction_role_remove(ctx: &Context, reaction: &Reaction, data: &Data) -> Result<(), Error> {
+pub async fn handle_reaction_role_remove(ctx: &Context, reaction: &Reaction, data: &BotData) -> Result<(), Error> {
     let Some(guild_id) = reaction.guild_id else { return Ok(()); };
     let Some(user_id) = reaction.user_id else { return Ok(()); };
     if user_id == ctx.cache.current_user().id {
@@ -45,7 +45,7 @@ pub async fn handle_reaction_role_remove(ctx: &Context, reaction: &Reaction, dat
 pub async fn handle_button_interaction(
     ctx: &Context,
     component: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     // Parse custom_id string into i64
     let custom_id = component.data.custom_id.as_str();

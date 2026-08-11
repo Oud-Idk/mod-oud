@@ -1,23 +1,24 @@
-use crate::Error;
 use crate::core::config::settings::GuildSettings;
+use crate::core::config::state::Error;
 use crate::core::config::state::WebState;
+use crate::core::config::state::{AppConfig, CoreServices};
+use crate::features::live_feed;
+use crate::features::live_feed::LogEvent;
+use crate::web::router::get_router;
 use axum::http::{HeaderValue, Method, StatusCode, Uri};
 use axum::routing::Router;
 use axum::routing::method_routing::get;
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
+use moka::future::Cache;
+use serenity::all::Http;
 use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use moka::future::Cache;
-use serenity::all::Http;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, error, info, instrument, trace, warn};
-use crate::features::live_feed;
-use crate::features::live_feed::LogEvent;
-use crate::web::router::get_router;
 
 #[instrument(skip(db, http, redis_client, subscriber_client, guild_configs, tx))]
 pub async fn start_web_server(
@@ -28,7 +29,7 @@ pub async fn start_web_server(
     guild_configs: Cache<i64, GuildSettings>,
     tx: broadcast::Sender<LogEvent>,
     reqwest_client: reqwest::Client,
-    username_tx: tokio::sync::mpsc::Sender<crate::UserUpdate>,
+    username_tx: tokio::sync::mpsc::Sender<crate::shared::username_cache::UserUpdate>,
 ) -> Result<(), Error> {
     if let Err(e) = live_feed::start_live_feed_subscriber(subscriber_client, tx.clone()).await {
         error!(error = ?e, "Failed to start live feed subscriber");
@@ -39,23 +40,17 @@ pub async fn start_web_server(
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
-    let shared_secret = env::var("VERIFICATION_SECRET").ok();
-    let cf_secret_key = env::var("TURNSTILE_SECRET").ok();
-    let hc_secret_key = env::var("HCAPTCHA_SECRET").ok();
-    let hc_site_key = env::var("HCAPTCHA_SITE_KEY").ok();
-
     let shared_state = Arc::new(WebState {
-        tx,
-        db,
-        http,
-        redis: redis_client,
-        guild_configs,
-        req_client: reqwest_client,
-        shared_secret,
-        cf_secret_key,
-        hc_secret_key,
-        hc_site_key,
-        username_buf_tx: username_tx,
+        core: CoreServices {
+            db,
+            redis: redis_client,
+            reqwest_client,
+            guild_configs_cache: guild_configs,
+            username_tx,
+            config: AppConfig::from_env(),
+        },
+        serenity_http: http,
+        message_event_tx: tx,
     });
 
     let app = get_router(cors, shared_state);

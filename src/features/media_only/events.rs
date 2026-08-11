@@ -1,4 +1,4 @@
-use crate::Data;
+use crate::core::config::state::BotData;
 use crate::features::media_only::cache::get_channel_media;
 use crate::features::media_only::types::MediaOnlyChannel;
 use crate::features::media_only::violation;
@@ -17,7 +17,7 @@ fn has_matching_role(member: &Box<PartialMember>, roles: &[RoleId]) -> bool {
     })
 }
 
-pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data: &Data) -> Result<()> {
+pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data: &BotData) -> Result<()> {
     let channel_id = message.channel_id;
 
     // Checks exempt roles and disabled channel, and check if config exists
@@ -68,7 +68,7 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
     Ok(())
 }
 
-async fn preflight_checks(message: &Message, channel_id: ChannelId, data: &Data) -> Result<Option<MediaOnlyChannel>> {
+async fn preflight_checks(message: &Message, channel_id: ChannelId, data: &BotData) -> Result<Option<MediaOnlyChannel>> {
     if message.author.bot {
         trace!("Author is a bot. Skipping");
         return Ok(None);

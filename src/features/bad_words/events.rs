@@ -1,9 +1,9 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::automod::FilterVerdict;
 use crate::features::bad_words::rules::should_be_skipped_ruleset;
 use crate::features::bad_words::types::BadWordRuleset;
 use crate::features::bad_words::types::{MatchStrategy, Pattern};
 use crate::features::bad_words::{cache, database, keys};
-use crate::{Data, Error};
 use fred::interfaces::{FredResult, KeysInterface};
 use serenity::all::Message;
 use std::borrow::Cow;
@@ -79,11 +79,11 @@ pub fn filter_bad_words<'a>(
 /// Fetch active rulesets using a Redis cache layer fallback
 #[instrument(skip(data), fields(guild_id = guild_id))]
 pub async fn get_active_bad_word_rulesets(
-    data: &Data,
+    data: &BotData,
     guild_id: i64,
 ) -> Result<Vec<BadWordRuleset>, Error> {
     let cache_key = keys::bad_word_config_key(guild_id);
-    let conn = &data.redis;
+    let conn = &data.core.redis;
 
     trace!(cache_key = %cache_key, "Checking Redis cache for bad word rulesets");
 
@@ -105,7 +105,7 @@ pub async fn get_active_bad_word_rulesets(
         }
     }
 
-    let rulesets = database::fetch_bad_word_rows(&data.db, guild_id).await?;
+    let rulesets = database::fetch_bad_word_rows(&data.core.db, guild_id).await?;
     debug!(rulesets_count = rulesets.len(), "Successfully fetched bad word rulesets from database");
 
     match serde_json::to_string(&rulesets) {

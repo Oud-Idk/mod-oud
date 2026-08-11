@@ -30,7 +30,7 @@ pub async fn handle_send_giveaway_message(
         (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
     })?;
 
-    let record = giveaways::database::fetch_giveaway(&state.db, config_id, guild_id).await?;
+    let record = giveaways::database::fetch_giveaway(&state.core.db, config_id, guild_id).await?;
 
     let Some(channel_id_i64) = record.channel_id else {
         return Err((
@@ -41,12 +41,12 @@ pub async fn handle_send_giveaway_message(
 
     let channel_id = ChannelId::new(channel_id_i64 as u64);
     let host_user = UserId::from(record.host_id as u64)
-        .to_user(&state.http)
+        .to_user(&state.serenity_http)
         .await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get user through HTTP"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
-    let gctx = get_guild_ctx(GuildId::from(guild_id as u64), &state.http)
+    let gctx = get_guild_ctx(GuildId::from(guild_id as u64), &state.serenity_http)
         .await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get guild ctx"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
@@ -65,19 +65,19 @@ pub async fn handle_send_giveaway_message(
 
     let message_builder = custom_msg_opt.unwrap();
     let message = channel_id
-        .send_message(&state.http, message_builder)
+        .send_message(&state.serenity_http, message_builder)
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed to send giveaway message to Discord"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     // Auto-apply the 🎉 entry emoji
     let emoji = ReactionType::Unicode("🎉".to_string());
-    if let Err(err) = message.react(&state.http, emoji).await {
+    if let Err(err) = message.react(&state.serenity_http, emoji).await {
         warn!(error = ?err, "Failed applying giveaway reaction emoji");
     }
 
     let message_id = message.id.get();
-    giveaways::database::update_giveaway_message_id(&state.db, config_id, message_id as i64)
+    giveaways::database::update_giveaway_message_id(&state.core.db, config_id, message_id as i64)
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed updating message ID in DB"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;

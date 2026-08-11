@@ -1,20 +1,75 @@
 use crate::core::config::settings::GuildSettings;
+use crate::features::automod::{SafeBrowsingClient, SpamTracker};
 use crate::features::live_feed::LogEvent;
-use fred::clients::Client;
+use crate::features::message_logging::CachedAuditLogs;
+use crate::features::music::MusicState;
+use crate::features::tickets::TicketLogPayload;
+use crate::shared::username_cache::UserUpdate;
 use std::sync::Arc;
+use serenity::all::ShardInfo;
 use tokio::sync::broadcast;
+use tokio::sync::mpsc::UnboundedSender;
+
+pub type Error = anyhow::Error;
+pub type Context<'a> = poise::Context<'a, BotData, Error>;
 
 #[derive(Clone)]
-pub struct WebState {
-    pub tx: broadcast::Sender<LogEvent>,
+pub struct CoreServices {
     pub db: sqlx::PgPool,
-    pub http: Arc<poise::serenity_prelude::Http>,
-    pub redis: Client,
-    pub username_buf_tx: tokio::sync::mpsc::Sender<crate::UserUpdate>,
-    pub guild_configs: moka::future::Cache<i64, GuildSettings>,
-    pub req_client: reqwest::Client,
+    pub redis: fred::clients::Client,
+    pub reqwest_client: reqwest::Client,
+    pub guild_configs_cache: moka::future::Cache<i64, GuildSettings>,
+    pub username_tx: tokio::sync::mpsc::Sender<UserUpdate>,
+    pub config: AppConfig,
+}
+
+#[derive(Clone)]
+pub struct AppConfig {
     pub shared_secret: Option<String>,
     pub cf_secret_key: Option<String>,
     pub hc_secret_key: Option<String>,
     pub hc_site_key: Option<String>,
+    pub domain: String,
+}
+
+impl AppConfig {
+    pub fn from_env() -> Self {
+        Self {
+            shared_secret: std::env::var("VERIFICATION_SECRET").ok(),
+            cf_secret_key: std::env::var("TURNSTILE_SECRET").ok(),
+            hc_secret_key: std::env::var("HCAPTCHA_SECRET").ok(),
+            hc_site_key: std::env::var("HCAPTCHA_SITE_KEY").ok(),
+            domain: std::env::var("DOMAIN").unwrap_or_else(|_| "localhost:3000".to_string()),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct BotCaches {
+    pub active_tickets: moka::future::Cache<u64, ()>,
+    pub audit_logs: moka::future::Cache<u64, Arc<CachedAuditLogs>>,
+}
+
+#[derive(Clone)]
+pub struct BotSecurity {
+    pub spam_tracker: SpamTracker,
+    pub safe_browsing: Option<SafeBrowsingClient>,
+}
+
+#[derive(Clone)]
+pub struct WebState {
+    pub core: CoreServices,
+    pub serenity_http: Arc<poise::serenity_prelude::Http>,
+    pub message_event_tx: broadcast::Sender<LogEvent>,
+}
+
+#[derive(Clone)]
+pub struct BotData {
+    pub core: CoreServices,
+    pub security: BotSecurity,
+    pub caches: BotCaches,
+
+    pub ticket_log_tx: UnboundedSender<TicketLogPayload>,
+    pub shard_info: ShardInfo,
+    pub music_state: MusicState,
 }

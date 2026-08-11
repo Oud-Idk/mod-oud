@@ -1,12 +1,12 @@
-use crate::features::automod::insert_automod_row;
+use crate::core::config::state::{BotData, Error};
 use crate::features::automod::cache::get_rule_name;
+use crate::features::automod::insert_automod_row;
 use crate::features::automod::types::LoggedAction;
-use crate::{Data, Error};
 use serenity::all::{ActionExecution, Context};
 
-pub async fn store_automod(ctx: &Context, execution: &ActionExecution, data: &Data) -> Result<(), Error> {
-    let db = &data.db;
-    let redis = &data.redis;
+pub async fn store_automod(ctx: &Context, execution: &ActionExecution, data: &BotData) -> Result<(), Error> {
+    let db = &data.core.db;
+    let redis = &data.core.redis;
 
     let action = LoggedAction::from(&execution.action).as_str().to_ascii_uppercase();
     let rule_name = get_rule_name(&ctx, redis, &execution.guild_id, &execution.rule_id).await;

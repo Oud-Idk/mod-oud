@@ -1,11 +1,11 @@
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_lock;
 use crate::features::raid_detection::database;
-use crate::features::raid_detection::implementation::{clear_raid_active, DynamicRaidDetector};
+use crate::features::raid_detection::implementation::{DynamicRaidDetector, clear_raid_active};
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::RaidAction;
-use crate::{Data, Error};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, EditMember, Member, Timestamp,
 };
@@ -20,7 +20,7 @@ use tracing::{debug, error, info, instrument, trace, warn};
 )]
 pub async fn handle_raid_detection(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     new_member: &Member,
 ) -> Result<(), Error> {
     let guild_id = new_member.guild_id;
@@ -29,14 +29,14 @@ pub async fn handle_raid_detection(
     let now = chrono::Utc::now();
 
     let Some(raid_config) = get_settings(
-        &data.db, &data.redis, &data.guild_configs, guild_id_u64 as i64,
+        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64 as i64,
     ).await?.raid_detection else {
         trace!(guild_id = guild_id_u64, "Raid detection is disabled or unconfigured");
         return Ok(());
     };
 
     let detector = DynamicRaidDetector::new(
-        data.redis.clone(),
+        data.core.redis.clone(),
         raid_config.window_size_seconds,
         raid_config.z_score_multiplier,
         raid_config.min_safe_limit,
@@ -78,7 +78,7 @@ pub async fn handle_raid_detection(
                 "Failed to save pre-raid state snapshot; rolling back active raid flag"
             );
             // Rollback Redis active state so next join can retry
-            let _ = clear_raid_active(&data.redis, guild_id_u64).await;
+            let _ = clear_raid_active(&data.core.redis, guild_id_u64).await;
             return Err(e);
         }
 
@@ -99,7 +99,7 @@ pub async fn handle_raid_detection(
                 }
                 RaidAction::BumpVerification => {
                     info!(guild_id = guild_id_u64, "Bumping server verification requirement to hCaptcha");
-                    database::bump_verification_to_max(&data.db, guild_id_u64 as i64).await?;
+                    database::bump_verification_to_max(&data.core.db, guild_id_u64 as i64).await?;
                 }
                 _ => {}
             }

@@ -26,7 +26,7 @@ pub async fn handle_delete_ticket_message(
     let channel = serenity::all::ChannelId::new(payload.channel_id);
     let message_id = serenity::all::MessageId::new(payload.message_id);
 
-    channel.delete_message(&state.http, message_id)
+    channel.delete_message(&state.serenity_http, message_id)
         .await
         .inspect(|_| debug!("Discord message deleted successfully"))
         .or_else(|e| {

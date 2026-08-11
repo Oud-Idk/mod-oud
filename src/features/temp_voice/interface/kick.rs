@@ -1,16 +1,16 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice::interface::{create_ephemeral_msg, get_input_value, preflight_button_check, preflight_modal_check};
-use crate::{Data, Error};
+use crate::features::temp_voice::service;
 use serenity::all::{
     ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse,
     CreateModal, EditMember, InputTextStyle, ModalInteraction, UserId,
 };
 use tracing::{debug, error, warn};
-use crate::features::temp_voice::service;
 
 pub(crate) async fn handle_kick_temp_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let Ok(Some((_, _))) = preflight_button_check(&ctx, interaction, data).await else {
         return Ok(());
@@ -40,7 +40,7 @@ pub(crate) async fn handle_kick_temp_vc(
 pub(crate) async fn handle_kick_temp_vc_submit(
     ctx: &Context,
     interaction: &ModalInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let Some((channel_id, guild_id)) = preflight_modal_check(&ctx, interaction, data).await? else {
         return Ok(());

@@ -38,7 +38,7 @@ pub async fn handle_dashboard_command(
     State(state): State<Arc<WebState>>,
     Json(cmd): Json<DashboardCommand>,
 ) -> Result<StatusCode, WebError> {
-    let (guild_id, user_id, target_username) = reporting::database::fetch_target_report(&state.db, cmd.report_id)
+    let (guild_id, user_id, target_username) = reporting::database::fetch_target_report(&state.core.db, cmd.report_id)
         .await
         .inspect_err(|(status, err_msg)| error!(
             status = %status,
@@ -46,7 +46,7 @@ pub async fn handle_dashboard_command(
             "Failed to fetch target report details from database"
         ))?;
 
-    let redis_conn = state.redis.clone();
+    let redis_conn = state.core.redis.clone();
     let moderator_name = cmd.name.as_deref().unwrap_or("Web Dashboard");
     let moderator_id = cmd.moderator_id;
 
@@ -79,7 +79,7 @@ pub async fn handle_dashboard_command(
         }
     }
 
-    if let Err(e) = broadcast_report_update(&state.db, &redis_conn, cmd.report_id).await {
+    if let Err(e) = broadcast_report_update(&state.core.db, &redis_conn, cmd.report_id).await {
         error!(error = ?e, "Failed to broadcast report update after moderation action");
         return Err(WebError::Internal);
     }

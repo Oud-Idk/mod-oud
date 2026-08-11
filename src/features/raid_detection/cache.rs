@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use crate::features::raid_detection::constants::{CACHE_STATS_TTL_SECONDS, HASH_TTL_DAYS, HISTORY_HOURS};
 use crate::features::raid_detection::keys;
 use crate::features::raid_detection::types::Stats;

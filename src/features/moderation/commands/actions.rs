@@ -1,3 +1,4 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::moderation::ActionType;
 use crate::features::moderation::channels::delete_entire_category;
 use crate::features::moderation::commands::helpers::parse_duration;
@@ -6,7 +7,6 @@ use crate::features::moderation::issuing::{issue_ban, issue_kick, issue_mute, is
 use crate::features::moderation::perms::pre_flight_check;
 use crate::shared::command_context::GuildMetadata;
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 use serenity::all::{GetMessages, Member, Message, MessageId, User};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, trace, warn};
@@ -33,9 +33,9 @@ pub async fn kick(
     let reason_str = reason.as_deref().unwrap_or("No reason provided");
 
     issue_kick(
-        &ctx.data().db,
-        &ctx.data().redis,
-        &ctx.data().guild_configs,
+        &ctx.data().core.db,
+        &ctx.data().core.redis,
+        &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
         ctx.channel_id(),
@@ -79,7 +79,7 @@ pub async fn ban(
     let reason_str = reason.as_deref().unwrap_or("No reason provided");
     let dmd_time = dmd.unwrap_or(3);
     let duration_label = duration.as_deref().unwrap_or("Permanent");
-    let redis_conn = &ctx.data().redis;
+    let redis_conn = &ctx.data().core.redis;
 
     // Parse the duration string into an Option<std::time::Duration>
     let parsed_duration = match &duration {
@@ -94,9 +94,9 @@ pub async fn ban(
     };
 
     issue_ban(
-        &ctx.data().db,
+        &ctx.data().core.db,
         &redis_conn,
-        &ctx.data().guild_configs,
+        &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
         user.clone(),
@@ -216,9 +216,9 @@ pub async fn mute(
     let timestamp = serenity::all::Timestamp::from_unix_timestamp(future_unix)?;
 
     issue_mute(
-        &ctx.data().db,
-        &ctx.data().redis,
-        &ctx.data().guild_configs,
+        &ctx.data().core.db,
+        &ctx.data().core.redis,
+        &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
         member.user.clone(),
@@ -272,12 +272,12 @@ pub async fn unmute(
         return Ok(());
     }
 
-    let redis_conn = &ctx.data().redis;
+    let redis_conn = &ctx.data().core.redis;
 
     issue_unmute(
-        &ctx.data().db,
+        &ctx.data().core.db,
         &redis_conn,
-        &ctx.data().guild_configs,
+        &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
         member.user.clone(),
@@ -316,12 +316,12 @@ pub async fn softban(
     };
     let reason_str = reason.as_deref().unwrap_or("No reason specified");
 
-    let redis_conn = &ctx.data().redis;
+    let redis_conn = &ctx.data().core.redis;
 
     issue_softban(
-        &ctx.data().db,
+        &ctx.data().core.db,
         &redis_conn,
-        &ctx.data().guild_configs,
+        &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
         member.user.clone(),
@@ -361,7 +361,7 @@ pub async fn unban(
     match unban_result {
         Ok(_) => {
             log_moderation_action(
-                &ctx.data().db, meta.id, Some(&user), &ctx.author(), Some(&reason_str), ActionType::Unban, None,
+                &ctx.data().core.db, meta.id, Some(&user), &ctx.author(), Some(&reason_str), ActionType::Unban, None,
             ).await?;
 
             ctx.say(format!(

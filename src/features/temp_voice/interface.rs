@@ -1,7 +1,7 @@
+use crate::core::config::state::{Context as PoiseContext, BotData, Error};
 use crate::features::temp_voice::cache;
 use crate::features::temp_voice::keys::temp_vcs_key;
 use crate::shared::messages::send_ephemeral;
-use crate::{Context as PoiseContext, Data, Error};
 use anyhow::Context as _;
 use fred::interfaces::HashesInterface;
 use serenity::all::{ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, Context, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Interaction, Member, ModalInteraction};
@@ -24,7 +24,7 @@ macro_rules! impl_preflight_check {
         pub async fn $fn_name(
             ctx: &Context,
             interaction: &$interaction_type,
-            data: &Data
+            data: &BotData
         ) -> Result<Option<(ChannelId, GuildId)>, Error> {
             match cache::find_active_temp_vc(
                 data, interaction.guild_id, interaction.user.id
@@ -90,7 +90,7 @@ pub async fn preflight_slash_check(
     };
 
     // Verify ownership via Redis
-    let redis = &ctx.data().redis;
+    let redis = &ctx.data().core.redis;
     let temp_vc_hash = temp_vcs_key(guild_id);
     let owner_id_str: Option<String> = redis.hget(&temp_vc_hash, channel_id.get().to_string()).await?;
 
@@ -112,7 +112,7 @@ pub async fn preflight_slash_check(
 pub async fn handle_interaction(
     ctx: &Context,
     interaction: &Interaction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     match interaction {
         Interaction::Component(component) => {

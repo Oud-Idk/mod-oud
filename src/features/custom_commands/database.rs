@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::core::config::state::Error;
 use crate::features::custom_commands::types::{CommandAction, CooldownType, CustomCommand};
 use crate::features::custom_commands::{cache, keys};
 use fred::clients::Client;

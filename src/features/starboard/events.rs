@@ -1,4 +1,4 @@
-use crate::Data;
+use crate::core::config::state::BotData;
 use crate::features::starboard::builder::{build_starboard_message, count_emoji_and_cache};
 use crate::features::starboard::cache::{apply_starboard_op_if_exists, get_starboards};
 use crate::features::starboard::types::{Starboard, StarboardOp};
@@ -50,13 +50,13 @@ pub async fn handle_cleanup_if_starboard(
 }
 
 #[instrument(skip(ctx, data, add_reaction), fields(reaction = ?add_reaction.emoji))]
-pub async fn handle_reaction_add(ctx: &Context, add_reaction: &Reaction, data: &Data) -> Result<()> {
+pub async fn handle_reaction_add(ctx: &Context, add_reaction: &Reaction, data: &BotData) -> Result<()> {
     debug!("Handling reaction add event");
     handle_starboard_reaction(ctx, add_reaction, data, StarboardOp::Add).await
 }
 
 #[instrument(skip(ctx, data, removed_reaction), fields(reaction = ?removed_reaction.emoji))]
-pub async fn handle_reaction_remove(ctx: &Context, removed_reaction: &Reaction, data: &Data) -> Result<()> {
+pub async fn handle_reaction_remove(ctx: &Context, removed_reaction: &Reaction, data: &BotData) -> Result<()> {
     debug!("Handling reaction remove event");
     handle_starboard_reaction(ctx, removed_reaction, data, StarboardOp::Remove).await
 }
@@ -65,11 +65,11 @@ pub async fn handle_reaction_remove(ctx: &Context, removed_reaction: &Reaction, 
 async fn handle_starboard_reaction(
     ctx: &Context,
     reaction: &Reaction,
-    data: &Data,
+    data: &BotData,
     op: StarboardOp,
 ) -> Result<()> {
-    let db = &data.db;
-    let redis = &data.redis;
+    let db = &data.core.db;
+    let redis = &data.core.redis;
 
     let Some(guild_id) = reaction.guild_id else { return Ok(()) };
     let Some(user_id) = reaction.user_id else { return Ok(()) };
@@ -126,7 +126,7 @@ async fn handle_starboard_reaction(
         if let Some(guard) = maybe_lock {
             info!("Lock acquired, spawning async updates loop");
             let ctx_clone = ctx.clone();
-            let db_clone = data.db.clone();
+            let db_clone = data.core.db.clone();
             let redis_clone = redis.clone();
             let starboard_clone = starboard.clone();
             let reaction_clone = reaction.clone();

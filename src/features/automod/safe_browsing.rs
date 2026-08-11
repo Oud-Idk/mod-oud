@@ -1,5 +1,5 @@
-use crate::Error;
-use anyhow::{anyhow, Context, Result, bail};
+use crate::core::config::state::Error;
+use anyhow::{Context, Result, anyhow, bail};
 use prost::Message;
 use std::time::Duration;
 use tracing::{debug, error, instrument, trace};

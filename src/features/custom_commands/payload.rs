@@ -1,8 +1,8 @@
-use crate::Error;
+use crate::core::config::settings::MessageLayout;
+use crate::core::config::state::Error;
 use crate::shared::embed::build_custom_message;
 use rand::prelude::IndexedRandom;
 use serenity::all::{ChannelId, Http, Message};
-use crate::core::config::settings::MessageLayout;
 
 pub fn pick_payload(
     messages: &[MessageLayout],

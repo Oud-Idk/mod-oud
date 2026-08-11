@@ -1,6 +1,7 @@
-use crate::Data;
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::BotData;
 use crate::features::leveling::cache;
+use crate::features::leveling::keys::member_stats_key;
 use crate::features::leveling::types::{LevelReward, LevelingConfig, UserLevel, XpMultiplier};
 use anyhow::Result;
 use fred::clients::Client;
@@ -10,7 +11,6 @@ use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use std::result;
 use tracing::trace;
-use crate::features::leveling::keys::member_stats_key;
 
 pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<Option<UserLevel>> {
     Ok(sqlx::query_as!(
@@ -116,10 +116,10 @@ pub async fn get_user_level(redis: &Client, db: &PgPool, guild_id: &GuildId, aut
 }
 
 pub async fn load_leveling_config(
-    data: &Data,
+    data: &BotData,
     guild_id: GuildId,
 ) -> Result<Option<LevelingConfig>> {
-    let config = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id.get() as i64)
+    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64)
         .await?;
 
     let Some(leveling_config) = config.leveling else {

@@ -1,7 +1,7 @@
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{Context, Error};
 use crate::features::member_counter::counters::update_guild_counters;
 use poise::serenity_prelude as serenity;
-use crate::{Context, Error};
 
 /// Manage member counter channels for this server.
 #[poise::command(
@@ -32,7 +32,7 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
 
     let data = ctx.data();
 
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id_i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_i64).await?;
 
     let counter_config = match settings.member_counter {
         Some(ref c) if c.enabled => c,

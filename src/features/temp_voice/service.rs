@@ -1,9 +1,9 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice::database::get_hub_info_by_category;
 use crate::features::temp_voice::keys;
 use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 use crate::features::temp_voice::placeholders::replace_channel_placeholders;
 use crate::shared::voice_state::get_user_vc_in_guild;
-use crate::{Data, Error};
 use anyhow::Context as _;
 use fred::clients::Client as RedisClient;
 use fred::interfaces::{HashesInterface, KeysInterface};
@@ -216,13 +216,13 @@ pub async fn delete_temp_vc(
 /// Service: Initiate a transfer of ownership for a temporary voice channel
 pub async fn initiate_temp_vc_transfer(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     guild_id: GuildId,
     channel_id: ChannelId,
     current_owner_id: UserId,
     new_owner_id: UserId,
 ) -> Result<String, Error> {
-    let redis = &data.redis;
+    let redis = &data.core.redis;
 
     if new_owner_id == current_owner_id {
         return Ok("You can't transfer to yourself!".to_string());

@@ -1,9 +1,9 @@
 use super::super::{cache, calculation, database, notifications, rewards, rules};
-use crate::Data;
+use crate::core::config::state::BotData;
 use crate::features::leveling::keys::member_stats_key;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
-use crate::features::{leveling};
+use crate::features::leveling;
 use anyhow::Result;
 use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
@@ -14,7 +14,7 @@ pub async fn handle_voice_leveling(
     ctx: &Context,
     old: Option<&VoiceState>,
     new: &VoiceState,
-    data: &Data,
+    data: &BotData,
 ) -> Result<()> {
     let Some(guild_id) = new.guild_id else {
         return Ok(());
@@ -33,7 +33,7 @@ pub async fn handle_voice_leveling(
     };
 
     let member = new.member.as_ref();
-    let redis = &data.redis;
+    let redis = &data.core.redis;
     let session_key = leveling::keys::session_key(guild_id, user_id);
     let now = chrono::Utc::now().timestamp();
 
@@ -109,7 +109,7 @@ async fn award_vc_xp_for_session(
     channel_id: ChannelId,
     join_time: i64,
     leave_time: i64,
-    data: &Data,
+    data: &BotData,
     leveling_config: &LevelingConfig,
 ) -> Result<()> {
     let elapsed_seconds = leave_time - join_time;
@@ -118,8 +118,8 @@ async fn award_vc_xp_for_session(
         return Ok(());
     }
 
-    let redis = &data.redis;
-    let db = &data.db;
+    let redis = &data.core.redis;
+    let db = &data.core.db;
 
     let member = &resolve_member(ctx, guild_id, user_id, member_opt).await?;
     let user_roles: Vec<u64> = member.roles.iter().map(|r| r.get()).collect();
@@ -189,18 +189,18 @@ async fn resolve_member(
 }
 
 async fn persist_user_level(
-    data: &Data,
+    data: &BotData,
     stats_key: &str,
     user_level: &mut UserLevel,
 ) -> Result<()> {
-    database::update_level(&data.db, user_level).await?;
+    database::update_level(&data.core.db, user_level).await?;
     let serialized = serde_json::to_string(user_level)?;
-    let _: () = cache::save_user_level_cache(&data.redis, stats_key, serialized).await?;
+    let _: () = cache::save_user_level_cache(&data.core.redis, stats_key, serialized).await?;
     Ok(())
 }
 
 async fn apply_xp_and_process_levels(
-    data: &Data,
+    data: &BotData,
     guild_id: &GuildId,
     user_id: &UserId,
     stats_key: &str,
@@ -208,13 +208,13 @@ async fn apply_xp_and_process_levels(
     leveling_config: &LevelingConfig,
     total_added_xp: i32,
 ) -> Result<Option<(UserLevel, i32)>> {
-    let redis = &data.redis;
+    let redis = &data.core.redis;
 
     let mut user_level =
-        database::get_user_level(redis, &data.db, guild_id, user_id, stats_key, username).await?;
+        database::get_user_level(redis, &data.core.db, guild_id, user_id, stats_key, username).await?;
 
     let should_be_clamped =
-        calculation::clamp_to_level_cap(leveling_config, redis, &data.db, stats_key, &mut user_level).await?;
+        calculation::clamp_to_level_cap(leveling_config, redis, &data.core.db, stats_key, &mut user_level).await?;
     if should_be_clamped {
         return Ok(None);
     }
@@ -237,7 +237,7 @@ async fn apply_xp_and_process_levels(
 
 async fn handle_level_up(
     ctx: &Context,
-    data: &Data,
+    data: &BotData,
     user: &User,
     user_level: &UserLevel,
     config: &LevelingConfig,
@@ -258,6 +258,6 @@ async fn handle_level_up(
             .await?;
     }
 
-    let _ = rewards::apply_level_rewards(ctx, &data.db, guild_id, user.id, user_level.current_level).await;
+    let _ = rewards::apply_level_rewards(ctx, &data.core.db, guild_id, user.id, user_level.current_level).await;
     Ok(())
 }

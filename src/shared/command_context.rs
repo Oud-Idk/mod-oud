@@ -1,6 +1,6 @@
+use crate::core::config::state::Context;
 use anyhow::Context as _;
 use anyhow::Result;
-use crate::{Context};
 
 /// Common metadata extracted from a guild-only command context.
 pub struct GuildMetadata {

@@ -1,13 +1,14 @@
-use crate::{Error, UserUpdate};
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::Error;
 use crate::features::moderation::{ActionType, log_moderation_action, replace_basic_placeholder, replace_reason_placeholders};
 use crate::features::warning::database::{delete_warn, fetch_warn_thresholds, insert_warn, log_warning, update_warn};
 use crate::features::warning::thresholds;
 use crate::features::warning::types::{MODERATION_FOOTER, WarnThreshold};
 use crate::shared::embed::build_custom_message;
 use crate::shared::store_username_relation;
+use crate::shared::username_cache::UserUpdate;
 use crate::{fetch_mod_ctx, send_mod_dm};
 use fred::clients::Client;
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, Http, User, UserId};

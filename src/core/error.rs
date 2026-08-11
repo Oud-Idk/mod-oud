@@ -1,7 +1,7 @@
-use crate::{Data, Error};
+use crate::core::config::state::{BotData, Error};
 use tracing::error;
 
-pub async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
+pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
     match error {
         poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {:?}", error),
         poise::FrameworkError::Command { error, ctx, .. } => {

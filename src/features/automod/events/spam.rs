@@ -1,11 +1,12 @@
+use crate::core::config::state::{BotData, Error};
 use crate::features::automod;
 use crate::features::automod::types::{AntiSpamRule, MessageFilteringConfig};
-use crate::{Data, Error};
 use serenity::all::Message;
 use std::time::Duration;
 
-async fn handle_spam(ctx: &serenity::all::Context, message: &Message, data: &Data, guild_id: u64, author_id: u64, warning_cooldown: Duration, anti_spam_rule: &AntiSpamRule) -> Result<(), Error> {
+async fn handle_spam(ctx: &serenity::all::Context, message: &Message, data: &BotData, guild_id: u64, author_id: u64, warning_cooldown: Duration, anti_spam_rule: &AntiSpamRule) -> Result<(), Error> {
     let should_warn = data
+        .security
         .spam_tracker
         .check_warning_cooldown_async(guild_id, author_id, warning_cooldown)
         .await?;
@@ -30,7 +31,7 @@ async fn handle_spam(ctx: &serenity::all::Context, message: &Message, data: &Dat
 pub async fn handle_spam_prevention(
     ctx: &serenity::all::Context,
     message: &Message,
-    data: &Data,
+    data: &BotData,
     filtering: &MessageFilteringConfig, // Passed configuration reference
     guild_id: u64,
     author_id: u64,
@@ -42,6 +43,7 @@ pub async fn handle_spam_prevention(
     let warning_cooldown = Duration::from_secs(5);
 
     let is_spamming = data
+        .security
         .spam_tracker
         .check_and_record_async(guild_id, author_id, spam_limit as usize, spam_window)
         .await?;

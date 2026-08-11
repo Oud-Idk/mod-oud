@@ -1,3 +1,4 @@
+use crate::core::config::state::{Context, Error};
 use crate::features::moderation::pre_flight_check;
 use crate::features::warning::database::{fetch_warnings, search_warning_from_id, search_warnings_by_pattern};
 use crate::features::warning::issuing::{issue_delete_warning, issue_warning};
@@ -5,7 +6,6 @@ use crate::features::warning::modify_warns::set_warning_active_status;
 use crate::features::warning::pagination;
 use crate::shared::command_context::GuildMetadata;
 use crate::shared::messages::send_ephemeral;
-use crate::{Context, Error};
 use serenity::all::{Member, User};
 
 /// Warns a user in the server.
@@ -28,10 +28,10 @@ pub async fn warn(
     let reason_str = reason.unwrap_or_else(|| "No reason specified".to_string());
 
     issue_warning(
-        &ctx.data().db,
-        &ctx.data().redis,
-        &ctx.data().guild_configs,
-        &ctx.data().username_buf_tx,
+        &ctx.data().core.db,
+        &ctx.data().core.redis,
+        &ctx.data().core.guild_configs_cache,
+        &ctx.data().core.username_tx,
         &ctx.serenity_context().http,
         meta.id,
         member.user.id,
@@ -82,7 +82,7 @@ pub async fn history(
     let target_id = member.user.id.get();
 
     let meta = GuildMetadata::extract(&ctx)?;
-    let records = fetch_warnings(&ctx.data().db, meta.id.get() as i64, target_id as i64).await?;
+    let records = fetch_warnings(&ctx.data().core.db, meta.id.get() as i64, target_id as i64).await?;
 
     if records.is_empty() {
         send_ephemeral(&ctx, format!("<@{}> has no active warnings.", member.user.id)).await?;
@@ -108,7 +108,7 @@ pub async fn search(
 
     let search_pattern = format!("%{}%", query);
     let records = search_warnings_by_pattern(
-        &ctx.data().db,
+        &ctx.data().core.db,
         meta.id.get() as i64,
         target_user_id.map(|id| id as i64),
         &search_pattern,
@@ -140,7 +140,7 @@ pub async fn view(
     #[description = "The ID of the warning to look up"] id: i64,
 ) -> Result<(), Error> {
     let meta = GuildMetadata::extract(&ctx)?;
-    let record = search_warning_from_id(&ctx.data().db, meta.id.get() as i64, id).await;
+    let record = search_warning_from_id(&ctx.data().core.db, meta.id.get() as i64, id).await;
 
     match record {
         Some(warn) => {
@@ -200,9 +200,9 @@ pub async fn delete(
     let meta = GuildMetadata::extract(&ctx)?;
 
     let result = issue_delete_warning(
-        &ctx.data().db,
-        &ctx.data().redis,
-        &ctx.data().guild_configs,
+        &ctx.data().core.db,
+        &ctx.data().core.redis,
+        &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
         id,

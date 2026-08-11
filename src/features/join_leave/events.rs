@@ -1,35 +1,35 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
+use crate::features::invite_tracking;
 use crate::features::invite_tracking::store_member_invite;
 use crate::features::join_leave::types::WelcomeConfig;
 use crate::features::join_leave::{database, log_join_to_db, messages, send};
-use crate::{Data, Error};
 use serenity::all::{ChannelId, Context, EditMember, GuildId, Member, RoleId, User};
 use std::collections::HashSet;
 use tracing::{debug, info, trace, warn};
-use crate::features::invite_tracking;
 
 pub async fn send_leave_message(
     ctx: &Context,
     _guild_id: &GuildId,
     user: &User,
     member_data_if_available: &Option<Member>,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let guild_id = _guild_id.get();
     let user_id = user.id.get();
     info!(guild_id, user_id, user_name = %user.name, "Member left the guild");
 
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id as i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id as i64).await?;
 
     let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled) else {
         trace!(guild_id, user_id, "Leave notifications are disabled; logging departure directly to DB");
-        return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.db).await;
+        return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.core.db).await;
     };
 
     let Some(channel_id) = leave_cfg.channel_id.map(|id| ChannelId::new(id)) else {
         warn!(guild_id, user_id, "Leave notifications are enabled, but target channel ID is missing or invalid");
-        return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.db).await;
+        return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.core.db).await;
     };
 
     let msg_payload = messages::build_goodbye_message(ctx, *_guild_id, user, member_data_if_available, leave_cfg).await;
@@ -40,7 +40,7 @@ pub async fn send_leave_message(
     }
 
     trace!(guild_id, user_id, "Logging member leave record to database");
-    database::log_leave_to_db(user_id as i64, guild_id as i64, &data.db).await?;
+    database::log_leave_to_db(user_id as i64, guild_id as i64, &data.core.db).await?;
     Ok(())
 }
 
@@ -72,13 +72,13 @@ async fn apply_join_roles(
 pub async fn handle_member_welcome(
     ctx: &Context,
     member: &Member,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     let guild_id = member.guild_id.get();
     let user_id = member.user.id.get();
     trace!(guild_id, user_id, "Executing welcome handler tasks");
 
-    let settings = get_settings(&data.db, &data.redis, &data.guild_configs, guild_id as i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id as i64).await?;
     let Some(config) = settings.welcome else { return Ok(()) };
 
     let warning_text = check_alt_status(&member.user);
@@ -118,7 +118,7 @@ pub fn check_alt_status(user: &User) -> String {
     }
 }
 
-pub async fn handle_member_join(ctx: &Context, member: &Member, data: &Data) -> Result<(), Error> {
+pub async fn handle_member_join(ctx: &Context, member: &Member, data: &BotData) -> Result<(), Error> {
     handle_member_welcome(ctx, member, data).await?;
     log_join_to_db(member.user.id.get() as i64, member.guild_id.get() as i64, data).await?;
     Ok(())

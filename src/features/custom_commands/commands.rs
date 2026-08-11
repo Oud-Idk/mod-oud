@@ -2,7 +2,7 @@ use poise::CreateReply;
 use serenity::all::CreateEmbed;
 use tracing::error;
 
-use crate::{Context, Error};
+use crate::core::config::state::{Context, Error};
 
 /// List all custom commands available in this server
 #[poise::command(slash_command, guild_only)]
@@ -13,7 +13,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     };
 
     let guild_id_i64 = guild_id.get() as i64;
-    let pool = &ctx.data().db;
+    let pool = &ctx.data().core.db;
 
     let commands = match sqlx::query!(
         r#"

@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-    --surface: oklch(1 0 0);                /* Pure background */
+    --surface: oklch(1 0 0);                   /* Pure background */
     --surface-muted: oklch(0.97 0 0);          /* Subtle background, cards */
-    --surface-elevated: oklch(1 0 0);         /* Modals, dropdowns, popovers */
+    --surface-elevated: oklch(1 0 0);          /* Modals, dropdowns, popovers */
     --surface-active: oklch(0.92 0 0);         /* Selected / active states */
     --overlay: oklch(0 0 0 / 0.4);             /* Backdrop overlays */
 
@@ -15,10 +15,10 @@
 
     --brand: oklch(0.6 0.2 264);
     --brand-hover: oklch(0.53 0.2 264);
-    --brand-subtle: oklch(0.95 0.04 264);     /* Tinted backgrounds for brand */
-    --brand-foreground: oklch(0.99 0 0);      /* Text on top of brand buttons */
+    --brand-subtle: oklch(0.95 0.04 264);      /* Tinted backgrounds for brand */
+    --brand-foreground: oklch(0.99 0 0);       /* Text on top of brand buttons */
 
-    --accent: oklch(0.65 0.18 190);           /* Cyan/Teal accent for badges/highlights */
+    --accent: oklch(0.65 0.18 190);            /* Cyan/Teal accent for badges/highlights */
     --accent-subtle: oklch(0.95 0.04 190);
 
     /* Danger / Error */

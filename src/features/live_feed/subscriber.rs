@@ -1,5 +1,5 @@
+use crate::core::config::state::Error;
 use crate::features::live_feed::LogEvent;
-use crate::Error;
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
 use tokio::sync::broadcast;

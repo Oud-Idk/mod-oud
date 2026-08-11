@@ -1,14 +1,14 @@
-use anyhow::Context as _;
 use crate::core::config::guild_ctx::{GuildCtx, get_guild_ctx};
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
 use crate::features::tickets;
 use crate::features::tickets::TicketConfig;
-use crate::features::tickets::cache::{initialize_redis_state};
+use crate::features::tickets::cache::initialize_redis_state;
 use crate::features::tickets::database::save_ticket_to_db;
 use crate::features::tickets::events::message;
 use crate::features::tickets::placeholders::replace_ticket_welcome_placeholders;
 use crate::shared::embed::build_custom_message;
-use crate::{Data, Error};
+use anyhow::Context as _;
 use serenity::all::{ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildChannel, GuildId, Message, MessageId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -17,12 +17,12 @@ use tracing::{debug, info, instrument, trace, warn};
 pub async fn on_open_ticket(
     ctx: &Context,
     component: &ComponentInteraction,
-    data: &Data,
+    data: &BotData,
 ) -> Result<(), Error> {
     trace!("Opening ticket event received.");
 
-    let redis = &data.redis;
-    let db = &data.db;
+    let redis = &data.core.redis;
+    let db = &data.core.db;
 
     let Some(guild_id) = component.guild_id else {
         trace!("Interaction occurs outside of a guild context; ignoring");
@@ -31,7 +31,7 @@ pub async fn on_open_ticket(
     let user_interact = &component.user;
 
     debug!("Checking settings validation for ticket generation");
-    let settings = get_settings(db, redis, &data.guild_configs, guild_id.get() as i64).await?;
+    let settings = get_settings(db, redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
     let tickets = settings.tickets.as_ref();
 
     let Some(role_u64) = tickets.and_then(|t| t.ticket_role_id) else {
@@ -105,7 +105,7 @@ pub async fn on_open_ticket(
 
     let _: () = tickets::cache::publish_open_ticket(redis, &ticket_channel).await?;
 
-    data.active_tickets.insert(ticket_channel.id.get(), ()).await;
+    data.caches.active_tickets.insert(ticket_channel.id.get(), ()).await;
 
     debug!("Confirming channel link to user interaction");
     component

@@ -1,5 +1,5 @@
-use crate::Error;
 use crate::core::config::guild_ctx::{GuildCtx, get_guild_ctx};
+use crate::core::config::state::Error;
 use crate::features::join_leave::placeholders::replace_welcome_goodbye_placeholders;
 use crate::features::join_leave::types::LeaveConfig;
 use crate::features::join_leave::types::WelcomeMessageSettings;
