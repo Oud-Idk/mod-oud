@@ -10,7 +10,8 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, warn};
 use uuid::Uuid;
 use serde_json::Value;
-use crate::features::music::playlist::resolve_spotify_playlist;
+use crate::features::music::spotify::{resolve_spotify_playlist, resolve_spotify_track};
+use rand::seq::SliceRandom;
 
 pub struct GuildActor {
     pub guild_id: GuildId,
@@ -21,35 +22,10 @@ pub struct GuildActor {
     pub state: GuildPlayer,
 }
 
-async fn resolve_spotify_url(client: &reqwest::Client, url: &str) -> Option<String> {
-    if url.contains("open.spotify.com/") || url.contains("spotify:") {
-        debug!(url = %url, "Attempting to resolve Spotify URL via oembed API");
-        let oembed_url = format!("https://open.spotify.com/oembed?url={}", url);
-        if let Ok(res) = client.get(&oembed_url).send().await {
-            if let Ok(json) = res.json::<serde_json::Value>().await {
-                let title = json.get("title").and_then(|v| v.as_str())?;
-                let author = json.get("author_name").and_then(|v| v.as_str()).unwrap_or("");
-
-                let search_term = if !author.is_empty() {
-                    format!("ytsearch:{} {}", author, title)
-                } else {
-                    format!("ytsearch:{}", title)
-                };
-                debug!(url = %url, title = %title, author = %author, search_term = %search_term, "Resolved Spotify URL into YouTube search term");
-                return Some(search_term);
-            } else {
-                warn!(url = %url, "Failed to parse Spotify oembed JSON payload");
-            }
-        } else {
-            warn!(url = %url, "Failed to reach Spotify oembed endpoint");
-        }
-    }
-    None
-}
 
 async fn build_query_url(client: &reqwest::Client, query: &str) -> String {
     debug!(query = %query, "Resolving query URL");
-    if let Some(spotify_query) = resolve_spotify_url(client, query).await {
+    if let Some(spotify_query) = resolve_spotify_track(client, query).await {
         return spotify_query;
     }
 
@@ -107,6 +83,23 @@ pub enum GuildCommand {
     QueueRemove {
         position: usize,
         respond: oneshot::Sender<Result<QueuedTrack>>,
+    },
+    QueueShuffle {
+        respond: oneshot::Sender<Result<usize>>,
+    },
+    QueueJump {
+        position: usize,
+        respond: oneshot::Sender<Result<StartedTrackInfo>>,
+    },
+    HistoryList {
+        respond: oneshot::Sender<Result<Vec<QueuedTrack>>>,
+    },
+    HistoryJump {
+        position: usize,
+        respond: oneshot::Sender<Result<StartedTrackInfo>>,
+    },
+    NowPlaying {
+        respond: oneshot::Sender<Result<Option<QueuedTrack>>>,
     },
     TrackEnded {
         uuid: Uuid,
@@ -190,7 +183,7 @@ impl GuildActor {
             let mut terms_iter = search_terms.into_iter();
             let first_term = terms_iter.next().context("Playlist was empty!")?;
 
-            // ⚡ EAGERLY fetch YouTube metadata ONLY for Track #1 and start playing NOW!
+            // Eagerly fetch YouTube metadata for Track #1 and start playing immediately
             let started = prepare_and_play(
                 self.services(),
                 &call,
@@ -204,7 +197,7 @@ impl GuildActor {
 
             // Archive the currently playing track into history
             if let Some(old_track) = self.state.current_track.take() {
-                self.state.history.push(old_track);
+                self.state.push_history(old_track);
             }
 
             // Stop current playback handle and swap to new track
@@ -249,7 +242,7 @@ impl GuildActor {
         let thumbnail = started.metadata.thumbnail.clone();
 
         if let Some(old_track) = self.state.current_track.take() {
-            self.state.history.push(old_track);
+            self.state.push_history(old_track);
         }
 
         let old_handle = self.state.current.take();
@@ -297,7 +290,7 @@ impl GuildActor {
         let _ = handle.stop();
 
         if let Some(finished) = self.state.current_track.take() {
-            self.state.history.push(finished);
+            self.state.push_history(finished);
         }
         self.state.current = None;
         self.state.current_meta = None;
@@ -441,11 +434,96 @@ impl GuildActor {
             .context("Position out of bounds. No such track in the queue.")
     }
 
+    fn handle_queue_shuffle(&mut self) -> usize {
+        let count = self.state.queue.len();
+        self.state.queue.make_contiguous().shuffle(&mut rand::rng());
+        count
+    }
+
+    async fn handle_queue_jump(&mut self, position: usize) -> Result<StartedTrackInfo> {
+        if position == 0 {
+            bail!("Position must be 1 or greater.");
+        }
+        if position > self.state.queue.len() {
+            bail!("Position out of bounds. No such track in the queue.");
+        }
+
+        let target_index = position - 1;
+
+        let target = self
+            .state
+            .queue
+            .remove(target_index)
+            .context("No track found.")?;
+
+        GuildPlayer::push_history_to(
+            &mut self.state.history,
+            self.state.queue.drain(..target_index)
+        );
+
+        let title = target.metadata.title.as_deref().unwrap_or("untitled").to_string();
+        let thumbnail = target.metadata.thumbnail.clone();
+
+        if let Some(handle) = self.state.current.as_ref() {
+            let _ = handle.stop();
+        }
+
+        self.start_playback(
+            None,
+            target.query,
+            target.requested_by,
+            Some(target.metadata),
+            OldTrackDisposition::History,
+        )
+            .await?;
+
+        Ok(StartedTrackInfo { title, thumbnail })
+    }
+
+    fn handle_history_list(&self) -> Vec<QueuedTrack> {
+        self.state.history.iter().rev().cloned().collect()
+    }
+
+    async fn handle_history_jump(&mut self, position: usize) -> Result<StartedTrackInfo> {
+        if position == 0 {
+            bail!("Position must be 1 or greater.");
+        }
+        let len = self.state.history.len();
+        let target = self
+            .state
+            .history
+            .get(len - position)
+            .cloned()
+            .context("Position out of bounds. No such track in the history.")?;
+
+        let title = target.metadata.title.as_deref().unwrap_or("untitled").to_string();
+        let thumbnail = target.metadata.thumbnail.clone();
+
+        if let Some(handle) = self.state.current.as_ref() {
+            let _ = handle.stop();
+        }
+
+        self.start_playback(
+            None,
+            target.query,
+            target.requested_by,
+            Some(target.metadata),
+            OldTrackDisposition::History,
+        )
+            .await?;
+
+        Ok(StartedTrackInfo { title, thumbnail })
+    }
+
+    fn handle_now_playing(&self) -> Option<QueuedTrack> {
+        self.state.current_track.clone()
+    }
+
     async fn handle_stop(&mut self) -> Result<()> {
         self.state.queue.clear();
 
         if let Some(finished) = self.state.current_track.take() {
-            self.state.history.push(finished);
+            self.state.push_history(finished);
         }
 
         if let Some(handle) = self.state.current.take() {
@@ -489,7 +567,7 @@ impl GuildActor {
         }
 
         if let Some(finished) = self.state.current_track.take() {
-            self.state.history.push(finished);
+            self.state.push_history(finished);
         }
         self.state.current = None;
         self.state.current_meta = None;
@@ -564,6 +642,11 @@ impl GuildActor {
             GuildCommand::QueueList { respond } => { let _ = respond.send(Ok(self.handle_queue_list())); }
             GuildCommand::QueueClear { respond } => { let _ = respond.send(Ok(self.handle_queue_clear().await)); }
             GuildCommand::QueueRemove { position, respond } => { let _ = respond.send(self.handle_queue_remove(position).await); }
+            GuildCommand::QueueShuffle { respond } => { let _ = respond.send(Ok(self.handle_queue_shuffle())); }
+            GuildCommand::QueueJump { position, respond } => { let _ = respond.send(self.handle_queue_jump(position).await); }
+            GuildCommand::HistoryList { respond } => { let _ = respond.send(Ok(self.handle_history_list())); }
+            GuildCommand::HistoryJump { position, respond } => { let _ = respond.send(self.handle_history_jump(position).await); }
+            GuildCommand::NowPlaying { respond } => { let _ = respond.send(Ok(self.handle_now_playing())); }
             GuildCommand::TrackEnded { uuid } => self.handle_track_ended(uuid).await,
             GuildCommand::Restart { respond } => { let _ = respond.send(self.handle_restart().await); }
             GuildCommand::Stop { respond } => { let _ = respond.send(self.handle_stop().await); }

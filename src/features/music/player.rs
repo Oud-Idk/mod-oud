@@ -140,7 +140,7 @@ pub fn install_new_track(
 ) -> Option<TrackHandle> {
     if let Some(old_track) = player.current_track.take() {
         match old_disposition {
-            OldTrackDisposition::History => player.history.push(old_track),
+            OldTrackDisposition::History => player.push_history(old_track),
             OldTrackDisposition::QueueFront => player.queue.push_front(old_track),
         }
     }

@@ -89,7 +89,9 @@ fn track_embed(author: &User, title: String, thumbnail: Option<String>) -> Creat
         "play",
         "prev", "pause", "resume", "next",
         "stop", "seek", "restart",
+        "nowplaying",
         "queue",
+        "history",
     )
 )]
 pub async fn music(ctx: Context<'_>) -> Result<()> {
@@ -98,10 +100,18 @@ pub async fn music(ctx: Context<'_>) -> Result<()> {
 }
 
 #[poise::command(slash_command, guild_only, subcommands(
-    "add", "list", "clear", "remove"
+    "add", "list", "clear", "remove", "shuffle", "goto"
 ))]
 pub async fn queue(ctx: Context<'_>) -> Result<()> {
     debug!(author = %ctx.author().name, "Subcommand group /music queue invoked");
+    Ok(())
+}
+
+#[poise::command(slash_command, guild_only, subcommands(
+    "history_list", "history_goto"
+))]
+pub async fn history(ctx: Context<'_>) -> Result<()> {
+    debug!(author = %ctx.author().name, "Subcommand group /music history invoked");
     Ok(())
 }
 
@@ -216,6 +226,43 @@ pub async fn next(ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
+/// Shows the currently playing track.
+#[poise::command(slash_command, guild_only)]
+pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
+    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+
+    let track = p.dispatch(|respond| GuildCommand::NowPlaying { respond }).await?;
+
+    match track {
+        Some(track) => {
+            let title = track.metadata.title.as_deref().unwrap_or("Untitled").to_string();
+            let duration_fmt = format_duration(track.metadata.duration);
+
+            let title_fmt = match &track.metadata.source_url {
+                Some(url) if url != "#" => format!("[{}]({})", title, url),
+                _ => format!("**{}**", title),
+            };
+
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::new()
+                    .author(CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face()))
+                    .title("Now Playing")
+                    .description(format!(
+                        "{}\n`{}` | Requested by **{}**",
+                        title_fmt, duration_fmt, track.requested_by
+                    ))
+                    .thumbnail(track.metadata.thumbnail.unwrap_or_default())
+                    .color(BRAND_COLOR),
+            )).await?;
+        }
+        None => {
+            reply(&ctx, "Nothing is currently playing.").await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Goes back to the previously played track.
 #[poise::command(slash_command, guild_only)]
 pub async fn prev(ctx: Context<'_>) -> Result<()> {
@@ -325,7 +372,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
                 };
 
                 description.push_str(&format!(
-                    "`{}.` {}{} (Requested by **{}**)\n",
+                    "{}. {}{} (Requested by **{}**)\n",
                     track_num, title_fmt, duration_fmt, track.requested_by
                 ));
             }
@@ -372,5 +419,101 @@ pub async fn remove(
     let title = removed.metadata.title.as_deref().unwrap_or("untitled").to_string();
 
     reply(&ctx, format!("Removed **{}** from the queue.", title)).await?;
+    Ok(())
+}
+
+/// Shuffles the order of all queued tracks (the current track is untouched).
+#[poise::command(slash_command, guild_only)]
+pub async fn shuffle(ctx: Context<'_>) -> Result<()> {
+    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+
+    let count = p.dispatch(|respond| GuildCommand::QueueShuffle { respond }).await?;
+
+    if count == 0 {
+        reply(&ctx, "The queue is empty, there's nothing to shuffle.").await?;
+    } else {
+        reply(&ctx, format!("Shuffled **{}** tracks in the queue.", count)).await?;
+    }
+
+    Ok(())
+}
+
+/// Jumps to a track at a specific position in the queue and plays it now.
+#[poise::command(slash_command, guild_only)]
+pub async fn goto(
+    ctx: Context<'_>,
+    #[description = "Track position in queue to play (1-based index)"] position: usize,
+) -> Result<()> {
+    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+
+    let info = p.dispatch(|respond| GuildCommand::QueueJump { position, respond }).await?;
+    reply(&ctx, format!("Jumped to **{}**.", info.title)).await?;
+
+    Ok(())
+}
+
+/// Lists previously played tracks, most recent first.
+#[poise::command(slash_command, guild_only, rename = "list")]
+pub async fn history_list(ctx: Context<'_>) -> Result<()> {
+    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+
+    let snapshot = p.dispatch(|respond| GuildCommand::HistoryList { respond }).await?;
+
+    if snapshot.is_empty() {
+        reply(&ctx, "No tracks in the play history yet.").await?;
+        return Ok(());
+    }
+
+    let per_page = 10;
+    let total_tracks = snapshot.len();
+    let total_pages = total_tracks.div_ceil(per_page).max(1);
+
+    paginate(ctx, total_pages, move |page_idx| {
+        let page = page_idx + 1;
+        let start_idx = page_idx * per_page;
+        let end_idx = (start_idx + per_page).min(total_tracks);
+
+        let mut description = String::new();
+        for (i, track) in snapshot[start_idx..end_idx].iter().enumerate() {
+            let track_num = start_idx + i + 1;
+            let title = track.metadata.title.as_deref().unwrap_or("Untitled");
+
+            let title_fmt = match &track.metadata.source_url {
+                Some(url) if url != "#" => format!("[{}]({})", title, url),
+                _ => format!("**{}**", title),
+            };
+
+            let duration_fmt = match track.metadata.duration {
+                Some(_) => format!(" | `{}`", format_duration(track.metadata.duration)),
+                None => String::new(),
+            };
+
+            description.push_str(&format!("{}. {}{}\n", track_num, title_fmt, duration_fmt));
+        }
+
+        CreateEmbed::new()
+            .title("Play History")
+            .description(description)
+            .color(BRAND_COLOR)
+            .footer(CreateEmbedFooter::new(format!(
+                "Most recent first | Page {}/{}",
+                page, total_pages
+            )))
+    }).await?;
+
+    Ok(())
+}
+
+/// Replays a track from the play history (index 1 = most recently played).
+#[poise::command(slash_command, guild_only, rename = "goto")]
+pub async fn history_goto(
+    ctx: Context<'_>,
+    #[description = "Track position in history to play (1 = most recently played)"] position: usize,
+) -> Result<()> {
+    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+
+    let info = p.dispatch(|respond| GuildCommand::HistoryJump { position, respond }).await?;
+    reply(&ctx, format!("Replaying **{}**.", info.title)).await?;
+
     Ok(())
 }

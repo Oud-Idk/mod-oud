@@ -49,6 +49,27 @@ pub struct GuildPlayer {
     pub history: Vec<QueuedTrack>,
 }
 
+const HISTORY_LIMIT: usize = 50;
+
+impl GuildPlayer {
+    /// Appends a single track to play history.
+    pub fn push_history(&mut self, track: QueuedTrack) {
+        self.push_history_batch(std::iter::once(track));
+    }
+
+    pub fn push_history_batch(&mut self, tracks: impl IntoIterator<Item=QueuedTrack>) {
+        Self::push_history_to(&mut self.history, tracks);
+    }
+
+    pub fn push_history_to(history: &mut Vec<QueuedTrack>, tracks: impl IntoIterator<Item=QueuedTrack>) {
+        history.extend(tracks);
+        if history.len() > HISTORY_LIMIT {
+            let overflow = history.len() - HISTORY_LIMIT;
+            history.drain(0..overflow);
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct MusicState {
     pub actors: Arc<Mutex<HashMap<GuildId, mpsc::Sender<GuildCommand>>>>,
