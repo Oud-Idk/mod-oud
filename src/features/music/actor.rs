@@ -1,17 +1,26 @@
-use crate::features::music::player::{install_new_track, prepare_and_play, fetch_metadata, PlaybackServices, OldTrackDisposition, parse_timestamp, SeekMode, format_duration};
-use crate::features::music::state::{GuildPlayer, QueuedTrack, QueueAddOutcome, QueueSnapshot, StartedTrackInfo, PlayOutcome};
-use serenity::all::{ChannelId, GuildId, User};
-use songbird::Songbird;
-use songbird::input::AuxMetadata;
-use std::sync::Arc;
+use crate::features::music::player::{
+    fetch_metadata, format_duration, install_new_track, parse_timestamp, prepare_and_play,
+    OldTrackDisposition, PlaybackServices, SeekMode,
+};
+use crate::features::music::spotify::{resolve_spotify_playlist, resolve_spotify_track};
+// 1. IMPORT YOUR NEW YOUTUBE FUNCTIONS HERE:
+use crate::features::music::youtube::{resolve_youtube_playlist, resolve_youtube_video};
+
+use crate::features::music::state::{
+    GuildPlayer, PlayOutcome, QueueAddOutcome, QueueSnapshot, QueuedTrack, StartedTrackInfo,
+};
 use anyhow::{bail, Context, Result};
 use core::time::Duration;
+use rand::seq::SliceRandom;
+use serde_json::Value;
+use serenity::all::{ChannelId, GuildId, User};
+use songbird::input::AuxMetadata;
+use songbird::Songbird;
+use std::sync::Arc;
+use std::vec::IntoIter;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, warn};
 use uuid::Uuid;
-use serde_json::Value;
-use crate::features::music::spotify::{resolve_spotify_playlist, resolve_spotify_track};
-use rand::seq::SliceRandom;
 
 pub struct GuildActor {
     pub guild_id: GuildId,
@@ -22,11 +31,18 @@ pub struct GuildActor {
     pub state: GuildPlayer,
 }
 
-
+/// Resolves single queries (Spotify URLs, YouTube video URLs, or plain text searches).
 async fn build_query_url(client: &reqwest::Client, query: &str) -> String {
     debug!(query = %query, "Resolving query URL");
+
+    // Try resolving Spotify track into ytsearch string
     if let Some(spotify_query) = resolve_spotify_track(client, query).await {
         return spotify_query;
+    }
+
+    // Try resolving YouTube video/shorts/youtu.be link into a clean watch URL
+    if let Some(youtube_query) = resolve_youtube_video(client, query).await {
+        return youtube_query;
     }
 
     if query.starts_with("http://") || query.starts_with("https://") {
@@ -37,6 +53,19 @@ async fn build_query_url(client: &reqwest::Client, query: &str) -> String {
         debug!(query = %query, search_query = %search_query, "Constructed ytsearch query");
         search_query
     }
+}
+
+/// Helper method to try resolving either Spotify or YouTube playlists into track search terms/URLs.
+async fn resolve_any_playlist(client: &reqwest::Client, query: &str) -> Option<Vec<String>> {
+    if let Some(spotify_tracks) = resolve_spotify_playlist(client, query).await {
+        return Some(spotify_tracks);
+    }
+
+    if let Some(youtube_tracks) = resolve_youtube_playlist(client, query).await {
+        return Some(youtube_tracks);
+    }
+
+    None
 }
 
 /// Parses seek inputs with relative signs like "+30", "-15", or absolute "1:30".
@@ -119,7 +148,7 @@ pub enum GuildCommand {
     Seek {
         input: String,
         respond: oneshot::Sender<Result<Duration>>,
-    }
+    },
 }
 
 impl GuildActor {
@@ -174,10 +203,11 @@ impl GuildActor {
             None => self.manager.join(self.guild_id, vc_channel_id).await?,
         };
 
-        if let Some(search_terms) = resolve_spotify_playlist(&self.reqwest_client, &query).await {
+        // 2. WORKS FOR BOTH SPOTIFY & YOUTUBE PLAYLISTS NOW:
+        if let Some(search_terms) = resolve_any_playlist(&self.reqwest_client, &query).await {
             let total_tracks = search_terms.len();
             if total_tracks == 0 {
-                bail!("Spotify playlist appears to be empty!");
+                bail!("Playlist appears to be empty!");
             }
 
             let mut terms_iter = search_terms.into_iter();
@@ -190,7 +220,8 @@ impl GuildActor {
                 first_term,
                 requested_by.name.clone(),
                 None,
-            ).await?;
+            )
+                .await?;
 
             let title = started.metadata.title.as_deref().unwrap_or("untitled").to_string();
             let thumbnail = started.metadata.thumbnail.clone();
@@ -210,17 +241,7 @@ impl GuildActor {
                 let _ = old_handle.stop();
             }
 
-            for search_term in terms_iter {
-                let display_title = search_term.strip_prefix("ytsearch:").unwrap_or(&search_term).to_string();
-                let mut placeholder_meta = AuxMetadata::default();
-                placeholder_meta.title = Some(display_title);
-
-                self.state.queue.push_back(QueuedTrack {
-                    query: search_term,
-                    metadata: placeholder_meta,
-                    requested_by: requested_by.name.clone(),
-                });
-            }
+            self.populate_queue(&requested_by, &mut terms_iter);
 
             return Ok(PlayOutcome::Playlist {
                 first_track: StartedTrackInfo { title, thumbnail },
@@ -236,7 +257,8 @@ impl GuildActor {
             query_url,
             requested_by.name.clone(),
             None,
-        ).await?;
+        )
+            .await?;
 
         let title = started.metadata.title.as_deref().unwrap_or("untitled").to_string();
         let thumbnail = started.metadata.thumbnail.clone();
@@ -255,6 +277,98 @@ impl GuildActor {
         }
 
         Ok(PlayOutcome::Single(StartedTrackInfo { title, thumbnail }))
+    }
+
+    async fn handle_queue_add(
+        &mut self,
+        query: String,
+        vc_channel_id: ChannelId,
+        requested_by: User,
+    ) -> Result<QueueAddOutcome> {
+        if let Some(search_terms) = resolve_any_playlist(&self.reqwest_client, &query).await {
+            let total_tracks = search_terms.len();
+            if total_tracks == 0 {
+                bail!("Playlist appears to be empty!");
+            }
+
+            let mut terms_iter = search_terms.into_iter();
+            let first_term = terms_iter.next().context("Playlist was empty!")?;
+
+            let first_meta = fetch_metadata(self.services(), &first_term).await?;
+            let title = first_meta.title.as_deref().unwrap_or("untitled").to_string();
+            let thumbnail = first_meta.thumbnail.clone();
+
+            let first_queued = QueuedTrack {
+                query: first_meta.source_url.clone().unwrap_or(first_term),
+                metadata: first_meta.clone(),
+                requested_by: requested_by.name.clone(),
+            };
+
+            let first_track_info = StartedTrackInfo { title, thumbnail };
+
+            if self.state.current.is_none() {
+                // Play song #1 immediately!
+                self.start_playback(
+                    Some(vc_channel_id),
+                    first_queued.query,
+                    first_queued.requested_by,
+                    Some(first_queued.metadata),
+                    OldTrackDisposition::History,
+                )
+                    .await?;
+            } else {
+                // If something is already playing, push song #1 to queue
+                self.state.queue.push_back(first_queued);
+            }
+
+            self.populate_queue(&requested_by, &mut terms_iter);
+
+            return Ok(QueueAddOutcome::PlaylistQueued {
+                count: total_tracks,
+                first_track: first_track_info,
+            });
+        }
+
+        let query_url = build_query_url(&self.reqwest_client, &query).await;
+        let metadata = fetch_metadata(self.services(), &query_url).await?;
+
+        let title = metadata.title.as_deref().unwrap_or("untitled").to_string();
+        let thumbnail = metadata.thumbnail.clone();
+        let queued = QueuedTrack {
+            query: metadata.source_url.clone().unwrap_or(query_url),
+            metadata,
+            requested_by: requested_by.name.clone(),
+        };
+
+        if self.state.current.is_some() {
+            self.state.queue.push_back(queued);
+            Ok(QueueAddOutcome::Queued(StartedTrackInfo { title, thumbnail }))
+        } else {
+            let _ = self
+                .start_playback(
+                    Some(vc_channel_id),
+                    queued.query,
+                    queued.requested_by,
+                    Some(queued.metadata.clone()),
+                    OldTrackDisposition::History,
+                )
+                .await?;
+            Ok(QueueAddOutcome::Played(StartedTrackInfo { title, thumbnail }))
+        }
+    }
+
+    fn populate_queue(&mut self, requested_by: &User, terms_iter: &mut IntoIter<String>) {
+        for search_term in terms_iter {
+            let display_title = search_term.strip_prefix("ytsearch:").unwrap_or(&search_term).to_string();
+            let mut placeholder_meta = AuxMetadata::default();
+            placeholder_meta.title = Some(display_title);
+
+            self.state.queue.push_back(QueuedTrack {
+                query: search_term,
+                metadata: placeholder_meta,
+                requested_by: requested_by.name.clone(),
+            });
+        }
     }
 
     async fn handle_restart(&mut self) -> Result<StartedTrackInfo> {
@@ -323,94 +437,6 @@ impl GuildActor {
             .await
     }
 
-    async fn handle_queue_add(
-        &mut self,
-        query: String,
-        vc_channel_id: ChannelId,
-        requested_by: User,
-    ) -> Result<QueueAddOutcome> {
-        if let Some(search_terms) = resolve_spotify_playlist(&self.reqwest_client, &query).await {
-            let total_tracks = search_terms.len();
-            if total_tracks == 0 {
-                bail!("Spotify playlist appears to be empty!");
-            }
-
-            let mut terms_iter = search_terms.into_iter();
-            let first_term = terms_iter.next().context("Playlist was empty!")?;
-
-            let first_meta = fetch_metadata(self.services(), &first_term).await?;
-            let title = first_meta.title.as_deref().unwrap_or("untitled").to_string();
-            let thumbnail = first_meta.thumbnail.clone();
-
-            let first_queued = QueuedTrack {
-                query: first_meta.source_url.clone().unwrap_or(first_term),
-                metadata: first_meta.clone(),
-                requested_by: requested_by.name.clone(),
-            };
-
-            let first_track_info = StartedTrackInfo { title, thumbnail };
-
-            if self.state.current.is_none() {
-                // Play song #1 immediately!
-                self.start_playback(
-                    Some(vc_channel_id),
-                    first_queued.query,
-                    first_queued.requested_by,
-                    Some(first_queued.metadata),
-                    OldTrackDisposition::History,
-                ).await?;
-            } else {
-                // If something is already playing, push song #1 to queue
-                self.state.queue.push_back(first_queued);
-            }
-
-            for search_term in terms_iter {
-                // Create a basic placeholder metadata so `/music queue list` displays the song name
-                let display_title = search_term.strip_prefix("ytsearch:").unwrap_or(&search_term).to_string();
-                let mut placeholder_meta = AuxMetadata::default();
-                placeholder_meta.title = Some(display_title);
-
-                self.state.queue.push_back(QueuedTrack {
-                    query: search_term, // We store "ytsearch:Artist Song"
-                    metadata: placeholder_meta,
-                    requested_by: requested_by.name.clone(),
-                });
-            }
-
-            return Ok(QueueAddOutcome::PlaylistQueued {
-                count: total_tracks,
-                first_track: first_track_info,
-            });
-        }
-
-        let query_url = build_query_url(&self.reqwest_client, &query).await;
-        let metadata = fetch_metadata(self.services(), &query_url).await?;
-
-        let title = metadata.title.as_deref().unwrap_or("untitled").to_string();
-        let thumbnail = metadata.thumbnail.clone();
-        let queued = QueuedTrack {
-            query: metadata.source_url.clone().unwrap_or(query_url),
-            metadata,
-            requested_by: requested_by.name.clone(),
-        };
-
-        if self.state.current.is_some() {
-            self.state.queue.push_back(queued);
-            Ok(QueueAddOutcome::Queued(StartedTrackInfo { title, thumbnail }))
-        } else {
-            let _ = self
-                .start_playback(
-                    Some(vc_channel_id),
-                    queued.query,
-                    queued.requested_by,
-                    Some(queued.metadata.clone()),
-                    OldTrackDisposition::History,
-                )
-                .await?;
-            Ok(QueueAddOutcome::Played(StartedTrackInfo { title, thumbnail }))
-        }
-    }
-
     fn handle_queue_list(&self) -> QueueSnapshot {
         QueueSnapshot {
             current_meta: self.state.current_meta.clone(),
@@ -458,7 +484,7 @@ impl GuildActor {
 
         GuildPlayer::push_history_to(
             &mut self.state.history,
-            self.state.queue.drain(..target_index)
+            self.state.queue.drain(..target_index),
         );
 
         let title = target.metadata.title.as_deref().unwrap_or("untitled").to_string();
@@ -563,7 +589,7 @@ impl GuildActor {
 
     async fn handle_track_ended(&mut self, uuid: Uuid) {
         if self.state.current.as_ref().map(|h| h.uuid()) != Some(uuid) {
-            return; // Ignore stale end events
+            return;
         }
 
         if let Some(finished) = self.state.current_track.take() {
@@ -595,21 +621,18 @@ impl GuildActor {
         let seek_mode = parse_seek_input(&input)
             .context("Invalid input! Use timestamps like `1:30` or offsets like `+30`, `-15`, `+1:30`.")?;
 
-        // Get current playhead position
         let current_pos = handle
             .get_info()
             .await
             .map(|info| info.position)
             .unwrap_or(Duration::ZERO);
 
-        // Calculate target duration
         let target = match seek_mode {
             SeekMode::Absolute(dur) => dur,
             SeekMode::RelativeForward(delta) => current_pos + delta,
             SeekMode::RelativeBackward(delta) => current_pos.saturating_sub(delta),
         };
 
-        // Boundary check against track total duration
         if let Some(total_duration) = self.state.current_meta.as_ref()
             .and_then(|m| m.duration)
             .filter(|&dur| target > dur)
@@ -620,7 +643,6 @@ impl GuildActor {
             );
         }
 
-        // Execute seek on audio handle
         handle
             .seek_async(target)
             .await
