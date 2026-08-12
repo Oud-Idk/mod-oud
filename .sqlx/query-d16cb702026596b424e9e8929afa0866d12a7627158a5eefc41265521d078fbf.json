@@ -28,7 +28,7 @@
     ],
     "parameters": {
       "Left": [
-        "Int4",
+        "Int8",
         "Int8"
       ]
     },

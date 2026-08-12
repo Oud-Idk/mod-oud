@@ -3,18 +3,18 @@ use crate::features::music::player::{
     OldTrackDisposition, PlaybackServices, SeekMode,
 };
 use crate::features::music::spotify::{resolve_spotify_playlist, resolve_spotify_track};
-// 1. IMPORT YOUR NEW YOUTUBE FUNCTIONS HERE:
-use crate::features::music::youtube::{resolve_youtube_playlist, resolve_youtube_video};
-
+use crate::features::music::stats::{StatsTx, record_track_end, record_track_start};
 use crate::features::music::state::{
     GuildPlayer, PlayOutcome, QueueAddOutcome, QueueSnapshot, QueuedTrack, StartedTrackInfo,
 };
+use crate::features::music::youtube::{resolve_youtube_playlist, resolve_youtube_video};
 use anyhow::{bail, Context, Result};
 use core::time::Duration;
 use rand::seq::SliceRandom;
 use serde_json::Value;
 use serenity::all::{ChannelId, GuildId, User};
 use songbird::input::AuxMetadata;
+use songbird::tracks::TrackHandle;
 use songbird::Songbird;
 use std::sync::Arc;
 use std::vec::IntoIter;
@@ -26,6 +26,7 @@ pub struct GuildActor {
     pub guild_id: GuildId,
     pub manager: Arc<Songbird>,
     pub reqwest_client: reqwest::Client,
+    pub stats_tx: StatsTx,
     pub command_rx: mpsc::Receiver<GuildCommand>,
     pub command_tx: mpsc::Sender<GuildCommand>,
     pub state: GuildPlayer,
@@ -156,6 +157,7 @@ impl GuildActor {
         guild_id: GuildId,
         manager: Arc<Songbird>,
         reqwest_client: reqwest::Client,
+        stats_tx: StatsTx,
         command_tx: mpsc::Sender<GuildCommand>,
         command_rx: mpsc::Receiver<GuildCommand>,
     ) -> Self {
@@ -163,6 +165,7 @@ impl GuildActor {
             guild_id,
             manager,
             reqwest_client,
+            stats_tx,
             command_tx,
             command_rx,
             state: GuildPlayer::default(),
@@ -173,9 +176,10 @@ impl GuildActor {
         guild_id: GuildId,
         manager: Arc<Songbird>,
         reqwest_client: reqwest::Client,
+        stats_tx: StatsTx,
     ) -> mpsc::Sender<GuildCommand> {
         let (tx, rx) = mpsc::channel(32);
-        let actor = Self::new(guild_id, manager, reqwest_client, tx.clone(), rx);
+        let actor = Self::new(guild_id, manager, reqwest_client, stats_tx, tx.clone(), rx);
 
         tokio::spawn(async move {
             actor.run().await;
@@ -198,12 +202,8 @@ impl GuildActor {
         vc_channel_id: ChannelId,
         requested_by: User,
     ) -> Result<PlayOutcome> {
-        let call = match self.manager.get(self.guild_id) {
-            Some(call) => call,
-            None => self.manager.join(self.guild_id, vc_channel_id).await?,
-        };
-
         let requester: Arc<str> = Arc::from(requested_by.name.as_str());
+        let requested_by_id = requested_by.id.get();
 
         if let Some(search_terms) = resolve_any_playlist(&self.reqwest_client, &query).await {
             let total_tracks = search_terms.len();
@@ -215,69 +215,39 @@ impl GuildActor {
             let first_term = terms_iter.next().context("Playlist was empty!")?;
 
             // Eagerly fetch YouTube metadata for Track #1 and start playing immediately
-            let started = prepare_and_play(
-                self.services(),
-                &call,
-                first_term,
-                requester.clone(),
-                None,
-            )
+            let first_track = self
+                .start_playback(
+                    Some(vc_channel_id),
+                    first_term,
+                    requester.clone(),
+                    requested_by_id,
+                    None,
+                    OldTrackDisposition::History,
+                )
                 .await?;
 
-            let title = started.metadata.title.as_deref().unwrap_or("untitled").to_string();
-            let thumbnail = started.metadata.thumbnail.clone();
-
-            // Archive the currently playing track into history
-            if let Some(old_track) = self.state.current_track.take() {
-                self.state.push_history(old_track);
-            }
-
-            // Stop current playback handle and swap to new track
-            let old_handle = self.state.current.take();
-            self.state.current = Some(started.handle);
-            self.state.current_track = Some(started.track);
-            self.state.current_meta = Some(started.metadata);
-
-            if let Some(old_handle) = old_handle {
-                let _ = old_handle.stop();
-            }
-
-            self.populate_queue(&requester, &mut terms_iter);
+            self.populate_queue(&requester, requested_by_id, &mut terms_iter);
 
             return Ok(PlayOutcome::Playlist {
-                first_track: StartedTrackInfo { title, thumbnail },
+                first_track,
                 count: total_tracks,
             });
         }
 
         let query_url = build_query_url(&self.reqwest_client, &query).await;
 
-        let started = prepare_and_play(
-            self.services(),
-            &call,
-            query_url,
-            requester.clone(),
-            None,
-        )
+        let first_track = self
+            .start_playback(
+                Some(vc_channel_id),
+                query_url,
+                requester,
+                requested_by_id,
+                None,
+                OldTrackDisposition::History,
+            )
             .await?;
 
-        let title = started.metadata.title.as_deref().unwrap_or("untitled").to_string();
-        let thumbnail = started.metadata.thumbnail.clone();
-
-        if let Some(old_track) = self.state.current_track.take() {
-            self.state.push_history(old_track);
-        }
-
-        let old_handle = self.state.current.take();
-        self.state.current = Some(started.handle);
-        self.state.current_track = Some(started.track);
-        self.state.current_meta = Some(started.metadata);
-
-        if let Some(old_handle) = old_handle {
-            let _ = old_handle.stop();
-        }
-
-        Ok(PlayOutcome::Single(StartedTrackInfo { title, thumbnail }))
+        Ok(PlayOutcome::Single(first_track))
     }
 
     async fn handle_queue_add(
@@ -287,6 +257,7 @@ impl GuildActor {
         requested_by: User,
     ) -> Result<QueueAddOutcome> {
         let requester: Arc<str> = Arc::from(requested_by.name.as_str());
+        let requested_by_id = requested_by.id.get();
 
         if let Some(search_terms) = resolve_any_playlist(&self.reqwest_client, &query).await {
             let total_tracks = search_terms.len();
@@ -305,6 +276,7 @@ impl GuildActor {
                 query: first_meta.source_url.take().unwrap_or(first_term),
                 metadata: first_meta.clone(),
                 requested_by: requester.clone(),
+                requested_by_id,
             };
 
             let first_track_info = StartedTrackInfo { title, thumbnail };
@@ -315,6 +287,7 @@ impl GuildActor {
                     Some(vc_channel_id),
                     first_queued.query,
                     first_queued.requested_by,
+                    first_queued.requested_by_id,
                     Some(first_queued.metadata),
                     OldTrackDisposition::History,
                 )
@@ -324,7 +297,7 @@ impl GuildActor {
                 self.state.queue.push_back(first_queued);
             }
 
-            self.populate_queue(&requester, &mut terms_iter);
+            self.populate_queue(&requester, requested_by_id, &mut terms_iter);
 
             return Ok(QueueAddOutcome::PlaylistQueued {
                 count: total_tracks,
@@ -341,6 +314,7 @@ impl GuildActor {
             query: metadata.source_url.take().unwrap_or(query_url),
             metadata,
             requested_by: requester.clone(),
+            requested_by_id,
         };
 
         if self.state.current.is_some() {
@@ -352,6 +326,7 @@ impl GuildActor {
                     Some(vc_channel_id),
                     queued.query,
                     queued.requested_by,
+                    queued.requested_by_id,
                     Some(queued.metadata),
                     OldTrackDisposition::History,
                 )
@@ -360,7 +335,12 @@ impl GuildActor {
         }
     }
 
-    fn populate_queue(&mut self, requested_by: &Arc<str>, terms_iter: &mut IntoIter<String>) {
+    fn populate_queue(
+        &mut self,
+        requested_by: &Arc<str>,
+        requested_by_id: u64,
+        terms_iter: &mut IntoIter<String>,
+    ) {
         for search_term in terms_iter {
             let display_title = search_term.strip_prefix("ytsearch:").unwrap_or(&search_term).to_string();
             let mut placeholder_meta = AuxMetadata::default();
@@ -370,6 +350,7 @@ impl GuildActor {
                 query: search_term,
                 metadata: placeholder_meta,
                 requested_by: requested_by.clone(),
+                requested_by_id,
             });
         }
     }
@@ -385,6 +366,7 @@ impl GuildActor {
             None,
             current_track.query,
             current_track.requested_by,
+            current_track.requested_by_id,
             Some(current_track.metadata),
             OldTrackDisposition::History,
         )
@@ -404,6 +386,7 @@ impl GuildActor {
             .front()
             .and_then(|t| t.metadata.title.clone());
 
+        self.finish_play_stats(&handle).await;
         let _ = handle.stop();
 
         if let Some(finished) = self.state.current_track.take() {
@@ -418,6 +401,7 @@ impl GuildActor {
                     None,
                     next.query,
                     next.requested_by,
+                    next.requested_by_id,
                     None,
                     OldTrackDisposition::History,
                 )
@@ -434,6 +418,7 @@ impl GuildActor {
             Some(vc_channel_id),
             previous.query,
             previous.requested_by,
+            previous.requested_by_id,
             Some(previous.metadata),
             OldTrackDisposition::QueueFront,
         )
@@ -493,14 +478,11 @@ impl GuildActor {
         let title = target.metadata.title.as_deref().unwrap_or("untitled").to_string();
         let thumbnail = target.metadata.thumbnail.clone();
 
-        if let Some(handle) = self.state.current.as_ref() {
-            let _ = handle.stop();
-        }
-
         self.start_playback(
             None,
             target.query,
             target.requested_by,
+            target.requested_by_id,
             Some(target.metadata),
             OldTrackDisposition::History,
         )
@@ -528,14 +510,11 @@ impl GuildActor {
         let title = target.metadata.title.as_deref().unwrap_or("untitled").to_string();
         let thumbnail = target.metadata.thumbnail.clone();
 
-        if let Some(handle) = self.state.current.as_ref() {
-            let _ = handle.stop();
-        }
-
         self.start_playback(
             None,
             target.query,
             target.requested_by,
+            target.requested_by_id,
             Some(target.metadata),
             OldTrackDisposition::History,
         )
@@ -550,6 +529,10 @@ impl GuildActor {
 
     async fn handle_stop(&mut self) -> Result<()> {
         self.state.queue.clear();
+
+        if let Some(handle) = self.state.current.clone() {
+            self.finish_play_stats(&handle).await;
+        }
 
         if let Some(finished) = self.state.current_track.take() {
             self.state.push_history(finished);
@@ -595,6 +578,10 @@ impl GuildActor {
             return;
         }
 
+        if let Some(handle) = self.state.current.clone() {
+            self.finish_play_stats(&handle).await;
+        }
+
         if let Some(finished) = self.state.current_track.take() {
             self.state.push_history(finished);
         }
@@ -607,6 +594,7 @@ impl GuildActor {
                     None,
                     next.query,
                     next.requested_by,
+                    next.requested_by_id,
                     None,
                     OldTrackDisposition::History,
                 )
@@ -692,6 +680,7 @@ impl GuildActor {
         vc_channel_id: Option<ChannelId>,
         query: String,
         requested_by: Arc<str>,
+        requested_by_id: u64,
         cached_meta: Option<AuxMetadata>,
         disposition: OldTrackDisposition,
     ) -> Result<StartedTrackInfo> {
@@ -709,19 +698,43 @@ impl GuildActor {
             &call,
             query,
             requested_by,
+            requested_by_id,
             cached_meta,
         )
             .await?;
 
+        let handle_uuid = started.handle.uuid();
         let title = started.metadata.title.as_deref().unwrap_or("untitled").to_string();
         let thumbnail = started.metadata.thumbnail.clone();
 
         let old_handle = install_new_track(&mut self.state, started, disposition);
 
         if let Some(old_handle) = old_handle {
+            self.finish_play_stats(&old_handle).await;
             let _ = old_handle.stop();
         }
 
+        if let Some(meta) = self.state.current_meta.as_ref() {
+            record_track_start(&self.stats_tx, self.guild_id, requested_by_id, handle_uuid, meta);
+        }
+
         Ok(StartedTrackInfo { title, thumbnail })
+    }
+
+    /// Non-blocking: enqueues the "ended" event for the current play, backfilled
+    /// against the matching `handle_uuid` by the stats worker.
+    async fn finish_play_stats(&self, handle: &TrackHandle) {
+        let fallback_duration = self.state.current_meta.as_ref().and_then(|m| m.duration);
+
+        let listened_ms = handle
+            .get_info()
+            .await
+            .map(|info| info.position.as_millis() as i64)
+            .ok()
+            .filter(|&ms| ms > 0)
+            .or_else(|| fallback_duration.map(|d| d.as_millis() as i64))
+            .unwrap_or(0);
+
+        record_track_end(&self.stats_tx, handle.uuid(), listened_ms);
     }
 }

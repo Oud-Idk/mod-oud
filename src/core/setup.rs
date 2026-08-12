@@ -6,7 +6,7 @@ use crate::features::giveaways::start_giveaway_worker;
 use crate::features::leveling::start_level_flush_worker;
 use crate::features::member_counter::start_member_counter_job;
 use crate::features::moderation::start_temp_ban_worker;
-use crate::features::music::MusicState;
+use crate::features::music::{MusicState, start_music_stats_prune_worker, start_music_stats_worker};
 use crate::features::raid_detection::reconcile_active_raids;
 use crate::features::reminder::start_reminder_worker;
 use crate::features::tickets::{TicketLogPayload, start_ticket_inactivity_worker, start_ticket_logger, sync_tickets};
@@ -70,7 +70,9 @@ pub fn setup<'a>(
             .parse()
             .expect("TOTAL_SHARDS must be a valid u32");
 
-        let music_state = MusicState::default();
+        let (music_stats_tx, music_stats_rx) = mpsc::unbounded_channel();
+        start_music_stats_worker(pool.clone(), music_stats_rx);
+        let music_state = MusicState::new(music_stats_tx);
 
         let data = BotData {
             core: CoreServices {
@@ -141,6 +143,8 @@ pub fn start_jobs(db: &Pool<Postgres>, redis_client: &Client, subscriber_client:
     start_birthday_worker(db.clone(), redis_client.clone(), guild_configs_cache.clone(), ctx.clone());
 
     start_username_batch_worker(db.clone(), username_rx);
+
+    start_music_stats_prune_worker(db.clone(), redis_client.clone());
 }
 
 pub struct ShardManagerContainer;

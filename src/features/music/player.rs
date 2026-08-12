@@ -83,6 +83,7 @@ pub async fn start_streaming(
     query: String,
     metadata: AuxMetadata,
     requested_by: Arc<str>,
+    requested_by_id: u64,
 ) -> StartedTrack {
     let src = YoutubeDl::new(services.reqwest_client.clone(), query.clone());
     let source: Input = src.into();
@@ -107,6 +108,7 @@ pub async fn start_streaming(
         query: metadata.source_url.clone().unwrap_or(query),
         metadata: metadata.clone(),
         requested_by,
+        requested_by_id,
     };
 
     StartedTrack {
@@ -122,13 +124,14 @@ pub async fn prepare_and_play(
     call: &Arc<Mutex<Call>>,
     query: String,
     requested_by: Arc<str>,
+    requested_by_id: u64,
     cached: Option<AuxMetadata>,
 ) -> Result<StartedTrack> {
     let metadata = match cached {
         Some(metadata) => metadata,
         None => fetch_metadata(services.clone(), &query).await?,
     };
-    Ok(start_streaming(services, call, query, metadata, requested_by).await)
+    Ok(start_streaming(services, call, query, metadata, requested_by, requested_by_id).await)
 }
 
 /// Swaps the active track directly inside the `GuildPlayer` state owned by the actor,

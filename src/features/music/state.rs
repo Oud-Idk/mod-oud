@@ -1,5 +1,6 @@
 use crate::features::music::actor::GuildActor;
 use crate::features::music::actor::GuildCommand;
+use crate::features::music::stats::StatsTx;
 use serenity::all::GuildId;
 use songbird::Songbird;
 use songbird::input::AuxMetadata;
@@ -38,6 +39,7 @@ pub struct QueuedTrack {
     pub query: String,
     pub metadata: AuxMetadata,
     pub requested_by: Arc<str>,
+    pub requested_by_id: u64,
 }
 
 #[derive(Default, Debug)]
@@ -70,12 +72,20 @@ impl GuildPlayer {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct MusicState {
     pub actors: Arc<Mutex<HashMap<GuildId, mpsc::Sender<GuildCommand>>>>,
+    pub stats_tx: StatsTx,
 }
 
 impl MusicState {
+    pub fn new(stats_tx: StatsTx) -> Self {
+        Self {
+            actors: Arc::default(),
+            stats_tx,
+        }
+    }
+
     /// Gets the actor sender for a guild, spawning a new `GuildActor` task if one isn't running.
     pub async fn get_or_spawn_actor(
         &self,
@@ -91,7 +101,12 @@ impl MusicState {
             }
         }
 
-        let tx = GuildActor::spawn(guild_id, manager, reqwest_client);
+        let tx = GuildActor::spawn(
+            guild_id,
+            manager,
+            reqwest_client,
+            self.stats_tx.clone(),
+        );
         map.insert(guild_id, tx.clone());
         tx
     }

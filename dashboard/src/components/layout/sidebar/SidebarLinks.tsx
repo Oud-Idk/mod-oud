@@ -20,7 +20,8 @@ import {
     TrendingUp,
     User,
     UserPlus,
-    Volume2Icon, Clapperboard
+    Volume2Icon, Clapperboard,
+    Music2
 } from "lucide-react";
 import { FaceSmileIcon } from "@heroicons/react/24/outline";
 import { JSX } from "react";
@@ -178,6 +179,12 @@ export function SidebarLinks(): JSX.Element | null{
             name: "Raid Detection",
             href: `/dashboard/${guildId}/raid-detection`,
             icon: ShieldAlert
+        },
+        {
+            name: "Music Stats",
+            href: `/dashboard/${guildId}/music-stats`,
+            icon: Music2,
+            exact: false,
         }
     ];
 

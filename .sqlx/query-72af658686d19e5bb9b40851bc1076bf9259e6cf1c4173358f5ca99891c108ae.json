@@ -29,7 +29,7 @@
     "parameters": {
       "Left": [
         "Bool",
-        "Int4",
+        "Int8",
         "Int8",
         "Bool"
       ]
