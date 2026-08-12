@@ -78,6 +78,10 @@ fn extract_video_id(url: &str) -> Option<&str> {
 
 /// Fetches ALL video URLs from a YouTube Playlist by paginating 50 items at a time!
 pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Option<Vec<String>> {
+    if !url.contains("youtube") {
+        return None;
+    }
+
     let playlist_id = extract_playlist_id(url)?;
 
     let api_key = match std::env::var("YOUTUBE_API_KEY") {

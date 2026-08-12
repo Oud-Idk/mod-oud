@@ -1,6 +1,8 @@
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { auth } from "@/lib/auth";
 import { JSX } from "react";
 import { MusicStatsBody } from "@/features/music-stats/components/MusicStatsBody";
+import { MusicControlPanel } from "@/features/music-stats/components/MusicControlPanel";
 import {
     getMusicStatsSummary,
     getTopListeners,
@@ -12,15 +14,20 @@ interface MusicStatsFeatureProps {
 }
 
 export async function MusicStatsFeature({ guildId }: MusicStatsFeatureProps): Promise<JSX.Element> {
-    const [summary, topTracks, topListeners] = await Promise.all([
+    const [summary, topTracks, topListeners, session] = await Promise.all([
         getMusicStatsSummary(guildId),
         getTopTracks(guildId),
         getTopListeners(guildId),
+        auth(),
     ]);
 
     return (
         <div className="h-full flex flex-col gap-4">
-            <DashboardHeader>Music Stats</DashboardHeader>
+            <DashboardHeader>Music</DashboardHeader>
+            <MusicControlPanel
+                guildId={guildId}
+                requestedById={session?.user.id ?? undefined}
+            />
             <MusicStatsBody
                 summary={summary}
                 topTracks={topTracks}

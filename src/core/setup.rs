@@ -6,17 +6,19 @@ use crate::features::giveaways::start_giveaway_worker;
 use crate::features::leveling::start_level_flush_worker;
 use crate::features::member_counter::start_member_counter_job;
 use crate::features::moderation::start_temp_ban_worker;
-use crate::features::music::{MusicState, start_music_stats_prune_worker, start_music_stats_worker};
+use crate::features::music::web_command::WebCommand;
+use crate::features::music::{MusicState, start_music_stats_prune_worker, start_music_web_control_worker};
 use crate::features::raid_detection::reconcile_active_raids;
 use crate::features::reminder::start_reminder_worker;
 use crate::features::tickets::{TicketLogPayload, start_ticket_inactivity_worker, start_ticket_logger, sync_tickets};
-use crate::shared::username_cache::{UserUpdate, run_username_batch_worker, start_username_batch_worker};
+use crate::shared::username_cache::{UserUpdate, start_username_batch_worker};
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::SetsInterface;
 use moka::future::Cache;
 use serenity::all::{Context, Ready, ShardId, ShardInfo, ShardManager};
 use sqlx::{Pool, Postgres};
 use std::env;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -33,6 +35,8 @@ pub fn setup<'a>(
     username_tx: mpsc::Sender<UserUpdate>,
     username_rx: mpsc::Receiver<UserUpdate>,
     reqwest_client: reqwest::Client,
+    web_command_rx: UnboundedReceiver<WebCommand>,
+    music_state: MusicState, // <--- 1. Accept music_state passed from main.rs
     ready: &'a Ready,
 ) -> Pin<Box<dyn Future<Output=Result<BotData, Error>> + Send + 'a>> {
     Box::pin(async move {
@@ -70,9 +74,15 @@ pub fn setup<'a>(
             .parse()
             .expect("TOTAL_SHARDS must be a valid u32");
 
-        let (music_stats_tx, music_stats_rx) = mpsc::unbounded_channel();
-        start_music_stats_worker(pool.clone(), music_stats_rx);
-        let music_state = MusicState::new(music_stats_tx);
+        if let Some(songbird) = songbird::get(ctx).await {
+            start_music_web_control_worker(
+                web_command_rx,
+                music_state.clone(),
+                songbird,
+                reqwest_client.clone(),
+                ctx.http.clone(),
+            );
+        }
 
         let data = BotData {
             core: CoreServices {
@@ -107,7 +117,16 @@ pub fn setup<'a>(
     })
 }
 
-pub fn start_jobs(db: &Pool<Postgres>, redis_client: &Client, subscriber_client: &SubscriberClient, guild_configs_cache: &Cache<i64, GuildSettings>, ctx: &Context, active_tickets_cache: &Cache<u64, ()>, rx: UnboundedReceiver<TicketLogPayload>, username_rx: mpsc::Receiver<UserUpdate>) {
+pub fn start_jobs(
+    db: &Pool<Postgres>,
+    redis_client: &Client,
+    subscriber_client: &SubscriberClient,
+    guild_configs_cache: &Cache<i64, GuildSettings>,
+    ctx: &Context,
+    active_tickets_cache: &Cache<u64, ()>,
+    rx: UnboundedReceiver<TicketLogPayload>,
+    username_rx: mpsc::Receiver<UserUpdate>,
+) {
     sync_tickets(
         &redis_client,
         &subscriber_client,

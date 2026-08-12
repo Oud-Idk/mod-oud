@@ -3,10 +3,11 @@ use crate::features::automod::{SafeBrowsingClient, SpamTracker};
 use crate::features::live_feed::LogEvent;
 use crate::features::message_logging::CachedAuditLogs;
 use crate::features::music::MusicState;
+use crate::features::music::web_command::WebCommandBus;
 use crate::features::tickets::TicketLogPayload;
 use crate::shared::username_cache::UserUpdate;
-use std::sync::Arc;
 use serenity::all::ShardInfo;
+use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -61,6 +62,8 @@ pub struct WebState {
     pub core: CoreServices,
     pub serenity_http: Arc<poise::serenity_prelude::Http>,
     pub message_event_tx: broadcast::Sender<LogEvent>,
+    pub web_commands: WebCommandBus,
+    pub music_state: MusicState,
 }
 
 #[derive(Clone)]

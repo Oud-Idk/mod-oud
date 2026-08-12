@@ -7,6 +7,7 @@ use mod_oud::core::error::on_error;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::events;
 use mod_oud::features::live_feed::LogEvent;
+use mod_oud::features::music::web_command::WebCommandBus;
 use mod_oud::features::{automod, birthday, custom_commands, general, invite_tracking, leveling, media_only, member_counter, moderation, music, raid_detection, reporting, temp_voice, tickets, warning};
 use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::start_web_server;
@@ -22,6 +23,7 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tracing::log::LevelFilter;
 use tracing::{debug, info, trace, warn};
+use mod_oud::features::music::MusicState;
 
 fn main() -> Result<(), Error> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -146,6 +148,12 @@ async fn async_main() -> Result<(), Error> {
 
     let (username_tx, username_rx) = mpsc::channel::<UserUpdate>(5000);
 
+    let (web_command_tx, web_command_rx) = mpsc::unbounded_channel();
+    let web_command_bus = WebCommandBus::new(web_command_tx);
+    let (music_stats_tx, music_stats_rx) = mpsc::unbounded_channel();
+    music::start_music_stats_worker(pool.clone(), music_stats_rx);
+    let music_state = MusicState::new(music_stats_tx);
+
     if run_web {
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
 
@@ -158,6 +166,8 @@ async fn async_main() -> Result<(), Error> {
             tx,
             reqwest_client.clone(),
             username_tx.clone(),
+            web_command_bus.clone(),
+            music_state.clone(),
         ).await?;
     }
 
@@ -247,7 +257,15 @@ async fn async_main() -> Result<(), Error> {
                 ..Default::default()
             })
             .setup(move |ctx, _ready, _framework| {
-                setup(safe_browsing_api_key, pool, redis_client.clone(), subscriber_client.clone(), guild_configs_for_setup.clone(), ctx, username_tx.clone(), username_rx, reqwest_client.clone(), _ready)
+                setup(
+                    safe_browsing_api_key,
+                    pool, redis_client.clone(),
+                    subscriber_client.clone(),
+                    guild_configs_for_setup.clone(),
+                    ctx, username_tx.clone(),
+                    username_rx, reqwest_client.clone(),
+                    web_command_rx, music_state, _ready,
+                )
             })
             .build();
 

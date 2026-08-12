@@ -21,7 +21,7 @@ prost = "0.14.4"
 reqwest = { version = "0.12", features = ["json"] }
 fred = { version = "10.1.0", features = ["partial-tracing", "enable-rustls", "i-scripts", "subscriber-client"] }
 rand = "0.10.2"
-axum = { version = "0.8", features = ["macros"] }
+axum = { version = "0.8", features = ["macros", "ws"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 tower-http = { version = "0.7.0", features = ["cors", "trace"] }
 unicode-segmentation = "1.10.1"
@@ -49,3 +49,4 @@ unit-prefix = "0.5.2"
 chrono-tz = "0.10.4"
 songbird = { version = "0.6.0", features = [] }
 symphonia = { version = "0.5.0", features = ["all"] }
+async-trait = "0.1.89"

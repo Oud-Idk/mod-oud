@@ -1,3 +1,4 @@
+use std::time::Duration;
 use anyhow::{Context as _, Result};
 use poise::CreateReply;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, User};
@@ -128,7 +129,8 @@ pub async fn play(
     let outcome = p.dispatch(|respond| GuildCommand::Play {
         query,
         vc_channel_id,
-        requested_by: ctx.author().clone(),
+        requested_by_name: ctx.author().name.clone(),
+        requested_by_id: ctx.author().id.get(),
         respond,
     }).await?;
 
@@ -226,31 +228,61 @@ pub async fn next(ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
+
+fn make_progress_bar(position_sec: f64, duration_sec: Option<u64>) -> String {
+    let Some(total) = duration_sec.filter(|&d| d > 0) else {
+        return "🔴 Live Stream".to_string();
+    };
+
+    let progress = (position_sec / total as f64).clamp(0.0, 1.0);
+    let total_blocks = 14;
+    let filled_blocks = (progress * total_blocks as f64).round() as usize;
+
+    let mut bar = String::from("`");
+    for i in 0..total_blocks {
+        if i == filled_blocks {
+            bar.push('🔘');
+        } else {
+            bar.push('▬');
+        }
+    }
+    bar.push('`');
+    bar
+}
+
 /// Shows the currently playing track.
 #[poise::command(slash_command, guild_only)]
 pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
     let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
 
-    let track = p.dispatch(|respond| GuildCommand::NowPlaying { respond }).await?;
+    let res = p.dispatch(|respond| GuildCommand::NowPlaying { respond }).await?;
 
-    match track {
-        Some(track) => {
+    match res {
+        Some(np) => {
+            let track = np.track;
             let title = track.metadata.title.as_deref().unwrap_or("Untitled").to_string();
             let duration_fmt = format_duration(track.metadata.duration);
+            let position_fmt = format_duration(Some(Duration::from_secs_f64(np.position_sec)));
+            let duration_secs = track.metadata.duration.map(|d| d.as_secs());
 
             let title_fmt = match &track.metadata.source_url {
                 Some(url) if url != "#" => format!("[{}]({})", title, url),
                 _ => format!("**{}**", title),
             };
 
+            let status_str = if np.is_paused { "⏸️ Paused" } else { "▶️ Playing" };
+            let bar = make_progress_bar(np.position_sec, duration_secs);
+
+            let description = format!(
+                "{}\n\n{}\n`{} / {}` | {}\nRequested by **{}**",
+                title_fmt, bar, position_fmt, duration_fmt, status_str, track.requested_by
+            );
+
             ctx.send(CreateReply::default().embed(
                 CreateEmbed::new()
                     .author(CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face()))
                     .title("Now Playing")
-                    .description(format!(
-                        "{}\n`{}` | Requested by **{}**",
-                        title_fmt, duration_fmt, track.requested_by
-                    ))
+                    .description(description)
                     .thumbnail(track.metadata.thumbnail.unwrap_or_default())
                     .color(BRAND_COLOR),
             )).await?;

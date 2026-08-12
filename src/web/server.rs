@@ -19,8 +19,19 @@ use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, error, info, instrument, trace, warn};
+use crate::features::music::MusicState;
+use crate::features::music::web_command::WebCommandBus;
 
-#[instrument(skip(db, http, redis_client, subscriber_client, guild_configs, tx))]
+#[instrument(skip(
+    db,
+    http,
+    redis_client,
+    subscriber_client,
+    guild_configs,
+    tx,
+    web_commands,
+    music_state
+))]
 pub async fn start_web_server(
     db: sqlx::PgPool,
     http: Arc<Http>,
@@ -30,6 +41,8 @@ pub async fn start_web_server(
     tx: broadcast::Sender<LogEvent>,
     reqwest_client: reqwest::Client,
     username_tx: tokio::sync::mpsc::Sender<crate::shared::username_cache::UserUpdate>,
+    web_commands: WebCommandBus,
+    music_state: MusicState,
 ) -> Result<(), Error> {
     if let Err(e) = live_feed::start_live_feed_subscriber(subscriber_client, tx.clone()).await {
         error!(error = ?e, "Failed to start live feed subscriber");
@@ -51,6 +64,8 @@ pub async fn start_web_server(
         },
         serenity_http: http,
         message_event_tx: tx,
+        web_commands,
+        music_state: music_state.clone(), // <--- WORKS NOW
     });
 
     let app = get_router(cors, shared_state);

@@ -6,7 +6,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, instrument};
 use crate::core::config::state::WebState;
-use crate::features::{automod, general, giveaways, live_feed, member_counter, moderation, reaction_roles, reporting, temp_voice, tickets, verification};
+use crate::features::{automod, general, giveaways, live_feed, member_counter, moderation, music, reaction_roles, reporting, temp_voice, tickets, verification};
 
 #[instrument]
 async fn health_check() -> &'static str {
@@ -36,7 +36,8 @@ pub fn get_router(cors: CorsLayer, shared_state: Arc<WebState>) -> Router {
         .merge(verification::routes())
         .merge(automod::routes())
         .merge(member_counter::routes())
-        .merge(giveaways::routes());
+        .merge(giveaways::routes())
+        .merge(music::routes());
 
     Router::new()
         .route("/health", get(health_check))

@@ -26,7 +26,7 @@ import {
 import { FaceSmileIcon } from "@heroicons/react/24/outline";
 import { JSX } from "react";
 
-export function SidebarLinks(): JSX.Element | null{
+export function SidebarLinks(): JSX.Element | null {
     const params = useParams();
     const pathname = usePathname();
 
@@ -181,7 +181,7 @@ export function SidebarLinks(): JSX.Element | null{
             icon: ShieldAlert
         },
         {
-            name: "Music Stats",
+            name: "Music",
             href: `/dashboard/${guildId}/music-stats`,
             icon: Music2,
             exact: false,
