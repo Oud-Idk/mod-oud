@@ -37,7 +37,7 @@ pub struct QueueSnapshot {
 pub struct QueuedTrack {
     pub query: String,
     pub metadata: AuxMetadata,
-    pub requested_by: String,
+    pub requested_by: Arc<str>,
 }
 
 #[derive(Default, Debug)]

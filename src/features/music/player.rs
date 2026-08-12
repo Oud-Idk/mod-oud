@@ -82,7 +82,7 @@ pub async fn start_streaming(
     call: &Arc<Mutex<Call>>,
     query: String,
     metadata: AuxMetadata,
-    requested_by: String,
+    requested_by: Arc<str>,
 ) -> StartedTrack {
     let src = YoutubeDl::new(services.reqwest_client.clone(), query.clone());
     let source: Input = src.into();
@@ -121,7 +121,7 @@ pub async fn prepare_and_play(
     services: PlaybackServices<'_>,
     call: &Arc<Mutex<Call>>,
     query: String,
-    requested_by: String,
+    requested_by: Arc<str>,
     cached: Option<AuxMetadata>,
 ) -> Result<StartedTrack> {
     let metadata = match cached {

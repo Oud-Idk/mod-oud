@@ -203,7 +203,8 @@ impl GuildActor {
             None => self.manager.join(self.guild_id, vc_channel_id).await?,
         };
 
-        // 2. WORKS FOR BOTH SPOTIFY & YOUTUBE PLAYLISTS NOW:
+        let requester: Arc<str> = Arc::from(requested_by.name.as_str());
+
         if let Some(search_terms) = resolve_any_playlist(&self.reqwest_client, &query).await {
             let total_tracks = search_terms.len();
             if total_tracks == 0 {
@@ -218,7 +219,7 @@ impl GuildActor {
                 self.services(),
                 &call,
                 first_term,
-                requested_by.name.clone(),
+                requester.clone(),
                 None,
             )
                 .await?;
@@ -241,7 +242,7 @@ impl GuildActor {
                 let _ = old_handle.stop();
             }
 
-            self.populate_queue(&requested_by, &mut terms_iter);
+            self.populate_queue(&requester, &mut terms_iter);
 
             return Ok(PlayOutcome::Playlist {
                 first_track: StartedTrackInfo { title, thumbnail },
@@ -255,7 +256,7 @@ impl GuildActor {
             self.services(),
             &call,
             query_url,
-            requested_by.name.clone(),
+            requester.clone(),
             None,
         )
             .await?;
@@ -285,6 +286,8 @@ impl GuildActor {
         vc_channel_id: ChannelId,
         requested_by: User,
     ) -> Result<QueueAddOutcome> {
+        let requester: Arc<str> = Arc::from(requested_by.name.as_str());
+
         if let Some(search_terms) = resolve_any_playlist(&self.reqwest_client, &query).await {
             let total_tracks = search_terms.len();
             if total_tracks == 0 {
@@ -294,14 +297,14 @@ impl GuildActor {
             let mut terms_iter = search_terms.into_iter();
             let first_term = terms_iter.next().context("Playlist was empty!")?;
 
-            let first_meta = fetch_metadata(self.services(), &first_term).await?;
+            let mut first_meta = fetch_metadata(self.services(), &first_term).await?;
             let title = first_meta.title.as_deref().unwrap_or("untitled").to_string();
             let thumbnail = first_meta.thumbnail.clone();
 
             let first_queued = QueuedTrack {
-                query: first_meta.source_url.clone().unwrap_or(first_term),
+                query: first_meta.source_url.take().unwrap_or(first_term),
                 metadata: first_meta.clone(),
-                requested_by: requested_by.name.clone(),
+                requested_by: requester.clone(),
             };
 
             let first_track_info = StartedTrackInfo { title, thumbnail };
@@ -321,7 +324,7 @@ impl GuildActor {
                 self.state.queue.push_back(first_queued);
             }
 
-            self.populate_queue(&requested_by, &mut terms_iter);
+            self.populate_queue(&requester, &mut terms_iter);
 
             return Ok(QueueAddOutcome::PlaylistQueued {
                 count: total_tracks,
@@ -330,14 +333,14 @@ impl GuildActor {
         }
 
         let query_url = build_query_url(&self.reqwest_client, &query).await;
-        let metadata = fetch_metadata(self.services(), &query_url).await?;
+        let mut metadata = fetch_metadata(self.services(), &query_url).await?;
 
         let title = metadata.title.as_deref().unwrap_or("untitled").to_string();
         let thumbnail = metadata.thumbnail.clone();
         let queued = QueuedTrack {
-            query: metadata.source_url.clone().unwrap_or(query_url),
+            query: metadata.source_url.take().unwrap_or(query_url),
             metadata,
-            requested_by: requested_by.name.clone(),
+            requested_by: requester.clone(),
         };
 
         if self.state.current.is_some() {
@@ -349,7 +352,7 @@ impl GuildActor {
                     Some(vc_channel_id),
                     queued.query,
                     queued.requested_by,
-                    Some(queued.metadata.clone()),
+                    Some(queued.metadata),
                     OldTrackDisposition::History,
                 )
                 .await?;
@@ -357,7 +360,7 @@ impl GuildActor {
         }
     }
 
-    fn populate_queue(&mut self, requested_by: &User, terms_iter: &mut IntoIter<String>) {
+    fn populate_queue(&mut self, requested_by: &Arc<str>, terms_iter: &mut IntoIter<String>) {
         for search_term in terms_iter {
             let display_title = search_term.strip_prefix("ytsearch:").unwrap_or(&search_term).to_string();
             let mut placeholder_meta = AuxMetadata::default();
@@ -366,7 +369,7 @@ impl GuildActor {
             self.state.queue.push_back(QueuedTrack {
                 query: search_term,
                 metadata: placeholder_meta,
-                requested_by: requested_by.name.clone(),
+                requested_by: requested_by.clone(),
             });
         }
     }
@@ -375,7 +378,7 @@ impl GuildActor {
         let current_track = self
             .state
             .current_track
-            .clone()
+            .take()
             .context("Nothing is currently playing.")?;
 
         self.start_playback(
@@ -688,7 +691,7 @@ impl GuildActor {
         &mut self,
         vc_channel_id: Option<ChannelId>,
         query: String,
-        requested_by: String,
+        requested_by: Arc<str>,
         cached_meta: Option<AuxMetadata>,
         disposition: OldTrackDisposition,
     ) -> Result<StartedTrackInfo> {
