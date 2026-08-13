@@ -49,6 +49,8 @@ pub struct GuildActor {
     pub state: GuildPlayer,
     pub retry_count: usize,
     pub last_seek_at: Option<std::time::Instant>,
+    pub last_seek_target_sec: f64,
+    pub seek_in_flight: bool,
 }
 
 /// Resolves single queries (Spotify URLs, YouTube video URLs, or plain text searches).
@@ -177,6 +179,10 @@ pub enum GuildCommand {
         input: String,
         respond: oneshot::Sender<Result<Duration>>,
     },
+    GoToChannel {
+        vc_channel_id: ChannelId,
+        respond: oneshot::Sender<Result<()>>,
+    },
 }
 
 impl GuildActor {
@@ -200,6 +206,8 @@ impl GuildActor {
             state: GuildPlayer::default(),
             retry_count: 0,
             last_seek_at: None,
+            last_seek_target_sec: 0.0,
+            seek_in_flight: false,
         }
     }
 
@@ -352,7 +360,7 @@ impl GuildActor {
         let title = metadata.title.as_deref().unwrap_or("untitled").to_string();
         let thumbnail = metadata.thumbnail.clone();
         let queued = QueuedTrack {
-            query: metadata.source_url.take().unwrap_or(query_url),
+            query,
             metadata,
             requested_by: requester.clone(),
             requested_by_id,
@@ -397,9 +405,21 @@ impl GuildActor {
     }
 
     async fn handle_restart(&mut self) -> Result<StartedTrackInfo> {
-        if let Some(handle) = self.state.current.as_ref() {
+        if let Some(handle) = self.state.current.clone() {
+            self.finish_play_stats(&handle).await;
+
             if let Ok(Ok(_)) = timeout(Duration::from_millis(500), handle.seek_async(Duration::ZERO)).await {
                 let _ = handle.play();
+
+                self.last_seek_target_sec = 0.0;
+                self.state.current_started_at = Some(Instant::now());
+                self.state.current_paused_at = None;
+                self.state.current_paused_total = Duration::ZERO;
+
+                if let Some(meta) = self.state.current_meta.as_ref() {
+                    let req_id = self.state.current_track.as_ref().map(|t| t.requested_by_id).unwrap_or(0);
+                    record_track_start(&self.stats_tx, self.guild_id, req_id, handle.uuid(), meta);
+                }
 
                 let title = self
                     .state
@@ -413,10 +433,13 @@ impl GuildActor {
                     .as_ref()
                     .and_then(|m| m.thumbnail.clone());
 
+                self.broadcast_state_with_position(0.0).await;
+
                 return Ok(StartedTrackInfo { title, thumbnail });
             }
         }
 
+        // Fallback: Re-prepare and play
         let current_track = self
             .state
             .current_track
@@ -593,13 +616,17 @@ impl GuildActor {
     async fn handle_now_playing(&self) -> Option<NowPlayingResponse> {
         let track = self.state.current_track.clone()?;
 
-        let (position_sec, is_paused) = if let Some(handle) = self.state.current.as_ref() {
+        let (position_sec, is_paused) = if self.seek_in_flight {
+            // While a seek is in flight, report the exact seek target position
+            // so WebSocket broadcasts don't leak stale position data!
+            (self.last_seek_target_sec, false)
+        } else if let Some(handle) = self.state.current.as_ref() {
             match timeout(Duration::from_millis(500), handle.get_info()).await {
                 Ok(Ok(info)) => {
                     let is_paused = matches!(info.playing, songbird::tracks::PlayMode::Pause);
                     (info.position.as_secs_f64(), is_paused)
                 }
-                _ => (0.0, false),
+                _ => (self.last_seek_target_sec, false),
             }
         } else {
             (0.0, false)
@@ -674,45 +701,56 @@ impl GuildActor {
         }
 
         let fallback_duration = self.state.current_meta.as_ref().and_then(|m| m.duration);
-        let listened_ms = if let Some(handle) = self.state.current.as_ref() {
-            handle
-                .get_info()
-                .await
-                .map(|info| info.position.as_millis() as u64)
-                .unwrap_or(0)
+
+        let wall_clock_elapsed_sec = if let Some(started_at) = self.state.current_started_at.as_ref() {
+            let total_elapsed = started_at.elapsed();
+            let mut paused_time = self.state.current_paused_total;
+            if let Some(paused_at) = self.state.current_paused_at.as_ref() {
+                paused_time += paused_at.elapsed();
+            }
+            total_elapsed.saturating_sub(paused_time).as_secs_f64()
         } else {
-            0
+            0.0
         };
 
-        let total_duration_sec = fallback_duration.map(|d| d.as_secs()).unwrap_or(0);
+        // Estimated position where the track actually stopped
+        let estimated_end_pos_sec = self.last_seek_target_sec + wall_clock_elapsed_sec;
+        let total_duration_sec = fallback_duration.map(|d| d.as_secs_f64()).unwrap_or(0.0);
 
-        // Detect premature YouTube CDN drop (played < 5s when track total duration is > 15s)
-        if listened_ms < 5000 && total_duration_sec > 15 && self.retry_count < 3 {
+        // A drop ONLY occurs if the track stopped far away from its expected end (< total_duration - 5s)
+        let is_premature_drop = total_duration_sec > 15.0
+            && estimated_end_pos_sec < (total_duration_sec - 5.0)
+            && self.retry_count < 3;
+
+        if is_premature_drop {
             self.retry_count += 1;
-            warn!(
-                uuid = %uuid,
-                listened_ms,
-                total_duration_sec,
-                retry_count = self.retry_count,
-                "YouTube audio stream closed prematurely, auto-retrying playback..."
-            );
+            let resume_at = Duration::from_secs_f64(estimated_end_pos_sec.max(0.0));
 
             if let Some(current_track) = self.state.current_track.clone() {
-                let _ = self
+                let fresh_query_url = build_query_url(&self.reqwest_client, &current_track.query).await;
+
+                let info = self
                     .start_playback(
                         None,
-                        current_track.query,
+                        fresh_query_url, // Pass freshly resolved URL
                         current_track.requested_by,
                         current_track.requested_by_id,
                         Some(current_track.metadata),
                         OldTrackDisposition::History,
                     )
                     .await;
+
+                if let (Ok(_), Some(handle)) = (&info, self.state.current.clone()) {
+                    if resume_at > Duration::ZERO {
+                        let _ = timeout(Duration::from_secs(4), handle.seek_async(resume_at)).await;
+                        self.last_seek_target_sec = resume_at.as_secs_f64();
+                        self.state.current_started_at = Some(Instant::now());
+                    }
+                }
                 return;
             }
         }
 
-        // Reset retry count on normal completion or after max retries
         self.retry_count = 0;
 
         if let Some(handle) = self.state.current.clone() {
@@ -741,26 +779,37 @@ impl GuildActor {
         }
     }
 
+    /// Moves the bot's voice connection to another channel (joins if not connected).
+    async fn handle_go_to_channel(&self, channel_id: ChannelId) -> Result<()> {
+        self.manager.join(self.guild_id, channel_id).await?;
+        Ok(())
+    }
+
     async fn handle_seek(&mut self, input: String) -> Result<Duration> {
+        if self.seek_in_flight {
+            bail!("A seek is already in progress, please wait.");
+        }
+
         if let Some(last_seek) = self.last_seek_at {
-            if last_seek.elapsed() < Duration::from_millis(300) {
+            if last_seek.elapsed() < Duration::from_millis(400) {
                 bail!("Seeking too quickly! Please wait a moment between seeks.");
             }
         }
-        self.last_seek_at = Some(std::time::Instant::now());
 
-        let handle = self
-            .state
-            .current
-            .as_ref()
-            .context("Nothing is currently playing.")?;
-
+        let handle = self.state.current.as_ref().context("Nothing is currently playing.")?;
         let seek_mode = parse_seek_input(&input)
             .context("Invalid input! Use timestamps like `1:30` or offsets like `+30`, `-15`, `+1:30`.")?;
 
+        self.last_seek_at = Some(std::time::Instant::now());
+
+        let estimated_wall_clock = self.state.current_started_at
+            .map(|st| st.elapsed().saturating_sub(self.state.current_paused_total).as_secs_f64())
+            .unwrap_or(0.0);
+        let fallback_pos = Duration::from_secs_f64(self.last_seek_target_sec + estimated_wall_clock);
+
         let current_pos = match timeout(Duration::from_millis(500), handle.get_info()).await {
             Ok(Ok(info)) => info.position,
-            _ => Duration::ZERO,
+            _ => fallback_pos,
         };
 
         let mut target = match seek_mode {
@@ -775,11 +824,22 @@ impl GuildActor {
             }
         }
 
-        let _ = timeout(Duration::from_secs(1), handle.seek_async(target)).await;
+        self.seek_in_flight = true;
+        let result = timeout(Duration::from_secs(4), handle.seek_async(target)).await;
+        self.seek_in_flight = false;
 
-        self.broadcast_state_with_position(target.as_secs_f64()).await;
-
-        Ok(target)
+        match result {
+            Ok(Ok(_)) => {
+                self.last_seek_target_sec = target.as_secs_f64();
+                self.state.current_started_at = Some(Instant::now());
+                self.state.current_paused_at = None;
+                self.state.current_paused_total = Duration::ZERO;
+                self.broadcast_state_with_position(target.as_secs_f64()).await;
+                Ok(target)
+            }
+            Ok(Err(e)) => bail!("Seek failed on audio engine: {e:?}"),
+            Err(_) => bail!("Seek timed out while waiting for media buffer. Try again."),
+        }
     }
 
     async fn process_command(&mut self, cmd: GuildCommand) {
@@ -825,6 +885,7 @@ impl GuildActor {
             GuildCommand::Pause { respond } => { let _ = respond.send(self.handle_pause().await); }
             GuildCommand::Resume { respond } => { let _ = respond.send(self.handle_resume().await); }
             GuildCommand::Seek { input, respond } => { let _ = respond.send(self.handle_seek(input).await); }
+            GuildCommand::GoToChannel { vc_channel_id, respond } => { let _ = respond.send(self.handle_go_to_channel(vc_channel_id).await); }
         }
     }
 
@@ -867,10 +928,6 @@ impl GuildActor {
             }
         };
 
-        self.state.current_started_at = Some(Instant::now());
-        self.state.current_paused_at = None;
-        self.state.current_paused_total = Duration::ZERO;
-
         {
             let mut call_lock = call.lock().await;
             call_lock.add_global_event(
@@ -879,6 +936,12 @@ impl GuildActor {
                     command_tx: self.command_tx.clone(),
                 },
             );
+        }
+
+        // Finish stats and stop old track BEFORE installing the new track state
+        if let Some(old_handle) = self.state.current.take() {
+            self.finish_play_stats(&old_handle).await;
+            let _ = old_handle.stop();
         }
 
         let started = prepare_and_play(
@@ -895,12 +958,12 @@ impl GuildActor {
         let title = started.metadata.title.as_deref().unwrap_or("untitled").to_string();
         let thumbnail = started.metadata.thumbnail.clone();
 
-        let old_handle = install_new_track(&mut self.state, started, disposition);
+        let _ = install_new_track(&mut self.state, started, disposition);
 
-        if let Some(old_handle) = old_handle {
-            self.finish_play_stats(&old_handle).await;
-            let _ = old_handle.stop();
-        }
+        self.last_seek_target_sec = 0.0;
+        self.state.current_started_at = Some(Instant::now());
+        self.state.current_paused_at = None;
+        self.state.current_paused_total = Duration::ZERO;
 
         if let Some(meta) = self.state.current_meta.as_ref() {
             record_track_start(&self.stats_tx, self.guild_id, requested_by_id, handle_uuid, meta);
@@ -913,13 +976,14 @@ impl GuildActor {
 
     /// Non-blocking: enqueues the "ended" event for the current play, backfilled
     /// against the matching `handle_uuid` by the stats worker.
-    async fn finish_play_stats(&self, handle: &TrackHandle) {
+    async fn finish_play_stats(&mut self, handle: &TrackHandle) {
         let fallback_duration = self.state.current_meta.as_ref().and_then(|m| m.duration);
 
-        let active_listened = if let Some(started_at) = self.state.current_started_at {
+        // Calculate actual active wall-clock listened time for this segment
+        let active_listened = if let Some(started_at) = self.state.current_started_at.take() {
             let total_elapsed = started_at.elapsed();
             let mut paused_time = self.state.current_paused_total;
-            if let Some(paused_at) = self.state.current_paused_at {
+            if let Some(paused_at) = self.state.current_paused_at.take() {
                 paused_time += paused_at.elapsed();
             }
             total_elapsed.saturating_sub(paused_time)
@@ -937,5 +1001,7 @@ impl GuildActor {
         }
 
         record_track_end(&self.stats_tx, handle.uuid(), listened_ms);
+
+        self.state.current_paused_total = Duration::ZERO;
     }
 }

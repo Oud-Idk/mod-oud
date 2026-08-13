@@ -91,6 +91,7 @@ fn track_embed(author: &User, title: String, thumbnail: Option<String>) -> Creat
         "prev", "pause", "resume", "next",
         "stop", "seek", "restart",
         "nowplaying",
+        "go_to_channel",
         "queue",
         "history",
     )
@@ -151,6 +152,26 @@ pub async fn play(
         }
     }
 
+
+    Ok(())
+}
+
+/// Moves the bot to a different voice channel (joins if it isn't connected).
+#[poise::command(slash_command, guild_only)]
+pub async fn go_to_channel(
+    ctx: Context<'_>,
+    #[description = "The voice channel to move the bot to"]
+    #[channel_types("Voice")]
+    channel: serenity::all::GuildChannel,
+) -> Result<()> {
+    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+
+    p.dispatch(|respond| GuildCommand::GoToChannel {
+        vc_channel_id: channel.id,
+        respond,
+    }).await?;
+
+    reply(&ctx, format!("Moved the music bot to **{}**.", channel.name)).await?;
 
     Ok(())
 }

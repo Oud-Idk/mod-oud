@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
     --surface: oklch(1 0 0);                   /* Pure background */
@@ -131,4 +132,46 @@
 
 @utility focus-ring-danger {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-danger/20 focus-visible:border-danger-border transition-all duration-150;
+}
+
+.prose {
+    max-width: none;
+}
+
+.prose :where(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin: 1rem 0;
+}
+
+.prose :where(ul > li)::marker,
+.prose :where(ol > li)::marker {
+    color: theme('colors.neutral.500');
+}
+
+
+.prose pre {
+    background-color: theme('colors.neutral.900');
+    padding: .3rem;
+    overflow-x: auto;
+}
+
+pre div div {
+    margin: 0!important;
+    padding: 0.3rem!important;
+}
+
+.prose code {
+    font-weight: 400;
+}
+
+blockquote {
+    font-style: normal;
+    font-weight: 400;
+}
+
+.prose :where(blockquote) {
+    border-left-color: #6a6a6a;
+}
+
+.prose :where(blockquote p:first-of-type):before {
+    content: normal;
 }

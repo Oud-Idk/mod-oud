@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { JSX } from "react";
 import { MusicStatsBody } from "@/features/music-stats/components/MusicStatsBody";
 import { MusicControlPanel } from "@/features/music-stats/components/MusicControlPanel";
+import { getVoiceChannelMap } from "@/features/_shared/channels";
 import {
     getMusicStatsSummary,
     getTopListeners,
@@ -14,11 +15,12 @@ interface MusicStatsFeatureProps {
 }
 
 export async function MusicStatsFeature({ guildId }: MusicStatsFeatureProps): Promise<JSX.Element> {
-    const [summary, topTracks, topListeners, session] = await Promise.all([
+    const [summary, topTracks, topListeners, session, voiceChannelMap] = await Promise.all([
         getMusicStatsSummary(guildId),
         getTopTracks(guildId),
         getTopListeners(guildId),
         auth(),
+        getVoiceChannelMap(guildId),
     ]);
 
     return (
@@ -27,6 +29,7 @@ export async function MusicStatsFeature({ guildId }: MusicStatsFeatureProps): Pr
             <MusicControlPanel
                 guildId={guildId}
                 requestedById={session?.user.id ?? undefined}
+                voiceChannelMap={voiceChannelMap}
             />
             <MusicStatsBody
                 summary={summary}

@@ -48,6 +48,8 @@ pub enum MusicAction {
     #[serde(rename = "nowPlaying")]
     NowPlaying,
     Seek,
+    #[serde(rename = "goToChannel")]
+    GoToChannel,
 }
 /// Wire-level message received from the dashboard.
 #[serde_as]

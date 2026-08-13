@@ -79,19 +79,22 @@ export function Dropdown<T extends string>(props: DropdownProps<T>): ReactElemen
                     {displayText}
                 </span>
                 <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                    {!props.multiple && props.allowClear && hasSelection && (
-                        <button
-                            type="button"
-                            onClick={handleClear}
-                            className="pointer-events-auto mr-1 rounded p-0.5 text-muted-foreground hover:text-foreground focus:outline-none"
-                            aria-label="Clear selection"
-                        >
-                            <X className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-                    )}
                     <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </span>
             </ListboxButton>
+
+            {!props.multiple && props.allowClear && hasSelection && !disabled && (
+                <div className="absolute inset-y-0 right-7 z-10 flex items-center">
+                    <button
+                        type="button"
+                        onClick={handleClear}
+                        className="rounded p-0.5 text-muted-foreground hover:text-foreground focus:outline-none"
+                        aria-label="Clear selection"
+                    >
+                        <X className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                </div>
+            )}
 
             <ListboxOptions
                 anchor="bottom start"

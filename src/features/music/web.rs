@@ -82,6 +82,16 @@ async fn handle_music_command(
         MusicAction::Shuffle => send_simple(&actor_tx, |respond| GuildCommand::QueueShuffle { respond }).await,
         MusicAction::ClearQueue => send_simple(&actor_tx, |respond| GuildCommand::QueueClear { respond }).await,
         MusicAction::NowPlaying => send_simple(&actor_tx, |respond| GuildCommand::NowPlaying { respond }).await,
+        MusicAction::GoToChannel => {
+            let channel_id_str = query.ok_or_else(|| "A voice channel ID is required.".to_string())?;
+            let channel_id: u64 = channel_id_str
+                .parse()
+                .map_err(|_| "Invalid voice channel ID.".to_string())?;
+            send_simple(&actor_tx, |respond| GuildCommand::GoToChannel {
+                vc_channel_id: serenity::ChannelId::new(channel_id),
+                respond,
+            }).await
+        }
         MusicAction::Seek => {
             let input = query.ok_or_else(|| "A seek target (e.g. '1:30' or '90') is required.".to_string())?;
             send_simple(&actor_tx, |respond| GuildCommand::Seek {
