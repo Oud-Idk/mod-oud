@@ -19,7 +19,7 @@ pub async fn clamp_to_level_cap(leveling_config: &LevelingConfig, redis: &Client
         }
         if needs_update {
             user_level.cumulative_xp = calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
-            database::update_level(db, &user_level).await?;
+            database::update_level(db, user_level).await?;
             let serialized = serde_json::to_string(&user_level)?;
             let _: () = save_user_level_cache(redis, stats_key, serialized).await?;
         }
@@ -28,9 +28,9 @@ pub async fn clamp_to_level_cap(leveling_config: &LevelingConfig, redis: &Client
     Ok(false)
 }
 
-pub fn calculate_xp_needed(level: i32) -> i32 { 5 * level.pow(2) + 50 * level + 100 }
+pub const fn calculate_xp_needed(level: i32) -> i32 { 5 * level.pow(2) + 50 * level + 100 }
 
-pub fn calculate_cumulative_xp(level: i32, current_xp: i32) -> i32 {
+pub const fn calculate_cumulative_xp(level: i32, current_xp: i32) -> i32 {
     if level <= 0 {
         return current_xp;
     }

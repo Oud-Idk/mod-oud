@@ -3,7 +3,7 @@ use crate::features::leveling::calculation::{calculate_cumulative_xp, calculate_
 use crate::features::leveling::database::{get_user_level, update_level};
 use crate::features::leveling::{cache, database, keys};
 use crate::shared::messages::send_ephemeral;
-use serenity::all::{CreateAttachment, CreateEmbed, User, UserId};
+use serenity::all::{CreateAttachment, CreateEmbed, User};
 use std::sync::OnceLock;
 use tracing::{debug, trace};
 
@@ -108,7 +108,7 @@ pub async fn view(
         target_id.get() as i64,
         user_level.current_level,
         user_level.current_xp
-    ).await?.map(|r| r.to_string()).unwrap_or("Not Available".to_string());
+    ).await?.map_or("Not Available".to_string(), |r| r.to_string());
 
     // 👇 FORMATTING APPLIED HERE FOR EMBED
     let formatted_xp = format_compact(user_level.current_xp as u64);
@@ -121,9 +121,9 @@ pub async fn view(
         )
         .title("Level Profile".to_string())
         .field("Current Level", format!("🏆 **Level {}**", user_level.current_level), true)
-        .field("Experience", format!("✨ **{}/{}** XP", formatted_xp, formatted_xp_needed), true)
+        .field("Experience", format!("✨ **{formatted_xp}/{formatted_xp_needed}** XP"), true)
         .field("Progress", format!("{}\n`{:.1}%`", progress_bar, progress_percentage * 100.0), false)
-        .field("Rank", format!("🏅 **Rank #{}**", rank), false)
+        .field("Rank", format!("🏅 **Rank #{rank}**"), false)
         .color(0x5865F2);
 
     trace!(target_id = target_id_u64, "Dispatching response embed back to channel");
@@ -146,7 +146,7 @@ fn format_compact(num: u64) -> String {
     match NumberPrefix::decimal(num as f64) {
         NumberPrefix::Standalone(n) => n.to_string(),
         NumberPrefix::Prefixed(prefix, n) => {
-            let formatted = format!("{:.1}", n);
+            let formatted = format!("{n:.1}");
             // Drops the .0 if it's a clean number (e.g., 1.0k becomes 1k)
             let trimmed = formatted.strip_suffix(".0").unwrap_or(&formatted);
             format!("{}{}", trimmed, prefix.symbol())
@@ -194,7 +194,7 @@ pub async fn card(
         target_user.id.get() as i64,
         user_level.current_level,
         user_level.current_xp
-    ).await?.map(|r| r as u64).unwrap_or(0);
+    ).await?.map_or(0, |r| r as u64);
 
     let level: u64 = user_level.current_level as u64;
     let xp: u64 = user_level.current_xp as u64;
@@ -254,7 +254,7 @@ pub async fn card(
     let formatted_max_xp = format_compact(max_xp);
 
     let manipulated_svg = svg_template
-        .replace("fill=\"#000000\"", &format!("fill=\"{}\"", bg_color))
+        .replace("fill=\"#000000\"", &format!("fill=\"{bg_color}\""))
         .replace("{{BACKGROUND_COLOR}}", bg_color)
         .replace("{{USERNAME}}", display_name)
         .replace("{{BAR.FOREGROUND}}", bar_fg)
@@ -268,7 +268,7 @@ pub async fn card(
         .replace("{{XP.PROGRESS}}", &formatted_xp) // Used variable here
         .replace("{{XP.MAX}}", &formatted_max_xp)  // Used variable here
         .replace("{{RANK}}", &rank.to_string())
-        .replace("{{FILL_WIDTH}}", &format!("{:.1}", fill_width));
+        .replace("{{FILL_WIDTH}}", &format!("{fill_width:.1}"));
 
     let png_bytes = rasterize_svg(&manipulated_svg, 2.0)?;
 
@@ -310,12 +310,11 @@ pub async fn add(
     let safe_amount = amount.min(1000);
     user_level.current_level = user_level.current_level.saturating_add(safe_amount);
 
-    if let Some(leveling_config) = &settings.leveling {
-        if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
+    if let Some(leveling_config) = &settings.leveling
+        && leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
             user_level.current_level = leveling_config.level_cap as i32;
             user_level.current_xp = 0; // Only reset XP if they hit max level!
         }
-    }
 
     user_level.cumulative_xp = calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
 
@@ -431,5 +430,5 @@ fn rasterize_svg(svg_str: &str, scale: f32) -> Result<Vec<u8>> {
 }
 
 fn is_leveling_enabled(settings: &GuildSettings) -> bool {
-    settings.leveling.as_ref().map(|l| l.text.enabled || l.voice.enabled).unwrap_or(false)
+    settings.leveling.as_ref().is_some_and(|l| l.text.enabled || l.voice.enabled)
 }

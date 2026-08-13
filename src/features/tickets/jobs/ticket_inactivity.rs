@@ -29,7 +29,7 @@ pub fn start_ticket_inactivity_worker(
         info!(worker_id = %lock_value, "Starting ticket inactivity worker task");
 
         loop {
-            tokio::time::sleep(Duration::from_secs(60)).await;
+            tokio::time::sleep(Duration::from_mins(1)).await;
 
             trace!("Attempting to acquire lock for ticket inactivity checks");
 
@@ -141,23 +141,22 @@ async fn warn_inactive_tickets(
 
         let warn_std = ticket_config
             .map(|t| t.warn_threshold)
-            .unwrap_or_else(|| Duration::from_secs(60 * 30));
+            .unwrap_or_else(|| Duration::from_mins(30));
         let delete_std = ticket_config
             .map(|t| t.delete_threshold)
-            .unwrap_or_else(|| Duration::from_secs(60 * 45));
+            .unwrap_or_else(|| Duration::from_mins(45));
 
         let warn_duration = ChronoDuration::from_std(warn_std).unwrap_or(ChronoDuration::minutes(30));
         let delete_duration = ChronoDuration::from_std(delete_std).unwrap_or(ChronoDuration::minutes(45));
 
-        if let Some(last_activity) = row.last_activity {
-            if last_activity < now - warn_duration {
+        if let Some(last_activity) = row.last_activity
+            && last_activity < now - warn_duration {
                 let remaining_minutes = (delete_duration - warn_duration).num_minutes();
                 tickets_to_warn.push(WarnTarget {
                     channel_id: row.channel_id,
                     remaining_minutes: if remaining_minutes > 0 { remaining_minutes } else { 15 },
                 });
             }
-        }
     }
 
     if tickets_to_warn.is_empty() {
@@ -211,7 +210,7 @@ use serenity::all::HttpError;
 
 
 /// Helper to check if the error is Discord's "10003 Unknown Channel"
-fn is_unknown_channel_error(err: &SerenityError) -> bool {
+const fn is_unknown_channel_error(err: &SerenityError) -> bool {
     match err {
         SerenityError::Http(HttpError::UnsuccessfulRequest(resp)) => {
             resp.error.code == 10003
@@ -261,15 +260,14 @@ async fn close_abandoned_tickets(
         let delete_std = settings
             .and_then(|s| s.tickets.as_ref())
             .map(|t| t.delete_threshold)
-            .unwrap_or_else(|| Duration::from_secs(60 * 45));
+            .unwrap_or_else(|| Duration::from_mins(45));
 
         let delete_duration = ChronoDuration::from_std(delete_std).unwrap_or(ChronoDuration::minutes(45));
 
-        if let Some(last_activity) = row.last_activity {
-            if last_activity < now - delete_duration {
+        if let Some(last_activity) = row.last_activity
+            && last_activity < now - delete_duration {
                 tickets_to_close.push(row.channel_id);
             }
-        }
     }
 
     if tickets_to_close.is_empty() {

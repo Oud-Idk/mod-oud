@@ -34,23 +34,24 @@ impl LogEvent {
 
     pub fn to_sse_event(&self) -> Result<Event, axum::Error> {
         match self {
-            LogEvent::MessageDelete(payload) => {
+            Self::MessageDelete(payload) => {
                 Event::default().event("message-delete").json_data(payload)
             }
-            LogEvent::MessageEdit(payload) => {
+            Self::MessageEdit(payload) => {
                 Event::default().event("message-edit").json_data(payload)
             }
-            LogEvent::MessageReport(payload) => {
+            Self::MessageReport(payload) => {
                 Event::default().event("message-report").json_data(payload)
             }
         }
     }
 
-    pub fn guild_id(&self) -> Option<i64> {
+    #[must_use]
+    pub const fn guild_id(&self) -> Option<i64> {
         match self {
-            LogEvent::MessageDelete(payload) => Some(payload.guild_id),
-            LogEvent::MessageEdit(payload) => Some(payload.guild_id),
-            LogEvent::MessageReport(payload) => Some(payload.guild_id),
+            Self::MessageDelete(payload) => Some(payload.guild_id),
+            Self::MessageEdit(payload) => Some(payload.guild_id),
+            Self::MessageReport(payload) => Some(payload.guild_id),
         }
     }
 }

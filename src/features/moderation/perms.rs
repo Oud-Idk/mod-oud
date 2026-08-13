@@ -1,6 +1,6 @@
 use crate::core::config::state::{Context, BotData, Error};
 use crate::shared::command_context::GuildMetadata;
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, bail};
 use serenity::all::{Member, PartialGuild, UserId};
 use tracing::{debug, trace, warn};
 
@@ -27,7 +27,7 @@ pub async fn pre_flight_check<'a>(
             action = action_name,
             "Moderation action blocked by role hierarchy validation"
         );
-        ctx.say(format!("❌ Action Denied: {}", err_msg)).await?;
+        ctx.say(format!("❌ Action Denied: {err_msg}")).await?;
         return Ok(None);
     }
 
@@ -48,7 +48,7 @@ pub async fn check_self_moderation(
         );
         ctx.send(
             poise::CreateReply::default()
-                .content(format!("You cannot {} yourself!", action))
+                .content(format!("You cannot {action} yourself!"))
                 .ephemeral(true),
         )
             .await?;
@@ -78,22 +78,19 @@ pub async fn check_hierarchy(
 
     // If the target is not currently in the server (e.g., we are banning a user who left),
     // they don't have roles in the guild, so we can skip role hierarchy checks.
-    let target_member = match guild_id.member(&ctx, target_id).await {
-        Ok(member) => member,
-        Err(_) => {
-            debug!(
-                target_uid,
-                "Target is not a member of the guild; skipping role hierarchy checks"
-            );
-            return Ok(());
-        }
+    let target_member = if let Ok(member) = guild_id.member(&ctx, target_id).await { member } else {
+        debug!(
+            target_uid,
+            "Target is not a member of the guild; skipping role hierarchy checks"
+        );
+        return Ok(());
     };
 
     let executor_member = ctx
         .author_member()
         .await
         .with_context(|| "Failed to fetch executor member details.")
-        .inspect_err(|a| {
+        .inspect_err(|_a| {
             warn!(target_uid, "Failed to resolve executor member details from context");
         })?;
 

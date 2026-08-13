@@ -1,5 +1,4 @@
-use crate::core::config::state::Error;
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Result, bail};
 use prost::Message;
 use std::time::Duration;
 use tracing::{debug, error, instrument, trace};
@@ -11,6 +10,7 @@ pub struct SafeBrowsingClient {
 }
 
 impl SafeBrowsingClient {
+    #[must_use]
     pub fn new(api_key: String) -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3)) // Max 3-second wait
@@ -49,7 +49,7 @@ impl SafeBrowsingClient {
                 error_body = %err_text,
                 "Safe Browsing API returned an error status"
             );
-            bail!(format!("Safe Browsing API Error: {}", err_text));
+            bail!(format!("Safe Browsing API Error: {err_text}"));
         }
 
         trace!("Reading payload response bytes");
@@ -74,7 +74,7 @@ impl SafeBrowsingClient {
     }
 }
 
-#[derive(Clone, PartialEq, Message)]
+#[derive(Clone, PartialEq, Eq, Message)]
 pub struct PbDuration {
     #[prost(int64, tag = "1")]
     pub seconds: i64,
@@ -90,7 +90,7 @@ pub struct SearchUrlsResponse {
     pub cache_duration: Option<PbDuration>,
 }
 
-#[derive(Clone, PartialEq, Message)]
+#[derive(Clone, PartialEq, Eq, Message)]
 pub struct ThreatUrl {
     #[prost(string, tag = "1")]
     pub url: String,

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serenity::all::RoleId;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, sqlx::FromRow)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 #[serde(default)]
 pub struct MediaOnlyChannel {
     pub channel_id: i64,
@@ -51,7 +51,7 @@ impl MediaOnlyChannel {
             .unwrap_or_default()
     }
 
-    pub fn channel_id(&self) -> u64 {
+    pub const fn channel_id(&self) -> u64 {
         self.channel_id as u64
     }
 }

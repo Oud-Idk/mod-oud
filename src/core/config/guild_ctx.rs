@@ -1,53 +1,78 @@
-use serenity::all::CacheHttp;
+use anyhow::Result;
+use serenity::all::{CacheHttp, GuildId, VerificationLevel};
 use tracing::{debug, trace};
 
+/// Contextual details for a Discord Guild (Server).
+#[derive(Debug, Clone)]
 pub struct GuildCtx {
+    /// The name of the guild.
     pub name: String,
+
+    /// The guild snowflake ID.
     pub id: String,
-    pub icon_url: String,
-    pub icon_hash: String,
+
+    /// The guild icon URL (if any).
+    pub icon_url: Option<String>,
+
+    /// The guild icon has (if any).
+    pub icon_hash: Option<String>,
+
+    /// The snowflake ID of the owner user.
     pub owner_id: String,
-    pub member_count: String,
-    pub verification_level: String,
-    pub joined_at: String,
+
+    /// The estimated member count of a guild.
+    pub member_count: u64,
+
+    /// The verification level needed to interact in the guild (low, medium, high, etc).
+    pub verification_level: VerificationLevel,
+
+    /// The date the current user joined the guild.
+    pub joined_at: Option<String>,
 }
 
-pub async fn get_guild_ctx(
-    guild_id: serenity::all::GuildId,
-    cache_http: impl CacheHttp,
-) -> Result<GuildCtx, anyhow::Error> {
-    let guild_id_u64 = guild_id.get();
-    trace!(guild_id = guild_id_u64, "Fetching guild context details");
+/// Fetches `GuildCtx` for a given `GuildId`.
+///
+/// Tries the local cache first for fast lookup, then falls back to a Discord REST API request.
+///
+/// # Note
+/// When fetched via HTTP fallback, `joined_at` will be `None` and `member_count`
+/// will represent the *approximate* member count.
+///
+/// # Errors
+/// Returns an `Err` if the HTTP fallback fails to retrieve guild data from Discord API.
+pub async fn get_guild_ctx(guild_id: GuildId, cache_http: impl CacheHttp) -> Result<GuildCtx> {
+    trace!(%guild_id, "Fetching guild context details");
 
-    if let Some(cache) = cache_http.cache() {
-        if let Some(g) = guild_id.to_guild_cached(cache) {
-            trace!(guild_id = guild_id_u64, "Retrieved guild context from local cache");
-            return Ok(GuildCtx {
-                name: g.name.clone(),
-                id: g.id.to_string(),
-                icon_url: g.icon_url().unwrap_or_default(),
-                icon_hash: g.icon.map(|h| h.to_string()).unwrap_or_default(),
-                owner_id: g.owner_id.to_string(),
-                member_count: g.member_count.to_string(),
-                verification_level: u8::from(g.verification_level).to_string(),
-                joined_at: g.joined_at.to_string(),
-            });
-        }
+    if let Some(g) = cache_http.cache().and_then(|c| guild_id.to_guild_cached(c)) {
+        trace!(%guild_id, "Retrieved guild context from local cache");
+
+        return Ok(GuildCtx {
+            name: g.name.clone(),
+            id: g.id.to_string(),
+            icon_url: g.icon_url(),
+            icon_hash: g.icon.map(|h| h.to_string()),
+            owner_id: g.owner_id.to_string(),
+            member_count: g.member_count,
+            verification_level: g.verification_level,
+            joined_at: Some(g.joined_at.to_string()),
+        });
     }
 
     debug!(
-        guild_id = guild_id_u64,
-        "Guild context not found in local cache; executing fallback HTTP request to Discord API"
+        %guild_id,
+        "Guild context not in local cache; executing HTTP fallback request"
     );
+
     let g = cache_http.http().get_guild_with_counts(guild_id).await?;
+
     Ok(GuildCtx {
         name: g.name.clone(),
         id: g.id.to_string(),
-        icon_url: g.icon_url().unwrap_or_default(),
-        icon_hash: g.icon.map(|h| h.to_string()).unwrap_or_default(),
+        icon_url: g.icon_url(),
+        icon_hash: g.icon.map(|h| h.to_string()),
         owner_id: g.owner_id.to_string(),
-        member_count: g.approximate_member_count.unwrap_or(0).to_string(),
-        verification_level: u8::from(g.verification_level).to_string(),
-        joined_at: String::new(), // HTTP fetch doesn't give us joined_at
+        member_count: g.approximate_member_count.unwrap_or(0),
+        verification_level: g.verification_level,
+        joined_at: None, // HTTP fetch doesn't yield joined_at
     })
 }

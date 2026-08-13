@@ -35,19 +35,17 @@ pub async fn handle_verification_teardown(
 
     let mut execution_errors = Vec::new();
 
-    if let Err(e) = channel_id.delete(http).await {
-        if !is_not_found_error(&e) {
+    if let Err(e) = channel_id.delete(http).await
+        && !is_not_found_error(&e) {
             warn!(error = ?e, channel_id = channel_id.get(), "Failed to delete channel during teardown");
             execution_errors.push("Failed to delete verification channel".to_string());
         }
-    }
 
-    if let Err(e) = guild_id.delete_role(http, role_id).await {
-        if !is_not_found_error(&e) {
+    if let Err(e) = guild_id.delete_role(http, role_id).await
+        && !is_not_found_error(&e) {
             warn!(error = ?e, role_id = role_id.get(), "Failed to delete role during teardown");
             execution_errors.push("Failed to delete verification role".to_string());
         }
-    }
 
     let everyone_role_id = RoleId::from(guild_id.get());
     match guild_id.roles(http).await {
@@ -84,10 +82,9 @@ pub async fn handle_verification_teardown(
 
 
 fn is_not_found_error(err: &serenity::Error) -> bool {
-    if let serenity::Error::Http(http_err) = err {
-        if let Some(status) = http_err.status_code() {
+    if let serenity::Error::Http(http_err) = err
+        && let Some(status) = http_err.status_code() {
             return status == StatusCode::NOT_FOUND;
         }
-    }
     false
 }

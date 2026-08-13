@@ -1,7 +1,7 @@
 use serenity::all::{ChannelId, GuildId, User, UserId};
 
 pub fn member_stats_key(guild_id: &GuildId, target_id: UserId) -> String {
-    format!("member:{}:{}", guild_id, target_id)
+    format!("member:{guild_id}:{target_id}")
 }
 
 pub fn multiplier_key(guild_id: &GuildId) -> String {
@@ -17,11 +17,11 @@ pub fn occupants_key(guild_id: GuildId, channel_id: ChannelId) -> String {
 }
 
 pub fn flushing_levels_key(guild_id_str: &str) -> String {
-    format!("levels:flushing:{}", guild_id_str)
+    format!("levels:flushing:{guild_id_str}")
 }
 
 pub fn pending_levels_key(guild_id_str: &str) -> String {
-    format!("levels:pending:{}", guild_id_str)
+    format!("levels:pending:{guild_id_str}")
 }
 
 pub fn session_key(guild_id: GuildId, user_id: UserId) -> String {

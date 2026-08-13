@@ -2,7 +2,7 @@ use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
 use tokio::sync::oneshot;
 use tokio::time::{self, Duration};
-use tracing::{debug, instrument, trace, warn};
+use tracing::{instrument, trace, warn};
 
 pub struct LockGuard {
     client: Client,

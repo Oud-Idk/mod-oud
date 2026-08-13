@@ -1,49 +1,43 @@
-use std::borrow::Cow;
-use std::str::FromStr;
-use serenity::all::Message;
-use crate::features::automod::{FilterVerdict, MessageFilteringConfig};
 use crate::features::automod::rules::check_rule;
-use std::sync::LazyLock;
-use regex::Regex;
+use crate::features::automod::{FilterVerdict, MessageFilteringConfig};
 use alloy_primitives::Address as EthAddress;
 use base64::Engine;
-use bitcoin::{bech32, Address as BtcAddress, TestnetVersion};
-use bitcoin::Network;
-use tracing::debug;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use bitcoin::Network;
+use bitcoin::{Address as BtcAddress, TestnetVersion, bech32};
+use regex::Regex;
+use serenity::all::Message;
+use std::borrow::Cow;
+use std::str::FromStr;
+use std::sync::LazyLock;
+use tracing::debug;
 
-static ETH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b0x[a-fA-F0-9]{40}\b").expect("Invalid ETH Regex")
-});
+// All crypto address RegEx
+static ETH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b0x[a-fA-F0-9]{40}\b").expect("Invalid ETH Regex"));
 
 static BTC_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b").expect("Invalid BTC Regex")
 });
 
-static SEGWIT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\bbc1[a-zA-Z0-9]{39,59}\b").expect("Invalid SegWit Regex")
-});
+static SEGWIT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bbc1[a-zA-Z0-9]{39,59}\b").expect("Invalid SegWit Regex"));
 
-static SOL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b[1-9A-HJ-NP-Za-km-z]{32,44}\b").expect("Invalid SOL Regex")
-});
+static SOL_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b[1-9A-HJ-NP-Za-km-z]{32,44}\b").expect("Invalid SOL Regex"));
 
-static COSMOS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\bcosmos1[a-z0-9]{38}\b").expect("Invalid Cosmos Regex")
-});
+static COSMOS_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bcosmos1[a-z0-9]{38}\b").expect("Invalid Cosmos Regex"));
 
-static TRON_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\bT[1-9A-HJ-NP-Za-km-z]{33}\b").expect("Invalid TRON Regex")
-});
+static TRON_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bT[1-9A-HJ-NP-Za-km-z]{33}\b").expect("Invalid TRON Regex"));
 
-static APT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b0x[a-fA-F0-9]{64}\b").expect("Invalid APT Regex")
-});
+static APT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b0x[a-fA-F0-9]{64}\b").expect("Invalid APT Regex"));
 
-static TON_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b(EQ|UQ|kQ|0Q)[a-zA-Z0-9_-]{46}\b").expect("Invalid TON Regex")
-});
+static TON_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b(EQ|UQ|kQ|0Q)[a-zA-Z0-9_-]{46}\b").expect("Invalid TON Regex"));
 
 pub fn filter_crypto_addresses<'a>(
     message: &Message,
@@ -107,7 +101,7 @@ fn is_valid_sol_address(candidate: &str) -> bool {
 
 fn is_valid_tron_address(candidate: &str) -> bool {
     let Ok(decoded) = bs58::decode(candidate).into_vec() else {
-        return false
+        return false;
     };
 
     if decoded.len() == 25 && decoded[0] == 0x41 {
@@ -141,7 +135,8 @@ fn is_valid_ton_address(candidate: &str) -> bool {
     }
 
     // Try decoding as URL-safe base64 (or standard base64)
-    let decoded = URL_SAFE_NO_PAD.decode(candidate)
+    let decoded = URL_SAFE_NO_PAD
+        .decode(candidate)
         .or_else(|_| STANDARD_NO_PAD.decode(candidate));
 
     if let Ok(bytes) = decoded {
@@ -155,37 +150,54 @@ fn is_valid_ton_address(candidate: &str) -> bool {
 fn scan_for_crypto(text: &str) -> Option<String> {
     for mat in ETH_REGEX.find_iter(text) {
         let candidate = mat.as_str();
-        if is_valid_eth_address(candidate) { return Some(candidate.to_string()); };
+        if is_valid_eth_address(candidate) {
+            return Some(candidate.to_string());
+        }
     }
 
-    for mat in BTC_REGEX.find_iter(text).chain(SEGWIT_REGEX.find_iter(text)) {
+    for mat in BTC_REGEX
+        .find_iter(text)
+        .chain(SEGWIT_REGEX.find_iter(text))
+    {
         let candidate = mat.as_str();
-        if is_valid_btc_address(candidate) { return Some(candidate.to_string()); };
+        if is_valid_btc_address(candidate) {
+            return Some(candidate.to_string());
+        }
     }
 
     for mat in SOL_REGEX.find_iter(text) {
         let candidate = mat.as_str();
-        if is_valid_sol_address(candidate) { return Some(candidate.to_string()); };
+        if is_valid_sol_address(candidate) {
+            return Some(candidate.to_string());
+        }
     }
 
     for mat in COSMOS_REGEX.find_iter(text) {
         let candidate = mat.as_str();
-        if is_valid_cosmos_address(candidate) { return Some(candidate.to_string()); };
+        if is_valid_cosmos_address(candidate) {
+            return Some(candidate.to_string());
+        }
     }
 
     for mat in TRON_REGEX.find_iter(text) {
         let candidate = mat.as_str();
-        if is_valid_tron_address(candidate) { return Some(candidate.to_string()); };
+        if is_valid_tron_address(candidate) {
+            return Some(candidate.to_string());
+        }
     }
 
     for mat in APT_REGEX.find_iter(text) {
         let candidate = mat.as_str();
-        if is_valid_apt_address(candidate) { return Some(candidate.to_string()); };
+        if is_valid_apt_address(candidate) {
+            return Some(candidate.to_string());
+        }
     }
 
     for mat in TON_REGEX.find_iter(text) {
         let candidate = mat.as_str();
-        if is_valid_ton_address(candidate) { return Some(candidate.to_string()); };
+        if is_valid_ton_address(candidate) {
+            return Some(candidate.to_string());
+        }
     }
 
     None
@@ -193,9 +205,9 @@ fn scan_for_crypto(text: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-    use crate::features::automod::types::CryptoAddressRule;
     use super::*;
+    use crate::features::automod::{RuleScope, types::CryptoAddressRule};
+    use serde_json::json;
 
     fn mock_message(content: &str) -> Message {
         serde_json::from_value(json!({
@@ -220,9 +232,9 @@ mod tests {
             "reactions": [],
             "pinned": false,
             "type": 0
-        })).expect("failed to construct mock Message")
+        }))
+        .expect("failed to construct mock Message")
     }
-
 
     // For the love that is holy, please do not send crypto addresses here :3
     // ETH
@@ -239,7 +251,7 @@ mod tests {
     #[test]
     fn eth_valid_checksum_passes() {
         let lower = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045";
-        let addr = EthAddress::from_str(lower).unwrap();
+        let addr = EthAddress::from_str(lower).expect("valid Ethereum address string should parse");
         let checksummed = addr.to_checksum(None);
 
         assert!(is_valid_eth_address(&checksummed));
@@ -248,7 +260,7 @@ mod tests {
     #[test]
     fn eth_invalid_checksum_fails() {
         let lower = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045";
-        let addr = EthAddress::from_str(lower).unwrap();
+        let addr = EthAddress::from_str(lower).expect("valid Ethereum address string should parse");
         let mut checksummed = addr.to_checksum(None);
 
         // Flip the case of one alphabetic hex character to break the checksum
@@ -257,14 +269,15 @@ mod tests {
             .char_indices()
             .find(|(_, c)| c.is_ascii_alphabetic())
             .map(|(i, _)| i)
-            .unwrap();
+            .expect("checksummed address should contain at least one alphabetic character");
+
         let bad_char = checksummed.as_bytes()[idx] as char;
         let flipped = if bad_char.is_ascii_uppercase() {
             bad_char.to_ascii_lowercase()
         } else {
             bad_char.to_ascii_uppercase()
         };
-        checksummed.replace_range(idx..idx + 1, &flipped.to_string());
+        checksummed.replace_range(idx..=idx, &flipped.to_string());
 
         assert!(!is_valid_eth_address(&checksummed));
     }
@@ -314,12 +327,18 @@ mod tests {
     // APT
     #[test]
     fn apt_valid_32_byte_address() {
-        assert!(scan_for_crypto("0x8a453ff17b8fdce89ea6b58427bc76074b7387630056c9ff7ce094068703496b").is_some());
+        assert!(
+            scan_for_crypto("0x8a453ff17b8fdce89ea6b58427bc76074b7387630056c9ff7ce094068703496b")
+                .is_some()
+        );
     }
 
     #[test]
     fn apt_non_hex_char_does_not_match_regex() {
-        assert!(scan_for_crypto("0xg0a724b66be28810e819e2871af9f24d722060b523e5d6fd242c2839e2540e56").is_none());
+        assert!(
+            scan_for_crypto("0xg0a724b66be28810e819e2871af9f24d722060b523e5d6fd242c2839e2540e56")
+                .is_none()
+        );
     }
 
     // TON
@@ -331,13 +350,17 @@ mod tests {
     #[test]
     fn ton_wrong_length_is_invalid() {
         // 47 chars, fails the len(candidate) != 48 check immediately
-        assert!(!is_valid_ton_address("cZP1INQimzXb2JAYylhVS2sP-2W1rv_ZOcvLtRqXIE1g_zM"));
+        assert!(!is_valid_ton_address(
+            "cZP1INQimzXb2JAYylhVS2sP-2W1rv_ZOcvLtRqXIE1g_zM"
+        ));
     }
 
     #[test]
     fn ton_invalid_base64_char_is_invalid() {
         // 48 chars but contains '!', which isn't valid in url-safe or standard base64
-        assert!(!is_valid_ton_address("qBHM1ZM-ON!lH3ED_ltnNuBcUjFm-gWzlY7gNFIFtkdTb4Y1"));
+        assert!(!is_valid_ton_address(
+            "qBHM1ZM-ON!lH3ED_ltnNuBcUjFm-gWzlY7gNFIFtkdTb4Y1"
+        ));
     }
 
     // Invalid
@@ -360,25 +383,26 @@ mod tests {
     #[test]
     fn is_valid_cosmos_address_rejects_wrong_hrp() {
         // Valid bech32 checksum but wrong prefix (e.g. a bitcoin-style bech32 string)
-        assert!(!is_valid_cosmos_address("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"));
+        assert!(!is_valid_cosmos_address(
+            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+        ));
     }
 
     #[test]
     fn test_batch_valid_crypto_addresses() {
         let valid_addresses = [
             "0x386d7fa2e861aa8f505c19e00298d3a9a24abe3c", // ETH / BNB / literally everything else
-            "TGmUsMYB1oizxEoMbfPe2ZrZxfoHuadEUM", // TRON
+            "TGmUsMYB1oizxEoMbfPe2ZrZxfoHuadEUM",         // TRON
             "0xa6bb3e59f9826c3da28d700429acc5e5172ebf45c280c0f93b29bd40d96ca42a", // APT
             "CSAE3BmW3sju1Zu6ykfRZT97PEGU54VoyeY3r4ZDoGoP", // SOL
             "UQDoFvHnw4x9R-aBx0d3oZNT8zHW-5NEDlLEIMEENTx0sOJ6", // TON
-            "12VSGQQCRhw5Bah8qRkCBZFvWZsB15bDh7", // Old BTC
+            "12VSGQQCRhw5Bah8qRkCBZFvWZsB15bDh7",         // Old BTC
         ];
 
         for addr in valid_addresses {
             assert!(
                 scan_for_crypto(addr).is_some(),
-                "Expected to detect valid address, but missed: '{}'",
-                addr
+                "Expected to detect valid address, but missed: '{addr}'",
             );
         }
     }
@@ -392,17 +416,24 @@ mod tests {
                 enabled: true,
                 action: vec![],
                 timeout_duration_seconds: None,
-                scope: Default::default(),
+                scope: RuleScope::default(),
             }),
             ..Default::default()
         };
 
         match filter_crypto_addresses(&msg, &filtering) {
-            FilterVerdict::Block { rule_name, trigger_content, .. } => {
+            FilterVerdict::Block {
+                rule_name,
+                trigger_content,
+                ..
+            } => {
                 assert_eq!(rule_name, "Crypto Address");
-                assert_eq!(trigger_content.as_deref(), Some("0x386d7fa2e861aa8f505c19e00298d3a9a24abe3c"));
+                assert_eq!(
+                    trigger_content.as_deref(),
+                    Some("0x386d7fa2e861aa8f505c19e00298d3a9a24abe3c")
+                );
             }
-            other => panic!("expected Block verdict, got {:?}", other),
+            other => panic!("expected Block verdict, got {other:?}"),
         }
     }
 
@@ -415,6 +446,9 @@ mod tests {
             ..Default::default()
         };
 
-        assert!(matches!(filter_crypto_addresses(&msg, &filtering), FilterVerdict::Pass));
+        assert!(matches!(
+            filter_crypto_addresses(&msg, &filtering),
+            FilterVerdict::Pass
+        ));
     }
 }

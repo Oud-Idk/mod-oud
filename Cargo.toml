@@ -51,7 +51,17 @@ songbird = { version = "0.6.0", features = [] }
 symphonia = { version = "0.5.0", features = ["all"] }
 async-trait = "0.1.89"
 
+[lints.rust]
+missing_docs = "deny"
+
+[lints.rustdoc]
+all = "deny"
+
 [lints.clippy]
 nursery = "warn"
 pedantic = "warn"
 unwrap_used = "warn"
+
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+missing_safety_doc = "deny"

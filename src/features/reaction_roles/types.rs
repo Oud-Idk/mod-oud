@@ -1,15 +1,14 @@
+use crate::core::config::message_layout::MessageLayout;
 use sqlx::types::Json;
-use crate::core::config::settings::MessageLayout;
-use crate::shared::embed::Format;
 
-#[derive(Debug, Clone, Copy, PartialEq, sqlx::Type, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Deserialize, serde::Serialize)]
 #[sqlx(type_name = "interaction_mode", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum InteractionMode {
     Reaction,
     Button,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, sqlx::Type, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Deserialize, serde::Serialize)]
 #[sqlx(type_name = "button_style", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ButtonStyle {
     Primary,

@@ -1,7 +1,6 @@
-use crate::core::config::settings::MessageLayout;
+use crate::core::config::message_layout::MessageLayout;
 use crate::features::reminder::timings::{RecurrenceRule, calculate_next_trigger};
-use crate::shared::embed::Format;
-use crate::shared::embed::{DiscordEmbed, MessageGetter, create_basic_embed};
+use crate::shared::embed::create_basic_embed;
 use crate::shared::locking::acquire_lock;
 use chrono::{DateTime, NaiveTime, Utc};
 use fred::prelude::*;
@@ -110,7 +109,7 @@ async fn process_expired_reminders(
         let channel_id = serenity::ChannelId::new(record.channel_id as u64);
 
         async move {
-            let content_opt = match create_basic_embed(&record.message, |t| t.to_string()) {
+            let content_opt = match create_basic_embed(&record.message, std::string::ToString::to_string) {
                 Ok(c) => c,
                 Err(e) => {
                     error!(
@@ -186,7 +185,7 @@ async fn handle_post_execution(db: &sqlx::PgPool, record: ReminderRecord) -> Res
             days_of_week: days_u32,
             time_start: record.time_start,
             time_end: record.time_end,
-            interval_seconds: record.interval_seconds.map(|i| i as i64),
+            interval_seconds: record.interval_seconds.map(|i| i64::from(i)),
         };
 
         let next_run = calculate_next_trigger(Utc::now(), &rule);

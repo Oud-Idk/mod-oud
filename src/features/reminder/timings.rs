@@ -36,8 +36,8 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
         let inside_todays_window = is_active_day && is_time_in_range(current_time, start, end) && (start <= end || current_time >= start);
         let inside_yesterdays_window = was_yesterday_active && (start > end) && (current_time < end);
 
-        if inside_todays_window || inside_yesterdays_window {
-            if let Some(interval) = rule.interval_seconds {
+        if (inside_todays_window || inside_yesterdays_window)
+            && let Some(interval) = rule.interval_seconds {
                 let next_interval = target_date + Duration::seconds(interval);
                 let next_time = next_interval.time();
                 let days_diff = (next_interval.date_naive() - target_date.date_naive()).num_days();
@@ -54,7 +54,6 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
                     return next_interval;
                 }
             }
-        }
 
         if is_active_day && current_time <= start {
             let candidate = target_date

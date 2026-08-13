@@ -1,6 +1,5 @@
-use serenity::all::Message;
-use tracing::error;
 use anyhow::{Context, Result};
+use serenity::all::Message;
 
 /// Logs an automod action execution event to the database.
 pub async fn insert_automod_row<'a>(
@@ -13,7 +12,6 @@ pub async fn insert_automod_row<'a>(
     trigger_content: Option<&str>,
     original_content: Option<&str>,
     actions_taken: &[&'a str],
-    username: &str,
 ) -> Result<()> {
     let actions_vec: Vec<String> = actions_taken
         .iter()
@@ -62,8 +60,7 @@ pub async fn log_automod_event(
         trigger_content,
         Some(&message.content),
         actions_taken,
-        &message.author.name,
     )
-        .await
-        .context("Unable to insert automod log record into database")
+    .await
+    .context("Unable to insert automod log record into database")
 }

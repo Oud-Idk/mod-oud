@@ -24,26 +24,23 @@ pub async fn fetch_and_build_buttons(
 
     let mut button_components = Vec::new();
     for b in buttons {
-        let mut btn = CreateButton::new(b.custom_id.to_string()).style(match b.style {
+        let mut btn = CreateButton::new(b.custom_id.clone()).style(match b.style {
             ButtonStyle::Secondary => serenity::all::ButtonStyle::Secondary,
             ButtonStyle::Success => serenity::all::ButtonStyle::Success,
             ButtonStyle::Danger => serenity::all::ButtonStyle::Danger,
             ButtonStyle::Primary => serenity::all::ButtonStyle::Primary,
         });
 
-        if let Some(lbl) = b.label {
-            if !lbl.trim().is_empty() {
+        if let Some(lbl) = b.label
+            && !lbl.trim().is_empty() {
                 btn = btn.label(lbl);
             }
-        }
 
-        if let Some(emoji_str) = b.emoji {
-            if !emoji_str.trim().is_empty() {
-                if let Ok(emoji) = emoji_str.parse::<serenity::all::ReactionType>() {
+        if let Some(emoji_str) = b.emoji
+            && !emoji_str.trim().is_empty()
+                && let Ok(emoji) = emoji_str.parse::<serenity::all::ReactionType>() {
                     btn = btn.emoji(emoji);
                 }
-            }
-        }
 
         button_components.push(btn);
     }
@@ -51,7 +48,7 @@ pub async fn fetch_and_build_buttons(
     Ok(button_components)
 }
 
-/// Compiles a custom layout configuration to a Serenity CreateMessage builder
+/// Compiles a custom layout configuration to a Serenity `CreateMessage` builder
 pub fn build_custom_msg(
     format: Format,
     content: &str,
@@ -61,14 +58,14 @@ pub fn build_custom_msg(
         format,
         content,
         embed,
-        |text| text.to_string(),
+        std::string::ToString::to_string,
     )
-        .map_err(|e| {
+        .map_err(|_e| {
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
         })
 }
 
-/// Converts an optional custom CreateMessage into an EditMessage builder
+/// Converts an optional custom `CreateMessage` into an `EditMessage` builder
 pub fn convert_create_to_edit_message(
     create_msg_opt: Option<serenity::all::CreateMessage>,
 ) -> serenity::all::EditMessage {
@@ -112,20 +109,18 @@ pub async fn edit_reactions(state: &Arc<WebState>, config_row: &ReactionMessage,
                 }
             });
 
-            if !is_still_active {
-                if state.serenity_http.delete_message_reaction_emoji(*channel_id, *message_id, &emoji_type).await.is_err() {
+            if !is_still_active
+                && state.serenity_http.delete_message_reaction_emoji(*channel_id, *message_id, &emoji_type).await.is_err() {
                     let _ = state.serenity_http.delete_reaction_me(*channel_id, *message_id, &emoji_type).await;
                 }
-            }
         }
     }
 
     for r in reactions {
-        if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>() {
-            if let Err(err) = state.serenity_http.create_reaction(*channel_id, *message_id, &emoji).await {
+        if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>()
+            && let Err(err) = state.serenity_http.create_reaction(*channel_id, *message_id, &emoji).await {
                 warn!(error = ?err, "Failed applying reaction emoji to edited post");
             }
-        }
     }
     Ok(())
 }

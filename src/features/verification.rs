@@ -1,8 +1,10 @@
-mod web;
-mod signing;
 mod captcha;
+mod events;
+mod signing;
 mod types;
+mod web;
 
-pub use web::routes;
-pub use types::{VerificationSettings, CaptchaType};
+pub use events::send_verification_link;
 pub use signing::generate_verification_link;
+pub use types::{CaptchaType, VerificationSettings};
+pub use web::routes;

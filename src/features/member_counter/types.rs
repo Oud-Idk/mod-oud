@@ -42,4 +42,4 @@ pub struct MemberCounterConfig {
     pub category_id: Option<u64>,
 }
 
-fn default_interval() -> u32 { 15 }
+const fn default_interval() -> u32 { 15 }

@@ -1,19 +1,17 @@
-use std::time::Duration;
-use anyhow::{Context as _, Result};
-use poise::CreateReply;
-use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, User};
-use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
-use tracing::debug;
-
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::Context;
 use crate::features::music::actor::GuildCommand;
 use crate::features::music::player::format_duration;
 use crate::features::music::state::{PlayOutcome, QueueAddOutcome, StartedTrackInfo};
 use crate::shared::pagination::paginate;
 use crate::shared::voice_state::get_user_vc_in_guild;
-
-const BRAND_COLOR: u32 = 0x4076f5;
+use anyhow::{Context as _, Result};
+use poise::CreateReply;
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, User};
+use std::time::Duration;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::oneshot;
+use tracing::debug;
 
 async fn reply(ctx: &Context<'_>, message: impl Into<String>) -> Result<()> {
     ctx.send(CreateReply::default().content(message)).await?;
@@ -35,7 +33,7 @@ impl<T> PreparedCommand<Result<T>> {
         make_cmd: impl FnOnce(oneshot::Sender<Result<T>>) -> GuildCommand,
     ) -> Result<T> {
         self.actor_tx.send(make_cmd(self.track_tx)).await?;
-        Ok(self.track_rx.await??)
+        self.track_rx.await?
     }
 }
 
@@ -53,12 +51,9 @@ async fn prepare_command<T>(ctx: &Context<'_>, require_vc: bool) -> Result<Optio
         .await;
 
     let vc_channel_id = if require_vc {
-        match get_user_vc_in_guild(ctx.data(), guild_id, ctx.author().id).await? {
-            Some(channel_id) => Some(channel_id),
-            None => {
-                reply(ctx, "You are not in any voice channels!").await?;
-                return Ok(None);
-            }
+        if let Some(channel_id) = get_user_vc_in_guild(ctx.data(), guild_id, ctx.author().id).await? { Some(channel_id) } else {
+            reply(ctx, "You are not in any voice channels!").await?;
+            return Ok(None);
         }
     } else {
         None
@@ -242,7 +237,7 @@ pub async fn next(ctx: Context<'_>) -> Result<()> {
     let next_title = p.dispatch(|respond| GuildCommand::Skip { respond }).await?;
 
     match next_title {
-        Some(title) => reply(&ctx, format!("Skipped. Now playing **{}**.", title)).await?,
+        Some(title) => reply(&ctx, format!("Skipped. Now playing **{title}**.")).await?,
         None => reply(&ctx, "Skipped. Queue is empty, nothing left to play.").await?,
     }
 
@@ -287,8 +282,8 @@ pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
             let duration_secs = track.metadata.duration.map(|d| d.as_secs());
 
             let title_fmt = match &track.metadata.source_url {
-                Some(url) if url != "#" => format!("[{}]({})", title, url),
-                _ => format!("**{}**", title),
+                Some(url) if url != "#" => format!("[{title}]({url})"),
+                _ => format!("**{title}**"),
             };
 
             let status_str = if np.is_paused { "⏸️ Paused" } else { "▶️ Playing" };
@@ -362,7 +357,7 @@ pub async fn add(
         QueueAddOutcome::PlaylistQueued { count, first_track } => {
             ctx.send(CreateReply::default().embed(track_embed(
                 ctx.author(),
-                format!("Queued {} tracks from Spotify Playlist!", count),
+                format!("Queued {count} tracks from Spotify Playlist!"),
                 first_track.thumbnail,
             ))).await?;
         }
@@ -399,24 +394,24 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
             let duration = format_duration(meta.duration);
 
             let title_fmt = match &meta.source_url {
-                Some(url) if url != "#" => format!("[{}]({})", title, url),
-                _ => format!("**{}**", title),
+                Some(url) if url != "#" => format!("[{title}]({url})"),
+                _ => format!("**{title}**"),
             };
 
-            description.push_str(&format!("**Now Playing:**\n{} | `{}`\n\n", title_fmt, duration));
+            description.push_str(&format!("**Now Playing:**\n{title_fmt} | `{duration}`\n\n"));
         }
 
         if snapshot.queue.is_empty() {
             description.push_str("**Up Next:**\nNo tracks in queue.");
         } else {
-            description.push_str(&format!("**Up Next (Page {}/{}):**\n", page, total_pages));
+            description.push_str(&format!("**Up Next (Page {page}/{total_pages}):**\n"));
             for (i, track) in snapshot.queue[start_idx..end_idx].iter().enumerate() {
                 let track_num = start_idx + i + 1;
                 let title = track.metadata.title.as_deref().unwrap_or("Untitled");
 
                 let title_fmt = match &track.metadata.source_url {
-                    Some(url) if url != "#" => format!("[{}]({})", title, url),
-                    _ => format!("**{}**", title),
+                    Some(url) if url != "#" => format!("[{title}]({url})"),
+                    _ => format!("**{title}**"),
                 };
 
                 let duration_fmt = match track.metadata.duration {
@@ -436,8 +431,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
             .description(description)
             .color(BRAND_COLOR)
             .footer(CreateEmbedFooter::new(format!(
-                "Total queued tracks: {} | Page {}/{}",
-                total_tracks, page, total_pages
+                "Total queued tracks: {total_tracks} | Page {page}/{total_pages}"
             )))
     }).await?;
 
@@ -454,7 +448,7 @@ pub async fn clear(ctx: Context<'_>) -> Result<()> {
     if count == 0 {
         reply(&ctx, "The queue is already empty.").await?;
     } else {
-        reply(&ctx, format!("Cleared **{}** tracks from the queue.", count)).await?;
+        reply(&ctx, format!("Cleared **{count}** tracks from the queue.")).await?;
     }
 
     Ok(())
@@ -471,7 +465,7 @@ pub async fn remove(
     let removed = p.dispatch(|respond| GuildCommand::QueueRemove { position, respond }).await?;
     let title = removed.metadata.title.as_deref().unwrap_or("untitled").to_string();
 
-    reply(&ctx, format!("Removed **{}** from the queue.", title)).await?;
+    reply(&ctx, format!("Removed **{title}** from the queue.")).await?;
     Ok(())
 }
 
@@ -485,7 +479,7 @@ pub async fn shuffle(ctx: Context<'_>) -> Result<()> {
     if count == 0 {
         reply(&ctx, "The queue is empty, there's nothing to shuffle.").await?;
     } else {
-        reply(&ctx, format!("Shuffled **{}** tracks in the queue.", count)).await?;
+        reply(&ctx, format!("Shuffled **{count}** tracks in the queue.")).await?;
     }
 
     Ok(())
@@ -532,8 +526,8 @@ pub async fn history_list(ctx: Context<'_>) -> Result<()> {
             let title = track.metadata.title.as_deref().unwrap_or("Untitled");
 
             let title_fmt = match &track.metadata.source_url {
-                Some(url) if url != "#" => format!("[{}]({})", title, url),
-                _ => format!("**{}**", title),
+                Some(url) if url != "#" => format!("[{title}]({url})"),
+                _ => format!("**{title}**"),
             };
 
             let duration_fmt = match track.metadata.duration {
@@ -541,7 +535,7 @@ pub async fn history_list(ctx: Context<'_>) -> Result<()> {
                 None => String::new(),
             };
 
-            description.push_str(&format!("{}. {}{}\n", track_num, title_fmt, duration_fmt));
+            description.push_str(&format!("{track_num}. {title_fmt}{duration_fmt}\n"));
         }
 
         CreateEmbed::new()
@@ -549,8 +543,7 @@ pub async fn history_list(ctx: Context<'_>) -> Result<()> {
             .description(description)
             .color(BRAND_COLOR)
             .footer(CreateEmbedFooter::new(format!(
-                "Most recent first | Page {}/{}",
-                page, total_pages
+                "Most recent first | Page {page}/{total_pages}"
             )))
     }).await?;
 

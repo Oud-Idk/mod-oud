@@ -18,7 +18,7 @@ impl PlaceholderResolver for TicketResolver<'_> {
                 Some(self.role_id.to_string())
             }
             "role.name" | "ticket.role.name" => {
-                self.role_name.map(|s| s.to_string())
+                self.role_name.map(std::string::ToString::to_string)
             }
             _ => None,
         }
@@ -58,7 +58,7 @@ pub fn replace_ticket_welcome_placeholders(
     };
 
     let ticket_resolver = TicketResolver {
-        role_id: role_id.clone(),
+        role_id: *role_id,
         role_name,
     };
 

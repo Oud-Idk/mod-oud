@@ -1,7 +1,9 @@
 use super::super::rules::check_rule;
 use crate::core::config::state::BotData;
 use crate::features::automod::types::FilterVerdict;
-use crate::features::automod::types::{ExternalLinksRule, MessageFilteringConfig, Modes, ThreatType};
+use crate::features::automod::types::{
+    ExternalLinksRule, MessageFilteringConfig, Modes, ThreatType,
+};
 use crate::shared::messages;
 use serenity::all::Message;
 use std::borrow::Cow;
@@ -39,7 +41,10 @@ pub fn filter_external_urls<'a>(
         Modes::Denylist => "External URLs (Blocklisted)",
     };
 
-    debug!(url, rule_name, "Message flagged by External URLs domain list filters");
+    debug!(
+        url,
+        rule_name, "Message flagged by External URLs domain list filters"
+    );
     FilterVerdict::Block {
         rule_name: rule_name.into(),
         base_rule: Cow::Owned(external_links.base.clone()),
@@ -96,7 +101,10 @@ pub fn extract_domain(url: &str) -> Option<&str> {
     }
 }
 
-fn any_breaking_rule_domain<'a>(external_links: &ExternalLinksRule, urls: &[&'a str]) -> Option<&'a str> {
+fn any_breaking_rule_domain<'a>(
+    external_links: &ExternalLinksRule,
+    urls: &[&'a str],
+) -> Option<&'a str> {
     for url in urls {
         let Some(domain) = extract_domain(url) else {
             if matches!(external_links.mode, Modes::Allowlist) {
@@ -141,9 +149,12 @@ pub async fn resolve_safe_browsing<'a>(
         return FilterVerdict::Pass;
     };
 
-    let url_refs: Vec<&str> = urls.iter().map(|s| s.as_str()).collect();
+    let url_refs: Vec<&str> = urls.iter().map(String::as_str).collect();
 
-    trace!(?url_refs, "Requesting threat analysis from Safe Browsing API");
+    trace!(
+        ?url_refs,
+        "Requesting threat analysis from Safe Browsing API"
+    );
     match client.check_urls(&url_refs).await {
         Ok(threats_int) if !threats_int.is_empty() => {
             let threats_str = threats_int
@@ -162,8 +173,7 @@ pub async fn resolve_safe_browsing<'a>(
                 base_rule: Cow::Borrowed(&external_links.base),
                 trigger_content: Some(Cow::Owned(threats_str.clone())),
                 custom_dm_message: Some(Cow::Owned(format!(
-                    "You have sent a malicious URL with these flags: {}",
-                    threats_str
+                    "You have sent a malicious URL with these flags: {threats_str}"
                 ))),
             }
         }

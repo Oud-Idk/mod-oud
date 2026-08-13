@@ -107,6 +107,7 @@ pub struct MusicState {
 }
 
 impl MusicState {
+    #[must_use]
     pub fn new(stats_tx: StatsTx) -> Self {
         let (events_tx, _) = broadcast::channel(256);
         Self {
@@ -124,11 +125,10 @@ impl MusicState {
     ) -> mpsc::Sender<GuildCommand> {
         let mut map = self.actors.lock().await;
 
-        if let Some(tx) = map.get(&guild_id) {
-            if !tx.is_closed() {
+        if let Some(tx) = map.get(&guild_id)
+            && !tx.is_closed() {
                 return tx.clone();
             }
-        }
 
         let tx = GuildActor::spawn(
             guild_id,

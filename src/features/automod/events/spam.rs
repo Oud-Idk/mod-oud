@@ -49,7 +49,7 @@ pub async fn handle_spam_prevention(
         .await?;
 
     if is_spamming {
-        handle_spam(ctx, &message, data, guild_id, author_id, warning_cooldown, anti_spam).await?;
+        handle_spam(ctx, message, data, guild_id, author_id, warning_cooldown, anti_spam).await?;
         return Ok(true);
     }
 

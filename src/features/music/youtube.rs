@@ -49,7 +49,7 @@ struct VideoSnippet {
     channel_title: Option<String>,
 }
 
-/// Helper to extract YouTube Playlist ID from a URL or raw ID string.
+/// Helper to extract `YouTube` Playlist ID from a URL or raw ID string.
 fn extract_playlist_id(url: &str) -> Option<&str> {
     if url.contains("list=") {
         url.split("list=").nth(1)?.split('&').next()
@@ -60,7 +60,7 @@ fn extract_playlist_id(url: &str) -> Option<&str> {
     }
 }
 
-/// Helper to extract YouTube Video ID from standard YouTube, Shorts, or shortened URLs.
+/// Helper to extract `YouTube` Video ID from standard `YouTube`, Shorts, or shortened URLs.
 fn extract_video_id(url: &str) -> Option<&str> {
     if url.contains("v=") {
         url.split("v=").nth(1)?.split('&').next()
@@ -76,7 +76,7 @@ fn extract_video_id(url: &str) -> Option<&str> {
 }
 
 
-/// Fetches ALL video URLs from a YouTube Playlist by paginating 50 items at a time!
+/// Fetches ALL video URLs from a `YouTube` Playlist by paginating 50 items at a time!
 pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Option<Vec<String>> {
     if !url.contains("youtube") {
         return None;
@@ -84,12 +84,9 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
 
     let playlist_id = extract_playlist_id(url)?;
 
-    let api_key = match std::env::var("YOUTUBE_API_KEY") {
-        Ok(key) => key,
-        Err(_) => {
-            warn!("YOUTUBE_API_KEY environment variable is not set.");
-            return None;
-        }
+    let api_key = if let Ok(key) = std::env::var("YOUTUBE_API_KEY") { key } else {
+        warn!("YOUTUBE_API_KEY environment variable is not set.");
+        return None;
     };
 
     let mut video_urls = Vec::new();
@@ -100,12 +97,11 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
 
     loop {
         let mut api_url = format!(
-            "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults={}&playlistId={}&key={}",
-            max_results, playlist_id, api_key
+            "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults={max_results}&playlistId={playlist_id}&key={api_key}"
         );
 
         if let Some(token) = &page_token {
-            api_url.push_str(&format!("&pageToken={}", token));
+            api_url.push_str(&format!("&pageToken={token}"));
         }
 
         let res = match client.get(&api_url).send().await {
@@ -145,14 +141,12 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
         };
 
         for item in &items {
-            if let Some(snippet) = &item.snippet {
-                if let Some(resource_id) = &snippet.resource_id {
-                    if let Some(video_id) = &resource_id.video_id {
+            if let Some(snippet) = &item.snippet
+                && let Some(resource_id) = &snippet.resource_id
+                    && let Some(video_id) = &resource_id.video_id {
                         // Returns playable YouTube URL
-                        video_urls.push(format!("https://www.youtube.com/watch?v={}", video_id));
+                        video_urls.push(format!("https://www.youtube.com/watch?v={video_id}"));
                     }
-                }
-            }
         }
 
         // Check if a next page exists for pagination
@@ -171,21 +165,17 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
     }
 }
 
-/// Resolves a single YouTube URL or ID into a canonical YouTube watch URL.
+/// Resolves a single `YouTube` URL or ID into a canonical `YouTube` watch URL.
 pub async fn resolve_youtube_video(client: &reqwest::Client, url: &str) -> Option<String> {
     let video_id = extract_video_id(url)?;
 
-    let api_key = match std::env::var("YOUTUBE_API_KEY") {
-        Ok(key) => key,
-        Err(_) => {
-            warn!("YOUTUBE_API_KEY environment variable is not set.");
-            return None;
-        }
+    let api_key = if let Ok(key) = std::env::var("YOUTUBE_API_KEY") { key } else {
+        warn!("YOUTUBE_API_KEY environment variable is not set.");
+        return None;
     };
 
     let api_url = format!(
-        "https://www.googleapis.com/youtube/v3/videos?part=snippet&id={}&key={}",
-        video_id, api_key
+        "https://www.googleapis.com/youtube/v3/videos?part=snippet&id={video_id}&key={api_key}"
     );
 
     let res = client.get(&api_url).send().await.ok()?;
@@ -200,7 +190,7 @@ pub async fn resolve_youtube_video(client: &reqwest::Client, url: &str) -> Optio
     let video = items.first()?;
     let _snippet = video.snippet.as_ref()?;
 
-    let watch_url = format!("https://www.youtube.com/watch?v={}", video_id);
+    let watch_url = format!("https://www.youtube.com/watch?v={video_id}");
 
     debug!(url = %url, watch_url = %watch_url, "Resolved YouTube video via Data API v3");
     Some(watch_url)

@@ -1,17 +1,38 @@
 use crate::core::config::state::{BotData, Error};
 use crate::events::interact::on_interact;
-use crate::features::{automod, custom_commands, invite_tracking, join_leave, leveling, media_only, message_logging, raid_detection, reaction_roles, starboard, temp_voice, tickets};
+use crate::features::{
+    automod, custom_commands, invite_tracking, join_leave, leveling, media_only, message_logging,
+    raid_detection, reaction_roles, starboard, temp_voice, tickets,
+};
 use crate::shared::store_username_relation;
 use crate::shared::voice_state::sync_guild_voice_state;
+use anyhow::Result;
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::FullEvent;
 
+/// Central gateway event dispatcher registered as the Poise event handler.
+///
+/// This is the single entry point for every Discord gateway event the bot
+/// receives. It first captures user names for the username relation store, then
+/// routes each [`FullEvent`] variant to the relevant feature modules
+///
+/// A short-circuit return happens after automod intercepts a message (the
+/// offending message is consumed and no further message features run).
+///
+/// # Arguments
+/// * `ctx` - Serenity framework context.
+/// * `event` - The gateway event being dispatched.
+/// * `_framework` - Poise framework context (unused, reserved for future use).
+/// * `data` - Shared bot state.
+///
+/// # Errors
+/// Propagates any error raised by the underlying feature handlers.
 pub async fn dispatch_events(
     ctx: &serenity::Context,
     event: &FullEvent,
     _framework: poise::FrameworkContext<'_, BotData, Error>,
     data: &BotData,
-) -> Result<(), Error> {
+) -> Result<()> {
     extract_and_store_username(data, event).await?;
 
     match event {
@@ -20,8 +41,7 @@ pub async fn dispatch_events(
             deleted_message_id,
             guild_id,
         } => {
-            starboard::handle_cleanup_if_starboard(ctx, &data.core.db, deleted_message_id).await?;
-            message_logging::message_log_delete(ctx, channel_id, deleted_message_id, guild_id, data).await?;
+            on_message_delete(ctx, data, channel_id, deleted_message_id, guild_id.as_ref()).await?;
         }
 
         FullEvent::MessageUpdate {
@@ -29,26 +49,22 @@ pub async fn dispatch_events(
             new,
             event,
         } => {
-            message_logging::log_message_update(ctx, old_if_available.as_ref(), new.as_ref(), event, data).await?;
+            message_logging::log_message_update(
+                ctx,
+                old_if_available.as_ref(),
+                new.as_ref(),
+                event,
+                data,
+            )
+            .await?;
         }
 
         FullEvent::Message { new_message } => {
-            message_logging::spawn_cache_message_in_redis(data, new_message).await?;
-
-            if automod::handle_automod(ctx, new_message, data).await? {
-                return Ok(());
-            }
-
-            tickets::handle_tickets(ctx, new_message, data).await?;
-            leveling::handle_text_leveling(ctx, new_message, data).await?;
-            custom_commands::handle_custom_cmd(ctx, new_message, data).await?;
-            media_only::handle_media_channel_message(ctx, new_message, data).await?;
+            on_message(ctx, data, new_message).await?;
         }
 
         FullEvent::GuildMemberAddition { new_member } => {
-            raid_detection::handle_raid_detection(ctx, data, new_member).await?;
-            join_leave::handle_member_join(ctx, new_member, data).await?;
-            invite_tracking::store_member_invite(ctx, new_member, data).await?;
+            on_member_join(ctx, data, new_member).await?;
         }
 
         FullEvent::GuildMemberRemoval {
@@ -56,7 +72,8 @@ pub async fn dispatch_events(
             user,
             member_data_if_available,
         } => {
-            join_leave::send_leave_message(ctx, guild_id, user, member_data_if_available, data).await?;
+            join_leave::send_leave_message(ctx, guild_id, user, member_data_if_available, data)
+                .await?;
         }
 
         FullEvent::InteractionCreate { interaction } => {
@@ -74,9 +91,7 @@ pub async fn dispatch_events(
         }
 
         FullEvent::VoiceStateUpdate { old, new } => {
-            temp_voice::handle_voice_event(ctx, old.as_ref(), new, data).await?;
-            temp_voice::handle_log_user_join(data, new).await?;
-            leveling::handle_voice_leveling(ctx, old.as_ref(), new, data).await?;
+            on_voice_state_update(ctx, data, old.as_ref(), new).await?;
         }
 
         FullEvent::AutoModActionExecution { execution } => {
@@ -84,8 +99,12 @@ pub async fn dispatch_events(
         }
 
         FullEvent::GuildCreate { guild, .. } => {
-            invite_tracking::fetch_current_invites(ctx, guild, data).await?;
-            sync_guild_voice_state(guild, data).await?;
+            Box::pin(async move {
+                invite_tracking::fetch_current_invites(ctx, guild, data).await?;
+                sync_guild_voice_state(guild, data).await?;
+                Ok::<(), Error>(())
+            })
+            .await?;
         }
 
         FullEvent::InviteCreate { data: invite_data } => {
@@ -96,14 +115,11 @@ pub async fn dispatch_events(
             invite_tracking::delete_invite(ctx, invite_data, data).await?;
         }
 
-        FullEvent::AutoModRuleCreate { rule } => {
+        FullEvent::AutoModRuleCreate { rule } | FullEvent::AutoModRuleUpdate { rule } => {
             automod::cache_automod_name(&data.core.redis, &rule.id, rule).await?;
         }
         FullEvent::AutoModRuleDelete { rule } => {
             automod::invalidate_rule_cache(&data.core.redis, &rule.id).await?;
-        }
-        FullEvent::AutoModRuleUpdate { rule } => {
-            automod::cache_automod_name(&data.core.redis, &rule.id, rule).await?;
         }
 
         _ => {}
@@ -112,30 +128,137 @@ pub async fn dispatch_events(
     Ok(())
 }
 
+/// Handles voice state updates while wrapping the functions in a Box
+async fn on_voice_state_update(
+    ctx: &serenity::prelude::Context,
+    data: &BotData,
+    old: Option<&serenity::VoiceState>,
+    new: &serenity::VoiceState,
+) -> Result<()> {
+    Box::pin(async move {
+        temp_voice::handle_voice_event(ctx, old, new, data).await?;
+        temp_voice::handle_log_user_join(data, new).await?;
+        leveling::handle_voice_leveling(ctx, old, new, data).await?;
+        Ok::<(), Error>(())
+    })
+    .await?;
+    Ok(())
+}
 
-/// Centralized helper to capture user names across events before dispatching
+/// Handles member join events while wrapping the functions in a Box
+async fn on_member_join(
+    ctx: &serenity::prelude::Context,
+    data: &BotData,
+    new_member: &serenity::Member,
+) -> Result<()> {
+    Box::pin(async move {
+        raid_detection::handle_raid_detection(ctx, data, new_member).await?;
+        join_leave::handle_member_join(ctx, new_member, data).await?;
+        invite_tracking::store_member_invite(ctx, new_member, data).await?;
+        Ok::<(), Error>(())
+    })
+    .await?;
+    Ok(())
+}
+
+async fn on_message_delete(
+    ctx: &serenity::prelude::Context,
+    data: &BotData,
+    channel_id: &serenity::ChannelId,
+    deleted_message_id: &serenity::MessageId,
+    guild_id: Option<&serenity::GuildId>,
+) -> Result<(), anyhow::Error> {
+    Box::pin(async move {
+        starboard::handle_cleanup_if_starboard(ctx, &data.core.db, deleted_message_id).await?;
+        message_logging::message_log_delete(ctx, channel_id, deleted_message_id, guild_id, data)
+            .await
+    })
+    .await?;
+    Ok(())
+}
+
+async fn on_message(
+    ctx: &::serenity::prelude::Context,
+    data: &BotData,
+    new_message: &serenity::Message,
+) -> Result<(), anyhow::Error> {
+    Box::pin(async move {
+        message_logging::spawn_cache_message_in_redis(data, new_message).await?;
+
+        if automod::handle_automod(ctx, new_message, data).await? {
+            return Ok::<(), Error>(());
+        }
+
+        tickets::handle_tickets(ctx, new_message, data).await?;
+        leveling::handle_text_leveling(ctx, new_message, data).await?;
+        custom_commands::handle_custom_cmd(ctx, new_message, data).await?;
+        media_only::handle_media_channel_message(ctx, new_message, data).await?;
+        Ok(())
+    })
+    .await?;
+    Ok(())
+}
+
+/// Centralized helper to capture user names across events before dispatching.
+///
+/// Queues a `(user_id, username)` relation onto the shared username channel so
+/// the background worker can persist it. Runs before the main dispatch so the
+/// relation is recorded even if a later feature handler errors.
+///
+/// # Arguments
+/// * `data` - Shared bot state.
+/// * `event` - The gateway event to extract a user name from.
+///
+/// # Errors
+/// Propagates any error raised while sending to the username channel.
 async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result<(), Error> {
     match event {
         FullEvent::Message { new_message } => {
-            store_username_relation(&data.core.username_tx, new_message.author.id.get(), &new_message.author.name).await?;
+            store_username_relation(
+                &data.core.username_tx,
+                new_message.author.id.get(),
+                &new_message.author.name,
+            )
+            .await?;
         }
-        FullEvent::MessageUpdate { old_if_available, .. } => {
-            if let Some(message) = old_if_available {
-                store_username_relation(&data.core.username_tx, message.author.id.get(), &message.author.name).await?;
-            }
+        FullEvent::MessageUpdate {
+            old_if_available: Some(message),
+            ..
+        } => {
+            store_username_relation(
+                &data.core.username_tx,
+                message.author.id.get(),
+                &message.author.name,
+            )
+            .await?;
         }
         FullEvent::GuildMemberAddition { new_member } => {
-            store_username_relation(&data.core.username_tx, new_member.user.id.get(), &new_member.user.name).await?;
+            store_username_relation(
+                &data.core.username_tx,
+                new_member.user.id.get(),
+                &new_member.user.name,
+            )
+            .await?;
         }
         FullEvent::GuildMemberRemoval { user, .. } => {
             store_username_relation(&data.core.username_tx, user.id.get(), &user.name).await?;
         }
         FullEvent::VoiceStateUpdate { old, new, .. } => {
             if let Some(member) = &new.member {
-                store_username_relation(&data.core.username_tx, member.user.id.get(), &member.user.name).await?;
+                store_username_relation(
+                    &data.core.username_tx,
+                    member.user.id.get(),
+                    &member.user.name,
+                )
+                .await?;
             }
             if let Some(member) = old.as_ref().and_then(|old| old.member.as_ref()) {
-                store_username_relation(&data.core.username_tx, member.user.id.get(), &member.user.name).await?;
+                store_username_relation(
+                    &data.core.username_tx,
+                    member.user.id.get(),
+                    &member.user.name,
+                )
+                .await?;
             }
         }
         FullEvent::InteractionCreate { interaction } => {
@@ -152,7 +275,8 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
         }
         FullEvent::InviteCreate { data: invite_data } => {
             if let Some(inviter) = &invite_data.inviter {
-                store_username_relation(&data.core.username_tx, inviter.id.get(), &inviter.name).await?;
+                store_username_relation(&data.core.username_tx, inviter.id.get(), &inviter.name)
+                    .await?;
             }
         }
         _ => {}

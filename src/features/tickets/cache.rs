@@ -13,7 +13,7 @@ pub async fn mark_ticket_as_closed_redis(channel_id: ChannelId, channel_id_str: 
     let pipeline = redis.pipeline();
 
     let _: () = pipeline.srem("active_tickets", channel_id_str).await?;
-    let _: () = pipeline.del(format!("ticket:{}", channel_id_str)).await?;
+    let _: () = pipeline.del(format!("ticket:{channel_id_str}")).await?;
     let _: () = pipeline.publish("ticket_updates", format!("close:{}", channel_id.get())).await?;
     let _: () = pipeline.all().await?;
     Ok(())
@@ -67,7 +67,7 @@ pub async fn initialize_redis_state(
     welcome_msg_id: serenity::all::MessageId,
 ) -> Result<(), Error> {
     let channel_id_str = channel_id.get().to_string();
-    let ticket_key = format!("ticket:{}", channel_id_str);
+    let ticket_key = format!("ticket:{channel_id_str}");
 
     let now_ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

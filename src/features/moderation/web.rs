@@ -42,7 +42,7 @@ pub async fn handle_delete_entire_category(
 
     let deleted_count = delete_entire_category(&state.serenity_http, guild_id, category_id).await
         .inspect_err(|e| warn!(error = ?e, "Failed to delete category through API"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()))?;
+        .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()))?;
 
     info!(
         guild_id = guild_id_u64,

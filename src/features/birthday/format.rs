@@ -9,7 +9,7 @@ pub fn format_ordinal(n: i32) -> String {
         (3, _) => "rd",
         _ => "th",
     };
-    format!("{}{}", n, suffix)
+    format!("{n}{suffix}")
 }
 
 /// Joins a vector into a natural list: ["A"] -> "A", ["A", "B"] -> "A and B", ["A", "B", "C"] -> "A, B, and C"

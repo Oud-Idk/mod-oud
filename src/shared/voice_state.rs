@@ -2,6 +2,7 @@ use crate::core::config::state::{BotData, Error};
 use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{ChannelId, Guild, GuildId, UserId};
 
+#[must_use]
 pub fn guild_vc_key(guild_id: GuildId) -> String {
     format!("vc:{guild_id}")
 }

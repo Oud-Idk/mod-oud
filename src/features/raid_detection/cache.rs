@@ -23,17 +23,16 @@ pub async fn record_join_event(redis: &Client, window_size_seconds: i64, guild_i
     let _: () = pipeline.hincrby(&stats_key, hour_str, 1).await?;
     let _: () = pipeline.expire(&stats_key, HASH_TTL_DAYS * 86400, None).await?;
 
-    let (_, _, current_joins_in_window, _, _, _): ((), i64, i64, bool, i64, bool) = pipeline.all().await?;
+    let ((), _, current_joins_in_window, _, _, _): ((), i64, i64, bool, i64, bool) = pipeline.all().await?;
 
     Ok(current_joins_in_window)
 }
 
 pub async fn get_threshold(redis: &Client, stats_cache_key: &str) -> Result<Option<Stats>, Error> {
-    if let Ok(Some(cached_json)) = redis.get::<Option<String>, _>(stats_cache_key).await {
-        if let Ok(stats) = serde_json::from_str::<Stats>(&cached_json) {
+    if let Ok(Some(cached_json)) = redis.get::<Option<String>, _>(stats_cache_key).await
+        && let Ok(stats) = serde_json::from_str::<Stats>(&cached_json) {
             return Ok(Some(stats));
         }
-    }
 
     Ok(None)
 }

@@ -114,7 +114,7 @@ pub fn start_music_stats_worker(db: PgPool, mut rx: mpsc::UnboundedReceiver<Stat
 /// Writes a batch of events in a single transaction. On failure everything is
 /// requeued so the next flush retries.
 async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
-    let mut events = std::mem::take(buffer);
+    let events = std::mem::take(buffer);
 
     let mut tx = match db.begin().await {
         Ok(tx) => tx,
@@ -196,7 +196,7 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
         loop {
-            tokio::time::sleep(Duration::from_secs(3600)).await;
+            tokio::time::sleep(Duration::from_hours(1)).await;
 
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {

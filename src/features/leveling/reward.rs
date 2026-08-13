@@ -68,12 +68,11 @@ pub async fn apply_role_modifications(
     roles_to_remove: Vec<RoleId>,
 ) {
     for role_id in roles_to_add {
-        if let Some(current_roles) = member_roles {
-            if current_roles.contains(&role_id) {
+        if let Some(current_roles) = member_roles
+            && current_roles.contains(&role_id) {
                 trace!(role_id = role_id.get(), "User already contains role");
                 continue;
             }
-        }
 
         if let Err(e) = ctx.http.add_member_role(guild_id, user_id, role_id, Some("Level reward granted")).await {
             warn!("Failed to add role {} to user {}: {}", role_id, user_id, e);
@@ -83,12 +82,11 @@ pub async fn apply_role_modifications(
     }
 
     for role_id in roles_to_remove {
-        if let Some(current_roles) = member_roles {
-            if !current_roles.contains(&role_id) {
+        if let Some(current_roles) = member_roles
+            && !current_roles.contains(&role_id) {
                 trace!(role_id = role_id.get(), "User already doesn't contains role");
                 continue;
             }
-        }
 
         if let Err(e) = ctx.http.remove_member_role(guild_id, user_id, role_id, Some("Level reward cleanup")).await {
             warn!("Failed to remove role {} from user {}: {}", role_id, user_id, e);

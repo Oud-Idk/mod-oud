@@ -76,16 +76,14 @@ fn is_message_age_allowed(starboard: &Starboard, message_timestamp: i64) -> bool
     let now = Utc::now().timestamp_millis();
     let message_age_ms = now - message_timestamp;
 
-    if let Some(min_age) = starboard.min_message_age {
-        if message_age_ms < calculate_duration_ms(min_age.days, min_age.months, min_age.microseconds) {
-            return false;
-        }
+    if let Some(min_age) = starboard.min_message_age
+        && message_age_ms < calculate_duration_ms(min_age.days, min_age.months, min_age.microseconds) {
+        return false;
     }
 
-    if let Some(max_age) = starboard.max_message_age {
-        if message_age_ms > calculate_duration_ms(max_age.days, max_age.months, max_age.microseconds) {
-            return false;
-        }
+    if let Some(max_age) = starboard.max_message_age
+        && message_age_ms > calculate_duration_ms(max_age.days, max_age.months, max_age.microseconds) {
+        return false;
     }
 
     true

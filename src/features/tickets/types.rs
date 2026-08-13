@@ -1,6 +1,6 @@
-use crate::core::config::settings::{MessageLayout, TogglableMessage};
+use crate::core::config::message_layout::TogglableMessage;
 use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, NoneAsEmptyString, serde_as, serde_conv};
+use serde_with::{DisplayFromStr, serde_as, serde_conv};
 use std::time::Duration;
 
 #[derive(Debug)]

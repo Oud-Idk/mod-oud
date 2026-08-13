@@ -18,8 +18,7 @@ pub async fn fetch_starboard_message_id(
         .await?
         .flatten();
 
-    Ok(existing_post_id
-        .and_then(|id| Some(id as u64))
+    Ok(existing_post_id.map(|id| id as u64)
         .map(MessageId::new))
 }
 

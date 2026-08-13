@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use serde::Deserialize;
 use std::sync::Arc;
 use serde_with::{serde_as, DisplayFromStr};
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, error, instrument};
 
 
 #[serde_as]
@@ -28,7 +28,7 @@ pub async fn handle_delete_ticket_message(
 
     channel.delete_message(&state.serenity_http, message_id)
         .await
-        .inspect(|_| debug!("Discord message deleted successfully"))
+        .inspect(|()| debug!("Discord message deleted successfully"))
         .or_else(|e| {
             if error::is_unknown_message_error(&e) {
                 debug!(error = ?e, "Discord message already deleted or unknown; returning success");
@@ -38,8 +38,8 @@ pub async fn handle_delete_ticket_message(
             }
         })
         .inspect_err(|e| error!(error = ?e, "Failed to delete message via Discord API"))
-        .map(|_| StatusCode::NO_CONTENT)
-        .map_err(|e| (
+        .map(|()| StatusCode::NO_CONTENT)
+        .map_err(|_e| (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
         ))

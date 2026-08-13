@@ -8,7 +8,7 @@ use anyhow::Result;
 use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, GuildId, Member, User, UserId, VoiceState};
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, trace};
 
 pub async fn handle_voice_leveling(
     ctx: &Context,
@@ -20,11 +20,10 @@ pub async fn handle_voice_leveling(
         return Ok(());
     };
 
-    if let Some(member) = &new.member {
-        if member.user.bot {
+    if let Some(member) = &new.member
+        && member.user.bot {
             return Ok(());
         }
-    }
 
     let user_id = new.user_id;
 
@@ -38,7 +37,7 @@ pub async fn handle_voice_leveling(
     let now = chrono::Utc::now().timestamp();
 
     let old_channel = old.and_then(|o| o.channel_id);
-    let old_deafened = old.map(|o| o.self_deaf || o.deaf).unwrap_or(false);
+    let old_deafened = old.is_some_and(|o| o.self_deaf || o.deaf);
     let old_eligible = old_channel.is_some() && !old_deafened;
 
     let new_channel = new.channel_id;
@@ -50,8 +49,8 @@ pub async fn handle_voice_leveling(
         return Ok(());
     }
 
-    if old_eligible {
-        if let Some(old_ch) = old_channel {
+    if old_eligible
+        && let Some(old_ch) = old_channel {
             debug!(guild_id = guild_id.get(), user_id = user_id.get(), "Closing voice session");
 
             if let Some(session) = cache::consume_session(redis, &session_key, now).await? {
@@ -81,11 +80,10 @@ pub async fn handle_voice_leveling(
                 cache::pause_channel_clocks(redis, guild_id, old_ch, now).await?;
             }
         }
-    }
 
     // MEMBER JOINED VC AND IS ELIGIBLE
-    if new_eligible {
-        if let Some(new_ch) = new_channel {
+    if new_eligible
+        && let Some(new_ch) = new_channel {
             let (count_after, was_new) = cache::add_occupant(redis, guild_id, new_ch, user_id).await?;
             let count_before = if was_new { count_after - 1 } else { count_after };
             let start_clock = count_after >= 2;
@@ -96,7 +94,6 @@ pub async fn handle_voice_leveling(
                 cache::resume_channel_clocks(redis, guild_id, new_ch, now).await?;
             }
         }
-    }
 
     Ok(())
 }
@@ -169,7 +166,7 @@ async fn award_vc_xp_for_session(
     Ok(())
 }
 
-fn session_too_short(elapsed_seconds: i64) -> bool {
+const fn session_too_short(elapsed_seconds: i64) -> bool {
     elapsed_seconds < 60
 }
 

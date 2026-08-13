@@ -27,20 +27,20 @@ pub async fn rename_temp_vc(
         let guild_channel = Channel::guild(channel_id.to_channel(&ctx).await?).with_context(|| "Channel not found")?;
         let category_id = guild_channel.parent_id.with_context(|| "Channel has no category parent")?;
 
-        let cache_key = format!("temp_voice_hub_by_category:{}:{}", guild_id, category_id);
+        let cache_key = format!("temp_voice_hub_by_category:{guild_id}:{category_id}");
         let cached_json: Option<String> = redis.get(&cache_key).await?;
 
         let hub_info = get_hub_info_by_category(guild_id, redis, db, category_id, &cache_key, cached_json)
             .await?
             .with_context(|| "No hub config found")?;
 
-        replace_channel_placeholders(&hub_info.default_channel_name, &guild_id, &ctx, member).await?
+        replace_channel_placeholders(&hub_info.default_channel_name, &guild_id, ctx, member).await?
     } else {
-        replace_channel_placeholders(trimmed, &guild_id, &ctx, member).await?
+        replace_channel_placeholders(trimmed, &guild_id, ctx, member).await?
     };
 
     match channel_id.edit(&ctx, EditChannel::new().name(&final_name)).await {
-        Ok(_) => Ok(format!("Renamed the channel to **{}**.", final_name)),
+        Ok(_) => Ok(format!("Renamed the channel to **{final_name}**.")),
         Err(serenity::Error::Http(http_err)) if http_err.status_code() == Some(serenity::all::StatusCode::TOO_MANY_REQUESTS) => {
             Ok("This channel was renamed too recently. Discord limits renames to 2 per 10 minutes.".to_string())
         }
@@ -48,7 +48,7 @@ pub async fn rename_temp_vc(
     }
 }
 
-/// Service: Disconnect a specific UserId from a voice channel
+/// Service: Disconnect a specific `UserId` from a voice channel
 pub async fn kick_user_by_id(
     http: &Http,
     guild_id: GuildId,
@@ -113,8 +113,7 @@ pub async fn kick_user_by_query(
                 let nick_match = member
                     .nick
                     .as_ref()
-                    .map(|n| n.to_lowercase().contains(&query_lower))
-                    .unwrap_or(false);
+                    .is_some_and(|n| n.to_lowercase().contains(&query_lower));
 
                 if name_match || nick_match {
                     target_user_id = Some(*user_id);
@@ -215,7 +214,7 @@ pub async fn delete_temp_vc(
 
 /// Service: Initiate a transfer of ownership for a temporary voice channel
 pub async fn initiate_temp_vc_transfer(
-    ctx: &Context,
+    _ctx: &Context,
     data: &BotData,
     guild_id: GuildId,
     channel_id: ChannelId,
@@ -228,16 +227,13 @@ pub async fn initiate_temp_vc_transfer(
         return Ok("You can't transfer to yourself!".to_string());
     }
 
-    match get_user_vc_in_guild(data, guild_id, new_owner_id).await? {
-        None => {
-            tracing::debug!(
-                "Target user {} is not present in channel {}",
-                new_owner_id.get(),
-                channel_id.get()
-            );
-            return Ok("The recipient must be in the voice channel!".to_string());
-        }
-        _ => {}
+    if get_user_vc_in_guild(data, guild_id, new_owner_id).await? == None {
+        tracing::debug!(
+            "Target user {} is not present in channel {}",
+            new_owner_id.get(),
+            channel_id.get()
+        );
+        return Ok("The recipient must be in the voice channel!".to_string());
     }
 
     let owner_hash = temp_vc_owners_key(guild_id);
@@ -376,7 +372,7 @@ pub async fn untrust_users_in_vc(
     Ok(format!("Removed {} from the trusted list.", untrusted_mentions.join(", ")))
 }
 
-/// Service: Block users from a temporary voice channel by denying VIEW_CHANNEL and CONNECT
+/// Service: Block users from a temporary voice channel by denying `VIEW_CHANNEL` and CONNECT
 pub async fn block_users_from_vc(
     http: &Http,
     guild_id: GuildId,

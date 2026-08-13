@@ -1,4 +1,4 @@
-use crate::core::config::state::{Context, BotData, Error};
+use crate::core::config::state::{Context, BotData};
 use crate::features::moderation::keys;
 use crate::shared::locking::acquire_lock;
 use anyhow::Context as _;
@@ -87,43 +87,40 @@ pub async fn restore_pre_lockdown_state(
     let key = keys::lockdown_redis_key(guild_id, channel_id);
     let cached: Option<String> = data.core.redis.get(&key).await?;
 
-    match cached {
-        Some(json) => {
-            let state: StoredOverwriteState = serde_json::from_str(&json)?;
-            match state {
-                StoredOverwriteState::Existing { allow, deny } => {
-                    let overwrite = PermissionOverwrite {
-                        allow: Permissions::from_bits_truncate(allow),
-                        deny: Permissions::from_bits_truncate(deny),
-                        kind: PermissionOverwriteType::Role(everyone_role_id),
-                    };
-                    trace!(
-                        channel_id = channel_id.get(),
-                        "Restoring cached pre-lockdown overwrite"
-                    );
-                    channel_id.create_permission(&ctx.http, overwrite).await?;
-                }
-                StoredOverwriteState::NoOverwrite => {
-                    trace!(
-                        channel_id = channel_id.get(),
-                        "Cached state shows no prior overwrite; deleting overwrite entirely"
-                    );
-                    channel_id
-                        .delete_permission(&ctx.http, PermissionOverwriteType::Role(everyone_role_id))
-                        .await?;
-                }
+    if let Some(json) = cached {
+        let state: StoredOverwriteState = serde_json::from_str(&json)?;
+        match state {
+            StoredOverwriteState::Existing { allow, deny } => {
+                let overwrite = PermissionOverwrite {
+                    allow: Permissions::from_bits_truncate(allow),
+                    deny: Permissions::from_bits_truncate(deny),
+                    kind: PermissionOverwriteType::Role(everyone_role_id),
+                };
+                trace!(
+                    channel_id = channel_id.get(),
+                    "Restoring cached pre-lockdown overwrite"
+                );
+                channel_id.create_permission(&ctx.http, overwrite).await?;
             }
-            let _: () = data.core.redis.del(key).await?;
+            StoredOverwriteState::NoOverwrite => {
+                trace!(
+                    channel_id = channel_id.get(),
+                    "Cached state shows no prior overwrite; deleting overwrite entirely"
+                );
+                channel_id
+                    .delete_permission(&ctx.http, PermissionOverwriteType::Role(everyone_role_id))
+                    .await?;
+            }
         }
-        None => {
-            trace!(
-                channel_id = channel_id.get(),
-                "No cached state found; deleting overwrite entirely"
-            );
-            channel_id
-                .delete_permission(&ctx.http, PermissionOverwriteType::Role(everyone_role_id))
-                .await?;
-        }
+        let _: () = data.core.redis.del(key).await?;
+    } else {
+        trace!(
+            channel_id = channel_id.get(),
+            "No cached state found; deleting overwrite entirely"
+        );
+        channel_id
+            .delete_permission(&ctx.http, PermissionOverwriteType::Role(everyone_role_id))
+            .await?;
     }
 
     Ok(())
@@ -152,22 +149,18 @@ pub async fn apply_global_lock(
     let lock_key = global_sweep_lock_key(guild_id);
     let lock_token = generate_sweep_token();
 
-    let guard = match acquire_lock(
+    let guard = if let Some(guard) = acquire_lock(
         &data.core.redis,
         &lock_key,
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
-        .await?
-    {
-        Some(guard) => guard,
-        None => {
-            debug!(
-                guild_id = guild_id.get(),
-                "Global lock sweep already in progress for this guild; skipping"
-            );
-            return Ok(None);
-        }
+        .await? { guard } else {
+        debug!(
+            guild_id = guild_id.get(),
+            "Global lock sweep already in progress for this guild; skipping"
+        );
+        return Ok(None);
     };
 
     let everyone_role_id = RoleId::new(guild_id.get());
@@ -193,7 +186,7 @@ pub async fn apply_global_lock(
 
         let overwrite = calculate_lockdown_overwrite(&channel, everyone_role_id);
         match channel.id.create_permission(&ctx.http, overwrite).await {
-            Ok(_) => {
+            Ok(()) => {
                 report.succeeded += 1;
                 trace!(channel_id, "Lockdown applied to channel");
             }
@@ -232,22 +225,18 @@ pub async fn apply_global_unlock(
     let lock_key = global_sweep_lock_key(guild_id);
     let lock_token = generate_sweep_token();
 
-    let guard = match acquire_lock(
+    let guard = if let Some(guard) = acquire_lock(
         &data.core.redis,
         &lock_key,
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
-        .await?
-    {
-        Some(guard) => guard,
-        None => {
-            debug!(
-                guild_id = guild_id.get(),
-                "Global lock sweep already in progress for this guild; skipping"
-            );
-            return Ok(None);
-        }
+        .await? { guard } else {
+        debug!(
+            guild_id = guild_id.get(),
+            "Global lock sweep already in progress for this guild; skipping"
+        );
+        return Ok(None);
     };
 
     let everyone_role_id = RoleId::new(guild_id.get());
@@ -263,7 +252,7 @@ pub async fn apply_global_unlock(
         let channel_id = channel.id.get();
 
         match restore_pre_lockdown_state(ctx, data, guild_id, channel.id, everyone_role_id).await {
-            Ok(_) => {
+            Ok(()) => {
                 report.succeeded += 1;
                 trace!(channel_id, "Lockdown removed from channel");
             }
@@ -291,21 +280,18 @@ pub async fn resolve_target_channel(
     channel: Option<GuildChannel>,
 ) -> Result<GuildChannel> {
     trace!("Resolving target channel for lockdown operation");
-    match channel {
-        Some(ch) => {
-            trace!(channel_id = ch.id.get(), "Using provided target channel");
-            Ok(ch)
-        }
-        None => {
-            trace!("No channel provided; falling back to the current context channel");
-            let guild_channel = ctx
-                .channel_id()
-                .to_channel(ctx.http())
-                .await?
-                .guild()
-                .with_context(|| "Failed to retrieve guild channel details")?;
-            Ok(guild_channel)
-        }
+    if let Some(ch) = channel {
+        trace!(channel_id = ch.id.get(), "Using provided target channel");
+        Ok(ch)
+    } else {
+        trace!("No channel provided; falling back to the current context channel");
+        let guild_channel = ctx
+            .channel_id()
+            .to_channel(ctx.http())
+            .await?
+            .guild()
+            .with_context(|| "Failed to retrieve guild channel details")?;
+        Ok(guild_channel)
     }
 }
 
@@ -336,8 +322,8 @@ pub fn calculate_lockdown_overwrite(
         .find(|o| o.kind == target_kind);
 
     PermissionOverwrite {
-        allow: existing.map(|o| o.allow).unwrap_or_else(Permissions::empty),
-        deny: existing.map(|o| o.deny).unwrap_or_else(Permissions::empty) | lockdown_deny,
+        allow: existing.map_or_else(Permissions::empty, |o| o.allow),
+        deny: existing.map_or_else(Permissions::empty, |o| o.deny) | lockdown_deny,
         kind: target_kind,
     }
 }

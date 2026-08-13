@@ -1,4 +1,4 @@
-use crate::core::config::settings::MessageLayout;
+use crate::core::config::message_layout::MessageLayout;
 use crate::core::config::state::Error;
 use crate::shared::embed::build_custom_message;
 use rand::prelude::IndexedRandom;

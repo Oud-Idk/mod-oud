@@ -29,17 +29,24 @@ pub async fn set(
     let data = ctx.data();
 
     // Fetch existing guild settings
-    let mut settings =
-        get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
+    let mut settings = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id.get() as i64,
+    )
+    .await?;
 
     // Get or initialize HoneypotConfig
-    let mut honeypot = settings.honeypot.unwrap_or_else(|| HoneypotConfig {
-        enabled: Some(true),
-        channel_id: None,
-        exempt_roles: Some(Vec::new()),
-        dmd: Some(3),
-        reason: Some("Sending a message in a honeypot channel".to_string()),
-        duration: None,
+    let mut honeypot = settings.honeypot.unwrap_or_else(|| {
+        Box::new(HoneypotConfig {
+            enabled: Some(true),
+            channel_id: None,
+            exempt_roles: Some(Vec::new()),
+            dmd: Some(3),
+            reason: Some("Sending a message in a honeypot channel".to_string()),
+            duration: None,
+        })
     });
 
     honeypot.channel_id = Some(channel.id.get());
@@ -53,10 +60,13 @@ pub async fn set(
         guild_id.get() as i64,
         &settings,
     )
-        .await?;
+    .await?;
 
-    ctx.say(format!("✅ Honeypot channel set to <#{}> and enabled.", channel.id))
-        .await?;
+    ctx.say(format!(
+        "Honeypot channel set to <#{}> and enabled.",
+        channel.id
+    ))
+    .await?;
 
     Ok(())
 }
@@ -69,8 +79,13 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
         .ok_or_else(|| anyhow!("Must be used in a server"))?;
     let data = ctx.data();
 
-    let mut settings =
-        get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
+    let mut settings = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id.get() as i64,
+    )
+    .await?;
 
     if let Some(ref mut honeypot) = settings.honeypot {
         honeypot.enabled = Some(false);
@@ -82,7 +97,7 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
             guild_id.get() as i64,
             &settings,
         )
-            .await?;
+        .await?;
 
         ctx.say("Honeypot has been disabled.").await?;
     } else {

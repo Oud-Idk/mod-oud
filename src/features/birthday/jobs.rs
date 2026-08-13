@@ -1,14 +1,12 @@
-use crate::core::config::guild_ctx::{GuildCtx, get_guild_ctx};
 use crate::core::config::settings::{GuildSettings, get_settings};
 use crate::core::config::state::Error;
-use crate::features::birthday::placeholders::replace_birthday_placeholders;
-use crate::features::birthday::types::{BirthdayMember, ExpiredRole, UserBirthdayRecord};
-use crate::features::birthday::{BirthdayConfig, announcements, database};
+use crate::features::birthday::types::{BirthdayMember, UserBirthdayRecord};
+use crate::features::birthday::{announcements, database};
 use chrono::{Datelike, Timelike, Utc};
 use chrono_tz::Tz;
 use fred::clients::Client;
 use serenity::all::{
-    ChannelId, CreateMessage, GuildId, RoleId, UserId,
+    ChannelId, GuildId, RoleId, UserId,
 };
 use serenity::client::Context;
 use sqlx::PgPool;
@@ -20,7 +18,7 @@ async fn get_display_name(ctx: &Context, guild_id: GuildId, user_id: UserId) -> 
         Ok(member) => member.display_name().to_string(),
         Err(_) => match ctx.http.get_user(user_id).await {
             Ok(user) => user.name,
-            Err(_) => format!("User ({})", user_id),
+            Err(_) => format!("User ({user_id})"),
         },
     }
 }
@@ -74,16 +72,13 @@ pub async fn run_birthday_announcements(
         };
 
         // Parse timezone string into chrono_tz::Tz, falling back to UTC if invalid
-        let tz: Tz = match birthday_cfg.timezone.parse() {
-            Ok(parsed_tz) => parsed_tz,
-            Err(_) => {
-                warn!(
-                    guild_id,
-                    tz = %birthday_cfg.timezone,
-                    "Invalid timezone in config, falling back to UTC"
-                );
-                chrono_tz::UTC
-            }
+        let tz: Tz = if let Ok(parsed_tz) = birthday_cfg.timezone.parse() { parsed_tz } else {
+            warn!(
+                guild_id,
+                tz = %birthday_cfg.timezone,
+                "Invalid timezone in config, falling back to UTC"
+            );
+            chrono_tz::UTC
         };
 
         let local_now = now.with_timezone(&tz);
@@ -167,7 +162,7 @@ pub fn start_birthday_worker(
         info!(worker_id = %lock_value, "Starting birthday worker task");
 
         loop {
-            tokio::time::sleep(Duration::from_secs(120)).await;
+            tokio::time::sleep(Duration::from_mins(2)).await;
 
             trace!("Attempting to acquire lock for birthday tasks");
 

@@ -22,7 +22,7 @@ pub fn start_member_counter_job(
 
         let mut last_updated: HashMap<i64, Instant> = HashMap::new();
 
-        let mut timer = interval(Duration::from_secs(60));
+        let mut timer = interval(Duration::from_mins(1));
 
         loop {
             timer.tick().await;
@@ -53,11 +53,11 @@ async fn process_all_member_counters(
 ) -> anyhow::Result<()> {
     // Query database for all guild IDs that have member counter enabled
     let guild_ids: Vec<i64> = sqlx::query_scalar(
-        r#"
+        r"
         SELECT guild_id
         FROM guild_configs
         WHERE (settings->'member_counter'->>'enabled')::boolean = true
-        "#,
+        ",
     )
         .fetch_all(db)
         .await
@@ -87,12 +87,11 @@ async fn process_all_member_counters(
         };
 
         // Check if interval has elapsed for this guild
-        let interval_secs = (counter_config.update_interval_minutes.max(5) as u64) * 60;
-        if let Some(last_time) = last_updated.get(&guild_id) {
-            if last_time.elapsed().as_secs() < interval_secs {
+        let interval_secs = u64::from(counter_config.update_interval_minutes.max(5)) * 60;
+        if let Some(last_time) = last_updated.get(&guild_id)
+            && last_time.elapsed().as_secs() < interval_secs {
                 continue; // Not time yet for this guild
             }
-        }
 
         // Process counters for this guild
         if let Err(e) = update_guild_counters(http, serenity_cache, guild_id, counter_config).await {

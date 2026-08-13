@@ -2,7 +2,7 @@ use std::time::Duration;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 use tokio::time::Instant;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
 #[derive(Deserialize)]
 struct TokenResponse {
@@ -45,11 +45,10 @@ static TOKEN_CACHE: RwLock<Option<CachedToken>> = RwLock::const_new(None);
 async fn get_spotify_api_token(client: &reqwest::Client) -> Option<String> {
     {
         let cache = TOKEN_CACHE.read().await;
-        if let Some(cached) = cache.as_ref() {
-            if cached.expires_at > Instant::now() + Duration::from_secs(60) {
+        if let Some(cached) = cache.as_ref()
+            && cached.expires_at > Instant::now() + Duration::from_mins(1) {
                 return Some(cached.token.clone());
             }
-        }
     }
 
     let client_id = std::env::var("SPOTIFY_CLIENT_ID").ok()?;
@@ -82,12 +81,9 @@ pub async fn resolve_spotify_playlist(client: &reqwest::Client, url: &str) -> Op
 
     let playlist_id = url.split("/playlist/").nth(1)?.split('?').next()?;
 
-    let token = match get_spotify_api_token(client).await {
-        Some(t) => t,
-        None => {
-            warn!("Could not retrieve Spotify API token. Check SPOTIFY_CLIENT_ID / SECRET env vars.");
-            return None;
-        }
+    let token = if let Some(t) = get_spotify_api_token(client).await { t } else {
+        warn!("Could not retrieve Spotify API token. Check SPOTIFY_CLIENT_ID / SECRET env vars.");
+        return None;
     };
 
     let mut search_terms = Vec::new();
@@ -98,8 +94,7 @@ pub async fn resolve_spotify_playlist(client: &reqwest::Client, url: &str) -> Op
 
     loop {
         let api_url = format!(
-            "https://api.spotify.com/v1/playlists/{}/tracks?limit={}&offset={}",
-            playlist_id, limit, offset
+            "https://api.spotify.com/v1/playlists/{playlist_id}/tracks?limit={limit}&offset={offset}"
         );
 
         let res = match client.get(&api_url).bearer_auth(&token).send().await {
@@ -155,7 +150,7 @@ pub async fn resolve_spotify_playlist(client: &reqwest::Client, url: &str) -> Op
                         .and_then(|a| a.name.as_deref())
                         .unwrap_or("");
 
-                    search_terms.push(format!("ytsearch:{} {}", artist_name, track_name).trim().to_string());
+                    search_terms.push(format!("ytsearch:{artist_name} {track_name}").trim().to_string());
                 }
             }
         }
@@ -182,7 +177,7 @@ struct TrackResponse {
     artists: Option<Vec<SpotifyArtist>>,
 }
 
-/// Resolves a single Spotify track URL or URI into a YouTube search term via Spotify Web API.
+/// Resolves a single Spotify track URL or URI into a `YouTube` search term via Spotify Web API.
 pub async fn resolve_spotify_track(client: &reqwest::Client, url: &str) -> Option<String> {
     if !url.contains("open.spotify.com/track/") && !url.contains("spotify:track:") {
         return None;
@@ -195,15 +190,12 @@ pub async fn resolve_spotify_track(client: &reqwest::Client, url: &str) -> Optio
         url.split("/track/").nth(1)?.split('?').next()?
     };
 
-    let token = match get_spotify_api_token(client).await {
-        Some(t) => t,
-        None => {
-            warn!("Could not retrieve Spotify API token for track resolution.");
-            return None;
-        }
+    let token = if let Some(t) = get_spotify_api_token(client).await { t } else {
+        warn!("Could not retrieve Spotify API token for track resolution.");
+        return None;
     };
 
-    let api_url = format!("https://api.spotify.com/v1/tracks/{}", track_id);
+    let api_url = format!("https://api.spotify.com/v1/tracks/{track_id}");
 
     let res = client
         .get(&api_url)
@@ -228,7 +220,7 @@ pub async fn resolve_spotify_track(client: &reqwest::Client, url: &str) -> Optio
         .and_then(|a| a.name.as_deref())
         .unwrap_or("");
 
-    let search_term = format!("ytsearch:{} {}", artist_name, track_name)
+    let search_term = format!("ytsearch:{artist_name} {track_name}")
         .trim()
         .to_string();
 

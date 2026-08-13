@@ -47,10 +47,10 @@ async fn set(
     let uid = ctx.author().id.get();
     database::set_birthday(&ctx.data().core.db, uid, month_num, day, year).await?;
 
-    let year_str = year.map(|y| format!(", {}", y)).unwrap_or_default();
+    let year_str = year.map(|y| format!(", {y}")).unwrap_or_default();
     ctx.send(
         poise::CreateReply::default()
-            .content(format!("Saved your birthday as **{:?} {}{}**!", month, day, year_str))
+            .content(format!("Saved your birthday as **{month:?} {day}{year_str}**!"))
             .ephemeral(true),
     ).await?;
 
@@ -103,7 +103,7 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
         &[mock_celebrant],
     );
 
-    send_ephemeral(&ctx, format!("**Preview Announcement:**\n\n{}", rendered)).await?;
+    send_ephemeral(&ctx, format!("**Preview Announcement:**\n\n{rendered}")).await?;
 
     Ok(())
 }
@@ -114,16 +114,16 @@ pub async fn upcoming(
     ctx: Context<'_>,
     #[description = "Days ahead to check (default: 14)"] days: Option<i16>,
 ) -> Result<(), Error> {
-    let lookahead_days = days.unwrap_or(14).min(60) as i32;
+    let lookahead_days = i32::from(days.unwrap_or(14).min(60));
 
     let records = database::get_upcoming_birthdays(&ctx.data().core.db, lookahead_days).await?;
 
     if records.is_empty() {
-        send_ephemeral(&ctx, format!("No upcoming birthdays in the next **{}** days.", lookahead_days)).await?;
+        send_ephemeral(&ctx, format!("No upcoming birthdays in the next **{lookahead_days}** days.")).await?;
         return Ok(());
     }
 
-    let title = format!("Upcoming Birthdays (Next {} Days)", lookahead_days);
+    let title = format!("Upcoming Birthdays (Next {lookahead_days} Days)");
 
     // Paginate automatically handles 1 page or 100 pages!
     pagination::paginate_birthdays(ctx, &records, title).await?;
@@ -158,7 +158,7 @@ async fn view(
                 12 => "December",
                 _ => "Unknown",
             };
-            let year_str = b.birth_year.map(|y| format!(", {}", y)).unwrap_or_default();
+            let year_str = b.birth_year.map(|y| format!(", {y}")).unwrap_or_default();
             send_ephemeral(&ctx, format!("Your birthday is set to **{} {}{}**.", month_name, b.birth_day, year_str)).await?;
         }
         None => {
@@ -218,7 +218,7 @@ async fn force_set(
     let uid = user.id.get();
     database::set_birthday(&ctx.data().core.db, uid, month_num, day, year).await?;
 
-    let year_str = year.map(|y| format!(", {}", y)).unwrap_or_default();
+    let year_str = year.map(|y| format!(", {y}")).unwrap_or_default();
     ctx.send(
         poise::CreateReply::default()
             .content(format!("Set birthday for **{}** to **{:?} {}{}**!", user.name, month, day, year_str))
@@ -260,13 +260,13 @@ fn validate_birthday_input(month: Month, day: i16, year: Option<i16>) -> Result<
     let max_days = date_valid_for_month(year, month_num);
 
     if day < 1 || day > max_days {
-        return Err(format!("Invalid day **{}** for month **{:?}**. Maximum is **{}**.", day, month, max_days));
+        return Err(format!("Invalid day **{day}** for month **{month:?}**. Maximum is **{max_days}**."));
     }
 
     if let Some(y) = year {
         let current_year = chrono::Utc::now().year() as i16;
         if y < 1920 || y > current_year {
-            return Err(format!("Please enter a valid birth year between 1920 and {}.", current_year));
+            return Err(format!("Please enter a valid birth year between 1920 and {current_year}."));
         }
     }
 
@@ -275,12 +275,12 @@ fn validate_birthday_input(month: Month, day: i16, year: Option<i16>) -> Result<
 
 fn date_valid_for_month(year: Option<i16>, month_num: i16) -> i16 {
     match month_num {
-        2 => if year.map_or(true, |y| is_leap_year(y as i32)) { 29 } else { 28 },
+        2 => if year.is_none_or(|y| is_leap_year(i32::from(y))) { 29 } else { 28 },
         4 | 6 | 9 | 11 => 30,
         _ => 31,
     }
 }
 
-fn is_leap_year(year: i32) -> bool {
+const fn is_leap_year(year: i32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }

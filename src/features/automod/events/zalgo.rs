@@ -18,7 +18,7 @@ pub fn filter_zalgo<'a>(
         debug!("Message flagged by Zalgo filter");
         return FilterVerdict::Block {
             rule_name: "Zalgo".into(),
-            base_rule: Cow::Borrowed(&zalgo),
+            base_rule: Cow::Borrowed(zalgo),
             trigger_content: None,
             custom_dm_message: None,
         };
@@ -27,7 +27,7 @@ pub fn filter_zalgo<'a>(
     FilterVerdict::Pass
 }
 
-fn is_combining_mark(c: char) -> bool {
+const fn is_combining_mark(c: char) -> bool {
     matches!(
         c,
         '\u{0300}'..='\u{036F}' |

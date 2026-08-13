@@ -12,7 +12,7 @@ pub async fn start_live_feed_subscriber(
     subscriber_client.on_message(move |msg| {
         let tx = tx.clone();
         async move {
-            let mut channel = msg.channel.to_string();
+            let channel = msg.channel.to_string();
 
             let Ok(payload_str) = msg.value.convert::<String>() else {
                 warn!(channel = %channel, "Failed to convert Redis message value to String");
@@ -26,7 +26,7 @@ pub async fn start_live_feed_subscriber(
             );
 
             if LogEvent::REDIS_CHANNELS.contains(&channel.as_str()) {
-                if let Some(event) = LogEvent::from_redis(&mut channel, &payload_str) {
+                if let Some(event) = LogEvent::from_redis(&channel, &payload_str) {
                     if let Err(e) = tx.send(event) {
                         error!(error = %e, "Failed to send LogEvent to broadcast channel");
                     }

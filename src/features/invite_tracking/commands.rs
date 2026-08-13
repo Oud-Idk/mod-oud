@@ -61,7 +61,7 @@ pub async fn invites(
     let redis = &ctx.data().core.redis;
 
     // Default to the person running the command if they didn't specify a target
-    let target_user = member.map(|m| m.user).unwrap_or_else(|| ctx.author().clone());
+    let target_user = member.map_or_else(|| ctx.author().clone(), |m| m.user);
     let target_id = target_user.id;
 
     // 1. Fetch total invite count from Postgres
@@ -82,13 +82,12 @@ pub async fn invites(
         .unwrap_or(None);
 
     let invite_link_msg = match active_code {
-        Some(code) => format!("Active invite link: https://discord.gg/{}", code),
+        Some(code) => format!("Active invite link: https://discord.gg/{code}"),
         None => "No active personal invite link found in cache. Create an invite link in Discord to get one!".to_string(),
     };
 
     ctx.say(format!(
-        "📊 **Invite Stats for <@{}>**\n• Total Invites: **{}**\n• {}",
-        target_id, invite_count, invite_link_msg
+        "📊 **Invite Stats for <@{target_id}>**\n• Total Invites: **{invite_count}**\n• {invite_link_msg}"
     ))
         .await?;
 

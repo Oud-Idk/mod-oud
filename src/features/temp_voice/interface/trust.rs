@@ -7,7 +7,7 @@ use serenity::all::{
 };
 use tracing::debug;
 
-pub(crate) async fn handle_trust_temp_vc(
+pub async fn handle_trust_temp_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
     data: &BotData,
@@ -40,7 +40,7 @@ pub(crate) async fn handle_trust_temp_vc(
     Ok(())
 }
 
-pub(crate) async fn handle_trust_temp_vc_submit(
+pub async fn handle_trust_temp_vc_submit(
     ctx: &Context,
     interaction: &ComponentInteraction,
     data: &BotData,

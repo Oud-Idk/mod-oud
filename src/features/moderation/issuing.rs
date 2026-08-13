@@ -12,7 +12,7 @@ use chrono::TimeDelta;
 use duration_str::HumanFormat;
 use fred::clients::Client;
 use humantime::format_duration;
-use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http, Timestamp, User, UserId};
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http, Timestamp, User};
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
@@ -40,8 +40,8 @@ pub async fn issue_kick(
     if let Some(kick_dm_settings) = &kick_dm_settings_opt {
         // Adjusted to traverse through `message` block and handle non-optional embed struct
         let contains_invite = kick_dm_settings.message.content.contains("invite.url")
-            || kick_dm_settings.message.embed.description.as_ref().map_or(false, |d| d.contains("invite.url"))
-            || kick_dm_settings.message.embed.title.as_ref().map_or(false, |t| t.contains("invite.url"));
+            || kick_dm_settings.message.embed.description.as_ref().is_some_and(|d| d.contains("invite.url"))
+            || kick_dm_settings.message.embed.title.as_ref().is_some_and(|t| t.contains("invite.url"));
 
         if contains_invite {
             debug!("Generating transient invite URL for kick DM fallback");
@@ -74,12 +74,19 @@ pub async fn issue_kick(
             &moderator,
             invite_url.as_deref(),
         ),
-        CreateEmbed::new()
-            .title(format!("You have been kicked from {}", gctx.name))
-            .color(0xff8a42)
-            .field("Reason", reason, false)
-            .thumbnail(&gctx.icon_url)
-            .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
+        {
+            let mut embed = CreateEmbed::new()
+                .title(format!("You have been kicked from {}", gctx.name))
+                .color(0xff8a42)
+                .field("Reason", reason, false)
+                .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
+
+            if let Some(url) = &gctx.icon_url {
+                embed = embed.thumbnail(url);
+            }
+
+            embed
+        }
     );
 
     log_moderation_action(
@@ -106,12 +113,12 @@ pub async fn issue_ban(
     reason: &str,
     dmd_time: u8,
     duration: Option<Duration>,
-    duration_label: &str,
+    _duration_label: &str,
 ) -> Result<()> {
     debug!("Retrieving moderation context for ban");
     let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
-    let duration_label = duration.map(|d| format_duration(d).to_string()).unwrap_or("Permanent".to_string());
+    let duration_label = duration.map_or("Permanent".to_string(), |d| format_duration(d).to_string());
 
     send_mod_dm!(
         http,
@@ -119,13 +126,20 @@ pub async fn issue_ban(
         ban_dm_settings_opt,
         "BAN",
         |text| replace_ban_placeholders(text, &gctx, &member, reason, &moderator),
-        CreateEmbed::new()
-            .title(format!("You have been banned from {}", gctx.name))
-            .color(0xFF4747)
-            .field("Reason", reason, false)
-            .field("Duration", duration_label, false)
-            .thumbnail(&gctx.icon_url)
-            .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
+        {
+            let mut embed = CreateEmbed::new()
+                .title(format!("You have been banned from {}", gctx.name))
+                .color(0xFF4747)
+                .field("Reason", reason, false)
+                .field("Duration", duration_label, false)
+                .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
+
+            if let Some(url) = &gctx.icon_url {
+                embed = embed.thumbnail(url);
+            }
+
+            embed
+        }
     );
 
     debug!("Executing ban via Discord HTTP API");
@@ -188,13 +202,20 @@ pub async fn issue_mute(
         mute_dm_settings_opt,
         "MUTE",
         |text| replace_mute_placeholder(text, &gctx, &member, reason, &moderator, duration),
-        CreateEmbed::new()
-            .title(format!("You have been muted from {}", gctx.name))
-            .color(0xFFC54F)
-            .field("Reason", reason, false)
-            .field("Duration", duration.human_format(), false)
-            .thumbnail(&gctx.icon_url)
-            .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
+        {
+            let mut embed = CreateEmbed::new()
+                .title(format!("You have been muted from {}", gctx.name))
+                .color(0xFFC54F)
+                .field("Reason", reason, false)
+                .field("Duration", duration.human_format(), false)
+                .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
+
+            if let Some(url) = &gctx.icon_url {
+                embed = embed.thumbnail(url);
+            }
+
+            embed
+        }
     );
 
     debug!(until = %timestamp, "Applying timeout via Discord HTTP API");
@@ -274,17 +295,24 @@ pub async fn issue_softban(
         softban_dm_settings_opt,
         "SOFTBAN",
         |text| replace_reason_placeholders(text, &gctx, &member, reason, &moderator),
-        CreateEmbed::new()
-            .title(format!("You have been soft-banned from {}", gctx.name))
-            .color(0xFF4747)
-            .field("Reason", reason, false)
-            .field(
-                "Notice",
-                "You have been banned and immediately unbanned to purge your messages.",
-                false
-            )
-            .thumbnail(&gctx.icon_url)
-            .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
+        {
+            let mut embed = CreateEmbed::new()
+                .title(format!("You have been soft-banned from {}", gctx.name))
+                .color(0xFF4747)
+                .field("Reason", reason, false)
+                .field(
+                    "Notice",
+                    "You have been banned and immediately unbanned to purge your messages.",
+                    false
+                )
+                .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
+
+            if let Some(url) = &gctx.icon_url {
+                embed = embed.thumbnail(url);
+            }
+
+            embed
+        }
     );
 
     debug!("Executing temporary ban for softban via Discord HTTP API");

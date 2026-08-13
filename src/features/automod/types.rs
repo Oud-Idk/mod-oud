@@ -20,21 +20,21 @@ impl FlagSeverity {
     /// Helper to map the rustrict analysis to our custom enum
     pub fn from_analysis(analysis: rustrict::Type) -> Option<Self> {
         if analysis.is(rustrict::Type::SEVERE) {
-            Some(FlagSeverity::Severe)
+            Some(Self::Severe)
         } else if analysis.is(rustrict::Type::MODERATE) {
-            Some(FlagSeverity::Moderate)
+            Some(Self::Moderate)
         } else if analysis.is(rustrict::Type::MILD) {
-            Some(FlagSeverity::Mild)
+            Some(Self::Mild)
         } else {
             None
         }
     }
 
-    pub fn to_type(self) -> rustrict::Type {
+    pub const fn to_type(self) -> rustrict::Type {
         match self {
-            FlagSeverity::Severe => rustrict::Type::SEVERE,
-            FlagSeverity::Moderate => rustrict::Type::MODERATE,
-            FlagSeverity::Mild => rustrict::Type::MILD,
+            Self::Severe => rustrict::Type::SEVERE,
+            Self::Moderate => rustrict::Type::MODERATE,
+            Self::Mild => rustrict::Type::MILD,
         }
     }
 }
@@ -42,11 +42,11 @@ impl FlagSeverity {
 impl fmt::Display for FlagSeverity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let label = match self {
-            FlagSeverity::Mild => "MILD",
-            FlagSeverity::Moderate => "MODERATE",
-            FlagSeverity::Severe => "SEVERE",
+            Self::Mild => "MILD",
+            Self::Moderate => "MODERATE",
+            Self::Severe => "SEVERE",
         };
-        write!(f, "{}", label)
+        write!(f, "{label}")
     }
 }
 
@@ -61,13 +61,14 @@ pub enum RuleAction {
 }
 
 impl RuleAction {
-    pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            RuleAction::Delete => "DELETE",
-            RuleAction::Warn => "WARN",
-            RuleAction::Timeout => "TIMEOUT",
-            RuleAction::RemindPublicly => "REMIND_PUBLICLY",
-            RuleAction::RemindPrivately => "REMIND_PRIVATELY",
+            Self::Delete => "DELETE",
+            Self::Warn => "WARN",
+            Self::Timeout => "TIMEOUT",
+            Self::RemindPublicly => "REMIND_PUBLICLY",
+            Self::RemindPrivately => "REMIND_PRIVATELY",
         }
     }
 }
@@ -86,12 +87,12 @@ pub enum ThreatType {
 impl From<i32> for ThreatType {
     fn from(val: i32) -> Self {
         match val {
-            0 => ThreatType::Unspecified,
-            1 => ThreatType::Malware,
-            2 => ThreatType::SocialEngineering,
-            3 => ThreatType::UnwantedSoftware,
-            4 => ThreatType::PotentiallyHarmfulApplication,
-            other => ThreatType::Unknown(other),
+            0 => Self::Unspecified,
+            1 => Self::Malware,
+            2 => Self::SocialEngineering,
+            3 => Self::UnwantedSoftware,
+            4 => Self::PotentiallyHarmfulApplication,
+            other => Self::Unknown(other),
         }
     }
 }
@@ -99,12 +100,12 @@ impl From<i32> for ThreatType {
 impl fmt::Display for ThreatType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
-            ThreatType::Unspecified => "THREAT_TYPE_UNSPECIFIED",
-            ThreatType::Malware => "MALWARE",
-            ThreatType::SocialEngineering => "SOCIAL_ENGINEERING",
-            ThreatType::UnwantedSoftware => "UNWANTED_SOFTWARE",
-            ThreatType::PotentiallyHarmfulApplication => "POTENTIALLY_HARMFUL_APPLICATION",
-            ThreatType::Unknown(val) => return write!(f, "UNKNOWN_THREAT_TYPE({val})"),
+            Self::Unspecified => "THREAT_TYPE_UNSPECIFIED",
+            Self::Malware => "MALWARE",
+            Self::SocialEngineering => "SOCIAL_ENGINEERING",
+            Self::UnwantedSoftware => "UNWANTED_SOFTWARE",
+            Self::PotentiallyHarmfulApplication => "POTENTIALLY_HARMFUL_APPLICATION",
+            Self::Unknown(val) => return write!(f, "UNKNOWN_THREAT_TYPE({val})"),
         };
         write!(f, "{name}")
     }
@@ -140,7 +141,7 @@ pub enum FilterVerdict<'a> {
     },
 }
 
-impl<'a> FilterVerdict<'a> {
+impl FilterVerdict<'_> {
     pub fn or_else<F>(self, f: F) -> Self
     where
         F: FnOnce() -> Self,
@@ -151,7 +152,8 @@ impl<'a> FilterVerdict<'a> {
         }
     }
 
-    pub fn is_pass(&self) -> bool {
+    #[must_use]
+    pub const fn is_pass(&self) -> bool {
         matches!(self, FilterVerdict::Pass)
     }
 }
@@ -320,7 +322,7 @@ impl From<&Action> for LoggedAction {
 }
 
 impl LoggedAction {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Delete => "delete",
             Self::RemindPrivately => "remind_privately",

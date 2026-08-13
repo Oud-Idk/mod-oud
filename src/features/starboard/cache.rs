@@ -14,13 +14,12 @@ pub async fn get_starboards(
     db: &PgPool,
     redis: &Client,
 ) -> Result<Vec<Starboard>> {
-    let cache_key = format!("starboard:config:{}", guild_id);
+    let cache_key = format!("starboard:config:{guild_id}");
 
-    if let Ok(Some(cached_data)) = redis.get::<Option<String>, _>(&cache_key).await {
-        if let Ok(configs) = serde_json::from_str::<Vec<Starboard>>(&cached_data) {
+    if let Ok(Some(cached_data)) = redis.get::<Option<String>, _>(&cache_key).await
+        && let Ok(configs) = serde_json::from_str::<Vec<Starboard>>(&cached_data) {
             return Ok(configs);
         }
-    }
 
     let starboards = sqlx::query_as!(
         Starboard,

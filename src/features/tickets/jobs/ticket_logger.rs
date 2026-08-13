@@ -27,39 +27,36 @@ pub fn start_ticket_logger(
                     }
                 }
                 msg = rx.recv() => {
-                    match msg {
-                        Some(payload) => {
-                            trace!(
-                                ticket_channel_id = payload.ticket_channel_id,
-                                message_id = payload.message_id,
-                                author_id = payload.author_id,
-                                "Received ticket log payload"
-                            );
+                    if let Some(payload) = msg {
+                        trace!(
+                            ticket_channel_id = payload.ticket_channel_id,
+                            message_id = payload.message_id,
+                            author_id = payload.author_id,
+                            "Received ticket log payload"
+                        );
 
-                            buffer.push(payload);
+                        buffer.push(payload);
 
-                            // If we hit 100 messages, flush immediately!
-                            if buffer.len() >= 100 {
-                                let batch_size = buffer.len();
-                                debug!(batch_size, "Buffer capacity limit reached; flushing immediately");
+                        // If we hit 100 messages, flush immediately!
+                        if buffer.len() >= 100 {
+                            let batch_size = buffer.len();
+                            debug!(batch_size, "Buffer capacity limit reached; flushing immediately");
 
-                                if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                                    error!(error = ?e, batch_size, "Error flushing ticket logs on buffer capacity limit");
-                                }
-                                interval.reset(); // Reset the timer
+                            if let Err(e) = flush_batch(&pool, &mut buffer).await {
+                                error!(error = ?e, batch_size, "Error flushing ticket logs on buffer capacity limit");
+                            }
+                            interval.reset(); // Reset the timer
+                        }
+                    } else {
+                        info!("Ticket logger receiver channel closed; flushing remaining logs and stopping worker task");
+
+                        if !buffer.is_empty() {
+                            let batch_size = buffer.len();
+                            if let Err(e) = flush_batch(&pool, &mut buffer).await {
+                                error!(error = ?e, batch_size, "Error performing final flush during shutdown");
                             }
                         }
-                        None => {
-                            info!("Ticket logger receiver channel closed; flushing remaining logs and stopping worker task");
-
-                            if !buffer.is_empty() {
-                                let batch_size = buffer.len();
-                                if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                                    error!(error = ?e, batch_size, "Error performing final flush during shutdown");
-                                }
-                            }
-                            break;
-                        }
+                        break;
                     }
                 }
             }

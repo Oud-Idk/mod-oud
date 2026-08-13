@@ -42,9 +42,7 @@ pub async fn handle_verify(
     let client_ip = headers
         .get("x-forwarded-for")
         .and_then(|value| value.to_str().ok())
-        .and_then(|s| s.split(',').next())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "127.0.0.1".to_string());
+        .and_then(|s| s.split(',').next()).map_or_else(|| "127.0.0.1".to_string(), |s| s.trim().to_string());
 
 
     let (shared_secret, cf_secret_key, hc_secret_key, hc_site_key) = get_secrets(&state)?;

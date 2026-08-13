@@ -1,4 +1,4 @@
-use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::message_logging::types::{DistributedCachedMessage, EditDetails, MessageDetails};
 use fred::clients::Client;
@@ -87,30 +87,27 @@ pub async fn fetch_dist_cached_message(
     debug!(key = %key, "Fetching message from Redis distributed cache");
     let val: Option<String> = redis.get(&key).await?;
 
-    match val {
-        Some(raw) => {
-            debug!(key = %key, "Redis cache hit");
-            let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
-                Ok(c) => c,
-                Err(e) => {
-                    error!(error = %e, key = %key, "Failed to deserialize cached message JSON");
-                    return Err(e.into());
-                }
-            };
+    if let Some(raw) = val {
+        debug!(key = %key, "Redis cache hit");
+        let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
+            Ok(c) => c,
+            Err(e) => {
+                error!(error = %e, key = %key, "Failed to deserialize cached message JSON");
+                return Err(e.into());
+            }
+        };
 
-            Ok(Some(MessageDetails {
-                msg_id: message_id.get() as i64,
-                author_id: cached.author_id,
-                author_name: cached.author_name,
-                chan_id: channel_id.get() as i64,
-                content: cached.content,
-                image_urls: cached.image_urls,
-            }))
-        }
-        None => {
-            debug!(key = %key, "Redis cache miss");
-            Ok(None)
-        }
+        Ok(Some(MessageDetails {
+            msg_id: message_id.get() as i64,
+            author_id: cached.author_id,
+            author_name: cached.author_name,
+            chan_id: channel_id.get() as i64,
+            content: cached.content,
+            image_urls: cached.image_urls,
+        }))
+    } else {
+        debug!(key = %key, "Redis cache miss");
+        Ok(None)
     }
 }
 
@@ -132,49 +129,46 @@ pub async fn fetch_dist_edit_details(
 
     let val: Option<String> = redis.get(&key).await?;
 
-    match val {
-        Some(raw) => {
-            debug!(key = %key, "Redis cache hit for edit details");
-            let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
-                Ok(c) => c,
+    if let Some(raw) = val {
+        debug!(key = %key, "Redis cache hit for edit details");
+        let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
+            Ok(c) => c,
+            Err(e) => {
+                error!(error = %e, key = %key, "Failed to deserialize cached message JSON during edit");
+                return Err(e.into());
+            }
+        };
+
+        let old_content = Some(cached.content.clone());
+        let new_content = event.content.clone();
+
+        if let Some(ref content) = new_content {
+            debug!(key = %key, "Updating cached content and resetting TTL in Redis");
+            let mut updated = cached.clone();
+            updated.content = content.clone();
+
+            let serialized = match serde_json::to_string(&updated) {
+                Ok(s) => s,
                 Err(e) => {
-                    error!(error = %e, key = %key, "Failed to deserialize cached message JSON during edit");
+                    error!(error = %e, "Failed to serialize updated message details");
                     return Err(e.into());
                 }
             };
 
-            let old_content = Some(cached.content.clone());
-            let new_content = event.content.clone();
-
-            if let Some(ref content) = new_content {
-                debug!(key = %key, "Updating cached content and resetting TTL in Redis");
-                let mut updated = cached.clone();
-                updated.content = content.clone();
-
-                let serialized = match serde_json::to_string(&updated) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        error!(error = %e, "Failed to serialize updated message details");
-                        return Err(e.into());
-                    }
-                };
-
-                let _: () = redis.set(&key, serialized, Some(Expiration::EX(18000)), None, false).await?;
-            }
-
-            Ok(Some(EditDetails {
-                msg_id: event.id.get() as i64,
-                chan_id: event.channel_id.get() as i64,
-                author_id: cached.author_id,
-                author_name: cached.author_name,
-                old_content,
-                new_content,
-            }))
+            let _: () = redis.set(&key, serialized, Some(Expiration::EX(18000)), None, false).await?;
         }
-        None => {
-            debug!(key = %key, "Redis cache miss for edit details");
-            Ok(None)
-        }
+
+        Ok(Some(EditDetails {
+            msg_id: event.id.get() as i64,
+            chan_id: event.channel_id.get() as i64,
+            author_id: cached.author_id,
+            author_name: cached.author_name,
+            old_content,
+            new_content,
+        }))
+    } else {
+        debug!(key = %key, "Redis cache miss for edit details");
+        Ok(None)
     }
 }
 

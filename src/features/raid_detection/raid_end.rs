@@ -3,7 +3,7 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_unlock;
 use crate::features::raid_detection::snapshot::restore_preraid_state;
 use crate::features::raid_detection::types::RaidAction;
-use crate::features::raid_detection::{database, keys};
+use crate::features::raid_detection::keys;
 use fred::interfaces::{KeysInterface, SetsInterface};
 use serenity::all::{ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp};
 use tracing::{error, info};

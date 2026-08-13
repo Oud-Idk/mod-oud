@@ -1,6 +1,5 @@
 use std::sync::LazyLock;
 use regex::Regex;
-use linkify::LinkFinder;
 
 pub static DISCORD_FORMAT_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<(?:a?:[a-zA-Z0-9_]+:|@&?|#)\d+>").unwrap());
 pub static INVITE_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(discord\.(gg|io|me|li|com/invite|app\.com/invite))/([a-zA-Z0-9\-]+)").unwrap());

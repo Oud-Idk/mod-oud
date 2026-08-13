@@ -1,11 +1,8 @@
-use crate::shared::embed::DiscordEmbed;
-use crate::shared::embed::Format;
-use crate::shared::ok_or_none;
+use crate::core::config::message_layout::MessageLayout;
 use serde::{Deserialize, Serialize};
 use serde_with::{DefaultOnError, DisplayFromStr, serde_as};
-use crate::core::config::settings::MessageLayout;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NotificationScope {
     #[default]

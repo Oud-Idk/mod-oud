@@ -1,13 +1,12 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
-use crate::features::reporting::types::ReportedMessagePayload;
 use crate::features::reporting::actions;
 use poise::Modal;
 use tracing::{debug, info, trace, warn};
 
 #[derive(poise::Modal)]
 #[name = "Report This Message"]
-pub(crate) struct ReportModal {
+pub struct ReportModal {
     #[placeholder = "Please explain why you are reporting this message..."]
     #[paragraph]
     pub(crate) reason: String,
@@ -18,15 +17,12 @@ pub async fn report_message(
     ctx: Context<'_>,
     message: serenity::all::Message,
 ) -> Result<(), Error> {
-    let app_ctx = match ctx {
-        Context::Application(x) => x,
-        _ => {
-            warn!(
-                caller_id = ctx.author().id.get(),
-                "report_message command triggered with a non-application context"
-            );
-            return Ok(());
-        }
+    let app_ctx = if let Context::Application(x) = ctx { x } else {
+        warn!(
+            caller_id = ctx.author().id.get(),
+            "report_message command triggered with a non-application context"
+        );
+        return Ok(());
     };
 
     let caller_id = ctx.author().id.get();
@@ -45,8 +41,8 @@ pub async fn report_message(
     let guild_configs = &ctx.data().core.guild_configs_cache;
 
     trace!(guild_id, "Fetching server settings for report configuration check");
-    let config = get_settings(db, &redis, guild_configs, guild_id as i64).await?;
-    let report_enabled = config.report.map_or(false, |r| r.enabled);
+    let config = get_settings(db, &redis, guild_configs, guild_id).await?;
+    let report_enabled = config.report.is_some_and(|r| r.enabled);
 
     if !report_enabled {
         debug!(guild_id, "Report command execution cancelled: report feature is disabled in this guild");
@@ -68,24 +64,21 @@ pub async fn report_message(
             &message, ctx.author(), modal.reason,
         ).await?;
 
-        let reply_content = match result {
-            Some(report_id) => {
-                info!(
-                    caller_id,
-                    message_id,
-                    report_id,
-                    "Message report successfully created and recorded"
-                );
-                "Your report has been submitted to the moderation team."
-            }
-            None => {
-                debug!(
-                    caller_id,
-                    message_id,
-                    "Duplicate report rejected: this message was already reported by this user"
-                );
-                "Someone has already reported this message."
-            }
+        let reply_content = if let Some(report_id) = result {
+            info!(
+                caller_id,
+                message_id,
+                report_id,
+                "Message report successfully created and recorded"
+            );
+            "Your report has been submitted to the moderation team."
+        } else {
+            debug!(
+                caller_id,
+                message_id,
+                "Duplicate report rejected: this message was already reported by this user"
+            );
+            "Someone has already reported this message."
         };
 
         ctx.send(poise::CreateReply::default().content(reply_content).ephemeral(true)).await?;

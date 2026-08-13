@@ -3,17 +3,13 @@ use crate::features::media_only::cache::get_channel_media;
 use crate::features::media_only::types::MediaOnlyChannel;
 use crate::features::media_only::violation;
 use crate::shared::messages::remove_urls;
-use anyhow::{Context as _, Result};
-use serenity::all::{ChannelId, Context, CreateThread, Http, Mentionable, Message, PartialMember, RoleId};
-use serenity::builder::CreateMessage;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::time;
-use tracing::{debug, trace, warn};
+use anyhow::Result;
+use serenity::all::{ChannelId, Context, CreateThread, Message, PartialMember, RoleId};
+use tracing::trace;
 
 fn has_matching_role(member: &Box<PartialMember>, roles: &[RoleId]) -> bool {
     member.roles.iter().any(|role_id| {
-        roles.contains(&role_id)
+        roles.contains(role_id)
     })
 }
 
@@ -21,22 +17,22 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
     let channel_id = message.channel_id;
 
     // Checks exempt roles and disabled channel, and check if config exists
-    let Some(config) = preflight_checks(&message, channel_id, data).await? else {
+    let Some(config) = preflight_checks(message, channel_id, data).await? else {
         return Ok(());
     };
 
     let (text, urls) = remove_urls(&message.content);
 
-    if analyze_initial_text(&message, &config, text, urls) {
-        violation::handle_violation(&ctx, &message, &config).await?;
+    if analyze_initial_text(message, &config, text, urls) {
+        violation::handle_violation(ctx, message, &config).await?;
         return Ok(())
-    };
+    }
 
 
     for attachment in &message.attachments {
         let Some(mime) = attachment.content_type.as_deref() else {
             trace!("Attachment missing content type.");
-            violation::handle_violation(&ctx, &message, &config).await?;
+            violation::handle_violation(ctx, message, &config).await?;
             return Ok(());
         };
 
@@ -44,7 +40,7 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
 
         if !is_valid {
             trace!("Attachment with mime '{mime}' is not allowed.");
-            violation::handle_violation(&ctx, &message, &config).await?;
+            violation::handle_violation(ctx, message, &config).await?;
             return Ok(());
         }
     }
@@ -97,7 +93,8 @@ async fn preflight_checks(message: &Message, channel_id: ChannelId, data: &BotDa
 }
 
 fn attachment_is_valid(config: &MediaOnlyChannel, mime: &str) -> bool {
-    let is_valid = if mime.starts_with("image/gif") {
+    
+    if mime.starts_with("image/gif") {
         config.allow_gif
     } else if mime.starts_with("image/") {
         config.allow_images
@@ -107,8 +104,7 @@ fn attachment_is_valid(config: &MediaOnlyChannel, mime: &str) -> bool {
         config.allow_audio
     } else {
         false // Unknown/unsupported MIME type
-    };
-    is_valid
+    }
 }
 
 fn analyze_initial_text(message: &Message, config: &MediaOnlyChannel, text: String, urls: Vec<&str>) -> bool {

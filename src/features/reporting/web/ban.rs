@@ -32,7 +32,7 @@ pub async fn handle_ban_user(
     let duration_label = match cmd.duration_mins {
         Some(mins) if mins >= 1440 => format!("Temporary ({} days)", mins / 1440),
         Some(mins) if mins >= 60 => format!("Temporary ({} hours)", mins / 60),
-        Some(mins) => format!("Temporary ({} minutes)", mins),
+        Some(mins) => format!("Temporary ({mins} minutes)"),
         None => "Permanent".to_string(),
     };
 
@@ -51,7 +51,7 @@ pub async fn handle_ban_user(
     )
         .await
         .inspect_err(|e| error!(error = %e, "Failed to complete ban operation"))
-        .map_err(|e| WebError::Internal)?;
+        .map_err(|_e| WebError::Internal)?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserBanned).await?;
     Ok(StatusCode::OK)

@@ -30,7 +30,7 @@ pub async fn update_guild_counters(
     // Compute guild statistics using Serenity Cache (or HTTP fallback)
     let (total_members, humans_count, bots_count, online_count) =
         if let Some(guild) = serenity_cache.guild(serenity_guild_id) {
-            let total = guild.member_count as u64;
+            let total = guild.member_count;
             let mut humans = 0u64;
             let mut bots = 0u64;
 
@@ -94,7 +94,13 @@ pub async fn update_guild_counters(
 
         if let Some(guild_channel) = current_channel.guild() {
             // ONLY send request to Discord if the channel name has changed (avoids rate limits)
-            if guild_channel.name != target_name {
+            if guild_channel.name == target_name {
+                trace!(
+                    guild_id,
+                    channel_id = %channel_id,
+                    "Channel name is already up to date"
+                );
+            } else {
                 name_changed = true;
                 info!(
                     guild_id,
@@ -113,12 +119,6 @@ pub async fn update_guild_counters(
                         "Failed to update channel name on Discord"
                     );
                 }
-            } else {
-                trace!(
-                    guild_id,
-                    channel_id = %channel_id,
-                    "Channel name is already up to date"
-                );
             }
         }
 

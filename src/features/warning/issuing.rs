@@ -50,24 +50,31 @@ pub async fn issue_warning(
         warn_dm_settings_opt,
         "warn",
         |text| replace_reason_placeholders(text, &gctx, &member, reason, &moderator_user),
-        CreateEmbed::new()
-            .title(format!("You have been formally warned from {}", gctx.name))
-            .color(0xFF4747)
-            .field("Reason", reason, false)
-            .field("ID", warn_id.to_string(), false)
-            .thumbnail(&gctx.icon_url)
-            .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
+        {
+            let mut embed = CreateEmbed::new()
+                .title(format!("You have been formally warned from {}", gctx.name))
+                .color(0xFF4747)
+                .field("Reason", reason, false)
+                .field("ID", warn_id.to_string(), false)
+                .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
+
+            if let Some(url) = &gctx.icon_url {
+                embed = embed.thumbnail(url)
+            }
+
+            embed
+        }
     );
 
     log_warning(db, guild_id, &member.user, &moderator_user, reason).await?;
 
-    let thresholds = fetch_warn_thresholds(&db, &redis_conn, &guild_id).await?;
+    let thresholds = fetch_warn_thresholds(db, redis_conn, &guild_id).await?;
     let applicable_thresholds = thresholds
         .iter()
         .filter(|t| t.warn_count == warn_count)
         .collect::<Vec<&WarnThreshold>>();
 
-    thresholds::apply_threshold_actions(&http, &db, &mut member, &applicable_thresholds).await?;
+    thresholds::apply_threshold_actions(http, db, &mut member, &applicable_thresholds).await?;
 
     info!(warn_id, "Successfully issued warning to user");
     Ok(warn_id)
@@ -119,7 +126,7 @@ pub async fn issue_warning_status_change(
     };
 
     log_moderation_action(
-        db, guild_id_raw, Some(&user), &author, None, action_type, None,
+        db, guild_id_raw, Some(user), author, None, action_type, None,
     ).await?;
 
     let dm_settings_opt = if set_active {
@@ -141,15 +148,22 @@ pub async fn issue_warning_status_change(
                 author,
             )
         },
-        CreateEmbed::new()
-            .title(format!(
-                "Your warning at {} has been {}.",
-                gctx.name, action_past_tense
-            ))
-            .field("Warning Reason", &reason, false)
-            .field("Warning ID", id.to_string(), false)
-            .color(color)
-            .thumbnail(&gctx.icon_url)
+        {
+            let mut embed = CreateEmbed::new()
+                .title(format!(
+                    "Your warning at {} has been {}.",
+                    gctx.name, action_past_tense
+                ))
+                .field("Warning Reason", &reason, false)
+                .field("Warning ID", id.to_string(), false)
+                .color(color);
+
+            if let Some(url) = &gctx.icon_url {
+                embed = embed.thumbnail(url);
+            }
+
+            embed
+        }
     );
 
     info!(target_user_id, action = action_past_tense, "Successfully processed warning status update");
@@ -208,15 +222,23 @@ pub async fn issue_delete_warning(
                 author,
             )
         },
-        CreateEmbed::new()
-            .title(format!(
-                "Your warning at {} has been permanently deleted.",
-                gctx.name
-            ))
-            .field("Warning Reason", &reason, false)
-            .field("Warning ID", id.to_string(), false)
-            .color(0x48F767)
-            .thumbnail(&gctx.icon_url)
+        {
+            let mut embed = CreateEmbed::new()
+                .title(format!(
+                    "Your warning at {} has been permanently deleted.",
+                    gctx.name
+                ))
+                .field("Warning Reason", &reason, false)
+                .field("Warning ID", id.to_string(), false)
+                .color(0x48F767);
+
+            if let Some(url) = &gctx.icon_url {
+                embed = embed.thumbnail(url);
+            }
+
+            embed
+        }
+
     );
 
     info!(target_user_id, "Successfully processed warning deletion");

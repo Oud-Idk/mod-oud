@@ -29,17 +29,17 @@ pub async fn set_warning_active_status(
         ctx.author(),
     ).await?;
 
-    let (action_past_tense) = if set_active {
-        ("unpardoned")
+    let action_past_tense  = if set_active {
+        "unpardoned" 
     } else {
-        ("pardoned")
+        "pardoned" 
     };
 
     match result {
-        Some((target_user_id, reason)) => {
+        Some((target_user_id, _reason)) => {
             send_ephemeral(
                 &ctx,
-                format!("Successfully {} warning **#{}** for <@{}>.", action_past_tense, id, target_user_id),
+                format!("Successfully {action_past_tense} warning **#{id}** for <@{target_user_id}>."),
             ).await?;
 
             info!(
@@ -60,7 +60,7 @@ pub async fn set_warning_active_status(
 
             send_ephemeral(
                 &ctx,
-                format!("Could not find an {} warning with ID **#{}** in this server.", status_description, id),
+                format!("Could not find an {status_description} warning with ID **#{id}** in this server."),
             ).await?;
         }
     }

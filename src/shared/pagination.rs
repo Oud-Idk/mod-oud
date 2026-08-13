@@ -20,12 +20,13 @@ impl PaginationState {
         Self {
             current_page: 0,
             total_pages,
-            prev_id: format!("{}_prev", ctx_id),
-            next_id: format!("{}_next", ctx_id),
+            prev_id: format!("{ctx_id}_prev"),
+            next_id: format!("{ctx_id}_next"),
         }
     }
 
-    pub fn current_page(&self) -> usize {
+    #[must_use]
+    pub const fn current_page(&self) -> usize {
         self.current_page
     }
 
@@ -120,7 +121,7 @@ fn get_stream_collector(ctx: &Context<'_>) -> impl Stream<Item=ComponentInteract
     trace!(author_id = ctx.author().id.get(), "Initializing component interaction collector");
     serenity::all::ComponentInteractionCollector::new(ctx.serenity_context())
         .author_id(ctx.author().id)
-        .timeout(std::time::Duration::from_secs(120))
+        .timeout(std::time::Duration::from_mins(2))
         .stream()
 }
 

@@ -35,7 +35,7 @@ pub struct StartedTrack {
     pub metadata: AuxMetadata,
 }
 
-/// Lightweight handler that notifies the GuildActor when a track ends naturally.
+/// Lightweight handler that notifies the `GuildActor` when a track ends naturally.
 #[derive(Clone)]
 pub struct TrackEndHandler {
     pub command_tx: mpsc::Sender<GuildCommand>,
@@ -52,7 +52,7 @@ pub enum SeekMode {
 impl VoiceEventHandler for TrackEndHandler {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         if let EventContext::Track(tracks) = ctx {
-            for (state, _handle) in tracks.iter() {
+            for (state, _handle) in *tracks {
                 debug!(
                     uuid = %self.expected_uuid,
                     played_secs = state.play_time.as_secs_f64(),
@@ -186,9 +186,9 @@ pub fn format_duration(duration: Option<Duration>) -> String {
             let secs = total_secs % 60;
 
             if hours > 0 {
-                format!("{:02}:{:02}:{:02}", hours, mins, secs)
+                format!("{hours:02}:{mins:02}:{secs:02}")
             } else {
-                format!("{:02}:{:02}", mins, secs)
+                format!("{mins:02}:{secs:02}")
             }
         }
         None => "Unknown".to_string(),
@@ -196,9 +196,9 @@ pub fn format_duration(duration: Option<Duration>) -> String {
 }
 
 /// Returns `true` when a track is a live/infinite stream (no finite duration),
-/// e.g. a YouTube live stream. yt-dlp reports `duration: null` for live sources.
+/// e.g. a `YouTube` live stream. yt-dlp reports `duration: null` for live sources.
 pub fn is_live_stream(metadata: &AuxMetadata) -> bool {
-    metadata.duration.map_or(true, |d| d.is_zero())
+    metadata.duration.is_none_or(|d| d.is_zero())
 }
 
 /// Parses a string like "1:30", "01:15:30", or "90" into a `Duration`.

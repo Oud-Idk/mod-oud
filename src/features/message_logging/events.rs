@@ -1,9 +1,11 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
+use crate::features;
 use crate::features::message_logging::cache::{fetch_dist_cached_message, fetch_dist_edit_details};
 use crate::features::message_logging::filters;
-use crate::features::message_logging::types::{CachedAuditLogs, DeletedMessagePayload, ModifiedMessagePayload};
-use crate::features;
+use crate::features::message_logging::types::{
+    CachedAuditLogs, DeletedMessagePayload, ModifiedMessagePayload,
+};
 use fred::interfaces::FredResult;
 use serenity::all::{MessageAction, audit_log};
 use std::sync::Arc;
@@ -28,53 +30,49 @@ async fn determine_deleter(
 
     let cached_logs = audit_cache.get(&guild_id_u64).await;
 
-    let audit_data = match cached_logs {
-        Some(data) => {
-            debug!("Using cached audit logs for deleter lookup");
-            data
-        }
-        None => {
-            debug!("Audit logs cache miss. Sleeping 800ms before querying Discord API...");
-            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    let audit_data = if let Some(data) = cached_logs {
+        debug!("Using cached audit logs for deleter lookup");
+        data
+    } else {
+        debug!("Audit logs cache miss. Sleeping 800ms before querying Discord API...");
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
 
-            debug!("Requesting message delete audit logs from Discord API");
-            let audit_logs = match guild_id
-                .audit_logs(
-                    &ctx.http,
-                    Some(audit_log::Action::Message(MessageAction::Delete)),
-                    None,
-                    None,
-                    Some(10),
-                )
-                .await
-            {
-                Ok(logs) => logs,
-                Err(e) => {
-                    warn!(error = %e, "Failed to retrieve audit logs from Discord API");
-                    return None;
-                }
-            };
+        debug!("Requesting message delete audit logs from Discord API");
+        let audit_logs = match guild_id
+            .audit_logs(
+                &ctx.http,
+                Some(audit_log::Action::Message(MessageAction::Delete)),
+                None,
+                None,
+                Some(10),
+            )
+            .await
+        {
+            Ok(logs) => logs,
+            Err(e) => {
+                warn!(error = %e, "Failed to retrieve audit logs from Discord API");
+                return None;
+            }
+        };
 
-            let data = Arc::new(CachedAuditLogs {
-                entries: audit_logs.entries,
-                users: audit_logs.users,
-            });
+        let data = Arc::new(CachedAuditLogs {
+            entries: audit_logs.entries,
+            users: audit_logs.users,
+        });
 
-            audit_cache.insert(guild_id_u64, data.clone()).await;
-            data
-        }
+        audit_cache.insert(guild_id_u64, data.clone()).await;
+        data
     };
 
     for entry in &audit_data.entries {
-        let target_matches = entry.target_id.map(|id| id.get() == author_id).unwrap_or(false);
+        let target_matches = entry.target_id.is_some_and(|id| id.get() == author_id);
         let mut channel_matches = false;
 
-        if let Some(options) = &entry.options {
-            if let Some(entry_channel_id) = options.channel_id {
-                if entry_channel_id == channel_id {
-                    channel_matches = true;
-                }
-            }
+        if let Some(options) = &entry.options
+            && let Some(entry_channel_id) = options.channel_id
+            && entry_channel_id == channel_id
+        {
+            channel_matches = true;
         }
 
         if target_matches && channel_matches {
@@ -106,7 +104,7 @@ pub async fn message_log_delete(
     ctx: &serenity::all::Context,
     channel_id: &serenity::all::ChannelId,
     deleted_message_id: &serenity::all::MessageId,
-    guild_id: &Option<serenity::all::GuildId>,
+    guild_id: Option<&serenity::all::GuildId>,
     data: &BotData,
 ) -> Result<(), Error> {
     trace!("Received message delete event.");
@@ -114,25 +112,40 @@ pub async fn message_log_delete(
         return Ok(());
     };
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, g_id).await?;
+    let settings = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        g_id,
+    )
+    .await?;
     let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };
 
-    let is_enabled = logging_config.events.as_ref().and_then(|ev| ev.message_delete).unwrap_or(false);
+    let is_enabled = logging_config
+        .events
+        .as_ref()
+        .and_then(|ev| ev.message_delete)
+        .unwrap_or(false);
 
     if !is_enabled {
         return Ok(());
     }
 
-    let Some(msg) = (match filters::fetch_cached_message(&ctx.cache, channel_id, deleted_message_id) {
+    let Some(msg) = (match filters::fetch_cached_message(&ctx.cache, channel_id, deleted_message_id)
+    {
         Some(local_msg) => Some(local_msg),
-        None => fetch_dist_cached_message(&data.core.redis, *channel_id, *deleted_message_id).await?
+        None => {
+            fetch_dist_cached_message(&data.core.redis, *channel_id, *deleted_message_id).await?
+        }
     }) else {
         return Ok(());
     };
 
-    if filters::should_exclude_from_logging(logging_config, msg.author_id, msg.chan_id, g_id, ctx).await {
+    if filters::should_exclude_from_logging(logging_config, msg.author_id, msg.chan_id, g_id, ctx)
+        .await
+    {
         return Ok(());
     }
 
@@ -141,14 +154,21 @@ pub async fn message_log_delete(
     let audit_log_cache = data.caches.audit_logs.clone();
     let ctx_clone = ctx.clone();
     let msg_clone = msg;
-    let guild_id_opt = *guild_id;
+    let guild_id_opt = guild_id.copied();
     let channel_id_val = *channel_id;
 
     tokio::spawn(async move {
         debug!("Spawning background task to match deletion audit logs and insert record");
 
         let deleted_by = if let Some(g_id_raw) = guild_id_opt {
-            determine_deleter(&ctx_clone, g_id_raw, channel_id_val, msg_clone.author_id as u64, &audit_log_cache).await
+            determine_deleter(
+                &ctx_clone,
+                g_id_raw,
+                channel_id_val,
+                msg_clone.author_id.cast_unsigned(),
+                &audit_log_cache,
+            )
+            .await
         } else {
             None
         };
@@ -161,8 +181,9 @@ pub async fn message_log_delete(
             &msg_clone,
             g_id,
             &joined_image_urls,
-            &deleted_by
-        ).await;
+            &deleted_by,
+        )
+        .await;
 
         if let Err(e) = db_res {
             error!(error = %e, "Failed to insert deleted message log into database");
@@ -183,10 +204,11 @@ pub async fn message_log_delete(
 
         if let Ok(payload_json) = serde_json::to_string(&payload) {
             debug!("Publishing delete event");
-            let res: FredResult<()> = features::message_logging::cache::publish_delete_event(redis, payload_json).await;
+            let res: FredResult<()> =
+                features::message_logging::cache::publish_delete_event(redis, payload_json).await;
             if let Err(err) = res {
                 warn!(error = %err, "Failed to publish delete message event!");
-            };
+            }
         }
     });
 
@@ -223,33 +245,45 @@ pub async fn log_message_update(
         return Ok(());
     };
 
-    let is_enabled = logging_config.events.as_ref().and_then(|ev| ev.message_edit).unwrap_or(false);
+    let is_enabled = logging_config
+        .events
+        .as_ref()
+        .and_then(|ev| ev.message_edit)
+        .unwrap_or(false);
 
     if !is_enabled {
         return Ok(());
     }
 
-    let Some(details) = (match filters::extract_edit_details(old_if_available, new, event) {
-        Some(local_details) => {
+    let Some(details) =
+        (if let Some(local_details) = filters::extract_edit_details(old_if_available, new, event) {
             debug!("Resolved edit details using active cache");
             Some(local_details)
-        }
-        None => {
+        } else {
             debug!("Edit details not available locally; querying distributed Redis cache");
             fetch_dist_edit_details(redis, event).await?
-        }
-    }) else {
+        })
+    else {
         warn!("Unable to retrieve message modification history; log action skipped");
         return Ok(());
     };
 
-    if filters::should_exclude_from_logging(logging_config, details.author_id, details.chan_id, g_id, ctx).await {
+    if filters::should_exclude_from_logging(
+        logging_config,
+        details.author_id,
+        details.chan_id,
+        g_id,
+        ctx,
+    )
+    .await
+    {
         debug!("Message edit logging skipped due to inclusion/exclusion filters");
         return Ok(());
     }
 
     debug!("Inserting message modification history into the database");
-    features::message_logging::database::insert_modified_messages(&data.core.db, &details, g_id).await?;
+    features::message_logging::database::insert_modified_messages(&data.core.db, &details, g_id)
+        .await?;
 
     let payload = ModifiedMessagePayload {
         id: details.msg_id,
@@ -264,8 +298,11 @@ pub async fn log_message_update(
 
     match serde_json::to_string(&payload) {
         Ok(payload_json) => {
-            debug!("Publishing modified message payload to Redis pub/sub channel 'discord:updates'");
-            let pub_res: FredResult<()> = features::message_logging::cache::publish_edit_event(redis, payload_json).await;
+            debug!(
+                "Publishing modified message payload to Redis pub/sub channel 'discord:updates'"
+            );
+            let pub_res: FredResult<()> =
+                features::message_logging::cache::publish_edit_event(redis, payload_json).await;
 
             if let Err(e) = pub_res {
                 error!(error = %e, "Failed to publish update event payload to Redis channel");

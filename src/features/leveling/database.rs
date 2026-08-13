@@ -1,18 +1,20 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::BotData;
 use crate::features::leveling::cache;
-use crate::features::leveling::keys::member_stats_key;
 use crate::features::leveling::types::{LevelReward, LevelingConfig, UserLevel, XpMultiplier};
 use anyhow::Result;
 use fred::clients::Client;
-use fred::interfaces::{KeysInterface, SetsInterface, TransactionInterface};
+use fred::interfaces::KeysInterface;
 use serenity::all::{GuildId, UserId};
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
-use std::result;
 use tracing::trace;
 
-pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<Option<UserLevel>> {
+pub async fn get_level(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<Option<UserLevel>> {
     Ok(sqlx::query_as!(
         UserLevel,
         "SELECT *
@@ -20,7 +22,9 @@ pub async fn get_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Resul
         WHERE user_id = $1 AND guild_id = $2",
         user_id.get() as i64,
         guild_id.get() as i64,
-    ).fetch_optional(db).await?)
+    )
+    .fetch_optional(db)
+    .await?)
 }
 
 pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Result<UserLevel> {
@@ -32,14 +36,11 @@ pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Re
         user_id.get() as i64,
         guild_id.get() as i64,
     )
-        .fetch_one(db)
-        .await?)
+    .fetch_one(db)
+    .await?)
 }
 
-pub async fn update_level(
-    db: &PgPool,
-    user_level: &UserLevel,
-) -> Result<PgQueryResult> {
+pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQueryResult> {
     let result = sqlx::query!(
         "UPDATE levels
          SET cumulative_xp = $1, current_level = $2, current_xp = $3
@@ -50,8 +51,8 @@ pub async fn update_level(
         user_level.user_id,
         user_level.guild_id
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(result)
 }
@@ -66,17 +67,14 @@ pub async fn get_multipliers(db: &PgPool, guild_id: i64) -> Result<Vec<XpMultipl
         "#,
         guild_id
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     Ok(multipliers)
 }
 
 /// Fetches all level rewards for a specific guild
-pub async fn fetch_level_rewards(
-    db: &PgPool,
-    guild_id: i64,
-) -> Result<Vec<LevelReward>> {
+pub async fn fetch_level_rewards(db: &PgPool, guild_id: i64) -> Result<Vec<LevelReward>> {
     Ok(sqlx::query_as!(
         LevelReward,
         r#"
@@ -86,49 +84,62 @@ pub async fn fetch_level_rewards(
         "#,
         guild_id
     )
-        .fetch_all(db)
-        .await?)
+    .fetch_all(db)
+    .await?)
 }
 
-pub async fn get_user_level(redis: &Client, db: &PgPool, guild_id: &GuildId, author_id: &UserId, stats_key: &str, username: &str) -> Result<UserLevel> {
+pub async fn get_user_level(
+    redis: &Client,
+    db: &PgPool,
+    guild_id: &GuildId,
+    author_id: &UserId,
+    stats_key: &str,
+    _username: &str,
+) -> Result<UserLevel> {
     let cached_user: Option<String> = redis.get(stats_key).await?;
 
-    match cached_user {
-        Some(json_data) => {
-            Ok(serde_json::from_str::<UserLevel>(&json_data)?)
-        }
-        None => {
-            let db_user = get_level(db, *guild_id, *author_id).await?;
+    if let Some(json_data) = cached_user {
+        Ok(serde_json::from_str::<UserLevel>(&json_data)?)
+    } else {
+        let db_user = get_level(db, *guild_id, *author_id).await?;
 
-            let user = match db_user {
-                Some(user) => user,
-                None => {
-                    insert_level(db, *guild_id, *author_id).await?
-                }
-            };
+        let user = match db_user {
+            Some(user) => user,
+            None => insert_level(db, *guild_id, *author_id).await?,
+        };
 
-            let serialized = serde_json::to_string(&user)?;
-            let _: () = cache::save_user_level_cache(redis, stats_key, serialized).await?;
+        let serialized = serde_json::to_string(&user)?;
+        let _: () = cache::save_user_level_cache(redis, stats_key, serialized).await?;
 
-            Ok(user)
-        }
+        Ok(user)
     }
 }
 
 pub async fn load_leveling_config(
     data: &BotData,
     guild_id: GuildId,
-) -> Result<Option<LevelingConfig>> {
-    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64)
-        .await?;
+) -> Result<Option<Box<LevelingConfig>>> {
+    let config = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id.get() as i64,
+    )
+    .await?;
 
     let Some(leveling_config) = config.leveling else {
-        trace!(guild_id = guild_id.get(), "Skipping XP reward: leveling system is unconfigured");
+        trace!(
+            guild_id = guild_id.get(),
+            "Skipping XP reward: leveling system is unconfigured"
+        );
         return Ok(None);
     };
 
     if !leveling_config.voice.enabled {
-        trace!(guild_id = guild_id.get(), "Skipping XP reward: voice leveling is disabled");
+        trace!(
+            guild_id = guild_id.get(),
+            "Skipping XP reward: voice leveling is disabled"
+        );
         return Ok(None);
     }
 
@@ -164,7 +175,13 @@ pub async fn upsert_level(
     Ok(())
 }
 
-pub async fn get_user_rank(db: &PgPool, guild_id: i64, user_id: i64, user_level: i32, user_xp: i32) -> Result<Option<i64>> {
+pub async fn get_user_rank(
+    db: &PgPool,
+    guild_id: i64,
+    _user_id: i64,
+    user_level: i32,
+    user_xp: i32,
+) -> Result<Option<i64>> {
     let rank = sqlx::query_scalar!(
         r#"
         SELECT COUNT(*) + 1
@@ -176,8 +193,8 @@ pub async fn get_user_rank(db: &PgPool, guild_id: i64, user_id: i64, user_level:
         user_level,
         user_xp
     )
-        .fetch_one(db)
-        .await?;
+    .fetch_one(db)
+    .await?;
 
     Ok(rank)
 }

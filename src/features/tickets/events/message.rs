@@ -1,4 +1,4 @@
-use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::tickets;
 use crate::features::tickets::cache::{is_ticket_active, update_activity_redis};
@@ -55,17 +55,17 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
     trace!(has_role = has_role, "Logging message payload to database queue");
     log_message_to_db(&data.ticket_log_tx, channel_id, message, message.author.name.clone(), has_role);
 
-    let ticket_key = format!("ticket:{}", channel_id_str);
-    let mut redis_conn = data.core.redis.clone();
+    let ticket_key = format!("ticket:{channel_id_str}");
+    let redis_conn = data.core.redis.clone();
 
     let bump_every_mins = (ticket_config.bump_every.as_secs() / 60) as i32;
 
     trace!("Updating Redis ticket activity tracking");
-    let (should_rotate, last_button_id_str) = update_activity_redis(&mut redis_conn, &ticket_key, bump_every_mins).await?;
+    let (should_rotate, last_button_id_str) = update_activity_redis(&redis_conn, &ticket_key, bump_every_mins).await?;
 
     if should_rotate {
         info!("Message threshold reached; rotating close button placement");
-        rotate_close_button(ctx, data, &mut redis_conn, channel_id, &ticket_key, last_button_id_str).await?;
+        rotate_close_button(ctx, data, &redis_conn, channel_id, &ticket_key, last_button_id_str).await?;
     }
 
     Ok(())
@@ -100,12 +100,11 @@ async fn rotate_close_button(
     ticket_key: &str,
     old_button_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
-    if let Some(old_id_str) = old_button_id {
-        if let Ok(old_id_u64) = old_id_str.parse::<u64>() {
+    if let Some(old_id_str) = old_button_id
+        && let Ok(old_id_u64) = old_id_str.parse::<u64>() {
             debug!(old_id = %old_id_u64, "Deleting deprecated close button message");
             let _ = channel_id.delete_message(&ctx.http, MessageId::new(old_id_u64)).await;
         }
-    }
 
     let close_button = vec![serenity::all::CreateActionRow::Buttons(vec![
         serenity::all::CreateButton::new("close_ticket")
@@ -128,7 +127,7 @@ async fn rotate_close_button(
 
     debug!("Updating message database and Redis states with new close button position");
     let db_update = tickets::database::update_close_button_db(&data, channel_id, new_msg_id_i64);
-    let redis_update = tickets::cache::update_close_button_redis(&redis, &ticket_key, new_msg_id_i64);
+    let redis_update = tickets::cache::update_close_button_redis(redis, ticket_key, new_msg_id_i64);
 
     tokio::try_join!(db_update, redis_update)?;
     info!(new_msg_id = %new_msg_id_i64, "Close button placement rotated successfully");

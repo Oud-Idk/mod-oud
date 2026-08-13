@@ -1,17 +1,15 @@
-use crate::core::config::state::{BotData, Error};
 use crate::features::leveling;
 use crate::features::leveling::types::VcSession;
 use crate::features::leveling::types::{LevelingConfig, UserLevel, XpMultiplier};
 use crate::features::leveling::{database, keys};
-use crate::features;
 use anyhow::Result;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, HashesInterface, KeysInterface, SetsInterface, TransactionInterface};
 use fred::prelude::Expiration;
 use fred::types::SetOptions;
-use serenity::all::{ChannelId, Context, GuildId, Member, UserId};
+use serenity::all::{ChannelId, GuildId, UserId};
 use sqlx::PgPool;
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, instrument, trace, warn};
 
 #[instrument(skip(redis, db), fields(guild_id = %guild_id.get()))]
 pub async fn cache_aside_multipliers(
@@ -23,28 +21,25 @@ pub async fn cache_aside_multipliers(
     debug!(key = %multiplier_key, "Checking Redis cache for multipliers");
     let cached_multipliers: Option<String> = redis.get(multiplier_key).await.ok();
 
-    let multipliers = match cached_multipliers {
-        Some(json_data) => {
-            debug!(key = %multiplier_key, "Cache hit for multipliers");
-            serde_json::from_str(&json_data).unwrap_or_else(|err| {
-                warn!(
-                    error = ?err,
-                    key = %multiplier_key,
-                    "Failed to deserialize cached multipliers; falling back to empty list"
-                );
-                Vec::new()
-            })
-        }
-        None => {
-            debug!(key = %multiplier_key, "Cache miss; fetching multipliers from database");
-            let db_multipliers = database::get_multipliers(db, guild_id.get() as i64).await?;
+    let multipliers = if let Some(json_data) = cached_multipliers {
+        debug!(key = %multiplier_key, "Cache hit for multipliers");
+        serde_json::from_str(&json_data).unwrap_or_else(|err| {
+            warn!(
+                error = ?err,
+                key = %multiplier_key,
+                "Failed to deserialize cached multipliers; falling back to empty list"
+            );
+            Vec::new()
+        })
+    } else {
+        debug!(key = %multiplier_key, "Cache miss; fetching multipliers from database");
+        let db_multipliers = database::get_multipliers(db, guild_id.get() as i64).await?;
 
-            debug!(key = %multiplier_key, "Serializing and caching multipliers in Redis");
-            let serialized = serde_json::to_string(&db_multipliers)?;
-            let _: () = redis.set(multiplier_key, serialized, Some(Expiration::EX(3600)), None, false).await?;
+        debug!(key = %multiplier_key, "Serializing and caching multipliers in Redis");
+        let serialized = serde_json::to_string(&db_multipliers)?;
+        let _: () = redis.set(multiplier_key, serialized, Some(Expiration::EX(3600)), None, false).await?;
 
-            db_multipliers
-        }
+        db_multipliers
     };
 
     Ok(multipliers)
@@ -68,7 +63,7 @@ pub async fn create_redis_cooldown(
         .set(
             cooldown_key,
             1,
-            Some(Expiration::EX(cooldown_duration as i64)),
+            Some(Expiration::EX(i64::from(cooldown_duration))),
             Some(SetOptions::NX),
             false,
         )
@@ -94,7 +89,7 @@ pub async fn save_leveling_cache(
     user_field: &str,
 ) -> Result<()> {
     let serialized = serde_json::to_string(user_level)?;
-    let guild_pending_key = format!("levels:pending:{}", guild_id_str);
+    let guild_pending_key = format!("levels:pending:{guild_id_str}");
 
     let trx = redis.multi();
 
@@ -111,7 +106,7 @@ pub async fn save_user_level_cache(redis: &Client, stats_key: &str, serialized: 
 }
 
 /// Adds a user to a channel's eligible-occupant set.
-/// Returns (count_after, was_newly_added).
+/// Returns (`count_after`, `was_newly_added`).
 pub async fn add_occupant(
     redis: &Client,
     guild_id: GuildId,
@@ -209,13 +204,12 @@ pub async fn resume_clock(
     now: i64,
 ) -> Result<()> {
     let key = leveling::keys::session_key(guild_id, user_id);
-    if let Some(mut s) = get_session(redis, &key).await? {
-        if s.clock_started_at.is_none() {
+    if let Some(mut s) = get_session(redis, &key).await?
+        && s.clock_started_at.is_none() {
             trace!(guild_id = guild_id.get(), user_id = user_id.get(), "Resuming voice XP clock");
             s.clock_started_at = Some(now);
             set_session(redis, &key, &s).await?;
         }
-    }
     Ok(())
 }
 
@@ -228,13 +222,12 @@ pub async fn pause_clock(
     now: i64,
 ) -> Result<()> {
     let key = leveling::keys::session_key(guild_id, user_id);
-    if let Some(mut s) = get_session(redis, &key).await? {
-        if let Some(started) = s.clock_started_at.take() {
+    if let Some(mut s) = get_session(redis, &key).await?
+        && let Some(started) = s.clock_started_at.take() {
             trace!(guild_id = guild_id.get(), user_id = user_id.get(), "Pausing voice XP clock (alone in channel)");
             s.accumulated_secs += (now - started).max(0);
             set_session(redis, &key, &s).await?;
         }
-    }
     Ok(())
 }
 

@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::interval;
-use tracing::debug;
 
 /// Stores or updates the username relation in both Postgres and Redis.
 pub async fn store_username_relation(
@@ -25,7 +24,7 @@ pub async fn get_username(
     redis: &Client,
     id: u64,
 ) -> anyhow::Result<Option<String>, Error> {
-    let redis_key = format!("username:{}", id);
+    let redis_key = format!("username:{id}");
 
     if let Ok(cached_name) = redis.get::<String, &str>(&redis_key).await {
         return Ok(Some(cached_name));

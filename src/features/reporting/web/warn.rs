@@ -41,7 +41,7 @@ pub async fn handle_warn(
     )
         .await
         .inspect_err(|e| error!(error = %e, "Failed to execute warning issuance"))
-        .map_err(|e| { WebError::Internal })?;
+        .map_err(|_e| { WebError::Internal })?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserWarned).await?;
     Ok(StatusCode::OK)

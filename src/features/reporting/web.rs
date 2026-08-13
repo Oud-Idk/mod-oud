@@ -67,7 +67,7 @@ pub async fn handle_dashboard_command(
                 &guild_id,
                 &user_id,
                 &redis_conn,
-                &moderator_name,
+                moderator_name,
                 &target_username
             ).await?;
         }

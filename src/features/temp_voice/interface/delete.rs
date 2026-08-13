@@ -3,7 +3,7 @@ use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_but
 use crate::features::temp_voice::service;
 use serenity::all::{ComponentInteraction, Context};
 
-pub(crate) async fn handle_delete_temp_vc(
+pub async fn handle_delete_temp_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
     data: &BotData,

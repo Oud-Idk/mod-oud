@@ -69,11 +69,10 @@ pub async fn handle_send_reaction_role_message(
     if matches!(config_row.mode, InteractionMode::Reaction) {
         let reactions = fetch_active_reactions(&state.core.db, config_row.id).await?;
         for r in reactions {
-            if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>() {
-                if let Err(err) = message.react(&state.serenity_http, emoji).await {
+            if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>()
+                && let Err(err) = message.react(&state.serenity_http, emoji).await {
                     warn!(error = ?err, "Failed applying reaction emoji to post");
                 }
-            }
         }
     }
 

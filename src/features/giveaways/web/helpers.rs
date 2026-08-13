@@ -30,7 +30,7 @@ pub fn build_giveaway_msg(
         embed,
         |text| placeholders::replace_giveaway_placeholders(text, prize, winner_count, &host_user, gctx, &end_time_str),
     )
-        .map_err(|e| {
+        .map_err(|_e| {
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
         })?;
 
@@ -39,8 +39,7 @@ pub fn build_giveaway_msg(
         let default_embed = serenity::all::CreateEmbed::new()
             .title("🎉 GIVEAWAY 🎉")
             .description(format!(
-                "**Prize:** {}\n**Winners:** {}\n**Ends:** <t:{}:R>\n\nReact with 🎉 to enter!",
-                prize, winner_count, end_time_str
+                "**Prize:** {prize}\n**Winners:** {winner_count}\n**Ends:** <t:{end_time_str}:R>\n\nReact with 🎉 to enter!"
             ))
             .color(0x5865F2);
 

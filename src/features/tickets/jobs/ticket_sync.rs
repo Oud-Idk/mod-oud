@@ -165,7 +165,7 @@ pub fn sync_tickets(
 
         debug!("Subscribing to 'ticket_updates' pub/sub channel");
         match subscriber_clone_startup.subscribe("ticket_updates").await {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Subscribed to 'ticket_updates' channel. Auto-reconnect and re-hydration active");
             }
             Err(e) => {

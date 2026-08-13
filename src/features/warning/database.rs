@@ -129,9 +129,8 @@ pub async fn fetch_warn_thresholds(db: &PgPool, redis: &Client, guild_id: &Guild
     let cache_key = format!("warn_thresholds:{}", guild_id.get());
     let cached_data: Option<String> = redis.get(&cache_key).await.ok();
 
-    if let Some(json_string) = cached_data {
-        if let Ok(thresholds) = serde_json::from_str::<Vec<WarnThreshold>>(&json_string) { return Ok(thresholds); }
-    }
+    if let Some(json_string) = cached_data
+        && let Ok(thresholds) = serde_json::from_str::<Vec<WarnThreshold>>(&json_string) { return Ok(thresholds); }
 
     let thresholds = sqlx::query_as!(
         WarnThreshold,

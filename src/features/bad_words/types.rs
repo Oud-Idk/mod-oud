@@ -37,7 +37,7 @@ impl Clone for Pattern {
         }
 
         Self {
-            strategy: self.strategy.clone(),
+            strategy: self.strategy,
             value: self.value.clone(),
             compiled_regex: re_cell,
             lowercase_value: lower_cell,
@@ -59,7 +59,7 @@ pub struct BadWordRuleset {
 }
 
 impl BadWordRuleset {
-    /// Maps our dynamic ruleset properties into a standard BaseRule structure
+    /// Maps our dynamic ruleset properties into a standard `BaseRule` structure
     pub fn to_base_rule(&self) -> BaseRule {
         BaseRule {
             enabled: self.enabled,

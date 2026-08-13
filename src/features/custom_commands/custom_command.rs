@@ -52,7 +52,7 @@ pub async fn handle_custom_command(
                 msg.reply(&ctx.http, "You are on cooldown!").await?;
                 return Ok(());
             }
-            let _: () = redis.set(&key, "1", Some(Expiration::EX(command.cooldown_seconds as i64)), None, false).await?;
+            let _: () = redis.set(&key, "1", Some(Expiration::EX(i64::from(command.cooldown_seconds))), None, false).await?;
         }
     }
 
@@ -61,7 +61,7 @@ pub async fn handle_custom_command(
     }
 
     for action in command.actions.iter() {
-        execute_payload(&ctx, msg, &guild_ctx, channel, action).await?;
+        execute_payload(&ctx, msg, guild_ctx, channel, action).await?;
     }
 
     Ok(())

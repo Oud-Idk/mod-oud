@@ -11,16 +11,15 @@ mod spam;
 mod native_rules;
 mod crypto_address;
 
-use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::settings::get_settings;
 use crate::features::automod::types::FilterVerdict;
 use crate::features::bad_words::{filter_bad_words, get_active_bad_word_rulesets};
-use crate::features::{automod, bad_words};
+use crate::features::automod;
 use anyhow::Result;
 pub use honeypot::handle_honeypot;
 pub use native_rules::store_automod;
 use crate::core::config::state::{BotData, Error};
-use poise::serenity_prelude::{Context, GuildId, Message};
-use std::result;
+use poise::serenity_prelude::{Context, Message};
 use tracing::{debug, instrument, trace};
 
 #[instrument(

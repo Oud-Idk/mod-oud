@@ -2,12 +2,11 @@ use crate::core::config::state::{Context, Error};
 use crate::features::moderation::{ActionType, lockdown, log_moderation_action};
 use crate::shared::command_context::GuildMetadata;
 use fred::prelude::*;
-use serde::{Deserialize, Serialize};
 use serenity::all::{
-    ChannelId, GuildChannel, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions,
+    GuildChannel, GuildId,
     RoleId,
 };
-use tracing::{info, trace, warn};
+use tracing::{info, trace};
 
 /// Lock down a text channel, preventing members from sending messages.
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
@@ -27,7 +26,7 @@ pub async fn lock(
     let everyone_role_id = RoleId::new(meta.id.get());
 
     // Snapshot current state before mutating it, so unlock can restore precisely.
-    lockdown::save_pre_lockdown_state(meta.id, &target_channel, everyone_role_id, &ctx.data()).await?;
+    lockdown::save_pre_lockdown_state(meta.id, &target_channel, everyone_role_id, ctx.data()).await?;
 
     let overwrite = lockdown::calculate_lockdown_overwrite(&target_channel, everyone_role_id);
     target_channel
@@ -72,7 +71,7 @@ pub async fn unlock(
     let target_channel_id = target_channel.id.get();
     let everyone_role_id = RoleId::new(meta.id.get());
 
-    lockdown::restore_pre_lockdown_state(&ctx.serenity_context(), &ctx.data(), meta.id, target_channel.id, everyone_role_id).await?;
+    lockdown::restore_pre_lockdown_state(ctx.serenity_context(), ctx.data(), meta.id, target_channel.id, everyone_role_id).await?;
 
     ctx.say(format!("🔓 <#{}> has been unlocked.", target_channel.id))
         .await?;
@@ -97,7 +96,7 @@ pub async fn global_lock(
     #[description = "Reason for the server-wide lockdown"] reason: Option<String>,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    let guild_id = ctx.guild_id().map(|g| g.get());
+    let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
     info!(caller_id, guild_id, "Invoked global_lock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
@@ -105,7 +104,7 @@ pub async fn global_lock(
     ctx.say("⏳ Initiating global lockdown. Processing channels...")
         .await?;
 
-    let report = lockdown::apply_global_lock(&ctx.serenity_context(), &ctx.data(), meta.id).await?;
+    let report = lockdown::apply_global_lock(ctx.serenity_context(), ctx.data(), meta.id).await?;
 
     if let Some(report) = report {
         let reason_str = reason.as_deref().unwrap_or("No reason provided");
@@ -149,7 +148,7 @@ pub async fn global_lock(
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
 pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    let guild_id = ctx.guild_id().map(|g| g.get());
+    let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
     info!(caller_id, guild_id, "Invoked global_unlock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
@@ -157,7 +156,7 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("Initiating global unlock. Processing channels...")
         .await?;
 
-    let report = lockdown::apply_global_unlock(&ctx.serenity_context(), &ctx.data(), meta.id).await?;
+    let report = lockdown::apply_global_unlock(ctx.serenity_context(), ctx.data(), meta.id).await?;
 
     if let Some(report) = report {
         ctx.say(format!(
@@ -209,7 +208,7 @@ pub async fn log_action(
         "Dispatching moderation log to database and Discord integration"
     );
     log_moderation_action(
-        &ctx.data().core.db, guild_id, None, &ctx.author(), reason, action, None,
+        &ctx.data().core.db, guild_id, None, ctx.author(), reason, action, None,
     ).await?;
     Ok(())
 }

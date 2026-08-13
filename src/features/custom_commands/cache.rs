@@ -26,8 +26,5 @@ pub async fn get_custom_command_from_redis(redis: &Client, cache_key: &str) -> O
     }
 
     // Try parsing JSON; if bad JSON, treat as Miss so DB can refresh it
-    match serde_json::from_str::<CustomCommand>(&cached_str) {
-        Ok(cmd) => Some(cmd),
-        Err(_) => None,
-    }
+    serde_json::from_str::<CustomCommand>(&cached_str).ok()
 }

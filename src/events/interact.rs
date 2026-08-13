@@ -1,21 +1,27 @@
-use crate::features::verification::generate_verification_link;
-
 use crate::features::{reaction_roles, tickets};
-use crate::features::temp_voice;
+use crate::features::{temp_voice, verification};
 
-use crate::core::config::state::{BotData, Error};
+use crate::core::config::state::BotData;
+use anyhow::Result;
 use poise::serenity_prelude as serenity;
 use serenity::all::Interaction;
-use tracing::{debug, warn};
+use tracing::debug;
 
+/// A wrapper for button interactions and modal interactions
+///
+/// # Errors
+/// Propagates error from features to here.
 pub async fn on_interact(
     ctx: &serenity::Context,
     interaction: &Interaction,
     data: &BotData,
-) -> Result<(), Error> {
+) -> Result<()> {
     match interaction {
         Interaction::Component(component) => {
-            debug!(id = component.data.custom_id.as_str(), "Got component interaction");
+            debug!(
+                id = component.data.custom_id.as_str(),
+                "Got component interaction"
+            );
 
             let custom_id = component.data.custom_id.as_str();
 
@@ -32,34 +38,7 @@ pub async fn on_interact(
             match custom_id {
                 "open_ticket" => tickets::on_open_ticket(ctx, component, data).await?,
                 "close_ticket" => tickets::on_close_ticket(ctx, component, data).await?,
-
-                "verify" => {
-                    let Some(guild_id) = component.guild_id else {
-                        return Ok(());
-                    };
-                    let Some(shared_secret) = data.core.config.shared_secret.as_deref() else {
-                        warn!("Shared secret not set up for verification");
-                        return Ok(());
-                    };
-                    let verification_link = generate_verification_link(
-                        component.user.id.get(),
-                        guild_id.get(),
-                        shared_secret.as_bytes(),
-                        data.core.config.domain.as_str(),
-                    );
-
-                    // Reusing our ephemeral reply helper!
-                    component
-                        .create_response(
-                            &ctx.http,
-                            serenity::CreateInteractionResponse::Message(
-                                serenity::CreateInteractionResponseMessage::new()
-                                    .content(format!("Please go to this link to verify: {}", verification_link))
-                                    .ephemeral(true),
-                            ),
-                        )
-                        .await?;
-                }
+                "verify" => verification::send_verification_link(ctx, data, component).await?,
                 _ => {}
             }
         }

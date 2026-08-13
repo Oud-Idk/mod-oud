@@ -14,7 +14,7 @@ pub fn extract_image_urls(message: &serenity::all::Message) -> Vec<String> {
     for attachment in &message.attachments {
         let is_image = attachment.content_type
             .as_deref()
-            .map_or(false, |mime| mime.starts_with("image/"))
+            .is_some_and(|mime| mime.starts_with("image/"))
             || attachment.dimensions().is_some();
 
         if is_image {

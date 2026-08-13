@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-fn is_unknown_ban_error(err: &serenity::Error) -> bool {
+const fn is_unknown_ban_error(err: &serenity::Error) -> bool {
     if let serenity::Error::Http(serenity::HttpError::UnsuccessfulRequest(resp)) = err {
         return resp.error.code == 10026; // 10026 = "Unknown Ban"
     }
@@ -28,7 +28,7 @@ pub fn start_temp_ban_worker(
         info!(worker_id = %lock_value, "Starting temp ban worker task");
 
         loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+            tokio::time::sleep(tokio::time::Duration::from_mins(1)).await;
 
             let now = chrono::Utc::now();
             trace!("Attempting to acquire lock for temp ban processing");
@@ -83,7 +83,7 @@ async fn process_expired_temp_bans(
             let user_id = serenity::UserId::new(record.user_id as u64);
 
             match guild_id.unban(http_ref, user_id).await {
-                Ok(_) => {
+                Ok(()) => {
                     debug!(
                         guild_id = %guild_id,
                         user_id = %user_id,
@@ -121,7 +121,7 @@ async fn process_expired_temp_bans(
         .collect()
         .await;
 
-    let successful_ids: Vec<i64> = results.into_iter().filter_map(|r| r.ok()).collect();
+    let successful_ids: Vec<i64> = results.into_iter().filter_map(std::result::Result::ok).collect();
     let successful_count = successful_ids.len();
 
     if !successful_ids.is_empty() {

@@ -1,10 +1,10 @@
-use crate::core::config::state::{Context, Error};
+use crate::core::config::state::Error;
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serenity::all::{CreateEmbed, CreateMessage};
 use tracing::warn;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, sqlx::Type, PartialEq, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, sqlx::Type, PartialEq, Eq, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[sqlx(type_name = "message_format", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Format {
@@ -56,7 +56,7 @@ pub struct DiscordEmbed {
 }
 
 impl MessageGetter for DiscordEmbed {
-    fn content(&self) -> &str {
+    fn content(&self) -> &'static str {
         "Fuck you SpicyWolf"
     }
 
@@ -80,17 +80,18 @@ pub static DEFAULT_EMBED: DiscordEmbed = DiscordEmbed {
 };
 
 impl DiscordEmbed {
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.title.as_deref().unwrap_or("").trim().is_empty()
             && self.description.as_deref().unwrap_or("").trim().is_empty()
             && self.color.is_none()
-            && self.thumbnail.as_ref().map_or(true, |t| t.url.trim().is_empty())
-            && self.image.as_ref().map_or(true, |i| i.url.trim().is_empty())
-            && self.author.as_ref().map_or(true, |a| a.name.as_deref().unwrap_or("").trim().is_empty())
-            && self.footer.as_ref().map_or(true, |f| f.text.as_deref().unwrap_or("").trim().is_empty())
+            && self.thumbnail.as_ref().is_none_or(|t| t.url.trim().is_empty())
+            && self.image.as_ref().is_none_or(|i| i.url.trim().is_empty())
+            && self.author.as_ref().is_none_or(|a| a.name.as_deref().unwrap_or("").trim().is_empty())
+            && self.footer.as_ref().is_none_or(|f| f.text.as_deref().unwrap_or("").trim().is_empty())
     }
 
-    /// Builds a serenity CreateEmbed using a custom placeholder replacement function.
+    /// Builds a serenity `CreateEmbed` using a custom placeholder replacement function.
     pub fn to_embed<F>(&self, mut replace: F) -> Result<CreateEmbed, anyhow::Error>
     where
         F: FnMut(&str) -> String,
@@ -225,7 +226,7 @@ where
             warn!(error = ?e, "Failed to parse custom embed format");
             Err((
                 StatusCode::BAD_REQUEST,
-                format!("Failed to compile embed: {}", e),
+                format!("Failed to compile embed: {e}"),
             ))
         }
     }

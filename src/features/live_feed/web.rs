@@ -1,12 +1,10 @@
 use crate::core::config::state::WebState;
-use crate::features::message_logging::{DeletedMessagePayload, ModifiedMessagePayload};
-use crate::features::reporting::ReportedMessagePayload;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::Sse;
 use axum::response::sse::{Event, KeepAlive};
 use futures::Stream;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;

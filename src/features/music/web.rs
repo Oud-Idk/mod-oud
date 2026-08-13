@@ -1,13 +1,12 @@
 use crate::core::config::state::WebState;
 use crate::features::music::actor::GuildCommand;
 use crate::features::music::state::MusicState;
-use crate::features::music::web_command::{ClientMessage, MusicAction, ServerMessage, WebCommand, WebCommandBus};
+use crate::features::music::web_command::{ClientMessage, MusicAction, ServerMessage, WebCommand};
 use axum::Router;
 use axum::extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
 use axum::response::Response;
 use axum::routing::get;
-use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use poise::serenity_prelude as serenity;
 use serde::Deserialize;
@@ -107,9 +106,7 @@ async fn handle_music_command(
                 Some(id) => {
                     let name = http
                         .get_user(serenity::UserId::new(id))
-                        .await
-                        .map(|user| user.name)
-                        .unwrap_or_else(|_| "Web".to_string());
+                        .await.map_or_else(|_| "Web".to_string(), |user| user.name);
                     (name, id)
                 }
                 None => ("Web".to_string(), 0),
@@ -220,11 +217,10 @@ async fn handle_socket(socket: WebSocket, state: Arc<WebState>, guild_id: u64) {
                         "event": "nowPlaying",
                         "data": now_playing,
                     });
-                    if let Ok(json) = serde_json::to_string(&payload) {
-                        if msg_tx.send(Message::Text(Utf8Bytes::from(json))).await.is_err() {
+                    if let Ok(json) = serde_json::to_string(&payload)
+                        && msg_tx.send(Message::Text(Utf8Bytes::from(json))).await.is_err() {
                             break;
                         }
-                    }
                 }
             }
         })

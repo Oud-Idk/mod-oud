@@ -18,7 +18,7 @@ pub struct DynamicRaidDetector {
 }
 
 impl DynamicRaidDetector {
-    /// Creates a new DynamicRaidDetector with custom threshold parameters!
+    /// Creates a new `DynamicRaidDetector` with custom threshold parameters!
     pub fn new(
         redis: Client,
         window_size_seconds: i64,
@@ -143,20 +143,17 @@ impl DynamicRaidDetector {
         let lock_key = keys::lock_key(&stats_cache_key);
         let lock_value = Uuid::new_v4().to_string();
 
-        let lock_guard = match acquire_lock(&self.redis, &lock_key, &lock_value, 2).await? {
-            Some(guard) => guard,
-            None => {
-                warn!(
-                    guild_id,
-                    min_safe_limit = self.min_safe_limit,
-                    "Could not acquire lock to recompute threshold; falling back to min_safe_limit"
-                );
-                return Ok(Stats {
-                    threshold: self.min_safe_limit,
-                    mean_window: 0.0,
-                    std_dev_window: 0.0,
-                });
-            }
+        let lock_guard = if let Some(guard) = acquire_lock(&self.redis, &lock_key, &lock_value, 2).await? { guard } else {
+            warn!(
+                guild_id,
+                min_safe_limit = self.min_safe_limit,
+                "Could not acquire lock to recompute threshold; falling back to min_safe_limit"
+            );
+            return Ok(Stats {
+                threshold: self.min_safe_limit,
+                mean_window: 0.0,
+                std_dev_window: 0.0,
+            });
         };
 
         let stats_res = self.recompute_stats(guild_id, now, &stats_cache_key).await;
@@ -240,7 +237,7 @@ fn calculate_threshold(
     let mean_window = mean_hour * scale;
     let std_dev_window = std_dev_hour * scale.sqrt();
 
-    let dynamic_threshold = mean_window + (z_score_multiplier * std_dev_window);
+    let dynamic_threshold = z_score_multiplier.mul_add(std_dev_window, mean_window);
     let final_threshold = (dynamic_threshold.ceil() as i64).max(min_safe_limit);
 
     trace!(

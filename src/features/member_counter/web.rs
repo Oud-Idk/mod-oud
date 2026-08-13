@@ -80,35 +80,32 @@ pub async fn handle_setup_member_counter(
         }
     }
 
-    let category_id = match verified_category_id {
-        Some(valid_id) => valid_id,
-        None => {
-            let category_builder = serenity::CreateChannel::new("📊 Server Stats")
-                .kind(serenity::ChannelType::Category);
+    let category_id = if let Some(valid_id) = verified_category_id { valid_id } else {
+        let category_builder = serenity::CreateChannel::new("📊 Server Stats")
+            .kind(serenity::ChannelType::Category);
 
-            info!(guild_id = guild_id_u64, "Creating 'Server Stats' category for member counters");
+        info!(guild_id = guild_id_u64, "Creating 'Server Stats' category for member counters");
 
-            let category = guild_id
-                .create_channel(&state.serenity_http, category_builder)
-                .await
-                .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create category"))
-                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
+        let category = guild_id
+            .create_channel(&state.serenity_http, category_builder)
+            .await
+            .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create category"))
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
-            guild_settings.member_counter
-                .get_or_insert_with(Default::default)
-                .category_id = Some(category.id.get());
+        guild_settings.member_counter
+            .get_or_insert_with(Default::default)
+            .category_id = Some(category.id.get());
 
-            save_settings(&state.core.db, &state.core.redis, &state.core.guild_configs_cache, guild_id.get() as i64, &guild_settings).await
-                .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to save settings"))
-                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
+        save_settings(&state.core.db, &state.core.redis, &state.core.guild_configs_cache, guild_id.get() as i64, &guild_settings).await
+            .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to save settings"))
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))?;
 
-            category.id
-        }
+        category.id
     };
 
     debug!(category_id = category_id.get(), "Got category for member tracking");
 
-    for counter in updated_counters.iter_mut() {
+    for counter in &mut updated_counters {
         if counter.channel_id.is_none() {
             let channel_name = counter
                 .name_template

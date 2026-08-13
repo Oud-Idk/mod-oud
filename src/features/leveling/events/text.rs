@@ -1,4 +1,3 @@
-use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::leveling;
@@ -6,12 +5,11 @@ use crate::features::leveling::calculation::clamp_to_level_cap;
 use crate::features::leveling::calculation::process_level_ups;
 use crate::features::leveling::database::get_user_level;
 use crate::features::leveling::keys::{member_stats_key, multiplier_key};
+use crate::features::leveling::rules::get_multiplier;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
 use crate::features::leveling::{cache, keys, notifications, rewards, rules};
-use crate::shared::embed::DiscordEmbed;
-use crate::shared::embed::build_custom_message;
-use serenity::all::{Context, CreateMessage, GuildId, Message, User};
+use serenity::all::{Context, Message};
 use tracing::{debug, info, trace, warn};
 
 pub async fn handle_text_leveling(
@@ -19,14 +17,28 @@ pub async fn handle_text_leveling(
     message: &Message,
     data: &BotData,
 ) -> Result<(), Error> {
-    if message.author.bot { return Ok(()); }
+    if message.author.bot {
+        return Ok(());
+    }
 
-    let Some(guild_id) = &message.guild_id else { return Ok(()) };
+    let Some(guild_id) = &message.guild_id else {
+        return Ok(());
+    };
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
+    let settings = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id.get().cast_signed(),
+    )
+    .await?;
     let config_maybe = settings.leveling;
-    let Some(leveling_config) = config_maybe else { return Ok(()) };
-    if !leveling_config.text.enabled { return Ok(()) };
+    let Some(leveling_config) = config_maybe else {
+        return Ok(());
+    };
+    if !leveling_config.text.enabled {
+        return Ok(());
+    }
 
     if should_skip_leveling(message, data, &leveling_config) {
         return Ok(());
@@ -39,10 +51,13 @@ pub async fn handle_text_leveling(
     let redis = &data.core.redis;
 
     let cooldown_key = keys::cooldown_key(guild_id, author);
-    let set_cooldown = cache::create_redis_cooldown(&cooldown_key, &leveling_config, &redis).await?;
+    let set_cooldown = cache::create_redis_cooldown(&cooldown_key, &leveling_config, redis).await?;
 
     if !set_cooldown {
-        trace!(guild_id = guild_id_u64, author_id, "Skipping leveling XP: user is on XP cooldown");
+        trace!(
+            guild_id = guild_id_u64,
+            author_id, "Skipping leveling XP: user is on XP cooldown"
+        );
         return Ok(());
     }
 
@@ -50,17 +65,38 @@ pub async fn handle_text_leveling(
     let multiplier_key = multiplier_key(guild_id);
 
     let (applied_multiplier, mut user_level) = tokio::try_join!(
-        rules::get_multiplier(&redis, &multiplier_key, db, guild_id, message),
-        get_user_level(&redis, db, guild_id, &author.id, &stats_key, &author.name)
+        Box::pin(get_multiplier(
+            redis,
+            &multiplier_key,
+            db,
+            guild_id,
+            message
+        )),
+        Box::pin(get_user_level(
+            redis,
+            db,
+            guild_id,
+            &author.id,
+            &stats_key,
+            &author.name
+        ))
     )?;
 
-    let should_be_clamped = clamp_to_level_cap(&leveling_config, &redis, db, &stats_key, &mut user_level).await?;
+    let should_be_clamped =
+        clamp_to_level_cap(&leveling_config, redis, db, &stats_key, &mut user_level).await?;
     if should_be_clamped {
-        debug!(guild_id = guild_id_u64, author_id, "Skipping leveling XP: user has already reached the leveling cap");
+        debug!(
+            guild_id = guild_id_u64,
+            author_id, "Skipping leveling XP: user has already reached the leveling cap"
+        );
         return Ok(());
     }
 
-    let (previous_level, add_level) = leveling::calculation::calculate_level_up(&leveling_config, applied_multiplier, &mut user_level);
+    let (previous_level, add_level) = leveling::calculation::calculate_level_up(
+        &leveling_config,
+        applied_multiplier,
+        &mut user_level,
+    );
     user_level.current_xp += add_level;
 
     let leveled_up = process_level_ups(&mut user_level, leveling_config.level_cap as i32);
@@ -76,7 +112,7 @@ pub async fn handle_text_leveling(
 
         spawn_level_up_effects(
             ctx.clone(),
-            &db,
+            db,
             message.clone(),
             user_level.clone(),
             leveling_config.clone(),
@@ -85,22 +121,19 @@ pub async fn handle_text_leveling(
     }
 
     cache::save_leveling_cache(
-        &redis,
+        redis,
         &stats_key,
         &user_level,
         &guild_id.get().to_string(),
         &author.id.get().to_string(),
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
 
-pub fn should_skip_leveling(
-    message: &Message,
-    data: &BotData,
-    config: &LevelingConfig,
-) -> bool {
-    let guild_id = message.guild_id.map(|g| g.get()).unwrap_or(0);
+pub fn should_skip_leveling(message: &Message, data: &BotData, config: &LevelingConfig) -> bool {
+    let guild_id = message.guild_id.map_or(0, serenity::all::GuildId::get);
     let channel_id_u64 = message.channel_id.get();
 
     if data.caches.active_tickets.contains_key(&channel_id_u64) {
@@ -108,12 +141,18 @@ pub fn should_skip_leveling(
         return true;
     }
 
-    let user_roles: Vec<u64> = message.member.as_ref()
+    let user_roles: Vec<u64> = message
+        .member
+        .as_ref()
         .map(|m| m.roles.iter().map(|r| r.get()).collect())
         .unwrap_or_default();
 
     if rules::should_exclude_from_level_up(config, &user_roles, channel_id_u64) {
-        trace!(guild_id, author_id = message.author.id.get(), "Skipping leveling XP: member or channel is excluded");
+        trace!(
+            guild_id,
+            author_id = message.author.id.get(),
+            "Skipping leveling XP: member or channel is excluded"
+        );
         return true;
     }
 
@@ -125,7 +164,7 @@ pub fn spawn_level_up_effects(
     db: &sqlx::PgPool,
     message: Message,
     user_level: UserLevel,
-    leveling_config: LevelingConfig,
+    leveling_config: Box<LevelingConfig>,
     previous_level: i32,
 ) {
     let guild_id_val = message.guild_id.unwrap_or_default();
@@ -135,7 +174,11 @@ pub fn spawn_level_up_effects(
 
     tokio::spawn(async move {
         if !matches!(leveling_config.notify.scope, NotificationScope::None) {
-            trace!(guild_id = guild_id_val.get(), author_id = author_id_val.get(), "Initiating level-up notification");
+            trace!(
+                guild_id = guild_id_val.get(),
+                author_id = author_id_val.get(),
+                "Initiating level-up notification"
+            );
 
             if let Err(e) = notifications::send_message(
                 &ctx,
@@ -143,20 +186,29 @@ pub fn spawn_level_up_effects(
                 &user_level,
                 &leveling_config,
                 &guild_id_val,
-                previous_level
-            ).await {
+                previous_level,
+            )
+            .await
+            {
                 warn!(error = ?e, "Failed to send level-up notification");
             }
         }
 
-        trace!(guild_id = guild_id_val.get(), author_id = author_id_val.get(), level = current_level_val, "Evaluating reward assignments");
+        trace!(
+            guild_id = guild_id_val.get(),
+            author_id = author_id_val.get(),
+            level = current_level_val,
+            "Evaluating reward assignments"
+        );
         if let Err(e) = rewards::apply_level_rewards(
             &ctx,
             &db_lvl_up,
             &guild_id_val,
             author_id_val,
-            current_level_val
-        ).await {
+            current_level_val,
+        )
+        .await
+        {
             warn!(
                 error = ?e,
                 guild_id = guild_id_val.get(),
@@ -167,4 +219,3 @@ pub fn spawn_level_up_effects(
         }
     });
 }
-

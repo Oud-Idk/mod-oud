@@ -1,5 +1,5 @@
 use crate::core::config::state::WebState;
-use crate::shared::embed::{DiscordEmbed, Format};
+use crate::shared::embed::DiscordEmbed;
 use crate::shared::embed;
 use axum::Json;
 use axum::extract::{Path, State};
@@ -89,7 +89,7 @@ pub async fn handle_send_temp_voice_interface(
         transfer_btn,
     ]);
 
-    let message_builder = match embed::create_embed_for_web(&payload.embed_state, |t| t.to_string()) {
+    let message_builder = match embed::create_embed_for_web(&payload.embed_state, std::string::ToString::to_string) {
         Ok(value) => value,
         Err(e) => return Err(e),
     }
@@ -100,7 +100,7 @@ pub async fn handle_send_temp_voice_interface(
         .send_message(&state.serenity_http, message_builder)
         .await
         .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to deliver interface"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
+        .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     info!(
         channel_id = payload.channel_id,

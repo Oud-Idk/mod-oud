@@ -1,106 +1,202 @@
-use crate::shared::ok_or_none;
+use crate::core::config::keys::guild_config_key;
+use crate::core::config::message_layout::TogglableMessage;
+use crate::core::config::{database, keys, redis};
 use crate::features::automod::{HoneypotConfig, MessageFilteringConfig};
+use crate::features::birthday::BirthdayConfig;
 use crate::features::invite_tracking::InviteTrackerConfig;
 use crate::features::join_leave::{LeaveConfig, WelcomeConfig};
 use crate::features::leveling::LevelingConfig;
 use crate::features::member_counter::MemberCounterConfig;
 use crate::features::message_logging::MessageLoggingConfig;
+use crate::features::raid_detection::RaidDetectionConfig;
 use crate::features::reporting::ReportConfig;
 use crate::features::tickets::TicketConfig;
-use crate::shared::embed::{DiscordEmbed, MessageGetter, Format};
+use crate::shared::ok_or_none;
+use anyhow::{Context, Result};
 use fred::clients::Client;
 use fred::interfaces::{FredResult, PubsubInterface};
-use fred::prelude::{Expiration, KeysInterface};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tracing::{debug, error, trace, warn};
-use anyhow::Context;
-use crate::features::birthday::BirthdayConfig;
-use crate::features::raid_detection::RaidDetectionConfig;
 
+/// Configuration settings for a Discord server (guild).
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct GuildSettings {
-    pub welcome: Option<WelcomeConfig>,
-    pub leave: Option<LeaveConfig>,
-    pub message_logging: Option<MessageLoggingConfig>,
-    pub message_filtering: Option<MessageFilteringConfig>,
-    pub report: Option<ReportConfig>,
-    pub moderation_dms: Option<ModerationDMsConfig>,
-    pub leveling: Option<LevelingConfig>,
-    pub tickets: Option<TicketConfig>,
-    pub invite_tracker: Option<InviteTrackerConfig>,
-    pub honeypot: Option<HoneypotConfig>,
-    pub member_counter: Option<MemberCounterConfig>,
-    pub birthday: Option<BirthdayConfig>,
-    pub raid_detection: Option<RaidDetectionConfig>
+    /// Configuration for welcome messages sent when a new member joins.
+    pub welcome: Option<Box<WelcomeConfig>>,
+
+    /// Configuration for leave messages sent when a member exits.
+    pub leave: Option<Box<LeaveConfig>>,
+
+    /// Settings for logging message edits, deletions, and purges.
+    pub message_logging: Option<Box<MessageLoggingConfig>>,
+
+    /// Rules for automated message filtering (spam, links, word blacklists).
+    pub message_filtering: Option<Box<MessageFilteringConfig>>,
+
+    /// Configuration for user report commands and target report channels.
+    pub report: Option<Box<ReportConfig>>,
+
+    /// Settings for direct messaging users upon moderation actions (kicks/bans).
+    pub moderation_dms: Option<Box<ModerationDMsConfig>>,
+
+    /// Configuration for experience (XP) and leveling systems.
+    pub leveling: Option<Box<LevelingConfig>>,
+
+    /// Settings for ticket creation and support channel management.
+    pub tickets: Option<Box<TicketConfig>>,
+
+    /// Settings for tracking invite links and member invitation stats.
+    pub invite_tracker: Option<Box<InviteTrackerConfig>>,
+
+    /// Configuration for honeypot channels designed to trap self-bots.
+    pub honeypot: Option<Box<HoneypotConfig>>,
+
+    /// Settings for updating server member count channels or status topics.
+    pub member_counter: Option<Box<MemberCounterConfig>>,
+
+    /// Settings for member birthday tracking and announcement messages.
+    pub birthday: Option<Box<BirthdayConfig>>,
+
+    /// Configuration for automated anti-raid and mass-join protection.
+    pub raid_detection: Option<Box<RaidDetectionConfig>>,
+}
+
+/// Direct message (DM) settings for various moderation actions.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ModerationDMsConfig {
+    /// Message settings sent when a warning is issued to a user.
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub warn: Option<TogglableMessage>,
+
+    /// Message settings sent when a user's warning is pardoned.
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub pardon_warn: Option<TogglableMessage>,
+
+    /// Message settings sent when a warning pardon is revoked (unpardoned).
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub unpardon_warn: Option<TogglableMessage>,
+
+    /// Message settings sent when a deleted warning is unpardoned or restored.
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub unpardon_delete_warn: Option<TogglableMessage>,
+
+    /// Message settings sent when a user is muted or timed out.
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub mute: Option<TogglableMessage>,
+
+    /// Message settings sent when a user's mute or timeout is removed.
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub unmute: Option<TogglableMessage>,
+
+    /// Message settings sent when a user is kicked from the server.
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub kick: Option<TogglableMessage>,
+
+    /// Message settings sent when a user is banned from the server.
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub ban: Option<TogglableMessage>,
+
+    /// Message settings sent when a user is softbanned (kicked with message purge).
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub softban: Option<TogglableMessage>,
+
+    /// Message settings sent when a user triggers an automated honeypot trap.
+    #[serde(default, deserialize_with = "ok_or_none")]
+    pub honeypot: Option<TogglableMessage>,
 }
 
 impl GuildSettings {
+    /// A quick method to check if any message logging is enabled (delete or edit events)
+    #[must_use]
     pub fn is_message_logging_enabled(&self) -> bool {
         self.message_logging
             .as_ref()
             .and_then(|l| l.events.as_ref())
-            .map_or(false, |e| {
-                e.message_delete.unwrap_or(false) || e.message_edit.unwrap_or(false)
-            })
+            .is_some_and(|e| e.message_delete.unwrap_or(false) || e.message_edit.unwrap_or(false))
     }
 }
 
+fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: i64) -> GuildSettings {
+    match serde_path_to_error::deserialize(raw_json) {
+        Ok(s) => {
+            debug!(guild_id, "Found config from DB.");
+            s
+        }
+        Err(err) => {
+            error!(
+                error = %err.inner(),
+                field_path = %err.path(),
+                guild_id,
+                raw_json = %raw_json,
+                "Failed to deserialize database JSON; falling back to default settings"
+            );
+            GuildSettings::default()
+        }
+    }
+}
+
+/// A simple wrapper to put `get_settings_inner` to the heap. Required as the future is massive.
+///
+/// # Errors
+/// Returns `Err` if `get_settings_inner` fails at the DB, Redis, or Moka layer.
+pub async fn get_settings(
+    db: &PgPool,
+    redis: &Client,
+    cache: &moka::future::Cache<i64, GuildSettings>,
+    guild_id: i64,
+) -> Result<GuildSettings> {
+    Box::pin(get_settings_inner(db, redis, cache, guild_id)).await
+}
+
 /// Retrieves settings. Returns a default struct if none exists in the DB.
+///
+/// # Errors
+/// Returns `Err` if DB fails to give the guild config.
 pub async fn get_settings_inner(
     db: &PgPool,
     redis: &Client,
     cache: &moka::future::Cache<i64, GuildSettings>,
     guild_id: i64,
-) -> anyhow::Result<GuildSettings> {
+) -> Result<GuildSettings> {
+    // Get from Moka
     if let Some(settings) = cache.get(&guild_id).await {
         trace!(guild_id, "Retrieved settings from memory cache");
         return Ok(settings);
     }
 
-    let cache_key = format!("config:guild:{}", guild_id);
-
-    if let Some(settings) = get_settings_from_redis(redis, &cache_key, guild_id).await {
+    // Get from Redis
+    let cache_key = guild_config_key(guild_id);
+    if let Some(settings) =
+        Box::pin(redis::get_settings_from_redis(redis, &cache_key, guild_id)).await
+    {
         cache.insert(guild_id, settings.clone()).await;
         return Ok(settings);
     }
 
     debug!(guild_id, key = %cache_key, "Settings cache miss; querying DB");
 
-    let settings_db = get_settings_from_database(db, guild_id)
+    // Get from DB
+    let settings_db = database::get_settings_from_database(db, guild_id)
         .await
         .with_context(|| format!("Failed to query settings from DB for guild_id {guild_id}"))?;
 
-    let settings: GuildSettings = match settings_db {
-        Some(raw_json) => {
-            match serde_path_to_error::deserialize::<_, GuildSettings>(raw_json.clone()) {
-                Ok(s) => {
-                    debug!(guild_id, "Found config from DB.");
-                    s
-                }
-                Err(err) => {
-                    let path = err.path().to_string();
-                    let inner_error = err.into_inner();
-
-                    error!(
-                        error = %inner_error,
-                        field_path = %path,
-                        guild_id,
-                        raw_json = %raw_json,
-                        "Failed to deserialize database JSON; falling back to default settings"
-                    );
-                    GuildSettings::default()
-                }
-            }
-        }
-        None => {
-            trace!(guild_id, "No config found in database; using default settings");
+    // Parses settings, return empty if not exist.
+    let settings = settings_db.map_or_else(
+        || {
+            trace!(
+                guild_id,
+                "No config found in database; using default settings"
+            );
             GuildSettings::default()
-        }
-    };
+        },
+        |raw| parse_guild_settings(&raw, guild_id),
+    );
 
-    if let Err(e) = set_setting_to_redis(redis, &settings, &cache_key).await {
+    // Writes settings to Redis
+    if let Err(e) = redis::set_setting_to_redis(redis, &settings, &cache_key).await {
         warn!(
             error = %e,
             guild_id,
@@ -109,196 +205,28 @@ pub async fn get_settings_inner(
         );
     }
 
+    // Pushes settings to Moka
     cache.insert(guild_id, settings.clone()).await;
 
     Ok(settings)
 }
 
-pub async fn get_settings_from_database(
-    db: &PgPool,
-    guild_id: i64
-) -> anyhow::Result<Option<serde_json::Value>> {
-    let row = sqlx::query!(
-        "SELECT settings FROM guild_configs WHERE guild_id = $1",
-        guild_id
-    )
-        .fetch_optional(db)
-        .await?;
-
-    Ok(row.map(|r| r.settings))
-}
-
-pub async fn get_settings_from_redis(
-    redis: &Client,
-    cache_key: &str,
-    guild_id: i64,
-) -> Option<GuildSettings> {
-    let cached_string: String = redis.get(cache_key).await.ok()?;
-
-    match serde_json::from_str::<GuildSettings>(&cached_string) {
-        Ok(settings) => {
-            trace!(guild_id, key = %cache_key, "Retrieved settings from Redis cache");
-            Some(settings)
-        }
-        Err(e) => {
-            warn!(
-                error = ?e,
-                guild_id,
-                key = %cache_key,
-                "Failed to parse settings from Redis; falling back to DB"
-            );
-            None
-        }
-    }
-}
-
-pub async fn set_setting_to_redis(redis: &Client, settings: &GuildSettings, cache_key: &str) -> FredResult<()> {
-    match serde_json::to_string(&settings) {
-        Ok(serialized) => {
-            redis
-                .set(
-                    cache_key,
-                    serialized,
-                    Some(Expiration::EX(3600)),
-                    None,
-                    false,
-                )
-                .await
-        }
-        Err(err) => {
-            warn!("Failed to serialize settings for key {}: {}. Skipping.", cache_key, err);
-            Ok(())
-        }
-    }
-}
-
-pub async fn get_settings(
-    db: &PgPool,
-    redis: &Client,
-    cache: &moka::future::Cache<i64, GuildSettings>,
-    guild_id: i64,
-) -> anyhow::Result<GuildSettings> {
-    Box::pin(get_settings_inner(db, redis, cache, guild_id)).await
-}
-
-/// Pure representation of a Discord message layout.
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct MessageLayout {
-    #[serde(default)]
-    pub format: Format,
-    #[serde(default)]
-    pub content: String,
-    #[serde(default)]
-    pub embed: DiscordEmbed,
-}
-
-impl MessageGetter for MessageLayout {
-    fn content(&self) -> &str {
-        &self.content
-    }
-
-    fn embed(&self) -> &DiscordEmbed {
-        &self.embed
-    }
-
-    fn format(&self) -> Format {
-        self.format
-    }
-}
-
-impl<T: MessageGetter> MessageGetter for sqlx::types::Json<T> {
-    fn content(&self) -> &str {
-        self.0.content()
-    }
-
-    fn embed(&self) -> &DiscordEmbed {
-        self.0.embed()
-    }
-
-    fn format(&self) -> Format {
-        self.0.format()
-    }
-}
-
-/// A wrapper for features/messages that can be toggled on/off.
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct TogglableMessage {
-    #[serde(default = "default_true")]
-    pub enabled: bool,
-    #[serde(default)]
-    pub message: MessageLayout,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-impl TogglableMessage {
-    /// Returns a reference to the inner message layout if enabled.
-    pub fn message_if_enabled(&self) -> Option<&MessageLayout> {
-        if self.enabled {
-            Some(&self.message)
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ModerationDMsConfig {
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub warn: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub pardon_warn: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub unpardon_warn: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub unpardon_delete_warn: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub mute: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub unmute: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub kick: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub ban: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub softban: Option<TogglableMessage>,
-    #[serde(default, deserialize_with = "ok_or_none")]
-    pub honeypot: Option<TogglableMessage>,
-}
-
 /// Saves updated settings to Database, updates Redis cache, updates local Moka cache,
-/// and publishes an invalidation event to the "config_updates" Pub/Sub channel.
+/// and publishes an invalidation event to the `config_updates` Pub/Sub channel.
+///
+/// # Errors
+/// Returns `Err` if either the DB or Redis layer fails.
 pub async fn save_settings(
     db: &PgPool,
     redis: &Client,
     cache: &moka::future::Cache<i64, GuildSettings>,
     guild_id: i64,
     settings: &GuildSettings,
-) -> anyhow::Result<()> {
-    let json_value = serde_json::to_value(settings)
-        .with_context(|| format!("Failed to serialize GuildSettings for guild_id {guild_id}"))?;
+) -> Result<()> {
+    database::save_settings_to_db(db, guild_id, settings).await?;
 
-    sqlx::query!(
-        r#"
-        INSERT INTO guild_configs (guild_id, settings)
-        VALUES ($1, $2)
-        ON CONFLICT (guild_id)
-        DO UPDATE SET settings = EXCLUDED.settings
-        "#,
-        guild_id,
-        json_value
-    )
-        .execute(db)
-        .await
-        .with_context(|| format!("Failed to save guild settings to database for guild_id {guild_id}"))?;
-
-    let cache_key = format!("config:guild:{}", guild_id);
-    if let Err(e) = set_setting_to_redis(redis, settings, &cache_key).await {
+    let cache_key = guild_config_key(guild_id);
+    if let Err(e) = redis::set_setting_to_redis(redis, settings, &cache_key).await {
         warn!(
             error = %e,
             guild_id,
@@ -308,7 +236,7 @@ pub async fn save_settings(
     }
 
     cache.insert(guild_id, settings.clone()).await;
-    let payload = format!("invalidate:{}", guild_id);
+    let payload = keys::invalidate_settings_key(guild_id);
     let res: FredResult<i64> = redis.publish("config_updates", payload).await;
     if let Err(e) = res {
         warn!(

@@ -19,24 +19,22 @@ pub async fn should_exclude_from_logging(
     );
 
     // Check if channel is ignored
-    if let Some(ref ignored_channels) = config.ignored_channels {
-        if ignored_channels.contains(&channel_id.to_string()) {
+    if let Some(ref ignored_channels) = config.ignored_channels
+        && ignored_channels.contains(&channel_id.to_string()) {
             debug!(channel_id, "Message excluded: channel is ignored");
             return true;
         }
-    }
 
     // Check if user is ignored
-    if let Some(ref ignored_users) = config.ignored_users {
-        if ignored_users.contains(&author_id.to_string()) {
+    if let Some(ref ignored_users) = config.ignored_users
+        && ignored_users.contains(&author_id.to_string()) {
             debug!(author_id, "Message excluded: user is ignored");
             return true;
         }
-    }
 
     // Check if user has any ignored roles
-    if let Some(ref ignored_roles) = config.ignored_roles {
-        if !ignored_roles.is_empty() {
+    if let Some(ref ignored_roles) = config.ignored_roles
+        && !ignored_roles.is_empty() {
             let member_result = GuildId::new(guild_id as u64)
                 .member(ctx, serenity::all::UserId::new(author_id as u64))
                 .await;
@@ -64,7 +62,6 @@ pub async fn should_exclude_from_logging(
                 }
             }
         }
-    }
 
     trace!(
         author_id,
@@ -86,16 +83,13 @@ pub fn fetch_cached_message(
         "Fetching message from cache"
     );
 
-    let message = match cache.message(channel_id, message_id) {
-        Some(msg) => msg,
-        None => {
-            trace!(
-                chan_id = channel_id.get(),
-                msg_id = message_id.get(),
-                "Message not found in cache"
-            );
-            return None;
-        }
+    let message = if let Some(msg) = cache.message(channel_id, message_id) { msg } else {
+        trace!(
+            chan_id = channel_id.get(),
+            msg_id = message_id.get(),
+            "Message not found in cache"
+        );
+        return None;
     };
 
     if message.author.bot {
@@ -134,7 +128,7 @@ fn is_image_attachment(attachment: &serenity::all::Attachment) -> bool {
     let result = attachment
         .content_type
         .as_ref()
-        .map_or(false, |ct| ct.starts_with("image/"))
+        .is_some_and(|ct| ct.starts_with("image/"))
         || attachment.filename.ends_with(".png")
         || attachment.filename.ends_with(".jpg")
         || attachment.filename.ends_with(".jpeg")
@@ -169,44 +163,35 @@ pub fn extract_edit_details(
             debug!(msg_id, "Edit ignored: author is a bot (from event)");
             return None;
         }
-    } else if let Some(old) = old_if_available {
-        if old.author.bot {
+    } else if let Some(old) = old_if_available
+        && old.author.bot {
             debug!(msg_id, "Edit ignored: author is a bot (from cache)");
             return None;
         }
-    }
 
     // Fallback to old message details if event author metadata is incomplete
-    let author_id = match event
+    let author_id = if let Some(id) = event
         .author
         .as_ref()
         .map(|u| u.id.get() as i64)
-        .or_else(|| old_if_available.map(|m| m.author.id.get() as i64))
-    {
-        Some(id) => id,
-        None => {
-            warn!(msg_id, "Unable to resolve author ID for edit event");
-            return None;
-        }
+        .or_else(|| old_if_available.map(|m| m.author.id.get() as i64)) { id } else {
+        warn!(msg_id, "Unable to resolve author ID for edit event");
+        return None;
     };
 
-    let author_name = match event
+    let author_name = if let Some(name) = event
         .author
         .as_ref()
         .map(|u| u.name.clone())
-        .or_else(|| old_if_available.map(|m| m.author.name.clone()))
-    {
-        Some(name) => name,
-        None => {
-            warn!(msg_id, "Unable to resolve author username for edit event");
-            return None;
-        }
+        .or_else(|| old_if_available.map(|m| m.author.name.clone())) { name } else {
+        warn!(msg_id, "Unable to resolve author username for edit event");
+        return None;
     };
 
     let _avatar_url = event
         .author
         .as_ref()
-        .and_then(|u| u.avatar_url())
+        .and_then(serenity::all::User::avatar_url)
         .or_else(|| old_if_available.and_then(|m| m.author.avatar_url()));
 
     let old_content = old_if_available.map(|m| m.content.clone());

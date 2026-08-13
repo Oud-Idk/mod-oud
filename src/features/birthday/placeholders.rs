@@ -43,7 +43,7 @@ impl PlaceholderResolver for BirthdayResolver<'_> {
                     .iter()
                     .map(|m| {
                         if let Some(year) = m.birth_year {
-                            let age = self.current_year - (year as i32);
+                            let age = self.current_year - i32::from(year);
                             format!("• <@{}> ({} Birthday!)", m.user_id, format::format_ordinal(age))
                         } else {
                             format!("• <@{}>", m.user_id)

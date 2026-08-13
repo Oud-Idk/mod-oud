@@ -21,7 +21,7 @@ pub async fn handle_violation(ctx: &Context, message: &Message, config: &MediaOn
 
 async fn send_dm_for_content(ctx: &Context, message: &Message, original_content: &str) {
     let truncated_content = if original_content.chars().count() > 1800 {
-        format!("{}...", &original_content.chars().take(1800).collect::<String>())
+        format!("{}...", original_content.chars().take(1800).collect::<String>())
     } else {
         original_content.to_string()
     };
@@ -33,7 +33,7 @@ async fn send_dm_for_content(ctx: &Context, message: &Message, original_content:
 
     if !original_content.is_empty() {
         original_dm_content.push_str(
-            &format!("Original content:\n```\n{}\n```", truncated_content)
+            &format!("Original content:\n```\n{truncated_content}\n```")
         );
     }
 

@@ -63,7 +63,7 @@ pub async fn handle_send_custom_embed(
 
     let target_channel = serenity::ChannelId::new(payload.channel_id);
 
-    let message_builder = shared::embed::create_embed_for_web(&payload, |text| text.to_string())?;
+    let message_builder = shared::embed::create_embed_for_web(&payload, std::string::ToString::to_string)?;
 
     let message = target_channel
         .send_message(&state.serenity_http, message_builder)

@@ -7,9 +7,9 @@ use crate::features::reaction_roles::web::edit::handle_edit_reaction_role_messag
 use crate::features::reaction_roles::web::send::handle_send_reaction_role_message;
 
 mod helpers;
-pub(crate) mod delete;
-pub(crate) mod edit;
-pub(crate) mod send;
+pub mod delete;
+pub mod edit;
+pub mod send;
 
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()

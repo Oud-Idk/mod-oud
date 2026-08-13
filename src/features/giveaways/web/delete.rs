@@ -32,7 +32,7 @@ pub async fn handle_delete_giveaway_message(
     let message_id = MessageId::new(message_id_i64 as u64);
 
     match channel.delete_message(&state.serenity_http, message_id).await {
-        Ok(_) => debug!("Discord giveaway message deleted successfully"),
+        Ok(()) => debug!("Discord giveaway message deleted successfully"),
         Err(e) => {
             if is_unknown_message_error(&e) {
                 debug!("Discord message already deleted; proceeding with DB cleanup");

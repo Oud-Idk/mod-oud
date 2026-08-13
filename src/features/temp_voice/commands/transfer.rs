@@ -19,7 +19,7 @@ pub async fn transfer(
 
     let response_message = service::initiate_temp_vc_transfer(
         ctx.serenity_context(),
-        &ctx.data(),
+        ctx.data(),
         guild_id,
         channel_id,
         member.user.id,

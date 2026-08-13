@@ -1,10 +1,10 @@
-use crate::core::config::settings::MessageLayout;
+use crate::core::config::message_layout::MessageLayout;
 use crate::features::giveaways::types::Giveaway;
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
+use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use sqlx::types::Json;
-use sqlx::PgPool;
 use tracing::warn;
 
 /// Fetches a single giveaway configuration by ID and Guild ID for the web handler
@@ -95,7 +95,7 @@ pub async fn mark_giveaway_finished(pool: &PgPool, giveaway_id: i64) -> Result<(
     Ok(())
 }
 
-/// Inserts a new giveaway record into the database with default message_layout JSONB
+/// Inserts a new giveaway record into the database with default `message_layout` JSONB
 pub async fn create_giveaway(
     pool: &PgPool,
     guild_id: i64,

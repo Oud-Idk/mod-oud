@@ -1,7 +1,7 @@
+use crate::core::config::message_layout::MessageLayout;
 use crate::features::verification::VerificationSettings;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
-use crate::core::config::settings::MessageLayout;
+use serde_with::{DisplayFromStr, serde_as};
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

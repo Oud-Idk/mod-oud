@@ -2,7 +2,6 @@ use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::features::leveling::placeholders::replace_level_notify_placeholder;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
-use crate::shared::embed::DiscordEmbed;
 use crate::shared::embed::build_custom_message;
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, CreateMessage, GuildId, Message, User};
@@ -67,7 +66,7 @@ pub async fn send_message(
             replace_level_notify_placeholder(
                 text,
                 &gctx,
-                &author,
+                author,
                 user_level.current_level,
                 previous_level,
             )
@@ -92,7 +91,7 @@ pub async fn send_message(
         CreateMessage::new().content(content)
     });
 
-    send_according_to_config(&ctx, message.channel_id, config, author, msg).await?;
+    send_according_to_config(ctx, message.channel_id, config, author, msg).await?;
 
     Ok(())
 }

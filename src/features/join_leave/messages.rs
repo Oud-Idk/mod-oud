@@ -57,16 +57,13 @@ pub async fn build_goodbye_message(
     member_data_if_available: &Option<serenity::all::Member>,
     leave_cfg: &LeaveConfig,
 ) -> CreateMessage {
-    let member = match member_data_if_available {
-        Some(m) => m,
-        None => {
-            debug!(
-                guild_id = guild_id.get(),
-                user_id = user.id.get(),
-                "No member metadata available in cache; constructing default fallback layout"
-            );
-            return build_fallback_message(user, &None);
-        }
+    let member = if let Some(m) = member_data_if_available { m } else {
+        debug!(
+            guild_id = guild_id.get(),
+            user_id = user.id.get(),
+            "No member metadata available in cache; constructing default fallback layout"
+        );
+        return build_fallback_message(user, &None);
     };
 
     trace!(
@@ -137,12 +134,11 @@ pub async fn get_context_channel(
 
     if let Some(ch_u64) = public_channel_id_u64 {
         let channel_id = ChannelId::new(ch_u64);
-        if let Ok(channel) = channel_id.to_channel(ctx).await {
-            if let Some(guild_ch) = channel.guild() {
+        if let Ok(channel) = channel_id.to_channel(ctx).await
+            && let Some(guild_ch) = channel.guild() {
                 trace!(guild_id, channel_id = ch_u64, "Resolved configured target channel context");
                 return Ok(guild_ch);
             }
-        }
     }
 
     debug!(guild_id, "No valid public welcome channel provided; scanning for any standard text channel context");
@@ -155,8 +151,7 @@ pub async fn get_context_channel(
     }
 
     warn!(guild_id, "Failed to resolve any valid text channel context in guild");
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Other,
+    Err(std::io::Error::other(
         "Could not resolve a suitable text channel context.",
     )
         .into())

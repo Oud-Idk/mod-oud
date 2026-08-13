@@ -11,7 +11,8 @@ pub struct WebCommandBus {
 }
 
 impl WebCommandBus {
-    pub fn new(tx: UnboundedSender<WebCommand>) -> Self {
+    #[must_use]
+    pub const fn new(tx: UnboundedSender<WebCommand>) -> Self {
         Self { tx }
     }
 
@@ -32,7 +33,7 @@ pub struct WebCommand {
 }
 
 /// The action the dashboard wants the guild's music actor to perform.
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum MusicAction {
     Play,

@@ -29,12 +29,9 @@ pub async fn create(
     ctx.defer_ephemeral().await?;
 
     // Parse duration (using humantime crate)
-    let parsed_duration = match humantime::parse_duration(&duration) {
-        Ok(d) => d,
-        Err(_) => {
-            send_ephemeral(&ctx, "Invalid duration format! Example formats: `30m`, `2h`, `1d`").await?;
-            return Ok(());
-        }
+    let parsed_duration = if let Ok(d) = humantime::parse_duration(&duration) { d } else {
+        send_ephemeral(&ctx, "Invalid duration format! Example formats: `30m`, `2h`, `1d`").await?;
+        return Ok(());
     };
 
     let winner_count = winners.unwrap_or(1).max(1);
@@ -58,7 +55,7 @@ pub async fn create(
         .await?;
 
     let embed = CreateEmbed::new()
-        .title(format!("🎉 GIVEAWAY: {}", prize))
+        .title(format!("🎉 GIVEAWAY: {prize}"))
         .description(format!(
             "React with 🎉 to enter!\n\n**Ends:** <t:{timestamp}:R> (<t:{timestamp}:f>)\n**Winners:** {winner_count}\n**Hosted by:** <@{host_id}>"
         ))
@@ -71,7 +68,7 @@ pub async fn create(
     msg.react(&ctx.serenity_context().http, ReactionType::Unicode("🎉".to_string())).await?;
 
     update_giveaway_message_id(&ctx.data().core.db, giveaway_id, msg.id.get() as i64).await?;
-    send_ephemeral(&ctx, format!("Giveaway **#{}** created in <#{}>!", giveaway_id, target_channel)).await?;
+    send_ephemeral(&ctx, format!("Giveaway **#{giveaway_id}** created in <#{target_channel}>!")).await?;
 
     Ok(())
 }
@@ -113,7 +110,7 @@ pub async fn reroll(
         ctx.channel_id()
             .say(
                 &ctx.serenity_context().http,
-                format!("🎉 **REROLL!** Congratulations <@{}>, you are the new winner!", new_winner),
+                format!("🎉 **REROLL!** Congratulations <@{new_winner}>, you are the new winner!"),
             )
             .await?;
 

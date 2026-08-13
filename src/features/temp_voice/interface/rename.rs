@@ -1,21 +1,18 @@
-use crate::features::temp_voice::database::get_hub_info_by_category;
-use crate::features::temp_voice::placeholders::replace_channel_placeholders;
-use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
-use serenity::all::{Channel, ChannelId, ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse, CreateModal, EditChannel, InputTextStyle, ModalInteraction};
+use serenity::all::{ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse, CreateModal, InputTextStyle, ModalInteraction};
 
 use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice::interface::{create_ephemeral_msg, get_new_name, preflight_button_check, preflight_modal_check};
 use crate::features::temp_voice::service;
-use tracing::{debug, trace, warn};
+use tracing::debug;
 
-pub(crate) async fn handle_rename_temp_vc(
+pub async fn handle_rename_temp_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
     let Ok(Some(_)) = preflight_button_check(
-        &ctx, interaction, data
+        ctx, interaction, data
     ).await else {
         return Ok(())
     }; // To make sure user is in a guild and in a voice chat
@@ -40,19 +37,19 @@ pub(crate) async fn handle_rename_temp_vc(
     Ok(())
 }
 
-pub(crate) async fn handle_rename_temp_vc_submit(
+pub async fn handle_rename_temp_vc_submit(
     ctx: &Context,
     interaction: &ModalInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    let Some((channel_id, guild_id)) = preflight_modal_check(&ctx, interaction, data).await? else {
+    let Some((channel_id, guild_id)) = preflight_modal_check(ctx, interaction, data).await? else {
         return Ok(());
     };
     let Some(member) = interaction.member.as_ref() else { return Ok(()); };
     let raw_input = get_new_name(interaction).unwrap_or_default();
 
     let response_message = service::rename_temp_vc(
-        &ctx,
+        ctx,
         &data.core.redis,
         &data.core.db,
         guild_id,
@@ -68,7 +65,7 @@ pub(crate) async fn handle_rename_temp_vc_submit(
     Ok(())
 }
 
-pub fn is_rate_limited(err: &serenity::http::HttpError) -> bool {
+pub const fn is_rate_limited(err: &serenity::http::HttpError) -> bool {
     matches!(
         err,
         serenity::http::HttpError::UnsuccessfulRequest(resp) if resp.status_code.as_u16() == 429,

@@ -1,13 +1,11 @@
-use crate::core::config::settings::MessageLayout;
+use crate::core::config::message_layout::MessageLayout;
 use crate::core::config::state::Error;
 use crate::core::config::state::WebState;
-use crate::shared::embed::DiscordEmbed;
-use crate::shared::embed::Format;
 use crate::shared::embed::build_custom_message;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ButtonStyle, ChannelId, ChannelType, CreateActionRow, CreateButton, CreateChannel, EditRole, GuildChannel, GuildId, Http, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, Role, RoleId};
 use std::sync::Arc;
@@ -32,7 +30,7 @@ struct RollbackState {
 }
 
 impl RollbackState {
-    fn new(everyone_role_id: RoleId) -> Self {
+    const fn new(everyone_role_id: RoleId) -> Self {
         Self {
             everyone_role_id,
             original_everyone_permissions: None,
@@ -43,16 +41,14 @@ impl RollbackState {
 
     /// Reverts successfully applied changes in reverse chronological order.
     async fn rollback(self, http: &Http, guild_id: GuildId) {
-        if let Some(channel_id) = self.created_channel_id {
-            if let Err(e) = channel_id.delete(http).await {
-                warn!(error = ?e, channel_id = channel_id.get(), "Rollback: Failed to delete created channel");
-            }
+        if let Some(channel_id) = self.created_channel_id
+            && let Err(e) = channel_id.delete(http).await {
+            warn!(error = ?e, channel_id = channel_id.get(), "Rollback: Failed to delete created channel");
         }
 
-        if let Some(role_id) = self.created_role_id {
-            if let Err(e) = guild_id.delete_role(http, role_id).await {
-                warn!(error = ?e, role_id = role_id.get(), "Rollback: Failed to delete created role");
-            }
+        if let Some(role_id) = self.created_role_id
+            && let Err(e) = guild_id.delete_role(http, role_id).await {
+            warn!(error = ?e, role_id = role_id.get(), "Rollback: Failed to delete created role");
         }
 
         if let Some(orig_perms) = self.original_everyone_permissions {
@@ -173,10 +169,10 @@ async fn send_verification_panel(
         payload.format,
         &payload.content,
         &payload.embed,
-        |t| t.to_string(),
+        std::string::ToString::to_string,
     )
         .inspect_err(|e| {
-            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "Failed to build verification panel for guild")
+            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "Failed to build verification panel for guild");
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
         .ok_or_else(|| {
@@ -189,7 +185,7 @@ async fn send_verification_panel(
         .send_message(http, verify_panel_builder)
         .await
         .inspect_err(|e| {
-            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "Failed to send verification panel for guild")
+            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "Failed to send verification panel for guild");
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))
 }

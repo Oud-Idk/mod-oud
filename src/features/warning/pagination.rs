@@ -1,16 +1,13 @@
 use crate::core::config::state::{Context, Error};
 use crate::features::warning::types::WarningInfo;
 use crate::shared::pagination;
-use futures::Stream;
 use futures_util::StreamExt;
-use poise::ReplyHandle;
-use serenity::all::ComponentInteraction;
-use tracing::{debug, trace, warn};
+use tracing::trace;
 
 fn make_page(warn: &WarningInfo) -> String {
     let status = if warn.is_active.unwrap_or(true) { "Active" } else { "Pardoned" };
     let time_str = match warn.created_at {
-        Some(ts) => format!("<t:{0}:f> (<t:{0}:R>)", ts),
+        Some(ts) => format!("<t:{ts}:f> (<t:{ts}:R>)"),
         None => "*Unknown date*".to_string(),
     };
     let reason = warn.reason.as_deref().unwrap_or("*No reason provided*");

@@ -31,7 +31,7 @@ pub async fn handle_delete_reaction_role_message(
     let message_id = serenity::all::MessageId::new(message_id_u64);
 
     match channel.delete_message(&state.serenity_http, message_id).await {
-        Ok(_) => {
+        Ok(()) => {
             debug!("Discord message deleted successfully");
         }
         Err(e) => {

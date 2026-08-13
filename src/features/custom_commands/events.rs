@@ -6,7 +6,7 @@ use serenity::all::{Context, Message};
 use tracing::{debug, error, info};
 
 pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> Result<(), Error> {
-    if msg.author.bot { return Ok(()); };
+    if msg.author.bot { return Ok(()); }
     let Some(guild_id) = msg.guild_id else { return Ok(()); };
 
     let prefix = "!"; // Make it changeable later
@@ -30,9 +30,9 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
     };
 
     let gctx = get_guild_ctx(guild_id, &ctx).await?;
-    let channel = ctx.http.get_channel(msg.channel_id).await.ok().and_then(|c| c.guild());
+    let channel = ctx.http.get_channel(msg.channel_id).await.ok().and_then(serenity::all::Channel::guild);
 
-    handle_custom_command(&ctx, &msg, &cmd, &data.core.redis, &gctx, channel.as_ref()).await
+    handle_custom_command(ctx, msg, &cmd, &data.core.redis, &gctx, channel.as_ref()).await
         .inspect_err(|e| error!(error = ?e, command = %cmd_name, "Failed to execute custom command"))?;
 
     Ok(())

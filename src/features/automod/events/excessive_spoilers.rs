@@ -51,5 +51,5 @@ pub fn calculate_spoiler_amount(text: &str) -> f64 {
         return 0.0;
     }
 
-    inside_char_count as f64 / total_chars as f64
+    f64::from(inside_char_count) / f64::from(total_chars)
 }

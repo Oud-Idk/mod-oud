@@ -90,11 +90,11 @@ pub async fn handle_raid_detection(
                     info!(guild_id = guild_id_u64, "Spawning global server lockdown background task");
                     let ctx = ctx.clone();
                     let data = (*data).clone();
-                    let guild_id = guild_id.clone();
+                    let guild_id = guild_id;
                     tokio::spawn(async move {
                         if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
                             error!(error = ?e, guild_id = guild_id.get(), "Failed to lock server in background task");
-                        };
+                        }
                     });
                 }
                 RaidAction::BumpVerification => {
@@ -165,7 +165,7 @@ pub async fn handle_raid_detection(
                     timeout_mins = mins,
                     "Applying communication timeout to new join during active raid"
                 );
-                let timeout_until = chrono::Utc::now() + chrono::Duration::minutes(*mins as i64);
+                let timeout_until = chrono::Utc::now() + chrono::Duration::minutes(i64::from(*mins));
                 let timestamp = Timestamp::from_unix_timestamp(timeout_until.timestamp())?;
                 let builder = EditMember::new().disable_communication_until_datetime(timestamp);
 

@@ -2,7 +2,7 @@ use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::invite_tracking::cache::collect_pairs;
-use crate::features::invite_tracking::database::{attribute_join, get_inviter_count, upsert_invited_member};
+use crate::features::invite_tracking::database::attribute_join;
 use crate::features::invite_tracking::keys;
 use crate::shared::store_username_relation;
 use crate::features;

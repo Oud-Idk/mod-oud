@@ -22,13 +22,13 @@ pub fn member_key(user_id: u64, now_ts: i64) -> String {
 }
 
 pub fn raid_snapshot_key(guild_id: u64) -> String {
-    format!("raid_snapshot:{}", guild_id)
+    format!("raid_snapshot:{guild_id}")
 }
 
 pub fn raid_active_key(guild_id: u64) -> String {
-    format!("raid_active:{}", guild_id)
+    format!("raid_active:{guild_id}")
 }
 
-pub fn active_raids_key<'a>() -> &'a str {
+pub const fn active_raids_key<'a>() -> &'a str {
     "active_raids"
 }

@@ -1,54 +1,59 @@
+use crate::constants::BRAND_COLOR;
 use crate::core::config::guild_ctx::get_guild_ctx;
-use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::settings::get_settings;
 use crate::core::config::state::BotData;
 use crate::features::automod::insert_automod_row;
 use crate::features::moderation::{replace_system_ban_placeholders, schedule_unban};
 use crate::shared::embed::build_custom_message;
 use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
-use serenity::all::{ChannelId, Context, CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, Message, RoleId};
+use serenity::all::{
+    ChannelId, Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message, RoleId,
+};
 use std::time::Duration;
 use tracing::{info, instrument};
 
 /// Handles honeypot detection and banishing. Returns `Ok(true)` if a user was caught and banished.
 #[instrument(skip(ctx, data, message), fields(author_id = %message.author.id))]
-pub async fn handle_honeypot(
-    ctx: &Context,
-    message: &Message,
-    data: &BotData,
-) -> Result<bool> {
-    if message.author.bot { return Ok(false); }
+pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -> Result<bool> {
+    if message.author.bot {
+        return Ok(false);
+    }
 
     let Some(guild_id) = message.guild_id else {
         return Ok(false);
     };
-    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
+    let config = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id.get().cast_signed(),
+    )
+    .await?;
 
     let Some(honeypot) = config.honeypot.as_ref() else {
         return Ok(false);
     };
 
     // Fast exit if this channel is NOT the honeypot channel
-    let is_honeypot_channel = honeypot
-        .channel_id
-        .map(ChannelId::new) == Some(message.channel_id);
+    let is_honeypot_channel = honeypot.channel_id.map(ChannelId::new) == Some(message.channel_id);
 
     if !is_honeypot_channel {
         return Ok(false);
     }
 
     // Check role exemptions
-    if let Some(member) = &message.member {
-        if let Some(exempt_roles) = &honeypot.exempt_roles {
-            let is_exempt = member.roles.iter().any(|user_role| {
-                exempt_roles.iter().any(|role_str| {
-                    role_str.parse::<u64>().ok().map(RoleId::new) == Some(*user_role)
-                })
-            });
+    if let Some(member) = &message.member
+        && let Some(exempt_roles) = &honeypot.exempt_roles
+    {
+        let is_exempt = member.roles.iter().any(|user_role| {
+            exempt_roles
+                .iter()
+                .any(|role_str| role_str.parse::<u64>().ok().map(RoleId::new) == Some(*user_role))
+        });
 
-            if is_exempt {
-                return Ok(false);
-            }
+        if is_exempt {
+            return Ok(false);
         }
     }
 
@@ -66,17 +71,23 @@ pub async fn handle_honeypot(
 
     insert_automod_row(
         &data.core.db,
-        guild_id.get() as i64,
-        message.author.id.get() as i64,
-        None, None, "Honeypot", None,
-        Some(&message.content), &["BAN"], "",
+        guild_id.get().cast_signed(),
+        message.author.id.get().cast_signed(),
+        None,
+        None,
+        "Honeypot",
+        None,
+        Some(&message.content),
+        &["BAN"],
     )
-        .await
-        .context("Failed to log honeypot automod action")?;
-
+    .await
+    .context("Failed to log honeypot automod action")?;
 
     if let Ok(dm_channel) = message.author.create_dm_channel(&ctx.http).await {
-        let honeypot_dm_settings = config.moderation_dms.as_ref().and_then(|m| m.honeypot.as_ref());
+        let honeypot_dm_settings = config
+            .moderation_dms
+            .as_ref()
+            .and_then(|m| m.honeypot.as_ref());
 
         if let Some(dm_config) = honeypot_dm_settings {
             if let Ok(Some(msg_builder)) = build_custom_message(
@@ -90,11 +101,15 @@ pub async fn handle_honeypot(
         } else {
             let fallback_embed = CreateEmbed::new()
                 .title(format!("You have been banned from {}", gctx.name))
-                .color(0xFF4747)
+                .color(BRAND_COLOR)
                 .field("Reason", reason, false)
-                .footer(CreateEmbedFooter::new("If you believe this was a mistake, please contact an administrator."));
+                .footer(CreateEmbedFooter::new(
+                    "If you believe this was a mistake, please contact an administrator.",
+                ));
 
-            let _ = dm_channel.send_message(&ctx.http, CreateMessage::new().embed(fallback_embed)).await;
+            let _ = dm_channel
+                .send_message(&ctx.http, CreateMessage::new().embed(fallback_embed))
+                .await;
         }
     }
 

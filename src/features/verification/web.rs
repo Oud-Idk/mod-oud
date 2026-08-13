@@ -7,8 +7,8 @@ use crate::features::verification::web::teardown::handle_verification_teardown;
 use crate::features::verification::web::verify::handle_verify;
 
 pub mod setup;
-pub(crate) mod teardown;
-pub(crate) mod verify;
+pub mod teardown;
+pub mod verify;
 
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()

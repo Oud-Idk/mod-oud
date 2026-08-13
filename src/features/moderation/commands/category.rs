@@ -25,8 +25,7 @@ pub async fn delete_category(
 
     debug!(category_name, deleted_count, "Purged channels and category");
     let success_msg = format!(
-        "**Category Purged!**\nSuccessfully deleted **{}** along with all `{}` nested channels.",
-        category_name, deleted_count
+        "**Category Purged!**\nSuccessfully deleted **{category_name}** along with all `{deleted_count}` nested channels."
     );
     ctx.say(success_msg).await?;
 

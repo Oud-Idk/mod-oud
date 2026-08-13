@@ -42,7 +42,7 @@ impl PlaceholderResolver for PartialMemberCtx<'_> {
 
 pub fn replace_general_placeholders(text: &str, msg: &Message, gctx: &GuildCtx, channel: Option<&GuildChannel>) -> String {
     let discord_ctx = DiscordCtx {
-        gctx: Some(&gctx),
+        gctx: Some(gctx),
         user: Some(&msg.author),
         channel,
         message: Some(msg),

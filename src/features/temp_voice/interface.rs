@@ -63,18 +63,15 @@ pub fn get_input_value(interaction: &ModalInteraction, custom_id: &str) -> Optio
 }
 
 pub fn get_new_name(interaction: &ModalInteraction) -> Option<String> {
-    get_input_value(&interaction, "new_name")
+    get_input_value(interaction, "new_name")
 }
 
 pub async fn preflight_slash_check(
     ctx: &PoiseContext<'_>,
 ) -> Result<Option<(ChannelId, GuildId, Member)>, Error> {
-    let guild_id = match ctx.guild_id() {
-        Some(g) => g,
-        None => {
-            send_ephemeral(ctx, "This command can only be used in a server.").await?;
-            return Ok(None);
-        }
+    let guild_id = if let Some(g) = ctx.guild_id() { g } else {
+        send_ephemeral(ctx, "This command can only be used in a server.").await?;
+        return Ok(None);
     };
 
     let author_id = ctx.author().id;

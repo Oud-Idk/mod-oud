@@ -9,7 +9,11 @@ use crate::features::tickets::events::message;
 use crate::features::tickets::placeholders::replace_ticket_welcome_placeholders;
 use crate::shared::embed::build_custom_message;
 use anyhow::Context as _;
-use serenity::all::{ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildChannel, GuildId, Message, MessageId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
+use serenity::all::{
+    ChannelId, ChannelType, ComponentInteraction, Context, CreateChannel,
+    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildChannel,
+    GuildId, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId,
+};
 use tracing::{debug, info, instrument, trace, warn};
 
 #[instrument(skip(ctx, data, component), fields(guild_id = ?component.guild_id, user_id = %component.user.id
@@ -31,7 +35,13 @@ pub async fn on_open_ticket(
     let user_interact = &component.user;
 
     debug!("Checking settings validation for ticket generation");
-    let settings = get_settings(db, redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
+    let settings = get_settings(
+        db,
+        redis,
+        &data.core.guild_configs_cache,
+        guild_id.get() as i64,
+    )
+    .await?;
     let tickets = settings.tickets.as_ref();
 
     let Some(role_u64) = tickets.and_then(|t| t.ticket_role_id) else {
@@ -42,7 +52,7 @@ pub async fn on_open_ticket(
 
     let role_id = RoleId::new(role_u64);
 
-    if tickets.map(|t| t.enabled) != Some(true) {
+    if tickets.is_none_or(|t| !t.enabled) {
         debug!("Ticket system is disabled in this guild settings");
         message::send_disabled_error(ctx, component).await?;
         return Ok(());
@@ -51,7 +61,9 @@ pub async fn on_open_ticket(
     component
         .create_response(
             &ctx.http,
-            CreateInteractionResponse::Defer(CreateInteractionResponseMessage::default().ephemeral(true)),
+            CreateInteractionResponse::Defer(
+                CreateInteractionResponseMessage::default().ephemeral(true),
+            ),
         )
         .await?;
 
@@ -61,10 +73,7 @@ pub async fn on_open_ticket(
         .with_context(|| "Interaction missing member data")?;
     let gctx = get_guild_ctx(guild_id, &ctx.http).await?;
 
-    let ticket_category_id = settings
-        .tickets
-        .as_ref()
-        .and_then(|t| t.category_id);
+    let ticket_category_id = settings.tickets.as_ref().and_then(|t| t.category_id);
 
     debug!("Creating channel overwrites and constructing new Discord channel");
     let overwrites = build_permission_overwrites(guild_id, user_interact.id, role_id);
@@ -74,12 +83,14 @@ pub async fn on_open_ticket(
         &user_interact.name,
         overwrites,
         ticket_category_id,
-    ).await?;
+    )
+    .await?;
 
     let resolved_role_name = if let Some(guild) = ctx.cache.guild(ticket_channel.guild_id) {
         guild.roles.get(&role_id).map(|r| r.name.clone())
     } else {
-        ticket_channel.guild_id
+        ticket_channel
+            .guild_id
             .roles(&ctx.http)
             .await
             .ok()
@@ -90,29 +101,42 @@ pub async fn on_open_ticket(
     let welcome_msg = send_welcome_message(
         ctx,
         &ticket_channel,
-        &member,
+        member,
         &gctx,
-        settings.tickets.as_ref(),
+        settings.tickets.as_deref(),
         &role_id,
         resolved_role_name.as_deref(),
-    ).await?;
+    )
+    .await?;
 
     debug!("Persisting new ticket status to DB and initializing state in Redis");
     tokio::try_join!(
-        save_ticket_to_db(data, guild_id, ticket_channel.id, user_interact.id, welcome_msg.id, &member.user.name),
+        save_ticket_to_db(
+            data,
+            guild_id,
+            ticket_channel.id,
+            user_interact.id,
+            welcome_msg.id,
+            &member.user.name
+        ),
         initialize_redis_state(data, ticket_channel.id, welcome_msg.id),
     )?;
 
     let _: () = tickets::cache::publish_open_ticket(redis, &ticket_channel).await?;
 
-    data.caches.active_tickets.insert(ticket_channel.id.get(), ()).await;
+    data.caches
+        .active_tickets
+        .insert(ticket_channel.id.get(), ())
+        .await;
 
     debug!("Confirming channel link to user interaction");
     component
         .edit_response(
             &ctx.http,
-            serenity::all::EditInteractionResponse::new()
-                .content(format!("Your ticket has been created: <#{}>", ticket_channel.id)),
+            serenity::all::EditInteractionResponse::new().content(format!(
+                "Your ticket has been created: <#{}>",
+                ticket_channel.id
+            )),
         )
         .await?;
 
@@ -120,7 +144,11 @@ pub async fn on_open_ticket(
     Ok(())
 }
 
-fn build_permission_overwrites(guild_id: GuildId, user_id: UserId, role_id: RoleId) -> Vec<PermissionOverwrite> {
+fn build_permission_overwrites(
+    guild_id: GuildId,
+    user_id: UserId,
+    role_id: RoleId,
+) -> Vec<PermissionOverwrite> {
     vec![
         PermissionOverwrite {
             allow: Permissions::empty(),
@@ -128,12 +156,16 @@ fn build_permission_overwrites(guild_id: GuildId, user_id: UserId, role_id: Role
             kind: PermissionOverwriteType::Role(RoleId::new(guild_id.get())),
         },
         PermissionOverwrite {
-            allow: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::READ_MESSAGE_HISTORY,
+            allow: Permissions::VIEW_CHANNEL
+                | Permissions::SEND_MESSAGES
+                | Permissions::READ_MESSAGE_HISTORY,
             deny: Permissions::empty(),
             kind: PermissionOverwriteType::Member(user_id),
         },
         PermissionOverwrite {
-            allow: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::READ_MESSAGE_HISTORY,
+            allow: Permissions::VIEW_CHANNEL
+                | Permissions::SEND_MESSAGES
+                | Permissions::READ_MESSAGE_HISTORY,
             deny: Permissions::empty(),
             kind: PermissionOverwriteType::Role(role_id),
         },
@@ -148,7 +180,7 @@ async fn create_ticket_channel(
     overwrites: Vec<PermissionOverwrite>,
     category_id_str: Option<u64>,
 ) -> Result<GuildChannel, Error> {
-    let mut channel_builder = CreateChannel::new(format!("ticket-{}", username))
+    let mut channel_builder = CreateChannel::new(format!("ticket-{username}"))
         .kind(ChannelType::Text)
         .permissions(overwrites);
 
@@ -195,11 +227,13 @@ async fn send_welcome_message(
                 )
             },
         )
-            .ok()
-            .flatten();
+        .ok()
+        .flatten();
 
         custom_layout.unwrap_or_else(|| {
-            trace!("Custom ticket template parse failed or empty; using fallback system default layout");
+            trace!(
+                "Custom ticket template parse failed or empty; using fallback system default layout"
+            );
             CreateMessage::default().embed(default_embed.clone())
         })
     } else {
@@ -218,4 +252,3 @@ async fn send_welcome_message(
     let message = channel.send_message(&ctx.http, message_builder).await?;
     Ok(message)
 }
-

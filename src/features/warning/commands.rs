@@ -43,7 +43,7 @@ pub async fn warn(
 
     ctx.send(
         poise::CreateReply::default()
-            .content(format!("Successfully warned {} for: {}", member.user.name, &reason_str))
+            .content(format!("Successfully warned {} for: {}", member.user.name, reason_str))
             .ephemeral(true),
     ).await?;
 
@@ -106,7 +106,7 @@ pub async fn search(
     let target_user_id = user.as_ref().map(|u| u.id.get());
     let meta = GuildMetadata::extract(&ctx)?;
 
-    let search_pattern = format!("%{}%", query);
+    let search_pattern = format!("%{query}%");
     let records = search_warnings_by_pattern(
         &ctx.data().core.db,
         meta.id.get() as i64,
@@ -121,13 +121,13 @@ pub async fn search(
         };
         send_ephemeral(
             &ctx,
-            format!("No warnings {}found matching `{}`.", filter_message, query),
+            format!("No warnings {filter_message}found matching `{query}`."),
         ).await?;
         return Ok(());
     }
 
-    let title = format!("Search Results for \"{}\"", query);
-    let avatar_url = user.as_ref().map(|u| u.face());
+    let title = format!("Search Results for \"{query}\"");
+    let avatar_url = user.as_ref().map(serenity::all::User::face);
 
     pagination::paginate_warnings(ctx, &records, title, avatar_url).await?;
     Ok(())
@@ -163,7 +163,7 @@ pub async fn view(
             ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true)).await?;
         }
         None => {
-            send_ephemeral(&ctx, format!("Could not find warning with ID **#{}** in this server.", id)).await?;
+            send_ephemeral(&ctx, format!("Could not find warning with ID **#{id}** in this server.")).await?;
         }
     }
 
@@ -214,15 +214,14 @@ pub async fn delete(
             send_ephemeral(
                 &ctx,
                 format!(
-                    "**Warning #{}** for <@{}> has been permanently deleted.\n**Original Reason:** {}",
-                    id, target_user_id, reason
+                    "**Warning #{id}** for <@{target_user_id}> has been permanently deleted.\n**Original Reason:** {reason}"
                 ),
             ).await?;
         }
         None => {
             send_ephemeral(
                 &ctx,
-                format!("Could not find a warning with ID **#{}** in this server.", id),
+                format!("Could not find a warning with ID **#{id}** in this server."),
             ).await?;
         }
     }

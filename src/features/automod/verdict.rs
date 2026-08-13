@@ -20,7 +20,7 @@ pub async fn execute_verdict(
 
     automod::actions::execute_rule_actions(
         ctx,
-        &data,
+        data,
         message,
         base_rule.as_ref(),
         rule_name.as_ref(),

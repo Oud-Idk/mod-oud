@@ -3,21 +3,18 @@ use crate::features::temp_voice::interface::create_ephemeral_msg;
 use crate::features::temp_voice::keys;
 use crate::features::temp_voice::keys::{pending_transfer_key, temp_vc_owners_key};
 use fred::interfaces::{HashesInterface, KeysInterface};
-use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId};
+use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId};
 use tracing::{debug, error, info, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(acceptor_id = %interaction.user.id.get()))]
-pub(crate) async fn handle_accept_transfer(
+pub async fn handle_accept_transfer(
     ctx: &Context,
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    let guild_id = match interaction.guild_id {
-        Some(g) => g,
-        None => {
-            debug!("Transfer acceptance interaction received outside of a guild");
-            return Ok(());
-        }
+    let guild_id = if let Some(g) = interaction.guild_id { g } else {
+        debug!("Transfer acceptance interaction received outside of a guild");
+        return Ok(());
     };
 
     let Some(channel_id) = ctx.cache.guild(guild_id).and_then(|g| {
@@ -69,8 +66,8 @@ pub(crate) async fn handle_accept_transfer(
     };
 
     let acceptor_existing_vc: Option<String> = redis.hget(&owner_hash, &target_owner).await?;
-    if let Some(existing_channel) = acceptor_existing_vc {
-        if existing_channel != channel_id.get().to_string() {
+    if let Some(existing_channel) = acceptor_existing_vc
+        && existing_channel != channel_id.get().to_string() {
             warn!(
                 acceptor_id = %interaction.user.id.get(),
                 existing_channel = %existing_channel,
@@ -88,7 +85,6 @@ pub(crate) async fn handle_accept_transfer(
                 .await?;
             return Ok(());
         }
-    }
 
     let new_overwrite = PermissionOverwrite {
         allow: Permissions::VIEW_CHANNEL
@@ -157,17 +153,14 @@ pub(crate) async fn handle_accept_transfer(
 }
 
 #[instrument(skip(ctx, data), fields(decliner_id = %interaction.user.id.get()))]
-pub(crate) async fn handle_decline_transfer(
+pub async fn handle_decline_transfer(
     ctx: &Context,
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    let guild_id = match interaction.guild_id {
-        Some(g) => g,
-        None => {
-            debug!("Transfer decline interaction received outside of a guild");
-            return Ok(());
-        }
+    let guild_id = if let Some(g) = interaction.guild_id { g } else {
+        debug!("Transfer decline interaction received outside of a guild");
+        return Ok(());
     };
 
     let Some(channel_id) = ctx.cache.guild(guild_id).and_then(|g| {

@@ -2,10 +2,10 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice;
 use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 use crate::features::temp_voice::types::TempVoiceHub;
-use crate::features::temp_voice::{cache, placeholders};
+use crate::features::temp_voice::placeholders;
 use crate::shared::voice_state;
 use fred::interfaces::{HashesInterface, KeysInterface};
-use serenity::all::{ChannelId, ChannelType, Context, CreateChannel, GuildChannel, GuildId, Member, UserId, VoiceState};
+use serenity::all::{ChannelId, ChannelType, Context, CreateChannel, GuildChannel, GuildId, Member, VoiceState};
 use tracing::{debug, trace, warn};
 
 pub async fn handle_log_user_join(
@@ -46,12 +46,9 @@ pub async fn handle_join_hub_temp_vc(
         return Ok(());
     };
 
-    let target_channel_id = match new.channel_id {
-        Some(channel_id) => channel_id,
-        None => {
-            debug!("Unable to get voice channel ID for some reason");
-            return Ok(())
-        },
+    let target_channel_id = if let Some(channel_id) = new.channel_id { channel_id } else {
+        debug!("Unable to get voice channel ID for some reason");
+        return Ok(())
     };
 
     let Some(member) = &new.member else {
@@ -61,17 +58,14 @@ pub async fn handle_join_hub_temp_vc(
 
     trace!("Handling temp voice channel.");
 
-    let cache_key = format!("temp_voice_hub:{}:{}", guild_id, target_channel_id);
+    let cache_key = format!("temp_voice_hub:{guild_id}:{target_channel_id}");
     let cached_json: Option<String> = redis.get(&cache_key).await?;
 
     let maybe_hub = temp_voice::database::get_hub_info(guild_id, redis, db, target_channel_id, &cache_key, cached_json).await?;
 
-    let hub_info = match maybe_hub {
-        Some(info) => info,
-        None => {
-            debug!("User not in voice hub. Skipping.");
-            return Ok(())
-        },
+    let hub_info = if let Some(info) = maybe_hub { info } else {
+        debug!("User not in voice hub. Skipping.");
+        return Ok(())
     };
 
     let owner_hash = temp_vc_owners_key(guild_id);
@@ -79,15 +73,14 @@ pub async fn handle_join_hub_temp_vc(
     let temp_vc_hash = temp_vcs_key(guild_id);
 
     let existing_channel: Option<String> = redis.hget(&owner_hash, &owner_field).await?;
-    if let Some(existing_channel_str) = existing_channel {
-        if let Ok(existing_channel_id) = existing_channel_str.parse::<u64>() {
+    if let Some(existing_channel_str) = existing_channel
+        && let Ok(existing_channel_id) = existing_channel_str.parse::<u64>() {
             let existing_channel_id = ChannelId::new(existing_channel_id);
 
             let still_exists = ctx
                 .cache
                 .guild(guild_id)
-                .map(|g| g.channels.contains_key(&existing_channel_id))
-                .unwrap_or(false);
+                .is_some_and(|g| g.channels.contains_key(&existing_channel_id));
 
             if still_exists {
                 debug!(
@@ -119,9 +112,8 @@ pub async fn handle_join_hub_temp_vc(
                 }
             }
         }
-    }
 
-    let new_channel = create_temp_vc(&ctx, &guild_id, &member, &hub_info).await?;
+    let new_channel = create_temp_vc(ctx, &guild_id, member, &hub_info).await?;
     debug!(new_channel_id = new_channel.id.get(), "Created temp voice channel.");
 
     let temp_vc_field = new_channel.id.get().to_string();
@@ -249,17 +241,16 @@ pub async fn create_temp_vc(ctx: &Context, guild_id: &GuildId, member: &Member, 
         anyhow::bail!("Category ID is not specified");
     };
     let category_id = ChannelId::new(cat_id);
-    let channel_name = placeholders::replace_channel_placeholders(hub_info.default_channel_name.as_str(), &guild_id, &ctx, &member).await?;
+    let channel_name = placeholders::replace_channel_placeholders(hub_info.default_channel_name.as_str(), guild_id, ctx, member).await?;
 
     let mut channel_builder = CreateChannel::new(channel_name)
         .kind(ChannelType::Voice)
         .category(category_id);
 
-    if let Some(limit) = hub_info.user_limit {
-        if limit > 0 {
+    if let Some(limit) = hub_info.user_limit
+        && limit > 0 {
             channel_builder = channel_builder.user_limit(limit as u32);
         }
-    }
 
     let new_channel = guild_id.create_channel(&ctx, channel_builder).await?;
     debug!(new_channel_id = new_channel.id.get(), "Created temp voice channel.");

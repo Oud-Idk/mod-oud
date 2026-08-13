@@ -19,7 +19,7 @@ pub async fn handle_delete_message(
     info!(channel_id = %ch_id, message_id = %msg_id, "Attempting message deletion");
 
     match state.serenity_http.delete_message(ch_id, msg_id, Some("Deleted via Moderation Dashboard")).await {
-        Ok(_) => {
+        Ok(()) => {
             info!("Discord message deleted successfully");
         }
         Err(poise::serenity_prelude::Error::Http(http_err)) => {

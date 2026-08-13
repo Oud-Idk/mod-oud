@@ -76,7 +76,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
 
     let winners: Vec<UserId> = eligible_users
         .sample(&mut rand::rng(), winner_count)
-        .cloned()
+        .copied()
         .collect();
 
     if winners.is_empty() {
@@ -87,7 +87,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
         channel_id.say(http, no_winners_msg).await?;
         info!(id = giveaway.id, "Giveaway ended with 0 winners.");
     } else {
-        let winner_mentions: Vec<String> = winners.iter().map(|u| format!("<@{}>", u)).collect();
+        let winner_mentions: Vec<String> = winners.iter().map(|u| format!("<@{u}>")).collect();
         let announcement = format!(
             "**GIVEAWAY ENDED** \n\nCongratulations to {}! You won **{}**! 🎁",
             winner_mentions.join(", "),

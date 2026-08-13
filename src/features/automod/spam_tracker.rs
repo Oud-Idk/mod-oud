@@ -1,8 +1,6 @@
 use crate::features::automod::{keys, cache};
-use fred::clients::Transaction;
 use fred::prelude::*;
-use fred::types::sorted_sets::Ordering;
-use fred::types::{Expiration, ExpireOptions, SetOptions};
+use fred::types::{Expiration, SetOptions};
 use std::time::Duration;
 use tracing::{debug, instrument, trace};
 
@@ -12,7 +10,8 @@ pub struct SpamTracker {
 }
 
 impl SpamTracker {
-    pub fn new(client: Client) -> Self {
+    #[must_use]
+    pub const fn new(client: Client) -> Self {
         Self { redis_conn: client }
     }
 
@@ -45,7 +44,7 @@ impl SpamTracker {
         let clear_before = now - window.as_secs_f64();
 
         let random_suffix: u16 = rand::random();
-        let member = format!("{}:{}", now, random_suffix);
+        let member = format!("{now}:{random_suffix}");
 
         trace!("Executing atomic spam validation transaction in Redis");
 

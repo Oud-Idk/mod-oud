@@ -1,5 +1,5 @@
 use crate::features::music::player::{
-    fetch_metadata, format_duration, install_new_track, is_live_stream, parse_timestamp,
+    fetch_metadata, install_new_track, is_live_stream, parse_timestamp,
     prepare_and_play, OldTrackDisposition, PlaybackServices, SeekMode,
 };
 use crate::features::music::spotify::{resolve_spotify_playlist, resolve_spotify_track};
@@ -54,7 +54,7 @@ pub struct GuildActor {
     pub last_live_reconnect_at: Option<std::time::Instant>,
 }
 
-/// Resolves single queries (Spotify URLs, YouTube video URLs, or plain text searches).
+/// Resolves single queries (Spotify URLs, `YouTube` video URLs, or plain text searches).
 async fn build_query_url(client: &reqwest::Client, query: &str) -> String {
     debug!(query = %query, "Resolving query URL");
 
@@ -72,13 +72,13 @@ async fn build_query_url(client: &reqwest::Client, query: &str) -> String {
         debug!(query = %query, "Query detected as direct URL");
         query.to_string()
     } else {
-        let search_query = format!("ytsearch:{}", query);
+        let search_query = format!("ytsearch:{query}");
         debug!(query = %query, search_query = %search_query, "Constructed ytsearch query");
         search_query
     }
 }
 
-/// Helper method to try resolving either Spotify or YouTube playlists into track search terms/URLs.
+/// Helper method to try resolving either Spotify or `YouTube` playlists into track search terms/URLs.
 async fn resolve_any_playlist(client: &reqwest::Client, query: &str) -> Option<Vec<String>> {
     if let Some(spotify_tracks) = resolve_spotify_playlist(client, query).await {
         return Some(spotify_tracks);
@@ -357,7 +357,7 @@ impl GuildActor {
         }
 
         let query_url = build_query_url(&self.reqwest_client, &query).await;
-        let mut metadata = fetch_metadata(self.services(), &query_url).await?;
+        let metadata = fetch_metadata(self.services(), &query_url).await?;
 
         let title = metadata.title.as_deref().unwrap_or("untitled").to_string();
         let thumbnail = metadata.thumbnail.clone();
@@ -419,7 +419,7 @@ impl GuildActor {
                 self.state.current_paused_total = Duration::ZERO;
 
                 if let Some(meta) = self.state.current_meta.as_ref() {
-                    let req_id = self.state.current_track.as_ref().map(|t| t.requested_by_id).unwrap_or(0);
+                    let req_id = self.state.current_track.as_ref().map_or(0, |t| t.requested_by_id);
                     record_track_start(&self.stats_tx, self.guild_id, req_id, handle.uuid(), meta);
                 }
 
@@ -699,7 +699,7 @@ impl GuildActor {
     }
 
     async fn handle_track_ended(&mut self, uuid: Uuid) {
-        if self.state.current.as_ref().map(|h| h.uuid()) != Some(uuid) {
+        if self.state.current.as_ref().map(songbird::tracks::TrackHandle::uuid) != Some(uuid) {
             return;
         }
 
@@ -707,13 +707,12 @@ impl GuildActor {
         // streaming source dropped (finite HLS segment chunk exhausted or URL
         // expired), not that the "track" finished. Reconnect instead of
         // treating it like a completed song.
-        if self.state.current_meta.as_ref().is_some_and(is_live_stream) {
-            if self.reconnect_live_stream().await {
+        if self.state.current_meta.as_ref().is_some_and(is_live_stream)
+            && self.reconnect_live_stream().await {
                 return;
             }
             // Reconnect failed (e.g. the streamer went offline): fall through
             // to the natural-end handling so the queue can advance.
-        }
 
         let fallback_duration = self.state.current_meta.as_ref().and_then(|m| m.duration);
 
@@ -730,7 +729,7 @@ impl GuildActor {
 
         // Estimated position where the track actually stopped
         let estimated_end_pos_sec = self.last_seek_target_sec + wall_clock_elapsed_sec;
-        let total_duration_sec = fallback_duration.map(|d| d.as_secs_f64()).unwrap_or(0.0);
+        let total_duration_sec = fallback_duration.map_or(0.0, |d| d.as_secs_f64());
 
         // A drop ONLY occurs if the track stopped far away from its expected end (< total_duration - 5s)
         let is_premature_drop = total_duration_sec > 15.0
@@ -755,13 +754,12 @@ impl GuildActor {
                     )
                     .await;
 
-                if let (Ok(_), Some(handle)) = (&info, self.state.current.clone()) {
-                    if resume_at > Duration::ZERO {
+                if let (Ok(_), Some(handle)) = (&info, self.state.current.clone())
+                    && resume_at > Duration::ZERO {
                         let _ = timeout(Duration::from_secs(4), handle.seek_async(resume_at)).await;
                         self.last_seek_target_sec = resume_at.as_secs_f64();
                         self.state.current_started_at = Some(Instant::now());
                     }
-                }
                 return;
             }
         }
@@ -801,12 +799,11 @@ impl GuildActor {
         // Safety valve: if the source keeps dropping faster than this, treat it
         // as genuinely dead and let the queue advance instead of reconnect-spamming.
         const MIN_RECONNECT_INTERVAL: Duration = Duration::from_secs(5);
-        if let Some(last) = self.last_live_reconnect_at {
-            if last.elapsed() < MIN_RECONNECT_INTERVAL {
+        if let Some(last) = self.last_live_reconnect_at
+            && last.elapsed() < MIN_RECONNECT_INTERVAL {
                 warn!(guild_id = %self.guild_id, "Live stream dropped again too quickly; advancing the queue");
                 return false;
             }
-        }
 
         let Some(current_track) = self.state.current_track.clone() else {
             return false;
@@ -871,11 +868,10 @@ impl GuildActor {
             bail!("Cannot seek in a live stream.");
         }
 
-        if let Some(last_seek) = self.last_seek_at {
-            if last_seek.elapsed() < Duration::from_millis(400) {
+        if let Some(last_seek) = self.last_seek_at
+            && last_seek.elapsed() < Duration::from_millis(400) {
                 bail!("Seeking too quickly! Please wait a moment between seeks.");
             }
-        }
 
         let handle = self.state.current.as_ref().context("Nothing is currently playing.")?;
         let seek_mode = parse_seek_input(&input)
@@ -884,8 +880,7 @@ impl GuildActor {
         self.last_seek_at = Some(std::time::Instant::now());
 
         let estimated_wall_clock = self.state.current_started_at
-            .map(|st| st.elapsed().saturating_sub(self.state.current_paused_total).as_secs_f64())
-            .unwrap_or(0.0);
+            .map_or(0.0, |st| st.elapsed().saturating_sub(self.state.current_paused_total).as_secs_f64());
         let fallback_pos = Duration::from_secs_f64(self.last_seek_target_sec + estimated_wall_clock);
 
         let current_pos = match timeout(Duration::from_millis(500), handle.get_info()).await {
@@ -899,11 +894,10 @@ impl GuildActor {
             SeekMode::RelativeBackward(delta) => current_pos.saturating_sub(delta),
         };
 
-        if let Some(total_duration) = self.state.current_meta.as_ref().and_then(|m| m.duration) {
-            if target >= total_duration {
+        if let Some(total_duration) = self.state.current_meta.as_ref().and_then(|m| m.duration)
+            && target >= total_duration {
                 target = total_duration.saturating_sub(Duration::from_millis(500));
             }
-        }
 
         self.seek_in_flight = true;
         let result = timeout(Duration::from_secs(4), handle.seek_async(target)).await;
@@ -975,8 +969,8 @@ impl GuildActor {
         let _ = self.events_tx.send((self.guild_id.get(), now_playing));
     }
 
-    /// Broadcasts track state while overriding position_sec with the exact seek target,
-    /// avoiding Songbird's async get_info() race condition.
+    /// Broadcasts track state while overriding `position_sec` with the exact seek target,
+    /// avoiding Songbird's async `get_info()` race condition.
     pub async fn broadcast_state_with_position(&self, override_pos_sec: f64) {
         let mut now_playing = self.handle_now_playing().await;
         if let Some(ref mut np) = now_playing {
@@ -1000,13 +994,10 @@ impl GuildActor {
         cached_meta: Option<AuxMetadata>,
         disposition: OldTrackDisposition,
     ) -> Result<StartedTrackInfo> {
-        let call = match self.manager.get(self.guild_id) {
-            Some(call) => call,
-            None => {
-                let channel_id = vc_channel_id
-                    .context("Not connected to a voice channel and no channel provided")?;
-                self.manager.join(self.guild_id, channel_id).await?
-            }
+        let call = if let Some(call) = self.manager.get(self.guild_id) { call } else {
+            let channel_id = vc_channel_id
+                .context("Not connected to a voice channel and no channel provided")?;
+            self.manager.join(self.guild_id, channel_id).await?
         };
 
         {

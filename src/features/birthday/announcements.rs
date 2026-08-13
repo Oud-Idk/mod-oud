@@ -59,7 +59,7 @@ pub async fn process_celebrant_roles(
             continue;
         };
 
-        let Ok(_) = ctx
+        let Ok(()) = ctx
             .http
             .add_member_role(target_guild_id, celebrant.user_id, role_id, Some("Birthday Role"))
             .await

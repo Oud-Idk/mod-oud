@@ -16,7 +16,7 @@ fn format_birthday_line(b: &FullUserBirthdayRecord) -> String {
     let current_year = Utc::now().year();
 
     let age_str = if let Some(year) = b.birth_year {
-        let age = current_year - (year as i32);
+        let age = current_year - i32::from(year);
         format!(" ({})", format_ordinal(age))
     } else {
         String::new()

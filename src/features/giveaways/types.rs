@@ -1,8 +1,8 @@
+use crate::core::config::message_layout::MessageLayout;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use sqlx::types::Json;
-use crate::core::config::settings::MessageLayout;
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]

@@ -10,7 +10,7 @@ use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::RaidAction;
 use fred::interfaces::KeysInterface;
 use serenity::all::{ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{error, info, instrument, warn};
 
 #[instrument(
     skip(ctx, data),
@@ -100,8 +100,7 @@ pub async fn trigger_raid_manual(
                 info!(guild_id = guild_id_u64, channel_id, "Sending manual raid alert message");
                 let channel = ChannelId::new(*channel_id);
                 let message_content = format!(
-                    "🚨 **Manual Raid Mode Activated** by moderator `{}`! Server incident protections have been enabled.",
-                    mod_username
+                    "🚨 **Manual Raid Mode Activated** by moderator `{mod_username}`! Server incident protections have been enabled."
                 );
                 let message = CreateMessage::new().content(message_content);
                 if let Err(e) = channel.send_message(&ctx.http, message).await {

@@ -32,8 +32,8 @@ pub async fn setup_tickets(
 
     let settings = get_settings(&ctx.data().core.db, &ctx.data().core.redis, &ctx.data().core.guild_configs_cache, guild_id).await?;
 
-    if let Some(ref ticket_cfg) = settings.tickets {
-        if let None = ticket_cfg.posted_message_id {
+    if let Some(ref ticket_cfg) = settings.tickets
+        && ticket_cfg.posted_message_id == None {
             debug!(guild_id, "Ticket setup blocked: active ticket panel already exists");
             ctx.send(
                 CreateReply::default()
@@ -43,7 +43,6 @@ pub async fn setup_tickets(
                 .await?;
             return Ok(());
         }
-    }
     let Some(category_id) = category
         .map(|c| c.id.get())
         .or_else(|| settings.tickets.as_ref().and_then(|t| t.category_id))

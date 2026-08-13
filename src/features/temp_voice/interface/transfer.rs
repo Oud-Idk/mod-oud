@@ -10,7 +10,7 @@ use serenity::all::{
 use tracing::{debug, info, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(user_id = %interaction.user.id.get()))]
-pub(crate) async fn handle_transfer_temp_vc(
+pub async fn handle_transfer_temp_vc(
     ctx: &Context,
     interaction: &ComponentInteraction,
     data: &BotData,
@@ -52,7 +52,7 @@ pub(crate) async fn handle_transfer_temp_vc(
         target_user_id = ?target_user_ids.first().map(|u| u.get())
     )
 )]
-pub(crate) async fn handle_transfer_temp_vc_submit(
+pub async fn handle_transfer_temp_vc_submit(
     ctx: &Context,
     interaction: &ComponentInteraction,
     data: &BotData,
@@ -72,7 +72,7 @@ pub(crate) async fn handle_transfer_temp_vc_submit(
 
     let response_message = service::initiate_temp_vc_transfer(
         ctx,
-        &data,
+        data,
         guild_id,
         channel_id,
         current_owner_id,
@@ -93,8 +93,7 @@ pub(crate) async fn handle_transfer_temp_vc_submit(
     let row = CreateActionRow::Buttons(vec![accept_btn, decline_btn]);
 
     let message_content = format!(
-        "<@{}>, <@{}> wants to transfer ownership of this channel to you! You have 90 seconds to accept.",
-        new_owner_id, current_owner_id
+        "<@{new_owner_id}>, <@{current_owner_id}> wants to transfer ownership of this channel to you! You have 90 seconds to accept."
     );
 
     let msg = CreateMessage::new().content(message_content).components(vec![row]);

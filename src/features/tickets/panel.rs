@@ -31,11 +31,10 @@ pub async fn build_ticket_message_payload(
             role_id = role_id.get(),
             "Retrieving role details for placeholders"
         );
-    if let Ok(roles) = guild_id.roles(http).await {
-        if let Some(role) = roles.get(&role_id) {
+    if let Ok(roles) = guild_id.roles(http).await
+        && let Some(role) = roles.get(&role_id) {
             role_name_opt = Some(role.name.clone());
         }
-    }
 
     trace!(guild_id = guild_id_u64, "Fetching guild context for placeholder evaluation");
     let gctx = get_guild_ctx(guild_id, http).await?;
@@ -62,8 +61,7 @@ pub async fn build_ticket_message_payload(
         None => {
             debug!(guild_id = guild_id_u64, "No custom layout configured; falling back to default embed");
             let description = format!(
-                "Click the button below to open a support ticket. Our staff with role <@{}> will assist you shortly.",
-                role_id
+                "Click the button below to open a support ticket. Our staff with role <@{role_id}> will assist you shortly."
             );
 
             let default_embed = CreateEmbed::default()

@@ -6,19 +6,19 @@ use serenity::all::{Context, GuildId, Member};
 fn replace_placeholder(gctx: Option<&GuildCtx>, member: &Member, key: &str) -> Option<String> {
     match key {
         "user.display_name" => Some(member.display_name().to_string()),
-        "user.username" => Some(member.user.name.to_string()),
+        "user.username" => Some(member.user.name.clone()),
         "user.id" => Some(member.user.id.to_string()),
-        "guild.name" => gctx.map(|g| g.name.to_string()),
+        "guild.name" => gctx.map(|g| g.name.clone()),
         _ => None,
     }
 }
 
-/// Determines if a specific placeholder key requires the GuildCtx database lookup.
+/// Determines if a specific placeholder key requires the `GuildCtx` database lookup.
 fn placeholder_needs_gctx(key: &str) -> bool {
     matches!(key, "guild.name")
 }
 
-pub(crate) async fn replace_channel_placeholders(
+pub async fn replace_channel_placeholders(
     text: &str,
     guild_id: &GuildId,
     ctx: &Context,
@@ -29,12 +29,11 @@ pub(crate) async fn replace_channel_placeholders(
     // Check if the text contains any placeholders that require the GuildCtx
     let mut needs_gctx = false;
     for caps in re.captures_iter(text) {
-        if let Some(key_match) = caps.name("key") {
-            if placeholder_needs_gctx(key_match.as_str()) {
+        if let Some(key_match) = caps.name("key")
+            && placeholder_needs_gctx(key_match.as_str()) {
                 needs_gctx = true;
                 break;
             }
-        }
     }
 
     // Only query the guild context if it is required by the text template

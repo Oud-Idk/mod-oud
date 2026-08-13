@@ -45,5 +45,5 @@ pub fn amount_of_uppercase(input: &str) -> f64 {
         return 0.0;
     }
 
-    uppercase_count as f64 / total_chars as f64
+    f64::from(uppercase_count) / f64::from(total_chars)
 }

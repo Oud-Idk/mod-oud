@@ -270,32 +270,29 @@ async fn create_or_update_post(
     let starboard_channel = ChannelId::new(starboard.starboard_channel_id as u64);
     let orig_msg_id = reaction.message_id;
 
-    match starboard_msg_id {
-        Some(post_id) => {
-            info!(channel_id = %starboard_channel, post_id = %post_id, "Editing existing starboard message");
-            let builder = EditMessage::new().content(text_message).embed(embedded_message);
+    if let Some(post_id) = starboard_msg_id {
+        info!(channel_id = %starboard_channel, post_id = %post_id, "Editing existing starboard message");
+        let builder = EditMessage::new().content(text_message).embed(embedded_message);
 
-            starboard_channel.edit_message(&ctx.http, post_id, builder).await?;
-            database::update_starred_message_count(db, orig_msg_id, starboard.id, emoji_count).await?;
-        }
-        None => {
-            info!(channel_id = %starboard_channel, "Creating brand new starboard message");
-            let builder = CreateMessage::new().content(text_message).embed(embedded_message);
+        starboard_channel.edit_message(&ctx.http, post_id, builder).await?;
+        database::update_starred_message_count(db, orig_msg_id, starboard.id, emoji_count).await?;
+    } else {
+        info!(channel_id = %starboard_channel, "Creating brand new starboard message");
+        let builder = CreateMessage::new().content(text_message).embed(embedded_message);
 
-            let sent_msg = starboard_channel.send_message(&ctx.http, builder).await?;
+        let sent_msg = starboard_channel.send_message(&ctx.http, builder).await?;
 
-            database::insert_starred_message(
-                db,
-                orig_msg_id,
-                sent_msg.id,
-                starboard.id,
-                guild_id,
-                reaction.channel_id,
-                origin_message.author.id,
-                emoji_count,
-            )
-                .await?;
-        }
+        database::insert_starred_message(
+            db,
+            orig_msg_id,
+            sent_msg.id,
+            starboard.id,
+            guild_id,
+            reaction.channel_id,
+            origin_message.author.id,
+            emoji_count,
+        )
+            .await?;
     }
 
     Ok(())

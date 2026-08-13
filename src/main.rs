@@ -7,8 +7,12 @@ use mod_oud::core::error::on_error;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::events;
 use mod_oud::features::live_feed::LogEvent;
+use mod_oud::features::music::MusicState;
 use mod_oud::features::music::web_command::WebCommandBus;
-use mod_oud::features::{automod, birthday, custom_commands, general, invite_tracking, leveling, media_only, member_counter, moderation, music, raid_detection, reporting, temp_voice, tickets, warning};
+use mod_oud::features::{
+    automod, birthday, custom_commands, general, invite_tracking, leveling, media_only,
+    member_counter, moderation, music, raid_detection, reporting, temp_voice, tickets, warning,
+};
 use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::start_web_server;
 use poise::serenity_prelude as serenity;
@@ -23,7 +27,6 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tracing::log::LevelFilter;
 use tracing::{debug, info, trace, warn};
-use mod_oud::features::music::MusicState;
 
 fn main() -> Result<(), Error> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -126,7 +129,14 @@ async fn async_main() -> Result<(), Error> {
         })
         .build()?;
     redis_client.init().await?;
-    debug!("Connected to Redis as {}.", redis_client.client_config().username.as_deref().unwrap_or("default"));
+    debug!(
+        "Connected to Redis as {}.",
+        redis_client
+            .client_config()
+            .username
+            .as_deref()
+            .unwrap_or("default")
+    );
 
     let subscriber_config = Config::from_url(&redis_url)?;
     let subscriber_client: SubscriberClient = Builder::from_config(subscriber_config)
@@ -137,7 +147,14 @@ async fn async_main() -> Result<(), Error> {
         .build_subscriber_client()?;
     subscriber_client.init().await?;
     subscriber_client.manage_subscriptions();
-    debug!("Connected to Redis with Subscriber as {}.", subscriber_client.client_config().username.as_deref().unwrap_or("default"));
+    debug!(
+        "Connected to Redis with Subscriber as {}.",
+        subscriber_client
+            .client_config()
+            .username
+            .as_deref()
+            .unwrap_or("default")
+    );
 
     let reqwest_client = reqwest::Client::new();
 
@@ -168,7 +185,8 @@ async fn async_main() -> Result<(), Error> {
             username_tx.clone(),
             web_command_bus.clone(),
             music_state.clone(),
-        ).await?;
+        )
+        .await?;
     }
 
     let guild_configs_for_setup = guild_configs.clone();
@@ -183,10 +201,7 @@ async fn async_main() -> Result<(), Error> {
             | GatewayIntents::GUILD_MODERATION
             | GatewayIntents::GUILD_VOICE_STATES;
 
-        let active_names: Vec<&str> = intents
-            .iter_names()
-            .map(|(name, _flag)| name)
-            .collect();
+        let active_names: Vec<&str> = intents.iter_names().map(|(name, _flag)| name).collect();
 
         info!("Selected intents: {:?}", active_names);
 
@@ -252,20 +267,27 @@ async fn async_main() -> Result<(), Error> {
                 commands: commands_to_register,
                 on_error: |error| Box::pin(on_error(error)),
                 event_handler: |ctx, event, framework, data| {
-                    Box::pin(events::dispatch::dispatch_events(ctx, event, framework, data))
+                    Box::pin(events::dispatch::dispatch_events(
+                        ctx, event, framework, data,
+                    ))
                 },
                 ..Default::default()
             })
             .setup(move |ctx, _ready, _framework| {
-                setup(
+                setup(SetupParams {
                     safe_browsing_api_key,
-                    pool, redis_client.clone(),
-                    subscriber_client.clone(),
-                    guild_configs_for_setup.clone(),
-                    ctx, username_tx.clone(),
-                    username_rx, reqwest_client.clone(),
-                    web_command_rx, music_state, _ready,
-                )
+                    pool,
+                    redis_client: redis_client.clone(),
+                    subscriber_client: subscriber_client.clone(),
+                    guild_configs_cache: guild_configs_for_setup.clone(),
+                    ctx,
+                    username_tx: username_tx.clone(),
+                    username_rx,
+                    reqwest_client: reqwest_client.clone(),
+                    web_command_rx,
+                    music_state,
+                    ready: _ready,
+                })
             })
             .build();
 
@@ -294,7 +316,9 @@ async fn async_main() -> Result<(), Error> {
 
         client.start_shard(shard_index, total_shards).await?;
     } else {
-        warn!("Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional.");
+        warn!(
+            "Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional."
+        );
         tokio::signal::ctrl_c().await?;
     }
 

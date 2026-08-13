@@ -15,18 +15,15 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     let redis = &ctx.data().core.redis;
     let data = ctx.serenity_context().data.read().await;
 
-    let shard_manager = match data.get::<ShardManagerContainer>() {
-        Some(v) => v,
-        None => {
-            warn!("Failed to retrieve ShardManagerContainer from serenity context data");
-            ctx.send(
-                poise::CreateReply::default()
-                    .content("Failed to retrieve shard manager")
-                    .ephemeral(true),
-            )
-                .await?;
-            return Ok(());
-        }
+    let shard_manager = if let Some(v) = data.get::<ShardManagerContainer>() { v } else {
+        warn!("Failed to retrieve ShardManagerContainer from serenity context data");
+        ctx.send(
+            poise::CreateReply::default()
+                .content("Failed to retrieve shard manager")
+                .ephemeral(true),
+        )
+            .await?;
+        return Ok(());
     };
 
     // Gather all our diagnostics using our helper functions
@@ -63,12 +60,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
             None => {
                 trace!("Responding without gateway latency (not yet provided by Discord)");
                 ctx.say(format!(
-                    "Pong!\n{}\n{}\n{}\nDon't forget Moka!\n{}\nMemory Usage: {}\nGateway Latency: Not **yet** provided by Discord\nWritten in Rust <:OwoFerris:1463892004885758014>",
-                    db_status,
-                    redis_status,
-                    shard_info_text,
-                    member_count_text,
-                    memory_text,
+                    "Pong!\n{db_status}\n{redis_status}\n{shard_info_text}\nDon't forget Moka!\n{member_count_text}\nMemory Usage: {memory_text}\nGateway Latency: Not **yet** provided by Discord\nWritten in Rust <:OwoFerris:1463892004885758014>",
                 )).await?;
             }
         }
@@ -105,7 +97,7 @@ async fn check_db_status(pool: &sqlx::PgPool) -> String {
     match db_query {
         Ok(_) => {
             trace!(latency_ms = db_latency, "PostgreSQL database connection is healthy");
-            format!("PostgreSQL connection is healthy (`SELECT 1` yields {:.2}ms).", db_latency)
+            format!("PostgreSQL connection is healthy (`SELECT 1` yields {db_latency:.2}ms).")
         }
         Err(err) => {
             warn!(error = ?err, "PostgreSQL database connection check failed");
@@ -122,7 +114,7 @@ async fn check_redis_status(redis: &fred::clients::Client) -> String {
     match redis_ping {
         Ok(_) => {
             trace!(latency_ms = redis_latency, "Redis cache connection is healthy");
-            format!("Redis connection is healthy (`PING` yields {:.2}ms).", redis_latency)
+            format!("Redis connection is healthy (`PING` yields {redis_latency:.2}ms).")
         }
         Err(err) => {
             warn!(error = ?err, "Redis cache connection check failed");
@@ -139,7 +131,7 @@ fn get_memory_usage() -> String {
 
         if let Some(process) = sys.process(pid) {
             let mem_mb = process.memory() as f64 / 1024.0 / 1024.0;
-            format!("{:.2} MB", mem_mb)
+            format!("{mem_mb:.2} MB")
         } else {
             "Unknown".to_string()
         }

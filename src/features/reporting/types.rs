@@ -1,7 +1,7 @@
-use crate::core::config::settings::{MessageLayout, TogglableMessage};
+use crate::core::config::message_layout::TogglableMessage;
 use crate::shared::string_i64;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 
 #[derive(Debug)]
 pub enum ReportUpdate {

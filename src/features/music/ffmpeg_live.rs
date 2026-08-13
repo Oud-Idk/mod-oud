@@ -51,7 +51,7 @@ pub async fn resolve_stream_url(query: &str) -> Result<String, String> {
 /// raw interleaved `f32` PCM via `ffmpeg`, which songbird can then play.
 ///
 /// This exists because symphonia (songbird's decoder) has no MPEG-TS demuxer,
-/// and live streams (e.g. YouTube) may only be offered as muxed HLS MPEG-TS,
+/// and live streams (e.g. `YouTube`) may only be offered as muxed HLS MPEG-TS,
 /// which the usual `YoutubeDl`/`HlsRequest` path cannot decode.
 pub struct FfmpegLiveInput {
     query: String,
@@ -72,7 +72,7 @@ impl FfmpegLiveInput {
     ) -> Result<AudioStream<Box<dyn MediaSource>>, AudioStreamError> {
         let url = resolve_stream_url(&self.query)
             .await
-            .map_err(|e| AudioStreamError::Fail(std::io::Error::new(std::io::ErrorKind::Other, e).into()))?;
+            .map_err(|e| AudioStreamError::Fail(std::io::Error::other(e).into()))?;
 
         let mut child = tokio::process::Command::new(FFMPEG)
             .args([
@@ -100,8 +100,7 @@ impl FfmpegLiveInput {
             .spawn()
             .map_err(|e| {
                 AudioStreamError::Fail(
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
+                    std::io::Error::other(
                         format!("could not start '{FFMPEG}': {e}"),
                     )
                     .into(),
@@ -112,7 +111,7 @@ impl FfmpegLiveInput {
             .stdout
             .take()
             .ok_or_else(|| AudioStreamError::Fail(
-                std::io::Error::new(std::io::ErrorKind::Other, "no stdout pipe from ffmpeg").into(),
+                std::io::Error::other("no stdout pipe from ffmpeg").into(),
             ))?;
 
         // Reap ffmpeg once it exits (e.g. SIGPIPE when songbird stops the track).
@@ -151,7 +150,7 @@ impl Compose for FfmpegLiveInput {
 
 impl From<FfmpegLiveInput> for Input {
     fn from(val: FfmpegLiveInput) -> Self {
-        Input::Lazy(Box::new(val))
+        Self::Lazy(Box::new(val))
     }
 }
 

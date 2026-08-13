@@ -145,8 +145,7 @@ pub async fn count_emoji_and_cache(
                 .reactions
                 .iter()
                 .find(|r| is_emoji_match(&r.reaction_type, &removed_reaction.emoji))
-                .map(|r| r.count)
-                .unwrap_or(0);
+                .map_or(0, |r| r.count);
 
             if starboard.prevent_self_star.unwrap_or(false) {
                 trace!("Self-star prevention active; checking reaction authors");

@@ -1,9 +1,7 @@
 use super::super::rules::check_rule;
-use crate::features::automod;
-use crate::features::automod::events::external_urls;
 use crate::features::automod::patterns::DISCORD_FORMAT_REGEX;
 use crate::features::automod::types::FilterVerdict;
-use crate::features::automod::types::{HasBaseRule, MessageFilteringConfig, ScopeMode};
+use crate::features::automod::types::MessageFilteringConfig;
 use crate::shared::messages;
 use rustrict::{Censor, Type};
 use serenity::all::Message;

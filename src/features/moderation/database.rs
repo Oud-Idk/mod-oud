@@ -13,7 +13,7 @@ trait ToPgInterval {
 impl ToPgInterval for TimeDelta {
     fn to_pg_interval(&self) -> PgInterval {
         let days = self.num_days() as i32;
-        let remaining = *self - TimeDelta::days(days as i64);
+        let remaining = *self - Self::days(i64::from(days));
         PgInterval {
             months: 0,
             days,

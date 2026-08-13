@@ -1,10 +1,8 @@
-use crate::core::config::settings::MessageLayout;
+use crate::core::config::message_layout::MessageLayout;
 use crate::core::config::state::{BotData, Error, WebState};
 use crate::features::reaction_roles::types::ButtonStyle;
 use crate::features::reaction_roles::types::{ButtonRole, InteractionMode, ReactionMessage, ReactionRole};
-use crate::shared::embed::Format;
 use axum::http::StatusCode;
-use fred::bytes_utils::Str;
 use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
 use serenity::all::RoleId;
@@ -20,7 +18,7 @@ pub async fn get_reaction_role(
     message_id: i64,
     emoji: &str,
 ) -> Result<Option<RoleId>, Error> {
-    let cache_key = format!("reaction_role:{}:{}", message_id, emoji);
+    let cache_key = format!("reaction_role:{message_id}:{emoji}");
 
     match data.core.redis.get::<Option<String>, _>(&cache_key).await {
         Ok(Some(cached_val)) => {
@@ -29,9 +27,8 @@ pub async fn get_reaction_role(
             }
             if let Ok(role_id_u64) = cached_val.parse::<u64>() {
                 return Ok(Some(RoleId::new(role_id_u64)));
-            } else {
-                error!("Invalid role ID format in Redis cache: {}", cached_val);
             }
+            error!("Invalid role ID format in Redis cache: {}", cached_val);
         }
         Ok(None) => trace!("Cache miss when finding reaction role. Querying from database."),
         Err(e) => warn!("Redis read error (falling back to database): {}", e),
@@ -89,7 +86,7 @@ pub async fn fetch_reaction_message(
         .fetch_optional(pool)
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed to load reaction roles database record"))
-        .map_err(|e| {
+        .map_err(|_e| {
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())
         })?
         .ok_or_else(|| {
@@ -157,7 +154,7 @@ pub async fn get_button_role(
     data: &BotData,
     custom_id: &str,
 ) -> Result<Option<RoleId>, Error> {
-    let cache_key = format!("button_role:{}", custom_id);
+    let cache_key = format!("button_role:{custom_id}");
 
     match data.core.redis.get::<Option<String>, _>(&cache_key).await {
         Ok(Some(cached_val)) => {
@@ -166,9 +163,8 @@ pub async fn get_button_role(
             }
             if let Ok(role_id_u64) = cached_val.parse::<u64>() {
                 return Ok(Some(RoleId::new(role_id_u64)));
-            } else {
-                error!("Invalid role ID format in Redis cache: {}", cached_val);
             }
+            error!("Invalid role ID format in Redis cache: {}", cached_val);
         }
         Ok(None) => trace!("Cache miss when finding button role. Querying from database."),
         Err(e) => warn!("Redis read error (falling back to database): {}", e),

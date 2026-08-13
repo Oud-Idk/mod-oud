@@ -57,6 +57,7 @@ pub fn replace_kick_placeholder(
     render(text, &ResolverChain(vec![&discord, &modctx]))
 }
 
+#[must_use]
 pub fn replace_reason_placeholders(
     text: &str,
     gctx: &GuildCtx,
@@ -119,6 +120,7 @@ pub fn replace_mute_placeholder(
     render(text, &ResolverChain(vec![&discord, &modctx]))
 }
 
+#[must_use]
 pub fn replace_basic_placeholder(
     text: &str,
     gctx: &GuildCtx,
@@ -137,6 +139,7 @@ pub fn replace_basic_placeholder(
     render(text, &ResolverChain(vec![&discord, &modctx]))
 }
 
+#[must_use]
 pub fn replace_system_ban_placeholders(
     text: &str,
     gctx: &GuildCtx,

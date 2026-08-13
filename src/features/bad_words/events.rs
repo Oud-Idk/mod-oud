@@ -28,7 +28,7 @@ fn has_bad_words(pattern: &Pattern, original: &str, lower: &str) -> bool {
                     .build()
                     .ok()
             });
-            cached_regex.as_ref().map_or(false, |re| re.is_match(original))
+            cached_regex.as_ref().is_some_and(|re| re.is_match(original))
         }
     }
 }
@@ -51,7 +51,7 @@ pub fn filter_bad_words<'a>(
         let content_lower = message.content.to_lowercase();
         let mut matched_pattern = None;
 
-        for pattern in ruleset.patterns.iter() {
+        for pattern in &ruleset.patterns {
             if has_bad_words(pattern, &message.content, &content_lower) {
                 matched_pattern = Some(pattern);
                 break;

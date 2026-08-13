@@ -38,7 +38,7 @@ pub async fn handle_resolve_report(
         .fetch_one(&state.core.db)
         .await
         .inspect_err(|e| error!(error = ?e, "Failed to retrieve reporter ID from database"))
-        .map_err(|e| WebError::Internal)?;
+        .map_err(|_e| WebError::Internal)?;
 
     let reporter_id_u64: u64 = reporter_id as u64;
     let reporter_id = UserId::new(reporter_id_u64);
@@ -46,7 +46,7 @@ pub async fn handle_resolve_report(
     update_reported_message(
         &state.core.db,
         cmd.report_id,
-        ReportUpdate::Status(status.clone()),
+        ReportUpdate::Status(*status),
     )
         .await
         .inspect_err(|e| error!(error = ?e, "Database report status update failed"))
@@ -57,7 +57,7 @@ pub async fn handle_resolve_report(
         .await
         .map_err(|e| {
             error!(error = %e, "Failed to open direct message channel to the reporter");
-            WebError::BadGateway(format!("Failed to open DM channel: {}", e))
+            WebError::BadGateway(format!("Failed to open DM channel: {e}"))
         })?;
 
     let layout_opt = match status {
@@ -66,7 +66,7 @@ pub async fn handle_resolve_report(
         ReportStatus::UnderReview => None,
     };
 
-    if layout_opt.map(|l| l.enabled) != Some(true) {
+    if layout_opt.is_none_or(|l| !l.enabled) {
         info!("Report status resolved; skipping DM layout dispatch since configurations are disabled");
         return Ok(StatusCode::OK);
     }
@@ -81,27 +81,24 @@ pub async fn handle_resolve_report(
             replace_fn,
         )
             .inspect_err(|e| error!(error = %e, "Failed to generate custom messaging content layout"))
-            .map_err(|e| { WebError::Internal })?
+            .map_err(|_e| { WebError::Internal })?
     } else {
         None
     };
 
-    let send_result = match custom_msg_builder {
-        Some(builder) => {
-            dm_channel.send_message(&state.serenity_http, builder).await
-        }
-        None => {
-            let status_label = match status {
-                ReportStatus::UnderReview => "Under Review",
-                ReportStatus::Actioned => "Actioned",
-                ReportStatus::Dismissed => "Dismissed",
-            };
-            let fallback_content = format!(
-                "Hello! Your report (ID: {}) has been resolved. Status: **{}**",
-                cmd.report_id, status_label
-            );
-            dm_channel.say(&state.serenity_http, fallback_content).await
-        }
+    let send_result = if let Some(builder) = custom_msg_builder {
+        dm_channel.send_message(&state.serenity_http, builder).await
+    } else {
+        let status_label = match status {
+            ReportStatus::UnderReview => "Under Review",
+            ReportStatus::Actioned => "Actioned",
+            ReportStatus::Dismissed => "Dismissed",
+        };
+        let fallback_content = format!(
+            "Hello! Your report (ID: {}) has been resolved. Status: **{}**",
+            cmd.report_id, status_label
+        );
+        dm_channel.say(&state.serenity_http, fallback_content).await
     };
 
     if let Err(e) = send_result {

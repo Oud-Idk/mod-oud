@@ -15,7 +15,7 @@ pub async fn invite(
 
     let guild_id = ctx.guild_id().with_context(|| "Not in guild")?;
     let author = ctx.author();
-    let Some(vc_id) = get_user_vc_in_guild(&ctx.data(), guild_id, author.id).await? else {
+    let Some(vc_id) = get_user_vc_in_guild(ctx.data(), guild_id, author.id).await? else {
         send_ephemeral(&ctx, "Either you are not in a voice channel or it isn't registered in my system. Try rejoining.").await?;
         return Ok(());
     };

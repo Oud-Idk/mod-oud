@@ -55,12 +55,12 @@ pub async fn handle_edit_reaction_role_message(
     match config_row.mode {
         InteractionMode::Button => {
             let button_components = fetch_and_build_buttons(&state.core.db, config_row.id).await?;
-            if !button_components.is_empty() {
+            if button_components.is_empty() {
+                edit_builder = edit_builder.components(Vec::new());
+            } else {
                 edit_builder = edit_builder.components(vec![
                     serenity::all::CreateActionRow::Buttons(button_components),
                 ]);
-            } else {
-                edit_builder = edit_builder.components(Vec::new());
             }
         }
         InteractionMode::Reaction => {

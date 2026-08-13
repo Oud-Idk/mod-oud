@@ -1,6 +1,5 @@
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::ActionType;
-use crate::features::moderation::channels::delete_entire_category;
 use crate::features::moderation::commands::helpers::parse_duration;
 use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::issuing::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};
@@ -95,7 +94,7 @@ pub async fn ban(
 
     issue_ban(
         &ctx.data().core.db,
-        &redis_conn,
+        redis_conn,
         &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
@@ -110,7 +109,7 @@ pub async fn ban(
     let conf_msg = format!(
         "**Successfully banned {}** {} (Reason: `{}`).",
         user.tag(),
-        duration.as_ref().map_or("permanently".to_string(), |d| format!("for {}", d)),
+        duration.as_ref().map_or("permanently".to_string(), |d| format!("for {d}")),
         reason_str
     );
     send_ephemeral(&ctx, conf_msg).await?;
@@ -150,7 +149,13 @@ pub async fn purge(
     trace!(fetched_count = messages.len(), "Retrieved messages from channel for purging");
     let message_ids: Vec<MessageId> = get_to_be_deleted_message_ids(&messages);
 
-    if !message_ids.is_empty() {
+    if message_ids.is_empty() {
+        debug!(
+            channel_id = channel_id.get(),
+            "Purge skipped: no deletable message IDs returned (potentially all older than 14 days)"
+        );
+        send_ephemeral(&ctx, "Seems like I can't delete any messages. Perhaps those messages are older than 14 days?").await?;
+    } else {
         channel_id
             .delete_messages(&ctx.serenity_context().http, &message_ids)
             .await?;
@@ -160,12 +165,6 @@ pub async fn purge(
             deleted_count = message_ids.len(),
             "Successfully bulk deleted messages"
         );
-    } else {
-        debug!(
-            channel_id = channel_id.get(),
-            "Purge skipped: no deletable message IDs returned (potentially all older than 14 days)"
-        );
-        send_ephemeral(&ctx, "Seems like I can't delete any messages. Perhaps those messages are older than 14 days?").await?;
     }
     Ok(())
 }
@@ -202,7 +201,7 @@ pub async fn mute(
         return Ok(());
     };
 
-    if dur > std::time::Duration::from_secs(28 * 24 * 60 * 60) || dur < std::time::Duration::from_secs(60) {
+    if dur > std::time::Duration::from_hours(672) || dur < std::time::Duration::from_mins(1) {
         debug!(
             target_id,
             duration_secs = dur.as_secs(),
@@ -230,7 +229,7 @@ pub async fn mute(
 
     send_ephemeral(
         &ctx,
-        format!("**{}** has been muted for {} (Reason: `{}`)", member.user.name, &duration, reason_str),
+        format!("**{}** has been muted for {} (Reason: `{}`)", member.user.name, duration, reason_str),
     ).await?;
 
     info!(target_id, duration = %duration, "User successfully muted");
@@ -276,7 +275,7 @@ pub async fn unmute(
 
     issue_unmute(
         &ctx.data().core.db,
-        &redis_conn,
+        redis_conn,
         &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
@@ -320,7 +319,7 @@ pub async fn softban(
 
     issue_softban(
         &ctx.data().core.db,
-        &redis_conn,
+        redis_conn,
         &ctx.data().core.guild_configs_cache,
         &ctx.serenity_context().http,
         meta.id,
@@ -359,9 +358,9 @@ pub async fn unban(
     let unban_result = meta.id.unban(ctx.http(), user.id).await;
 
     match unban_result {
-        Ok(_) => {
+        Ok(()) => {
             log_moderation_action(
-                &ctx.data().core.db, meta.id, Some(&user), &ctx.author(), Some(&reason_str), ActionType::Unban, None,
+                &ctx.data().core.db, meta.id, Some(&user), ctx.author(), Some(&reason_str), ActionType::Unban, None,
             ).await?;
 
             ctx.say(format!(
@@ -375,7 +374,7 @@ pub async fn unban(
         }
         Err(err) => {
             warn!(error = ?err, target_id, "Failed to execute unban operation via serenity API");
-            ctx.say(format!("Failed to unban user: {}", err)).await?;
+            ctx.say(format!("Failed to unban user: {err}")).await?;
         }
     }
 

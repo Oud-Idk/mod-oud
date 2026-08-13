@@ -20,7 +20,8 @@ pub fn render(text: &str, resolver: &dyn PlaceholderResolver) -> String {
     let re = get_placeholder_regex();
     re.replace_all(text, |caps: &Captures| {
         resolver.resolve(&caps["key"]).unwrap_or_else(|| caps[0].to_string())
-    }).into_owned()
+    })
+        .into_owned()
 }
 
 #[derive(Default)]
@@ -33,7 +34,7 @@ pub struct DiscordCtx<'a> {
     pub message: Option<&'a Message>,
 }
 
-impl<'a> DiscordCtx<'a> {
+impl DiscordCtx<'_> {
     fn user(&self) -> Option<&User> {
         self.user.or_else(|| self.member.map(|m| &m.user))
     }
@@ -47,26 +48,41 @@ impl PlaceholderResolver for DiscordCtx<'_> {
             return Some(match key {
                 "server" | "server.name" => gctx.name.clone(),
                 "server.id" => gctx.id.clone(),
-                "server.icon_url" => gctx.icon_url.clone(),
-                "server.icon" => gctx.icon_hash.clone(),
+                "server.icon_url" => gctx.icon_url.clone().unwrap_or_default(),
+                "server.icon" => gctx.icon_hash.clone().unwrap_or_default(),
                 "server.owner" => format!("<@{}>", gctx.owner_id),
                 "server.owner_id" => gctx.owner_id.clone(),
-                "server.member_count" | "member.count" => gctx.member_count.clone(),
-                "server.verification_level" => gctx.verification_level.clone(),
-                "server.joined_at" => gctx.joined_at.clone(),
+                "server.member_count" | "member.count" => gctx.member_count.to_string(),
+                "server.verification_level" => u8::from(gctx.verification_level).to_string(),
+                "server.joined_at" => gctx.joined_at.clone().unwrap_or_default(),
                 _ => return None,
             });
         }
 
         // Member / User-related (resolves user or member)
-        if ["user", "member", "player", "host"].iter().any(|prefix| key.starts_with(prefix)) {
+        if ["user", "member", "player", "host"]
+            .iter()
+            .any(|prefix| key.starts_with(prefix))
+        {
             let user = self.user()?;
             return Some(match key {
-                "user" | "user.mention" | "member" | "member.mention" | "player" | "host" | "host.mention" => format!("<@{}>", user.id),
+                "user"
+                | "user.mention"
+                | "member"
+                | "member.mention"
+                | "player"
+                | "host"
+                | "host.mention" => format!("<@{}>", user.id),
                 "user.name" | "member.username" | "host.name" | "host.username" => user.name.clone(),
                 "user.id" | "member.id" | "host.id" => user.id.to_string(),
-                "user.avatar" | "member.avatar" | "host.avatar" => user.avatar.map(|h| h.to_string()).unwrap_or_default(),
-                "user.avatar_url" | "member.avatar_url" | "member.profile_picture" | "host.avatar_url" | "host.profile_picture" => user.face(),
+                "user.avatar" | "member.avatar" | "host.avatar" => {
+                    user.avatar.map(|h| h.to_string()).unwrap_or_default()
+                }
+                "user.avatar_url"
+                | "member.avatar_url"
+                | "member.profile_picture"
+                | "host.avatar_url"
+                | "host.profile_picture" => user.face(),
                 "user.bot" | "member.bot" | "host.bot" => user.bot.to_string(),
                 _ => return None,
             });
@@ -110,7 +126,6 @@ impl PlaceholderResolver for DiscordCtx<'_> {
         None
     }
 }
-
 
 pub fn get_placeholder_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();

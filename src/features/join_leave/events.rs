@@ -1,9 +1,6 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
-use crate::features::invite_tracking;
-use crate::features::invite_tracking::store_member_invite;
-use crate::features::join_leave::types::WelcomeConfig;
 use crate::features::join_leave::{database, log_join_to_db, messages, send};
 use serenity::all::{ChannelId, Context, EditMember, GuildId, Member, RoleId, User};
 use std::collections::HashSet;
@@ -87,11 +84,10 @@ pub async fn handle_member_welcome(
     let public_channel_id_u64 = config.public.as_ref().and_then(|p| p.channel_id);
     let context_channel = messages::get_context_channel(ctx, member, public_channel_id_u64).await?;
 
-    if let Some(ref role_ids) = config.join_role_ids {
-        if let Err(e) = apply_join_roles(ctx, member, role_ids).await {
+    if let Some(ref role_ids) = config.join_role_ids
+        && let Err(e) = apply_join_roles(ctx, member, role_ids).await {
             warn!(error = ?e, guild_id, user_id, "Failed to completely apply automatic join roles");
         }
-    }
 
     send::send_public_welcome(ctx, member, &config, &context_channel, &gctx, &warning_text).await?;
     send::send_private_welcome(ctx, member, &config, &context_channel, &gctx, &warning_text).await?;
@@ -109,8 +105,7 @@ pub fn check_alt_status(user: &User) -> String {
     if age_in_days < 3 {
         debug!(user_id, age_in_days, "New account detected (less than 3 days old); creating alert text");
         format!(
-            "\n\n⚠️ **WARNING:** This account is very new! Created {} days ago.",
-            age_in_days
+            "\n\n⚠️ **WARNING:** This account is very new! Created {age_in_days} days ago."
         )
     } else {
         trace!(user_id, age_in_days, "Account age is normal");

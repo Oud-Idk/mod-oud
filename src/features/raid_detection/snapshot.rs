@@ -7,7 +7,7 @@ use fred::types::{Expiration, SetOptions};
 use serde::{Deserialize, Serialize};
 use serenity::all::Context;
 use serenity::all::{EditRole, GuildId, Permissions, RoleId};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreRaidState {
@@ -35,8 +35,7 @@ pub async fn ensure_preraid_state_saved(
     let everyone_perms = partial_guild
         .roles
         .get(&everyone_role_id)
-        .map(|r| r.permissions.bits())
-        .unwrap_or(0);
+        .map_or(0, |r| r.permissions.bits());
 
     let mut snapshot = PreRaidState {
         raid_start_time: chrono::Utc::now(),
@@ -49,7 +48,7 @@ pub async fn ensure_preraid_state_saved(
     if let Some(verification_settings) = settings.welcome.and_then(|w| w.verification) {
         snapshot.original_verification_type = verification_settings.captcha_type;
         snapshot.original_oauth_required = verification_settings.use_oauth;
-    };
+    }
 
     let redis_key = keys::raid_snapshot_key(guild_id);
     let serialized = serde_json::to_string(&snapshot)?;
@@ -128,7 +127,7 @@ pub async fn restore_preraid_state(
     // Restore verification settings in the database
     let captcha_str = snapshot
         .original_verification_type
-        .map(|c| format!("{}", c));
+        .map(|c| format!("{c}"));
 
     debug!(guild_id, "Restoring verification settings in database");
     database::restore_verification_settings(

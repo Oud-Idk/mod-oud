@@ -12,10 +12,7 @@ pub async fn get_hub_and_cache(guild_id: GuildId, redis: &Client, db: &PgPool, t
 
     if let Ok(json_str) = serde_json::to_string(&hub) {
         let ttl = if hub.is_some() { 86400 } else { 300 };
-        match redis.set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false).await {
-            Err(e) => { warn!("Error when writing cache to redis! {}", e) }
-            _ => {}
-        }
+        if let Err(e) = redis.set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false).await { warn!("Error when writing cache to redis! {}", e) }
     }
     Ok(hub)
 }
@@ -43,12 +40,12 @@ pub async fn get_hub_info(guild_id: GuildId, redis: &Client, db: &PgPool, target
             Ok(hub) => hub, // valid cache hit
             Err(e) => { // malformed body, then we refetch and invalidate and stuff
                 warn!(error = %e, cache_key = %cache_key, "Corrupt cache entry, falling back to DB");
-                get_hub_and_cache(guild_id, redis, db, target_channel_id, &cache_key).await?
+                get_hub_and_cache(guild_id, redis, db, target_channel_id, cache_key).await?
             }
         }
         None => {
             // simple miss
-            get_hub_and_cache(guild_id, redis, db, target_channel_id, &cache_key).await?
+            get_hub_and_cache(guild_id, redis, db, target_channel_id, cache_key).await?
         }
     })
 }
@@ -84,10 +81,7 @@ pub async fn get_hub_and_cache_by_category(
 
     if let Ok(json_str) = serde_json::to_string(&hub) {
         let ttl = if hub.is_some() { 86400 } else { 300 };
-        match redis.set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false).await {
-            Err(e) => { warn!("Error when writing cache to redis! {}", e) }
-            _ => {}
-        }
+        if let Err(e) = redis.set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false).await { warn!("Error when writing cache to redis! {}", e) }
     }
     Ok(hub)
 }
@@ -105,12 +99,12 @@ pub async fn get_hub_info_by_category(
             Ok(hub) => hub, // valid cache hit
             Err(e) => { // malformed body, then we refetch and invalidate
                 warn!(error = %e, cache_key = %cache_key, "Corrupt cache entry, falling back to DB");
-                get_hub_and_cache_by_category(guild_id, redis, db, category_id, &cache_key).await?
+                get_hub_and_cache_by_category(guild_id, redis, db, category_id, cache_key).await?
             }
         }
         None => {
             // simple miss
-            get_hub_and_cache_by_category(guild_id, redis, db, category_id, &cache_key).await?
+            get_hub_and_cache_by_category(guild_id, redis, db, category_id, cache_key).await?
         }
     })
 }

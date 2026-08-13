@@ -24,15 +24,14 @@ pub async fn execute_rule_actions(
     custom_dm_message: Option<&str>,
     should_warn: Option<bool>,
 ) {
-    let actions_taken: Vec<&'static str> = base.action.iter().map(|a| a.as_str()).collect();
+    let actions_taken: Vec<&'static str> = base.action.iter().map(super::types::RuleAction::as_str).collect();
 
     debug!(?actions_taken, "Executing configured actions for matched rule");
 
-    if should_warn.unwrap_or(true) {
-        if let Err(e) = log_automod_event(&data.core.db, message, rule_name, trigger_content, &actions_taken).await {
+    if should_warn.unwrap_or(true)
+        && let Err(e) = log_automod_event(&data.core.db, message, rule_name, trigger_content, &actions_taken).await {
             error!(error = %e, "Failed to log automod event");
-        }
-    } // This if statement is to prevent spamming the shit out of my poor database
+        } // This if statement is to prevent spamming the shit out of my poor database
 
     handle_automod(ctx, message, base, data, rule_name, should_warn, custom_dm_message).await;
 }
@@ -98,11 +97,11 @@ async fn apply_warning(
         (bot_user.id, bot_user.name.clone())
     };
     let target_username = message.author.name.clone();
-    let reason_str = format!("Automated Filter: {}", rule_name);
+    let reason_str = format!("Automated Filter: {rule_name}");
     let http = ctx.http.clone();
 
     match issue_warning(
-        db, redis_conn, guild_configs, &username_buf_tx, &http, guild_id, user_id, moderator_id,
+        db, redis_conn, guild_configs, username_buf_tx, &http, guild_id, user_id, moderator_id,
         &reason_str, &moderator_username, &target_username,
     ).await {
         Ok(warn_id) => info!(warn_id, "Automated filter successfully issued warning and executed threshold actions"),
@@ -133,7 +132,7 @@ async fn apply_mute(
 
     let user = message.author.clone();
     let moderator: User = ctx.cache.current_user().clone().into();
-    let reason_str = format!("Automated Filter: {}", rule_name);
+    let reason_str = format!("Automated Filter: {rule_name}");
     let http = ctx.http.clone();
 
     match issue_mute(db, redis_conn, guild_configs, &http, guild_id, user, moderator, &reason_str, &duration, timeout_until).await {
@@ -158,7 +157,7 @@ async fn apply_public_reminder(ctx: &serenity::all::Context, message: &Message, 
 async fn apply_private_reminder(ctx: &serenity::all::Context, message: &Message, rule_name: &str, custom_dm_message: Option<&str>) {
     let builder = match custom_dm_message {
         Some(custom) => CreateMessage::new().content(custom),
-        None => CreateMessage::new().content(format!("Your message was flagged for violating a server filter rule ({}).", rule_name)),
+        None => CreateMessage::new().content(format!("Your message was flagged for violating a server filter rule ({rule_name}).")),
     };
     trace!("Sending private direct message automod warning");
     if let Err(err) = message.author.dm(&ctx.http, builder).await {

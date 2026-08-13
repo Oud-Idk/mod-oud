@@ -14,13 +14,13 @@ pub async fn insert_reported_message(
     channel_id: i64,
     attachment_url: &str,
     reason: &str,
-    reporter_name: &str,
+    _reporter_name: &str,
     message: &Message,
     reporter: &User,
 ) -> Result<Option<Id>, Error> {
     let author = &message.author;
     let message_content = &message.content;
-    let author_name = &author.name;
+    let _author_name = &author.name;
 
     let message_id = message.id.get() as i64;
     let author_id = author.id.get() as i64;
@@ -76,7 +76,7 @@ pub async fn fetch_target_report(
         .fetch_optional(pool)
         .await
         .inspect_err(|e| error!(error = ?e, report_id, "Failed to fetch reported message by ID"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
+        .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Report ID not found".to_string()))?;
 
     let guild_id = serenity::all::GuildId::new(report.guild_id as u64);
@@ -142,5 +142,5 @@ pub async fn update_reported_message(
     result
         .map(|_| ())
         .inspect_err(|e| warn!(error = ?e, "Failed to update reported message"))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))
+        .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))
 }
