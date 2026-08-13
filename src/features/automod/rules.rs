@@ -1,23 +1,23 @@
-use serenity::all::Message;
+use crate::{
+    features::automod::types::{HasBaseRule, RuleScope, ScopeMode},
+    shared::permissions::HasRoles,
+};
+use serenity::{all::Message, model::guild::PartialMember};
 use tracing::trace;
-use crate::features::automod::types::{HasBaseRule, RuleScope, ScopeMode};
 
 pub fn should_skip_scope(message: &Message, scope: &RuleScope) -> bool {
-    let current_channel_id = message.channel_id;
-    let is_channel_matched = scope.channels.contains(&current_channel_id.get());
+    let channel_id = message.channel_id.get();
 
-    let has_matching_role = || -> bool {
-        let Some(member) = &message.member else {
-            return false;
-        };
-        member.roles.iter().any(|role_id| {
-            scope.roles.contains(&role_id.get())
-        })
+    let has_matching_role = || {
+        message
+            .member
+            .as_ref()
+            .is_some_and(|m| m.has_any_role_u64(&scope.roles))
     };
 
     match scope.mode {
         ScopeMode::Exempt => {
-            if is_channel_matched {
+            if scope.channels.contains(&channel_id) {
                 trace!("Skipping rule check: target channel is exempt");
                 return true;
             }
@@ -27,13 +27,11 @@ pub fn should_skip_scope(message: &Message, scope: &RuleScope) -> bool {
             }
         }
         ScopeMode::Enforced => {
-            if !is_channel_matched {
+            if !scope.channels.contains(&channel_id) {
                 trace!("Skipping rule check: target channel is not enforced");
                 return true;
             }
-
-            let role_enforced_but_missing = !scope.roles.is_empty() && !has_matching_role();
-            if role_enforced_but_missing {
+            if !scope.roles.is_empty() && !has_matching_role() {
                 trace!("Skipping rule check: user lacks required enforced role");
                 return true;
             }
@@ -43,17 +41,11 @@ pub fn should_skip_scope(message: &Message, scope: &RuleScope) -> bool {
     false
 }
 
-fn should_be_skipped<T: HasBaseRule>(
-    message: &Message,
-    rule: &T,
-) -> bool {
+fn should_be_skipped<T: HasBaseRule>(message: &Message, rule: &T) -> bool {
     should_skip_scope(message, &rule.base().scope)
 }
 
-pub fn check_rule<'a, T: HasBaseRule>(
-    rule_opt: Option<&'a T>,
-    message: &Message,
-) -> Option<&'a T> {
+pub fn check_rule<'a, T: HasBaseRule>(rule_opt: Option<&'a T>, message: &Message) -> Option<&'a T> {
     let rule = rule_opt?;
 
     if !rule.base().enabled {
@@ -67,9 +59,13 @@ pub fn check_rule<'a, T: HasBaseRule>(
     Some(rule)
 }
 
-pub fn should_apply_filter(scope: &RuleScope, channel_id: u64, user_roles: &[u64]) -> bool {
+pub fn should_apply_filter(
+    scope: &RuleScope,
+    channel_id: u64,
+    member: Option<&Box<PartialMember>>,
+) -> bool {
     let is_channel_matched = scope.channels.contains(&channel_id);
-    let is_role_matched = user_roles.iter().any(|role| scope.roles.contains(role));
+    let is_role_matched = member.is_some_and(|m| m.has_any_role_u64(&scope.roles));
     let is_matched = is_channel_matched || is_role_matched;
 
     let result = match scope.mode {
@@ -79,9 +75,7 @@ pub fn should_apply_filter(scope: &RuleScope, channel_id: u64, user_roles: &[u64
 
     trace!(
         is_matched,
-        result,
-        channel_id,
-        "Checked filter applicability for scope"
+        result, channel_id, "Checked filter applicability for scope"
     );
     result
 }

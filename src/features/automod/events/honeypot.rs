@@ -5,24 +5,22 @@ use crate::core::config::state::BotData;
 use crate::features::automod::insert_automod_row;
 use crate::features::moderation::{replace_system_ban_placeholders, schedule_unban};
 use crate::shared::embed::build_custom_message;
+use crate::shared::permissions::HasRoles;
 use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
-use serenity::all::{
-    ChannelId, Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message, RoleId,
-};
+use serenity::all::{ChannelId, Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message};
 use std::time::Duration;
 use tracing::{info, instrument};
 
-/// Handles honeypot detection and banishing. Returns `Ok(true)` if a user was caught and banished.
 #[instrument(skip(ctx, data, message), fields(author_id = %message.author.id))]
 pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -> Result<bool> {
     if message.author.bot {
         return Ok(false);
     }
-
     let Some(guild_id) = message.guild_id else {
         return Ok(false);
     };
+
     let config = get_settings(
         &data.core.db,
         &data.core.redis,
@@ -35,9 +33,8 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         return Ok(false);
     };
 
-    // Fast exit if this channel is NOT the honeypot channel
+    // Short circuit if this channel is not the honeypot channel
     let is_honeypot_channel = honeypot.channel_id.map(ChannelId::new) == Some(message.channel_id);
-
     if !is_honeypot_channel {
         return Ok(false);
     }
@@ -45,16 +42,9 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
     // Check role exemptions
     if let Some(member) = &message.member
         && let Some(exempt_roles) = &honeypot.exempt_roles
+        && member.has_any_role_str(exempt_roles)
     {
-        let is_exempt = member.roles.iter().any(|user_role| {
-            exempt_roles
-                .iter()
-                .any(|role_str| role_str.parse::<u64>().ok().map(RoleId::new) == Some(*user_role))
-        });
-
-        if is_exempt {
-            return Ok(false);
-        }
+        return Ok(false);
     }
 
     message.delete(ctx).await?;

@@ -7,7 +7,7 @@ use tracing::{trace, warn};
 pub async fn get_settings_from_redis(
     redis: &Client,
     cache_key: &str,
-    guild_id: i64,
+    guild_id: u64,
 ) -> Option<GuildSettings> {
     let cached_string: String = redis.get(cache_key).await.ok()?;
 
@@ -28,7 +28,11 @@ pub async fn get_settings_from_redis(
     }
 }
 
-pub async fn set_setting_to_redis(redis: &Client, settings: &GuildSettings, cache_key: &str) -> FredResult<()> {
+pub async fn set_setting_to_redis(
+    redis: &Client,
+    settings: &GuildSettings,
+    cache_key: &str,
+) -> FredResult<()> {
     match serde_json::to_string(&settings) {
         Ok(serialized) => {
             redis
@@ -42,7 +46,10 @@ pub async fn set_setting_to_redis(redis: &Client, settings: &GuildSettings, cach
                 .await
         }
         Err(err) => {
-            warn!("Failed to serialize settings for key {}: {}. Skipping.", cache_key, err);
+            warn!(
+                "Failed to serialize settings for key {}: {}. Skipping.",
+                cache_key, err
+            );
             Ok(())
         }
     }

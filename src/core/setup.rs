@@ -44,7 +44,7 @@ pub struct SetupParams<'a> {
     pub subscriber_client: SubscriberClient,
 
     /// Shared Moka cache for guild settings.
-    pub guild_configs_cache: Cache<i64, GuildSettings>,
+    pub guild_configs_cache: Cache<u64, GuildSettings>,
 
     /// Serenity framework context.
     pub ctx: &'a Context,
@@ -152,6 +152,8 @@ pub fn setup<'a>(
             );
         }
 
+        let bad_words_cache = moka::future::Cache::new(10_000);
+
         let data = BotData {
             core: CoreServices {
                 db: pool,
@@ -168,6 +170,7 @@ pub fn setup<'a>(
             caches: BotCaches {
                 active_tickets: active_tickets_cache,
                 audit_logs: audit_log_cache,
+                bad_words: bad_words_cache,
             },
             ticket_log_tx: ticket_tx,
             shard_info: ShardInfo {
@@ -207,7 +210,7 @@ pub fn start_jobs(
     db: &Pool<Postgres>,
     redis_client: &Client,
     subscriber_client: &SubscriberClient,
-    guild_configs_cache: &Cache<i64, GuildSettings>,
+    guild_configs_cache: &Cache<u64, GuildSettings>,
     ctx: &Context,
     active_tickets_cache: &Cache<u64, ()>,
     rx: UnboundedReceiver<TicketLogPayload>,

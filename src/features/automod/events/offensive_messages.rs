@@ -1,5 +1,5 @@
 use super::super::rules::check_rule;
-use crate::features::automod::patterns::DISCORD_FORMAT_REGEX;
+use crate::features::automod::patterns::DISCORD_EMOJI_MENTION_REGEX;
 use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::MessageFilteringConfig;
 use crate::shared::messages;
@@ -71,7 +71,7 @@ pub fn clean_message_content(content: &str) -> String {
     let (cleaned_urls, _) = messages::remove_urls(content);
 
     // Avoid allocating a duplicate string if no regex replacement was needed
-    match DISCORD_FORMAT_REGEX.replace_all(&cleaned_urls, "") {
+    match DISCORD_EMOJI_MENTION_REGEX.replace_all(&cleaned_urls, "") {
         std::borrow::Cow::Owned(s) => s,
         std::borrow::Cow::Borrowed(_) => cleaned_urls,
     }

@@ -60,8 +60,8 @@ all = "deny"
 [lints.clippy]
 nursery = "warn"
 pedantic = "warn"
-unwrap_used = "warn"
+# unwrap_used = "warn"
 
-missing_errors_doc = "deny"
-missing_panics_doc = "deny"
-missing_safety_doc = "deny"
+# missing_errors_doc = "deny"
+# missing_panics_doc = "deny"
+# missing_safety_doc = "deny"

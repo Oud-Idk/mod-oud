@@ -1,9 +1,9 @@
-use std::borrow::Cow;
-use serenity::all::Message;
-use tracing::{debug, trace};
+use super::super::rules::check_rule;
 use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::MessageFilteringConfig;
-use super::super::rules::check_rule;
+use serenity::all::Message;
+use std::borrow::Cow;
+use tracing::{debug, trace};
 
 pub fn filter_excessive_caps<'a>(
     message: &Message,
@@ -14,14 +14,20 @@ pub fn filter_excessive_caps<'a>(
     };
 
     trace!("Checking 'Excessive Caps' filter rule");
-    if message.content.chars().count() < excessive_caps.min_length as usize { return FilterVerdict::Pass; }
-    let count = amount_of_uppercase(message.content.as_str());
+    if message.content.chars().count() < excessive_caps.min_length as usize {
+        return FilterVerdict::Pass;
+    }
+    let uppercase_percent = percentage_of_uppercase(message.content.as_str());
 
-    if excessive_caps.threshold >= count {
+    if excessive_caps.threshold >= uppercase_percent {
         return FilterVerdict::Pass;
     }
 
-    debug!(caps_count = count, threshold = excessive_caps.threshold, "Message flagged by Excessive Caps filter");
+    debug!(
+        uppercase_percent,
+        threshold = excessive_caps.threshold,
+        "Message flagged by Excessive Caps filter"
+    );
     FilterVerdict::Block {
         rule_name: "Excessive Caps".into(),
         base_rule: Cow::Borrowed(&excessive_caps.base),
@@ -30,7 +36,7 @@ pub fn filter_excessive_caps<'a>(
     }
 }
 
-pub fn amount_of_uppercase(input: &str) -> f64 {
+pub fn percentage_of_uppercase(input: &str) -> f64 {
     let mut total_chars = 0;
     let mut uppercase_count = 0;
 

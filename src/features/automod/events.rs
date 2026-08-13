@@ -1,24 +1,26 @@
-mod honeypot;
-mod offensive_messages;
+mod crypto_address;
 mod excessive_caps;
 mod excessive_emojis;
-mod server_invites;
-mod zalgo;
 mod excessive_mentions;
 mod excessive_spoilers;
 mod external_urls;
-mod spam;
+mod honeypot;
 mod native_rules;
-mod crypto_address;
+mod offensive_messages;
+mod server_invites;
+mod spam;
+mod zalgo;
 
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::{BotData, Error};
+use crate::features::automod::events::spam::handle_spam_prevention;
+use crate::features::automod::rules::should_apply_filter;
 use crate::features::automod::types::FilterVerdict;
+use crate::features::automod::verdict::execute_verdict;
 use crate::features::bad_words::{filter_bad_words, get_active_bad_word_rulesets};
-use crate::features::automod;
 use anyhow::Result;
 pub use honeypot::handle_honeypot;
 pub use native_rules::store_automod;
-use crate::core::config::state::{BotData, Error};
 use poise::serenity_prelude::{Context, Message};
 use tracing::{debug, instrument, trace};
 
@@ -37,90 +39,94 @@ pub async fn check_for_filter(
     data: &BotData,
     message: &Message,
 ) -> Result<bool, Error> {
-    if message.author.bot { return Ok(false); }
+    if message.author.bot {
+        return Ok(false);
+    }
 
     let Some(guild_id) = message.guild_id else {
         trace!("Message does not belong to a guild; skipping filter evaluation");
         return Ok(false);
     };
 
-    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
+    let config = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id.get() as i64,
+    )
+    .await?;
 
-    let guild_id_u64 = guild_id.get();
-    tracing::Span::current().record("guild_id", guild_id_u64);
+    let guild_id = guild_id.get();
+    tracing::Span::current().record("guild_id", guild_id);
 
     let author_id = message.author.id.get();
     let channel_id_u64 = message.channel_id.get();
-
-    let member_roles: Vec<u64> = message
-        .member
-        .as_ref()
-        .map(|member| member.roles.iter().map(|role_id| role_id.get()).collect())
-        .unwrap_or_default();
 
     let global_settings = config
         .message_filtering
         .as_ref()
         .and_then(|f| f.global_settings.as_ref());
 
-    let should_apply = match global_settings {
-        Some(global_scope) => automod::rules::should_apply_filter(global_scope, channel_id_u64, &member_roles),
-        None => true, // If no global settings are present, we don't bypass
-    };
+    let should_apply = global_settings.map_or(true, |global_scope| {
+        should_apply_filter(global_scope, channel_id_u64, message.member.as_ref())
+    });
 
     if !should_apply {
         trace!("Filter evaluation bypassed by global settings");
         return Ok(false);
     }
 
+    let Some(filtering) = &config.message_filtering else {
+        trace!("Message filtering config not found; skipping filters");
+        return Ok(false);
+    };
 
-    let bad_word_rulesets = get_active_bad_word_rulesets(data, guild_id_u64 as i64).await?;
+    if filtering.global_settings.is_none() {
+        trace!("Global scope not found; skipping configuration-dependent filters");
+        return Ok(false);
+    }
+
+    let bad_word_rulesets = get_active_bad_word_rulesets(data, guild_id).await?;
     let mut verdict = filter_bad_words(message, &bad_word_rulesets);
 
     if verdict.is_pass() {
-        if let Some(filtering) = &config.message_filtering {
-            if filtering.global_settings.is_some() {
-                trace!("Evaluating filters for message");
-                let was_spam = automod::events::spam::handle_spam_prevention(
-                    ctx,
-                    message,
-                    data,
-                    filtering,
-                    guild_id_u64,
-                    author_id,
-                ).await?;
+        trace!("Evaluating filters for message");
 
-                if was_spam {
-                    debug!("Message blocked by spam prevention system");
-                    return Ok(true);
-                }
+        let was_spam =
+            handle_spam_prevention(ctx, message, data, filtering, guild_id, author_id).await?;
 
-                verdict = verdict
-                    .or_else(|| offensive_messages::filter_offensive_messages(message, filtering))
-                    .or_else(|| server_invites::filter_server_invites(message, filtering))
-                    .or_else(|| external_urls::filter_external_urls(message, filtering))
-                    .or_else(|| excessive_caps::filter_excessive_caps(message, filtering))
-                    .or_else(|| excessive_emojis::filter_excessive_emojis(message, filtering))
-                    .or_else(|| excessive_spoilers::filter_excessive_spoilers(message, filtering))
-                    .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
-                    .or_else(|| zalgo::filter_zalgo(message, filtering))
-                    .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
-            } else {
-                trace!("Global scope not found; skipping configuration-dependent filters");
-            }
-        } else {
-            trace!("Message filtering config not found; skipping configuration-dependent filters");
+        if was_spam {
+            debug!("Message blocked by spam prevention system");
+            return Ok(true);
         }
+
+        verdict = verdict
+            .or_else(|| offensive_messages::filter_offensive_messages(message, filtering))
+            .or_else(|| server_invites::filter_server_invites(message, filtering))
+            .or_else(|| external_urls::filter_external_urls(message, filtering))
+            .or_else(|| excessive_caps::filter_excessive_caps(message, filtering))
+            .or_else(|| excessive_emojis::filter_excessive_emojis(message, filtering))
+            .or_else(|| excessive_spoilers::filter_excessive_spoilers(message, filtering))
+            .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
+            .or_else(|| zalgo::filter_zalgo(message, filtering))
+            .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
     }
 
-    if let FilterVerdict::RequiresSafeBrowsingCheck { urls, external_links } = verdict {
+    if let FilterVerdict::RequiresSafeBrowsingCheck {
+        urls,
+        external_links,
+    } = verdict
+    {
         trace!("Verifying potentially unsafe external URLs via Safe Browsing API");
         verdict = external_urls::resolve_safe_browsing(data, external_links, &urls).await;
     }
 
     if !verdict.is_pass() {
-        debug!(?verdict, "Message flag matched; executing filter verdict actions");
-        automod::verdict::execute_verdict(ctx, data, message, verdict).await?;
+        debug!(
+            ?verdict,
+            "Message flag matched; executing filter verdict actions"
+        );
+        execute_verdict(ctx, data, message, verdict).await?;
         return Ok(true);
     }
 
@@ -128,7 +134,11 @@ pub async fn check_for_filter(
     Ok(false)
 }
 
-pub async fn handle_automod(ctx: &Context, message: &Message, data: &BotData) -> Result<bool, Error> {
+pub async fn handle_automod(
+    ctx: &Context,
+    message: &Message,
+    data: &BotData,
+) -> Result<bool, Error> {
     if handle_honeypot(ctx, message, data).await? {
         return Ok(true);
     }

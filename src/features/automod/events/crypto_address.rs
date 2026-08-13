@@ -81,6 +81,7 @@ fn is_valid_btc_address(candidate: &str) -> bool {
         return false;
     };
 
+    // Test for all networks
     address.is_valid_for_network(Network::Bitcoin)
         || address.is_valid_for_network(Network::Signet)
         || address.is_valid_for_network(Network::Regtest)
@@ -113,7 +114,7 @@ fn is_valid_tron_address(candidate: &str) -> bool {
 
 fn is_valid_cosmos_address(candidate: &str) -> bool {
     match bech32::decode(candidate) {
-        Ok((hrp, _data)) => hrp.as_str() == "cosmos",
+        Ok((hrp, _)) => hrp.as_str() == "cosmos",
         Err(_) => false,
     }
 }

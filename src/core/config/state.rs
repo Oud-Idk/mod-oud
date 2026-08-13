@@ -1,5 +1,6 @@
 use crate::core::config::settings::GuildSettings;
 use crate::features::automod::{SafeBrowsingClient, SpamTracker};
+use crate::features::bad_words::BadWordRuleset;
 use crate::features::live_feed::LogEvent;
 use crate::features::message_logging::CachedAuditLogs;
 use crate::features::music::MusicState;
@@ -30,7 +31,7 @@ pub struct CoreServices {
     pub reqwest_client: reqwest::Client,
 
     /// In-memory cache for [`GuildSettings`], indexed by Discord guild ID.
-    pub guild_configs_cache: moka::future::Cache<i64, GuildSettings>,
+    pub guild_configs_cache: moka::future::Cache<u64, GuildSettings>,
 
     /// Channel sender for queueing asynchronous username updates.
     pub username_tx: tokio::sync::mpsc::Sender<UserUpdate>,
@@ -80,6 +81,9 @@ pub struct BotCaches {
 
     /// Cache storing recently fetched Discord audit log entries.
     pub audit_logs: moka::future::Cache<u64, Arc<CachedAuditLogs>>,
+
+    /// Cache all bad word rulesets for bad word feature
+    pub bad_words: moka::future::Cache<u64, Arc<Vec<BadWordRuleset>>>,
 }
 
 /// Security and automated moderation services.

@@ -119,7 +119,7 @@ impl GuildSettings {
     }
 }
 
-fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: i64) -> GuildSettings {
+fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: u64) -> GuildSettings {
     match serde_path_to_error::deserialize(raw_json) {
         Ok(s) => {
             debug!(guild_id, "Found config from DB.");
@@ -145,8 +145,8 @@ fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: i64) -> GuildSet
 pub async fn get_settings(
     db: &PgPool,
     redis: &Client,
-    cache: &moka::future::Cache<i64, GuildSettings>,
-    guild_id: i64,
+    cache: &moka::future::Cache<u64, GuildSettings>,
+    guild_id: u64,
 ) -> Result<GuildSettings> {
     Box::pin(get_settings_inner(db, redis, cache, guild_id)).await
 }
@@ -158,8 +158,8 @@ pub async fn get_settings(
 pub async fn get_settings_inner(
     db: &PgPool,
     redis: &Client,
-    cache: &moka::future::Cache<i64, GuildSettings>,
-    guild_id: i64,
+    cache: &moka::future::Cache<u64, GuildSettings>,
+    guild_id: u64,
 ) -> Result<GuildSettings> {
     // Get from Moka
     if let Some(settings) = cache.get(&guild_id).await {
@@ -219,8 +219,8 @@ pub async fn get_settings_inner(
 pub async fn save_settings(
     db: &PgPool,
     redis: &Client,
-    cache: &moka::future::Cache<i64, GuildSettings>,
-    guild_id: i64,
+    cache: &moka::future::Cache<u64, GuildSettings>,
+    guild_id: u64,
     settings: &GuildSettings,
 ) -> Result<()> {
     database::save_settings_to_db(db, guild_id, settings).await?;

@@ -1,13 +1,14 @@
-pub mod placeholders;
-pub mod embed;
-pub mod locking;
-pub mod error;
 pub mod command_context;
+pub mod embed;
+pub mod error;
+pub mod locking;
+pub mod messages;
+pub mod pagination;
+pub mod permissions;
+pub mod placeholders;
 mod serde_helpers;
 pub mod username_cache;
-pub mod pagination;
-pub mod messages;
 pub mod voice_state;
 
-pub use serde_helpers::{string_i64, opt_string_i64, ok_or_none};
-pub use username_cache::{store_username_relation, get_username};
+pub use serde_helpers::{ok_or_none, opt_string_i64, string_i64};
+pub use username_cache::{get_username, store_username_relation};

@@ -7,18 +7,23 @@ use crate::features::bad_words::{cache, database, keys};
 use fred::interfaces::{FredResult, KeysInterface};
 use serenity::all::Message;
 use std::borrow::Cow;
+use std::sync::Arc;
 use tracing::{debug, instrument, trace, warn};
 
 fn has_bad_words(pattern: &Pattern, original: &str, lower: &str) -> bool {
     match pattern.strategy {
         MatchStrategy::Exact => {
-            let target = pattern.lowercase_value.get_or_init(|| pattern.value.to_lowercase());
+            let target = pattern
+                .lowercase_value
+                .get_or_init(|| pattern.value.to_lowercase());
             lower
                 .split(|c: char| !c.is_alphanumeric())
                 .any(|word| word == target)
         }
         MatchStrategy::Substring => {
-            let target = pattern.lowercase_value.get_or_init(|| pattern.value.to_lowercase());
+            let target = pattern
+                .lowercase_value
+                .get_or_init(|| pattern.value.to_lowercase());
             lower.contains(target)
         }
         MatchStrategy::Regex => {
@@ -28,7 +33,9 @@ fn has_bad_words(pattern: &Pattern, original: &str, lower: &str) -> bool {
                     .build()
                     .ok()
             });
-            cached_regex.as_ref().is_some_and(|re| re.is_match(original))
+            cached_regex
+                .as_ref()
+                .is_some_and(|re| re.is_match(original))
         }
     }
 }
@@ -80,49 +87,52 @@ pub fn filter_bad_words<'a>(
 #[instrument(skip(data), fields(guild_id = guild_id))]
 pub async fn get_active_bad_word_rulesets(
     data: &BotData,
-    guild_id: i64,
-) -> Result<Vec<BadWordRuleset>, Error> {
+    guild_id: u64,
+) -> Result<Arc<Vec<BadWordRuleset>>, Error> {
+    // Check Moka Cache
+    if let Some(rulesets) = data.caches.bad_words.get(&guild_id).await {
+        trace!(guild_id, "Moka L1 Cache hit for bad word rulesets");
+        return Ok(rulesets);
+    }
+
+    // Check Redis Cache / Fallback to PostgreSQL
     let cache_key = keys::bad_word_config_key(guild_id);
     let conn = &data.core.redis;
 
-    trace!(cache_key = %cache_key, "Checking Redis cache for bad word rulesets");
-
-    let res: FredResult<String> = conn.get(&cache_key).await;
-    match res {
-        Ok(cached) => {
-            match serde_json::from_str::<Vec<BadWordRuleset>>(&cached) {
-                Ok(rulesets) => {
-                    debug!(rulesets_count = rulesets.len(), "Cache hit; returned bad word rulesets");
-                    return Ok(rulesets);
-                }
-                Err(err) => {
-                    warn!(error = %err, "Failed to deserialize cached rulesets; falling back to DB");
-                }
+    let rulesets = match conn.get::<Option<String>, _>(&cache_key).await {
+        Ok(Some(cached_str)) => match serde_json::from_str::<Vec<BadWordRuleset>>(&cached_str) {
+            Ok(parsed) => {
+                debug!(guild_id, "Redis L2 Cache hit for bad word rulesets");
+                parsed
             }
-        }
-        Err(err) => {
-            debug!(error = %err, "Cache miss or Redis read error; falling back to DB");
-        }
+            Err(_) => fetch_and_cache_from_db(data, guild_id, &cache_key).await?,
+        },
+        _ => fetch_and_cache_from_db(data, guild_id, &cache_key).await?,
+    };
+
+    let shared_rulesets = Arc::new(rulesets);
+
+    // Populate Moka L1
+    data.caches
+        .bad_words
+        .insert(guild_id, shared_rulesets.clone())
+        .await;
+
+    Ok(shared_rulesets)
+}
+
+/// Helper to fetch rows from Postgres L3 and write-through to Redis L2
+async fn fetch_and_cache_from_db(
+    data: &BotData,
+    guild_id: u64,
+    cache_key: &str,
+) -> Result<Vec<BadWordRuleset>, Error> {
+    let db_rows = database::fetch_bad_word_rows(&data.core.db, guild_id).await?;
+    debug!(guild_id, "PostgreSQL L3 Fetch for bad word rulesets");
+
+    if let Ok(serialized) = serde_json::to_string(&db_rows) {
+        let _ = cache::cache_bad_word(cache_key, &data.core.redis, serialized).await;
     }
 
-    let rulesets = database::fetch_bad_word_rows(&data.core.db, guild_id).await?;
-    debug!(rulesets_count = rulesets.len(), "Successfully fetched bad word rulesets from database");
-
-    match serde_json::to_string(&rulesets) {
-        Ok(serialized) => {
-            debug!("Writing rulesets to Redis cache");
-            let set_result: Result<(), _> = cache::cache_bad_word(&cache_key, conn, serialized).await;
-
-            if let Err(err) = set_result {
-                warn!(error = %err, "Failed to write rulesets to Redis cache");
-            } else {
-                debug!("Successfully updated Redis cache");
-            }
-        }
-        Err(err) => {
-            warn!(error = %err, "Failed to serialize rulesets for caching");
-        }
-    }
-
-    Ok(rulesets)
+    Ok(db_rows)
 }

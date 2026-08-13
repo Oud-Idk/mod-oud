@@ -1,11 +1,11 @@
-use std::borrow::Cow;
-use serenity::all::Message;
-use tracing::{debug, trace};
-use unicode_segmentation::UnicodeSegmentation;
+use super::super::rules::check_rule;
 use crate::features::automod::patterns::DISCORD_EMOJI_REGEX;
 use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::MessageFilteringConfig;
-use super::super::rules::check_rule;
+use serenity::all::Message;
+use std::borrow::Cow;
+use tracing::{debug, trace};
+use unicode_segmentation::UnicodeSegmentation;
 
 pub fn filter_excessive_emojis<'a>(
     message: &Message,
@@ -16,10 +16,16 @@ pub fn filter_excessive_emojis<'a>(
     };
 
     trace!("Checking 'Excessive Emojis' filter rule");
-    let total_count = count_emojis(&message.content) + DISCORD_EMOJI_REGEX.find_iter(&message.content).count();
+    // Add ASCII emoji and Discord emoji `<:asdf:1234>`
+    let total_count =
+        count_emojis(&message.content) + DISCORD_EMOJI_REGEX.find_iter(&message.content).count();
 
     if total_count > excessive_emojis.max_emojis as usize {
-        debug!(emoji_count = total_count, threshold = excessive_emojis.max_emojis, "Message flagged by Excessive Emojis filter");
+        debug!(
+            emoji_count = total_count,
+            threshold = excessive_emojis.max_emojis,
+            "Message flagged by Excessive Emojis filter"
+        );
         return FilterVerdict::Block {
             rule_name: "Excessive Emojis".into(),
             base_rule: Cow::Borrowed(&excessive_emojis.base),

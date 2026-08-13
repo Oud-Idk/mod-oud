@@ -35,13 +35,7 @@ pub async fn on_open_ticket(
     let user_interact = &component.user;
 
     debug!("Checking settings validation for ticket generation");
-    let settings = get_settings(
-        db,
-        redis,
-        &data.core.guild_configs_cache,
-        guild_id.get() as i64,
-    )
-    .await?;
+    let settings = get_settings(db, redis, &data.core.guild_configs_cache, guild_id.get()).await?;
     let tickets = settings.tickets.as_ref();
 
     let Some(role_u64) = tickets.and_then(|t| t.ticket_role_id) else {

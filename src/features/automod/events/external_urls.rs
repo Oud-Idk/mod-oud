@@ -66,8 +66,14 @@ fn is_domain_match(domain: &str, pattern: &str) -> bool {
 
     if domain.len() > pattern.len() {
         let split_idx = domain.len() - pattern.len();
+
+        // Ensure split is at the correct boundary
         if domain.is_char_boundary(split_idx) {
             let (prefix, suffix) = domain.split_at(split_idx);
+
+            // Match if suffix equals pattern and prefix ends with a dot
+            // For example, prefix = `sub.`, suffix = `example.com`.
+            // Checking for '.' prevents spoofing with bad domains like `phishingexample.com`.
             if suffix.eq_ignore_ascii_case(pattern) && prefix.ends_with('.') {
                 return true;
             }
@@ -78,26 +84,24 @@ fn is_domain_match(domain: &str, pattern: &str) -> bool {
 }
 
 pub fn extract_domain(url: &str) -> Option<&str> {
-    let without_protocol = if let Some(idx) = url.find("://") {
-        &url[idx + 3..]
-    } else {
-        url
-    };
+    // Finds `://` and skips 3 characters ahead
+    // https://example.com:8080/api/v1 -> example.com:8080/api/v1
+    let without_protocol = url.find("://").map_or(url, |idx| &url[idx + 3..]);
+    // Finds the first `/`, `?`, or `#` (URLs are weird) and take everything before
+    // example.com:8080/api/v1 -> example.com:8080
+    let domain_and_port = without_protocol
+        .find(['/', '?', '#'])
+        .map_or(without_protocol, |idx| &without_protocol[..idx]);
+    // Find the the `:` which indicates port number, then take everything before
+    // example.com:8080 -> example.com
+    let domain = domain_and_port
+        .find(':')
+        .map_or(domain_and_port, |idx| &domain_and_port[..idx]);
 
-    let domain = match without_protocol.find('/') {
-        Some(idx) => &without_protocol[..idx],
-        None => without_protocol,
-    };
-
-    let domain_without_port = match domain.find(':') {
-        Some(idx) => &domain[..idx],
-        None => domain,
-    };
-
-    if domain_without_port.is_empty() {
+    if domain.is_empty() {
         None
     } else {
-        Some(domain_without_port)
+        Some(domain)
     }
 }
 
@@ -107,6 +111,7 @@ fn any_breaking_rule_domain<'a>(
 ) -> Option<&'a str> {
     for url in urls {
         let Some(domain) = extract_domain(url) else {
+            // If domain couldn't be extracted, assume breaking under allowlist, otherwise skip
             if matches!(external_links.mode, Modes::Allowlist) {
                 return Some(url);
             }
@@ -159,8 +164,8 @@ pub async fn resolve_safe_browsing<'a>(
         Ok(threats_int) if !threats_int.is_empty() => {
             let threats_str = threats_int
                 .iter()
-                .map(|threat_type| format!("{}", ThreatType::from(*threat_type)))
-                .collect::<Vec<String>>()
+                .map(|threat_type| format!("{}", ThreatType::from(*threat_type))) // From i32
+                .collect::<Vec<String>>() // Collect as String as ThreatType implements Display
                 .join(", ");
 
             debug!(

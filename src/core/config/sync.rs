@@ -6,7 +6,7 @@ use moka::future::Cache;
 /// Listens for Redis Pub/Sub events on `config_updates` and evicts matching guild IDs from the Moka cache.
 ///
 /// Expects payload format: `invalidate:GUILD_ID`.
-pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<i64, GuildSettings>) {
+pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<u64, GuildSettings>) {
     let cache_clone = config_cache.clone();
 
     // Runs on every pub/sub events
@@ -41,11 +41,11 @@ pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<i64, Gui
             }
 
             // Parses the second element (`guild_id`) as u64
-            let Ok(guild_id) = parts[1].parse::<i64>().inspect_err(|e| {
+            let Ok(guild_id) = parts[1].parse::<u64>().inspect_err(|e| {
                 tracing::warn!(
                     guild_id_raw = %parts[1],
                     error = ?e,
-                    "Failed to parse guild ID into i64 from config update payload"
+                    "Failed to parse guild ID into u64 from config update payload"
                 );
             }) else {
                 return Ok(());

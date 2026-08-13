@@ -18,19 +18,23 @@ pub async fn apply_threshold_actions(
             match action {
                 WarnAction::Ban => {
                     debug!("Executing auto-ban");
-                    member.ban_with_reason(http, 7, "Reached warning threshold").await?;
+                    member
+                        .ban_with_reason(http, 7, "Reached warning threshold")
+                        .await?;
                     insert_threshold_automod_log(db, member, threshold, "BAN").await?;
                 }
                 WarnAction::Kick => {
                     debug!("Executing auto-kick");
-                    member.kick_with_reason(http, "Reached warning threshold").await?;
+                    member
+                        .kick_with_reason(http, "Reached warning threshold")
+                        .await?;
                     insert_threshold_automod_log(db, member, threshold, "KICK").await?;
                 }
                 WarnAction::Timeout => {
                     if let Some(secs) = threshold.duration {
                         debug!(secs, "Executing auto-timeout");
                         let until = Timestamp::from_unix_timestamp(
-                            chrono::Utc::now().timestamp() + i64::from(secs)
+                            chrono::Utc::now().timestamp() + i64::from(secs),
                         )?;
 
                         let mut builder = serenity::builder::EditMember::new();
@@ -52,7 +56,9 @@ pub async fn apply_threshold_actions(
                     if let Some(ref roles) = threshold.roles_to_remove {
                         for role_id in roles {
                             debug!(role_id, "Removing role from threshold");
-                            member.remove_role(http, RoleId::new(*role_id as u64)).await?;
+                            member
+                                .remove_role(http, RoleId::new(*role_id as u64))
+                                .await?;
                         }
                     }
                     insert_threshold_automod_log(db, member, threshold, "ROLE_REMOVE").await?;
@@ -70,16 +76,24 @@ pub async fn apply_threshold_actions(
     Ok(())
 }
 
-async fn insert_threshold_automod_log(db: &PgPool, member: &mut Member, threshold: &WarnThreshold, name: &str) -> Result<(), Error> {
+async fn insert_threshold_automod_log(
+    db: &PgPool,
+    member: &mut Member,
+    threshold: &WarnThreshold,
+    name: &str,
+) -> Result<(), Error> {
     debug("Inserting automod-log for threshold");
     insert_automod_row(
         db,
         member.guild_id.get() as i64,
         member.user.id.get() as i64,
-        None, None,
+        None,
+        None,
         &format!("Warn Threshold: {}", threshold.warn_count),
-        None, None,
-        &[name], &member.user.name,
-    ).await?;
+        None,
+        None,
+        &[name],
+    )
+    .await?;
     Ok(())
 }

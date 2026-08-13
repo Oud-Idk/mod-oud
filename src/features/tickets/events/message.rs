@@ -4,7 +4,10 @@ use crate::features::tickets;
 use crate::features::tickets::cache::{is_ticket_active, update_activity_redis};
 use crate::features::tickets::types::TicketLogPayload;
 use fred::clients::Client;
-use serenity::all::{ChannelId, ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, Message, MessageId, RoleId};
+use serenity::all::{
+    ChannelId, ComponentInteraction, Context, CreateInteractionResponse,
+    CreateInteractionResponseMessage, CreateMessage, Message, MessageId, RoleId,
+};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, info, instrument, trace};
 
@@ -23,9 +26,17 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
 
     let channel_id = message.channel_id;
     let channel_id_str = channel_id.get().to_string();
-    let Some(guild_id) = message.guild_id else { return Ok(()) };
+    let Some(guild_id) = message.guild_id else {
+        return Ok(());
+    };
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
+    let settings = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id.get(),
+    )
+    .await?;
 
     let Some(ticket_config) = settings.tickets.as_ref().filter(|cfg| cfg.enabled) else {
         return Ok(());
@@ -52,8 +63,17 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
         false // No staff role configured
     };
 
-    trace!(has_role = has_role, "Logging message payload to database queue");
-    log_message_to_db(&data.ticket_log_tx, channel_id, message, message.author.name.clone(), has_role);
+    trace!(
+        has_role = has_role,
+        "Logging message payload to database queue"
+    );
+    log_message_to_db(
+        &data.ticket_log_tx,
+        channel_id,
+        message,
+        message.author.name.clone(),
+        has_role,
+    );
 
     let ticket_key = format!("ticket:{channel_id_str}");
     let redis_conn = data.core.redis.clone();
@@ -61,11 +81,20 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
     let bump_every_mins = (ticket_config.bump_every.as_secs() / 60) as i32;
 
     trace!("Updating Redis ticket activity tracking");
-    let (should_rotate, last_button_id_str) = update_activity_redis(&redis_conn, &ticket_key, bump_every_mins).await?;
+    let (should_rotate, last_button_id_str) =
+        update_activity_redis(&redis_conn, &ticket_key, bump_every_mins).await?;
 
     if should_rotate {
         info!("Message threshold reached; rotating close button placement");
-        rotate_close_button(ctx, data, &redis_conn, channel_id, &ticket_key, last_button_id_str).await?;
+        rotate_close_button(
+            ctx,
+            data,
+            &redis_conn,
+            channel_id,
+            &ticket_key,
+            last_button_id_str,
+        )
+        .await?;
     }
 
     Ok(())
@@ -76,7 +105,7 @@ fn log_message_to_db(
     channel_id: ChannelId,
     message: &Message,
     username: String,
-    is_ticket_manager: bool
+    is_ticket_manager: bool,
 ) {
     let payload = TicketLogPayload {
         ticket_channel_id: channel_id.get() as i64,
@@ -101,10 +130,13 @@ async fn rotate_close_button(
     old_button_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
     if let Some(old_id_str) = old_button_id
-        && let Ok(old_id_u64) = old_id_str.parse::<u64>() {
-            debug!(old_id = %old_id_u64, "Deleting deprecated close button message");
-            let _ = channel_id.delete_message(&ctx.http, MessageId::new(old_id_u64)).await;
-        }
+        && let Ok(old_id_u64) = old_id_str.parse::<u64>()
+    {
+        debug!(old_id = %old_id_u64, "Deleting deprecated close button message");
+        let _ = channel_id
+            .delete_message(&ctx.http, MessageId::new(old_id_u64))
+            .await;
+    }
 
     let close_button = vec![serenity::all::CreateActionRow::Buttons(vec![
         serenity::all::CreateButton::new("close_ticket")
@@ -135,7 +167,10 @@ async fn rotate_close_button(
     Ok(())
 }
 
-pub async fn send_missing_config_error(ctx: &Context, component: &ComponentInteraction) -> Result<(), Error> {
+pub async fn send_missing_config_error(
+    ctx: &Context,
+    component: &ComponentInteraction,
+) -> Result<(), Error> {
     component
         .create_response(
             &ctx.http,
@@ -149,7 +184,10 @@ pub async fn send_missing_config_error(ctx: &Context, component: &ComponentInter
     Ok(())
 }
 
-pub async fn send_disabled_error(ctx: &Context, component: &ComponentInteraction) -> Result<(), Error> {
+pub async fn send_disabled_error(
+    ctx: &Context,
+    component: &ComponentInteraction,
+) -> Result<(), Error> {
     component
         .create_response(
             &ctx.http,

@@ -33,7 +33,7 @@ pub async fn set(
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get() as i64,
+        guild_id.get(),
     )
     .await?;
 
@@ -57,7 +57,7 @@ pub async fn set(
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get() as i64,
+        guild_id.get(),
         &settings,
     )
     .await?;
@@ -83,7 +83,7 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get() as i64,
+        guild_id.get(),
     )
     .await?;
 
@@ -94,7 +94,7 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
             &data.core.db,
             &data.core.redis,
             &data.core.guild_configs_cache,
-            guild_id.get() as i64,
+            guild_id.get(),
             &settings,
         )
         .await?;
