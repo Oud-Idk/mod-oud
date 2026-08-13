@@ -36,6 +36,7 @@ pub struct StartedTrack {
 }
 
 /// Lightweight handler that notifies the GuildActor when a track ends naturally.
+#[derive(Clone)]
 pub struct TrackEndHandler {
     pub command_tx: mpsc::Sender<GuildCommand>,
     pub expected_uuid: Uuid,
@@ -49,8 +50,18 @@ pub enum SeekMode {
 
 #[serenity::async_trait]
 impl VoiceEventHandler for TrackEndHandler {
-    async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
-        debug!(uuid = %self.expected_uuid, "Track ended event received, notifying GuildActor");
+    async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
+        if let EventContext::Track(tracks) = ctx {
+            for (state, _handle) in tracks.iter() {
+                debug!(
+                    uuid = %self.expected_uuid,
+                    played_secs = state.play_time.as_secs_f64(),
+                    "Track end/error event received, notifying GuildActor"
+                );
+            }
+        } else {
+            debug!(uuid = %self.expected_uuid, "Track end/error event received, notifying GuildActor");
+        }
         let _ = self
             .command_tx
             .send(GuildCommand::TrackEnded {
@@ -85,8 +96,17 @@ pub async fn start_streaming(
     requested_by: Arc<str>,
     requested_by_id: u64,
 ) -> StartedTrack {
-    let src = YoutubeDl::new(services.reqwest_client.clone(), query.clone());
-    let source: Input = src.into();
+    use crate::features::music::ffmpeg_live::{is_audio_toolchain_available, FfmpegLiveInput};
+
+    let source: Input = if is_live_stream(&metadata) && is_audio_toolchain_available().await {
+        // Live streams (e.g. YouTube) are typically only served as muxed MPEG-TS
+        // HLS, which symphonia cannot demux. Decode them to raw PCM via ffmpeg.
+        let resolve_query = metadata.source_url.clone().unwrap_or_else(|| query.clone());
+        Input::from(FfmpegLiveInput::new(resolve_query))
+    } else {
+        let src = YoutubeDl::new(services.reqwest_client.clone(), query.clone());
+        src.into()
+    };
 
     let handle = {
         let mut handler = call.lock().await;
@@ -95,14 +115,16 @@ pub async fn start_streaming(
     let handle_uuid = handle.uuid();
     debug!(guild_id = %services.guild_id, uuid = %handle_uuid, "Started playing track input");
 
-    // Install event listener that sends a command to the Actor when track finishes
-    let _ = handle.add_event(
-        Event::Track(TrackEvent::End),
-        TrackEndHandler {
-            command_tx: services.command_tx.clone(),
-            expected_uuid: handle_uuid,
-        },
-    );
+    // Install event listeners that notify the Actor when a track finishes.
+    // `Error` is registered too: if the input dies mid-stream (e.g. the
+    // ffmpeg process behind a live stream exits), the track must be
+    // reclaimed/reconnected instead of silently going dead.
+    let handler = TrackEndHandler {
+        command_tx: services.command_tx.clone(),
+        expected_uuid: handle_uuid,
+    };
+    let _ = handle.add_event(Event::Track(TrackEvent::End), handler.clone());
+    let _ = handle.add_event(Event::Track(TrackEvent::Error), handler);
 
     let track = QueuedTrack {
         query: metadata.source_url.clone().unwrap_or(query),
@@ -171,6 +193,12 @@ pub fn format_duration(duration: Option<Duration>) -> String {
         }
         None => "Unknown".to_string(),
     }
+}
+
+/// Returns `true` when a track is a live/infinite stream (no finite duration),
+/// e.g. a YouTube live stream. yt-dlp reports `duration: null` for live sources.
+pub fn is_live_stream(metadata: &AuxMetadata) -> bool {
+    metadata.duration.map_or(true, |d| d.is_zero())
 }
 
 /// Parses a string like "1:30", "01:15:30", or "90" into a `Duration`.

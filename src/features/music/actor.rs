@@ -1,6 +1,6 @@
 use crate::features::music::player::{
-    fetch_metadata, format_duration, install_new_track, parse_timestamp, prepare_and_play,
-    OldTrackDisposition, PlaybackServices, SeekMode,
+    fetch_metadata, format_duration, install_new_track, is_live_stream, parse_timestamp,
+    prepare_and_play, OldTrackDisposition, PlaybackServices, SeekMode,
 };
 use crate::features::music::spotify::{resolve_spotify_playlist, resolve_spotify_track};
 use crate::features::music::stats::{StatsTx, record_track_end, record_track_start};
@@ -51,6 +51,7 @@ pub struct GuildActor {
     pub last_seek_at: Option<std::time::Instant>,
     pub last_seek_target_sec: f64,
     pub seek_in_flight: bool,
+    pub last_live_reconnect_at: Option<std::time::Instant>,
 }
 
 /// Resolves single queries (Spotify URLs, YouTube video URLs, or plain text searches).
@@ -208,6 +209,7 @@ impl GuildActor {
             last_seek_at: None,
             last_seek_target_sec: 0.0,
             seek_in_flight: false,
+            last_live_reconnect_at: None,
         }
     }
 
@@ -636,6 +638,7 @@ impl GuildActor {
             track,
             position_sec,
             is_paused,
+            is_live: self.state.current_meta.as_ref().is_some_and(is_live_stream),
         })
     }
 
@@ -698,6 +701,18 @@ impl GuildActor {
     async fn handle_track_ended(&mut self, uuid: Uuid) {
         if self.state.current.as_ref().map(|h| h.uuid()) != Some(uuid) {
             return;
+        }
+
+        // Live streams never end naturally: a TrackEnd event here means the
+        // streaming source dropped (finite HLS segment chunk exhausted or URL
+        // expired), not that the "track" finished. Reconnect instead of
+        // treating it like a completed song.
+        if self.state.current_meta.as_ref().is_some_and(is_live_stream) {
+            if self.reconnect_live_stream().await {
+                return;
+            }
+            // Reconnect failed (e.g. the streamer went offline): fall through
+            // to the natural-end handling so the queue can advance.
         }
 
         let fallback_duration = self.state.current_meta.as_ref().and_then(|m| m.duration);
@@ -779,6 +794,68 @@ impl GuildActor {
         }
     }
 
+    /// Reconnects a live stream whose streaming source dropped (e.g. the finite
+    /// HLS segment chunk yt-dlp handed out was exhausted). Keeps the same track
+    /// active instead of letting the drop be treated as a natural track end.
+    async fn reconnect_live_stream(&mut self) -> bool {
+        // Safety valve: if the source keeps dropping faster than this, treat it
+        // as genuinely dead and let the queue advance instead of reconnect-spamming.
+        const MIN_RECONNECT_INTERVAL: Duration = Duration::from_secs(5);
+        if let Some(last) = self.last_live_reconnect_at {
+            if last.elapsed() < MIN_RECONNECT_INTERVAL {
+                warn!(guild_id = %self.guild_id, "Live stream dropped again too quickly; advancing the queue");
+                return false;
+            }
+        }
+
+        let Some(current_track) = self.state.current_track.clone() else {
+            return false;
+        };
+
+        // Give the stream endpoint a moment to settle before reconnecting.
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let call = match self.manager.get(self.guild_id) {
+            Some(call) => call,
+            None => return false,
+        };
+
+        if let Some(handle) = self.state.current.take() {
+            self.finish_play_stats(&handle).await;
+            let _ = handle.stop();
+        }
+
+        let fresh_query_url = build_query_url(&self.reqwest_client, &current_track.query).await;
+
+        match prepare_and_play(
+            self.services(),
+            &call,
+            fresh_query_url,
+            current_track.requested_by,
+            current_track.requested_by_id,
+            Some(current_track.metadata),
+        )
+        .await
+        {
+            Ok(started) => {
+                self.last_live_reconnect_at = Some(std::time::Instant::now());
+                self.state.current = Some(started.handle);
+                self.state.current_meta = Some(started.metadata);
+                self.last_seek_target_sec = 0.0;
+                self.state.current_started_at = Some(Instant::now());
+                self.state.current_paused_at = None;
+                self.state.current_paused_total = Duration::ZERO;
+                self.broadcast_state().await;
+                true
+            }
+            Err(e) => {
+                warn!(error = ?e, guild_id = %self.guild_id, "Failed to reconnect live stream");
+                self.broadcast_state().await;
+                false
+            }
+        }
+    }
+
     /// Moves the bot's voice connection to another channel (joins if not connected).
     async fn handle_go_to_channel(&self, channel_id: ChannelId) -> Result<()> {
         self.manager.join(self.guild_id, channel_id).await?;
@@ -788,6 +865,10 @@ impl GuildActor {
     async fn handle_seek(&mut self, input: String) -> Result<Duration> {
         if self.seek_in_flight {
             bail!("A seek is already in progress, please wait.");
+        }
+
+        if self.state.current_meta.as_ref().is_some_and(is_live_stream) {
+            bail!("Cannot seek in a live stream.");
         }
 
         if let Some(last_seek) = self.last_seek_at {

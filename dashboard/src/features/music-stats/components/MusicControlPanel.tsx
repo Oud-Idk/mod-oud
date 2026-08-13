@@ -33,6 +33,7 @@ interface NowPlayingData {
     durationSec?: number;
     positionSec?: number;
     isPaused?: boolean;
+    isLive?: boolean;
 }
 
 interface PendingRequest {
@@ -163,6 +164,12 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     ? obj.isPaused
                     : false;
 
+            const liveState = typeof obj.is_live === "boolean"
+                ? obj.is_live
+                : typeof obj.isLive === "boolean"
+                    ? obj.isLive
+                    : false;
+
             setIsPaused(pausedState);
 
             setNowPlaying((prev) => ({
@@ -172,6 +179,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                 durationSec: newDuration > 0 ? newDuration : prev?.durationSec,
                 positionSec: livePosition,
                 isPaused: pausedState,
+                isLive: liveState,
             }));
 
             setDuration(newDuration);
@@ -368,6 +376,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
     // Drift-Free Audio Position Playhead Engine
     useEffect(() => {
         if (status !== "connected" || isPaused || isSeeking || !nowPlaying) return;
+        if (nowPlaying.isLive) return;
 
         const interval = setInterval(() => {
             if (!playheadAnchorRef.current || isSeeking) return;
@@ -522,7 +531,18 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                         </div>
                     )}
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{nowPlaying.title}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium truncate">{nowPlaying.title}</p>
+                            {nowPlaying.isLive && (
+                                <span
+                                    className="shrink-0 text-xs font-semibold text-danger border border-danger/40 rounded px-1.5 py-0.5"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    ● LIVE
+                                </span>
+                            )}
+                        </div>
                         {nowPlaying.requestedBy && (
                             <p className="text-xs text-muted-foreground">Requested by {nowPlaying.requestedBy}</p>
                         )}
@@ -531,24 +551,33 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             )}
 
             {/* Real-time Seek Slider */}
-            <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
-                    <span>{formatTime(position)}</span>
-                    <span>{duration > 0 ? formatTime(duration) : "--:--"}</span>
+            {nowPlaying?.isLive ? (
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                        <span className="text-danger">🔴 Live Stream</span>
+                        <span>∞</span>
+                    </div>
                 </div>
-                <input
-                    type="range"
-                    aria-label="Track playback position"
-                    min={0}
-                    max={duration || 100}
-                    value={position}
-                    disabled={!isConnected || !nowPlaying}
-                    onPointerDown={() => setIsSeeking(true)}
-                    onChange={(e) => setPosition(Number(e.target.value))}
-                    onPointerUp={(e) => handleSeekCommit(Number((e.target as HTMLInputElement).value))}
-                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:cursor-not-allowed bg-surface-muted"
-                />
-            </div>
+            ) : (
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                        <span>{formatTime(position)}</span>
+                        <span>{duration > 0 ? formatTime(duration) : "--:--"}</span>
+                    </div>
+                    <input
+                        type="range"
+                        aria-label="Track playback position"
+                        min={0}
+                        max={duration || 100}
+                        value={position}
+                        disabled={!isConnected || !nowPlaying}
+                        onPointerDown={() => setIsSeeking(true)}
+                        onChange={(e) => setPosition(Number(e.target.value))}
+                        onPointerUp={(e) => handleSeekCommit(Number((e.target as HTMLInputElement).value))}
+                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:cursor-not-allowed bg-surface-muted"
+                    />
+                </div>
+            )}
 
             {/* Input & Play Button */}
             <div className="flex flex-col sm:flex-row gap-2">

@@ -5,6 +5,7 @@ mod actor;
 mod stats;
 mod spotify;
 mod youtube;
+mod ffmpeg_live;
 mod web;
 pub mod web_command;
 

@@ -148,4 +148,5 @@ pub struct NowPlayingResponse {
     pub track: QueuedTrack,
     pub position_sec: f64,
     pub is_paused: bool,
+    pub is_live: bool,
 }
