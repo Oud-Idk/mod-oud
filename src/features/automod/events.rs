@@ -134,6 +134,11 @@ pub async fn check_for_filter(
     Ok(false)
 }
 
+/// Handles automod for every `Message` event.
+///
+/// # Errors
+/// Returns `Err` if any stage (honeypot, offensive messages, server invites, etc) fails due to
+/// an HTTP, DB, or Redis error.
 pub async fn handle_automod(
     ctx: &Context,
     message: &Message,

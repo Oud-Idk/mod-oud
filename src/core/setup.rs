@@ -117,16 +117,16 @@ pub fn setup<'a>(
 
         let (ticket_tx, ticket_rx) = mpsc::unbounded_channel();
 
-        start_jobs(
-            &pool,
-            &redis_client,
-            &subscriber_client,
-            &guild_configs_cache,
+        start_jobs(JobParams {
+            db: &pool,
+            redis_client: &redis_client,
+            subscriber_client: &subscriber_client,
+            guild_configs_cache: &guild_configs_cache,
             ctx,
-            &active_tickets_cache,
+            active_tickets_cache: &active_tickets_cache,
             ticket_rx,
             username_rx,
-        );
+        });
 
         let spam_tracker = SpamTracker::new(redis_client.clone());
         let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
@@ -205,17 +205,46 @@ async fn hydrate_active_tickets_cache(redis_client: &Client) -> Cache<u64, ()> {
     active_tickets_cache
 }
 
+/// Parameters needed to spin up all the background worker jobs.
+pub struct JobParams<'a> {
+    /// Database pool for PostgreSQL.
+    pub db: &'a Pool<Postgres>,
+
+    /// Primary Redis client for caching and pub/sub.
+    pub redis_client: &'a Client,
+
+    /// Redis subscriber client.
+    pub subscriber_client: &'a SubscriberClient,
+
+    /// Shared Moka cache for guild settings.
+    pub guild_configs_cache: &'a Cache<u64, GuildSettings>,
+
+    /// Serenity context.
+    pub ctx: &'a Context,
+
+    /// Cache for tracking active ticket channels.
+    pub active_tickets_cache: &'a Cache<u64, ()>,
+
+    /// Channel receiver for ticket log payloads.
+    pub ticket_rx: UnboundedReceiver<TicketLogPayload>,
+
+    /// Channel receiver for processing username updates.
+    pub username_rx: mpsc::Receiver<UserUpdate>,
+}
+
 /// Spawns background worker tasks for tickets, moderation, level flushing, reminders, and feature jobs.
-pub fn start_jobs(
-    db: &Pool<Postgres>,
-    redis_client: &Client,
-    subscriber_client: &SubscriberClient,
-    guild_configs_cache: &Cache<u64, GuildSettings>,
-    ctx: &Context,
-    active_tickets_cache: &Cache<u64, ()>,
-    rx: UnboundedReceiver<TicketLogPayload>,
-    username_rx: mpsc::Receiver<UserUpdate>,
-) {
+pub fn start_jobs(params: JobParams) {
+    let JobParams {
+        db,
+        redis_client,
+        subscriber_client,
+        guild_configs_cache,
+        ctx,
+        active_tickets_cache,
+        ticket_rx,
+        username_rx,
+    } = params;
+
     sync_tickets(redis_client, subscriber_client, active_tickets_cache);
 
     start_ticket_inactivity_worker(
@@ -225,7 +254,7 @@ pub fn start_jobs(
         guild_configs_cache.clone(),
     );
 
-    start_ticket_logger(rx, db.clone());
+    start_ticket_logger(ticket_rx, db.clone());
 
     start_temp_ban_worker(db.clone(), ctx.http.clone(), redis_client.clone());
 

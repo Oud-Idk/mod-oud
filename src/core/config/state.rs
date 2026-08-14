@@ -83,7 +83,7 @@ pub struct BotCaches {
     pub audit_logs: moka::future::Cache<u64, Arc<CachedAuditLogs>>,
 
     /// Cache all bad word rulesets for bad word feature
-    pub bad_words: moka::future::Cache<u64, Arc<Vec<BadWordRuleset>>>,
+    pub bad_words: moka::future::Cache<u64, Arc<Vec<CompiledRuleset>>>,
 }
 
 /// Security and automated moderation services.

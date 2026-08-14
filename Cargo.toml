@@ -50,6 +50,7 @@ chrono-tz = "0.10.4"
 songbird = { version = "0.6.0", features = [] }
 symphonia = { version = "0.5.0", features = ["all"] }
 async-trait = "0.1.89"
+aho-corasick = "1.1.5"
 
 [lints.rust]
 missing_docs = "deny"

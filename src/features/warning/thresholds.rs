@@ -86,7 +86,7 @@ async fn insert_threshold_automod_log(
     insert_automod_row(
         db,
         member.guild_id.get(),
-        member.user.id.get() as i64,
+        member.user.id.get(),
         None,
         None,
         &format!("Warn Threshold: {}", threshold.warn_count),

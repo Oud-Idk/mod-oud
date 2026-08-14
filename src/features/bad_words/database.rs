@@ -1,6 +1,5 @@
 use crate::features::automod::{RuleAction, RuleScope};
-use crate::features::bad_words::types::BadWordRuleset;
-use crate::features::bad_words::types::Pattern;
+use crate::features::bad_words::types::{BadWordRuleset, Pattern};
 use sqlx::PgPool;
 use sqlx::types::Json;
 
@@ -24,7 +23,6 @@ pub async fn fetch_bad_word_rows(
     .fetch_all(db)
     .await?;
 
-    // Map the database records to your struct
     let rulesets = records
         .into_iter()
         .map(|rec| BadWordRuleset {

@@ -5,9 +5,9 @@ use serenity::all::Message;
 pub async fn insert_automod_row<'a>(
     db: &sqlx::PgPool,
     guild_id: u64,
-    user_id: i64,
-    channel_id: Option<i64>,
-    message_id: Option<i64>,
+    user_id: u64,
+    channel_id: Option<u64>,
+    message_id: Option<u64>,
     rule_name: &str,
     trigger_content: Option<&str>,
     original_content: Option<&str>,
@@ -25,9 +25,9 @@ pub async fn insert_automod_row<'a>(
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
         guild_id.cast_signed(),
-        user_id,
-        channel_id,
-        message_id,
+        user_id.cast_signed(),
+        channel_id.map(|c| c.cast_signed()),
+        message_id.map(|m| m.cast_signed()),
         rule_name,
         trigger_content,
         original_content,
@@ -47,9 +47,9 @@ pub async fn log_automod_event(
     actions_taken: &[&'static str],
 ) -> Result<()> {
     let guild_id = message.guild_id.unwrap_or_default().get();
-    let user_id = message.author.id.get() as i64;
-    let channel_id = message.channel_id.get() as i64;
-    let message_id = message.id.get() as i64;
+    let user_id = message.author.id.get();
+    let channel_id = message.channel_id.get();
+    let message_id = message.id.get();
 
     insert_automod_row(
         db,

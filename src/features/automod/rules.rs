@@ -5,6 +5,8 @@ use crate::{
 use serenity::{all::Message, model::guild::PartialMember};
 use tracing::trace;
 
+/// Checks whether a message should be exempt/enforoced based on a `RuleScope`.
+/// Channel and role checks apply here.
 pub fn should_skip_scope(message: &Message, scope: &RuleScope) -> bool {
     let channel_id = message.channel_id.get();
 

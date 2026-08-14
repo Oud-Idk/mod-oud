@@ -16,6 +16,6 @@ pub fn inviter_counts_key(guild_id: GuildId) -> String {
     format!("guild:inviter_counts:{guild_id}")
 }
 
-pub fn codes_by_inviter_key(guild_id: GuildId) -> String {
-    format!("guild:codes_by_inviter:{guild_id}")
+pub fn user_invites_key(guild_id: GuildId, user_id: u64) -> String {
+    format!("guild:user_invites:{guild_id}:{user_id}")
 }

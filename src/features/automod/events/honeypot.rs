@@ -2,7 +2,7 @@ use crate::constants::BRAND_COLOR;
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::BotData;
-use crate::features::automod::insert_automod_row;
+use crate::features::automod::database::log_automod_event;
 use crate::features::moderation::{replace_system_ban_placeholders, schedule_unban};
 use crate::shared::embed::build_custom_message;
 use crate::shared::permissions::HasRoles;
@@ -59,14 +59,10 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
     let duration = honeypot.duration.map(Duration::from_millis);
     let gctx = get_guild_ctx(guild_id, ctx).await?;
 
-    insert_automod_row(
+    log_automod_event(
         &data.core.db,
-        guild_id.get(),
-        message.author.id.get().cast_signed(),
-        None,
-        None,
+        &message,
         "Honeypot",
-        None,
         Some(&message.content),
         &["BAN"],
     )

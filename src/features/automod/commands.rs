@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::core::config::settings::{get_settings, save_settings};
 use crate::core::config::state::{Context, Error};
 use crate::features::automod::HoneypotConfig;
