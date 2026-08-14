@@ -28,32 +28,32 @@ export function ExternalURLsTab({
     const updateFilter = createFilterUpdater(config, handleChange, "externalLinks");
 
     const handleRemoveAllowedDomain = (d: string): void => {
-        const current = filterConfig.allowedDomains || [];
+        const current = filterConfig.allowedDomains;
         updateFilter({ ...filterConfig, allowedDomains: current.filter((item) => item !== d) });
     };
 
     const handleRemoveBlockedDomain = (d: string): void => {
-        const current = filterConfig.blockedDomains || [];
+        const current = filterConfig.blockedDomains;
         updateFilter({ ...filterConfig, blockedDomains: current.filter((item) => item !== d) });
     };
 
     const validateUrl = (url: string): string | undefined => {
         const trimmed = url.trim();
-        if (!trimmed) return;
+        if (trimmed === "") return undefined;
 
         if (!isFQDN(trimmed, {
             require_tld: true,
         })) {
             alert("Please enter a valid domain.");
-            return;
+            return undefined;
         }
         return trimmed;
-    }
+    };
 
     const handleAddAllowUrl = (): void => {
         const url = validateUrl(inputUrl);
-        if (!url) return;
-        const current = filterConfig.allowedDomains || [];
+        if (url === undefined) return;
+        const current = filterConfig.allowedDomains;
         if (!current.includes(url)) {
             updateFilter({ ...filterConfig, allowedDomains: [...current, url] });
         }
@@ -62,8 +62,8 @@ export function ExternalURLsTab({
 
     const handleAddBlockedUrl = (): void => {
         const url = validateUrl(inputUrl);
-        if (!url) return;
-        const current = filterConfig.blockedDomains || [];
+        if (url === undefined) return;
+        const current = filterConfig.blockedDomains;
         if (!current.includes(url)) {
             updateFilter({ ...filterConfig, blockedDomains: [...current, url] });
         }
@@ -82,7 +82,7 @@ export function ExternalURLsTab({
                 <div className="space-y-4">
                     <ToggleSwitch
                         checked={filterConfig.blockOnlyMalicious}
-                        onChange={() => updateFilter({ blockOnlyMalicious: !filterConfig.blockOnlyMalicious })}
+                        onChange={() => { updateFilter({ blockOnlyMalicious: !filterConfig.blockOnlyMalicious }); }}
                         disabled={false}
                         text="Block only Malicious URLs (Google Safe Browsing)"
                     />
@@ -91,7 +91,7 @@ export function ExternalURLsTab({
                         <div className="space-y-4">
                             <RadioGroup
                                 value={filterConfig.mode}
-                                onChange={(v) => updateFilter({ mode: v })}
+                                onChange={(v) => { updateFilter({ mode: v }); }}
                                 className="flex gap-4"
                             >
                                 <Radio
@@ -111,7 +111,7 @@ export function ExternalURLsTab({
                                 </Radio>
 
                                 <Radio
-                                    value="ScopeMode"
+                                    value="DENYLIST"
                                     className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
                                 >
                                     {({ checked }) => (
@@ -132,14 +132,14 @@ export function ExternalURLsTab({
                                     <div className="space-y-2">
                                         <label className="block text-sm font-medium mt-2 mb-0">Allowed domains</label>
                                         <MultiSelectViewer
-                                            selectedList={filterConfig.allowedDomains || []}
-                                            onDelete={(d) => handleRemoveAllowedDomain(d)}
+                                            selectedList={filterConfig.allowedDomains}
+                                            onDelete={(d) => { handleRemoveAllowedDomain(d); }}
                                             placeholder="No domains allowed"
                                         />
                                         <TextInput
                                             onSubmit={handleAddAllowUrl}
                                             value={inputUrl}
-                                            onChange={(e) => setInputUrl(e.target.value)}
+                                            onChange={(e) => { setInputUrl(e.target.value); }}
                                             placeholder="Enter domain"
                                         />
                                     </div>
@@ -151,14 +151,14 @@ export function ExternalURLsTab({
                                     <div className="space-y-2">
                                         <label className="block text-sm font-medium mt-2 mb-0">Blocked domains</label>
                                         <MultiSelectViewer
-                                            selectedList={filterConfig.blockedDomains || []}
-                                            onDelete={(d) => handleRemoveBlockedDomain(d)}
+                                            selectedList={filterConfig.blockedDomains}
+                                            onDelete={(d) => { handleRemoveBlockedDomain(d); }}
                                             placeholder="No domains blocked"
                                         />
                                         <TextInput
                                             onSubmit={handleAddBlockedUrl}
                                             value={inputUrl}
-                                            onChange={(e) => setInputUrl(e.target.value)}
+                                            onChange={(e) => { setInputUrl(e.target.value); }}
                                             placeholder="Enter domain"
                                         />
                                     </div>

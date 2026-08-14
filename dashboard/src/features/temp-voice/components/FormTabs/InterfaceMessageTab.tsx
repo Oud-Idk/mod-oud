@@ -69,7 +69,7 @@ export function InterfaceMessageTab({
                         <InputLabel className="mt-0">Select Channel</InputLabel>
                         <Dropdown
                             value={selectedChannel}
-                            onChange={(val) => handleChange({ interface_channel_id: val })}
+                            onChange={(val) =>{  handleChange({ interface_channel_id: val }); }}
                             options={channelOptions}
                         />
                     </div>

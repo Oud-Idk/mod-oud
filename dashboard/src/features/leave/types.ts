@@ -17,7 +17,7 @@ export const leaveConfigSchema = z.object({
 export const saveLeaveConfigSchema = leaveConfigSchema.superRefine((data, ctx) => {
     if (data.enabled && !data.channelId) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Please select a channel for leave messages!",
             path: ["channelId"],
         });

@@ -32,7 +32,7 @@ export const saveReactionMessageInputSchema = z
     .superRefine((data, ctx) => {
         if (!data.channel_id || data.channel_id.trim() === "") {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Please select a target channel.",
                 path: ["channel_id"],
             });
@@ -41,7 +41,7 @@ export const saveReactionMessageInputSchema = z
         if (data.mode === "REACTION") {
             if (data.reactions.length === 0) {
                 ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
+                    code: 'custom',
                     message: "At least one reaction mapping is required.",
                     path: ["reactions"],
                 });
@@ -49,14 +49,14 @@ export const saveReactionMessageInputSchema = z
             data.reactions.forEach((item, index) => {
                 if (!item.emoji || item.emoji.trim() === "") {
                     ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
+                        code: 'custom',
                         message: `Reaction #${index + 1} requires an emoji.`,
                         path: ["reactions", index, "emoji"],
                     });
                 }
                 if (!item.role_id || item.role_id.trim() === "") {
                     ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
+                        code: 'custom',
                         message: `Reaction #${index + 1} requires an assigned role.`,
                         path: ["reactions", index, "role_id"],
                     });
@@ -67,7 +67,7 @@ export const saveReactionMessageInputSchema = z
         if (data.mode === "BUTTON") {
             if (data.buttons.length === 0) {
                 ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
+                    code: 'custom',
                     message: "At least one button mapping is required.",
                     path: ["buttons"],
                 });
@@ -75,7 +75,7 @@ export const saveReactionMessageInputSchema = z
             data.buttons.forEach((item, index) => {
                 if (!item.role_id || item.role_id.trim() === "") {
                     ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
+                        code: 'custom',
                         message: `Button #${index + 1} requires an assigned role.`,
                         path: ["buttons", index, "role_id"],
                     });

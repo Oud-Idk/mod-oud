@@ -24,7 +24,7 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
                     <ThemeToggle/>
 
                     <button
-                        onClick={() => setIsOpen(true)}
+                        onClick={() =>{  setIsOpen(true); }}
                         className="p-2 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-md"
                         aria-label="Open menu"
                     >
@@ -36,7 +36,7 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
             {/* Dark Overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setIsOpen(false)}
+                    className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() =>{  setIsOpen(false); }}
                 />
             )}
 
@@ -48,7 +48,7 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
             >
                 <div className="absolute top-3 right-3 z-50">
                     <button
-                        onClick={() => setIsOpen(false)}
+                        onClick={() =>{  setIsOpen(false); }}
                         className="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-900"
                         aria-label="Close menu"
                     >

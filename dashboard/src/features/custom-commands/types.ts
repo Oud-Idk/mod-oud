@@ -68,7 +68,7 @@ export const SaveCustomCommandSchema = saveCustomCommandInputSchema.superRefine(
     if (data.enabled) {
         if (!data.actions || data.actions.length === 0) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "At least one action is required for a custom command!",
                 path: ["actions"],
             });

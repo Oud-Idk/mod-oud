@@ -33,13 +33,13 @@ export function ExcessiveCapsTab({
         >
             <PercentSlider
                 value={filterConfig.threshold}
-                onChange={(v) => updateFilter({ threshold: v })}
+                onChange={(v) =>{  updateFilter({ threshold: v }); }}
                 label="Threshold Percentage"
                 className="mt-1"
             />
             <NumberInput
                 value={filterConfig.minLength}
-                onChange={(v) => updateFilter({ minLength: v })}
+                onChange={(v) =>{  updateFilter({ minLength: v }); }}
                 label="Minimum Character Length"
             />
         </FilterLayoutWrapper>

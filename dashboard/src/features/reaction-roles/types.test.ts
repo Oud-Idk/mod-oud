@@ -123,7 +123,7 @@ describe("saveReactionMessageInputSchema", () => {
         expect(resultMissing.success).toBe(false);
         if (!resultMissing.success) {
             expect(resultMissing.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Please select a target channel.",
                 path: ["channel_id"],
             });
@@ -148,7 +148,7 @@ describe("saveReactionMessageInputSchema", () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "At least one reaction mapping is required.",
                 path: ["reactions"],
             });
@@ -166,7 +166,7 @@ describe("saveReactionMessageInputSchema", () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Reaction #1 requires an emoji.",
                 path: ["reactions", 0, "emoji"],
             });
@@ -192,7 +192,7 @@ describe("saveReactionMessageInputSchema", () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Reaction #1 requires an assigned role.",
                 path: ["reactions", 0, "role_id"],
             });
@@ -217,7 +217,7 @@ describe("saveReactionMessageInputSchema", () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "At least one button mapping is required.",
                 path: ["buttons"],
             });
@@ -235,7 +235,7 @@ describe("saveReactionMessageInputSchema", () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Button #1 requires an assigned role.",
                 path: ["buttons", 0, "role_id"],
             });

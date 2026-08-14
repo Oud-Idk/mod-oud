@@ -50,18 +50,18 @@ export function ReactionRolesBody({
     } = useConfigForm<ReactionMessage | null>({
         initialConfig: activeConfig,
         onSave: async (updatedConfig) => {
-            if (updatedConfig) await onSave(updatedConfig);
+            if (updatedConfig !== null) await onSave(updatedConfig);
         },
     });
 
-    const handleSave = useCallback(async () => {
-        if (!config) return;
+    const handleSave = useCallback((): void => {
+        if (config === null) return;
         const result = saveReactionMessageInputSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            toast.error(result.error.issues[0]?.message ?? "Invalid configuration");
             return;
         }
-        await originalHandleSave();
+        void originalHandleSave();
     }, [config, originalHandleSave]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -70,22 +70,22 @@ export function ReactionRolesBody({
         <div>
             <ConfigListLayout<ReactionMessage>
                 title="Reaction Roles"
-                onCreateClick={() => setIsCreateModalOpen(true)}
+                onCreateClick={() => { setIsCreateModalOpen(true); }}
                 items={reactionRoles}
                 renderItem={(item: ReactionMessage): ReactNode => {
                     const isCurrent = activeConfig?.id === item.id;
-                    const isSent = Boolean(item.message_id && item.message_id.trim() !== "");
+                    const isSent = item.message_id !== null && item.message_id !== undefined && item.message_id.trim().length > 0;
                     const statusText = isSent ? "Sent" : "Draft";
 
-                    const mappingCount = item.mode === "BUTTON" ? (item.buttons?.length ?? 0) : (item.reactions?.length ?? 0);
+                    const mappingCount = item.mode === "BUTTON" ? item.buttons.length : item.reactions.length;
                     const mappingLabel = item.mode === "BUTTON"
-                        ? (mappingCount === 1 ? "1 Button" : `${mappingCount} Buttons`)
-                        : (mappingCount === 1 ? "1 Reaction" : `${mappingCount} Reactions`);
+                        ? (mappingCount === 1 ? "1 Button" : `${String(mappingCount)} Buttons`)
+                        : (mappingCount === 1 ? "1 Reaction" : `${String(mappingCount)} Reactions`);
 
                     return (
                         <button
                             key={item.id}
-                            onClick={() => router.push(`/dashboard/${guildId}/reaction-roles?id=${item.id}`)}
+                            onClick={() => { router.push(`/dashboard/${guildId}/reaction-roles?id=${String(item.id)}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border",
                                 isCurrent
@@ -110,7 +110,7 @@ export function ReactionRolesBody({
                         </button>
                     );
                 }}
-                hasActiveConfig={!!config}
+                hasActiveConfig={config !== null}
                 handleSave={handleSave}
                 handleCancel={handleCancel}
                 noActivePlaceholder={
@@ -126,7 +126,7 @@ export function ReactionRolesBody({
 
                         <div className="flex flex-wrap items-center gap-2">
                             <Button
-                                onClick={() => setIsCreateModalOpen(true)}
+                                onClick={() => { setIsCreateModalOpen(true); }}
                             >
                                 Create Your First Reaction Role
                             </Button>
@@ -134,7 +134,7 @@ export function ReactionRolesBody({
                     </div>
                 }
             >
-                {config && (
+                {config !== null && (
                     <ReactionRoleConfig
                         key={config.id}
                         config={config}
@@ -153,14 +153,14 @@ export function ReactionRolesBody({
 
             <ReactionRoleCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() => { setIsCreateModalOpen(false); }}
                 channelMap={channelMap}
                 onSave={async (v) => {
                     return await onSave({
-                        channel_id: v.channel_id || null,
+                        channel_id: v.channel_id !== undefined && v.channel_id !== null && v.channel_id.length > 0 ? v.channel_id : null,
                         guild_id: guildId,
-                        name: v.name || "",
-                        mode: v.mode || "REACTION",
+                        name: v.name ?? "",
+                        mode: v.mode ?? "REACTION",
                         message: DEFAULT_MESSAGE_LAYOUT,
                     });
                 }}

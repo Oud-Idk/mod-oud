@@ -51,7 +51,7 @@ const CodeBlock: FC<PreProps> = ({ children, ...props }) => {
             try {
                 await navigator.clipboard.writeText(String(code ?? ""));
                 setIsCopied(true);
-                setTimeout(() => setIsCopied(false), 2000);
+                setTimeout(() =>{  setIsCopied(false); }, 2000);
             } catch (err) {
                 console.error("Failed to copy code: ", err);
             }

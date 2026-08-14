@@ -16,6 +16,20 @@ interface ColorPickerInputProps {
     onChange: (value: string) => void;
 }
 
+const DUMMY_DATA = {
+    username: "Oud",
+    level: 10,
+    xp: 700,
+    maxXp: 1000,
+    rank: 1,
+} as const;
+
+const clamp = (num: number, min: number, max: number): number =>
+    Math.min(Math.max(num, min), max);
+
+const getColor = (color: string, fallback: string): string =>
+    color !== "" ? color : fallback;
+
 function ColorPickerInput({ label, value, onChange }: ColorPickerInputProps): JSX.Element {
     return (
         <div className="flex flex-col">
@@ -23,13 +37,13 @@ function ColorPickerInput({ label, value, onChange }: ColorPickerInputProps): JS
             <div className="flex items-center gap-2">
                 <input
                     type="color"
-                    value={value || "#000000"}
-                    onChange={(e) => onChange(e.target.value)}
+                    value={value}
+                    onChange={(e): void => { onChange(e.target.value); }}
                     className="w-10 h-10 rounded-md cursor-pointer border border-border bg-surface-muted p-1 transition-all focus-ring"
                 />
                 <TextInput
-                    value={value || "#000000"}
-                    onChange={(e) => onChange(e.target.value)}
+                    value={value}
+                    onChange={(e): void => { onChange(e.target.value); }}
                     className="px-3 py-2 bg-surface-elevated border border-border rounded-md text-sm text-foreground focus-ring font-mono w-28 transition-all"
                 />
             </div>
@@ -41,9 +55,14 @@ export function ImageCardTab({ config, handleChange }: ImageCardTabProps): JSX.E
     const [template, setTemplate] = useState<string>();
 
     useEffect(() => {
-        fetch('/level-template.svg')
-            .then(res => res.text())
-            .then(svg => setTemplate(svg));
+        void fetch("/level-template.svg")
+            .then((res) => res.text())
+            .then((svg) => {
+                setTemplate(svg);
+            })
+            .catch((err: unknown) => {
+                console.error("Failed to load template SVG:", err);
+            });
     }, []);
 
     const updateImageCardSetting = (key: keyof ImageCardSettings, value: string): void => {
@@ -55,49 +74,47 @@ export function ImageCardTab({ config, handleChange }: ImageCardTabProps): JSX.E
         });
     };
 
-    const clamp = (num: number, min: number, max: number): number => Math.min(Math.max(num, min), max);
+    const manipulatedSvg = useMemo<string>(() => {
+        if (template === undefined || template === "") return "";
 
-    const dummyData = {
-        username: "Oud",
-        level: 10,
-        xp: 700,
-        maxXp: 1000,
-        rank: 1,
-    };
-
-    const manipulatedSvg = useMemo(() => {
-        if (!template) return '';
-
-        const card = config.imageCard ?? {};
+        const card = config.imageCard;
         const maxBarWidth = 200;
-        const fillWidth = clamp((dummyData.xp / dummyData.maxXp) * maxBarWidth, 7, 200);
+        const fillWidth = clamp((DUMMY_DATA.xp / DUMMY_DATA.maxXp) * maxBarWidth, 7, 200);
+
+        const bgColor = getColor(card.backgroundColor, "#000000");
+        const barFgColor = getColor(card.barForegroundColor, "#5865F2");
+        const barBgColor = getColor(card.barBackgroundColor, "#dedede");
+        const separatorColor = getColor(card.lineSeparatorColor, "#5865F2");
+        const usernameColor = getColor(card.usernameColor, "#5865F2");
+        const statisticsColor = getColor(card.statisticsColor, "#5865F2");
+        const accentColor = getColor(card.accentColor, "#5865F2");
 
         return template
-            .replace(/fill="#000000"/g, `fill="${card.backgroundColor || '#000000'}"`)
-            .replace(/{{BACKGROUND_COLOR}}/g, card.backgroundColor || '#000000')
-            .replace(/{{USERNAME}}/g, dummyData.username)
-            .replace(/{{BAR\.FOREGROUND}}/g, card.barForegroundColor || '#5865F2')
-            .replace(/{{BAR\.BACKGROUND}}/g, card.barBackgroundColor || '#dedede')
-            .replace(/{{SEPARATOR}}/g, card.lineSeparatorColor || '#5865F2')
+            .replace(/fill="#000000"/g, `fill="${bgColor}"`)
+            .replace(/{{BACKGROUND_COLOR}}/g, bgColor)
+            .replace(/{{USERNAME}}/g, DUMMY_DATA.username)
+            .replace(/{{BAR\.FOREGROUND}}/g, barFgColor)
+            .replace(/{{BAR\.BACKGROUND}}/g, barBgColor)
+            .replace(/{{SEPARATOR}}/g, separatorColor)
             .replace(/{{PROFILE_PICTURE}}/g, "https://cdn.discordapp.com/embed/avatars/0.png")
-            .replace(/{{USERNAME_COLOR}}/g, card.usernameColor || '#5865F2')
-            .replace(/{{STATISTICS}}/g, card.statisticsColor || '#5865F2')
-            .replace(/{{ACCENT}}/g, card.accentColor || '#5865F2')
-            .replace(/{{LEVEL}}/g, dummyData.level.toString())
-            .replace(/{{XP\.PROGRESS}}/g, dummyData.xp.toString())
-            .replace(/{{XP\.MAX}}/g, dummyData.maxXp.toString())
-            .replace(/{{RANK}}/g, dummyData.rank.toString())
+            .replace(/{{USERNAME_COLOR}}/g, usernameColor)
+            .replace(/{{STATISTICS}}/g, statisticsColor)
+            .replace(/{{ACCENT}}/g, accentColor)
+            .replace(/{{LEVEL}}/g, String(DUMMY_DATA.level))
+            .replace(/{{XP\.PROGRESS}}/g, String(DUMMY_DATA.xp))
+            .replace(/{{XP\.MAX}}/g, String(DUMMY_DATA.maxXp))
+            .replace(/{{RANK}}/g, String(DUMMY_DATA.rank))
             .replace(/{{FILL_WIDTH}}/g, fillWidth.toFixed(1));
     }, [template, config.imageCard]);
 
-    const card = config.imageCard ?? {};
+    const card = config.imageCard;
 
     return (
         <div className="space-y-6">
-           <div
-               className="w-full max-w-xl rounded-lg overflow-hidden border border-border bg-surface-muted [&>svg]:w-full [&>svg]:h-auto shadow-sm"
-               dangerouslySetInnerHTML={{ __html: manipulatedSvg }}
-           />
+            <div
+                className="w-full max-w-xl rounded-lg overflow-hidden border border-border bg-surface-muted [&>svg]:w-full [&>svg]:h-auto shadow-sm"
+                dangerouslySetInnerHTML={{ __html: manipulatedSvg }}
+            />
 
             {/* Customization Inputs Grid */}
             <div className="space-y-4 pt-4 border-t border-border-subtle">
@@ -112,42 +129,42 @@ export function ImageCardTab({ config, handleChange }: ImageCardTabProps): JSX.E
                     <ColorPickerInput
                         label="Background Color"
                         value={card.backgroundColor}
-                        onChange={(val) => updateImageCardSetting("backgroundColor", val)}
+                        onChange={(val): void => { updateImageCardSetting("backgroundColor", val); }}
                     />
                     <ColorPickerInput
                         label="Username Color"
                         value={card.usernameColor}
-                        onChange={(val) => updateImageCardSetting("usernameColor", val)}
+                        onChange={(val): void => { updateImageCardSetting("usernameColor", val); }}
                     />
                     <ColorPickerInput
                         label="Statistics Color"
                         value={card.statisticsColor}
-                        onChange={(val) => updateImageCardSetting("statisticsColor", val)}
+                        onChange={(val): void => { updateImageCardSetting("statisticsColor", val); }}
                     />
                     <ColorPickerInput
                         label="Text Color"
                         value={card.textColor}
-                        onChange={(val) => updateImageCardSetting("textColor", val)}
+                        onChange={(val): void => { updateImageCardSetting("textColor", val); }}
                     />
                     <ColorPickerInput
                         label="Bar Foreground"
                         value={card.barForegroundColor}
-                        onChange={(val) => updateImageCardSetting("barForegroundColor", val)}
+                        onChange={(val): void => { updateImageCardSetting("barForegroundColor", val); }}
                     />
                     <ColorPickerInput
                         label="Bar Background"
                         value={card.barBackgroundColor}
-                        onChange={(val) => updateImageCardSetting("barBackgroundColor", val)}
+                        onChange={(val): void => { updateImageCardSetting("barBackgroundColor", val); }}
                     />
                     <ColorPickerInput
                         label="Line Separator"
                         value={card.lineSeparatorColor}
-                        onChange={(val) => updateImageCardSetting("lineSeparatorColor", val)}
+                        onChange={(val): void => { updateImageCardSetting("lineSeparatorColor", val); }}
                     />
                     <ColorPickerInput
                         label="Accent Color"
                         value={card.accentColor}
-                        onChange={(val) => updateImageCardSetting("accentColor", val)}
+                        onChange={(val): void => { updateImageCardSetting("accentColor", val); }}
                     />
                 </div>
             </div>

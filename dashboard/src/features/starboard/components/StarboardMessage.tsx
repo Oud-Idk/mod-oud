@@ -1,4 +1,4 @@
-import React from "react";
+import React, {JSX} from "react";
 import {
     DiscordEmbed,
     DiscordEmbedDescription,
@@ -18,7 +18,7 @@ interface EmbedProps {
     text: string;
 }
 
-export const StarboardMessage = ({ config, embed, text }: EmbedProps) => {
+export const StarboardMessage = ({ config, embed, text }: EmbedProps): JSX.Element => {
     const { resolvedTheme } = useTheme();
 
     const renderWithPlaceholders = (text: string | undefined): string => {

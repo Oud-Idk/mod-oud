@@ -49,7 +49,7 @@ export function SegmentedControl<T extends string | number | boolean>({
                             role="radio"
                             aria-checked={isSelected}
                             disabled={isDisabled}
-                            onClick={() => onChange(option.value)}
+                            onClick={() =>{  onChange(option.value); }}
                             className={cn(
                                 // Base Typography & Layout
                                 "px-3 py-1.5 rounded-md text-xs font-medium transition-all select-none shrink-0 focus-ring",

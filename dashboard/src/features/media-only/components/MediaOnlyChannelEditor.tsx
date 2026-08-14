@@ -58,7 +58,7 @@ export function MediaOnlyChannelEditor({
 
             <ToggleSwitch
                 checked={channel.enabled}
-                onChange={(v) => onChange({ enabled: v })}
+                onChange={(v) =>{  onChange({ enabled: v }); }}
                 text="Enforce Media-Only Rules"
                 disabled={isPending}
             />
@@ -70,7 +70,7 @@ export function MediaOnlyChannelEditor({
                         <ImageIcon className="w-4 h-4 text-muted-foreground" />
                         <ToggleSwitch
                             checked={channel.allowImages}
-                            onChange={(v) => onChange({ allowImages: v })}
+                            onChange={(v) =>{  onChange({ allowImages: v }); }}
                             text="Images"
                             shrink
                             disabled={isPending}
@@ -80,7 +80,7 @@ export function MediaOnlyChannelEditor({
                         <Video className="w-4 h-4 text-muted-foreground" />
                         <ToggleSwitch
                             checked={channel.allowVideos}
-                            onChange={(v) => onChange({ allowVideos: v })}
+                            onChange={(v) =>{  onChange({ allowVideos: v }); }}
                             text="Videos"
                             shrink
                             disabled={isPending}
@@ -90,7 +90,7 @@ export function MediaOnlyChannelEditor({
                         <Video className="w-4 h-4 text-muted-foreground" />
                         <ToggleSwitch
                             checked={channel.allowAudio}
-                            onChange={(v) => onChange({ allowAudio: v })}
+                            onChange={(v) =>{  onChange({ allowAudio: v }); }}
                             text="Audio"
                             shrink
                             disabled={isPending}
@@ -100,7 +100,7 @@ export function MediaOnlyChannelEditor({
                         <ImageIcon className="w-4 h-4 text-muted-foreground" />
                         <ToggleSwitch
                             checked={channel.allowGif}
-                            onChange={(v) => onChange({ allowGif: v })}
+                            onChange={(v) =>{  onChange({ allowGif: v }); }}
                             text="GIFs"
                             shrink
                             disabled={isPending}
@@ -110,7 +110,7 @@ export function MediaOnlyChannelEditor({
                         <Link2 className="w-4 h-4 text-muted-foreground" />
                         <ToggleSwitch
                             checked={channel.allowLinks}
-                            onChange={(v) => onChange({ allowLinks: v })}
+                            onChange={(v) =>{  onChange({ allowLinks: v }); }}
                             text="Links (e.g. YouTube embeds)"
                             shrink
                             disabled={isPending}
@@ -120,7 +120,7 @@ export function MediaOnlyChannelEditor({
                         <Hash className="w-4 h-4 text-muted-foreground" />
                         <ToggleSwitch
                             checked={channel.allowEmbeddedText}
-                            onChange={(v) => onChange({ allowEmbeddedText: v })}
+                            onChange={(v) =>{  onChange({ allowEmbeddedText: v }); }}
                             text="Embedded Text"
                             shrink
                             disabled={isPending}
@@ -132,7 +132,7 @@ export function MediaOnlyChannelEditor({
             <div className="space-y-3 pt-3 border-t border-border-subtle">
                 <ToggleSwitch
                     checked={channel.autoThread}
-                    onChange={(v) => onChange({ autoThread: v })}
+                    onChange={(v) =>{  onChange({ autoThread: v }); }}
                     text="Auto-create Threads"
                     disabled={isPending}
                 />
@@ -141,8 +141,8 @@ export function MediaOnlyChannelEditor({
                         <InputLabel>Thread Name Template</InputLabel>
                         <TextInput
                             value={channel.threadNameTemplate ?? ""}
-                            onChange={(e) =>
-                                onChange({ threadNameTemplate: e.target.value || null })
+                            onChange={(e) =>{ 
+                                onChange({ threadNameTemplate: e.target.value || null }); }
                             }
                             placeholder="Discussion - {user}"
                             disabled={isPending}
@@ -166,7 +166,7 @@ export function MediaOnlyChannelEditor({
                     <InputLabel>Auto-Delete Warning After (Seconds)</InputLabel>
                     <NumberInput
                         value={channel.deleteWarningAfterSecs}
-                        onChange={(v) => onChange({ deleteWarningAfterSecs: v ?? 5 })}
+                        onChange={(v) =>{  onChange({ deleteWarningAfterSecs: v ?? 5 }); }}
                         min={0}
                         max={120}
                         clamp
@@ -180,7 +180,7 @@ export function MediaOnlyChannelEditor({
                     <Dropdown
                         multiple
                         value={channel.exemptRoles}
-                        onChange={(roles) => onChange({ exemptRoles: roles })}
+                        onChange={(roles) =>{  onChange({ exemptRoles: roles }); }}
                         options={roleOptions}
                         placeholder="Roles Exempt from Rules"
                     />

@@ -74,7 +74,7 @@ export function GiveawayCreateModal({
                     <InputLabel>Prize</InputLabel>
                     <TextInput
                         value={prize}
-                        onChange={(e) => setPrize(e.target.value)}
+                        onChange={(e) =>{  setPrize(e.target.value); }}
                         placeholder="e.g. 1 Month Nitro"
                     />
                 </div>
@@ -87,7 +87,7 @@ export function GiveawayCreateModal({
                             label: `#${cName}`,
                         }))}
                         value={channelId}
-                        onChange={(val) => setChannelId(val ?? "")}
+                        onChange={(val) =>{  setChannelId(val ?? ""); }}
                         placeholder="Choose channel..."
                     />
                 </div>

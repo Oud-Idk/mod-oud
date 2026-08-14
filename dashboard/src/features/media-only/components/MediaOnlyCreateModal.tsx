@@ -53,7 +53,7 @@ export function MediaOnlyCreateModal({
                     <Dropdown
                         options={options}
                         value={selectedChannelId ?? ""}
-                        onChange={(val) => setSelectedChannelId(val)}
+                        onChange={(val) =>{  setSelectedChannelId(val); }}
                         placeholder="Choose a channel..."
                     />
                 </div>

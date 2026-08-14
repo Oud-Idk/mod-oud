@@ -18,7 +18,7 @@ export function TextTab({
         <div>
             <ToggleSwitch
                 checked={config.text.enabled}
-                onChange={(v) => handleChange({ text: { ...config.text, enabled: v } })}
+                onChange={(v) =>{  handleChange({ text: { ...config.text, enabled: v } }); }}
                 disabled={false}
                 text="Enable Text Leveling"
                 className="mb-0"
@@ -41,12 +41,12 @@ export function TextTab({
                         <InputLabel>Cooldown (Seconds)</InputLabel>
                         <NumberInput
                             value={config.text.xpCooldown}
-                            onChange={v => handleChange({ text: { ...config.text, xpCooldown: v ?? 0 } })}
+                            onChange={v =>{  handleChange({ text: { ...config.text, xpCooldown: v ?? 0 } }); }}
                         />
                     </div>
                     <ToggleSwitch
                         checked={config.text.xpOnTickets}
-                        onChange={(v) => handleChange({ text: { ...config.text, xpOnTickets: v } })}
+                        onChange={(v) =>{  handleChange({ text: { ...config.text, xpOnTickets: v } }); }}
                         disabled={false}
                         text="Allow XP on Ticket"
                     />

@@ -3,9 +3,9 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 
 // Type definitions for clarity
-type LinguistLanguageDetails = {
+interface LinguistLanguageDetails {
     extensions?: string[];
-};
+}
 type LinguistData = Record<string, LinguistLanguageDetails>;
 
 const LINGUIST_URL = 'https://raw.githubusercontent.com/github/linguist/master/lib/linguist/languages.yml';

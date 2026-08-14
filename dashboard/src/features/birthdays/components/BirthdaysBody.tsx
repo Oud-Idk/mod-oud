@@ -54,18 +54,20 @@ export function BirthdaysBody({
     const [activeTab, setActiveTab] = useState<"withYear" | "withoutYear">("withYear");
 
     const isDirty = !isDeepEqual(config, initialConfig);
-    const isChannelMissing = config.enabled && !config.channelId;
+    const isChannelMissing =
+        config.enabled && (config.channelId === null || config.channelId === "");
 
-    const browserTz = useMemo(() => {
+    const browserTz = useMemo<string>(() => {
         if (typeof window !== "undefined") {
-            return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            return tz !== "" ? tz : "UTC";
         }
         return "UTC";
     }, []);
 
     const timezoneOptions = useMemo(() => {
         const list = [...COMMON_TIMEZONES];
-        if (browserTz && !list.some((tz) => tz.value === browserTz)) {
+        if (browserTz !== "" && !list.some((tz) => tz.value === browserTz)) {
             list.unshift({ value: browserTz, label: `Detected (${browserTz})` });
         }
         return list;
@@ -82,7 +84,8 @@ export function BirthdaysBody({
 
     const hourOptions = useMemo(() => {
         return Array.from({ length: 24 }, (_, i) => {
-            const formattedHour = String(i % 12 || 12).padStart(2, "0");
+            const hour = i % 12 === 0 ? 12 : i % 12;
+            const formattedHour = String(hour).padStart(2, "0");
             const period = i < 12 ? "AM" : "PM";
             return {
                 value: String(i),
@@ -95,7 +98,7 @@ export function BirthdaysBody({
 
     const handleMsgChange = useCallback((updated: GenericMessageConfig): void => {
         const updatedLayout: MessageLayout = {
-            format: updated.format ?? "TEXT",
+            format: updated.format,
             content: updated.content ?? "",
             embed: updated.embed ?? {},
         };
@@ -109,7 +112,7 @@ export function BirthdaysBody({
     const handleSave = (): void => {
         const result = SaveBirthdayConfigSchema.safeParse(config);
         if (!result.success) {
-            const firstMessage = result.error.issues[0]?.message || "Invalid birthday configuration.";
+            const firstMessage = result.error.issues[0]?.message ?? "Invalid birthday configuration.";
             toast.error(firstMessage);
             return;
         }
@@ -118,7 +121,7 @@ export function BirthdaysBody({
             try {
                 await onSave(config);
                 toast.success("Birthday configuration saved successfully.");
-            } catch (err) {
+            } catch (err: unknown) {
                 toast.error(err instanceof Error ? err.message : "Failed to save configuration.");
             }
         });
@@ -128,11 +131,15 @@ export function BirthdaysBody({
         setConfig(initialConfig);
     };
 
+    const timezoneValue = config.timezone !== ""
+            ? config.timezone
+            : browserTz;
+
     return (
         <div className="space-y-6">
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={(checked) => setConfig((prev) => ({ ...prev, enabled: checked }))}
+                onChange={(checked) => { setConfig((prev) => ({ ...prev, enabled: checked })); }}
                 text="Enable Birthday Tracking"
             />
 
@@ -144,7 +151,7 @@ export function BirthdaysBody({
                             <Dropdown
                                 options={channelOptions}
                                 value={config.channelId}
-                                onChange={(val) => setConfig((prev) => ({ ...prev, channelId: val }))}
+                                onChange={(val) => { setConfig((prev) => ({ ...prev, channelId: val })); }}
                                 placeholder="Select a channel..."
                                 error={isChannelMissing}
                             />
@@ -160,7 +167,7 @@ export function BirthdaysBody({
                             <Dropdown
                                 options={roleOptions}
                                 value={config.birthdayRoleId}
-                                onChange={(val) => setConfig((prev) => ({ ...prev, birthdayRoleId: val }))}
+                                onChange={(val) => { setConfig((prev) => ({ ...prev, birthdayRoleId: val })); }}
                                 placeholder="None (Disabled)"
                             />
                         </div>
@@ -169,13 +176,15 @@ export function BirthdaysBody({
                             <InputLabel>Announcement Time</InputLabel>
                             <Dropdown
                                 options={hourOptions}
-                                value={String(config.announcementHour ?? 9)}
-                                onChange={(val) =>
+                                value={String(config.announcementHour)}
+                                onChange={(val) => {
                                     setConfig((prev) => ({
                                         ...prev,
-                                        announcementHour: val ? parseInt(val, 10) : 9,
-                                    }))
-                                }
+                                        announcementHour: val !== null && val !== ""
+                                                ? parseInt(val, 10)
+                                                : 9,
+                                    }));
+                                }}
                             />
                         </div>
 
@@ -183,17 +192,22 @@ export function BirthdaysBody({
                             <InputLabel>Timezone</InputLabel>
                             <Dropdown
                                 options={timezoneOptions}
-                                value={config.timezone || browserTz}
-                                onChange={(val) =>
-                                    setConfig((prev) => ({ ...prev, timezone: val || "UTC" }))
-                                }
+                                value={timezoneValue}
+                                onChange={(val) => {
+                                    setConfig((prev) => ({
+                                        ...prev,
+                                        timezone: val !== null && val !== ""
+                                                ? val
+                                                : "UTC",
+                                    }));
+                                }}
                             />
                         </div>
                     </div>
 
                     <ToggleSwitch
                         checked={config.requireYear}
-                        onChange={(checked) => setConfig((prev) => ({ ...prev, requireYear: checked }))}
+                        onChange={(checked) => { setConfig((prev) => ({ ...prev, requireYear: checked })); }}
                         text="Require Birth Year from Members"
                     />
 

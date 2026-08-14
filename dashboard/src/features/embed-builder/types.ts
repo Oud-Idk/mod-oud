@@ -11,7 +11,7 @@ export const SendEmbedPayloadSchema = z
     .superRefine((data, ctx) => {
         if (isEmbedEmpty(data.embedState)) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Embed must have at least a title, description, or visible content!",
                 path: ["embedState"],
             });

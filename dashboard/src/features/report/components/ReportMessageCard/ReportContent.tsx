@@ -47,7 +47,7 @@ export function ReportContent({
                             <button
                                 key={idx}
                                 type="button"
-                                onClick={() => onImageClick(url)}
+                                onClick={() =>{  onImageClick(url); }}
                                 className="group relative block overflow-hidden rounded border border-neutral-800/50 hover:border-neutral-500/50 cursor-zoom-in text-left"
                             >
                                 <Image

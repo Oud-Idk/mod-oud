@@ -54,7 +54,7 @@ export function CustomCommandCreateModal({
                     <TextInput
                         placeholder="e.g. rules or info"
                         value={name}
-                        onChange={(e) => setName(e.target.value.replace(/\s+/g, ""))}
+                        onChange={(e) =>{  setName(e.target.value.replace(/\s+/g, "")); }}
                     />
                 </div>
 
@@ -65,7 +65,7 @@ export function CustomCommandCreateModal({
                     <TextInput
                         placeholder="e.g. Displays server information"
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        onChange={(e) =>{  setDescription(e.target.value); }}
                     />
                 </div>
 

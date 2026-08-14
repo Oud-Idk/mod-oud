@@ -1,6 +1,6 @@
 "use server";
 
-import { config } from "@/config"
+import { config } from "@/config";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
@@ -22,6 +22,10 @@ import {
     type TempVoiceHub,
 } from "./types";
 
+const interfaceMessageResponseSchema = z.object({
+    message_id: z.string(),
+});
+
 export async function saveTempVoiceHubAction(
     guildId: string,
     hub: SaveTempVoiceHubInput
@@ -34,9 +38,9 @@ export async function saveTempVoiceHubAction(
 
         revalidatePath(`/dashboard/${guildId}/temp-voice`);
         return saved;
-    } catch (error) {
+    } catch (error: unknown) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0]?.message ?? "Validation Error");
         }
         console.error("Failed to save temporary voice hub:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
@@ -49,15 +53,14 @@ export async function deleteTempVoiceHubAction(guildId: string, hubId: string): 
 
         await deleteTempVoiceHub(guildId, hubId);
         revalidatePath(`/dashboard/${guildId}/temp-voice`);
-    } catch (error) {
+    } catch (error: unknown) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0]?.message ?? "Validation Error");
         }
         console.error("Failed to delete temporary voice hub:", error);
         throw new Error(error instanceof Error ? error.message : "Could not delete configuration.");
     }
 }
-
 
 export async function setupTempVoiceAction(
     guildId: string,
@@ -80,23 +83,24 @@ export async function setupTempVoiceAction(
 
         if (!response.ok) {
             const errText = await response.text();
-            throw new Error(errText || "The backend rejected the channel setup.");
+            throw new Error(
+                errText !== "" ? errText : "The backend rejected the channel setup."
+            );
         }
 
-        const rawData = await response.json();
+        const rawData: unknown = await response.json();
         const data = backendSetupResponseSchema.parse(rawData);
 
         await invalidateGuildChannelCache(guildId);
 
-        // Look at this clean return! No success: true boilerplate.
         return {
             categoryId: data.category_id,
             hubChannelId: data.hub_channel_id,
             interfaceChannelId: data.interface_channel_id ?? undefined,
         };
-    } catch (error) {
+    } catch (error: unknown) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0]?.message ?? "Validation Error");
         }
         console.error("Failed to setup temporary voice hub:", error);
         throw new Error(error instanceof Error ? error.message : "Could not setup temp voice hub.");
@@ -127,17 +131,20 @@ export async function sendInterfaceMessageAction(
 
         if (!response.ok) {
             const errText = await response.text();
-            throw new Error(errText || "Backend returned an error state.");
+            throw new Error(
+                errText !== "" ? errText : "Backend returned an error state."
+            );
         }
 
-        const data = await response.json();
+        const rawData: unknown = await response.json();
+        const data = interfaceMessageResponseSchema.parse(rawData);
 
         return {
             messageId: data.message_id,
         };
-    } catch (error) {
+    } catch (error: unknown) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0]?.message ?? "Validation Error");
         }
         console.error("Failed to send interface message:", error);
         throw new Error(error instanceof Error ? error.message : "Failed to communicate with backend server.");

@@ -249,14 +249,14 @@ export const SaveTicketConfigSchema = TicketConfigSchema.superRefine((data, ctx)
   if (data.enabled) {
     if (!data.categoryId) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: "Please select a Discord Category for tickets!",
         path: ["categoryId"],
       });
     }
     if (!data.ticketRoleId) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: "Please select a Support Staff Role!",
         path: ["ticketRoleId"],
       });

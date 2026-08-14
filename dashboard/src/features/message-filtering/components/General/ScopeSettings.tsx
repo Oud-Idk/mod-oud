@@ -23,7 +23,7 @@ interface ScopeSettingsProps {
 }
 
 const DEFAULT_SCOPE: ScopeShape = {
-    mode: "EXEMPT" as ScopeActionMode,
+    mode: "EXEMPT",
     channels: [],
     roles: [],
 };
@@ -61,7 +61,7 @@ export function ScopeSettings({
                 </InputLabel>
                 <RadioGroup
                     value={isExempt ? "EXEMPT" : "ENFORCED"}
-                    onChange={(v) => handleModeChange(v as ScopeActionMode)}
+                    onChange={(v) =>{  handleModeChange(v as ScopeActionMode); }}
                     className="space-y-3"
                 >
                     <Radio
@@ -135,7 +135,7 @@ export function ScopeSettings({
                     multiple={true}
                     options={channelOptions}
                     value={scope.channels}
-                    onChange={(newChannels) => onChange({ ...scope, channels: newChannels })}
+                    onChange={(newChannels) =>{  onChange({ ...scope, channels: newChannels }); }}
                     placeholder={
                         isExempt
                             ? "Select channels to exempt..."
@@ -154,7 +154,7 @@ export function ScopeSettings({
                     multiple={true}
                     options={roleOptions}
                     value={scope.roles}
-                    onChange={(newRoles) => onChange({ ...scope, roles: newRoles })}
+                    onChange={(newRoles) =>{  onChange({ ...scope, roles: newRoles }); }}
                     placeholder={
                         isExempt
                             ? "Select roles to exempt..."

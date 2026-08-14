@@ -60,7 +60,7 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
                 <TextInput
                     placeholder="e.g. Hate Speech, Spam Keywords..."
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) =>{  setName(e.target.value); }}
                     className="min-w-full"
                 />
             </div>

@@ -79,14 +79,14 @@ export function GiveawaysBody({
         <div>
             <ConfigListLayout<Giveaway>
                 title="Giveaways"
-                onCreateClick={() => setIsCreateModalOpen(true)}
+                onCreateClick={() =>{  setIsCreateModalOpen(true); }}
                 items={giveaways}
                 renderItem={(item) => {
                     const isCurrent = activeConfig?.id === item.id;
                     return (
                         <button
                             key={item.id}
-                            onClick={() => router.push(`/dashboard/${guildId}/giveaways?id=${item.id}`)}
+                            onClick={() =>{  router.push(`/dashboard/${guildId}/giveaways?id=${item.id}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -105,7 +105,7 @@ export function GiveawaysBody({
                     <>
                         <p className="text-sm text-muted-foreground">Select a giveaway or create a new one to begin.</p>
                         <button
-                            onClick={() => setIsCreateModalOpen(true)}
+                            onClick={() =>{  setIsCreateModalOpen(true); }}
                             className="text-xs px-3.5 py-1.5 bg-surface-muted border border-border hover:bg-surface-active rounded-lg transition text-foreground cursor-pointer focus-ring mt-2"
                         >
                             Create Your First Giveaway
@@ -131,7 +131,7 @@ export function GiveawaysBody({
 
             <GiveawayCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() =>{  setIsCreateModalOpen(false); }}
                 onSave={(v) =>
                     onSave({
                         channel_id: v.channel_id ?? null,

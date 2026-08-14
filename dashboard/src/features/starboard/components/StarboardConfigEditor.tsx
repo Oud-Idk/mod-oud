@@ -66,7 +66,7 @@ export function StarboardConfigEditor({
     ];
 
     const toggleRoleSelection = (roleId: string): void => {
-        const current = config.restricted_roles || [];
+        const current = config.restricted_roles ?? [];
         const updated = current.includes(roleId)
             ? current.filter((id) => id !== roleId)
             : [...current, roleId];
@@ -74,19 +74,19 @@ export function StarboardConfigEditor({
     };
 
     const toggleChannelSelection = (chanId: string): void => {
-        const current = config.restricted_channels || [];
+        const current = config.restricted_channels ?? [];
         const updated = current.includes(chanId)
             ? current.filter((id) => id !== chanId)
             : [...current, chanId];
         onChange({ ...config, restricted_channels: updated });
     };
 
-    const handleAddEmoji = (e: React.FormEvent): void => {
+    const handleAddEmoji = (e: React.SubmitEvent): void => {
         e.preventDefault();
         const trimmed = emojiInput.trim();
-        if (!trimmed) return;
+        if (trimmed === "") return;
 
-        const current = config.emojis || [];
+        const current = config.emojis ?? [];
         if (!current.includes(trimmed)) {
             onChange({ ...config, emojis: [...current, trimmed] });
         }
@@ -94,7 +94,7 @@ export function StarboardConfigEditor({
     };
 
     const handleRemoveEmoji = (emoji: string): void => {
-        const current = config.emojis || [];
+        const current = config.emojis ?? [];
         onChange({ ...config, emojis: current.filter((em) => em !== emoji) });
     };
 
@@ -104,7 +104,7 @@ export function StarboardConfigEditor({
                 toast.success("Starboard deleted successfully");
                 router.push(`/dashboard/${guildId}/starboard`);
             })
-            .catch((err) => {
+            .catch((err: unknown) => {
                 toast.error(err instanceof Error ? err.message : "Failed to delete configuration.");
             });
     };
@@ -116,18 +116,20 @@ export function StarboardConfigEditor({
             <div className="flex justify-between items-center">
                 <div>
                     <h3 className="text-lg font-bold text-foreground">
-                        #{config.starboard_channel_id ? (channelMap[config.starboard_channel_id] || "starboard") : "Starboard Configuration"}
+                        #{config.starboard_channel_id != null
+                        ? (channelMap[config.starboard_channel_id] ?? "starboard")
+                        : "Starboard Configuration"}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         Customize how and where starred messages are posted.
                     </p>
                 </div>
 
-                {id && (
+                {id !== undefined && (
                     <Button
                         variant="danger"
                         disabled={isPending}
-                        onClick={() => handleDelete(id)}
+                        onClick={() => { handleDelete(id); }}
                     >
                         Delete Starboard
                     </Button>
@@ -138,7 +140,7 @@ export function StarboardConfigEditor({
                 <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
                     <span>⚠️</span>
                     <span>
-                        {validationResult.error?.issues[0]?.message || "Please complete all required fields before saving."}
+                        {validationResult.error.issues[0]?.message ?? "Please complete all required fields before saving."}
                     </span>
                 </div>
             )}
@@ -154,7 +156,7 @@ export function StarboardConfigEditor({
                                 <Dropdown
                                     options={getAvailableChannelOptions(channelMap)}
                                     value={config.starboard_channel_id ?? ""}
-                                    onChange={(val) => onChange({ ...config, starboard_channel_id: val })}
+                                    onChange={(val) => { onChange({ ...config, starboard_channel_id: val }); }}
                                     placeholder="Select channel..."
                                 />
                                 <p className="text-xs text-muted-foreground">
@@ -166,12 +168,12 @@ export function StarboardConfigEditor({
                                 <InputLabel required>Required Stars</InputLabel>
                                 <NumberInput
                                     min={1}
-                                    value={config.reaction_threshold || 3}
-                                    onChange={(v) =>
+                                    value={config.reaction_threshold ?? 3}
+                                    onChange={(v) =>{ 
                                         onChange({
                                             ...config,
-                                            reaction_threshold: v || 1,
-                                        })
+                                            reaction_threshold: v ?? 1,
+                                        }); }
                                     }
                                 />
                                 <p className="text-xs text-muted-foreground">
@@ -183,8 +185,8 @@ export function StarboardConfigEditor({
                         <div className="space-y-4 p-4 rounded-lg border border-border-subtle">
                             <InputLabel>Emojis</InputLabel>
                             <MultiSelectViewer
-                                selectedList={config.emojis || []}
-                                onDelete={(em) => handleRemoveEmoji(em)}
+                                selectedList={config.emojis ?? []}
+                                onDelete={(em) =>{  handleRemoveEmoji(em); }}
                                 placeholder="⭐"
                                 className="mt-1"
                             />
@@ -193,7 +195,7 @@ export function StarboardConfigEditor({
                                     type="text"
                                     placeholder="Add emoji (e.g. ⭐)"
                                     value={emojiInput}
-                                    onChange={(e) => setEmojiInput(e.target.value)}
+                                    onChange={(e) =>{  setEmojiInput(e.target.value); }}
                                 />
                                 <Button type="submit">Add</Button>
                             </form>
@@ -201,20 +203,20 @@ export function StarboardConfigEditor({
 
                         <div className="space-y-2 p-4 rounded-lg border border-border-subtle flex flex-col">
                             <ToggleSwitch
-                                checked={config.prevent_self_star || false}
-                                onChange={(checked) => onChange({ ...config, prevent_self_star: checked })}
+                                checked={config.prevent_self_star ?? false}
+                                onChange={(checked) =>{  onChange({ ...config, prevent_self_star: checked }); }}
                                 disabled={false}
                                 text="Prevent Self-Starring"
                             />
                             <ToggleSwitch
-                                checked={config.allow_bot_messages || false}
-                                onChange={(checked) => onChange({ ...config, allow_bot_messages: checked })}
+                                checked={config.allow_bot_messages ?? false}
+                                onChange={(checked) =>{  onChange({ ...config, allow_bot_messages: checked }); }}
                                 disabled={false}
                                 text="Allow Bot Messages to be Starred"
                             />
                             <ToggleSwitch
-                                checked={config.keep_deleted_messages || false}
-                                onChange={(checked) => onChange({ ...config, keep_deleted_messages: checked })}
+                                checked={config.keep_deleted_messages ?? false}
+                                onChange={(checked) =>{  onChange({ ...config, keep_deleted_messages: checked }); }}
                                 disabled={false}
                                 text="Keep Starred Messages even when Deleted"
                             />
@@ -229,8 +231,8 @@ export function StarboardConfigEditor({
                         <div className="space-y-2">
                             <InputLabel>Plaintext Message Template</InputLabel>
                             <PlaintextEditor
-                                value={config.plaintext_template || ""}
-                                onChange={(v) => onChange({ ...config, plaintext_template: v })}
+                                value={config.plaintext_template ?? ""}
+                                onChange={(v) =>{  onChange({ ...config, plaintext_template: v }); }}
                                 setIsEmpty={setIsEmpty}
                                 emptyable
                             />
@@ -241,12 +243,12 @@ export function StarboardConfigEditor({
                             <EmbedBuilder
                                 config={STARBOARD_CONFIG}
                                 initialEmbedState={config.embed_template}
-                                setEmbedState={(obj) => onChange({ ...config, embed_template: obj })}
+                                setEmbedState={(obj) =>{  onChange({ ...config, embed_template: obj }); }}
                                 customPreview={(
                                     <StarboardMessage
                                         config={STARBOARD_CONFIG}
-                                        embed={convertToEmbedState(config.embed_template || {})}
-                                        text={config.plaintext_template || ""}
+                                        embed={convertToEmbedState(config.embed_template ?? {})}
+                                        text={config.plaintext_template ?? ""}
                                     />
                                 )}
                                 enablePlaceholderList={false}
@@ -264,8 +266,8 @@ export function StarboardConfigEditor({
                                     <InputLabel>Min Message Age</InputLabel>
                                     <TextInput
                                         placeholder="e.g. 1 day"
-                                        value={config.min_message_age || ""}
-                                        onChange={(e) => onChange({ ...config, min_message_age: e.target.value || null })}
+                                        value={config.min_message_age ?? ""}
+                                        onChange={(e) =>{  onChange({ ...config, min_message_age: e.target.value }); }}
                                     />
                                     <Footer className="text-muted-foreground">e.g. &quot;1 hour&quot;, &quot;30 minutes&quot;</Footer>
                                 </div>
@@ -273,8 +275,8 @@ export function StarboardConfigEditor({
                                     <InputLabel>Max Message Age</InputLabel>
                                     <TextInput
                                         placeholder="e.g. 90 days"
-                                        value={config.max_message_age || ""}
-                                        onChange={(e) => onChange({ ...config, max_message_age: e.target.value || null })}
+                                        value={config.max_message_age ?? ""}
+                                        onChange={(e) =>{  onChange({ ...config, max_message_age: e.target.value }); }}
                                     />
                                     <Footer className="text-muted-foreground">e.g. &quot;90 days&quot;, &quot;7 days&quot;</Footer>
                                 </div>
@@ -294,25 +296,25 @@ export function StarboardConfigEditor({
                                     { value: "ALL_EXCEPT", label: "Ignore Selected Roles (Blacklist)" },
                                     { value: "ONLY_THESE", label: "Allow Only Selected Roles (Whitelist)" },
                                 ]}
-                                value={config.role_restriction_type || "NONE"}
-                                onChange={(val) => onChange({ ...config, role_restriction_type: val ?? "NONE" })}
+                                value={config.role_restriction_type ?? "NONE"}
+                                onChange={(val) =>{  onChange({ ...config, role_restriction_type: val ?? "NONE" }); }}
                                 className="max-w-md"
                             />
                             {config.role_restriction_type !== "NONE" && (
                                 <div className="space-y-3 pt-2">
                                     <MultiSelectViewer
-                                        selectedList={config.restricted_roles || []}
+                                        selectedList={config.restricted_roles ?? []}
                                         onDelete={toggleRoleSelection}
                                         map={roleMap}
                                         prefix="@"
                                     />
                                     <Dropdown
                                         options={getAvailableRoleOptions(roleMap).filter(
-                                            (opt) => !(config.restricted_roles || []).includes(opt.value)
+                                            (opt) => !(config.restricted_roles ?? []).includes(opt.value)
                                         )}
                                         value={roleDropdownValue}
                                         onChange={(val) => {
-                                            if (val) toggleRoleSelection(val);
+                                            if (val !== null) toggleRoleSelection(val);
                                             setRoleDropdownValue("");
                                         }}
                                         placeholder="Add role restriction..."
@@ -335,25 +337,25 @@ export function StarboardConfigEditor({
                                     { value: "ALL_EXCEPT", label: "Ignore Selected Channels (Blacklist)" },
                                     { value: "ONLY_THESE", label: "Allow Only Selected Channels (Whitelist)" },
                                 ]}
-                                value={config.channel_restriction_type || "NONE"}
-                                onChange={(val) => onChange({ ...config, channel_restriction_type: val ?? "NONE" })}
+                                value={config.channel_restriction_type ?? "NONE"}
+                                onChange={(val) =>{  onChange({ ...config, channel_restriction_type: val ?? "NONE" }); }}
                                 className="max-w-md"
                             />
                             {config.channel_restriction_type !== "NONE" && (
                                 <div className="space-y-3 pt-2">
                                     <MultiSelectViewer
-                                        selectedList={config.restricted_channels || []}
+                                        selectedList={config.restricted_channels ?? []}
                                         onDelete={toggleChannelSelection}
                                         map={channelMap}
                                         prefix="#"
                                     />
                                     <Dropdown
                                         options={getAvailableChannelOptions(channelMap).filter(
-                                            (opt) => !(config.restricted_channels || []).includes(opt.value)
+                                            (opt) => !(config.restricted_channels ?? []).includes(opt.value)
                                         )}
                                         value={channelDropdownValue}
                                         onChange={(val) => {
-                                            if (val) toggleChannelSelection(val);
+                                            if (val !== null) toggleChannelSelection(val);
                                             setChannelDropdownValue("");
                                         }}
                                         placeholder="Add channel restriction..."

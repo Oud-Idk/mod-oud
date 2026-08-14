@@ -31,7 +31,7 @@ export function ExcessiveEmojisTab({
         >
             <NumberInput
                 value={filterConfig.maxEmojis}
-                onChange={(v) => updateFilter({ maxEmojis: v })}
+                onChange={(v) =>{  updateFilter({ maxEmojis: v }); }}
                 label="Maximum Absolute Emojis per Message"
             />
         </FilterLayoutWrapper>

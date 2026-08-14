@@ -26,7 +26,7 @@ export const reminderBaseSchema = z.object({
 export const saveableReminderSchema = reminderBaseSchema.superRefine((data, ctx) => {
     if (!data.channelId || data.channelId.trim() === "") {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Please select a target channel.",
             path: ["channelId"],
         });
@@ -34,7 +34,7 @@ export const saveableReminderSchema = reminderBaseSchema.superRefine((data, ctx)
 
     if (data.message.format === "TEXT" && (!data.message.content || data.message.content.trim() === "")) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Message content cannot be empty for plain text format.",
             path: ["message", "content"],
         });
@@ -43,7 +43,7 @@ export const saveableReminderSchema = reminderBaseSchema.superRefine((data, ctx)
     if (data.rType === "RECURRING") {
         if (!data.timeStart && !data.intervalSeconds && (!data.daysOfWeek || data.daysOfWeek.length === 0)) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Recurring reminders require a start time, interval, or active days.",
                 path: ["rType"],
             });

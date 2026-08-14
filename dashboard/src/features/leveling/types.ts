@@ -80,7 +80,7 @@ export const levelingConfigSchema = z.object({
 export const saveLevelingConfigSchema = levelingConfigSchema.superRefine((data, ctx) => {
     if (data.notify.scope === "SPECIFIED_CHANNEL" && !data.notify.channelId) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Please select a target channel for level-up notifications!",
             path: ["notify", "channelId"],
         });

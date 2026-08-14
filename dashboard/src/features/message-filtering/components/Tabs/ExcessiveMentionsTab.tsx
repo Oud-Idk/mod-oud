@@ -31,7 +31,7 @@ export function ExcessiveMentionsTab({
         >
             <NumberInput
                 value={filterConfig.maxMentions}
-                onChange={(v) => updateFilter({ maxMentions: v })}
+                onChange={(v) =>{  updateFilter({ maxMentions: v }); }}
                 label="Maximum Absolute Mentions per Message"
             />
         </FilterLayoutWrapper>

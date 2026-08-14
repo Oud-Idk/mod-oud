@@ -4,7 +4,7 @@ import { type ReminderRow, reminderRowSchema, type SaveableReminderInput, saveab
 import { calculateNextTriggerJS } from "@/features/reminders/calculations";
 
 async function invalidateChannelReminderCache(channelId: string | null | undefined): Promise<void> {
-    if (!channelId) return;
+    if (channelId === null || channelId === undefined || channelId.length === 0) return;
     const cacheKey = `reminders:channel:${channelId}`;
     try {
         await redis.del(cacheKey);
@@ -34,27 +34,14 @@ export async function getRemindersByChannels(channelIds: string[]): Promise<Remi
     `;
 
     const res = await db.query(query, [channelIds]);
-    return res.rows.map((row) =>
-        reminderRowSchema.parse({
-            id: row.id,
-            channelId: row.channelId,
-            rType: row.rType,
-            nextTriggerAt: row.nextTriggerAt,
-            daysOfWeek: row.daysOfWeek,
-            timeStart: row.timeStart,
-            timeEnd: row.timeEnd,
-            intervalSeconds: row.intervalSeconds,
-            isActive: row.isActive,
-            message: row.message,
-        })
-    );
+    return res.rows.map((row: unknown) => reminderRowSchema.parse(row));
 }
 
 export async function saveReminder(
     rawReminder: SaveableReminderInput
 ): Promise<ReminderRow> {
     const reminder = saveableReminderSchema.parse(rawReminder);
-    const isEdit = Boolean(reminder.id);
+    const isEdit = reminder.id !== undefined && reminder.id.length > 0;
 
     let finalNextTrigger = reminder.nextTriggerAt;
     if (reminder.rType === "RECURRING") {
@@ -85,6 +72,7 @@ export async function saveReminder(
             RETURNING
                 id::TEXT,
                 channel_id AS "channelId",
+                message,
                 r_type AS "rType",
                 next_trigger_at AS "nextTriggerAt",
                 days_of_week AS "daysOfWeek",
@@ -115,6 +103,7 @@ export async function saveReminder(
             RETURNING
                 id::TEXT,
                 channel_id AS "channelId",
+                message,
                 r_type AS "rType",
                 next_trigger_at AS "nextTriggerAt",
                 days_of_week AS "daysOfWeek",
@@ -139,20 +128,10 @@ export async function saveReminder(
     const res = await db.query(query, params);
     await invalidateChannelReminderCache(reminder.channelId);
 
-    const row = res.rows[0];
-    return reminderRowSchema.parse({
-        id: row.id,
-        channelId: row.channelId,
-        rType: row.rType,
-        nextTriggerAt: row.nextTriggerAt,
-        daysOfWeek: row.daysOfWeek,
-        timeStart: row.timeStart,
-        timeEnd: row.timeEnd,
-        intervalSeconds: row.intervalSeconds,
-        isActive: row.isActive,
-        message: row.message,
-    });
+    const row: unknown = res.rows[0];
+    return reminderRowSchema.parse(row);
 }
+
 export async function deleteReminder(id: string, channelId: string | null): Promise<void> {
     const query = `DELETE FROM reminders WHERE id = $1`;
     await db.query(query, [id]);

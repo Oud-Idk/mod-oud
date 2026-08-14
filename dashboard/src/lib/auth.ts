@@ -1,6 +1,7 @@
 import NextAuth, { type Session, type Account, type Profile } from "next-auth";
 import Discord from "next-auth/providers/discord";
 import { type JWT } from "next-auth/jwt";
+import { z } from "zod";
 
 declare module "next-auth" {
     interface User {
@@ -38,6 +39,12 @@ declare global {
     } | undefined;
 }
 
+const discordTokenResponseSchema = z.object({
+    access_token: z.string(),
+    refresh_token: z.string().optional(),
+    expires_in: z.number(),
+});
+
 /**
  * Rotates the access token using Discord's OAuth endpoints.
  * Includes concurrency debouncing to prevent single-use token collisions.
@@ -45,7 +52,7 @@ declare global {
 async function refreshAccessToken(token: JWT): Promise<JWT> {
     const refreshToken = token.refreshToken;
 
-    if (!refreshToken) {
+    if (refreshToken === undefined || refreshToken === "") {
         console.warn("[Auth] No refresh token found in current session. Forcing re-authentication.");
         return {
             ...token,
@@ -55,7 +62,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
     const now = Date.now();
 
-    if (globalThis.inFlightRefresh && (now - globalThis.inFlightRefresh.timestamp < 10000)) {
+    if (globalThis.inFlightRefresh !== undefined && (now - globalThis.inFlightRefresh.timestamp < 10000)) {
         console.log("[Auth] Parallel token refresh detected. Joining in-flight request...");
         try {
             const result = await globalThis.inFlightRefresh.promise;
@@ -93,17 +100,23 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
             }),
         });
 
-        const refreshedTokens = await response.json();
+        const rawData: unknown = await response.json();
 
         if (!response.ok) {
-            console.error("[Auth] Discord refresh failed:", JSON.stringify(refreshedTokens));
-            throw refreshedTokens;
+            console.error("[Auth] Discord refresh failed:", JSON.stringify(rawData));
+            throw new Error("Discord token refresh request failed");
+        }
+
+        const parsed = discordTokenResponseSchema.safeParse(rawData);
+        if (!parsed.success) {
+            console.error("[Auth] Invalid Discord token response:", parsed.error);
+            throw new Error("Invalid Discord token response format");
         }
 
         return {
-            accessToken: refreshedTokens.access_token,
-            refreshToken: refreshedTokens.refresh_token ?? refreshToken,
-            accessTokenExpires: Date.now() + refreshedTokens.expires_in * 1000,
+            accessToken: parsed.data.access_token,
+            refreshToken: parsed.data.refresh_token ?? refreshToken,
+            accessTokenExpires: Date.now() + parsed.data.expires_in * 1000,
         };
     })();
 
@@ -119,7 +132,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
             ...token,
             ...result,
         };
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("[Auth] Error attempting to rotate Discord access token:", error);
         return {
             ...token,
@@ -144,10 +157,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             account?: Account | null;
             profile?: Profile;
         }): Promise<JWT> {
-            if (account) {
-                const expiresAt = account.expires_at
-                    ? account.expires_at * 1000
-                    : Date.now() + (account.expires_in || 7200) * 1000;
+            if (account !== null && account !== undefined) {
+                const expiresAt =
+                    account.expires_at !== undefined
+                        ? account.expires_at * 1000
+                        : Date.now() + (account.expires_in ?? 7200) * 1000;
 
                 const discordId = typeof profile?.id === "string"
                     ? profile.id
@@ -162,20 +176,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 };
             }
 
-            if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
+            if (token.accessTokenExpires !== undefined && Date.now() < token.accessTokenExpires) {
                 return token;
             }
 
             return refreshAccessToken(token);
         },
-        async session({ session, token }: {
+        session({ session, token }: {
             session: Session;
             token: JWT;
-        }): Promise<Session> {
-            if (session.user) {
-                session.user.id = token.discordId ?? token.sub ?? "";
-            }
-
+        }): Session {
+            session.user.id = token.discordId ?? token.sub ?? "";
             session.accessToken = token.accessToken;
             session.error = token.error;
             return session;

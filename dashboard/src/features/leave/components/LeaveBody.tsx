@@ -70,7 +70,7 @@ export function LeaveBody({
         <div>
             <MessageConfigEditor
                 config={editorConfig}
-                onChange={(updated) =>
+                onChange={(updated) =>{ 
                     handleChange({
                         enabled: updated.enabled ?? config.enabled,
                         channelId: updated.channel_id || null,
@@ -80,7 +80,7 @@ export function LeaveBody({
                             content: updated.content ?? "",
                             embed: updated.embed ?? {},
                         },
-                    })
+                    }); }
                 }
                 onEmbedChange={handleEmbedChange}
                 channels={channels}

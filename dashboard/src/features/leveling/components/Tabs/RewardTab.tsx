@@ -28,7 +28,7 @@ interface RewardItemState {
     removePreviousRoles: boolean;
 }
 
-const areArraysEqual = (a: string[], b: string[]) => {
+const areArraysEqual = (a: string[], b: string[]): boolean => {
     if (a.length !== b.length) return false;
     const sortedA = [...a].sort();
     const sortedB = [...b].sort();
@@ -48,9 +48,9 @@ export function RewardTab({
     const initialRewards = useMemo<RewardItemState[]>(() =>
             rewards.map((r) => ({
                 id: r.id,
-                levelRequirement: r.level_requirement ?? 1,
-                rolesToAdd: r.roles_to_add ?? [],
-                removePreviousRoles: r.remove_previous_roles ?? false,
+                levelRequirement: r.level_requirement,
+                rolesToAdd: r.roles_to_add,
+                removePreviousRoles: r.remove_previous_roles,
             })),
         [rewards]
     );
@@ -62,14 +62,12 @@ export function RewardTab({
     const router = useRouter();
 
     // Determine if any changes exist between current state and original props
-    const hasChanges = useMemo(() => {
+    const hasChanges = useMemo<boolean>(() => {
         if (deletedIds.length > 0) return true;
         if (localRewards.length !== initialRewards.length) return true;
 
         return localRewards.some((local, idx) => {
             const initial = initialRewards[idx];
-            if (!initial) return true;
-
             return (
                 local.id !== initial.id ||
                 local.levelRequirement !== initial.levelRequirement ||
@@ -84,7 +82,7 @@ export function RewardTab({
         setDeletedIds([]);
     }, [initialRewards]);
 
-    const handleAddReward = () => {
+    const handleAddReward = (): void => {
         const nextLevel =
             localRewards.length > 0
                 ? Math.max(...localRewards.map((r) => r.levelRequirement)) + 5
@@ -100,10 +98,11 @@ export function RewardTab({
         ]);
     };
 
-    const handleRemoveReward = (index: number) => {
+    const handleRemoveReward = (index: number): void => {
         const itemToRemove = localRewards[index];
-        if (itemToRemove.id) {
-            setDeletedIds((prev) => [...prev, itemToRemove.id!]);
+        if (itemToRemove.id !== undefined) {
+            const idToDelete = itemToRemove.id;
+            setDeletedIds((prev) => [...prev, idToDelete]);
         }
         setLocalRewards((prev) => prev.filter((_, i) => i !== index));
     };
@@ -112,13 +111,13 @@ export function RewardTab({
         index: number,
         field: K,
         value: RewardItemState[K]
-    ) => {
+    ): void => {
         setLocalRewards((prev) =>
             prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
         );
     };
 
-    const handleSaveAll = async () => {
+    const handleSaveAll = async (): Promise<void> => {
         setIsSaving(true);
         try {
             // Validate with Zod
@@ -131,7 +130,7 @@ export function RewardTab({
             for (const reward of rewardsToSave) {
                 const result = saveLevelRewardInputSchema.safeParse(reward);
                 if (!result.success) {
-                    toast.error(result.error.issues[0]?.message || "Invalid reward configuration");
+                    toast.error(result.error.issues[0]?.message ?? "Invalid reward configuration");
                     return;
                 }
             }
@@ -193,7 +192,7 @@ export function RewardTab({
             <div className="space-y-2">
                 {localRewards.map((reward, index) => (
                     <div
-                        key={reward.id ?? `new-${index}`}
+                        key={reward.id ?? `new-${String(index)}`}
                         className="bg-surface border border-border-subtle rounded-lg p-4 py-3 space-y-2 transition-colors duration-150 hover:border-border"
                     >
                         {/* Card Subheader */}
@@ -201,7 +200,7 @@ export function RewardTab({
                             <span className="text-brand">Reward Rule #{index + 1}</span>
                             <Button
                                 variant="danger"
-                                onClick={() => handleRemoveReward(index)}
+                                onClick={() => { handleRemoveReward(index); }}
                             >
                                 Delete Rule
                             </Button>
@@ -214,13 +213,13 @@ export function RewardTab({
                                 <NumberInput
                                     min={1}
                                     value={reward.levelRequirement}
-                                    onChange={(v) =>
+                                    onChange={(v) => {
                                         updateReward(
                                             index,
                                             "levelRequirement",
-                                            Math.max(1, v || 1)
-                                        )
-                                    }
+                                            Math.max(1, v ?? 1)
+                                        );
+                                    }}
                                 />
                             </div>
 
@@ -230,9 +229,9 @@ export function RewardTab({
                                     multiple
                                     options={availableRoles}
                                     value={reward.rolesToAdd}
-                                    onChange={(selectedRoles) =>
-                                        updateReward(index, "rolesToAdd", selectedRoles)
-                                    }
+                                    onChange={(selectedRoles) => {
+                                        updateReward(index, "rolesToAdd", selectedRoles);
+                                    }}
                                     placeholder="Select roles to grant..."
                                 />
                             </div>
@@ -247,9 +246,9 @@ export function RewardTab({
                                 <input
                                     type="checkbox"
                                     checked={reward.removePreviousRoles}
-                                    onChange={(e) =>
-                                        updateReward(index, "removePreviousRoles", e.target.checked)
-                                    }
+                                    onChange={(e) => {
+                                        updateReward(index, "removePreviousRoles", e.target.checked);
+                                    }}
                                     className="sr-only peer"
                                 />
                                 <div className="w-9 h-5 bg-surface-active rounded-full transition-all duration-150 peer-focus:outline-none peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-brand-foreground after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>

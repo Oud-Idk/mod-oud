@@ -58,7 +58,7 @@ export function HistoryTab({
                     className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs self-start sm:self-auto border border-border-subtle">
                     <button
                         type="button"
-                        onClick={() => setStatusFilter("ALL")}
+                        onClick={() =>{  setStatusFilter("ALL"); }}
                         className={cn(
                             "px-2.5 py-1 rounded-md font-medium transition cursor-pointer border",
                             statusFilter === "ALL"
@@ -70,7 +70,7 @@ export function HistoryTab({
                     </button>
                     <button
                         type="button"
-                        onClick={() => setStatusFilter("OPEN")}
+                        onClick={() =>{  setStatusFilter("OPEN"); }}
                         className={cn(
                             "px-2.5 py-1 rounded-md font-medium transition cursor-pointer border",
                             statusFilter === "OPEN"
@@ -82,7 +82,7 @@ export function HistoryTab({
                     </button>
                     <button
                         type="button"
-                        onClick={() => setStatusFilter("CLOSED")}
+                        onClick={() =>{  setStatusFilter("CLOSED"); }}
                         className={cn(
                             "px-2.5 py-1 rounded-md font-medium transition cursor-pointer border",
                             statusFilter === "CLOSED"

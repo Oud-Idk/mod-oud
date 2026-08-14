@@ -113,7 +113,7 @@ export function TempVoiceBody({
             renderItem={(hub) => (
                 <button
                     key={hub.id}
-                    onClick={() => setActiveHubId(hub.id)}
+                    onClick={() =>{  setActiveHubId(hub.id); }}
                     className={`w-full text-left px-3 py-2 text-xs rounded transition-colors ${
                         activeHubId === hub.id
                             ? "bg-surface-active font-medium"

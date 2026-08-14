@@ -33,14 +33,28 @@ interface RawModerationLog {
 }
 
 function formatDuration(duration: PgInterval | null): string | null {
-    if (!duration) return null;
+    if (duration === null) return null;
     const parts: string[] = [];
-    if (duration.years) parts.push(`${duration.years}y`);
-    if (duration.months) parts.push(`${duration.months}mo`);
-    if (duration.days) parts.push(`${duration.days}d`);
-    if (duration.hours) parts.push(`${duration.hours}h`);
-    if (duration.minutes) parts.push(`${duration.minutes}m`);
-    if (duration.seconds) parts.push(`${duration.seconds}s`);
+
+    if (duration.years !== undefined && duration.years > 0) {
+        parts.push(`${String(duration.years)}y`);
+    }
+    if (duration.months !== undefined && duration.months > 0) {
+        parts.push(`${String(duration.months)}mo`);
+    }
+    if (duration.days !== undefined && duration.days > 0) {
+        parts.push(`${String(duration.days)}d`);
+    }
+    if (duration.hours !== undefined && duration.hours > 0) {
+        parts.push(`${String(duration.hours)}h`);
+    }
+    if (duration.minutes !== undefined && duration.minutes > 0) {
+        parts.push(`${String(duration.minutes)}m`);
+    }
+    if (duration.seconds !== undefined && duration.seconds > 0) {
+        parts.push(`${String(duration.seconds)}s`);
+    }
+
     return parts.length > 0 ? parts.join(" ") : null;
 }
 
@@ -74,11 +88,10 @@ export async function getAutomodLogs(
             $2::TEXT IS NULL OR $3::BIGINT IS NULL OR
             created_at < $2::TIMESTAMPTZ OR
             (created_at = $2::TIMESTAMPTZ AND id < $3::BIGINT)
-          )
+            )
         ORDER BY created_at DESC, id DESC
         LIMIT $4;
     `;
-
 
     const result = await db.query(query, [
         params.guildId,
@@ -104,7 +117,8 @@ export async function getJoinLeaveLogs(
         cursorId,
     });
 
-    const validAction = action ? joinLeaveActionSchema.parse(action) : null;
+    const validAction =
+        action !== undefined && action !== null ? joinLeaveActionSchema.parse(action) : null;
 
     const query = `
         SELECT id::TEXT,
@@ -114,12 +128,12 @@ export async function getJoinLeaveLogs(
                created_at
         FROM join_leave_logs
         WHERE guild_id = $1
-          AND ($2::TEXT IS NULL OR action = $2::LOG_ACTION) 
+          AND ($2::TEXT IS NULL OR action = $2::LOG_ACTION)
           AND (
             $3::TEXT IS NULL OR $4::BIGINT IS NULL OR
             created_at < $3::TIMESTAMPTZ OR
             (created_at = $3::TIMESTAMPTZ AND id < $4::BIGINT)
-          )
+            )
         ORDER BY created_at DESC, id DESC
         LIMIT $5;
     `;
@@ -163,7 +177,7 @@ export async function getModerationLogs(
             $2::TEXT IS NULL OR $3::INTEGER IS NULL OR
             created_at < $2::TIMESTAMPTZ OR
             (created_at = $2::TIMESTAMPTZ AND case_id < $3::INTEGER)
-          )
+            )
         ORDER BY created_at DESC, case_id DESC
         LIMIT $4;
     `;

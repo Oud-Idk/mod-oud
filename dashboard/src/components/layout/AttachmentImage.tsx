@@ -20,7 +20,7 @@ export function AttachmentImage({ url, index }: AttachmentProps): ReactNode | nu
             width={200}
             height={150}
             className="max-w-50 max-h-37.5 object-contain block transition-opacity"
-            onError={() => setHasError(true)}
+            onError={() =>{  setHasError(true); }}
         />
     );
 }

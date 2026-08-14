@@ -94,11 +94,11 @@ export function TicketsBody({
                 <InitialMessageTab
                     config={config}
                     onChange={handleWelcomeChange}
-                    onEmbedChange={(embed) =>
+                    onEmbedChange={(embed) =>{ 
                         setConfig((prev) => ({
                             ...prev,
                             welcomeMessage: { ...prev.welcomeMessage, embed },
-                        }))
+                        })); }
                     }
                     disabled={isPending}
                     resetKey={0}

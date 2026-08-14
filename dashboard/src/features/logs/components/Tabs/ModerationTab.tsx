@@ -16,8 +16,7 @@ interface ModerationTabProps {
 const LIMIT = 20;
 const HEADERS = ["Case ID", "Action", "Target Username", "Moderator Username", "Reason", "Duration", "Timestamp"];
 
-export function ModerationTab({ guildId }: ModerationTabProps):
-    JSX.Element {
+export function ModerationTab({ guildId }: ModerationTabProps): JSX.Element {
     const [logs, setLogs] = useState<ModerationLog[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);
@@ -25,33 +24,45 @@ export function ModerationTab({ guildId }: ModerationTabProps):
 
     const observerTarget = useRef<HTMLDivElement | null>(null);
 
-    const lastLog = logs[logs.length - 1];
-    const lastLogCreatedAt = lastLog?.created_at || null;
-    const lastLogCaseId = lastLog?.case_id || null;
+    const lastLog: ModerationLog | undefined = logs.length > 0 ? logs[logs.length - 1] : undefined;
+    const lastLogCreatedAt = lastLog !== undefined ? lastLog.created_at : null;
+    const lastLogCaseId = lastLog !== undefined ? lastLog.case_id : null;
 
     useEffect(() => {
         setLoading(true);
         setHasMore(true);
         setLogs([]);
 
-        getModerationLogsAction(guildId, LIMIT, null, null)
+        void getModerationLogsAction(guildId, LIMIT, null, null)
             .then((data) => {
                 setLogs(data);
                 if (data.length < LIMIT) setHasMore(false);
             })
-            .catch((err) => console.error("Error fetching initial moderation logs:", err))
-            .finally(() => setLoading(false));
+            .catch((err: unknown) => {
+                console.error("Error fetching initial moderation logs:", err);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     }, [guildId]);
 
-    const fetchMoreLogs = useCallback(async () => {
-        if (loading || loadingMore || !hasMore || !lastLogCreatedAt || !lastLogCaseId) return;
+    const fetchMoreLogs = useCallback(async (): Promise<void> => {
+        if (
+            loading ||
+            loadingMore ||
+            !hasMore ||
+            lastLogCreatedAt === null ||
+            lastLogCaseId === null
+        ) {
+            return;
+        }
 
         setLoadingMore(true);
         try {
             const data = await getModerationLogsAction(guildId, LIMIT, lastLogCreatedAt, lastLogCaseId);
             if (data.length < LIMIT) setHasMore(false);
             setLogs((prev) => [...prev, ...data]);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error("Error loading more moderation logs:", err);
         } finally {
             setLoadingMore(false);
@@ -60,12 +71,12 @@ export function ModerationTab({ guildId }: ModerationTabProps):
 
     useEffect(() => {
         const target = observerTarget.current;
-        if (!target || !hasMore || loading || loadingMore) return;
+        if (target === null || !hasMore || loading || loadingMore) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    fetchMoreLogs();
+                    void fetchMoreLogs();
                 }
             },
             { rootMargin: "200px" }
@@ -74,7 +85,7 @@ export function ModerationTab({ guildId }: ModerationTabProps):
         observer.observe(target);
 
         return () => {
-            if (target) observer.unobserve(target);
+            observer.unobserve(target);
         };
     }, [fetchMoreLogs, hasMore, loading, loadingMore]);
 
@@ -129,12 +140,18 @@ export function ModerationTab({ guildId }: ModerationTabProps):
                                 {log.moderator_id}
                             </TableCell>
                             <TableCell className="max-w-xs truncate text-foreground">
-                                {log.reason || (
+                                {log.reason !== null && log.reason !== "" ? (
+                                    log.reason
+                                ) : (
                                     <span className="text-muted-foreground italic">No reason provided</span>
                                 )}
                             </TableCell>
                             <TableCell className="text-xs text-foreground">
-                                {log.duration || <span className="text-muted-foreground">—</span>}
+                                {log.duration !== null && log.duration !== "" ? (
+                                    log.duration
+                                ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                )}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                                 {new Date(log.created_at).toLocaleString()}

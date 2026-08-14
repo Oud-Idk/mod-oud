@@ -29,7 +29,7 @@ export const raidDetectionInputSchema = z.object({
 export const saveRaidDetectionConfigSchema = raidDetectionInputSchema.superRefine((data, ctx) => {
     if (data.enabled && data.raidActions.length === 0) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "At least one raid mitigation action must be selected when raid protection is enabled!",
             path: ["raidActions"],
         });

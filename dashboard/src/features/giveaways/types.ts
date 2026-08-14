@@ -40,7 +40,7 @@ export type SaveGiveawayData = z.infer<typeof saveGiveawayInputSchema>;
 export const SaveGiveawaySchema = saveGiveawayInputSchema.superRefine((data, ctx) => {
     if (!data.prize || data.prize.trim() === "") {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Prize description is required!",
             path: ["prize"],
         });
@@ -48,7 +48,7 @@ export const SaveGiveawaySchema = saveGiveawayInputSchema.superRefine((data, ctx
 
     if (!data.channel_id) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Please select a target Discord channel for the giveaway!",
             path: ["channel_id"],
         });
@@ -56,7 +56,7 @@ export const SaveGiveawaySchema = saveGiveawayInputSchema.superRefine((data, ctx
 
     if (data.winner_count < 1) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Winner count must be at least 1!",
             path: ["winner_count"],
         });

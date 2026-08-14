@@ -41,7 +41,7 @@ export function PlaintextEditor({
             <LongTextInput
                 value={value}
                 disabled={disabled}
-                onChange={(e) => onChange(e.target.value)}
+                onChange={(e) =>{  onChange(e.target.value); }}
                 placeholder={placeholder}
                 className={`mb-0 ${isEmpty ? "border-danger-border" : ""}`}
             />

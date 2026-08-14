@@ -32,9 +32,9 @@ export function StarboardCreateModal({
     const [modalChannelId, setModalChannelId] = useState<string | null>(null);
     const [modalThreshold, setModalThreshold] = useState(3);
 
-    const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+    const handleCreateSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
-        if (!modalChannelId) {
+        if (modalChannelId !== null) {
             toast.error("Please select a destination channel.");
             return;
         }
@@ -62,10 +62,7 @@ export function StarboardCreateModal({
                 onClose();
                 setModalChannelId("");
                 setModalThreshold(3);
-
-                if (id) {
-                    router.push(`/dashboard/${guildId}/starboard?id=${id}`);
-                }
+                router.push(`/dashboard/${guildId}/starboard?id=${id}`);
             } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Failed to create starboard.");
             }
@@ -82,7 +79,7 @@ export function StarboardCreateModal({
                     <Dropdown
                         options={getAvailableChannelOptions(channelMap)}
                         value={modalChannelId ?? ""}
-                        onChange={(val) => setModalChannelId(val)}
+                        onChange={(val) =>{  setModalChannelId(val); }}
                         placeholder="Choose channel..."
                     />
                 </div>
@@ -91,7 +88,7 @@ export function StarboardCreateModal({
                     <InputLabel required>Initial Star Threshold</InputLabel>
                     <NumberInput
                         value={modalThreshold}
-                        onChange={(v) => setModalThreshold(v ?? 1)}
+                        onChange={(v) =>{  setModalThreshold(v ?? 1); }}
                         min={1}
                     />
                 </div>
@@ -108,7 +105,7 @@ export function StarboardCreateModal({
                     </Button>
                     <Button
                         type="submit"
-                        disabled={isPending || !modalChannelId}
+                        disabled={isPending || modalChannelId !== null}
                     >
                         {isPending ? "Creating..." : "Create"}
                     </Button>

@@ -87,14 +87,13 @@ export const isDeepEqual = (obj1: unknown, obj2: unknown): boolean => {
 };
 
 export const isEmbedEmpty = (embed: DiscordEmbed): boolean => {
-    if (!embed) return true;
     const hasTitle = Boolean(embed.title?.trim());
     const hasDescription = Boolean(embed.description?.trim());
     const hasFields = Boolean(embed.fields && embed.fields.length > 0);
-    const hasAuthor = Boolean(embed.author?.name?.trim());
-    const hasFooter = Boolean(embed.footer?.text?.trim());
-    const hasImage = Boolean(embed.image?.url?.trim());
-    const hasThumbnail = Boolean(embed.thumbnail?.url?.trim());
+    const hasAuthor = Boolean(embed.author?.name.trim());
+    const hasFooter = Boolean(embed.footer?.text.trim());
+    const hasImage = Boolean(embed.image?.url.trim());
+    const hasThumbnail = Boolean(embed.thumbnail?.url.trim());
 
     return !hasTitle && !hasDescription && !hasFields && !hasAuthor && !hasFooter && !hasImage && !hasThumbnail;
 };
@@ -107,17 +106,17 @@ export const BaseMessageLayoutSchema = z.object({
 
 export const messageLayoutSchema = BaseMessageLayoutSchema.superRefine((data, ctx) => {
     if (data.format === "TEXT") {
-        if (!data.content || data.content.trim() === "") {
+        if (data.content.trim() === "") {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Message content cannot be empty when format is set to TEXT!",
                 path: ["content"],
             });
         }
-    } else if (data.format === "EMBED") {
+    } else {
         if (isEmbedEmpty(data.embed)) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Embed must have a title, description, or fields when format is set to EMBED!",
                 path: ["embed"],
             });

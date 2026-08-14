@@ -52,7 +52,7 @@ export function NotificationsTab({
             <div className="mt-4">
                 <MessageConfigEditor
                     config={config[activeKey].message}
-                    onChange={(updated) =>
+                    onChange={(updated) =>{ 
                         handleChange({
                             [activeKey]: {
                                 enabled: updated.enabled,
@@ -60,7 +60,7 @@ export function NotificationsTab({
                                 embed: updated.embed,
                                 format: updated.format,
                             },
-                        })
+                        }); }
                     }
                     disabled={isPending}
                     toggleLabel={`Enable DM when Report is ${

@@ -46,7 +46,7 @@ const PUNISHMENT_OPTIONS: { value: ModerationAction; label: string }[] = [
     { value: "ROLE_REMOVE_ALL", label: "Remove All Roles" },
 ];
 
-const areArraysEqual = (a: string[], b: string[]) => {
+const areArraysEqual = (a: string[], b: string[]): boolean => {
     if (a.length !== b.length) return false;
     const sortedA = [...a].sort();
     const sortedB = [...b].sort();
@@ -66,10 +66,10 @@ export function WarnThresholdTab({
             thresholds.map((t) => ({
                 id: t.id,
                 warnCount: t.warn_count,
-                actionType: t.action_type || [],
-                rolesToAdd: t.roles_to_add || [],
-                rolesToRemove: t.roles_to_remove || [],
-                duration: t.duration || null,
+                actionType: t.action_type,
+                rolesToAdd: t.roles_to_add ?? [],
+                rolesToRemove: t.roles_to_remove ?? [],
+                duration: t.duration ?? null,
             })),
         [thresholds]
     );
@@ -77,13 +77,12 @@ export function WarnThresholdTab({
     const [localThresholds, setLocalThresholds] = useState<LocalThresholdState[]>(initialThresholds);
     const [deletedIds, setDeletedIds] = useState<number[]>([]);
 
-    const isDirty = useMemo(() => {
+    const isDirty = useMemo((): boolean => {
         if (deletedIds.length > 0) return true;
         if (localThresholds.length !== initialThresholds.length) return true;
 
         return localThresholds.some((local, idx) => {
             const initial = initialThresholds[idx];
-            if (!initial) return true;
 
             return (
                 local.id !== initial.id ||
@@ -96,7 +95,7 @@ export function WarnThresholdTab({
         });
     }, [localThresholds, initialThresholds, deletedIds]);
 
-    const handleAddThreshold = () => {
+    const handleAddThreshold = (): void => {
         const nextWarnCount =
             localThresholds.length > 0
                 ? Math.max(...localThresholds.map((t) => t.warnCount)) + 1
@@ -114,10 +113,11 @@ export function WarnThresholdTab({
         ]);
     };
 
-    const handleRemoveThreshold = (index: number) => {
+    const handleRemoveThreshold = (index: number): void => {
         const itemToRemove = localThresholds[index];
-        if (itemToRemove?.id !== undefined) {
-            setDeletedIds((prev) => [...prev, itemToRemove.id as number]);
+        if (itemToRemove.id !== undefined) {
+            const deletedId = itemToRemove.id;
+            setDeletedIds((prev) => [...prev, deletedId]);
         }
         setLocalThresholds((prev) => prev.filter((_, i) => i !== index));
     };
@@ -126,18 +126,18 @@ export function WarnThresholdTab({
         index: number,
         field: K,
         value: LocalThresholdState[K]
-    ) => {
+    ): void => {
         setLocalThresholds((prev) =>
             prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
         );
     };
 
-    const handleCancel = () => {
+    const handleCancel = (): void => {
         setLocalThresholds(initialThresholds);
         setDeletedIds([]);
     };
 
-    const handleSaveAll = async () => {
+    const handleSaveAll = (): void => {
         const payload: SaveWarnThresholdInput[] = localThresholds.map((t) => ({
             warnCount: t.warnCount,
             actionType: t.actionType,
@@ -148,7 +148,7 @@ export function WarnThresholdTab({
 
         const validation = saveWarnThresholdsInputSchema.safeParse(payload);
         if (!validation.success) {
-            toast.error(validation.error.issues[0]?.message || "Invalid threshold configuration.");
+            toast.error(validation.error.issues[0]?.message ?? "Invalid threshold configuration.");
             return;
         }
 
@@ -202,14 +202,14 @@ export function WarnThresholdTab({
 
                     return (
                         <div
-                            key={threshold.id ?? `new-${index}`}
+                            key={threshold.id !== undefined ? String(threshold.id) : `new-${String(index)}`}
                             className="bg-surface border border-border-subtle rounded-lg p-4 py-3 space-y-3 transition-colors duration-150 hover:border-border"
                         >
                             <div className="flex items-center justify-between border-b border-border-subtle pb-2">
                                 <span className="text-xs font-bold text-brand uppercase tracking-wider">
                                     Threshold Rule #{index + 1}
                                 </span>
-                                <Button variant="danger" onClick={() => handleRemoveThreshold(index)}>
+                                <Button variant="danger" onClick={() => { handleRemoveThreshold(index); }}>
                                     Delete Rule
                                 </Button>
                             </div>
@@ -220,25 +220,25 @@ export function WarnThresholdTab({
                                     <NumberInput
                                         min={1}
                                         value={threshold.warnCount}
-                                        onChange={(v) =>
-                                            updateThreshold(index, "warnCount", Math.max(1, v || 1))
-                                        }
+                                        onChange={(v) => {
+                                            updateThreshold(index, "warnCount", Math.max(1, v ?? 1));
+                                        }}
                                     />
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <InputLabel>Actions To Execute</InputLabel>
-                                    <Dropdown
+                                    <Dropdown<ModerationAction>
                                         multiple
                                         options={PUNISHMENT_OPTIONS}
                                         value={threshold.actionType}
-                                        onChange={(selectedActions) =>
+                                        onChange={(selectedActions) => {
                                             updateThreshold(
                                                 index,
                                                 "actionType",
-                                                selectedActions as ModerationAction[]
-                                            )
-                                        }
+                                                selectedActions
+                                            );
+                                        }}
                                         placeholder="Select action(s)..."
                                     />
                                 </div>
@@ -253,7 +253,7 @@ export function WarnThresholdTab({
                                                 min={1}
                                                 placeholder="e.g. 10"
                                                 value={threshold.duration ?? undefined}
-                                                onChange={(v) => updateThreshold(index, "duration", v ?? null)}
+                                                onChange={(v) => { updateThreshold(index, "duration", v ?? null); }}
                                             />
                                         </div>
                                     )}
@@ -265,7 +265,7 @@ export function WarnThresholdTab({
                                                 multiple
                                                 options={getAvailableRoleOptions(roleMap)}
                                                 value={threshold.rolesToAdd}
-                                                onChange={(roles) => updateThreshold(index, "rolesToAdd", roles)}
+                                                onChange={(roles) => { updateThreshold(index, "rolesToAdd", roles); }}
                                                 placeholder="Select roles to assign..."
                                             />
                                         </div>
@@ -278,7 +278,7 @@ export function WarnThresholdTab({
                                                 multiple
                                                 options={getAvailableRoleOptions(roleMap)}
                                                 value={threshold.rolesToRemove}
-                                                onChange={(roles) => updateThreshold(index, "rolesToRemove", roles)}
+                                                onChange={(roles) => { updateThreshold(index, "rolesToRemove", roles); }}
                                                 placeholder="Select roles to strip..."
                                             />
                                         </div>

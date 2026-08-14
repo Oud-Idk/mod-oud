@@ -120,26 +120,26 @@ export function MessageLoggingBody({
 
     return (
         <div className="space-y-4">
-            <Tabs tabs={tabs} activeTab={activeTab} onChange={(t) => setActiveTab(t)}/>
+            <Tabs tabs={tabs} activeTab={activeTab} onChange={(t) =>{  setActiveTab(t); }}/>
 
             {activeTab === "settings" && (
                 <div className="space-y-2">
                     <div className="flex flex-col gap-1">
                         <ToggleSwitch
                             checked={config.events.messageDelete}
-                            onChange={(checked) =>
+                            onChange={(checked) =>{ 
                                 handleChange({
                                     events: { ...config.events, messageDelete: checked },
-                                })
+                                }); }
                             }
                             text="Log Deleted Messages"
                         />
                         <ToggleSwitch
                             checked={config.events.messageEdit}
-                            onChange={(checked) =>
+                            onChange={(checked) =>{ 
                                 handleChange({
                                     events: { ...config.events, messageEdit: checked },
-                                })
+                                }); }
                             }
                             text="Log Edited Messages"
                         />
@@ -155,8 +155,8 @@ export function MessageLoggingBody({
                                         multiple
                                         options={channelOptions}
                                         value={config.ignoredChannels}
-                                        onChange={(selectedValues: string[]) =>
-                                            handleChange({ ignoredChannels: selectedValues })
+                                        onChange={(selectedValues: string[]) =>{ 
+                                            handleChange({ ignoredChannels: selectedValues }); }
                                         }
                                         placeholder="Select channels to ignore..."
                                     />
@@ -168,8 +168,8 @@ export function MessageLoggingBody({
                                         multiple
                                         options={roleOptions}
                                         value={config.ignoredRoles}
-                                        onChange={(selectedValues: string[]) =>
-                                            handleChange({ ignoredRoles: selectedValues })
+                                        onChange={(selectedValues: string[]) =>{ 
+                                            handleChange({ ignoredRoles: selectedValues }); }
                                         }
                                         placeholder="Select roles to ignore..."
                                     />
@@ -185,7 +185,7 @@ export function MessageLoggingBody({
                                     <TextInput
                                         onSubmit={handleAddUserId}
                                         value={userIdInput}
-                                        onChange={(e) => setUserIdInput(e.target.value)}
+                                        onChange={(e) =>{  setUserIdInput(e.target.value); }}
                                         placeholder="Type User ID & press Enter"
                                     />
                                 </div>

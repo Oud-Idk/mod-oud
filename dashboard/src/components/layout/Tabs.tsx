@@ -53,7 +53,7 @@ export function Tabs<T extends string>({
         };
 
         container.addEventListener("wheel", handleWheel, { passive: false });
-        return () => container.removeEventListener("wheel", handleWheel);
+        return () =>{  container.removeEventListener("wheel", handleWheel); };
     }, []);
 
     return (
@@ -77,7 +77,7 @@ export function Tabs<T extends string>({
                         type="button"
                         role="tab"
                         aria-selected={isActive}
-                        onClick={() => onChange(tab.value)}
+                        onClick={() =>{  onChange(tab.value); }}
                         className={twMerge(
                             "ml-1 mt-1 p-1 text-xs font-bold uppercase tracking-wider border-b-2 transition-all select-none shrink-0 cursor-pointer focus-ring rounded-t-sm",
                             isActive

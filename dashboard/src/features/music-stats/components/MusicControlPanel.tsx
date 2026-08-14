@@ -1,6 +1,7 @@
 "use client";
 
 import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -38,7 +39,7 @@ interface NowPlayingData {
 
 interface PendingRequest {
     resolve: (data: unknown) => void;
-    reject: (reason: string) => void;
+    reject: (reason: Error) => void;
     timeoutId: ReturnType<typeof setTimeout>;
 }
 
@@ -56,29 +57,61 @@ const eventSchema = z.object({
     data: z.unknown().optional(),
 });
 
+const durationObjectSchema = z.object({
+    secs: z.number().optional(),
+    seconds: z.number().optional(),
+    duration: z.number().optional(),
+});
+
+const nowPlayingPayloadSchema = z.object({
+    title: z.string().optional(),
+    thumbnail: z.string().optional(),
+    requested_by: z.string().optional(),
+    requestedBy: z.string().optional(),
+    duration: z.union([z.number(), z.string(), durationObjectSchema]).optional(),
+    durationSec: z.union([z.number(), z.string(), durationObjectSchema]).optional(),
+    position_sec: z.number().optional(),
+    positionSec: z.number().optional(),
+    is_paused: z.boolean().optional(),
+    isPaused: z.boolean().optional(),
+    is_live: z.boolean().optional(),
+    isLive: z.boolean().optional(),
+    metadata: z.object({
+        title: z.string().optional(),
+        thumbnail: z.string().optional(),
+        duration: z.union([z.number(), z.string(), durationObjectSchema]).optional(),
+        durationSec: z.union([z.number(), z.string(), durationObjectSchema]).optional(),
+    }).optional(),
+});
+
+const noop = (_err?: unknown): void => {
+    // Silently ignored background handler
+};
+
 function wsUrl(guildId: string): string {
     const base = config.backendInternalUrl.replace(/^http/, "ws");
-    return `${base}/api/ws/control?guild_id=${encodeURIComponent(String(guildId))}`;
+    return `${base}/api/ws/control?guild_id=${encodeURIComponent(guildId)}`;
 }
 
 function formatTime(seconds: number): string {
-    if (!seconds || isNaN(seconds) || seconds < 0) return "0:00";
+    if (Number.isNaN(seconds) || seconds <= 0) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    return `${String(mins)}:${secs.toString().padStart(2, "0")}`;
 }
 
 function parseDuration(raw: unknown): number {
     if (typeof raw === "number") return raw;
-    if (typeof raw === "object" && raw !== null) {
-        const obj = raw as Record<string, unknown>;
-        if (typeof obj.secs === "number") return obj.secs;
-        if (typeof obj.seconds === "number") return obj.seconds;
-        if (typeof obj.duration === "number") return obj.duration;
-    }
     if (typeof raw === "string") {
-        const parsed = parseFloat(raw);
-        if (!isNaN(parsed)) return parsed;
+        const parsed = Number.parseFloat(raw);
+        if (!Number.isNaN(parsed)) return parsed;
+    }
+    const parseResult = durationObjectSchema.safeParse(raw);
+    if (parseResult.success) {
+        const { secs, seconds, duration } = parseResult.data;
+        if (typeof secs === "number") return secs;
+        if (typeof seconds === "number") return seconds;
+        if (typeof duration === "number") return duration;
     }
     return 0;
 }
@@ -101,7 +134,6 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
     const isMountedRef = useRef<boolean>(true);
     const socketRef = useRef<WebSocket | null>(null);
     const pendingRequestsRef = useRef<Map<string, PendingRequest>>(new Map());
-    const seekDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Anchor time ref for high-precision playhead time calculations without drift
@@ -116,10 +148,10 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
     }, []);
 
     // Display localized feedback with optional auto-dismiss
-    const showFeedback = useCallback((ok: boolean, text: string, autoDismissMs = 5000) => {
+    const showFeedback = useCallback((ok: boolean, text: string, autoDismissMs = 5000): void => {
         if (!isMountedRef.current) return;
         setFeedback({ ok, text });
-        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+        if (feedbackTimerRef.current !== null) clearTimeout(feedbackTimerRef.current);
         if (autoDismissMs > 0) {
             feedbackTimerRef.current = setTimeout(() => {
                 if (isMountedRef.current) setFeedback(null);
@@ -127,10 +159,11 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
         }
     }, []);
 
-    const updateNowPlayingState = useCallback((data: unknown) => {
+    const updateNowPlayingState = useCallback((data: unknown): void => {
         if (!isMountedRef.current) return;
 
-        if (!data || typeof data !== "object") {
+        const parseResult = nowPlayingPayloadSchema.safeParse(data);
+        if (!parseResult.success) {
             setNowPlaying(null);
             setPosition(0);
             setDuration(0);
@@ -138,44 +171,22 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             return;
         }
 
-        const obj = data as Record<string, unknown>;
-        if (Object.keys(obj).length === 0) {
-            setNowPlaying(null);
-            setPosition(0);
-            setDuration(0);
-            playheadAnchorRef.current = null;
-            return;
-        }
+        const item = parseResult.data;
+        const title = item.metadata?.title ?? item.title;
 
-        const metadata = (obj.metadata ?? obj) as Record<string, unknown>;
-        const title = (metadata.title as string) ?? (obj.title as string);
-
-        if (title) {
-            const newDuration = parseDuration(metadata.duration ?? obj.durationSec ?? metadata.durationSec);
-            const livePosition = typeof obj.position_sec === "number"
-                ? obj.position_sec
-                : typeof obj.positionSec === "number"
-                    ? obj.positionSec
-                    : 0;
-
-            const pausedState = typeof obj.is_paused === "boolean"
-                ? obj.is_paused
-                : typeof obj.isPaused === "boolean"
-                    ? obj.isPaused
-                    : false;
-
-            const liveState = typeof obj.is_live === "boolean"
-                ? obj.is_live
-                : typeof obj.isLive === "boolean"
-                    ? obj.isLive
-                    : false;
+        if (title !== undefined && title.length > 0) {
+            const rawDuration = item.metadata?.duration ?? item.metadata?.durationSec ?? item.duration ?? item.durationSec;
+            const newDuration = parseDuration(rawDuration);
+            const livePosition = item.position_sec ?? item.positionSec ?? 0;
+            const pausedState = item.is_paused ?? item.isPaused ?? false;
+            const liveState = item.is_live ?? item.isLive ?? false;
 
             setIsPaused(pausedState);
 
             setNowPlaying((prev) => ({
                 title,
-                thumbnail: (metadata.thumbnail as string) ?? (obj.thumbnail as string) ?? prev?.thumbnail,
-                requestedBy: (obj.requested_by as string) ?? (obj.requestedBy as string) ?? prev?.requestedBy ?? "Web",
+                thumbnail: item.metadata?.thumbnail ?? item.thumbnail ?? prev?.thumbnail,
+                requestedBy: item.requested_by ?? item.requestedBy ?? prev?.requestedBy ?? "Web",
                 durationSec: newDuration > 0 ? newDuration : prev?.durationSec,
                 positionSec: livePosition,
                 isPaused: pausedState,
@@ -208,10 +219,11 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
         (action: string, payload?: Record<string, unknown>): Promise<unknown> => {
             return new Promise((resolve, reject) => {
                 const socket = socketRef.current;
-                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                if (socket === null || socket.readyState !== WebSocket.OPEN) {
                     const err = "Not connected to the bot.";
                     showFeedback(false, err);
-                    return reject(err);
+                    reject(new Error(err));
+                    return;
                 }
 
                 const requestId = crypto.randomUUID();
@@ -225,7 +237,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                             setActiveRequestsCount((c) => Math.max(0, c - 1));
                             showFeedback(false, `Command "${action}" timed out.`);
                         }
-                        reject("Command timed out.");
+                        reject(new Error("Command timed out."));
                     }
                 }, 10000);
 
@@ -234,13 +246,13 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                 const message = { type: "music", requestId, action, ...(payload ?? {}) };
                 try {
                     socket.send(JSON.stringify(message));
-                } catch (e) {
+                } catch (e: unknown) {
                     clearTimeout(timeoutId);
                     pendingRequestsRef.current.delete(requestId);
                     setActiveRequestsCount((c) => Math.max(0, c - 1));
                     const err = "Failed to transmit frame to server.";
                     showFeedback(false, err);
-                    reject(e || err);
+                    reject(e instanceof Error ? e : new Error(typeof e === "string" ? e : err));
                 }
             });
         },
@@ -253,29 +265,31 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
     }, [sendCommand]);
 
     // Central Incoming WebSocket Message Dispatcher
-    const handleIncomingFrame = useCallback((event: MessageEvent) => {
+    const handleIncomingFrame = useCallback((event: MessageEvent): void => {
         try {
-            const raw = JSON.parse(String(event.data));
+            const raw: unknown = JSON.parse(String(event.data));
 
             // 1. Handle command execution ACKs
             const ackResult = ackSchema.safeParse(raw);
             if (ackResult.success) {
                 const { requestId, ok, error, data } = ackResult.data;
-                if (requestId && pendingRequestsRef.current.has(requestId)) {
-                    const pending = pendingRequestsRef.current.get(requestId)!;
-                    clearTimeout(pending.timeoutId);
-                    pendingRequestsRef.current.delete(requestId);
+                if (requestId !== undefined && requestId.length > 0) {
+                    const pending = pendingRequestsRef.current.get(requestId);
+                    if (pending !== undefined) {
+                        clearTimeout(pending.timeoutId);
+                        pendingRequestsRef.current.delete(requestId);
 
-                    if (isMountedRef.current) {
-                        setActiveRequestsCount((c) => Math.max(0, c - 1));
-                    }
+                        if (isMountedRef.current) {
+                            setActiveRequestsCount((c) => Math.max(0, c - 1));
+                        }
 
-                    if (ok) {
-                        pending.resolve(data);
-                    } else {
-                        const errMsg = error ?? "Command failed.";
-                        if (isMountedRef.current) showFeedback(false, errMsg);
-                        pending.reject(errMsg);
+                        if (ok) {
+                            pending.resolve(data);
+                        } else {
+                            const errMsg = error ?? "Command failed.";
+                            if (isMountedRef.current) showFeedback(false, errMsg);
+                            pending.reject(new Error(errMsg));
+                        }
                     }
                 }
                 return;
@@ -299,10 +313,10 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
         let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
         let backoffMs = 1000;
 
-        const rejectAllPending = (reason: string) => {
+        const rejectAllPending = (reason: string): void => {
             pendingRequestsRef.current.forEach((req) => {
                 clearTimeout(req.timeoutId);
-                req.reject(reason);
+                req.reject(new Error(reason));
             });
             pendingRequestsRef.current.clear();
             if (isMountedRef.current) {
@@ -325,10 +339,10 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     .then((data) => {
                         updateNowPlayingStateRef.current(data);
                     })
-                    .catch(() => {});
+                    .catch(noop);
             };
 
-            socket.onmessage = (event: MessageEvent) => {
+            socket.onmessage = (event: MessageEvent): void => {
                 handleIncomingFrame(event);
             };
 
@@ -351,8 +365,8 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
 
         return () => {
             rejectAllPending("Component unmounted.");
-            if (reconnectTimer) clearTimeout(reconnectTimer);
-            if (socket) {
+            if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+            if (socket !== null) {
                 socket.onclose = null; // Prevent reconnect on explicit teardown
                 socket.close();
             }
@@ -368,18 +382,20 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                 .then((data) => {
                     updateNowPlayingStateRef.current(data);
                 })
-                .catch(() => {});
+                .catch(noop);
         }, 5000);
-        return () => clearInterval(heartbeat);
+        return () => {
+            clearInterval(heartbeat);
+        };
     }, [status]);
 
     // Drift-Free Audio Position Playhead Engine
     useEffect(() => {
-        if (status !== "connected" || isPaused || isSeeking || !nowPlaying) return;
-        if (nowPlaying.isLive) return;
+        if (status !== "connected" || isPaused || isSeeking || nowPlaying === null) return;
+        if (nowPlaying.isLive === true) return;
 
         const interval = setInterval(() => {
-            if (!playheadAnchorRef.current || isSeeking) return;
+            if (playheadAnchorRef.current === null) return;
 
             const elapsedSec = (performance.now() - playheadAnchorRef.current.timestamp) / 1000;
             const currentComputed = Math.floor(playheadAnchorRef.current.basePos + elapsedSec);
@@ -387,14 +403,16 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             if (duration > 0 && currentComputed >= duration) {
                 setPosition(duration);
                 clearInterval(interval);
-                sendCommandRef.current("nowPlaying").catch(() => {});
+                void sendCommandRef.current("nowPlaying").catch(noop);
                 return;
             }
 
             setPosition(currentComputed);
         }, 500);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+        };
     }, [status, isPaused, isSeeking, nowPlaying, duration]);
 
     // Controls Logic
@@ -405,56 +423,93 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             return;
         }
         setPosition(0);
-        sendCommand("play", { query: trimmed, requestedById })
-            .then(() => sendCommand("nowPlaying"))
-            .catch(() => {return});
-        setQuery("");
         setIsPaused(false);
+        playheadAnchorRef.current = {
+            basePos: 0,
+            timestamp: performance.now(),
+        };
+        void sendCommand("play", { query: trimmed, requestedById })
+            .then(() => sendCommand("nowPlaying"))
+            .catch(noop);
+        setQuery("");
     }, [query, requestedById, sendCommand, showFeedback]);
 
-    const handleSeekCommit = useCallback(
-        (targetSeconds: number) => {
-            // Keep isSeeking = true to freeze local timer and incoming socket position updates
-            setIsSeeking(true);
+    const handleResume = useCallback((): void => {
+        setIsPaused(false);
+        // Re-anchor timestamp on resume to eliminate playhead jump
+        playheadAnchorRef.current = {
+            basePos: position,
+            timestamp: performance.now(),
+        };
+        void sendCommand("resume").catch(noop);
+    }, [position, sendCommand]);
 
+    const handlePause = useCallback((): void => {
+        setIsPaused(true);
+        void sendCommand("pause").catch(noop);
+    }, [sendCommand]);
+
+    const handlePrevious = useCallback((): void => {
+        setPosition(0);
+        setIsPaused(false);
+        playheadAnchorRef.current = {
+            basePos: 0,
+            timestamp: performance.now(),
+        };
+
+        // 1. If playback > 5s and not live, repeat track. Otherwise go to previous track.
+        if (position > 5 && !nowPlaying?.isLive) {
+            void sendCommand("restart").catch(noop);
+        } else {
+            void sendCommand("prev").catch(noop);
+        }
+    }, [position, nowPlaying?.isLive, sendCommand]);
+
+    const handleRestart = useCallback((): void => {
+        setPosition(0);
+        setIsPaused(false);
+        playheadAnchorRef.current = {
+            basePos: 0,
+            timestamp: performance.now(),
+        };
+        void sendCommand("restart").catch(noop);
+    }, [sendCommand]);
+
+    const handleSeekCommit = useCallback(
+        (targetSeconds: number): void => {
             let clamped = Math.max(0, targetSeconds);
             if (duration > 0 && clamped >= duration) {
                 clamped = Math.max(0, duration - 1);
             }
 
-            // Immediately lock slider to desired target position
             setPosition(clamped);
+            playheadAnchorRef.current = {
+                basePos: clamped,
+                timestamp: performance.now(),
+            };
 
-            if (seekDebounceTimerRef.current) {
-                clearTimeout(seekDebounceTimerRef.current);
-            }
-
-            seekDebounceTimerRef.current = setTimeout(() => {
-                sendCommand("seek", { query: `${Math.floor(clamped)}` })
-                    .then(() => {
-                        // Update playhead anchor timestamp on successful seek ACK
-                        playheadAnchorRef.current = {
-                            basePos: clamped,
-                            timestamp: performance.now(),
-                        };
-                    })
-                    .catch(() => {
-                        // Re-sync on failure
-                        sendCommandRef.current("nowPlaying").catch(() => {return});
-                    })
-                    .finally(() => {
-                        if (isMountedRef.current) {
-                            setIsSeeking(false);
-                        }
-                    });
-            }, 300);
+            void sendCommand("seek", { query: String(Math.floor(clamped)) })
+                .then(() => {
+                    playheadAnchorRef.current = {
+                        basePos: clamped,
+                        timestamp: performance.now(),
+                    };
+                })
+                .catch(() => {
+                    void sendCommandRef.current("nowPlaying").catch(noop);
+                })
+                .finally(() => {
+                    if (isMountedRef.current) {
+                        setIsSeeking(false);
+                    }
+                });
         },
         [duration, sendCommand]
     );
 
     const handleGoToChannel = useCallback((): void => {
-        if (!targetChannel) return;
-        sendCommand("goToChannel", { query: targetChannel }).catch(() => {});
+        if (targetChannel === null || targetChannel.length === 0) return;
+        void sendCommand("goToChannel", { query: targetChannel }).catch(noop);
     }, [targetChannel, sendCommand]);
 
     if (!mounted) {
@@ -490,13 +545,16 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
 
     const isConnected = status === "connected";
     const isBusy = activeRequestsCount > 0;
+    const hasTrack = nowPlaying !== null;
+    const isLiveStream = Boolean(nowPlaying?.isLive);
+
     const statusLabel = status === "connected" ? "Connected" : status === "connecting" ? "Connecting..." : "Disconnected";
     const statusColor = status === "connected" ? "bg-success" : status === "connecting" ? "bg-warning" : "bg-danger";
 
     return (
         <section
             aria-label="Music Control Panel"
-            className="flex flex-col gap-4 p-4 border border-border bg-surface rounded-xl bg-card text-card-foreground shadow-sm"
+            className="flex flex-col gap-4 p-4 border border-border rounded-xl bg-card text-card-foreground shadow-sm"
         >
             {/* Header / Status */}
             <div className="flex items-center justify-between">
@@ -508,7 +566,9 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                 <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => sendCommand("nowPlaying")}
+                    onClick={() => {
+                        void sendCommand("nowPlaying").catch(noop);
+                    }}
                     disabled={!isConnected || isBusy}
                     className="text-muted-foreground"
                 >
@@ -517,12 +577,15 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             </div>
 
             {/* Now Playing Banner */}
-            {nowPlaying && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border bg-surface-elevated">
-                    {nowPlaying.thumbnail ? (
-                        <img
+            {nowPlaying !== null && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+                    {nowPlaying.thumbnail !== undefined && nowPlaying.thumbnail.length > 0 ? (
+                        <Image
                             src={nowPlaying.thumbnail}
                             alt={nowPlaying.title}
+                            width={48}
+                            height={48}
+                            unoptimized
                             className="w-12 h-12 rounded object-cover shrink-0"
                         />
                     ) : (
@@ -533,7 +596,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                             <p className="text-sm font-medium truncate">{nowPlaying.title}</p>
-                            {nowPlaying.isLive && (
+                            {isLiveStream && (
                                 <span
                                     className="shrink-0 text-xs font-semibold text-danger border border-danger/40 rounded px-1.5 py-0.5"
                                     role="status"
@@ -543,7 +606,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                                 </span>
                             )}
                         </div>
-                        {nowPlaying.requestedBy && (
+                        {nowPlaying.requestedBy !== undefined && nowPlaying.requestedBy.length > 0 && (
                             <p className="text-xs text-muted-foreground">Requested by {nowPlaying.requestedBy}</p>
                         )}
                     </div>
@@ -551,7 +614,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             )}
 
             {/* Real-time Seek Slider */}
-            {nowPlaying?.isLive ? (
+            {isLiveStream ? (
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
                         <span className="text-danger">🔴 Live Stream</span>
@@ -568,13 +631,22 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                         type="range"
                         aria-label="Track playback position"
                         min={0}
-                        max={duration || 100}
+                        max={duration > 0 ? duration : 100}
                         value={position}
-                        disabled={!isConnected || !nowPlaying}
-                        onPointerDown={() => setIsSeeking(true)}
-                        onChange={(e) => setPosition(Number(e.target.value))}
-                        onPointerUp={(e) => handleSeekCommit(Number((e.target as HTMLInputElement).value))}
-                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:cursor-not-allowed bg-surface-muted"
+                        disabled={!isConnected || !hasTrack}
+                        onPointerDown={() => { setIsSeeking(true) }}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            setPosition(Number(e.target.value));
+                        }}
+                        onPointerUp={(e: React.PointerEvent<HTMLInputElement>) => {
+                            handleSeekCommit(Number(e.currentTarget.value));
+                        }}
+                        onKeyUp={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                            if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+                                handleSeekCommit(Number(e.currentTarget.value));
+                            }
+                        }}
+                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:cursor-not-allowed"
                     />
                 </div>
             )}
@@ -585,7 +657,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     value={query}
                     onChange={(e) => {
                         setQuery(e.target.value);
-                        if (feedback) setFeedback(null);
+                        if (feedback !== null) setFeedback(null);
                     }}
                     onKeyDown={(e) => {
                         if (e.key === "Enter") handlePlay();
@@ -603,12 +675,8 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                 <Button
                     variant="secondary"
                     aria-label="Previous Track"
-                    onClick={() => {
-                        setPosition(0);
-                        setIsPaused(false);
-                        sendCommand("prev");
-                    }}
-                    disabled={!isConnected || isBusy}
+                    onClick={handlePrevious}
+                    disabled={!isConnected || isBusy || !hasTrack}
                 >
                     <SkipBackIcon />
                 </Button>
@@ -617,11 +685,8 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     <Button
                         variant="secondary"
                         aria-label="Resume Playback"
-                        onClick={() => {
-                            sendCommand("resume");
-                            setIsPaused(false);
-                        }}
-                        disabled={!isConnected || isBusy}
+                        onClick={handleResume}
+                        disabled={!isConnected || isBusy || !hasTrack}
                     >
                         <PlayIcon />
                     </Button>
@@ -629,11 +694,8 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     <Button
                         variant="secondary"
                         aria-label="Pause Playback"
-                        onClick={() => {
-                            sendCommand("pause");
-                            setIsPaused(true);
-                        }}
-                        disabled={!isConnected || isBusy}
+                        onClick={handlePause}
+                        disabled={!isConnected || isBusy || !hasTrack}
                     >
                         <PauseIcon />
                     </Button>
@@ -645,9 +707,9 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     onClick={() => {
                         setPosition(0);
                         setIsPaused(false);
-                        sendCommand("skip");
+                        void sendCommand("skip").catch(noop);
                     }}
-                    disabled={!isConnected || isBusy}
+                    disabled={!isConnected || isBusy || !hasTrack}
                 >
                     <SkipForwardIcon />
                 </Button>
@@ -656,12 +718,12 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     variant="secondary"
                     aria-label="Stop Playback"
                     onClick={() => {
-                        sendCommand("stop");
+                        void sendCommand("stop").catch(noop);
                         setNowPlaying(null);
                         setPosition(0);
                         setDuration(0);
                     }}
-                    disabled={!isConnected || isBusy}
+                    disabled={!isConnected || isBusy || !hasTrack}
                 >
                     <SquareIcon />
                 </Button>
@@ -669,28 +731,29 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                 <Button
                     variant="secondary"
                     aria-label="Shuffle Queue"
-                    onClick={() => sendCommand("shuffle")}
+                    onClick={() => {
+                        void sendCommand("shuffle").catch(noop);
+                    }}
                     disabled={!isConnected || isBusy}
                 >
                     <ShuffleIcon />
                 </Button>
 
+                {/* 2. Restart track button is disabled on Live Streams */}
                 <Button
                     variant="secondary"
                     aria-label="Restart Track"
-                    onClick={() => {
-                        setPosition(0);
-                        setIsPaused(false);
-                        sendCommand("restart");
-                    }}
-                    disabled={!isConnected || isBusy}
+                    onClick={handleRestart}
+                    disabled={!isConnected || isBusy || !hasTrack || isLiveStream}
                 >
                     <RotateCcwIcon />
                 </Button>
 
                 <Button
                     variant="danger"
-                    onClick={() => sendCommand("clearQueue")}
+                    onClick={() => {
+                        void sendCommand("clearQueue").catch(noop);
+                    }}
                     disabled={!isConnected || isBusy}
                 >
                     Clear Queue
@@ -712,7 +775,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                 <Button
                     variant="secondary"
                     onClick={handleGoToChannel}
-                    disabled={!isConnected || isBusy || !targetChannel}
+                    disabled={!isConnected || isBusy || targetChannel === null || targetChannel.length === 0}
                     className="shrink-0"
                 >
                     <MoveHorizontalIcon className="mr-2" />
@@ -721,7 +784,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             </div>
 
             {/* Dynamic Alert Feedback */}
-            {feedback && (
+            {feedback !== null && (
                 <p role="status" aria-live="polite" className={`text-sm ${feedback.ok ? "text-success" : "text-danger"}`}>
                     {feedback.text}
                 </p>

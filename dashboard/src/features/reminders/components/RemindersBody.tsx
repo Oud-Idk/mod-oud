@@ -43,27 +43,27 @@ export function RemindersBody({
     } = useConfigForm<ReminderRow | null>({
         initialConfig: activeReminder,
         onSave: async (updatedConfig) => {
-            if (updatedConfig) {
+            if (updatedConfig !== null) {
                 const res = await onSave(updatedConfig);
-                if (res?.id) {
+                if (res.id !== "") {
                     router.push(`/dashboard/${guildId}/reminders?id=${res.id}`);
                 }
             }
         },
     });
 
-    const handleSave = useCallback(async () => {
-        if (!config) return;
+    const handleSave = useCallback((): void => {
+        if (config === null) return;
         const result = saveableReminderSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            toast.error(result.error.issues[0]?.message ?? "Invalid configuration");
             return;
         }
-        await originalHandleSave();
+        void originalHandleSave();
     }, [config, originalHandleSave]);
 
-    const handleChange = useCallback((updated: Partial<ReminderRow>) => {
-        setConfig((prev) => (prev ? { ...prev, ...updated } : null));
+    const handleChange = useCallback((updated: Partial<ReminderRow>): void => {
+        setConfig((prev) => (prev !== null ? { ...prev, ...updated } : null));
     }, [setConfig]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -73,7 +73,7 @@ export function RemindersBody({
             await onDelete(id, channelId);
             toast.success("Reminder deleted successfully");
             router.push(`/dashboard/${guildId}/reminders`);
-        } catch (err) {
+        } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : "Failed to delete reminder");
         }
     };
@@ -82,26 +82,31 @@ export function RemindersBody({
         <div>
             <ConfigListLayout<ReminderRow>
                 title="Reminders"
-                onCreateClick={() => setIsCreateModalOpen(true)}
+                onCreateClick={() => { setIsCreateModalOpen(true); }}
                 items={reminders}
                 emptyMessage="No reminders scheduled yet."
-                hasActiveConfig={!!config}
+                hasActiveConfig={config !== null}
                 handleSave={handleSave}
                 handleCancel={handleCancel}
                 renderItem={(reminder) => {
                     const isCurrent = activeReminder?.id === reminder.id;
-                    const channelName = reminder.channelId
-                        ? channelMap[reminder.channelId] || `#${reminder.channelId}`
-                        : "Unassigned Channel";
+                    let channelName = "Unassigned Channel";
+                    if (reminder.channelId !== null && reminder.channelId !== "") {
+                        const name = channelMap[reminder.channelId];
+                        channelName = name !== "" ? name : `#${reminder.channelId}`;
+                    }
 
                     const typeLabel = reminder.rType === "RECURRING" ? "Recurring" : "Single";
                     let scheduleText = "";
                     if (reminder.rType === "RECURRING") {
-                        if (reminder.daysOfWeek && reminder.daysOfWeek.length > 0) {
+                        if (reminder.daysOfWeek !== null && reminder.daysOfWeek.length > 0) {
                             const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                             scheduleText = reminder.daysOfWeek.map((d) => days[d]).join(", ");
-                        } else if (reminder.intervalSeconds) {
-                            scheduleText = `${reminder.intervalSeconds}s`;
+                        } else if (
+                            reminder.intervalSeconds !== null &&
+                            reminder.intervalSeconds > 0
+                        ) {
+                            scheduleText = `${String(reminder.intervalSeconds)}s`;
                         }
                     } else {
                         scheduleText = new Date(reminder.nextTriggerAt).toLocaleDateString();
@@ -110,7 +115,7 @@ export function RemindersBody({
                     return (
                         <button
                             key={reminder.id}
-                            onClick={() => router.push(`/dashboard/${guildId}/reminders?id=${reminder.id}`)}
+                            onClick={() => { router.push(`/dashboard/${guildId}/reminders?id=${reminder.id}`); }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition block cursor-pointer truncate ${
                                 isCurrent
                                     ? "bg-surface-active font-medium"
@@ -119,7 +124,7 @@ export function RemindersBody({
                         >
                             <div className="flex justify-between items-center gap-2">
                                 <span className="truncate font-semibold text-foreground">
-                                    {reminder.message.content ? reminder.message.content : "Rich Embed Message"}
+                                    {reminder.message.content !== "" ? reminder.message.content : "Rich Embed Message"}
                                 </span>
                                 <span
                                     className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
@@ -132,7 +137,7 @@ export function RemindersBody({
                                 </span>
                             </div>
                             <div className="text-xs text-muted-foreground truncate mt-0.5">
-                                {channelName} • {typeLabel} {scheduleText && `(${scheduleText})`}
+                                {channelName} • {typeLabel} {scheduleText !== "" && `(${scheduleText})`}
                             </div>
                         </button>
                     );
@@ -149,14 +154,14 @@ export function RemindersBody({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                            <Button onClick={() => setIsCreateModalOpen(true)}>
+                            <Button onClick={() => { setIsCreateModalOpen(true); }}>
                                 Create Reminder
                             </Button>
                         </div>
                     </div>
                 }
             >
-                {config && (
+                {config !== null && (
                     <ReminderConfig
                         config={config}
                         channelMap={channelMap}
@@ -171,7 +176,7 @@ export function RemindersBody({
 
             <ReminderCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() => { setIsCreateModalOpen(false); }}
                 onSave={onSave}
                 channelMap={channelMap}
             />

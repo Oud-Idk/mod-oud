@@ -45,7 +45,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                 <InputLabel>Level Cap</InputLabel>
                 <NumberInput
                     value={config.levelCap}
-                    onChange={(v) => handleChange({ levelCap: v })}
+                    onChange={(v) =>{  handleChange({ levelCap: v }); }}
                 />
                 <Footer>Set to 0 to remove cap</Footer>
             </div>
@@ -69,7 +69,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
 
             <ToggleSwitch
                 checked={config.keepLevelOnLeave}
-                onChange={(v) => handleChange({ keepLevelOnLeave: v })}
+                onChange={(v) =>{  handleChange({ keepLevelOnLeave: v }); }}
                 disabled={false}
                 text="Preserve Level on user Leave"
             />
@@ -82,7 +82,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                         embed: config.notify.message.embed,
                         channel_id: config.notify.channelId ?? "",
                     }}
-                    onChange={(updatedConfig) =>
+                    onChange={(updatedConfig) =>{ 
                         handleChange({
                             notify: {
                                 ...config.notify,
@@ -94,9 +94,9 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                                     embed: updatedConfig.embed ?? {},
                                 },
                             },
-                        })
+                        }); }
                     }
-                    onEmbedChange={(embed) =>
+                    onEmbedChange={(embed) =>{ 
                         handleChange({
                             notify: {
                                 ...config.notify,
@@ -105,7 +105,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                                     embed,
                                 },
                             },
-                        })
+                        }); }
                     }
                     enableToggle={false}
                     embedTemplateConfig={LEVEL_NOTIFY_CONFIG}
@@ -114,7 +114,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
             )}
             <ScopeSettings
                 scope={config.scope}
-                onChange={(v) => handleChange({ scope: v })}
+                onChange={(v) =>{  handleChange({ scope: v }); }}
                 channelMap={channelMap}
                 roleMap={roleMap}
             />

@@ -77,7 +77,7 @@ export function ReminderCreateModal({
                     <Dropdown
                         options={getAvailableChannelOptions(channelMap)}
                         value={channelId ?? ""}
-                        onChange={(val) => setChannelId(val ?? null)}
+                        onChange={(val) =>{  setChannelId(val ?? null); }}
                         placeholder="Select a channel"
                     />
                 </div>
@@ -86,7 +86,7 @@ export function ReminderCreateModal({
                     <InputLabel>Reminder Content</InputLabel>
                     <LongTextInput
                         value={content}
-                        onChange={(e) => setContent(e.target.value)}
+                        onChange={(e) =>{  setContent(e.target.value); }}
                         placeholder="Enter announcement text..."
                         rows={3}
                         required
@@ -101,7 +101,7 @@ export function ReminderCreateModal({
                             { value: "RECURRING", label: "Recurring Interval" },
                         ]}
                         value={rType}
-                        onChange={(val) => setRType(val ?? "SINGLE")}
+                        onChange={(val) =>{  setRType(val ?? "SINGLE"); }}
                         placeholder="Select schedule type"
                     />
                 </div>

@@ -49,12 +49,10 @@ export function ReminderConfig({
         try {
             await onDelete(config.id);
             toast.success("Reminder deleted successfully");
-        } catch (err) {
+        } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : "Failed to delete reminder");
         }
     };
-
-    const hasValidationErrors = !validationResult.success;
 
     const formatOptions: { value: ReminderFormat; label: string }[] = [
         { value: "TEXT", label: "Plain Text" },
@@ -67,7 +65,7 @@ export function ReminderConfig({
     ];
 
     const handleDayToggle = (dayValue: number): void => {
-        const currentDays = config.daysOfWeek || [];
+        const currentDays = config.daysOfWeek ?? [];
         const updated = currentDays.includes(dayValue)
             ? currentDays.filter((d) => d !== dayValue)
             : [...currentDays, dayValue].sort();
@@ -75,20 +73,21 @@ export function ReminderConfig({
     };
 
     const handleTimeChange = (field: "timeStart" | "timeEnd", value: string): void => {
-        const formattedTime = !value
-            ? null
-            : value.split(":").length === 2
-                ? `${value}:00`
-                : value;
+        const formattedTime =
+            value === ""
+                ? null
+                : value.split(":").length === 2
+                    ? `${value}:00`
+                    : value;
 
         onChange({ [field]: formattedTime });
     };
 
     const getFormattedDateTime = (isoString?: string): string => {
-        if (!isoString) return "";
+        if (isoString === undefined || isoString === "") return "";
         const d = new Date(isoString);
-        if (isNaN(d.getTime())) return "";
-        const year = d.getFullYear();
+        if (Number.isNaN(d.getTime())) return "";
+        const year = String(d.getFullYear());
         const month = String(d.getMonth() + 1).padStart(2, "0");
         const day = String(d.getDate()).padStart(2, "0");
         const hours = String(d.getHours()).padStart(2, "0");
@@ -97,7 +96,7 @@ export function ReminderConfig({
     };
 
     const formatTimeForInput = (timeStr: string | null): string => {
-        if (!timeStr) return "";
+        if (timeStr === null || timeStr === "") return "";
         const parts = timeStr.split(":");
         return parts.slice(0, 2).join(":");
     };
@@ -116,25 +115,25 @@ export function ReminderConfig({
                 <Button
                     variant="danger"
                     type="button"
-                    onClick={handleDelete}
+                    onClick={() => { void handleDelete(); }}
                     disabled={isPending}
                 >
                     Delete Reminder
                 </Button>
             </div>
 
-            {hasValidationErrors && (
+            {!validationResult.success && (
                 <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
                     <span>⚠️</span>
                     <span>
-                        {validationResult.error?.issues[0]?.message || "Please complete required reminder fields before saving."}
+                        {validationResult.error.issues[0]?.message ?? "Please complete required reminder fields before saving."}
                     </span>
                 </div>
             )}
 
             <ToggleSwitch
                 checked={config.isActive}
-                onChange={(checked) => onChange({ isActive: checked })}
+                onChange={(checked) => { onChange({ isActive: checked }); }}
                 disabled={false}
                 text="Enable / Schedule Active"
                 shrink={true}
@@ -146,7 +145,7 @@ export function ReminderConfig({
                     <Dropdown
                         options={getAvailableChannelOptions(channelMap)}
                         value={config.channelId ?? ""}
-                        onChange={(val) => onChange({ channelId: val })}
+                        onChange={(val) => { onChange({ channelId: val }); }}
                         placeholder="Select channel"
                     />
                 </div>
@@ -156,7 +155,7 @@ export function ReminderConfig({
                     <Dropdown
                         options={formatOptions}
                         value={config.message.format}
-                        onChange={(val) => onChange({ message: {...config.message, format: val ?? "TEXT"} })}
+                        onChange={(val) => { onChange({ message: { ...config.message, format: val ?? "TEXT" } }); }}
                         placeholder="Select format"
                     />
                 </div>
@@ -166,8 +165,8 @@ export function ReminderConfig({
                 <div className="space-y-1.5">
                     <InputLabel>Message Content</InputLabel>
                     <LongTextInput
-                        value={config.message.content || ""}
-                        onChange={(e) => onChange({ message: { ...config.message, content: e.target.value }})}
+                        value={config.message.content}
+                        onChange={(e) => { onChange({ message: { ...config.message, content: e.target.value } }); }}
                         placeholder="Type the message to send..."
                         rows={4}
                     />
@@ -204,7 +203,7 @@ export function ReminderConfig({
                             type="datetime-local"
                             value={getFormattedDateTime(config.nextTriggerAt.toISOString())}
                             onChange={(e) => {
-                                if (e.target.value) {
+                                if (e.target.value !== "") {
                                     onChange({
                                         nextTriggerAt: new Date(e.target.value),
                                     });
@@ -228,12 +227,12 @@ export function ReminderConfig({
                         <InputLabel>Active Days of the Week</InputLabel>
                         <div className="flex flex-wrap gap-2">
                             {DAYS_OF_WEEK.map((day) => {
-                                const isSelected = (config.daysOfWeek || []).includes(day.value);
+                                const isSelected = (config.daysOfWeek ?? []).includes(day.value);
                                 return (
                                     <Button
                                         type="button"
                                         key={day.value}
-                                        onClick={() => handleDayToggle(day.value)}
+                                        onClick={() => { handleDayToggle(day.value); }}
                                         className={`px-3 py-1.5 text-xs rounded-md transition cursor-pointer border ${
                                             isSelected
                                                 ? "bg-brand-subtle text-brand-foreground border-brand font-medium hover:bg-brand-subtle/80"
@@ -255,7 +254,7 @@ export function ReminderConfig({
                             <InputLabel>Time Range Start</InputLabel>
                             <TimeInput
                                 value={formatTimeForInput(config.timeStart)}
-                                onChange={(e) => handleTimeChange("timeStart", e.target.value)}
+                                onChange={(e) => { handleTimeChange("timeStart", e.target.value); }}
                             />
                         </div>
 
@@ -263,7 +262,7 @@ export function ReminderConfig({
                             <InputLabel>Time Range End</InputLabel>
                             <TimeInput
                                 value={formatTimeForInput(config.timeEnd)}
-                                onChange={(e) => handleTimeChange("timeEnd", e.target.value)}
+                                onChange={(e) => { handleTimeChange("timeEnd", e.target.value); }}
                             />
                         </div>
 
@@ -272,7 +271,7 @@ export function ReminderConfig({
                             <NumberInput
                                 min={10}
                                 value={config.intervalSeconds}
-                                onChange={(n) => onChange({ intervalSeconds: n })}
+                                onChange={(n) => { onChange({ intervalSeconds: n }); }}
                                 placeholder="Once per day"
                             />
                         </div>

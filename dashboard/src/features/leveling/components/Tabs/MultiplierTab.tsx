@@ -200,7 +200,7 @@ export function MultiplierTab({
                             multiple
                             options={filteredOptions}
                             value={selectedTargetIds}
-                            onChange={(val) => setSelectedTargetIds(val)}
+                            onChange={(val) =>{  setSelectedTargetIds(val); }}
                             placeholder={targetType === "ROLE" ? "Choose roles..." : "Choose channels..."}
                             disabled={filteredOptions.length === 0}
                         />
@@ -284,7 +284,7 @@ export function MultiplierTab({
                                         <input
                                             type="checkbox"
                                             checked={selectedActiveIds.includes(m.target_id)}
-                                            onChange={() => handleToggleSelect(m.target_id)}
+                                            onChange={() =>{  handleToggleSelect(m.target_id); }}
                                             disabled={isMutating}
                                             className="h-4 w-4 rounded border-border bg-surface text-brand cursor-pointer focus-ring disabled:opacity-50"
                                         />
@@ -304,7 +304,7 @@ export function MultiplierTab({
                                                 <Button
                                                     variant="danger"
                                                     disabled={isMutating}
-                                                    onClick={() => handleDeleteSingle(m.target_id)}
+                                                    onClick={() =>{  handleDeleteSingle(m.target_id); }}
                                                     className="px-3 py-1"
                                                 >
                                                     Delete

@@ -48,14 +48,12 @@ export function ReactionRoleConfig({
     const [isSending, setIsSending] = useState(false);
     const [isActionPending, setIsActionPending] = useState(false);
 
-    const reactions = config.reactions ?? [];
-    const buttons = config.buttons ?? [];
+    const reactions = config.reactions;
+    const buttons = config.buttons;
 
     const validationResult = useMemo(() => {
         return saveReactionMessageInputSchema.safeParse(config);
     }, [config]);
-
-    const hasValidationErrors = !validationResult.success;
 
     const handleDelete = async (id: number): Promise<void> => {
         setIsDeleting(true);
@@ -74,8 +72,8 @@ export function ReactionRoleConfig({
             toast.error("Please save your changes before sending the message to Discord.");
             return;
         }
-        if (hasValidationErrors) {
-            const firstErr = validationResult.error?.issues[0]?.message || "Invalid configuration.";
+        if (!validationResult.success) {
+            const firstErr = validationResult.error.issues[0]?.message ?? "Invalid configuration.";
             toast.error(`Cannot send to Discord: ${firstErr}`);
             return;
         }
@@ -159,8 +157,8 @@ export function ReactionRoleConfig({
     };
 
     const isDisabled = isPending || isDeleting || isSending;
-    const sendToDiscordIsDisabled = isDisabled || isDirty || hasValidationErrors;
-    const isSent = Boolean(config.message_id && config.message_id.trim() !== "");
+    const sendToDiscordIsDisabled = isDisabled || isDirty || !validationResult.success;
+    const isSent = config.message_id !== null && config.message_id !== undefined && config.message_id.trim().length > 0;
 
     return (
         <div className="space-y-6">
@@ -172,14 +170,14 @@ export function ReactionRoleConfig({
                     {isSent ? (
                         <Button
                             disabled={isDisabled}
-                            onClick={handleDeleteDiscordMessage}
+                            onClick={() => { void handleDeleteDiscordMessage(); }}
                         >
                             {isActionPending ? "Deleting message..." : "Delete Discord Message"}
                         </Button>
                     ) : (
                         <Button
                             disabled={sendToDiscordIsDisabled}
-                            onClick={handleSend}
+                            onClick={() => { void handleSend(); }}
                         >
                             {isSending ? "Sending..." : "Send to Discord"}
                         </Button>
@@ -188,18 +186,18 @@ export function ReactionRoleConfig({
                     <Button
                         variant="danger"
                         disabled={isDisabled}
-                        onClick={() => handleDelete(config.id)}
+                        onClick={() => { void handleDelete(config.id); }}
                     >
                         {isDeleting ? "Deleting..." : "Delete Reaction Role"}
                     </Button>
                 </div>
             </div>
 
-            {hasValidationErrors && (
+            {!validationResult.success && (
                 <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
                     <span>⚠️</span>
                     <span>
-                        {validationResult.error?.issues[0]?.message || "All channel and role mappings must be configured before saving."}
+                        {validationResult.error.issues[0]?.message ?? "All channel and role mappings must be configured before saving."}
                     </span>
                 </div>
             )}
@@ -210,7 +208,7 @@ export function ReactionRoleConfig({
                     <Dropdown
                         options={getAvailableChannelOptions(channelMap)}
                         value={config.channel_id ?? ""}
-                        onChange={(val) => onChange({ ...config, channel_id: val })}
+                        onChange={(val) => { onChange({ ...config, channel_id: val }); }}
                         placeholder="Select channel..."
                         className="w-full"
                     />
@@ -223,7 +221,7 @@ export function ReactionRoleConfig({
                             { value: "REACTION", label: "Reaction Emojis" },
                             { value: "BUTTON", label: "Buttons" },
                         ]}
-                        value={config.mode || "REACTION"}
+                        value={config.mode}
                         onChange={(val) => {
                             if (val === "REACTION" || val === "BUTTON") {
                                 onChange({ ...config, mode: val });
@@ -247,7 +245,7 @@ export function ReactionRoleConfig({
                     <div className="space-y-2">
                         {buttons.map((button, index) => (
                             <div
-                                key={button.custom_id || index}
+                                key={button.custom_id}
                                 className="bg-surface border border-border-subtle rounded-lg p-4 space-y-3 transition hover:border-border"
                             >
                                 <div className="flex items-center justify-between border-b border-border-subtle pb-2">
@@ -256,7 +254,7 @@ export function ReactionRoleConfig({
                                     </span>
                                     <button
                                         type="button"
-                                        onClick={() => handleRemoveButton(index)}
+                                        onClick={() => { handleRemoveButton(index); }}
                                         className="p-1.5 text-danger hover:bg-danger-subtle rounded transition cursor-pointer"
                                         title="Remove Button"
                                     >
@@ -276,8 +274,8 @@ export function ReactionRoleConfig({
                                         <label className="block text-xs font-semibold text-foreground">Label</label>
                                         <TextInput
                                             placeholder="Label text"
-                                            value={button.label || ""}
-                                            onChange={(e) => handleUpdateButton(index, "label", e.target.value)}
+                                            value={button.label ?? ""}
+                                            onChange={(e) => { handleUpdateButton(index, "label", e.target.value); }}
                                         />
                                     </div>
 
@@ -285,8 +283,8 @@ export function ReactionRoleConfig({
                                         <label className="block text-xs font-semibold text-foreground">Emoji (Optional)</label>
                                         <TextInput
                                             placeholder="😀"
-                                            value={button.emoji || ""}
-                                            onChange={(e) => handleUpdateButton(index, "emoji", e.target.value)}
+                                            value={button.emoji ?? ""}
+                                            onChange={(e) => { handleUpdateButton(index, "emoji", e.target.value); }}
                                         />
                                     </div>
 
@@ -299,8 +297,8 @@ export function ReactionRoleConfig({
                                                 { value: "SUCCESS", label: "Success (Green)" },
                                                 { value: "DANGER", label: "Danger (Red)" },
                                             ]}
-                                            value={button.style || "PRIMARY"}
-                                            onChange={(val) => handleUpdateButton(index, "style", val ?? "PRIMARY")}
+                                            value={button.style}
+                                            onChange={(val) => { handleUpdateButton(index, "style", val ?? "PRIMARY"); }}
                                         />
                                     </div>
 
@@ -309,7 +307,7 @@ export function ReactionRoleConfig({
                                         <Dropdown
                                             options={getAvailableRoleOptions(roleMap)}
                                             value={button.role_id ?? ""}
-                                            onChange={(val) => handleUpdateButton(index, "role_id", val)}
+                                            onChange={(val) => { handleUpdateButton(index, "role_id", val); }}
                                             placeholder="Select role..."
                                         />
                                     </div>
@@ -327,7 +325,7 @@ export function ReactionRoleConfig({
                                                 "Enter a unique custom ID for this button (must start with `btn_`):",
                                                 button.custom_id
                                             );
-                                            if (newCustomId && newCustomId.trim()) {
+                                            if (newCustomId !== null && newCustomId.trim().length > 0) {
                                                 handleUpdateButton(index, "custom_id", newCustomId.trim());
                                             }
                                         }}
@@ -366,7 +364,7 @@ export function ReactionRoleConfig({
                                     <TextInput
                                         placeholder="😀"
                                         value={reaction.emoji}
-                                        onChange={(e) => handleUpdateReaction(index, "emoji", e.target.value)}
+                                        onChange={(e) => { handleUpdateReaction(index, "emoji", e.target.value); }}
                                         className="text-center w-20"
                                     />
                                 </div>
@@ -376,14 +374,14 @@ export function ReactionRoleConfig({
                                     <Dropdown
                                         options={getAvailableRoleOptions(roleMap)}
                                         value={reaction.role_id ?? ""}
-                                        onChange={(val) => handleUpdateReaction(index, "role_id", val)}
+                                        onChange={(val) => { handleUpdateReaction(index, "role_id", val); }}
                                         placeholder="Select role..."
                                     />
                                 </div>
 
                                 <Button
                                     type="button"
-                                    onClick={() => handleRemoveReaction(index)}
+                                    onClick={() => { handleRemoveReaction(index); }}
                                     className="p-2 border-none"
                                     variant="danger"
                                 >
@@ -412,17 +410,17 @@ export function ReactionRoleConfig({
             <div className="pt-4 border-t border-border-subtle">
                 <MessageConfigEditor
                     config={config.message}
-                    onChange={(v) =>
+                    onChange={(v) => {
                         onChange({
                             ...config,
-                            channel_id: v.channel_id || null,
+                            channel_id: v.channel_id ?? null,
                             message: {
                                 content: v.content ?? "",
                                 embed: v.embed ?? {},
                                 format: v.format,
                             }
-                        })
-                    }
+                        });
+                    }}
                     embedTemplateConfig={REACTION_ROLES_CONFIG}
                     enableToggle={false}
                 />

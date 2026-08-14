@@ -99,7 +99,7 @@ export function MediaOnlyBody({
             <ConfigListLayout<MediaOnlyChannel>
                 title="Channels"
                 createButtonText="+ Add"
-                onCreateClick={() => setIsCreateModalOpen(true)}
+                onCreateClick={() =>{  setIsCreateModalOpen(true); }}
                 items={config}
                 emptyMessage="No media-only channels configured yet."
                 hasActiveConfig={!!activeChannel}
@@ -114,7 +114,7 @@ export function MediaOnlyBody({
                         <button
                             key={channel.channelId}
                             type="button"
-                            onClick={() => setActiveChannelId(channel.channelId)}
+                            onClick={() =>{  setActiveChannelId(channel.channelId); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -161,7 +161,7 @@ export function MediaOnlyBody({
 
             <MediaOnlyCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() =>{  setIsCreateModalOpen(false); }}
                 textChannelMap={textChannelMap}
                 configuredIds={config.map((c) => c.channelId)}
                 onCreate={handleCreate}

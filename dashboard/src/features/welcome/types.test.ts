@@ -156,7 +156,7 @@ describe("saveWelcomeConfigSchema", () => {
         expect(resultNull.success).toBe(false);
         if (!resultNull.success) {
             expect(resultNull.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Please select a channel for public welcome messages.",
                 path: ["public", "channel_id"],
             });

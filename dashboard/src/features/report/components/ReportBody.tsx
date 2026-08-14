@@ -129,7 +129,7 @@ export function ReportBody({
         <div className="flex-1 scrollbar-thin space-y-4">
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={(v) => handleChange({ enabled: v })}
+                onChange={(v) =>{  handleChange({ enabled: v }); }}
                 disabled={false}
                 text="Enable Reporting"
             />
@@ -177,7 +177,7 @@ export function ReportBody({
                     <InputLabel>Send a Message for Every Report to</InputLabel>
                     <Dropdown
                         value={config.reportingChannel ?? ""}
-                        onChange={(c) => handleChange({ reportingChannel: c || null })}
+                        onChange={(c) =>{  handleChange({ reportingChannel: c || null }); }}
                         options={channelOptions}
                         placeholder="Select a channel..."
                     />
@@ -194,21 +194,21 @@ export function ReportBody({
 
             <TimeoutModal
                 isOpen={timeoutReportId !== null}
-                onClose={() => setTimeoutReportId(null)}
+                onClose={() =>{  setTimeoutReportId(null); }}
                 onSubmit={handleTimeoutUser}
                 isSubmitting={isTimingOut}
             />
 
             <WarnModal
                 isOpen={warnReportId !== null}
-                onClose={() => setWarnReportId(null)}
+                onClose={() =>{  setWarnReportId(null); }}
                 onSubmit={handleWarnUser}
                 isSubmitting={isWarning}
             />
 
             <BanModal
                 isOpen={banReportId !== null}
-                onClose={() => setBanReportId(null)}
+                onClose={() =>{  setBanReportId(null); }}
                 onSubmit={handleBanUser}
                 isSubmitting={isBanning}
             />
@@ -216,7 +216,7 @@ export function ReportBody({
             {activeImageUrl && (
                 <Modal
                     headerText="Attachment Preview"
-                    onClose={() => setActiveImageUrl(null)}
+                    onClose={() =>{  setActiveImageUrl(null); }}
                 >
                     <div className="flex justify-center items-center overflow-hidden max-h-[75vh]">
                         <img

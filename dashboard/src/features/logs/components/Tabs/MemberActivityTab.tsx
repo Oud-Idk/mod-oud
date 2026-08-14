@@ -23,33 +23,45 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Elem
 
     const observerTarget = useRef<HTMLDivElement | null>(null);
 
-    const lastLog = logs[logs.length - 1];
-    const lastLogCreatedAt = lastLog?.created_at || null;
-    const lastLogId = lastLog?.id || null;
+    const lastLog: JoinLeaveLog | undefined = logs.length > 0 ? logs[logs.length - 1] : undefined;
+    const lastLogCreatedAt = lastLog !== undefined ? lastLog.created_at : null;
+    const lastLogId = lastLog !== undefined ? lastLog.id : null;
 
     useEffect(() => {
         setLoading(true);
         setHasMore(true);
         setLogs([]);
 
-        getJoinLeaveLogsAction(guildId, null, LIMIT, null, null)
+        void getJoinLeaveLogsAction(guildId, null, LIMIT, null, null)
             .then((data) => {
                 setLogs(data);
                 if (data.length < LIMIT) setHasMore(false);
             })
-            .catch((err) => console.error("Error fetching initial activity logs:", err))
-            .finally(() => setLoading(false));
+            .catch((err: unknown) => {
+                console.error("Error fetching initial activity logs:", err);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     }, [guildId]);
 
-    const fetchMoreLogs = useCallback(async () => {
-        if (loading || loadingMore || !hasMore || !lastLogCreatedAt || !lastLogId) return;
+    const fetchMoreLogs = useCallback(async (): Promise<void> => {
+        if (
+            loading ||
+            loadingMore ||
+            !hasMore ||
+            lastLogCreatedAt === null ||
+            lastLogId === null
+        ) {
+            return;
+        }
 
         setLoadingMore(true);
         try {
             const data = await getJoinLeaveLogsAction(guildId, null, LIMIT, lastLogCreatedAt, lastLogId);
             if (data.length < LIMIT) setHasMore(false);
             setLogs((prev) => [...prev, ...data]);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error("Error loading more activity logs:", err);
         } finally {
             setLoadingMore(false);
@@ -58,12 +70,12 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Elem
 
     useEffect(() => {
         const target = observerTarget.current;
-        if (!target || !hasMore || loading || loadingMore) return;
+        if (target === null || !hasMore || loading || loadingMore) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    fetchMoreLogs();
+                    void fetchMoreLogs();
                 }
             },
             { rootMargin: "200px" }
@@ -72,7 +84,7 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Elem
         observer.observe(target);
 
         return () => {
-            if (target) observer.unobserve(target);
+            observer.unobserve(target);
         };
     }, [fetchMoreLogs, hasMore, loading, loadingMore]);
 
@@ -87,7 +99,7 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Elem
     return (
         <div className="space-y-4">
             <Table>
-                <TableHeader headers={HEADERS}/>
+                <TableHeader headers={HEADERS} />
                 <TableBody>
                     {logs.map((log) => (
                         <TableRow key={log.id}>

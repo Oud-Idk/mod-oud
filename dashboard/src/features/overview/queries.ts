@@ -1,13 +1,18 @@
 import { db } from "@/lib/db";
-import { DiscordGuildDetails, GuildStats } from "@/features/overview/types";
+import {
+    DiscordGuildDetails,
+    DiscordGuildDetailsSchema,
+    GuildStats,
+    RawGuildStatsSchema,
+} from "@/features/overview/types";
+
+const DEFAULT_STATS: GuildStats = {
+    weeklyModerationCount: 0,
+    weeklyResolvedTicketCount: 0,
+    openTicketsCount: 0,
+};
 
 export async function getGuildStats(guildId: string): Promise<GuildStats> {
-    const defaultStats: GuildStats = {
-        weeklyModerationCount: 0,
-        weeklyResolvedTicketCount: 0,
-        openTicketsCount: 0,
-    };
-
     try {
         const query = `
             SELECT (SELECT COUNT(*)
@@ -25,24 +30,31 @@ export async function getGuildStats(guildId: string): Promise<GuildStats> {
         `;
 
         const result = await db.query(query, [guildId]);
-        const row = result.rows[0];
+        if (result.rows.length === 0) return DEFAULT_STATS;
 
-        if (!row) return defaultStats;
+        // Validate & transform the raw row
+        const parsed = RawGuildStatsSchema.safeParse(result.rows[0]);
+        if (!parsed.success) {
+            console.error("Failed to parse DB stats row:", parsed.error);
+            return DEFAULT_STATS;
+        }
 
         return {
-            weeklyModerationCount: row.weekly_moderation ? parseInt(row.weekly_moderation, 10) : 0,
-            weeklyResolvedTicketCount: row.weekly_resolved ? parseInt(row.weekly_resolved, 10) : 0,
-            openTicketsCount: row.open_tickets ? parseInt(row.open_tickets, 10) : 0,
+            weeklyModerationCount: parsed.data.weekly_moderation,
+            weeklyResolvedTicketCount: parsed.data.weekly_resolved,
+            openTicketsCount: parsed.data.open_tickets,
         };
     } catch (error) {
         console.error("Database error fetching guild stats:", error);
-        return defaultStats;
+        return DEFAULT_STATS;
     }
 }
 
 export async function getGuildDetails(guildId: string): Promise<DiscordGuildDetails | null> {
     const botToken = process.env.DISCORD_TOKEN;
-    if (!botToken) return null;
+    if (botToken === undefined || botToken.trim() === "") {
+        return null;
+    }
 
     try {
         const response = await fetch(
@@ -52,8 +64,18 @@ export async function getGuildDetails(guildId: string): Promise<DiscordGuildDeta
                 next: { revalidate: 30 },
             }
         );
+
         if (!response.ok) return null;
-        return await response.json();
+
+        const rawData: unknown = await response.json();
+
+        const result = DiscordGuildDetailsSchema.safeParse(rawData);
+        if (!result.success) {
+            console.error("Invalid Discord Guild structure:", result.error);
+            return null;
+        }
+
+        return result.data;
     } catch (error) {
         console.error("Failed to fetch guild details:", error);
         return null;

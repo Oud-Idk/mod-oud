@@ -26,7 +26,7 @@ export const MainConfigTab = ({
                 </label>
                 <TextInput
                     value={config.name || ""}
-                    onChange={(e) => handleChange({ name: e.target.value })}
+                    onChange={(e) =>{  handleChange({ name: e.target.value }); }}
                     placeholder="e.g. General Voice Hub"
                 />
             </div>
@@ -40,7 +40,7 @@ export const MainConfigTab = ({
                 </p>
                 <Dropdown
                     value={config.hub_channel_id ?? ""}
-                    onChange={(id) => handleChange({ hub_channel_id: id })}
+                    onChange={(id) =>{  handleChange({ hub_channel_id: id }); }}
                     options={getAvailableChannelOptions(channels)}
                     placeholder="Select a voice channel..."
                 />
@@ -53,7 +53,7 @@ export const MainConfigTab = ({
                 <p className="text-xs text-muted-foreground mb-2">The category where new channels are created.</p>
                 <Dropdown
                     value={config.category_id ?? ""}
-                    onChange={(id) => handleChange({ category_id: id })}
+                    onChange={(id) =>{  handleChange({ category_id: id }); }}
                     options={getAvailableCategoryOptions(categories)}
                     placeholder="Select a category..."
                 />
@@ -65,7 +65,7 @@ export const MainConfigTab = ({
                 </label>
                 <NumberInput
                     value={config.user_limit ?? undefined}
-                    onChange={(val) => handleChange({ user_limit: val })}
+                    onChange={(val) =>{  handleChange({ user_limit: val }); }}
                     placeholder="None"
                 />
             </div>
@@ -79,7 +79,7 @@ export const MainConfigTab = ({
                 </p>
                 <TextInput
                     value={config.default_channel_name || ""}
-                    onChange={(e) => handleChange({ default_channel_name: e.target.value })}
+                    onChange={(e) =>{  handleChange({ default_channel_name: e.target.value }); }}
                 />
             </div>
         </div>

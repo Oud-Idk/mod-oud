@@ -64,7 +64,7 @@ export function MessageConfigEditor({
                 <ToggleSwitch
                     checked={isEnabled}
                     disabled={disabled}
-                    onChange={(checked) => onChange({ ...config, enabled: checked })}
+                    onChange={(checked) =>{  onChange({ ...config, enabled: checked }); }}
                     text={toggleLabel}
                 />
             )}
@@ -76,7 +76,7 @@ export function MessageConfigEditor({
                             channels={channels}
                             value={config.channel_id ?? null}
                             disabled={disabled}
-                            onChange={(value) => onChange({ ...config, channel_id: value })}
+                            onChange={(value) =>{  onChange({ ...config, channel_id: value }); }}
                             error={isChannelError}
                         />
                     )}
@@ -87,7 +87,7 @@ export function MessageConfigEditor({
                         format={config.format}
                         label={modeLabel}
                         disabled={disabled}
-                        onChange={(format) => onChange({ ...config, format })}
+                        onChange={(format) =>{  onChange({ ...config, format }); }}
                     />
 
                     {config.format === "TEXT" ? (
@@ -96,13 +96,13 @@ export function MessageConfigEditor({
                             placeholder={placeholderText}
                             placeholderConfig={embedTemplateConfig}
                             disabled={disabled}
-                            onChange={(val) => onChange({ ...config, content: val })}
+                            onChange={(val) =>{  onChange({ ...config, content: val }); }}
                         />
                     ) : (
                         <EmbedBuilder
                             placeholderConfig={embedTemplateConfig}
                             key={`${resetKey}`}
-                            setEmbedState={embed => onChange({ ...config, embed: embed })}
+                            setEmbedState={embed =>{  onChange({ ...config, embed: embed }); }}
                             config={embedTemplateConfig}
                             initialEmbedState={config.embed}
                         />

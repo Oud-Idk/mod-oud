@@ -46,7 +46,7 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
                     <LongTextInput
                         placeholder="Provide a reason for the ban..."
                         value={reason}
-                        onChange={(r) => setReason(r.target.value)}
+                        onChange={(r) =>{  setReason(r.target.value); }}
                     />
                 </div>
 
@@ -63,7 +63,7 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
                         <div className="flex gap-2">
                             <NumberInput
                                 value={duration}
-                                onChange={n => setDuration(n)}
+                                onChange={n =>{  setDuration(n); }}
                                 min={1}
                                 className="h-10"
                             />

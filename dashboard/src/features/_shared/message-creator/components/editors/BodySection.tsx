@@ -46,7 +46,7 @@ export function BodySection({
                         <button
                             key={c.hex}
                             type="button"
-                            onClick={() => handleChange({ target: { name: "color", value: c.hex } } as any)}
+                            onClick={() =>{  handleChange({ target: { name: "color", value: c.hex } } as any); }}
                             className="w-6 h-6 rounded-full border border-border transition-transform hover:scale-110 focus-ring"
                             style={{ backgroundColor: c.hex }}
                             title={c.name}

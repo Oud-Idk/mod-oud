@@ -47,8 +47,8 @@ export function CustomCommandConfig({
 
     const handleDelete = (id: number): void => {
         setIsDeleting(true);
-        onDelete(id)
-            .then(() => router.push(`/dashboard/${guildId}/custom-commands`))
+        void onDelete(id)
+            .then(() => { router.push(`/dashboard/${guildId}/custom-commands`); })
             .catch(() => {
                 alert("Failed to delete command.");
                 setIsDeleting(false);
@@ -61,8 +61,7 @@ export function CustomCommandConfig({
         embed: {},
     };
 
-    // Extract primary action
-    const primaryAction = config.actions?.[0] || {
+    const fallbackAction: CommandAction = {
         type: "respond_current_channel",
         data: {
             is_dm: false,
@@ -71,15 +70,21 @@ export function CustomCommandConfig({
         },
     };
 
+    // Extract primary action safely
+    const primaryAction: CommandAction =
+        config.actions.length > 0 ? config.actions[0] : fallbackAction;
+
     // Correct nested property extraction
     const primaryMessagePayload: MessageLayout =
         primaryAction.type === "respond_current_channel" || primaryAction.type === "send_channel_message"
-            ? primaryAction.data.message_layout.messages[0] || defaultPayload
+            ? primaryAction.data.message_layout.messages.length > 0
+                ? primaryAction.data.message_layout.messages[0]
+                : defaultPayload
             : defaultPayload;
 
     const handleMessageChange = (updatedMsg: GenericMessageConfig): void => {
         const updatedLayout: MessageLayout = {
-            format: updatedMsg.format ?? "TEXT",
+            format: updatedMsg.format,
             content: updatedMsg.content ?? "",
             embed: updatedMsg.embed ?? {},
         };
@@ -111,28 +116,27 @@ export function CustomCommandConfig({
                             <Emphasis>!{config.name}</Emphasis>
                             <ToggleSwitch
                                 checked={config.enabled}
-                                onChange={(checked) => onChange({ ...config, enabled: checked })}
+                                onChange={(checked) => { onChange({ ...config, enabled: checked }); }}
                                 text={config.enabled ? "Enabled" : "Disabled"}
                                 className="mb-0"
                             />
                         </div>
                         <Button
                             disabled={isPending || isDeleting}
-                            onClick={() => handleDelete(config.id)}
+                            onClick={() => { handleDelete(config.id); }}
                             variant="danger"
                         >
                             {isDeleting ? "Deleting..." : "Delete Command"}
                         </Button>
                     </div>
 
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <InputLabel required>Command Name / Trigger</InputLabel>
                             <TextInput
                                 placeholder="rules"
-                                value={config.name || ""}
-                                onChange={(e) => onChange({ ...config, name: e.target.value.replace(/\s+/g, "") })}
+                                value={config.name}
+                                onChange={(e) => { onChange({ ...config, name: e.target.value.replace(/\s+/g, "") }); }}
                             />
                         </div>
 
@@ -140,8 +144,8 @@ export function CustomCommandConfig({
                             <InputLabel>Description</InputLabel>
                             <TextInput
                                 placeholder="Displays server rules"
-                                value={config.description || ""}
-                                onChange={(e) => onChange({ ...config, description: e.target.value })}
+                                value={config.description ?? ""}
+                                onChange={(e) => { onChange({ ...config, description: e.target.value }); }}
                             />
                         </div>
                     </div>
@@ -155,7 +159,7 @@ export function CustomCommandConfig({
                                     { value: "USER", label: "Per User" },
                                     { value: "SERVER", label: "Server-wide" },
                                 ]}
-                                value={config.cooldown_type || "NONE"}
+                                value={config.cooldown_type}
                                 onChange={(val) => {
                                     if (val === "NONE" || val === "USER" || val === "SERVER") {
                                         onChange({ ...config, cooldown_type: val });
@@ -168,15 +172,15 @@ export function CustomCommandConfig({
                             <InputLabel>Cooldown Duration (Seconds)</InputLabel>
                             <NumberInput
                                 placeholder="0"
-                                value={config.cooldown_seconds || 0}
-                                onChange={(val) => onChange({ ...config, cooldown_seconds: val || 0 })}
+                                value={config.cooldown_seconds}
+                                onChange={(val) => { onChange({ ...config, cooldown_seconds: val ?? 0 }); }}
                             />
                         </div>
                     </div>
 
                     <ToggleSwitch
                         checked={config.delete_trigger}
-                        onChange={(checked) => onChange({ ...config, delete_trigger: checked })}
+                        onChange={(checked) => { onChange({ ...config, delete_trigger: checked }); }}
                         text="Delete user trigger message after command execution"
                     />
                 </div>
@@ -191,13 +195,13 @@ export function CustomCommandConfig({
                             embed: primaryMessagePayload.embed,
                         }}
                         onChange={handleMessageChange}
-                        onEmbedChange={(embed) =>
+                        onEmbedChange={(embed) => {
                             handleMessageChange({
                                 format: primaryMessagePayload.format,
                                 content: primaryMessagePayload.content,
                                 embed,
-                            })
-                        }
+                            });
+                        }}
                         embedTemplateConfig={CUSTOM_COMMAND_TEMPLATE_CONFIG}
                         enableToggle={false}
                         noChannels={true}

@@ -70,7 +70,7 @@ export const welcomeConfigSchema = z.object({
 export const saveWelcomeConfigSchema = welcomeConfigSchema.superRefine((data, ctx) => {
     if (data.public.enabled && (!data.public.channel_id || data.public.channel_id.trim() === "")) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Please select a channel for public welcome messages.",
             path: ["public", "channel_id"],
         });

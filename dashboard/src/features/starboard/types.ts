@@ -29,7 +29,7 @@ export const starboardConfigInputSchema = z
     .superRefine((data, ctx) => {
         if (!data.starboard_channel_id || data.starboard_channel_id.trim() === "") {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Please select a destination channel for the starboard.",
                 path: ["starboard_channel_id"],
             });
@@ -37,7 +37,7 @@ export const starboardConfigInputSchema = z
 
         if (data.emojis.length === 0) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "At least one reaction emoji is required.",
                 path: ["emojis"],
             });
@@ -45,7 +45,7 @@ export const starboardConfigInputSchema = z
 
         if (data.min_message_age && !isValidInterval(data.min_message_age)) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Invalid min message age format (e.g. "1 hour", "30 minutes").',
                 path: ["min_message_age"],
             });
@@ -53,7 +53,7 @@ export const starboardConfigInputSchema = z
 
         if (data.max_message_age && !isValidInterval(data.max_message_age)) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Invalid max message age format (e.g. "90 days", "7 days").',
                 path: ["max_message_age"],
             });

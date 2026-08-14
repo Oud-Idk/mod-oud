@@ -38,7 +38,7 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
                 <div className="space-y-1">
                     <label>Reason</label>
                     <LongTextInput
-                        onChange={r => setReason(r.target.value)}
+                        onChange={r =>{  setReason(r.target.value); }}
                         placeholder="Provide a reason for the timeout"
                         value={reason}
                     />
@@ -47,10 +47,10 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
                     <label>Duration</label>
                     <div className="flex gap-2">
                         <NumberInput
-                            value={duration} onChange={v => setDuration(v)} min={1} className="h-10"
+                            value={duration} onChange={v =>{  setDuration(v); }} min={1} className="h-10"
                         />
                         <Dropdown
-                            value={unit} onChange={v => setUnit(v ?? "MINUTES")} options={[
+                            value={unit} onChange={v =>{  setUnit(v ?? "MINUTES"); }} options={[
                             { value: "MINUTES", label: "Minutes" },
                             { value: "HOURS", label: "Hours" },
                             { value: "DAYS", label: "Days" },

@@ -64,19 +64,20 @@ export function WelcomeBody({
         onSave,
     });
 
-    const handleSave = useCallback(async () => {
+    const handleSave = useCallback((): void => {
         const result = saveWelcomeConfigSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            toast.error(result.error.issues[0]?.message ?? "Invalid configuration");
             return;
         }
-        await originalHandleSave();
+        void originalHandleSave();
     }, [config, originalHandleSave]);
 
-    const isSystemConfigured = !!(
-        config.verification?.verificationChannelId &&
-        config.verification?.verificationRoleId
-    );
+    const isSystemConfigured =
+        config.verification.verificationChannelId !== null &&
+        config.verification.verificationChannelId !== "" &&
+        config.verification.verificationRoleId !== null &&
+        config.verification.verificationRoleId !== "";
 
     return (
         <div className="space-y-4">
@@ -92,35 +93,38 @@ export function WelcomeBody({
                             embed: config.public.message.embed,
                             format: config.public.message.format,
                         }}
-                        onChange={(updated) =>
+                        onChange={(updated) => {
                             setConfig((prev) => ({
                                 ...prev,
                                 public: {
                                     ...prev.public,
                                     enabled: updated.enabled ?? false,
-                                    channel_id: updated.channel_id || null,
+                                    channel_id:
+                                        updated.channel_id !== undefined && updated.channel_id !== ""
+                                            ? updated.channel_id
+                                            : null,
                                     message: {
                                         format: updated.format,
                                         content: updated.content ?? "",
                                         embed: updated.embed ?? {},
                                     },
                                 },
-                            }))
-                        }
-                        onEmbedChange={(embed) =>
+                            }));
+                        }}
+                        onEmbedChange={(embed) => {
                             setConfig((prev) => ({
                                 ...prev,
                                 public: {
                                     ...prev.public,
                                     message: { ...prev.public.message, embed },
                                 },
-                            }))
-                        }
+                            }));
+                        }}
                         channels={channels}
                         disabled={isPending}
                         toggleLabel="Send Public Message when New User Joins"
                         embedTemplateConfig={WELCOME_CONFIG}
-                        resetKey={`${resetKey}_public`}
+                        resetKey={`${String(resetKey)}_public`}
                         modeLabel="Message Mode"
                         placeholderText="Welcome to the server, {user.mention}!"
                         setTargetChannelIsEmpty={setTargetChannelIsEmpty}
@@ -137,7 +141,7 @@ export function WelcomeBody({
                             embed: config.private.message.embed,
                             format: config.private.message.format,
                         }}
-                        onChange={(updated) =>
+                        onChange={(updated) => {
                             setConfig((prev) => ({
                                 ...prev,
                                 private: {
@@ -149,21 +153,21 @@ export function WelcomeBody({
                                         embed: updated.embed ?? {},
                                     },
                                 },
-                            }))
-                        }
-                        onEmbedChange={(embed) =>
+                            }));
+                        }}
+                        onEmbedChange={(embed) => {
                             setConfig((prev) => ({
                                 ...prev,
                                 private: {
                                     ...prev.private,
                                     message: { ...prev.private.message, embed },
                                 },
-                            }))
-                        }
+                            }));
+                        }}
                         disabled={isPending}
                         toggleLabel="Send Direct Message (DM) when New User Joins"
                         embedTemplateConfig={WELCOME_CONFIG}
-                        resetKey={`${resetKey}_private`}
+                        resetKey={`${String(resetKey)}_private`}
                         modeLabel="Message Mode (Private)"
                         placeholderText="Thanks for joining our server, {user.mention}! Here are some links to get started..."
                         setTargetChannelIsEmpty={setTargetChannelIsEmpty}

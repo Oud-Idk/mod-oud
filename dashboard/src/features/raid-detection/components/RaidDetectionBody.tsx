@@ -47,13 +47,11 @@ export function RaidDetectionBody({
     }, [setConfig]);
 
     const channelOptions = useMemo(() => {
-        return Object.entries(channelMap || {}).map(([id, name]) => ({
+        return Object.entries(channelMap).map(([id, name]) => ({
             value: id,
             label: `#${name}`,
         }));
     }, [channelMap]);
-
-    if (!config) return null;
 
     const windowOptions = [
         { value: "30", label: "30 Seconds (Fast Burst Detection)" },
@@ -108,45 +106,59 @@ export function RaidDetectionBody({
         }
     }
 
-    const currentActions = config.raidActions || [];
+    const currentActions = config.raidActions;
 
-    const alertAction = currentActions.find((action) => action.type === "ALERT");
-    const timeoutAction = currentActions.find((action) => action.type === "TIMEOUT_NEW_JOINS");
-    const autoBanAction = currentActions.find((action) => action.type === "AUTO_BAN_NEW_ACCOUNTS");
-    const pauseInvitesAction = currentActions.find((action) => action.type === "PAUSE_INVITES");
+    const alertAction = currentActions.find(
+        (action): action is Extract<RaidAction, { type: "ALERT" }> => action.type === "ALERT",
+    );
+    const timeoutAction = currentActions.find(
+        (action): action is Extract<RaidAction, { type: "TIMEOUT_NEW_JOINS" }> => action.type === "TIMEOUT_NEW_JOINS",
+    );
+    const autoBanAction = currentActions.find(
+        (action): action is Extract<RaidAction, { type: "AUTO_BAN_NEW_ACCOUNTS" }> => action.type === "AUTO_BAN_NEW_ACCOUNTS",
+    );
+    const pauseInvitesAction = currentActions.find(
+        (action): action is Extract<RaidAction, { type: "PAUSE_INVITES" }> => action.type === "PAUSE_INVITES",
+    );
 
     const isBumpVerificationSelected = currentActions.some(
         (action) => action.type === "BUMP_VERIFICATION",
     );
-    const isVerificationDisabled =
-        !welcomeConfig?.verification?.enabled ||
-        !welcomeConfig?.verification?.verificationChannelId ||
-        !welcomeConfig?.verification?.verificationMessageId;
 
-    const hasDynamicActionFields = Boolean(
-        alertAction || pauseInvitesAction || timeoutAction || autoBanAction,
-    );
+    const verification = welcomeConfig.verification;
+    const isVerificationDisabled =
+        !verification.enabled ||
+        verification.verificationChannelId === null ||
+        verification.verificationChannelId.length === 0 ||
+        verification.verificationMessageId === null ||
+        verification.verificationMessageId.length === 0;
+
+    const hasDynamicActionFields =
+        alertAction !== undefined ||
+        pauseInvitesAction !== undefined ||
+        timeoutAction !== undefined ||
+        autoBanAction !== undefined;
 
     const onValidatedSave = (): void => {
         const validation = raidDetectionConfigSchema.safeParse(config);
         if (!validation.success) {
-            toast.error(validation.error.issues[0]?.message || "Invalid configuration.");
+            toast.error(validation.error.issues[0]?.message ?? "Invalid configuration.");
             return;
         }
-        handleSave();
+        void handleSave();
     };
 
     return (
         <div className="space-y-6">
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={(checked) => handleChange({ enabled: checked })}
+                onChange={(checked) => { handleChange({ enabled: checked }); }}
                 text="Enable Anti-Raid Defense System"
             />
 
             {config.enabled && (
                 <div className="space-y-6">
-                    {raidStatus?.isRaidActive && (
+                    {raidStatus.isRaidActive && (
                         <div
                             className="p-4 bg-danger-subtle border border-danger-border rounded-xl flex items-start justify-between gap-4 text-danger animate-pulse">
                             <div className="flex items-start gap-3">
@@ -173,7 +185,7 @@ export function RaidDetectionBody({
                                 <span className="font-semibold text-sm text-foreground">
                                     Live Monitor Status
                                 </span>
-                                {raidStatus?.isRaidActive ? (
+                                {raidStatus.isRaidActive ? (
                                     <span
                                         className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger-subtle text-danger border border-danger-border">
                                         <span className="relative flex h-2 w-2">
@@ -184,7 +196,7 @@ export function RaidDetectionBody({
                                         </span>
                                         Raid Active
                                     </span>
-                                ) : raidStatus?.statsAvailable ? (
+                                ) : raidStatus.statsAvailable ? (
                                     <span
                                         className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-subtle text-success border border-success/30">
                                         <span className="h-2 w-2 rounded-full bg-success"></span>
@@ -199,7 +211,7 @@ export function RaidDetectionBody({
                                 )}
                             </div>
 
-                            {!raidStatus?.statsAvailable && (
+                            {!raidStatus.statsAvailable && (
                                 <span className="text-xs text-warning font-medium">
                                     ⚠️ Collecting 7-day traffic baseline...
                                 </span>
@@ -213,10 +225,10 @@ export function RaidDetectionBody({
                                 </span>
                                 <div className="flex items-baseline gap-1">
                                     <span className="text-lg font-bold font-mono text-foreground">
-                                        {raidStatus?.currentJoinsInWindow ?? 0}
+                                        {raidStatus.currentJoinsInWindow}
                                     </span>
                                     <span className="text-xs text-muted-foreground">
-                                        / {raidStatus?.windowSizeSeconds ?? 60}s
+                                        / {raidStatus.windowSizeSeconds}s
                                     </span>
                                 </div>
                             </div>
@@ -226,7 +238,7 @@ export function RaidDetectionBody({
                                     Trigger Threshold
                                 </span>
                                 <div className="text-lg font-bold font-mono text-foreground">
-                                    {raidStatus?.calculatedThreshold ?? 0}
+                                    {raidStatus.calculatedThreshold}
                                     <span className="text-xs font-normal ml-1 font-sans text-muted-foreground">
                                         joins
                                     </span>
@@ -238,7 +250,7 @@ export function RaidDetectionBody({
                                     Avg Joins / Min
                                 </span>
                                 <div className="text-lg font-bold font-mono text-foreground">
-                                    {(raidStatus?.avgJoinsPerMin ?? 0).toFixed(1)}
+                                    {raidStatus.avgJoinsPerMin.toFixed(1)}
                                 </div>
                             </div>
 
@@ -247,7 +259,7 @@ export function RaidDetectionBody({
                                     Std Deviation
                                 </span>
                                 <div className="text-lg font-bold font-mono text-foreground">
-                                    ±{(raidStatus?.stdDevPerMin ?? 0).toFixed(1)}
+                                    ±{raidStatus.stdDevPerMin.toFixed(1)}
                                 </div>
                             </div>
                         </div>
@@ -259,11 +271,11 @@ export function RaidDetectionBody({
                             <NumberInput
                                 value={config.zScoreMultiplier}
                                 step={0.1}
-                                onChange={(val) =>
+                                onChange={(val) => {
                                     handleChange({
                                         zScoreMultiplier: Math.round((val ?? 0) * 10) / 10,
-                                    })
-                                }
+                                    });
+                                }}
                             />
                             <p className="text-xs text-muted-foreground">
                                 Lower values flag smaller spikes. Higher values trigger only on massive join waves.
@@ -274,10 +286,10 @@ export function RaidDetectionBody({
                             <InputLabel>Sliding Time Window</InputLabel>
                             <Dropdown
                                 options={windowOptions}
-                                value={String(config.windowSizeSeconds ?? 60)}
-                                onChange={(val) =>
-                                    handleChange({ windowSizeSeconds: Number(val) })
-                                }
+                                value={String(config.windowSizeSeconds)}
+                                onChange={(val) => {
+                                    handleChange({ windowSizeSeconds: Number(val) });
+                                }}
                             />
                             <p className="text-xs text-muted-foreground">
                                 The timeframe over which join spikes are calculated.
@@ -290,11 +302,11 @@ export function RaidDetectionBody({
                                 min={1}
                                 max={100}
                                 value={config.minSafeLimit}
-                                onChange={(val) =>
+                                onChange={(val) => {
                                     handleChange({
                                         minSafeLimit: Math.max(1, val ?? 1),
-                                    })
-                                }
+                                    });
+                                }}
                             />
                             <p className="text-xs text-muted-foreground">
                                 Minimum joins required in window before an alert can trigger, preventing false alarms on quiet servers.
@@ -319,7 +331,7 @@ export function RaidDetectionBody({
                                             mins: 15,
                                             hour: 24,
                                             maxAgeHours: 24,
-                                            channelId: Object.keys(channelMap || {})[0] ?? "",
+                                            channelId: Object.keys(channelMap)[0] ?? "",
                                         });
                                     });
 
@@ -341,12 +353,12 @@ export function RaidDetectionBody({
                             </h4>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                {alertAction && (
+                                {alertAction !== undefined && (
                                     <div className="space-y-2">
                                         <InputLabel>Alert Notification Channel</InputLabel>
                                         <Dropdown
                                             options={channelOptions}
-                                            value={alertAction.channelId || ""}
+                                            value={alertAction.channelId}
                                             placeholder="Select channel for raid alerts..."
                                             onChange={(channelId) => {
                                                 const updatedActions = currentActions.map((action) =>
@@ -363,13 +375,13 @@ export function RaidDetectionBody({
                                     </div>
                                 )}
 
-                                {pauseInvitesAction && pauseInvitesAction.type === "PAUSE_INVITES" && (
+                                {pauseInvitesAction !== undefined && (
                                     <div className="space-y-2">
                                         <InputLabel>Pause Invites Duration (Hours)</InputLabel>
                                         <NumberInput
                                             min={1}
                                             max={168}
-                                            value={pauseInvitesAction.hour ?? 24}
+                                            value={pauseInvitesAction.hour}
                                             onChange={(val) => {
                                                 const updatedActions = currentActions.map((action) =>
                                                     action.type === "PAUSE_INVITES"
@@ -385,13 +397,13 @@ export function RaidDetectionBody({
                                     </div>
                                 )}
 
-                                {timeoutAction && timeoutAction.type === "TIMEOUT_NEW_JOINS" && (
+                                {timeoutAction !== undefined && (
                                     <div className="space-y-2">
                                         <InputLabel>Timeout Duration (Minutes)</InputLabel>
                                         <NumberInput
                                             min={1}
                                             max={40320}
-                                            value={timeoutAction.mins ?? 15}
+                                            value={timeoutAction.mins}
                                             onChange={(val) => {
                                                 const updatedActions = currentActions.map((action) =>
                                                     action.type === "TIMEOUT_NEW_JOINS"
@@ -407,13 +419,13 @@ export function RaidDetectionBody({
                                     </div>
                                 )}
 
-                                {autoBanAction && autoBanAction.type === "AUTO_BAN_NEW_ACCOUNTS" && (
+                                {autoBanAction !== undefined && (
                                     <div className="space-y-2">
                                         <InputLabel>Auto-Ban Account Age Limit (Hours)</InputLabel>
                                         <NumberInput
                                             min={1}
                                             max={8760}
-                                            value={autoBanAction.maxAgeHours ?? 24}
+                                            value={autoBanAction.maxAgeHours}
                                             onChange={(val) => {
                                                 const updatedActions = currentActions.map((action) =>
                                                     action.type === "AUTO_BAN_NEW_ACCOUNTS"

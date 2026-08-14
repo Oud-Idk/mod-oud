@@ -71,7 +71,7 @@ export function StarboardBody({
         <>
             <ConfigListLayout<StarboardConfig>
                 title="Boards"
-                onCreateClick={() => setIsCreateModalOpen(true)}
+                onCreateClick={() =>{  setIsCreateModalOpen(true); }}
                 items={starboardConfigs}
                 emptyMessage="No starboards configured yet."
                 hasActiveConfig={!!config}
@@ -84,7 +84,7 @@ export function StarboardBody({
                     return (
                         <button
                             key={board.id}
-                            onClick={() => router.push(`/dashboard/${guildId}/starboard?id=${board.id}`)}
+                            onClick={() =>{  router.push(`/dashboard/${guildId}/starboard?id=${board.id}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -109,7 +109,7 @@ export function StarboardBody({
                                 Select an active starboard from the sidebar to edit its settings, or create a new board to start highlighting popular server messages.
                             </p>
                         </div>
-                        <Button onClick={() => setIsCreateModalOpen(true)}>
+                        <Button onClick={() =>{  setIsCreateModalOpen(true); }}>
                             Create Your First Starboard
                         </Button>
                     </div>
@@ -132,7 +132,7 @@ export function StarboardBody({
 
             <StarboardCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() =>{  setIsCreateModalOpen(false); }}
                 channelMap={channelMap}
                 onSave={onSave}
                 guildId={guildId}

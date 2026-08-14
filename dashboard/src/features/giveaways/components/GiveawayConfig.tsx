@@ -25,12 +25,12 @@ interface GiveawayConfigProps {
 }
 
 function formatToLocalDateTime(isoString?: string): string {
-    if (!isoString) return "";
+    if (isoString === undefined || isoString.length === 0) return "";
     const date = new Date(isoString);
-    if (isNaN(date.getTime())) return "";
+    if (Number.isNaN(date.getTime())) return "";
 
     const pad = (n: number): string => String(n).padStart(2, "0");
-    const year = date.getFullYear();
+    const year = String(date.getFullYear());
     const month = pad(date.getMonth() + 1);
     const day = pad(date.getDate());
     const hours = pad(date.getHours());
@@ -49,21 +49,20 @@ export function GiveawayConfig({
     onSend,
     onChange,
     onDeleteDiscordMessage,
-}: GiveawayConfigProps):
-    JSX.Element {
+}: GiveawayConfigProps): JSX.Element {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [isActionPending, setIsActionPending] = useState(false);
 
-    const isSent = Boolean(config.message_id?.trim());
+    const isSent = config.message_id !== null && config.message_id.trim().length > 0;
     const isDisabled = isPending || isDeleting || isSending;
-    const sendToDiscordIsDisabled = isDisabled || isDirty || !config.channel_id;
+    const sendToDiscordIsDisabled = isDisabled || isDirty || config.channel_id === null || config.channel_id.length === 0;
 
     const handleDelete = (id: number): void => {
         setIsDeleting(true);
         onDelete(id)
-            .then(() => router.push(`/dashboard/${guildId}/giveaways`))
+            .then(() => { router.push(`/dashboard/${guildId}/giveaways`); })
             .catch(() => {
                 alert("Failed to delete giveaway configuration.");
                 setIsDeleting(false);
@@ -77,16 +76,22 @@ export function GiveawayConfig({
         }
         setIsSending(true);
         onSend(config.id)
-            .catch((err) => alert(err.message || "Failed to launch giveaway."))
-            .finally(() => setIsSending(false));
+            .catch((err: unknown) => {
+                const message = err instanceof Error ? err.message : "Failed to launch giveaway.";
+                alert(message);
+            })
+            .finally(() => { setIsSending(false); });
     };
 
     const handleDeleteDiscordMessage = (): void => {
         setIsActionPending(true);
         onDeleteDiscordMessage(config.id)
-            .then(() => onChange({ ...config, message_id: null }))
-            .catch((err) => alert(err.message || "Failed to delete message."))
-            .finally(() => setIsActionPending(false));
+            .then(() => { onChange({ ...config, message_id: null }); })
+            .catch((err: unknown) => {
+                const message = err instanceof Error ? err.message : "Failed to delete message.";
+                alert(message);
+            })
+            .finally(() => { setIsActionPending(false); });
     };
 
     return (
@@ -115,7 +120,7 @@ export function GiveawayConfig({
                         variant="danger"
                         type="button"
                         disabled={isDisabled}
-                        onClick={() => handleDelete(config.id)}
+                        onClick={() => { handleDelete(config.id); }}
                     >
                         {isDeleting ? "Deleting..." : "Delete Giveaway"}
                     </Button>
@@ -129,9 +134,9 @@ export function GiveawayConfig({
                     <Dropdown
                         options={getAvailableChannelOptions(channelMap)}
                         value={config.channel_id}
-                        onChange={(val) => onChange({ ...config, channel_id: val })}
+                        onChange={(val) => { onChange({ ...config, channel_id: val }); }}
                         placeholder="Select channel..."
-                        error={!config.channel_id}
+                        error={config.channel_id === null || config.channel_id.length === 0}
                     />
                 </div>
 
@@ -139,8 +144,8 @@ export function GiveawayConfig({
                     <InputLabel required>Prize</InputLabel>
                     <TextInput
                         placeholder="e.g. 1 Month Nitro"
-                        value={config.prize || ""}
-                        onChange={(e) => onChange({ ...config, prize: e.target.value })}
+                        value={config.prize}
+                        onChange={(e) => { onChange({ ...config, prize: e.target.value }); }}
                     />
                 </div>
 
@@ -148,8 +153,8 @@ export function GiveawayConfig({
                     <InputLabel>Winner Count</InputLabel>
                     <NumberInput
                         placeholder="1"
-                        value={config.winner_count || 1}
-                        onChange={(e) => onChange({ ...config, winner_count: e || 1 })}
+                        value={config.winner_count}
+                        onChange={(e) => { onChange({ ...config, winner_count: e ?? 1 }); }}
                     />
                 </div>
             </div>
@@ -163,7 +168,7 @@ export function GiveawayConfig({
                     type="datetime-local"
                     value={formatToLocalDateTime(config.end_time)}
                     onChange={(e) => {
-                        if (!e.target.value) return;
+                        if (e.target.value.length === 0) return;
                         const utcISOString = new Date(e.target.value).toISOString();
                         onChange({ ...config, end_time: utcISOString });
                     }}
@@ -176,21 +181,21 @@ export function GiveawayConfig({
                 <MessageConfigEditor
                     config={{
                         format: config.message.format,
-                        content: config.message.content ?? "",
-                        embed: config.message.embed ?? {},
+                        content: config.message.content,
+                        embed: config.message.embed,
                         channel_id: config.channel_id ?? undefined,
                     }}
-                    onChange={(v) =>
+                    onChange={(v) => {
                         onChange({
                             ...config,
                             channel_id: v.channel_id ?? config.channel_id,
                             message: {
-                                format: v.format ?? config.message.format,
+                                format: v.format,
                                 content: v.content ?? config.message.content,
                                 embed: v.embed ?? config.message.embed,
                             },
-                        })
-                    }
+                        });
+                    }}
                     embedTemplateConfig={GIVEAWAY_TEMPLATE_CONFIG}
                     enableToggle={false}
                     noChannels={true}

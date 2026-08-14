@@ -23,7 +23,7 @@ export const BirthdayConfigSchema = z.object({
 export const SaveBirthdayConfigSchema = BirthdayConfigSchema.superRefine((data, ctx) => {
     if (data.enabled && !data.channelId) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: "Please select an announcement channel for birthdays!",
             path: ["channelId"],
         });

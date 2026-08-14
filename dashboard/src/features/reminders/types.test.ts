@@ -94,7 +94,7 @@ describe("saveableReminderSchema", () => {
         expect(resultMissing.success).toBe(false);
         if (!resultMissing.success) {
             expect(resultMissing.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Please select a target channel.",
                 path: ["channelId"],
             });
@@ -117,7 +117,7 @@ describe("saveableReminderSchema", () => {
         expect(resultEmpty.success).toBe(false);
         if (!resultEmpty.success) {
             expect(resultEmpty.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Message content cannot be empty for plain text format.",
                 path: ["message", "content"],
             });
@@ -183,7 +183,7 @@ describe("saveableReminderSchema", () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues).toContainEqual({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Recurring reminders require a start time, interval, or active days.",
                 path: ["rType"],
             });

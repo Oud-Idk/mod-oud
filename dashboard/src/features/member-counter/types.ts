@@ -27,14 +27,14 @@ export const saveMemberCounterConfigSchema = memberCounterConfigSchema.superRefi
         data.counters.forEach((counter, idx) => {
             if (!counter.channelId) {
                 ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
+                    code: 'custom',
                     message: `Counter #${idx + 1} requires a target voice channel!`,
                     path: ["counters", idx, "channelId"],
                 });
             }
             if (counter.counterType === "ROLE_COUNT" && !counter.roleId) {
                 ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
+                    code: 'custom',
                     message: `Counter #${idx + 1} requires a specific role selected!`,
                     path: ["counters", idx, "roleId"],
                 });

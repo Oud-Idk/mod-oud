@@ -31,7 +31,7 @@ export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsS
                 value={actions}
                 placeholder="Select actions..."
                 onChange={(selected) => {
-                    const selectedActions = selected as RuleAction[];
+                    const selectedActions = selected;
                     const hasTimeout = selectedActions.includes("TIMEOUT");
                     onChange(selectedActions, hasTimeout ? timeoutDuration : undefined);
                 }}
@@ -44,7 +44,7 @@ export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsS
                         type="number"
                         min={1}
                         value={timeoutDuration ?? 60}
-                        onChange={(e) => onChange(actions, parseInt(e.target.value || "0", 10))}
+                        onChange={(e) =>{  onChange(actions, parseInt(e.target.value || "0", 10)); }}
                         className="w-40 border rounded px-2 py-1 text-sm"
                     />
                 </div>

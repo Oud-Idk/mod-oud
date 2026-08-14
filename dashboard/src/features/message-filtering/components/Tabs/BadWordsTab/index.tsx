@@ -74,7 +74,7 @@ export function BadWordTab({
         <>
             <ConfigListLayout<BadWordRuleset>
                 title="Rulesets"
-                onCreateClick={() => setIsCreateModalOpen(true)}
+                onCreateClick={() =>{  setIsCreateModalOpen(true); }}
                 items={rulesets}
                 emptyMessage="No rulesets configured yet."
                 hasActiveConfig={!!config}
@@ -90,7 +90,7 @@ export function BadWordTab({
                     return (
                         <button
                             key={ruleset.id}
-                            onClick={() => router.push(`/dashboard/${guildId}/message-filtering?id=${ruleset.id}`)}
+                            onClick={() =>{  router.push(`/dashboard/${guildId}/message-filtering?id=${ruleset.id}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -125,7 +125,7 @@ export function BadWordTab({
                                 Select an active ruleset from the sidebar to edit its patterns, or create a new ruleset to begin filtering.
                             </p>
                         </div>
-                        <Button onClick={() => setIsCreateModalOpen(true)}>
+                        <Button onClick={() =>{  setIsCreateModalOpen(true); }}>
                             Create Your First Ruleset
                         </Button>
                     </div>
@@ -145,7 +145,7 @@ export function BadWordTab({
 
             <BadWordCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() =>{  setIsCreateModalOpen(false); }}
                 onSave={onSave}
             />
         </>

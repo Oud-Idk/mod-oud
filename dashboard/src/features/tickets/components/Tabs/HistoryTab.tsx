@@ -58,7 +58,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
 
     const closeDrawer = (): void => {
         setDrawerOpen(false);
-        setTimeout(() => setSelectedTicket(null), 200);
+        setTimeout(() =>{  setSelectedTicket(null); }, 200);
     };
 
     // 🛡️ Extra fallback safety
@@ -72,7 +72,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                     <span className="text-sm font-medium text-muted-foreground">Status Filter:</span>
                     <Dropdown
                         value={statusFilter}
-                        onChange={(v) => setStatusFilter(v || "ALL")}
+                        onChange={(v) =>{  setStatusFilter(v || "ALL"); }}
                         options={[
                             { value: "ALL", label: "All Tickets" },
                             { value: "OPEN", label: "Open" },

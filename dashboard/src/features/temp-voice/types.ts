@@ -25,7 +25,7 @@ export const saveTempVoiceHubInputSchema = z
     .superRefine((data, ctx) => {
         if (!data.hub_channel_id || data.hub_channel_id.trim() === "") {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Please select a trigger voice channel.",
                 path: ["hub_channel_id"],
             });
@@ -33,7 +33,7 @@ export const saveTempVoiceHubInputSchema = z
 
         if (!data.category_id || data.category_id.trim() === "") {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: "Please select a parent category.",
                 path: ["category_id"],
             });

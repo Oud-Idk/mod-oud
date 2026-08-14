@@ -95,7 +95,7 @@ export function HoneypotBody({
         <div className="space-y-4">
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={(e) => setConfig((prev) => ({ ...prev, enabled: e }))}
+                onChange={(e) =>{  setConfig((prev) => ({ ...prev, enabled: e })); }}
                 text="Enable Honeypot Channel"
             />
 
@@ -105,7 +105,7 @@ export function HoneypotBody({
                         <InputLabel>Channel</InputLabel>
                         <Dropdown
                             value={config.channelId ?? ""}
-                            onChange={(c) => setConfig((prev) => ({ ...prev, channelId: c ?? null }))}
+                            onChange={(c) =>{  setConfig((prev) => ({ ...prev, channelId: c ?? null })); }}
                             options={channelOptions}
                             placeholder="Select Channel"
                         />
@@ -116,7 +116,7 @@ export function HoneypotBody({
                         <Dropdown
                             multiple
                             value={config.exemptRoles}
-                            onChange={(r) => setConfig((prev) => ({ ...prev, exemptRoles: r ?? [] }))}
+                            onChange={(r) =>{  setConfig((prev) => ({ ...prev, exemptRoles: r ?? [] })); }}
                             options={roleOptions}
                             placeholder="Select Roles to Exempt"
                         />
@@ -126,7 +126,7 @@ export function HoneypotBody({
                         <InputLabel>Delete Messages Before (DMD)</InputLabel>
                         <NumberInput
                             value={config.dmd}
-                            onChange={(v) => setConfig((prev) => ({ ...prev, dmd: v ?? 0 }))}
+                            onChange={(v) =>{  setConfig((prev) => ({ ...prev, dmd: v ?? 0 })); }}
                             min={0}
                             max={7}
                         />
@@ -136,7 +136,7 @@ export function HoneypotBody({
                         <InputLabel>Reason</InputLabel>
                         <TextInput
                             value={config.reason ?? "Sending a message in a honeypot channel"}
-                            onChange={(r) => setConfig((prev) => ({ ...prev, reason: r.target.value }))}
+                            onChange={(r) =>{  setConfig((prev) => ({ ...prev, reason: r.target.value })); }}
                             placeholder="Sending a message in a honeypot channel"
                         />
                     </div>
@@ -145,7 +145,7 @@ export function HoneypotBody({
                         <InputLabel>Duration</InputLabel>
                         <TextInput
                             value={timeInput}
-                            onChange={(i) => handleDurationChange(i.target.value)}
+                            onChange={(i) =>{  handleDurationChange(i.target.value); }}
                             placeholder="Leave blank for permanent"
                         />
                         <Footer>
@@ -160,7 +160,7 @@ export function HoneypotBody({
                             <InputLabel>Channel Name</InputLabel>
                             <TextInput
                                 value={channelName}
-                                onChange={(s) => setChannelName(s.target.value)}
+                                onChange={(s) =>{  setChannelName(s.target.value); }}
                             />
                             <div className="flex flex-col gap-2 items-start pt-1">
                                 <Button

@@ -74,13 +74,13 @@ export function FilterLayoutWrapper<T extends BaseRule>({
     return (
         <FilterLayout
             enabled={config.enabled}
-            onToggle={(checked) => updateConfig({ enabled: checked })}
+            onToggle={(checked) =>{  updateConfig({ enabled: checked }); }}
             toggleText={toggleText}
             actions={config.action || []}
             timeoutDuration={config.timeoutDurationSeconds ?? undefined}
-            onActionsChange={(actions, timeout) => updateConfig({ action: actions, timeoutDurationSeconds: timeout })}
+            onActionsChange={(actions, timeout) =>{  updateConfig({ action: actions, timeoutDurationSeconds: timeout }); }}
             scope={config.scope}
-            onScopeChange={newScope => updateConfig({ scope: newScope })}
+            onScopeChange={newScope =>{  updateConfig({ scope: newScope }); }}
             channelMap={channelMap}
             roleMap={roleMap}
         >

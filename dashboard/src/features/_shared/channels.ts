@@ -1,12 +1,15 @@
 import "server-only";
+import { z } from "zod";
 import redis from "@/lib/redis";
 import { DiscordRole } from "@/features/welcome/components/WelcomeBody";
 import { revalidateTag } from "next/cache";
 import { DiscordChannel } from "@/features/_shared/channels.types";
 
+const resourceMapSchema = z.record(z.string(), z.string());
+
 export async function getGuildChannels(guild_id: string): Promise<DiscordChannel[]> {
     const token = process.env.DISCORD_TOKEN;
-    if (!token) {
+    if (token === undefined || token === "") {
         console.error("DISCORD_TOKEN is missing in environment variables.");
         return [];
     }
@@ -20,13 +23,14 @@ export async function getGuildChannels(guild_id: string): Promise<DiscordChannel
         });
 
         if (!response.ok) {
-            throw new Error(`Discord API responded with status ${response.status}`);
+            throw new Error(`Discord API responded with status ${String(response.status)}`);
         }
 
-        const channels: DiscordChannel[] = await response.json();
+        const rawData: unknown = await response.json();
+        const channels = z.array(z.custom<DiscordChannel>()).parse(rawData);
 
         return channels.filter(channel => channel.type === 0 || channel.type === 5);
-    } catch (error) {
+    } catch (error: unknown) {
         console.error(`Failed to fetch channels for guild ${guild_id}:`, error);
         return [];
     }
@@ -34,7 +38,7 @@ export async function getGuildChannels(guild_id: string): Promise<DiscordChannel
 
 export async function getGuildRoles(guild_id: string): Promise<DiscordRole[]> {
     const token = process.env.DISCORD_TOKEN;
-    if (!token) {
+    if (token === undefined || token === "") {
         console.error("DISCORD_TOKEN is missing in environment variables.");
         return [];
     }
@@ -48,14 +52,15 @@ export async function getGuildRoles(guild_id: string): Promise<DiscordRole[]> {
         });
 
         if (!response.ok) {
-            throw new Error(`Discord API responded with status ${response.status}`);
+            throw new Error(`Discord API responded with status ${String(response.status)}`);
         }
 
-        const roles: DiscordRole[] = await response.json();
+        const rawData: unknown = await response.json();
+        const roles = z.array(z.custom<DiscordRole>()).parse(rawData);
 
         // Exclude @everyone role (usually has the guild's ID) and managed integration roles (e.g., other bot roles)
         return roles.filter(role => !role.managed && role.id !== guild_id);
-    } catch (error) {
+    } catch (error: unknown) {
         console.error(`Failed to fetch roles for guild ${guild_id}:`, error);
         return [];
     }
@@ -77,13 +82,19 @@ async function getGuildResourceMap<T extends { id: string; name: string }>(
 
     try {
         const cached = await redis.get(cacheKey);
-        if (cached) return typeof cached === "string" ? JSON.parse(cached) : cached;
-    } catch (redisError) {
+        if (cached !== null && cached !== "") {
+            const rawCached: unknown = typeof cached === "string" ? JSON.parse(cached) : cached;
+            const parsedCached = resourceMapSchema.safeParse(rawCached);
+            if (parsedCached.success) {
+                return parsedCached.data;
+            }
+        }
+    } catch (redisError: unknown) {
         console.error(`Failed to read ${cacheSuffix} cache from Redis:`, redisError);
     }
 
     const token = process.env.DISCORD_TOKEN;
-    if (!token) return {};
+    if (token === undefined || token === "") return {};
 
     try {
         const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/${endpoint}`, {
@@ -94,11 +105,12 @@ async function getGuildResourceMap<T extends { id: string; name: string }>(
             }
         });
 
-        if (!res.ok) throw new Error(`Discord API returned status ${res.status}`);
+        if (!res.ok) throw new Error(`Discord API returned status ${String(res.status)}`);
 
-        const items: T[] = await res.json();
+        const rawItems: unknown = await res.json();
+        const items = z.array(z.custom<T>()).parse(rawItems);
         const itemMap = items.reduce<Record<string, string>>((acc, item) => {
-            if (!filter || filter(item)) {
+            if (filter === undefined || filter(item)) {
                 acc[item.id] = item.name;
             }
             return acc;
@@ -106,12 +118,12 @@ async function getGuildResourceMap<T extends { id: string; name: string }>(
 
         try {
             await redis.set(cacheKey, JSON.stringify(itemMap), "EX", 300);
-        } catch (redisError) {
+        } catch (redisError: unknown) {
             console.error(`Failed to write ${cacheSuffix} cache to Redis:`, redisError);
         }
 
         return itemMap;
-    } catch (err) {
+    } catch (err: unknown) {
         console.error(`Failed to fetch ${cacheSuffix} from Discord API:`, err);
         return {};
     }
@@ -156,7 +168,7 @@ export async function invalidateGuildChannelCache(guildId: string): Promise<void
             `guild:${guildId}:channels`
         ];
         await redis.del(keysToDelete);
-    } catch (redisError) {
+    } catch (redisError: unknown) {
         console.error(`Failed to invalidate Redis cache for guild ${guildId}:`, redisError);
     }
 

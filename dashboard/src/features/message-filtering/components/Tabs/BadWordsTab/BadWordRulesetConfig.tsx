@@ -68,7 +68,7 @@ export function BadWordRulesetConfig({
                     </InputLabel>
                     <TextInput
                         value={config.name}
-                        onChange={(e) => onChange({ name: e.target.value })}
+                        onChange={(e) =>{  onChange({ name: e.target.value }); }}
                         className="p-1.5 w-full"
                     />
                 </div>
@@ -83,7 +83,7 @@ export function BadWordRulesetConfig({
 
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={(checked) => onChange({ enabled: checked })}
+                onChange={(checked) =>{  onChange({ enabled: checked }); }}
                 disabled={false}
                 text="Enable Ruleset Filter"
                 className="mb-2"
@@ -99,7 +99,7 @@ export function BadWordRulesetConfig({
                         <form onSubmit={addPattern} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                             <TextInput
                                 value={wordInput}
-                                onChange={(e) => setWordInput(e.target.value)}
+                                onChange={(e) =>{  setWordInput(e.target.value); }}
                                 placeholder="Add a word or pattern..."
                                 className="flex-1"
                             />
@@ -111,7 +111,7 @@ export function BadWordRulesetConfig({
                                         { value: "REGEX", label: "Regex" },
                                     ]}
                                     value={strategyInput}
-                                    onChange={(strategy) => setStrategyInput(strategy ?? "EXACT")}
+                                    onChange={(strategy) =>{  setStrategyInput(strategy ?? "EXACT"); }}
                                     placeholder="Strategy"
                                 />
                             </div>
@@ -135,8 +135,8 @@ export function BadWordRulesetConfig({
                     <ActionsSettings
                         actions={config.actions}
                         timeoutDuration={config.timeoutDurationSeconds ?? undefined}
-                        onChange={(actions, timeout) =>
-                            onChange({ actions, timeoutDurationSeconds: timeout ?? null })
+                        onChange={(actions, timeout) =>{ 
+                            onChange({ actions, timeoutDurationSeconds: timeout ?? null }); }
                         }
                     />
 
@@ -144,7 +144,7 @@ export function BadWordRulesetConfig({
                         scope={config.scope}
                         channelMap={channelMap}
                         roleMap={roleMap}
-                        onChange={(newScope) => onChange({ scope: newScope })}
+                        onChange={(newScope) =>{  onChange({ scope: newScope }); }}
                     />
                 </div>
             )}

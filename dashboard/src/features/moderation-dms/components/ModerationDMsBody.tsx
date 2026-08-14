@@ -127,7 +127,7 @@ export function ModerationDMsBody({
 
             <MessageConfigEditor
                 config={config[activeKey].message}
-                onChange={(updated) =>
+                onChange={(updated) =>{ 
                     setConfig((prev) => ({
                         ...prev,
                         [activeKey]: {
@@ -136,13 +136,13 @@ export function ModerationDMsBody({
                             embed: updated.embed ?? {},
                             format: updated.format ?? "TEXT",
                         },
-                    }))
+                    })); }
                 }
-                onEmbedChange={(embed) =>
+                onEmbedChange={(embed) =>{ 
                     setConfig((prev) => ({
                         ...prev,
                         [activeKey]: { ...prev[activeKey], embed },
-                    }))
+                    })); }
                 }
                 disabled={isPending}
                 toggleLabel={`Apply Custom Direct Messages for ${activeTab.charAt(0).toUpperCase() + activeTab.replace(/_/g, " ").slice(1).toLowerCase()}s`}

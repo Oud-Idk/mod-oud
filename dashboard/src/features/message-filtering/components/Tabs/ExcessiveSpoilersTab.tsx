@@ -31,7 +31,7 @@ export function ExcessiveSpoilersTab({
         >
             <PercentSlider
                 value={filterConfig.threshold}
-                onChange={(v) => updateFilter({ threshold: v })}
+                onChange={(v) =>{  updateFilter({ threshold: v }); }}
                 label="Maximum Percenatage of Characters in Spoilers"
             />
         </FilterLayoutWrapper>

@@ -134,11 +134,11 @@ export function VerificationTab({
                     <div className="space-y-1 flex flex-col">
                         <ToggleSwitch
                             checked={config.verification.enabled}
-                            onChange={(enabled) =>
+                            onChange={(enabled) =>{ 
                                 setConfig((prev) => ({
                                     ...prev,
                                     verification: { ...prev.verification, enabled },
-                                }))
+                                })); }
                             }
                             text="Enable Verification for New Members"
                         />
@@ -146,11 +146,11 @@ export function VerificationTab({
                         {config.verification.enabled && (
                             <ToggleSwitch
                                 checked={config.verification.useOauth}
-                                onChange={(useOauth) =>
+                                onChange={(useOauth) =>{ 
                                     setConfig((prev) => ({
                                         ...prev,
                                         verification: { ...prev.verification, useOauth },
-                                    }))
+                                    })); }
                                 }
                                 text="Use OAuth to verify"
                             />
@@ -214,11 +214,11 @@ export function VerificationTab({
                                         <Dropdown
                                             options={roleOptions}
                                             value={config.verification.verificationRoleId}
-                                            onChange={(val) =>
+                                            onChange={(val) =>{ 
                                                 setConfig((prev) => ({
                                                     ...prev,
                                                     verification: { ...prev.verification, verificationRoleId: val },
-                                                }))
+                                                })); }
                                             }
                                             placeholder="Uncreated"
                                         />
@@ -229,11 +229,11 @@ export function VerificationTab({
                                         <Dropdown
                                             options={channelOptions}
                                             value={config.verification.verificationChannelId}
-                                            onChange={(val) =>
+                                            onChange={(val) =>{ 
                                                 setConfig((prev) => ({
                                                     ...prev,
                                                     verification: { ...prev.verification, verificationChannelId: val },
-                                                }))
+                                                })); }
                                             }
                                             placeholder="Uncreated"
                                         />
@@ -310,7 +310,7 @@ export function VerificationTab({
 
                     <MessageConfigEditor
                         config={config.verification.message}
-                        onChange={(changed) =>
+                        onChange={(changed) =>{ 
                             setConfig((prev) => ({
                                 ...prev,
                                 verification: {
@@ -320,7 +320,7 @@ export function VerificationTab({
                                     embed: changed.embed ?? prev.verification.message.embed,
                                     format: changed.format,
                                 },
-                            }))
+                            })); }
                         }
                         embedTemplateConfig={WELCOME_CONFIG}
                     />

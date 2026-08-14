@@ -24,12 +24,17 @@ vi.mock("@/lib/db", () => ({
 vi.stubGlobal("fetch", mockFetch);
 
 describe("Overview Query Module", () => {
+    // Keep a snapshot of original env to prevent test pollution
+    const originalEnv = process.env;
+
     beforeEach(() => {
         vi.resetAllMocks();
         vi.spyOn(console, "error").mockImplementation(() => undefined);
+        process.env = { ...originalEnv };
     });
 
     afterEach(() => {
+        process.env = originalEnv;
         vi.restoreAllMocks();
     });
 
@@ -91,6 +96,16 @@ describe("Overview Query Module", () => {
             });
         });
 
+        it("should return default stats if the row does not match schema", async () => {
+            mockQuery.mockResolvedValue({
+                rows: ["not an object"],
+            });
+
+            const result = await getGuildStats("guild_123");
+
+            expect(result).toEqual(defaults);
+        });
+
         it("should return default stats when the query throws", async () => {
             mockQuery.mockRejectedValue(new Error("db down"));
 
@@ -109,15 +124,21 @@ describe("Overview Query Module", () => {
         };
 
         it("should return null when no DISCORD_TOKEN is set", async () => {
-            const original = process.env.DISCORD_TOKEN;
             delete process.env.DISCORD_TOKEN;
 
             const result = await getGuildDetails("guild_123");
 
             expect(result).toBeNull();
             expect(mockFetch).not.toHaveBeenCalled();
+        });
 
-            process.env.DISCORD_TOKEN = original;
+        it("should return null when DISCORD_TOKEN is empty string", async () => {
+            process.env.DISCORD_TOKEN = "";
+
+            const result = await getGuildDetails("guild_123");
+
+            expect(result).toBeNull();
+            expect(mockFetch).not.toHaveBeenCalled();
         });
 
         it("should fetch and return guild details on success", async () => {
@@ -137,6 +158,20 @@ describe("Overview Query Module", () => {
                 }
             );
             expect(result).toEqual(details);
+        });
+
+        // 🟢 NEW: Tests Zod validation catching malformed Discord API payloads
+        it("should return null when the Discord payload fails schema validation", async () => {
+            process.env.DISCORD_TOKEN = "token_123";
+            mockFetch.mockResolvedValue({
+                ok: true,
+                // Missing required "name" or wrong type
+                json: () => Promise.resolve({ id: "guild_123" }),
+            });
+
+            const result = await getGuildDetails("guild_123");
+
+            expect(result).toBeNull();
         });
 
         it("should return null when the API responds with an error", async () => {
