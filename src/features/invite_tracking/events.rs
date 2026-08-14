@@ -1,7 +1,6 @@
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
-use crate::features;
 use crate::features::invite_tracking::cache::collect_pairs;
 use crate::features::invite_tracking::database::attribute_join;
 use crate::features::invite_tracking::keys;

@@ -54,7 +54,7 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
         let role_id = RoleId::from(role_id);
         if let Some(ref member) = message.member {
             member.roles.contains(&role_id)
-        } else if let Some(member) = ctx.cache.member(guild_id, message.author.id) {
+        } else if let Some(member) = ctx.cache.guild(guild_id).and_then(|g| g.members.get(&message.author.id).cloned()) {
             member.roles.contains(&role_id)
         } else {
             trace!("Cache miss for member roles; executing HTTP request to verify");

@@ -1,7 +1,6 @@
 use crate::core::config::state::{Context, Error};
 use crate::features::warning::types::WarningInfo;
 use crate::shared::pagination;
-use futures_util::StreamExt;
 use tracing::trace;
 
 fn make_page(warn: &WarningInfo) -> String {

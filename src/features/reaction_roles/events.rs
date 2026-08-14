@@ -1,22 +1,41 @@
 use super::database::{get_button_role, get_reaction_role};
 use crate::core::config::state::{BotData, Error};
-use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
-use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, Reaction};
+use serenity::all::{
+    ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
+    Reaction,
+};
 use tracing::{info, warn};
 
 /// Assigns the configured role when a user reacts to a reaction role message.
-pub async fn handle_reaction_role_add(ctx: &Context, reaction: &Reaction, data: &BotData) -> Result<(), Error> {
-    let Some(guild_id) = reaction.guild_id else { return Ok(()); };
-    let Some(user_id) = reaction.user_id else { return Ok(()); };
+pub async fn handle_reaction_role_add(
+    ctx: &Context,
+    reaction: &Reaction,
+    data: &BotData,
+) -> Result<(), Error> {
+    let Some(guild_id) = reaction.guild_id else {
+        return Ok(());
+    };
+    let Some(user_id) = reaction.user_id else {
+        return Ok(());
+    };
     if user_id == ctx.cache.current_user().id {
         return Ok(());
     }
 
     let emoji_str = reaction.emoji.to_string();
-    if let Some(role_id) = get_reaction_role(data, reaction.message_id.get() as i64, &emoji_str).await? {
-        if let Err(err) = ctx.http.add_member_role(guild_id, user_id, role_id, Some("Reaction Role Add")).await {
-            warn!("Failed to add role {} to user {}: {}", role_id, user_id, err);
+    if let Some(role_id) =
+        get_reaction_role(data, reaction.message_id.get() as i64, &emoji_str).await?
+    {
+        if let Err(err) = ctx
+            .http
+            .add_member_role(guild_id, user_id, role_id, Some("Reaction Role Add"))
+            .await
+        {
+            warn!(
+                "Failed to add role {} to user {}: {}",
+                role_id, user_id, err
+            );
         } else {
             info!("Assigned role {} to user {}", role_id, user_id);
         }
@@ -25,17 +44,34 @@ pub async fn handle_reaction_role_add(ctx: &Context, reaction: &Reaction, data: 
 }
 
 /// Removes the configured role when a user removes their reaction from a reaction role message.
-pub async fn handle_reaction_role_remove(ctx: &Context, reaction: &Reaction, data: &BotData) -> Result<(), Error> {
-    let Some(guild_id) = reaction.guild_id else { return Ok(()); };
-    let Some(user_id) = reaction.user_id else { return Ok(()); };
+pub async fn handle_reaction_role_remove(
+    ctx: &Context,
+    reaction: &Reaction,
+    data: &BotData,
+) -> Result<(), Error> {
+    let Some(guild_id) = reaction.guild_id else {
+        return Ok(());
+    };
+    let Some(user_id) = reaction.user_id else {
+        return Ok(());
+    };
     if user_id == ctx.cache.current_user().id {
         return Ok(());
     }
 
     let emoji_str = reaction.emoji.to_string();
-    if let Some(role_id) = get_reaction_role(data, reaction.message_id.get() as i64, &emoji_str).await? {
-        if let Err(err) = ctx.http.remove_member_role(guild_id, user_id, role_id, Some("Reaction Role Remove")).await {
-            warn!("Failed to remove role {} from user {}: {}", role_id, user_id, err);
+    if let Some(role_id) =
+        get_reaction_role(data, reaction.message_id.get() as i64, &emoji_str).await?
+    {
+        if let Err(err) = ctx
+            .http
+            .remove_member_role(guild_id, user_id, role_id, Some("Reaction Role Remove"))
+            .await
+        {
+            warn!(
+                "Failed to remove role {} from user {}: {}",
+                role_id, user_id, err
+            );
         } else {
             info!("Removed role {} from user {}", role_id, user_id);
         }
@@ -80,7 +116,10 @@ pub async fn handle_button_interaction(
                 format!("Removed the <@&{role_id}> role from you.")
             }
             Err(err) => {
-                warn!("Failed to remove button role {} from user {}: {}", role_id, user_id, err);
+                warn!(
+                    "Failed to remove button role {} from user {}: {}",
+                    role_id, user_id, err
+                );
                 "Failed to remove role. Please check my bot role permissions.".to_string()
             }
         }
@@ -95,7 +134,10 @@ pub async fn handle_button_interaction(
                 format!("Gave you the <@&{role_id}> role!")
             }
             Err(err) => {
-                warn!("Failed to add button role {} to user {}: {}", role_id, user_id, err);
+                warn!(
+                    "Failed to add button role {} to user {}: {}",
+                    role_id, user_id, err
+                );
                 "Failed to add role. Please check my bot role permissions.".to_string()
             }
         }

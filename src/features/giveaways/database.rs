@@ -25,16 +25,22 @@ pub async fn fetch_giveaway(
         config_id,
         guild_id.cast_signed(),
     )
-        .fetch_optional(pool)
-        .await
-        .inspect_err(|e| warn!(error = ?e, "Failed to load giveaway database record"))
-        .map_err(|_| {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string(),)
-        })?
-        .ok_or_else(|| {
-            warn!(id = config_id, "Giveaway configuration not found.");
-            (StatusCode::NOT_FOUND, "Giveaway configuration not found".to_string(),)
-        })
+    .fetch_optional(pool)
+    .await
+    .inspect_err(|e| warn!(error = ?e, "Failed to load giveaway database record"))
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error".to_string(),
+        )
+    })?
+    .ok_or_else(|| {
+        warn!(id = config_id, "Giveaway configuration not found.");
+        (
+            StatusCode::NOT_FOUND,
+            "Giveaway configuration not found".to_string(),
+        )
+    })
 }
 
 /// Updates the Discord message ID associated with a giveaway after dispatching
@@ -48,8 +54,8 @@ pub async fn update_giveaway_message_id(
         message_id,
         config_id
     )
-        .execute(pool)
-        .await
+    .execute(pool)
+    .await
 }
 
 /// Clears the message ID when deleting or unlinking a giveaway message from Discord
@@ -61,10 +67,15 @@ pub async fn clear_giveaway_message_id(
         "UPDATE giveaways SET message_id = NULL WHERE id = $1",
         config_id
     )
-        .execute(pool)
-        .await
-        .inspect_err(|e| warn!(error = ?e, "Failed to clear giveaway message ID in database"))
-        .map_err(|_| { (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string(),) })?;
+    .execute(pool)
+    .await
+    .inspect_err(|e| warn!(error = ?e, "Failed to clear giveaway message ID in database"))
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error".to_string(),
+        )
+    })?;
     Ok(())
 }
 
@@ -80,8 +91,8 @@ pub async fn fetch_expired_giveaways(pool: &PgPool) -> Result<Vec<Giveaway>, sql
         WHERE end_time <= NOW() AND is_finished = FALSE AND message_id IS NOT NULL
         "#
     )
-        .fetch_all(pool)
-        .await
+    .fetch_all(pool)
+    .await
 }
 
 /// Marks a giveaway as finished in the DB after picking winners
@@ -90,12 +101,13 @@ pub async fn mark_giveaway_finished(pool: &PgPool, giveaway_id: i64) -> Result<(
         "UPDATE giveaways SET is_finished = TRUE WHERE id = $1",
         giveaway_id
     )
-        .execute(pool)
-        .await?;
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
 /// Inserts a new giveaway record into the database with default `message_layout` JSONB
+#[allow(dead_code)] // For reasons I don't understand, Rust considers this function dead code
 pub async fn create_giveaway(
     pool: &PgPool,
     guild_id: u64,

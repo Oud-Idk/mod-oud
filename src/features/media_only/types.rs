@@ -50,8 +50,4 @@ impl MediaOnlyChannel {
             .map(|roles| roles.iter().map(|&id| id as u64).map(RoleId::new).collect())
             .unwrap_or_default()
     }
-
-    pub const fn channel_id(&self) -> u64 {
-        self.channel_id as u64
-    }
 }

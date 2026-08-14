@@ -2,11 +2,7 @@
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::{ActionType, lockdown, log_moderation_action};
 use crate::shared::command_context::GuildMetadata;
-use fred::prelude::*;
-use serenity::all::{
-    GuildChannel, GuildId,
-    RoleId,
-};
+use serenity::all::{GuildChannel, GuildId, RoleId};
 use tracing::{info, trace};
 
 /// Lock down a text channel, preventing members from sending messages.
@@ -27,7 +23,8 @@ pub async fn lock(
     let everyone_role_id = RoleId::new(meta.id.get());
 
     // Snapshot current state before mutating it, so unlock can restore precisely.
-    lockdown::save_pre_lockdown_state(meta.id, &target_channel, everyone_role_id, ctx.data()).await?;
+    lockdown::save_pre_lockdown_state(meta.id, &target_channel, everyone_role_id, ctx.data())
+        .await?;
 
     let overwrite = lockdown::calculate_lockdown_overwrite(&target_channel, everyone_role_id);
     target_channel
@@ -41,7 +38,7 @@ pub async fn lock(
         "🔒 <#{}> has been locked down. \n**Reason:** {}",
         target_channel.id, reason_str
     ))
-        .await?;
+    .await?;
 
     log_action(
         &ctx,
@@ -50,9 +47,12 @@ pub async fn lock(
         ActionType::Lock,
         Some(reason_str),
     )
-        .await?;
+    .await?;
 
-    info!(caller_id, target_channel_id, "Channel locked down successfully");
+    info!(
+        caller_id,
+        target_channel_id, "Channel locked down successfully"
+    );
     Ok(())
 }
 
@@ -72,21 +72,24 @@ pub async fn unlock(
     let target_channel_id = target_channel.id.get();
     let everyone_role_id = RoleId::new(meta.id.get());
 
-    lockdown::restore_pre_lockdown_state(ctx.serenity_context(), ctx.data(), meta.id, target_channel.id, everyone_role_id).await?;
+    lockdown::restore_pre_lockdown_state(
+        ctx.serenity_context(),
+        ctx.data(),
+        meta.id,
+        target_channel.id,
+        everyone_role_id,
+    )
+    .await?;
 
     ctx.say(format!("🔓 <#{}> has been unlocked.", target_channel.id))
         .await?;
 
-    log_action(
-        &ctx,
-        meta.id,
-        target_channel_id,
-        ActionType::Unlock,
-        None,
-    )
-        .await?;
+    log_action(&ctx, meta.id, target_channel_id, ActionType::Unlock, None).await?;
 
-    info!(caller_id, target_channel_id, "Channel unlocked successfully");
+    info!(
+        caller_id,
+        target_channel_id, "Channel unlocked successfully"
+    );
     Ok(())
 }
 
@@ -114,7 +117,7 @@ pub async fn global_lock(
             "🛑 **Global lockdown complete.** Locked {} text channels. \n**Reason:** {}",
             report.succeeded, reason_str
         ))
-            .await?;
+        .await?;
 
         let detailed_reason = format!(
             "{} (Channels affected: {}, failed: {})",
@@ -129,7 +132,7 @@ pub async fn global_lock(
             ActionType::GlobalLock,
             Some(&detailed_reason),
         )
-            .await?;
+        .await?;
 
         info!(
             caller_id,
@@ -164,7 +167,7 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
             "🔓 **Global unlock complete.** Unlocked {} text channels.",
             report.succeeded
         ))
-            .await?;
+        .await?;
 
         let detailed_reason = format!(
             "Channels affected: {}, failed: {}",
@@ -178,15 +181,15 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
             ActionType::GlobalUnlock,
             Some(&detailed_reason),
         )
-            .await?;
+        .await?;
 
         info!(
-        caller_id,
-        guild_id,
-        unlocked_count = report.succeeded,
-        failed_count = report.failed_channel_ids.len(),
-        "Global unlock completed successfully"
-    );
+            caller_id,
+            guild_id,
+            unlocked_count = report.succeeded,
+            failed_count = report.failed_channel_ids.len(),
+            "Global unlock completed successfully"
+        );
     } else {
         ctx.say("Global unlock is already in progress. Please wait a moment and try again.")
             .await?;
@@ -209,7 +212,14 @@ pub async fn log_action(
         "Dispatching moderation log to database and Discord integration"
     );
     log_moderation_action(
-        &ctx.data().core.db, guild_id, None, ctx.author(), reason, action, None,
-    ).await?;
+        &ctx.data().core.db,
+        guild_id,
+        None,
+        ctx.author(),
+        reason,
+        action,
+        None,
+    )
+    .await?;
     Ok(())
 }

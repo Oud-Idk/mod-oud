@@ -1,9 +1,9 @@
 use super::super::{cache, calculation, database, notifications, rewards, rules};
 use crate::core::config::state::BotData;
+use crate::features::leveling;
 use crate::features::leveling::keys::member_stats_key;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
-use crate::features::leveling;
 use anyhow::Result;
 use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
@@ -22,9 +22,10 @@ pub async fn handle_voice_leveling(
     };
 
     if let Some(member) = &new.member
-        && member.user.bot {
-            return Ok(());
-        }
+        && member.user.bot
+    {
+        return Ok(());
+    }
 
     let user_id = new.user_id;
 
@@ -50,51 +51,61 @@ pub async fn handle_voice_leveling(
         return Ok(());
     }
 
-    if old_eligible
-        && let Some(old_ch) = old_channel {
-            debug!(guild_id = guild_id.get(), user_id = user_id.get(), "Closing voice session");
+    if old_eligible && let Some(old_ch) = old_channel {
+        debug!(
+            guild_id = guild_id.get(),
+            user_id = user_id.get(),
+            "Closing voice session"
+        );
 
-            if let Some(session) = cache::consume_session(redis, &session_key, now).await? {
-                let eligible_secs = session.accumulated_secs;
+        if let Some(session) = cache::consume_session(redis, &session_key, now).await? {
+            let eligible_secs = session.accumulated_secs;
 
-                if eligible_secs >= 10 {
-                    let synthetic_join_time = now - eligible_secs;
-                    award_vc_xp_for_session(
-                        ctx,
-                        guild_id,
-                        user_id,
-                        member,
-                        ChannelId::new(session.channel_id),
-                        synthetic_join_time,
-                        now,
-                        data,
-                        &leveling_config,
-                    )
-                        .await?;
-                } else {
-                    debug!(guild_id = guild_id.get(), user_id = user_id.get(), "Discarded brief voice session (<10s)");
-                }
-            }
-
-            let remaining = cache::remove_occupant(redis, guild_id, old_ch, user_id).await?;
-            if remaining < 2 {
-                cache::pause_channel_clocks(redis, guild_id, old_ch, now).await?;
+            if eligible_secs >= 10 {
+                let synthetic_join_time = now - eligible_secs;
+                award_vc_xp_for_session(
+                    ctx,
+                    guild_id,
+                    user_id,
+                    member,
+                    ChannelId::new(session.channel_id),
+                    synthetic_join_time,
+                    now,
+                    data,
+                    &leveling_config,
+                )
+                .await?;
+            } else {
+                debug!(
+                    guild_id = guild_id.get(),
+                    user_id = user_id.get(),
+                    "Discarded brief voice session (<10s)"
+                );
             }
         }
+
+        let remaining = cache::remove_occupant(redis, guild_id, old_ch, user_id).await?;
+        if remaining < 2 {
+            cache::pause_channel_clocks(redis, guild_id, old_ch, now).await?;
+        }
+    }
 
     // MEMBER JOINED VC AND IS ELIGIBLE
-    if new_eligible
-        && let Some(new_ch) = new_channel {
-            let (count_after, was_new) = cache::add_occupant(redis, guild_id, new_ch, user_id).await?;
-            let count_before = if was_new { count_after - 1 } else { count_after };
-            let start_clock = count_after >= 2;
+    if new_eligible && let Some(new_ch) = new_channel {
+        let (count_after, was_new) = cache::add_occupant(redis, guild_id, new_ch, user_id).await?;
+        let count_before = if was_new {
+            count_after - 1
+        } else {
+            count_after
+        };
+        let start_clock = count_after >= 2;
 
-            cache::open_session(redis, guild_id, user_id, new_ch.get(), now, start_clock).await?;
+        cache::open_session(redis, guild_id, user_id, new_ch.get(), now, start_clock).await?;
 
-            if count_before < 2 && count_after >= 2 {
-                cache::resume_channel_clocks(redis, guild_id, new_ch, now).await?;
-            }
+        if count_before < 2 && count_after >= 2 {
+            cache::resume_channel_clocks(redis, guild_id, new_ch, now).await?;
         }
+    }
 
     Ok(())
 }
@@ -123,16 +134,28 @@ async fn award_vc_xp_for_session(
     let user_roles: Vec<u64> = member.roles.iter().map(|r| r.get()).collect();
 
     if rules::should_exclude_from_level_up(leveling_config, &user_roles, channel_id.get()) {
-        trace!(guild_id = guild_id.get(), "Skipping voice XP: channel/user is excluded");
+        trace!(
+            guild_id = guild_id.get(),
+            "Skipping voice XP: channel/user is excluded"
+        );
         return Ok(());
     }
 
     let stats_key = member_stats_key(&guild_id, user_id);
     let multiplier_key = leveling::keys::multiplier_key(&guild_id);
-    let multiplier = rules::get_voice_multiplier(redis, &multiplier_key, db, &guild_id, channel_id, &member.roles).await?;
+    let multiplier = rules::get_voice_multiplier(
+        redis,
+        &multiplier_key,
+        db,
+        &guild_id,
+        channel_id,
+        &member.roles,
+    )
+    .await?;
 
     let elapsed_minutes = elapsed_seconds / 60;
-    let total_added_xp = calculation::calculate_session_xp(elapsed_minutes, leveling_config, multiplier);
+    let total_added_xp =
+        calculation::calculate_session_xp(elapsed_minutes, leveling_config, multiplier);
 
     let Some((mut user_level, previous_level)) = apply_xp_and_process_levels(
         data,
@@ -143,7 +166,8 @@ async fn award_vc_xp_for_session(
         leveling_config,
         total_added_xp,
     )
-        .await? else {
+    .await?
+    else {
         return Ok(());
     };
 
@@ -160,7 +184,7 @@ async fn award_vc_xp_for_session(
             channel_id,
             previous_level,
         )
-            .await?;
+        .await?;
     }
 
     persist_user_level(data, &stats_key, &mut user_level).await?;
@@ -180,7 +204,11 @@ async fn resolve_member(
     if let Some(member) = member_opt {
         return Ok(member.clone());
     }
-    if let Some(cached) = ctx.cache.member(guild_id, user_id).map(|m| m.clone()) {
+    if let Some(cached) = ctx
+        .cache
+        .guild(guild_id)
+        .and_then(|g| g.members.get(&user_id).cloned())
+    {
         return Ok(cached);
     }
     Ok(guild_id.member(&ctx.http, user_id).await?)
@@ -209,10 +237,17 @@ async fn apply_xp_and_process_levels(
     let redis = &data.core.redis;
 
     let mut user_level =
-        database::get_user_level(redis, &data.core.db, guild_id, user_id, stats_key, username).await?;
+        database::get_user_level(redis, &data.core.db, guild_id, user_id, stats_key, username)
+            .await?;
 
-    let should_be_clamped =
-        calculation::clamp_to_level_cap(leveling_config, redis, &data.core.db, stats_key, &mut user_level).await?;
+    let should_be_clamped = calculation::clamp_to_level_cap(
+        leveling_config,
+        redis,
+        &data.core.db,
+        stats_key,
+        &mut user_level,
+    )
+    .await?;
     if should_be_clamped {
         return Ok(None);
     }
@@ -222,7 +257,8 @@ async fn apply_xp_and_process_levels(
 
     calculation::process_level_ups(&mut user_level, leveling_config.level_cap as i32);
 
-    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
+    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32
+    {
         user_level.current_level = leveling_config.level_cap as i32;
         user_level.current_xp = 0;
     }
@@ -253,9 +289,16 @@ async fn handle_level_up(
             channel_id,
             previous_level,
         )
-            .await?;
+        .await?;
     }
 
-    let _ = rewards::apply_level_rewards(ctx, &data.core.db, guild_id, user.id, user_level.current_level).await;
+    let _ = rewards::apply_level_rewards(
+        ctx,
+        &data.core.db,
+        guild_id,
+        user.id,
+        user_level.current_level,
+    )
+    .await;
     Ok(())
 }

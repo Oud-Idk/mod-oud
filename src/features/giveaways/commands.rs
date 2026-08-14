@@ -29,20 +29,29 @@ pub async fn create(
     ctx.defer_ephemeral().await?;
 
     // Parse duration (using humantime crate)
-    let parsed_duration = if let Ok(d) = humantime::parse_duration(&duration) { d } else {
-        send_ephemeral(&ctx, "Invalid duration format! Example formats: `30m`, `2h`, `1d`").await?;
+    let parsed_duration = if let Ok(d) = humantime::parse_duration(&duration) {
+        d
+    } else {
+        send_ephemeral(
+            &ctx,
+            "Invalid duration format! Example formats: `30m`, `2h`, `1d`",
+        )
+        .await?;
         return Ok(());
     };
 
     let winner_count = winners.unwrap_or(1).max(1);
     let target_channel = channel.unwrap_or(ctx.channel_id());
-    let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?.get();
+    let guild_id = ctx
+        .guild_id()
+        .with_context(|| "Must be run in a server")?
+        .get();
     let host_id = ctx.author().id.get() as i64;
 
     let end_time = Utc::now() + chrono::Duration::from_std(parsed_duration)?;
     let timestamp = end_time.timestamp();
 
-    // 1. Insert into DB
+    // Insert into DB
     let giveaway_id = create_giveaway(
         &ctx.data().core.db,
         guild_id,
@@ -52,7 +61,7 @@ pub async fn create(
         winner_count,
         end_time,
     )
-        .await?;
+    .await?;
 
     let embed = CreateEmbed::new()
         .title(format!("🎉 GIVEAWAY: {prize}"))
@@ -62,13 +71,24 @@ pub async fn create(
         .color(0x5865F2);
 
     let msg = target_channel
-        .send_message(&ctx.serenity_context().http, CreateMessage::new().embed(embed))
+        .send_message(
+            &ctx.serenity_context().http,
+            CreateMessage::new().embed(embed),
+        )
         .await?;
 
-    msg.react(&ctx.serenity_context().http, ReactionType::Unicode("🎉".to_string())).await?;
+    msg.react(
+        &ctx.serenity_context().http,
+        ReactionType::Unicode("🎉".to_string()),
+    )
+    .await?;
 
     update_giveaway_message_id(&ctx.data().core.db, giveaway_id, msg.id.get() as i64).await?;
-    send_ephemeral(&ctx, format!("Giveaway **#{giveaway_id}** created in <#{target_channel}>!")).await?;
+    send_ephemeral(
+        &ctx,
+        format!("Giveaway **#{giveaway_id}** created in <#{target_channel}>!"),
+    )
+    .await?;
 
     Ok(())
 }
@@ -87,14 +107,16 @@ pub async fn reroll(
     let users = ctx
         .serenity_context()
         .http
-        .get_reaction_users(channel_id, serenity::all::MessageId::new(message_id as u64), &reaction, 100, None)
+        .get_reaction_users(
+            channel_id,
+            serenity::all::MessageId::new(message_id as u64),
+            &reaction,
+            100,
+            None,
+        )
         .await?;
 
-    let eligible_users: Vec<_> = users
-        .into_iter()
-        .filter(|u| !u.bot)
-        .map(|u| u.id)
-        .collect();
+    let eligible_users: Vec<_> = users.into_iter().filter(|u| !u.bot).map(|u| u.id).collect();
 
     if eligible_users.is_empty() {
         send_ephemeral(&ctx, "No eligible entries found for reroll.").await?;

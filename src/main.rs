@@ -1,9 +1,13 @@
+//! Mod Oud bot binary: builds the config, starts the poise framework, and
+//! launches the bot along with the web dashboard server.
+
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
 use fred::rustls;
 use mod_oud::core::config;
 use mod_oud::core::config::state::{BotData, Error};
 use mod_oud::core::error::on_error;
+use mod_oud::core::setup::SetupParams;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::events;
 use mod_oud::features::live_feed::LogEvent;

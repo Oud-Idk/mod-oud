@@ -4,8 +4,6 @@ use tracing::{info, trace, warn};
 #[derive(Debug, Clone)]
 pub struct CounterResult {
     pub channel_id: u64,
-    pub counter_type: CounterType,
-    pub count: u64,
     pub new_name: String,
     pub name_changed: bool,
 }
@@ -125,8 +123,6 @@ pub async fn update_guild_counters(
         // Add this channel's update report to our list!
         counter_results.push(CounterResult {
             channel_id: channel_id_u64,
-            counter_type: counter.counter_type.clone(), // Assuming CounterType implements Clone!
-            count,
             new_name: target_name,
             name_changed,
         });

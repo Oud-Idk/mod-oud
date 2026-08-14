@@ -76,7 +76,7 @@ pub async fn fetch_reaction_message(
     sqlx::query_as!(
         ReactionMessage,
         r#"
-        SELECT id, message_id, name, channel_id, guild_id, mode as "mode: InteractionMode", message as "message: Json<MessageLayout>"
+        SELECT id, message_id, channel_id, mode as "mode: InteractionMode", message as "message: Json<MessageLayout>"
         FROM reaction_messages
         WHERE id = $1 AND guild_id = $2
         "#,
@@ -103,7 +103,7 @@ pub async fn fetch_active_reactions(
     sqlx::query_as!(
         ReactionRole,
         r#"
-        SELECT id, reaction_message_id, emoji, role_id
+        SELECT emoji
         FROM reaction_roles
         WHERE reaction_message_id = $1
         "#,
@@ -118,7 +118,7 @@ pub async fn fetch_buttons(pool: &PgPool, reaction_message_id: i64) -> Result<Ve
     sqlx::query_as!(
         ButtonRole,
         r#"
-        SELECT id, reaction_message_id, role_id, custom_id, label, style as "style: ButtonStyle", emoji
+        SELECT custom_id, label, style as "style: ButtonStyle", emoji
         FROM button_roles
         WHERE reaction_message_id = $1
         "#,

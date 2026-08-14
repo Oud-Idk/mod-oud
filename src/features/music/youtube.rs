@@ -19,8 +19,6 @@ struct PlaylistItem {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PlaylistItemSnippet {
-    title: Option<String>,
-    video_owner_channel_title: Option<String>,
     resource_id: Option<ResourceId>,
 }
 
@@ -44,10 +42,7 @@ struct VideoItem {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct VideoSnippet {
-    title: Option<String>,
-    channel_title: Option<String>,
-}
+struct VideoSnippet {}
 
 /// Helper to extract `YouTube` Playlist ID from a URL or raw ID string.
 fn extract_playlist_id(url: &str) -> Option<&str> {
