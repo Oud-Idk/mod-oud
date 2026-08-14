@@ -3,7 +3,10 @@ use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::features::moderation::ActionType;
 use crate::features::moderation::database::log_moderation_action;
-use crate::features::moderation::placeholders::{replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder, replace_mute_placeholder, replace_reason_placeholders};
+use crate::features::moderation::placeholders::{
+    replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder,
+    replace_mute_placeholder, replace_reason_placeholders,
+};
 use crate::features::moderation::types::MODERATION_FOOTER;
 use crate::shared::embed::build_custom_message;
 use crate::{fetch_mod_ctx, send_mod_dm};
@@ -12,11 +15,15 @@ use chrono::TimeDelta;
 use duration_str::HumanFormat;
 use fred::clients::Client;
 use humantime::format_duration;
-use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http, Timestamp, User};
+use serenity::all::{
+    ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http,
+    Timestamp, User,
+};
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info, instrument, warn};
+use crate::constants::BRAND_COLOR;
 
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
@@ -32,7 +39,8 @@ pub async fn issue_kick(
     reason: &str,
 ) -> Result<()> {
     debug!("Retrieving moderation context for kick");
-    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
+    let (gctx, member, settings) =
+        fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let kick_dm_settings_opt = settings.moderation_dms.and_then(|m| m.kick);
     let mut invite_url = None;
@@ -40,8 +48,18 @@ pub async fn issue_kick(
     if let Some(kick_dm_settings) = &kick_dm_settings_opt {
         // Adjusted to traverse through `message` block and handle non-optional embed struct
         let contains_invite = kick_dm_settings.message.content.contains("invite.url")
-            || kick_dm_settings.message.embed.description.as_ref().is_some_and(|d| d.contains("invite.url"))
-            || kick_dm_settings.message.embed.title.as_ref().is_some_and(|t| t.contains("invite.url"));
+            || kick_dm_settings
+            .message
+            .embed
+            .description
+            .as_ref()
+            .is_some_and(|d| d.contains("invite.url"))
+            || kick_dm_settings
+            .message
+            .embed
+            .title
+            .as_ref()
+            .is_some_and(|t| t.contains("invite.url"));
 
         if contains_invite {
             debug!("Generating transient invite URL for kick DM fallback");
@@ -77,7 +95,7 @@ pub async fn issue_kick(
         {
             let mut embed = CreateEmbed::new()
                 .title(format!("You have been kicked from {}", gctx.name))
-                .color(0xff8a42)
+                .color(BRAND_COLOR)
                 .field("Reason", reason, false)
                 .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
 
@@ -90,8 +108,15 @@ pub async fn issue_kick(
     );
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, Some(reason), ActionType::Kick, None
-    ).await?;
+        db,
+        guild_id,
+        Some(&user),
+        &moderator,
+        Some(reason),
+        ActionType::Kick,
+        None,
+    )
+        .await?;
 
     debug!("Executing kick via Discord HTTP API");
     guild_id.kick_with_reason(http, user.id, reason).await?;
@@ -117,9 +142,11 @@ pub async fn issue_ban(
     _duration_label: &str,
 ) -> Result<()> {
     debug!("Retrieving moderation context for ban");
-    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
+    let (gctx, member, settings) =
+        fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
-    let duration_label = duration.map_or("Permanent".to_string(), |d| format_duration(d).to_string());
+    let duration_label =
+        duration.map_or("Permanent".to_string(), |d| format_duration(d).to_string());
 
     send_mod_dm!(
         http,
@@ -130,7 +157,7 @@ pub async fn issue_ban(
         {
             let mut embed = CreateEmbed::new()
                 .title(format!("You have been banned from {}", gctx.name))
-                .color(0xFF4747)
+                .color(BRAND_COLOR)
                 .field("Reason", reason, false)
                 .field("Duration", duration_label, false)
                 .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
@@ -144,7 +171,9 @@ pub async fn issue_ban(
     );
 
     debug!("Executing ban via Discord HTTP API");
-    guild_id.ban_with_reason(http, user.id, dmd_time, reason).await?;
+    guild_id
+        .ban_with_reason(http, user.id, dmd_time, reason)
+        .await?;
 
     let mut dur: Option<TimeDelta> = None;
 
@@ -155,25 +184,36 @@ pub async fn issue_ban(
     }
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, Some(reason), ActionType::Ban, dur
-    ).await?;
-
+        db,
+        guild_id,
+        Some(&user),
+        &moderator,
+        Some(reason),
+        ActionType::Ban,
+        dur,
+    )
+        .await?;
 
     info!("Successfully banned user from guild");
     Ok(())
 }
 
 /// Schedules an automatic unban for the given user after `dur` has elapsed.
-pub async fn schedule_unban(db: &PgPool, guild_id: GuildId, user: &User, dur: Duration) -> Result<TimeDelta> {
+pub async fn schedule_unban(
+    db: &PgPool,
+    guild_id: GuildId,
+    user: &User,
+    dur: Duration,
+) -> Result<TimeDelta> {
     let chrono_dur = chrono::Duration::from_std(dur)?;
     let unban_at = chrono::Utc::now() + chrono_dur;
 
     sqlx::query!(
-            "INSERT INTO temp_bans (guild_id, user_id, unban_at) VALUES ($1, $2, $3)",
-            guild_id.get().cast_signed(),
-            user.id.get() as i64,
-            unban_at
-        )
+        "INSERT INTO temp_bans (guild_id, user_id, unban_at) VALUES ($1, $2, $3)",
+        guild_id.get().cast_signed(),
+        user.id.get() as i64,
+        unban_at
+    )
         .execute(db)
         .await?;
     Ok(chrono_dur)
@@ -195,7 +235,8 @@ pub async fn issue_mute(
     timestamp: Timestamp,
 ) -> Result<()> {
     debug!("Retrieving moderation context for timeout");
-    let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
+    let (gctx, mut member, settings) =
+        fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let mute_dm_settings_opt = settings.moderation_dms.and_then(|m| m.mute);
 
@@ -208,7 +249,7 @@ pub async fn issue_mute(
         {
             let mut embed = CreateEmbed::new()
                 .title(format!("You have been muted from {}", gctx.name))
-                .color(0xFFC54F)
+                .color(BRAND_COLOR)
                 .field("Reason", reason, false)
                 .field("Duration", duration.human_format(), false)
                 .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
@@ -222,13 +263,22 @@ pub async fn issue_mute(
     );
 
     debug!(until = %timestamp, "Applying timeout via Discord HTTP API");
-    member.disable_communication_until_datetime(http, timestamp).await?;
+    member
+        .disable_communication_until_datetime(http, timestamp)
+        .await?;
 
     let timedelta = TimeDelta::from_std(*duration)?;
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, Some(reason), ActionType::Mute, Some(timedelta),
-    ).await?;
+        db,
+        guild_id,
+        Some(&user),
+        &moderator,
+        Some(reason),
+        ActionType::Mute,
+        Some(timedelta),
+    )
+        .await?;
 
     info!("Successfully muted user in guild");
     Ok(())
@@ -246,7 +296,8 @@ pub async fn issue_unmute(
     moderator: User,
 ) -> Result<()> {
     debug!("Retrieving moderation context for unmute");
-    let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
+    let (gctx, mut member, settings) =
+        fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let unmute_dm_settings_opt = settings.moderation_dms.and_then(|m| m.unmute);
 
@@ -258,7 +309,7 @@ pub async fn issue_unmute(
         |text| replace_basic_placeholder(text, &gctx, &member, &moderator),
         CreateEmbed::new()
             .title(format!("You have been unmuted from {}!", gctx.name))
-            .color(0xFFC54F)
+            .color(BRAND_COLOR)
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
@@ -266,8 +317,15 @@ pub async fn issue_unmute(
     member.enable_communication(http).await?;
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, None, ActionType::Unmute, None,
-    ).await?;
+        db,
+        guild_id,
+        Some(&user),
+        &moderator,
+        None,
+        ActionType::Unmute,
+        None,
+    )
+        .await?;
 
     info!("Successfully unmuted user in guild");
     Ok(())
@@ -288,7 +346,8 @@ pub async fn issue_softban(
     dmd: u8,
 ) -> Result<()> {
     debug!("Retrieving moderation context for softban");
-    let (gctx, member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
+    let (gctx, member, settings) =
+        fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
     let softban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.softban);
 
@@ -301,12 +360,12 @@ pub async fn issue_softban(
         {
             let mut embed = CreateEmbed::new()
                 .title(format!("You have been soft-banned from {}", gctx.name))
-                .color(0xFF4747)
+                .color(BRAND_COLOR)
                 .field("Reason", reason, false)
                 .field(
                     "Notice",
                     "You have been banned and immediately unbanned to purge your messages.",
-                    false
+                    false,
                 )
                 .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
 
@@ -325,8 +384,15 @@ pub async fn issue_softban(
     guild_id.unban(http, user.id).await?;
 
     log_moderation_action(
-        db, guild_id, Some(&user), &moderator, Some(reason), ActionType::Softban, None,
-    ).await?;
+        db,
+        guild_id,
+        Some(&user),
+        &moderator,
+        Some(reason),
+        ActionType::Softban,
+        None,
+    )
+        .await?;
 
     info!("Successfully soft-banned user from guild");
     Ok(())

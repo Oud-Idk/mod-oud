@@ -18,6 +18,7 @@ use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{Options, Tree};
 use std::io::Cursor;
 use unit_prefix::NumberPrefix;
+use crate::constants::BRAND_COLOR;
 
 static RESVG_OPTIONS: OnceLock<Options<'static>> = OnceLock::new();
 
@@ -39,7 +40,9 @@ pub async fn view(
     ctx: Context<'_>,
     #[description = "The user whose level you want to view"] user: Option<User>,
 ) -> Result<()> {
-    let guild_id = ctx.guild_id().with_context(|| "This command can only be used inside a server.")?;
+    let guild_id = ctx
+        .guild_id()
+        .with_context(|| "This command can only be used inside a server.")?;
     let target_user = user.as_ref().unwrap_or(ctx.author());
 
     let caller_id = ctx.author().id.get();
@@ -61,7 +64,7 @@ pub async fn view(
     let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
-        return Ok(())
+        return Ok(());
     }
 
     let stats_key = keys::member_stats_key(&guild_id, target_id);
@@ -79,7 +82,8 @@ pub async fn view(
         &target_id,
         &stats_key,
         &target_user.name,
-    ).await?;
+    )
+        .await?;
 
     trace!(
         target_id = target_id_u64,
@@ -108,8 +112,10 @@ pub async fn view(
         guild_id.get(),
         target_id.get() as i64,
         user_level.current_level,
-        user_level.current_xp
-    ).await?.map_or("Not Available".to_string(), |r| r.to_string());
+        user_level.current_xp,
+    )
+        .await?
+        .map_or("Not Available".to_string(), |r| r.to_string());
 
     // 👇 FORMATTING APPLIED HERE FOR EMBED
     let formatted_xp = format_compact(user_level.current_xp as u64);
@@ -117,17 +123,31 @@ pub async fn view(
 
     let embed = CreateEmbed::new()
         .author(
-            serenity::all::CreateEmbedAuthor::new(&target_user.name)
-                .icon_url(target_user.face()),
+            serenity::all::CreateEmbedAuthor::new(&target_user.name).icon_url(target_user.face()),
         )
         .title("Level Profile".to_string())
-        .field("Current Level", format!("🏆 **Level {}**", user_level.current_level), true)
-        .field("Experience", format!("✨ **{formatted_xp}/{formatted_xp_needed}** XP"), true)
-        .field("Progress", format!("{}\n`{:.1}%`", progress_bar, progress_percentage * 100.0), false)
+        .field(
+            "Current Level",
+            format!("🏆 **Level {}**", user_level.current_level),
+            true,
+        )
+        .field(
+            "Experience",
+            format!("✨ **{formatted_xp}/{formatted_xp_needed}** XP"),
+            true,
+        )
+        .field(
+            "Progress",
+            format!("{}\n`{:.1}%`", progress_bar, progress_percentage * 100.0),
+            false,
+        )
         .field("Rank", format!("🏅 **Rank #{rank}**"), false)
-        .color(0x5865F2);
+        .color(BRAND_COLOR);
 
-    trace!(target_id = target_id_u64, "Dispatching response embed back to channel");
+    trace!(
+        target_id = target_id_u64,
+        "Dispatching response embed back to channel"
+    );
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
 
     Ok(())
@@ -135,11 +155,7 @@ pub async fn view(
 
 /// Helper to handle optional/empty strings with fallbacks
 fn fallback<'a>(val: &'a str, default: &'a str) -> &'a str {
-    if val.trim().is_empty() {
-        default
-    } else {
-        val
-    }
+    if val.trim().is_empty() { default } else { val }
 }
 
 /// Helper to format large numbers to human-readable strings (e.g., 1500 -> 1.5k)
@@ -161,7 +177,9 @@ pub async fn card(
     ctx: Context<'_>,
     #[description = "The user whose level card you want to view"] user: Option<User>,
 ) -> Result<()> {
-    let guild_id = ctx.guild_id().with_context(|| "This command can only be used inside a server.")?;
+    let guild_id = ctx
+        .guild_id()
+        .with_context(|| "This command can only be used inside a server.")?;
     let target_user = user.as_ref().unwrap_or(ctx.author());
     let svg_template = include_str!("assets/level_template.svg");
 
@@ -185,7 +203,8 @@ pub async fn card(
         &target_user.id,
         &stats_key,
         &target_user.name,
-    ).await?;
+    )
+        .await?;
 
     let xp_needed = calculate_xp_needed(user_level.current_level);
 
@@ -194,8 +213,10 @@ pub async fn card(
         guild_id.get(),
         target_user.id.get() as i64,
         user_level.current_level,
-        user_level.current_xp
-    ).await?.map_or(0, |r| r as u64);
+        user_level.current_xp,
+    )
+        .await?
+        .map_or(0, |r| r as u64);
 
     let level: u64 = user_level.current_level as u64;
     let xp: u64 = user_level.current_xp as u64;
@@ -229,7 +250,10 @@ pub async fn card(
                 match image::load_from_memory(&bytes) {
                     Ok(img) => {
                         let mut png_bytes = Vec::new();
-                        if img.write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png).is_ok() {
+                        if img
+                            .write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png)
+                            .is_ok()
+                        {
                             let b64 = STANDARD.encode(&png_bytes);
                             format!("data:image/png;base64,{b64}")
                         } else {
@@ -248,7 +272,10 @@ pub async fn card(
         _ => avatar_url,
     };
 
-    let display_name = target_user.global_name.as_deref().unwrap_or(&target_user.name);
+    let display_name = target_user
+        .global_name
+        .as_deref()
+        .unwrap_or(&target_user.name);
 
     // 👇 FORMATTING APPLIED HERE FOR SVG CARD
     let formatted_xp = format_compact(xp);
@@ -267,26 +294,34 @@ pub async fn card(
         .replace("{{ACCENT}}", accent_color)
         .replace("{{LEVEL}}", &level.to_string())
         .replace("{{XP.PROGRESS}}", &formatted_xp) // Used variable here
-        .replace("{{XP.MAX}}", &formatted_max_xp)  // Used variable here
+        .replace("{{XP.MAX}}", &formatted_max_xp) // Used variable here
         .replace("{{RANK}}", &rank.to_string())
         .replace("{{FILL_WIDTH}}", &format!("{fill_width:.1}"));
 
     let png_bytes = rasterize_svg(&manipulated_svg, 2.0)?;
 
     let attachment = CreateAttachment::bytes(png_bytes, "level_card.png");
-    ctx.send(poise::CreateReply::default().attachment(attachment)).await?;
+    ctx.send(poise::CreateReply::default().attachment(attachment))
+        .await?;
 
     Ok(())
 }
 
 /// Add levels to a user (admin only).
-#[poise::command(slash_command, guild_only, required_permissions = "MANAGE_GUILD", rename = "add")]
+#[poise::command(
+    slash_command,
+    guild_only,
+    required_permissions = "MANAGE_GUILD",
+    rename = "add"
+)]
 pub async fn add(
     ctx: Context<'_>,
     #[description = "The user to add levels to"] user: User,
     #[description = "Number of levels to add"] amount: i32,
 ) -> Result<()> {
-    let guild_id = ctx.guild_id().with_context(|| "This command can only be used inside a server.")?;
+    let guild_id = ctx
+        .guild_id()
+        .with_context(|| "This command can only be used inside a server.")?;
 
     if amount <= 0 {
         send_ephemeral(&ctx, "Amount must be greater than 0.").await?;
@@ -304,7 +339,8 @@ pub async fn add(
     }
 
     let stats_key = keys::member_stats_key(&guild_id, user.id);
-    let mut user_level = get_user_level(redis, db, &guild_id, &user.id, &stats_key, &user.name).await?;
+    let mut user_level =
+        get_user_level(redis, db, &guild_id, &user.id, &stats_key, &user.name).await?;
 
     let old_level = user_level.current_level;
 
@@ -312,12 +348,15 @@ pub async fn add(
     user_level.current_level = user_level.current_level.saturating_add(safe_amount);
 
     if let Some(leveling_config) = &settings.leveling
-        && leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
-            user_level.current_level = leveling_config.level_cap as i32;
-            user_level.current_xp = 0; // Only reset XP if they hit max level!
-        }
+        && leveling_config.level_cap > 0
+        && user_level.current_level >= leveling_config.level_cap as i32
+    {
+        user_level.current_level = leveling_config.level_cap as i32;
+        user_level.current_xp = 0; // Only reset XP if they hit max level!
+    }
 
-    user_level.cumulative_xp = calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
+    user_level.cumulative_xp =
+        calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
 
     update_level(db, &user_level).await?;
     let serialized = serde_json::to_string(&user_level)?;
@@ -329,7 +368,7 @@ pub async fn add(
             "Added **{}** level(s) to **{}**.\n\nOld level: **{}**\nNew level: **{}**",
             safe_amount, user.name, old_level, user_level.current_level
         ))
-        .color(0x5865F2);
+        .color(BRAND_COLOR);
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
@@ -347,7 +386,9 @@ pub async fn remove(
     #[description = "The user to remove levels from"] user: User,
     #[description = "Number of levels to remove"] amount: i32,
 ) -> Result<()> {
-    let guild_id = ctx.guild_id().with_context(|| "This command can only be used inside a server.")?;
+    let guild_id = ctx
+        .guild_id()
+        .with_context(|| "This command can only be used inside a server.")?;
 
     if amount <= 0 {
         send_ephemeral(&ctx, "Amount must be greater than 0.").await?;
@@ -365,7 +406,8 @@ pub async fn remove(
     }
 
     let stats_key = keys::member_stats_key(&guild_id, user.id);
-    let mut user_level = get_user_level(redis, db, &guild_id, &user.id, &stats_key, &user.name).await?;
+    let mut user_level =
+        get_user_level(redis, db, &guild_id, &user.id, &stats_key, &user.name).await?;
 
     let old_level = user_level.current_level;
 
@@ -373,7 +415,8 @@ pub async fn remove(
     user_level.current_level = user_level.current_level.saturating_sub(amount).max(0);
 
     // Recalculate total XP while preserving current_xp progress within the level
-    user_level.cumulative_xp = calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
+    user_level.cumulative_xp =
+        calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
 
     update_level(db, &user_level).await?;
     let serialized = serde_json::to_string(&user_level)?;
@@ -385,7 +428,7 @@ pub async fn remove(
             "Removed **{}** level(s) from **{}**.\n\nOld level: **{}**\nNew level: **{}**",
             amount, user.name, old_level, user_level.current_level
         ))
-        .color(0x5865F2);
+        .color(BRAND_COLOR);
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
@@ -409,8 +452,8 @@ fn get_options() -> &'static Options<'static> {
 
 /// Helper function to convert SVG string to PNG bytes using resvg
 fn rasterize_svg(svg_str: &str, scale: f32) -> Result<Vec<u8>> {
-    let tree = Tree::from_str(svg_str, get_options())
-        .with_context(|| "Failed to parse SVG template")?;
+    let tree =
+        Tree::from_str(svg_str, get_options()).with_context(|| "Failed to parse SVG template")?;
 
     let size = tree.size().to_int_size();
 
@@ -418,18 +461,26 @@ fn rasterize_svg(svg_str: &str, scale: f32) -> Result<Vec<u8>> {
     let width = (size.width() as f32 * scale).round() as u32;
     let height = (size.height() as f32 * scale).round() as u32;
 
-    let mut pixmap = Pixmap::new(width, height)
-        .with_context(|| "Failed to allocate memory for PNG image")?;
+    let mut pixmap =
+        Pixmap::new(width, height).with_context(|| "Failed to allocate memory for PNG image")?;
 
     // Render with scale matrix
-    resvg::render(&tree, Transform::from_scale(scale, scale), &mut pixmap.as_mut());
+    resvg::render(
+        &tree,
+        Transform::from_scale(scale, scale),
+        &mut pixmap.as_mut(),
+    );
 
-    let png_bytes = pixmap.encode_png()
+    let png_bytes = pixmap
+        .encode_png()
         .with_context(|| "Failed to encode PNG")?;
 
     Ok(png_bytes)
 }
 
 fn is_leveling_enabled(settings: &GuildSettings) -> bool {
-    settings.leveling.as_ref().is_some_and(|l| l.text.enabled || l.voice.enabled)
+    settings
+        .leveling
+        .as_ref()
+        .is_some_and(|l| l.text.enabled || l.voice.enabled)
 }

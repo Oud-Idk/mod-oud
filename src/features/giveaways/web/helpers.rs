@@ -4,10 +4,14 @@ use crate::shared::embed::{DiscordEmbed, Format};
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
 use serenity::all::{CreateEmbed, CreateMessage, EditMessage, Embed, User};
+use crate::constants::BRAND_COLOR;
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid Configuration ID format".to_string())
+        (
+            StatusCode::BAD_REQUEST,
+            "Invalid Configuration ID format".to_string(),
+        )
     })
 }
 
@@ -24,14 +28,21 @@ pub fn build_giveaway_msg(
 ) -> Result<Option<CreateMessage>, (StatusCode, String)> {
     let end_time_str = end_time.timestamp().to_string();
 
-    let create_msg = crate::shared::embed::build_custom_message(
-        format,
-        content,
-        embed,
-        |text| placeholders::replace_giveaway_placeholders(text, prize, winner_count, &host_user, gctx, &end_time_str),
-    )
+    let create_msg = crate::shared::embed::build_custom_message(format, content, embed, |text| {
+        placeholders::replace_giveaway_placeholders(
+            text,
+            prize,
+            winner_count,
+            &host_user,
+            gctx,
+            &end_time_str,
+        )
+    })
         .map_err(|_e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal Server Error".to_string(),
+            )
         })?;
 
     // Fallback if no custom format is specified or empty
@@ -41,7 +52,7 @@ pub fn build_giveaway_msg(
             .description(format!(
                 "**Prize:** {prize}\n**Winners:** {winner_count}\n**Ends:** <t:{end_time_str}:R>\n\nReact with 🎉 to enter!"
             ))
-            .color(0x5865F2);
+            .color(BRAND_COLOR);
 
         CreateMessage::new().embed(default_embed)
     });
@@ -49,9 +60,7 @@ pub fn build_giveaway_msg(
     Ok(Some(final_msg))
 }
 
-pub fn convert_create_to_edit_message(
-    create_msg_opt: Option<CreateMessage>,
-) -> EditMessage {
+pub fn convert_create_to_edit_message(create_msg_opt: Option<CreateMessage>) -> EditMessage {
     let mut edit_builder = EditMessage::new();
 
     if let Some(create_msg) = create_msg_opt {

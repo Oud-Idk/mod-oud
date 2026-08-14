@@ -1,13 +1,16 @@
 #![allow(missing_docs)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::pre_flight_check;
-use crate::features::warning::database::{fetch_warnings, search_warning_from_id, search_warnings_by_pattern};
+use crate::features::warning::database::{
+    fetch_warnings, search_warning_from_id, search_warnings_by_pattern,
+};
 use crate::features::warning::issuing::{issue_delete_warning, issue_warning};
 use crate::features::warning::modify_warns::set_warning_active_status;
 use crate::features::warning::pagination;
 use crate::shared::command_context::GuildMetadata;
 use crate::shared::messages::send_ephemeral;
 use serenity::all::{Member, User};
+use crate::constants::BRAND_COLOR;
 
 /// Warns a user in the server.
 #[poise::command(
@@ -40,13 +43,18 @@ pub async fn warn(
         &reason_str,
         &ctx.author().name,
         &member.user.name,
-    ).await?;
+    )
+        .await?;
 
     ctx.send(
         poise::CreateReply::default()
-            .content(format!("Successfully warned {} for: {}", member.user.name, reason_str))
+            .content(format!(
+                "Successfully warned {} for: {}",
+                member.user.name, reason_str
+            ))
             .ephemeral(true),
-    ).await?;
+    )
+        .await?;
 
     Ok(())
 }
@@ -60,14 +68,7 @@ pub async fn warn(
     slash_command,
     default_member_permissions = "MODERATE_MEMBERS",
     guild_only,
-    subcommands(
-        "history",
-        "search",
-        "view",
-        "pardon",
-        "unpardon",
-        "delete"
-    )
+    subcommands("history", "search", "view", "pardon", "unpardon", "delete")
 )]
 pub async fn warnings(_: Context<'_>) -> Result<(), Error> {
     Ok(())
@@ -86,7 +87,11 @@ pub async fn history(
     let records = fetch_warnings(&ctx.data().core.db, meta.id.get(), target_id as i64).await?;
 
     if records.is_empty() {
-        send_ephemeral(&ctx, format!("<@{}> has no active warnings.", member.user.id)).await?;
+        send_ephemeral(
+            &ctx,
+            format!("<@{}> has no active warnings.", member.user.id),
+        )
+            .await?;
         return Ok(());
     }
 
@@ -113,7 +118,8 @@ pub async fn search(
         meta.id.get(),
         target_user_id.map(|id| id as i64),
         &search_pattern,
-    ).await?;
+    )
+        .await?;
 
     if records.is_empty() {
         let filter_message = match user {
@@ -123,7 +129,8 @@ pub async fn search(
         send_ephemeral(
             &ctx,
             format!("No warnings {filter_message}found matching `{query}`."),
-        ).await?;
+        )
+            .await?;
         return Ok(());
     }
 
@@ -145,7 +152,11 @@ pub async fn view(
 
     match record {
         Some(warn) => {
-            let status = if warn.is_active.unwrap_or(true) { "Active" } else { "Pardoned" };
+            let status = if warn.is_active.unwrap_or(true) {
+                "Active"
+            } else {
+                "Pardoned"
+            };
             let time_str = match warn.created_at {
                 Some(dt) => format!("<t:{0}:f> (<t:{0}:R>)", dt.timestamp()),
                 None => "*Unknown date*".to_string(),
@@ -154,17 +165,22 @@ pub async fn view(
 
             let embed = poise::serenity_prelude::CreateEmbed::new()
                 .title(format!("Warning Details — ID: `{}`", warn.id))
-                .color(0x5865F2)
+                .color(BRAND_COLOR)
                 .field("User", format!("<@{}>", warn.user_id), true)
                 .field("Moderator", format!("<@{}>", warn.moderator_id), true)
                 .field("Status", status, true)
                 .field("Date", time_str, false)
                 .field("Reason", reason, false);
 
-            ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true)).await?;
+            ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
+                .await?;
         }
         None => {
-            send_ephemeral(&ctx, format!("Could not find warning with ID **#{id}** in this server.")).await?;
+            send_ephemeral(
+                &ctx,
+                format!("Could not find warning with ID **#{id}** in this server."),
+            )
+                .await?;
         }
     }
 
@@ -208,7 +224,8 @@ pub async fn delete(
         meta.id,
         id,
         ctx.author(),
-    ).await?;
+    )
+        .await?;
 
     match result {
         Some((target_user_id, reason)) => {
@@ -223,7 +240,8 @@ pub async fn delete(
             send_ephemeral(
                 &ctx,
                 format!("Could not find a warning with ID **#{id}** in this server."),
-            ).await?;
+            )
+                .await?;
         }
     }
 

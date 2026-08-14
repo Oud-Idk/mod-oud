@@ -5,6 +5,7 @@ use anyhow::Context as _;
 use chrono::Utc;
 use rand::seq::IndexedRandom;
 use serenity::all::{ChannelId, CreateEmbed, CreateMessage, ReactionType};
+use crate::constants::BRAND_COLOR;
 
 /// Parent command for giveaway operations
 #[poise::command(
@@ -36,7 +37,7 @@ pub async fn create(
             &ctx,
             "Invalid duration format! Example formats: `30m`, `2h`, `1d`",
         )
-        .await?;
+            .await?;
         return Ok(());
     };
 
@@ -61,14 +62,14 @@ pub async fn create(
         winner_count,
         end_time,
     )
-    .await?;
+        .await?;
 
     let embed = CreateEmbed::new()
         .title(format!("🎉 GIVEAWAY: {prize}"))
         .description(format!(
             "React with 🎉 to enter!\n\n**Ends:** <t:{timestamp}:R> (<t:{timestamp}:f>)\n**Winners:** {winner_count}\n**Hosted by:** <@{host_id}>"
         ))
-        .color(0x5865F2);
+        .color(BRAND_COLOR);
 
     let msg = target_channel
         .send_message(
@@ -81,14 +82,14 @@ pub async fn create(
         &ctx.serenity_context().http,
         ReactionType::Unicode("🎉".to_string()),
     )
-    .await?;
+        .await?;
 
     update_giveaway_message_id(&ctx.data().core.db, giveaway_id, msg.id.get() as i64).await?;
     send_ephemeral(
         &ctx,
         format!("Giveaway **#{giveaway_id}** created in <#{target_channel}>!"),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }

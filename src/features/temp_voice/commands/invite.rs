@@ -3,6 +3,7 @@ use crate::shared::messages::send_ephemeral;
 use crate::shared::voice_state::get_user_vc_in_guild;
 use anyhow::{Context as _, Result};
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage, Mentionable, User};
+use crate::constants::BRAND_COLOR;
 
 /// Send an invitation to your currently joined voice channel to the current channel.
 #[poise::command(slash_command)]
@@ -20,17 +21,27 @@ pub async fn invite(
         return Ok(());
     };
 
-    let url = format!("https://discord.com/channels/{}/{}", guild_id.get(), vc_id.get());
+    let url = format!(
+        "https://discord.com/channels/{}/{}",
+        guild_id.get(),
+        vc_id.get()
+    );
 
     let msg = if let Some(message) = message {
-        format!("{} has invited you to join {}\n{}!", author.mention(), url, message)
+        format!(
+            "{} has invited you to join {}\n{}!",
+            author.mention(),
+            url,
+            message
+        )
     } else {
         format!("{} has invited you to join {}!", author.mention(), url)
     };
 
-    let embed = CreateEmbed::new().title("New Invitation!")
+    let embed = CreateEmbed::new()
+        .title("New Invitation!")
         .description(msg)
-        .color(0x4076f5)
+        .color(BRAND_COLOR)
         .footer(CreateEmbedFooter::new("Mod Oud"));
 
     let create_message = CreateMessage::new().embed(embed);

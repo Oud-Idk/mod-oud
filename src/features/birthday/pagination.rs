@@ -3,10 +3,21 @@ use crate::features::birthday::format::format_ordinal;
 use crate::features::birthday::types::FullUserBirthdayRecord;
 use crate::shared::pagination::paginate;
 use chrono::{Datelike, Utc};
+use crate::constants::BRAND_COLOR;
 
 const MONTH_NAMES: [&str; 12] = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ];
 
 fn format_birthday_line(b: &FullUserBirthdayRecord) -> String {
@@ -22,7 +33,10 @@ fn format_birthday_line(b: &FullUserBirthdayRecord) -> String {
         String::new()
     };
 
-    format!("• <@{}> — **{} {}**{}\n", b.user_id, month_name, b.birth_day, age_str)
+    format!(
+        "• <@{}> — **{} {}**{}\n",
+        b.user_id, month_name, b.birth_day, age_str
+    )
 }
 
 /// Paginate a list of birthday records
@@ -45,7 +59,7 @@ pub async fn paginate_birthdays(
         poise::serenity_prelude::CreateEmbed::new()
             .title(&title)
             .description(description)
-            .color(0x5865F2)
+            .color(BRAND_COLOR)
             .footer(poise::serenity_prelude::CreateEmbedFooter::new(format!(
                 "Page {} of {}",
                 page_idx + 1,

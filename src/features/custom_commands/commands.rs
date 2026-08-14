@@ -2,14 +2,15 @@
 use poise::CreateReply;
 use serenity::all::CreateEmbed;
 use tracing::error;
-
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 
 /// List all custom commands available in this server
 #[poise::command(slash_command, guild_only)]
 pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     let Some(guild_id) = ctx.guild_id() else {
-        ctx.say("This command can only be used inside a server.").await?;
+        ctx.say("This command can only be used inside a server.")
+            .await?;
         return Ok(());
     };
 
@@ -31,7 +32,8 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
         Ok(cmds) => cmds,
         Err(e) => {
             error!(error = ?e, guild_id, "Failed to fetch custom commands");
-            ctx.say("Failed to fetch custom commands from database.").await?;
+            ctx.say("Failed to fetch custom commands from database.")
+                .await?;
             return Ok(());
         }
     };
@@ -40,7 +42,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
         let embed = CreateEmbed::new()
             .title("Custom Server Commands")
             .description("No custom commands have been created for this server yet!")
-            .color(0x5865F2);
+            .color(BRAND_COLOR);
 
         ctx.send(CreateReply::default().embed(embed)).await?;
         return Ok(());
@@ -48,7 +50,8 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
 
     let mut command_list = Vec::new();
     for cmd in &commands {
-        let desc = cmd.description
+        let desc = cmd
+            .description
             .as_deref()
             .filter(|d| !d.trim().is_empty())
             .unwrap_or("No description provided.");
@@ -66,9 +69,9 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     let embed = CreateEmbed::new()
         .title(format!("📜 Custom Commands ({})", commands.len()))
         .description(display_description)
-        .color(0x5865F2)
+        .color(BRAND_COLOR)
         .footer(serenity::all::CreateEmbedFooter::new(
-            "Use any trigger above in chat to run the command!"
+            "Use any trigger above in chat to run the command!",
         ));
 
     ctx.send(CreateReply::default().embed(embed)).await?;

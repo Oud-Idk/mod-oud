@@ -2,8 +2,12 @@ use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::Error;
-use crate::features::moderation::{ActionType, log_moderation_action, replace_basic_placeholder, replace_reason_placeholders};
-use crate::features::warning::database::{delete_warn, fetch_warn_thresholds, insert_warn, log_warning, update_warn};
+use crate::features::moderation::{
+    ActionType, log_moderation_action, replace_basic_placeholder, replace_reason_placeholders,
+};
+use crate::features::warning::database::{
+    delete_warn, fetch_warn_thresholds, insert_warn, log_warning, update_warn,
+};
 use crate::features::warning::thresholds;
 use crate::features::warning::types::{MODERATION_FOOTER, WarnThreshold};
 use crate::shared::embed::build_custom_message;
@@ -15,6 +19,7 @@ use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, Http
 use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{debug, info, instrument};
+use crate::constants::BRAND_COLOR;
 
 /// Issues a warning to a user, sending a DM and logging the action.
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user_id, moderator_id = %moderator_id
@@ -38,10 +43,17 @@ pub async fn issue_warning(
 
     let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason).await?;
 
-    debug!(warn_id, warn_count, "Warning record inserted; logging action in moderation_logs");
+    debug!(
+        warn_id,
+        warn_count, "Warning record inserted; logging action in moderation_logs"
+    );
     debug!(warn_id, "Retrieving moderation context");
-    let (gctx, mut member, settings) = fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
-    let moderator_user = http.get_user(moderator_id).await.unwrap_or_else(|_| member.user.clone());
+    let (gctx, mut member, settings) =
+        fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
+    let moderator_user = http
+        .get_user(moderator_id)
+        .await
+        .unwrap_or_else(|_| member.user.clone());
 
     let warn_dm_settings_opt = settings.moderation_dms.and_then(|m| m.warn);
 
@@ -54,7 +66,7 @@ pub async fn issue_warning(
         {
             let mut embed = CreateEmbed::new()
                 .title(format!("You have been formally warned from {}", gctx.name))
-                .color(0xFF4747)
+                .color(BRAND_COLOR)
                 .field("Reason", reason, false)
                 .field("ID", warn_id.to_string(), false)
                 .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
@@ -106,18 +118,14 @@ pub async fn issue_warning_status_change(
 
     let target_user_id = row.user_id as u64;
     let user_id = UserId::new(target_user_id);
-    let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
+    let reason = row
+        .reason
+        .unwrap_or_else(|| "No reason specified.".to_string());
 
     debug!(target_user_id, "Warning updated; retrieving context for DM");
 
-    let (gctx, member, settings) = fetch_mod_ctx!(
-        db,
-        redis_conn,
-        guild_configs,
-        http,
-        guild_id_raw,
-        user_id
-    );
+    let (gctx, member, settings) =
+        fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);
     let user = &member.user;
 
     let (action_past_tense, action_type, color) = if set_active {
@@ -127,8 +135,15 @@ pub async fn issue_warning_status_change(
     };
 
     log_moderation_action(
-        db, guild_id_raw, Some(user), author, None, action_type, None,
-    ).await?;
+        db,
+        guild_id_raw,
+        Some(user),
+        author,
+        None,
+        action_type,
+        None,
+    )
+        .await?;
 
     let dm_settings_opt = if set_active {
         settings.moderation_dms.and_then(|m| m.unpardon_warn)
@@ -141,14 +156,7 @@ pub async fn issue_warning_status_change(
         user,
         dm_settings_opt,
         action_past_tense,
-        |text| {
-            replace_basic_placeholder(
-                text,
-                &gctx,
-                &member,
-                author,
-            )
-        },
+        |text| { replace_basic_placeholder(text, &gctx, &member, author,) },
         {
             let mut embed = CreateEmbed::new()
                 .title(format!(
@@ -167,7 +175,11 @@ pub async fn issue_warning_status_change(
         }
     );
 
-    info!(target_user_id, action = action_past_tense, "Successfully processed warning status update");
+    info!(
+        target_user_id,
+        action = action_past_tense,
+        "Successfully processed warning status update"
+    );
     Ok(Some((target_user_id, reason)))
 }
 
@@ -194,18 +206,17 @@ pub async fn issue_delete_warning(
 
     let target_user_id = row.user_id as u64;
     let user_id = UserId::new(target_user_id);
-    let reason = row.reason.unwrap_or_else(|| "No reason specified.".to_string());
+    let reason = row
+        .reason
+        .unwrap_or_else(|| "No reason specified.".to_string());
 
-    debug!(target_user_id, "Record deleted; retrieving context for warning deletion message");
-
-    let (gctx, member, settings) = fetch_mod_ctx!(
-        db,
-        redis_conn,
-        guild_configs,
-        http,
-        guild_id_raw,
-        user_id
+    debug!(
+        target_user_id,
+        "Record deleted; retrieving context for warning deletion message"
     );
+
+    let (gctx, member, settings) =
+        fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);
     let user = &member.user;
 
     let dm_settings_opt = settings.moderation_dms.and_then(|m| m.unpardon_delete_warn);
@@ -215,14 +226,7 @@ pub async fn issue_delete_warning(
         user,
         dm_settings_opt,
         "delete_warning",
-        |text| {
-            replace_basic_placeholder(
-                text,
-                &gctx,
-                &member,
-                author,
-            )
-        },
+        |text| { replace_basic_placeholder(text, &gctx, &member, author,) },
         {
             let mut embed = CreateEmbed::new()
                 .title(format!(
@@ -231,7 +235,7 @@ pub async fn issue_delete_warning(
                 ))
                 .field("Warning Reason", &reason, false)
                 .field("Warning ID", id.to_string(), false)
-                .color(0x48F767);
+                .color(BRAND_COLOR);
 
             if let Some(url) = &gctx.icon_url {
                 embed = embed.thumbnail(url);
@@ -239,7 +243,6 @@ pub async fn issue_delete_warning(
 
             embed
         }
-
     );
 
     info!(target_user_id, "Successfully processed warning deletion");

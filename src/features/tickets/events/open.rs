@@ -15,6 +15,7 @@ use serenity::all::{
     GuildId, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId,
 };
 use tracing::{debug, info, instrument, trace, warn};
+use crate::constants::BRAND_COLOR;
 
 /// Handles the open-ticket button interaction by creating a private ticket channel and initializing its state.
 #[instrument(skip(ctx, data, component), fields(guild_id = ?component.guild_id, user_id = %component.user.id
@@ -79,7 +80,7 @@ pub async fn on_open_ticket(
         overwrites,
         ticket_category_id,
     )
-    .await?;
+        .await?;
 
     let resolved_role_name = if let Some(guild) = ctx.cache.guild(ticket_channel.guild_id) {
         guild.roles.get(&role_id).map(|r| r.name.clone())
@@ -102,7 +103,7 @@ pub async fn on_open_ticket(
         &role_id,
         resolved_role_name.as_deref(),
     )
-    .await?;
+        .await?;
 
     debug!("Persisting new ticket status to DB and initializing state in Redis");
     tokio::try_join!(
@@ -204,7 +205,7 @@ async fn send_welcome_message(
             "Hello <@{}>, welcome to your ticket. Please describe your issue. Support will be with you shortly.",
             member.user.id
         ))
-        .color(0xffffff);
+        .color(BRAND_COLOR);
 
     let mut message_builder = if let Some(cfg) = ticket_cfg.map(|c| &c.welcome_message) {
         let custom_layout = build_custom_message(
@@ -222,8 +223,8 @@ async fn send_welcome_message(
                 )
             },
         )
-        .ok()
-        .flatten();
+            .ok()
+            .flatten();
 
         custom_layout.unwrap_or_else(|| {
             trace!(

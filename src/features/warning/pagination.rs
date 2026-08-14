@@ -2,6 +2,7 @@ use crate::core::config::state::{Context, Error};
 use crate::features::warning::types::WarningInfo;
 use crate::shared::pagination;
 use tracing::trace;
+use crate::constants::BRAND_COLOR;
 
 fn make_page(warn: &WarningInfo) -> String {
     let status = if warn.is_active.unwrap_or(true) {
@@ -47,7 +48,7 @@ pub async fn paginate_warnings(
         let mut embed = poise::serenity_prelude::CreateEmbed::new()
             .title(&title)
             .description(embed_description)
-            .color(0x5865F2)
+            .color(BRAND_COLOR)
             .footer(poise::serenity_prelude::CreateEmbedFooter::new(format!(
                 "Page {} of {}",
                 page_idx + 1,
@@ -60,7 +61,7 @@ pub async fn paginate_warnings(
 
         embed
     })
-    .await?;
+        .await?;
 
     Ok(())
 }
