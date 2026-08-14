@@ -22,10 +22,10 @@ pub struct GuildCounts {
 pub async fn update_guild_counters(
     http: &serenity::all::Http,
     serenity_cache: &serenity::all::Cache,
-    guild_id: i64,
+    guild_id: u64,
     config: &MemberCounterConfig,
 ) -> anyhow::Result<GuildCounts> {
-    let serenity_guild_id = serenity::all::GuildId::new(guild_id as u64);
+    let serenity_guild_id = serenity::all::GuildId::new(guild_id);
 
     // Compute guild statistics using Serenity Cache (or HTTP fallback)
     let (total_members, humans_count, bots_count, online_count) =

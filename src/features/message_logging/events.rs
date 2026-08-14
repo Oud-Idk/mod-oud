@@ -108,7 +108,7 @@ pub async fn message_log_delete(
     data: &BotData,
 ) -> Result<(), Error> {
     trace!("Received message delete event.");
-    let Some(g_id) = guild_id.map(|id| id.get() as i64) else {
+    let Some(g_id) = guild_id.map(|id| id.get()) else {
         return Ok(());
     };
 
@@ -191,7 +191,7 @@ pub async fn message_log_delete(
 
         let payload = DeletedMessagePayload {
             id: msg_clone.msg_id,
-            guild_id: g_id,
+            guild_id: g_id.cast_signed(),
             author_id: msg_clone.author_id,
             author_name: msg_clone.author_name.clone(),
             content: msg_clone.content.clone(),
@@ -235,7 +235,7 @@ pub async fn log_message_update(
     let redis = &data.core.redis;
     let db = &data.core.db;
 
-    let Some(g_id) = event.guild_id.map(|id| id.get() as i64) else {
+    let Some(g_id) = event.guild_id.map(|id| id.get()) else {
         debug!("Message updated outside of a guild context; skipping logging");
         return Ok(());
     };
@@ -287,7 +287,7 @@ pub async fn log_message_update(
 
     let payload = ModifiedMessagePayload {
         id: details.msg_id,
-        guild_id: g_id,
+        guild_id: g_id.cast_signed(),
         author_id: details.author_id,
         author_name: details.author_name.clone(),
         channel_id: details.chan_id,

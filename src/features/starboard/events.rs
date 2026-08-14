@@ -74,7 +74,7 @@ async fn handle_starboard_reaction(
     let Some(guild_id) = reaction.guild_id else { return Ok(()) };
     let Some(user_id) = reaction.user_id else { return Ok(()) };
 
-    let starboards = get_starboards(guild_id.get() as i64, db, redis).await?;
+    let starboards = get_starboards(guild_id.get(), db, redis).await?;
     if starboards.is_empty() {
         return Ok(());
     }

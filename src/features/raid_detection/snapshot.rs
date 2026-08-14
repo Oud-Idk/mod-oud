@@ -44,7 +44,7 @@ pub async fn ensure_preraid_state_saved(
         original_everyone_permissions: everyone_perms,
     };
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id as i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id).await?;
     if let Some(verification_settings) = settings.welcome.and_then(|w| w.verification) {
         snapshot.original_verification_type = verification_settings.captcha_type;
         snapshot.original_oauth_required = verification_settings.use_oauth;
@@ -132,7 +132,7 @@ pub async fn restore_preraid_state(
     debug!(guild_id, "Restoring verification settings in database");
     database::restore_verification_settings(
         &data.core.db,
-        guild_id as i64,
+        guild_id,
         snapshot.original_oauth_required,
         captcha_str.as_deref(),
     )

@@ -10,9 +10,9 @@ pub async fn send_birthday_message(
     channel_id: ChannelId,
     celebrants: &[BirthdayMember],
     birthday_cfg: &BirthdayConfig,
-    guild_id: i64,
+    guild_id: u64,
 ) -> Option<i64> {
-    let gctx = get_guild_ctx(GuildId::from(guild_id as u64), &ctx.http).await.ok()?;
+    let gctx = get_guild_ctx(GuildId::new(guild_id), &ctx.http).await.ok()?;
 
     let has_birth_year = celebrants.iter().any(|c| c.birth_year.is_some());
     let payload = if has_birth_year {
@@ -37,7 +37,7 @@ pub async fn process_celebrant_roles(
     ctx: &Context,
     celebrants: &[BirthdayMember],
     birthday_cfg: &BirthdayConfig,
-    guild_id: i64,
+    guild_id: u64,
     channel_id: ChannelId,
     sent_msg_id: Option<i64>,
     current_year: i32,
@@ -46,7 +46,7 @@ pub async fn process_celebrant_roles(
         return;
     }
 
-    let target_guild_id = GuildId::new(guild_id as u64);
+    let target_guild_id = GuildId::new(guild_id);
     // Parse the role ID once outside the loop instead of every iteration
     let birthday_role_id = birthday_cfg.birthday_role_id.map(RoleId::new);
 

@@ -8,7 +8,7 @@ use sqlx::types::Json;
 pub async fn get_custom_command_by_name(
     pool: &PgPool,
     redis: &Client,
-    guild_id: i64,
+    guild_id: u64,
     cmd_name: &str,
 ) -> Result<Option<CustomCommand>, Error> {
     let cache_key = keys::custom_command_key(guild_id, cmd_name);
@@ -27,7 +27,7 @@ pub async fn get_custom_command_by_name(
         FROM custom_commands
         WHERE guild_id = $1 AND LOWER(name) = $2 AND enabled = TRUE
         "#,
-        guild_id,
+        guild_id.cast_signed(),
         cmd_name
     )
         .fetch_optional(pool)

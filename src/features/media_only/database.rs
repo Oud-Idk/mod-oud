@@ -31,7 +31,7 @@ pub async fn list_media_only_channels(db: &PgPool, guild_id: GuildId) -> Result<
     sqlx::query_as!(
         MediaOnlyChannel,
         "SELECT * FROM media_only_channels WHERE guild_id = $1",
-        guild_id.get() as i64
+        guild_id.get().cast_signed()
     )
         .fetch_all(db)
         .await

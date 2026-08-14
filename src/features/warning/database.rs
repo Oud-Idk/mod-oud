@@ -7,7 +7,7 @@ use fred::prelude::Expiration;
 use serenity::all::{GuildId, User, UserId};
 use sqlx::PgPool;
 
-pub async fn fetch_warnings(db: &PgPool, guild_id: i64, user_id: i64) -> Result<Vec<WarningInfo>, sqlx::Error> {
+pub async fn fetch_warnings(db: &PgPool, guild_id: u64, user_id: i64) -> Result<Vec<WarningInfo>, sqlx::Error> {
     sqlx::query_as!(
         WarningInfo,
         r#"
@@ -18,14 +18,14 @@ pub async fn fetch_warnings(db: &PgPool, guild_id: i64, user_id: i64) -> Result<
         AND is_active = TRUE
         ORDER BY created_at DESC;
         "#,
-        guild_id,
+        guild_id.cast_signed(),
         user_id,
     )
         .fetch_all(db)
         .await
 }
 
-pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: i64, target_user_id: Option<i64>, pattern: &str) -> Result<Vec<WarningInfo>, sqlx::Error> {
+pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: u64, target_user_id: Option<i64>, pattern: &str) -> Result<Vec<WarningInfo>, sqlx::Error> {
     sqlx::query_as!(
         WarningInfo,
         r#"
@@ -37,7 +37,7 @@ pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: i64, target_user_
         ORDER BY id DESC
         LIMIT 50
         "#,
-        guild_id,
+        guild_id.cast_signed(),
         pattern,
         target_user_id,
     )
@@ -45,7 +45,7 @@ pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: i64, target_user_
         .await
 }
 
-pub async fn search_warning_from_id(db: &PgPool, guild_id: i64, id: i64) -> Option<WarningInfo> {
+pub async fn search_warning_from_id(db: &PgPool, guild_id: u64, id: i64) -> Option<WarningInfo> {
     sqlx::query_as!(
         WarningInfo,
         r#"
@@ -54,7 +54,7 @@ pub async fn search_warning_from_id(db: &PgPool, guild_id: i64, id: i64) -> Opti
         WHERE id = $1 AND guild_id = $2
         "#,
         id,
-        guild_id,
+        guild_id.cast_signed(),
     )
         .fetch_optional(db)
         .await
@@ -62,7 +62,7 @@ pub async fn search_warning_from_id(db: &PgPool, guild_id: i64, id: i64) -> Opti
         .flatten()
 }
 
-pub async fn update_warn(db: &PgPool, set_active: bool, id: i64, guild_id: i64, expected_current_state: bool) -> Result<Option<PartialWarning>, sqlx::Error> {
+pub async fn update_warn(db: &PgPool, set_active: bool, id: i64, guild_id: u64, expected_current_state: bool) -> Result<Option<PartialWarning>, sqlx::Error> {
     sqlx::query_as!(
         PartialWarning,
         r#"
@@ -73,14 +73,14 @@ pub async fn update_warn(db: &PgPool, set_active: bool, id: i64, guild_id: i64, 
         "#,
         set_active,
         id,
-        guild_id,
+        guild_id.cast_signed(),
         expected_current_state,
     )
         .fetch_optional(db)
         .await
 }
 
-pub async fn delete_warn(db: &PgPool, id: i64, guild_id: i64) -> Result<Option<PartialWarning>, sqlx::Error> {
+pub async fn delete_warn(db: &PgPool, id: i64, guild_id: u64) -> Result<Option<PartialWarning>, sqlx::Error> {
     sqlx::query_as!(
         PartialWarning,
         r#"
@@ -89,7 +89,7 @@ pub async fn delete_warn(db: &PgPool, id: i64, guild_id: i64) -> Result<Option<P
         RETURNING user_id, reason
         "#,
         id,
-        guild_id
+        guild_id.cast_signed()
     )
         .fetch_optional(db)
         .await
@@ -114,7 +114,7 @@ pub async fn insert_warn(
             (SELECT count(*) FROM warns WHERE guild_id = $1 AND user_id = $2) + 1 AS "count!"
         FROM inserted
         "#,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
         user_id.get() as i64,
         moderator_id.get() as i64,
         reason,
@@ -139,7 +139,7 @@ pub async fn fetch_warn_thresholds(db: &PgPool, redis: &Client, guild_id: &Guild
             FROM warn_thresholds
             WHERE guild_id = $1
         "#,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
     ).fetch_all(db).await?;
 
     if let Ok(json_string) = serde_json::to_string(&thresholds) {

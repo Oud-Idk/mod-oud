@@ -10,7 +10,7 @@ use sqlx::types::Json;
 use tracing::instrument;
 
 pub async fn get_starboards(
-    guild_id: i64,
+    guild_id: u64,
     db: &PgPool,
     redis: &Client,
 ) -> Result<Vec<Starboard>> {
@@ -46,7 +46,7 @@ pub async fn get_starboards(
         FROM starboards
         WHERE guild_id = $1
         "#,
-        guild_id,
+        guild_id.cast_signed(),
     )
         .fetch_all(db)
         .await

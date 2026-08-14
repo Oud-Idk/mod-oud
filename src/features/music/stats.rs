@@ -27,8 +27,8 @@ const FLUSH_INTERVAL: Duration = Duration::from_secs(1);
 /// drains them in order and batch-writes to the database.
 pub enum StatsEvent {
     Start {
-        guild_id: i64,
-        user_id: i64,
+        guild_id: u64,
+        user_id: u64,
         handle_uuid: String,
         track_url: Option<String>,
         title: String,
@@ -58,8 +58,8 @@ pub fn record_track_start(
     let duration_ms = metadata.duration.map(|d| d.as_millis() as i64);
 
     let _ = tx.send(StatsEvent::Start {
-        guild_id: guild_id.get() as i64,
-        user_id: requested_by_id as i64,
+        guild_id: guild_id.get(),
+        user_id: requested_by_id,
         handle_uuid: handle_uuid.to_string(),
         track_url,
         title,
@@ -142,8 +142,8 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
                     (guild_id, user_id, track_url, title, artist, duration_ms, handle_uuid)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 "#,
-                guild_id,
-                user_id,
+                guild_id.cast_signed(),
+                user_id.cast_signed(),
                 track_url.as_deref(),
                 title,
                 artist,

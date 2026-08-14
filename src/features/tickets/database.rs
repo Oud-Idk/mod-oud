@@ -46,7 +46,7 @@ pub async fn save_ticket_to_db(
         INSERT INTO tickets (guild_id, channel_id, opener_id, last_button_message_id)
         VALUES ($1, $2, $3, $4)
         "#,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
         channel_id.get() as i64,
         user_id.get() as i64,
         welcome_msg_id.get() as i64,

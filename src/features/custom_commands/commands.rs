@@ -12,7 +12,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let guild_id_i64 = guild_id.get() as i64;
+    let guild_id = guild_id.get();
     let pool = &ctx.data().core.db;
 
     let commands = match sqlx::query!(
@@ -22,14 +22,14 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
         WHERE guild_id = $1 AND enabled = TRUE
         ORDER BY name ASC
         "#,
-        guild_id_i64
+        guild_id.cast_signed()
     )
         .fetch_all(pool)
         .await
     {
         Ok(cmds) => cmds,
         Err(e) => {
-            error!(error = ?e, guild_id = guild_id_i64, "Failed to fetch custom commands");
+            error!(error = ?e, guild_id, "Failed to fetch custom commands");
             ctx.say("Failed to fetch custom commands from database.").await?;
             return Ok(());
         }

@@ -29,7 +29,7 @@ pub async fn handle_raid_detection(
     let now = chrono::Utc::now();
 
     let Some(raid_config) = get_settings(
-        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64 as i64,
+        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64,
     ).await?.raid_detection else {
         trace!(guild_id = guild_id_u64, "Raid detection is disabled or unconfigured");
         return Ok(());
@@ -99,7 +99,7 @@ pub async fn handle_raid_detection(
                 }
                 RaidAction::BumpVerification => {
                     info!(guild_id = guild_id_u64, "Bumping server verification requirement to hCaptcha");
-                    database::bump_verification_to_max(&data.core.db, guild_id_u64 as i64).await?;
+                    database::bump_verification_to_max(&data.core.db, guild_id_u64).await?;
                 }
                 _ => {}
             }

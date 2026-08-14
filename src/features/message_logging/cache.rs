@@ -17,7 +17,7 @@ pub async fn spawn_cache_message_in_redis(
         return Ok(());
     };
 
-    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get() as i64).await?;
+    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get()).await?;
 
     if !config.is_message_logging_enabled() {
         return Ok(());

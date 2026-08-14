@@ -38,7 +38,7 @@ pub async fn log_moderation_action(
         INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration)
         VALUES ($1, $2, $3, $4, $5, $6)
         "#,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
         user.map(|u| u.id.get() as i64),
         moderator.id.get() as i64,
         action as ActionType,

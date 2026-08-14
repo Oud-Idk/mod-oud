@@ -11,7 +11,7 @@ use tracing::warn;
 pub async fn fetch_giveaway(
     pool: &PgPool,
     config_id: i64,
-    guild_id: i64,
+    guild_id: u64,
 ) -> Result<Giveaway, (StatusCode, String)> {
     sqlx::query_as!(
         Giveaway,
@@ -23,7 +23,7 @@ pub async fn fetch_giveaway(
         WHERE id = $1 AND guild_id = $2
         "#,
         config_id,
-        guild_id,
+        guild_id.cast_signed(),
     )
         .fetch_optional(pool)
         .await
@@ -98,7 +98,7 @@ pub async fn mark_giveaway_finished(pool: &PgPool, giveaway_id: i64) -> Result<(
 /// Inserts a new giveaway record into the database with default `message_layout` JSONB
 pub async fn create_giveaway(
     pool: &PgPool,
-    guild_id: i64,
+    guild_id: u64,
     host_id: i64,
     channel_id: i64,
     prize: &str,
@@ -111,7 +111,7 @@ pub async fn create_giveaway(
         VALUES ($1, $2, $3, $4, $5, $6, FALSE, '{"enabled": true, "format": "TEXT", "content": "", "embed": {}}'::jsonb)
         RETURNING id
         "#,
-        guild_id,
+        guild_id.cast_signed(),
         host_id,
         channel_id,
         prize,

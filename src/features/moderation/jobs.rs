@@ -79,7 +79,7 @@ async fn process_expired_temp_bans(
         let http_ref = http;
 
         async move {
-            let guild_id = serenity::GuildId::new(record.guild_id as u64);
+            let guild_id = serenity::GuildId::new(record.guild_id.cast_unsigned());
             let user_id = serenity::UserId::new(record.user_id as u64);
 
             match guild_id.unban(http_ref, user_id).await {

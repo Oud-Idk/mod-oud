@@ -26,7 +26,7 @@ pub async fn get_hub_from_db(guild_id: GuildId, db: &PgPool, target_channel_id: 
         FROM temp_voice_hubs
         WHERE guild_id = $1 AND hub_channel_id = $2
         "#,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
         target_channel_id.get() as i64,
     )
         .fetch_optional(db)
@@ -62,7 +62,7 @@ pub async fn get_hub_from_db_by_category(
         FROM temp_voice_hubs
         WHERE guild_id = $1 AND category_id = $2
         "#,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
         category_id.get() as i64,
     )
         .fetch_optional(db)

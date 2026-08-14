@@ -20,7 +20,7 @@ pub async fn inviter(
         FROM invited_members
         WHERE guild_id = $1 AND member_id = $2
         "#,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
         member.user.id.get() as i64,
     )
         .fetch_optional(db)
@@ -67,7 +67,7 @@ pub async fn invites(
     // 1. Fetch total invite count from Postgres
     let count_row = sqlx::query_scalar!(
         "SELECT count FROM inviter_counts WHERE guild_id = $1 AND inviter_id = $2",
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
         target_id.get() as i64,
     )
         .fetch_optional(db)
@@ -109,7 +109,7 @@ pub async fn invites_leaderboard(ctx: Context<'_>) -> Result<(), Error> {
         ORDER BY count DESC
         LIMIT 10
         "#,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
     )
         .fetch_all(db)
         .await?;

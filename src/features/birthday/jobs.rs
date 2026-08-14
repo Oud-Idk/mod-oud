@@ -25,10 +25,10 @@ async fn get_display_name(ctx: &Context, guild_id: GuildId, user_id: UserId) -> 
 
 async fn build_celebrants(
     ctx: &Context,
-    guild_id: i64,
+    guild_id: u64,
     birthday_records: Vec<UserBirthdayRecord>,
 ) -> Vec<BirthdayMember> {
-    let target_guild_id = GuildId::new(guild_id as u64);
+    let target_guild_id = GuildId::new(guild_id);
     let mut celebrants = Vec::new();
 
     for record in birthday_records {
@@ -48,7 +48,7 @@ async fn build_celebrants(
 pub async fn run_birthday_announcements(
     db: &PgPool,
     redis: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     ctx: &Context,
 ) -> Result<(), Error> {
     let now = Utc::now();
@@ -152,7 +152,7 @@ pub async fn cleanup_expired_birthday_roles(
 pub fn start_birthday_worker(
     pool: PgPool,
     redis_client: Client,
-    guild_configs: moka::future::Cache<i64, GuildSettings>,
+    guild_configs: moka::future::Cache<u64, GuildSettings>,
     ctx: Context,
 ) {
     tokio::spawn(async move {

@@ -46,7 +46,7 @@ pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id_u64: u64) -
     }
 
     let Some(raid_config) = get_settings(
-        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64 as i64,
+        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64,
     ).await?.raid_detection else {
         return Ok(());
     };

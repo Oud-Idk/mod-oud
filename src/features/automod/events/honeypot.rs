@@ -25,7 +25,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get().cast_signed(),
+        guild_id.get(),
     )
     .await?;
 
@@ -61,7 +61,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
 
     insert_automod_row(
         &data.core.db,
-        guild_id.get().cast_signed(),
+        guild_id.get(),
         message.author.id.get().cast_signed(),
         None,
         None,

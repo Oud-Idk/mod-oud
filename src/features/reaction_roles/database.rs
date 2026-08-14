@@ -67,7 +67,7 @@ pub async fn fetch_reaction_message(
     config_id: i64,
     guild_id: &str,
 ) -> Result<ReactionMessage, (StatusCode, String)> {
-    let guild_id: i64 = guild_id.parse().map_err(|e| {
+    let guild_id: u64 = guild_id.parse().map_err(|e| {
         warn!(error = ?e, guild_id, "Invalid guild_id format");
         (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
     })?;
@@ -81,7 +81,7 @@ pub async fn fetch_reaction_message(
         WHERE id = $1 AND guild_id = $2
         "#,
         config_id,
-        guild_id,
+        guild_id.cast_signed(),
     )
         .fetch_optional(pool)
         .await

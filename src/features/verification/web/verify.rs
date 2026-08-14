@@ -56,7 +56,7 @@ pub async fn handle_verify(
         return Err((StatusCode::BAD_REQUEST, "Invalid or expired link.".to_string()));
     }
 
-    let settings = get_settings(&state.core.db, &state.core.redis, &state.core.guild_configs_cache, guild_id_u64 as i64).await
+    let settings = get_settings(&state.core.db, &state.core.redis, &state.core.guild_configs_cache, guild_id_u64).await
         .inspect_err(|e| warn!(error = ?e, "Failed to get settings!"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 

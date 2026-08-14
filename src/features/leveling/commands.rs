@@ -57,7 +57,7 @@ pub async fn view(
     let db = &ctx.data().core.db;
     let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
-    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get() as i64).await?;
+    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
         return Ok(())
@@ -104,7 +104,7 @@ pub async fn view(
 
     let rank = database::get_user_rank(
         db,
-        guild_id.get() as i64,
+        guild_id.get(),
         target_id.get() as i64,
         user_level.current_level,
         user_level.current_xp
@@ -168,7 +168,7 @@ pub async fn card(
     let db = &ctx.data().core.db;
     let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
-    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get() as i64).await?;
+    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
 
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
@@ -190,7 +190,7 @@ pub async fn card(
 
     let rank = database::get_user_rank(
         db,
-        guild_id.get() as i64,
+        guild_id.get(),
         target_user.id.get() as i64,
         user_level.current_level,
         user_level.current_xp
@@ -296,7 +296,7 @@ pub async fn add(
     let db = &ctx.data().core.db;
     let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
-    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get() as i64).await?;
+    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
         return Ok(());
@@ -357,7 +357,7 @@ pub async fn remove(
     let db = &ctx.data().core.db;
     let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
-    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get() as i64).await?;
+    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
         return Ok(());

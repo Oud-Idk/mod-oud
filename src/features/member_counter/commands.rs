@@ -24,11 +24,11 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
         ctx.say("This command can only be used in a server.").await?;
         return Ok(());
     };
-    let guild_id_i64 = guild_id_u64 as i64;
+    let guild_id = guild_id_u64;
 
     let data = ctx.data();
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id).await?;
 
     let counter_config = match settings.member_counter {
         Some(ref c) if c.enabled => c,
@@ -41,7 +41,7 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
     let http = ctx.serenity_context().http.clone();
     let cache = ctx.serenity_context().cache.clone();
 
-    match update_guild_counters(&http, &cache, guild_id_i64, counter_config).await {
+    match update_guild_counters(&http, &cache, guild_id, counter_config).await {
         Ok(counts) => {
             let mut response = format!(
                 "✅ **Member counters synchronized!**\n\n\

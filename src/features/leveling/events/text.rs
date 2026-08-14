@@ -29,7 +29,7 @@ pub async fn handle_text_leveling(
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get().cast_signed(),
+        guild_id.get(),
     )
     .await?;
     let config_maybe = settings.leveling;

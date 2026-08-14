@@ -27,7 +27,7 @@ pub async fn report_message(
 
     let caller_id = ctx.author().id.get();
     let message_id = message.id.get();
-    let guild_id = ctx.guild_id().unwrap().get() as i64;
+    let guild_id = ctx.guild_id().unwrap().get();
 
     info!(
         caller_id,

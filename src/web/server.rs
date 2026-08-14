@@ -34,7 +34,7 @@ pub async fn start_web_server(
     http: Arc<Http>,
     redis_client: Client,
     subscriber_client: SubscriberClient,
-    guild_configs: Cache<i64, GuildSettings>,
+    guild_configs: Cache<u64, GuildSettings>,
     tx: broadcast::Sender<LogEvent>,
     reqwest_client: reqwest::Client,
     username_tx: tokio::sync::mpsc::Sender<crate::shared::username_cache::UserUpdate>,

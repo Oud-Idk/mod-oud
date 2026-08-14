@@ -85,7 +85,7 @@ async fn insert_threshold_automod_log(
     debug("Inserting automod-log for threshold");
     insert_automod_row(
         db,
-        member.guild_id.get() as i64,
+        member.guild_id.get(),
         member.user.id.get() as i64,
         None,
         None,

@@ -21,7 +21,7 @@ pub async fn handle_resolve_report(
 ) -> Result<StatusCode, WebError> {
     info!("Resolving report status and notifying reporter");
 
-    let config = get_settings(&state.core.db, redis, &state.core.guild_configs_cache, guild_id.get() as i64)
+    let config = get_settings(&state.core.db, redis, &state.core.guild_configs_cache, guild_id.get())
         .await
         .inspect_err(|e| error!(error = %e, "Failed to resolve guild config"))
         .map_err(|_| WebError::Internal)?;

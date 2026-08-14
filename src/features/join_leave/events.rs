@@ -17,16 +17,16 @@ pub async fn send_leave_message(
     let user_id = user.id.get();
     info!(guild_id, user_id, user_name = %user.name, "Member left the guild");
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id as i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id).await?;
 
     let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled) else {
         trace!(guild_id, user_id, "Leave notifications are disabled; logging departure directly to DB");
-        return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.core.db).await;
+        return database::log_leave_to_db(user_id as i64, guild_id, &data.core.db).await;
     };
 
     let Some(channel_id) = leave_cfg.channel_id.map(|id| ChannelId::new(id)) else {
         warn!(guild_id, user_id, "Leave notifications are enabled, but target channel ID is missing or invalid");
-        return database::log_leave_to_db(user_id as i64, guild_id as i64, &data.core.db).await;
+        return database::log_leave_to_db(user_id as i64, guild_id, &data.core.db).await;
     };
 
     let msg_payload = messages::build_goodbye_message(ctx, *_guild_id, user, member_data_if_available, leave_cfg).await;
@@ -37,7 +37,7 @@ pub async fn send_leave_message(
     }
 
     trace!(guild_id, user_id, "Logging member leave record to database");
-    database::log_leave_to_db(user_id as i64, guild_id as i64, &data.core.db).await?;
+    database::log_leave_to_db(user_id as i64, guild_id, &data.core.db).await?;
     Ok(())
 }
 
@@ -75,7 +75,7 @@ pub async fn handle_member_welcome(
     let user_id = member.user.id.get();
     trace!(guild_id, user_id, "Executing welcome handler tasks");
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id as i64).await?;
+    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id).await?;
     let Some(config) = settings.welcome else { return Ok(()) };
 
     let warning_text = check_alt_status(&member.user);
@@ -115,6 +115,6 @@ pub fn check_alt_status(user: &User) -> String {
 
 pub async fn handle_member_join(ctx: &Context, member: &Member, data: &BotData) -> Result<(), Error> {
     handle_member_welcome(ctx, member, data).await?;
-    log_join_to_db(member.user.id.get() as i64, member.guild_id.get() as i64, data).await?;
+    log_join_to_db(member.user.id.get() as i64, member.guild_id.get(), data).await?;
     Ok(())
 }

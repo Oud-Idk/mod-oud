@@ -23,7 +23,7 @@ pub async fn apply_level_rewards(
     new_level: i32,
 ) -> Result<(), Error> {
     debug!("Fetching level rewards from database");
-    let rewards = fetch_level_rewards(db, guild_id.get() as i64).await?;
+    let rewards = fetch_level_rewards(db, guild_id.get()).await?;
 
     let mut eligible_rewards: Vec<&LevelReward> = rewards
         .iter()

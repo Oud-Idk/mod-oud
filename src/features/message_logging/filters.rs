@@ -8,7 +8,7 @@ pub async fn should_exclude_from_logging(
     config: &MessageLoggingConfig,
     author_id: i64,
     channel_id: i64,
-    guild_id: i64,
+    guild_id: u64,
     ctx: &serenity::all::Context,
 ) -> bool {
     trace!(
@@ -35,7 +35,7 @@ pub async fn should_exclude_from_logging(
     // Check if user has any ignored roles
     if let Some(ref ignored_roles) = config.ignored_roles
         && !ignored_roles.is_empty() {
-            let member_result = GuildId::new(guild_id as u64)
+            let member_result = GuildId::new(guild_id)
                 .member(ctx, serenity::all::UserId::new(author_id as u64))
                 .await;
 

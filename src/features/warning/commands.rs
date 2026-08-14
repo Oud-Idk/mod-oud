@@ -82,7 +82,7 @@ pub async fn history(
     let target_id = member.user.id.get();
 
     let meta = GuildMetadata::extract(&ctx)?;
-    let records = fetch_warnings(&ctx.data().core.db, meta.id.get() as i64, target_id as i64).await?;
+    let records = fetch_warnings(&ctx.data().core.db, meta.id.get(), target_id as i64).await?;
 
     if records.is_empty() {
         send_ephemeral(&ctx, format!("<@{}> has no active warnings.", member.user.id)).await?;
@@ -109,7 +109,7 @@ pub async fn search(
     let search_pattern = format!("%{query}%");
     let records = search_warnings_by_pattern(
         &ctx.data().core.db,
-        meta.id.get() as i64,
+        meta.id.get(),
         target_user_id.map(|id| id as i64),
         &search_pattern,
     ).await?;
@@ -140,7 +140,7 @@ pub async fn view(
     #[description = "The ID of the warning to look up"] id: i64,
 ) -> Result<(), Error> {
     let meta = GuildMetadata::extract(&ctx)?;
-    let record = search_warning_from_id(&ctx.data().core.db, meta.id.get() as i64, id).await;
+    let record = search_warning_from_id(&ctx.data().core.db, meta.id.get(), id).await;
 
     match record {
         Some(warn) => {

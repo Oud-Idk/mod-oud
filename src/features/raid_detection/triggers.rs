@@ -62,7 +62,7 @@ pub async fn trigger_raid_manual(
     spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id_u64);
 
     let Some(raid_config) = get_settings(
-        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64 as i64,
+        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64,
     ).await?.raid_detection else {
         warn!(
             guild_id = guild_id_u64,
@@ -87,7 +87,7 @@ pub async fn trigger_raid_manual(
             }
             RaidAction::BumpVerification => {
                 info!(guild_id = guild_id_u64, "Bumping server verification to hCaptcha and using auth (manual trigger)");
-                database::bump_verification_to_max(&data.core.db, guild_id_u64 as i64).await?;
+                database::bump_verification_to_max(&data.core.db, guild_id_u64).await?;
             }
             RaidAction::PauseInvites { hours } => {
                 info!(guild_id = guild_id_u64, hours, "Pausing server invites (manual trigger)");

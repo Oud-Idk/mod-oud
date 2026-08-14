@@ -65,7 +65,7 @@ async fn set(
 )]
 async fn test(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?.get() as i64;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?.get();
 
     let settings = crate::core::config::settings::get_settings(
         &ctx.data().core.db,
@@ -87,7 +87,7 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
     };
 
     let gctx = crate::core::config::guild_ctx::get_guild_ctx(
-        serenity::GuildId::new(guild_id as u64),
+        serenity::GuildId::new(guild_id),
         &ctx.serenity_context().http,
     ).await?;
 

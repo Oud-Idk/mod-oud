@@ -23,7 +23,7 @@ use tracing::{debug, info, instrument, warn};
 pub async fn issue_kick(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     channel_id: ChannelId,
@@ -105,7 +105,7 @@ pub async fn issue_kick(
 pub async fn issue_ban(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user: User,
@@ -168,7 +168,7 @@ pub async fn schedule_unban(db: &PgPool, guild_id: GuildId, user: &User, dur: Du
 
     sqlx::query!(
             "INSERT INTO temp_bans (guild_id, user_id, unban_at) VALUES ($1, $2, $3)",
-            guild_id.get() as i64,
+            guild_id.get().cast_signed(),
             user.id.get() as i64,
             unban_at
         )
@@ -182,7 +182,7 @@ pub async fn schedule_unban(db: &PgPool, guild_id: GuildId, user: &User, dur: Du
 pub async fn issue_mute(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user: User,
@@ -236,7 +236,7 @@ pub async fn issue_mute(
 pub async fn issue_unmute(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user: User,
@@ -276,7 +276,7 @@ pub async fn issue_unmute(
 pub async fn issue_softban(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user: User,

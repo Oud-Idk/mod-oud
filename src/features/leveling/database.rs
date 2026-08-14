@@ -21,7 +21,7 @@ pub async fn get_level(
         FROM levels
         WHERE user_id = $1 AND guild_id = $2",
         user_id.get() as i64,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
     )
     .fetch_optional(db)
     .await?)
@@ -34,7 +34,7 @@ pub async fn insert_level(db: &PgPool, guild_id: GuildId, user_id: UserId) -> Re
          VALUES ($1, $2)
          RETURNING *",
         user_id.get() as i64,
-        guild_id.get() as i64,
+        guild_id.get().cast_signed(),
     )
     .fetch_one(db)
     .await?)
@@ -57,7 +57,7 @@ pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQuery
     Ok(result)
 }
 
-pub async fn get_multipliers(db: &PgPool, guild_id: i64) -> Result<Vec<XpMultiplier>> {
+pub async fn get_multipliers(db: &PgPool, guild_id: u64) -> Result<Vec<XpMultiplier>> {
     let multipliers = sqlx::query_as!(
         XpMultiplier,
         r#"
@@ -65,7 +65,7 @@ pub async fn get_multipliers(db: &PgPool, guild_id: i64) -> Result<Vec<XpMultipl
         FROM xp_multipliers
         WHERE guild_id = $1
         "#,
-        guild_id
+        guild_id.cast_signed()
     )
     .fetch_all(db)
     .await?;
@@ -74,7 +74,7 @@ pub async fn get_multipliers(db: &PgPool, guild_id: i64) -> Result<Vec<XpMultipl
 }
 
 /// Fetches all level rewards for a specific guild
-pub async fn fetch_level_rewards(db: &PgPool, guild_id: i64) -> Result<Vec<LevelReward>> {
+pub async fn fetch_level_rewards(db: &PgPool, guild_id: u64) -> Result<Vec<LevelReward>> {
     Ok(sqlx::query_as!(
         LevelReward,
         r#"
@@ -82,7 +82,7 @@ pub async fn fetch_level_rewards(db: &PgPool, guild_id: i64) -> Result<Vec<Level
         FROM level_rewards
         WHERE guild_id = $1
         "#,
-        guild_id
+        guild_id.cast_signed()
     )
     .fetch_all(db)
     .await?)
@@ -123,7 +123,7 @@ pub async fn load_leveling_config(
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get() as i64,
+        guild_id.get(),
     )
     .await?;
 
@@ -177,7 +177,7 @@ pub async fn upsert_level(
 
 pub async fn get_user_rank(
     db: &PgPool,
-    guild_id: i64,
+    guild_id: u64,
     _user_id: i64,
     user_level: i32,
     user_xp: i32,
@@ -189,7 +189,7 @@ pub async fn get_user_rank(
         WHERE guild_id = $1
         AND (current_level > $2 OR (current_level = $2 AND current_xp > $3))
         "#,
-        guild_id,
+        guild_id.cast_signed(),
         user_level,
         user_xp
     )

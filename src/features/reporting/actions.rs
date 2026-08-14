@@ -40,7 +40,7 @@ pub async fn issue_report(
     db: &sqlx::PgPool,
     redis: &Client,
     username_buf: &tokio::sync::mpsc::Sender<UserUpdate>,
-    guild_id: i64,
+    guild_id: u64,
     channel_id: i64,
     message: &serenity::all::Message,
     reporter: &serenity::all::User,
@@ -92,7 +92,7 @@ pub async fn issue_report(
 
     let payload = ReportedMessagePayload {
         id,
-        guild_id,
+        guild_id: guild_id.cast_signed(),
         message_id,
         author_id,
         channel_id,

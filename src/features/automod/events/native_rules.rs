@@ -29,7 +29,7 @@ pub async fn store_automod(
 
     insert_automod_row(
         db,
-        execution.guild_id.get().cast_signed(),
+        execution.guild_id.get(),
         execution.user_id.get().cast_signed(),
         execution.channel_id.map(|v| v.get().cast_signed()),
         execution.message_id.map(|v| v.get().cast_signed()),

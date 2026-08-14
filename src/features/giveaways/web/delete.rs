@@ -13,7 +13,7 @@ pub async fn handle_delete_giveaway_message(
     Path((guild_id_str, config_id_str)): Path<(String, String)>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let config_id = parse_config_id(&config_id_str)?;
-    let guild_id: i64 = guild_id_str.parse().map_err(|e| {
+    let guild_id: u64 = guild_id_str.parse().map_err(|e| {
         warn!(error = ?e, guild_id_str, "Invalid guild_id format");
         (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
     })?;

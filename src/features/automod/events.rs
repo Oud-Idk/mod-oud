@@ -52,7 +52,7 @@ pub async fn check_for_filter(
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get() as i64,
+        guild_id.get(),
     )
     .await?;
 

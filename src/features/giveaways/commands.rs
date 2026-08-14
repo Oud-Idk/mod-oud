@@ -36,7 +36,7 @@ pub async fn create(
 
     let winner_count = winners.unwrap_or(1).max(1);
     let target_channel = channel.unwrap_or(ctx.channel_id());
-    let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?.get() as i64;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?.get();
     let host_id = ctx.author().id.get() as i64;
 
     let end_time = Utc::now() + chrono::Duration::from_std(parsed_duration)?;

@@ -128,8 +128,8 @@ pub async fn delete_invite(_: &Context, invite_data: &InviteDeleteEvent, data: &
     Ok(())
 }
 
-pub async fn check_if_enabled(redis: &Client, db: &PgPool, cache: &Cache<i64, GuildSettings>, guild_id: GuildId) -> Result<bool, Error> {
-    Ok(get_settings(db, redis, cache, guild_id.get() as i64)
+pub async fn check_if_enabled(redis: &Client, db: &PgPool, cache: &Cache<u64, GuildSettings>, guild_id: GuildId) -> Result<bool, Error> {
+    Ok(get_settings(db, redis, cache, guild_id.get())
         .await?
         .invite_tracker
         .and_then(|s| s.enabled)
@@ -178,7 +178,7 @@ pub async fn store_member_invite(ctx: &Context, new_member: &Member, data: &BotD
     };
 
     let new_count = attribute_join(
-        db, guild_id.get() as i64,
+        db, guild_id.get(),
         new_member.user.id.get() as i64,
         inviter_id as i64, &code,
     ).await?;

@@ -15,12 +15,12 @@ pub fn start_member_counter_job(
     serenity_cache: Arc<serenity::all::Cache>,
     db: PgPool,
     redis: Client,
-    cache: moka::future::Cache<i64, GuildSettings>,
+    cache: moka::future::Cache<u64, GuildSettings>,
 ) {
     tokio::spawn(async move {
         info!("Member counter background job started");
 
-        let mut last_updated: HashMap<i64, Instant> = HashMap::new();
+        let mut last_updated: HashMap<u64, Instant> = HashMap::new();
 
         let mut timer = interval(Duration::from_mins(1));
 
@@ -48,11 +48,11 @@ async fn process_all_member_counters(
     serenity_cache: &serenity::all::Cache,
     db: &PgPool,
     redis: &Client,
-    cache: &moka::future::Cache<i64, GuildSettings>,
-    last_updated: &mut HashMap<i64, Instant>,
+    cache: &moka::future::Cache<u64, GuildSettings>,
+    last_updated: &mut HashMap<u64, Instant>,
 ) -> anyhow::Result<()> {
     // Query database for all guild IDs that have member counter enabled
-    let guild_ids: Vec<i64> = sqlx::query_scalar(
+    let guild_ids: Vec<u64> = sqlx::query_scalar(
         r"
         SELECT guild_id
         FROM guild_configs
@@ -64,7 +64,10 @@ async fn process_all_member_counters(
         .unwrap_or_else(|e| {
             warn!(error = ?e, "Failed to query active member counter guilds from DB");
             Vec::new()
-        });
+        })
+        .into_iter()
+        .map(|id: i64| id.cast_unsigned())
+        .collect();
 
     if guild_ids.is_empty() {
         trace!("No active member counters to process");

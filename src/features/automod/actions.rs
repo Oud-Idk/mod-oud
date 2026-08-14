@@ -140,7 +140,7 @@ async fn apply_warning(
     message: &Message,
     db: &sqlx::PgPool,
     redis_conn: &fred::clients::Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     username_buf_tx: &tokio::sync::mpsc::Sender<UserUpdate>,
 ) {
     let Some(guild_id) = message.guild_id else {
@@ -191,7 +191,7 @@ async fn apply_mute(
     base: &BaseRule,
     db: &sqlx::PgPool,
     redis_conn: &fred::clients::Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
 ) {
     let Some(guild_id) = message.guild_id else {
         return;

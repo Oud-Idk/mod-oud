@@ -10,7 +10,7 @@ pub struct Id {
 
 pub async fn insert_reported_message(
     db: &PgPool,
-    guild_id: i64,
+    guild_id: u64,
     channel_id: i64,
     attachment_url: &str,
     reason: &str,
@@ -34,7 +34,7 @@ pub async fn insert_reported_message(
         ON CONFLICT (message_id, reporter_id) DO NOTHING
         RETURNING id
         "#,
-        guild_id,
+        guild_id.cast_signed(),
         channel_id,
         message_id,
         author_id,

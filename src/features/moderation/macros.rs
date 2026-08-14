@@ -23,7 +23,7 @@ macro_rules! fetch_mod_ctx {
         };
 
         let settings_fut = async move {
-            get_settings(db, redis_conn, config_cache, guild_id.get() as i64)
+            get_settings(db, redis_conn, config_cache, guild_id.get())
                 .await
                 .map_err(anyhow::Error::from)
         };

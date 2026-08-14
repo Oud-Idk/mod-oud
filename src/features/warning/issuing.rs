@@ -21,7 +21,7 @@ use tracing::{debug, info, instrument};
 pub async fn issue_warning(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     username_buf: &tokio::sync::mpsc::Sender<UserUpdate>,
     http: &Arc<Http>,
     guild_id: GuildId,
@@ -87,14 +87,14 @@ pub async fn issue_warning(
 pub async fn issue_warning_status_change(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     http: &Arc<Http>,
     guild_id_raw: GuildId,
     id: i64,
     set_active: bool,
     author: &User,
 ) -> Result<Option<(u64, String)>, Error> {
-    let guild_id = guild_id_raw.get() as i64;
+    let guild_id = guild_id_raw.get();
     let expected_current_state = !set_active;
 
     debug!("Updating warning status in database");
@@ -177,13 +177,13 @@ pub async fn issue_warning_status_change(
 pub async fn issue_delete_warning(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<i64, GuildSettings>,
+    guild_configs: &moka::future::Cache<u64, GuildSettings>,
     http: &Arc<Http>,
     guild_id_raw: GuildId,
     id: i64,
     author: &User,
 ) -> Result<Option<(u64, String)>, Error> {
-    let guild_id = guild_id_raw.get() as i64;
+    let guild_id = guild_id_raw.get();
 
     debug!("Deleting warning record from database");
     let Some(row) = delete_warn(db, id, guild_id).await? else {
