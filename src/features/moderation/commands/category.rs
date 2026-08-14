@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::channels::delete_entire_category;
 use serenity::all::GuildChannel;

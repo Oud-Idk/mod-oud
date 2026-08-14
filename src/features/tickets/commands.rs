@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::tickets::panel::build_ticket_message_payload;

@@ -84,6 +84,7 @@ pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id_u64: u64) -
     Ok(())
 }
 
+/// Re-attaches raid monitors or reverts stale raid state for tracked guilds at startup.
 pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(), Error> {
     let tracked_guilds: Vec<u64> = data.core.redis.smembers("active_raids").await?;
 

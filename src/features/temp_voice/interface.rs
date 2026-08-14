@@ -106,6 +106,7 @@ pub async fn preflight_slash_check(
     Ok(Some((channel_id, guild_id, member)))
 }
 
+/// Dispatches temporary voice channel component and modal interactions to their respective handlers.
 pub async fn handle_interaction(
     ctx: &Context,
     interaction: &Interaction,

@@ -4,54 +4,75 @@ use serde::{Deserialize, Serialize};
 use serenity::all::{CreateEmbed, CreateMessage};
 use tracing::warn;
 
+/// The output format of a configurable message: a Discord embed or plain text.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, sqlx::Type, PartialEq, Eq, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[sqlx(type_name = "message_format", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Format {
+    /// The message is rendered as a Discord embed.
     #[default]
     Embed,
+    /// The message is rendered as plain text content.
     Text,
 }
 
+/// A thumbnail image shown in the top-right corner of the embed.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct EmbedThumbnail {
+    /// URL of the thumbnail image.
     #[serde(alias = "thumbnailUrl")]
     pub url: String,
 }
 
+/// A large image shown at the bottom of the embed.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct EmbedImage {
+    /// URL of the image.
     #[serde(alias = "imageUrl")]
     pub url: String,
 }
 
+/// The author line at the top of the embed.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct EmbedAuthor {
+    /// Name shown as the author.
     pub name: Option<String>,
+    /// URL of the author's icon.
     #[serde(alias = "authorIcon")]
     pub icon_url: Option<String>,
 }
 
+/// The footer line at the bottom of the embed.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct EmbedFooter {
+    /// Footer text.
     pub text: Option<String>,
+    /// URL of the footer's icon.
     #[serde(alias = "footerIcon")]
     pub icon_url: Option<String>,
 }
 
+/// A fully configurable Discord embed, mirroring the dashboard's JSONB schema.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct DiscordEmbed {
+    /// Embed title.
     pub title: Option<String>,
+    /// Embed description.
     pub description: Option<String>,
+    /// Embed accent color as an RGB value.
     pub color: Option<u32>,
+    /// Thumbnail image, if any.
     pub thumbnail: Option<EmbedThumbnail>,
+    /// Large bottom image, if any.
     pub image: Option<EmbedImage>,
+    /// Author line, if any.
     pub author: Option<EmbedAuthor>,
+    /// Footer line, if any.
     pub footer: Option<EmbedFooter>,
 }
 
@@ -69,6 +90,7 @@ impl MessageGetter for DiscordEmbed {
     }
 }
 
+/// A blank embed with every field empty.
 pub static DEFAULT_EMBED: DiscordEmbed = DiscordEmbed {
     title: None,
     description: None,
@@ -80,6 +102,8 @@ pub static DEFAULT_EMBED: DiscordEmbed = DiscordEmbed {
 };
 
 impl DiscordEmbed {
+    /// Returns `true` if the embed has no title, description, color, thumbnail,
+    /// image, author, or footer that would render any visible content.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.title.as_deref().unwrap_or("").trim().is_empty()
@@ -160,12 +184,18 @@ impl DiscordEmbed {
     }
 }
 
+/// Types that can render themselves as a Discord message (content, embed, or both).
 pub trait MessageGetter {
+    /// The plain-text content of the message.
     fn content(&self) -> &str;
+    /// The embed template of the message.
     fn embed(&self) -> &DiscordEmbed;
+    /// The format the message should be rendered as.
     fn format(&self) -> Format;
 }
 
+/// Builds a `CreateMessage` from a format, content, and embed template, applying
+/// `replace_fn` to every placeholder. Returns `None` if nothing would be rendered.
 pub fn build_custom_message<F>(
     format: Format,
     content: &str,
@@ -198,6 +228,8 @@ where
     Ok(if has_payload { Some(builder) } else { None })
 }
 
+/// Builds a message from any [`MessageGetter`] payload, applying `replace_fn` to
+/// placeholders. Returns `None` if the payload renders to nothing.
 pub fn create_basic_embed<T, F>(payload: &T, replace_fn: F) -> Result<Option<CreateMessage>, Error>
 where
     T: MessageGetter,
@@ -211,6 +243,8 @@ where
     )
 }
 
+/// Like [`create_basic_embed`] but returns an HTTP-friendly error for the
+/// dashboard when the payload would render to an empty message or fails to compile.
 pub fn create_embed_for_web<T, F>(payload: &T, replace_fn: F) -> Result<CreateMessage, (StatusCode, String)>
 where
     T: MessageGetter,

@@ -60,6 +60,7 @@ pub async fn handle_delete_entire_category(
     ))
 }
 
+/// Returns the moderation feature's HTTP routes.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/guilds/{guild_id}/category/delete-entire", delete(handle_delete_entire_category))

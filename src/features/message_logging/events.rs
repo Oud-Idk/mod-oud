@@ -92,6 +92,7 @@ async fn determine_deleter(
     None
 }
 
+/// Logs a deleted message, resolving the deleter via audit logs and publishing the event.
 #[instrument(
     skip(ctx, data),
     fields(
@@ -215,6 +216,7 @@ pub async fn message_log_delete(
     Ok(())
 }
 
+/// Logs an edited message's content change and publishes the update event.
 #[instrument(
     skip(ctx, old_if_available, new, event, data),
     fields(

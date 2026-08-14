@@ -28,15 +28,20 @@ pub struct CounterChannel {
     pub name_template: String,
 }
 
+/// Config for the member counter feature.
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MemberCounterConfig {
+    /// Whether the member counter is enabled.
     pub enabled: bool,
+    /// How often the counters are updated, in minutes.
     #[serde(default = "default_interval")]
     pub update_interval_minutes: u32,
+    /// The individual counters to maintain.
     #[serde(default)]
     pub counters: Vec<CounterChannel>,
+    /// Category where counter channels are created.
     #[serde(default)]
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub category_id: Option<u64>,

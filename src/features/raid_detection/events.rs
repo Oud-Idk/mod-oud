@@ -11,6 +11,7 @@ use serenity::all::{
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
+/// Detects raid anomalies on member join and applies configured mitigation actions.
 #[instrument(
     skip(ctx, data, new_member),
     fields(

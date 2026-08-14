@@ -96,7 +96,6 @@ pub async fn get_active_bad_word_rulesets(
     data: &BotData,
     guild_id: u64,
 ) -> Result<Arc<Vec<CompiledRuleset>>, Error> {
-    // try_get_with handles L1 cache hit + stampede coalescing on cache misses
     data.caches
         .bad_words
         .try_get_with(guild_id, async {
@@ -122,12 +121,16 @@ pub async fn get_active_bad_word_rulesets(
                 .map(CompiledRuleset::from)
                 .collect();
 
-            Ok(Arc::new(compiled))
+            // Explicitly annotate Error type for the async block
+            Ok::<Arc<Vec<CompiledRuleset>>, Error>(Arc::new(compiled))
         })
         .await
         .map_err(|arc_err| {
-            // Unwraps Arc<Error> if error type is cloneable or handles conversion
-            Error::from(arc_err)
+            // Unwraps the inner Error or formats it if shared across threads
+            match Arc::try_unwrap(arc_err) {
+                Ok(err) => err,
+                Err(arc) => anyhow::anyhow!("{arc}").into(),
+            }
         })
 }
 

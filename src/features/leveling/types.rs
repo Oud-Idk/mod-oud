@@ -112,15 +112,22 @@ pub struct ImageCardSettings {
     pub background_color: String,
 }
 
+/// Top-level config for the leveling feature.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LevelingConfig {
+    /// Settings for text-based XP.
     pub text: TextSettings,
+    /// Settings for voice-based XP.
     pub voice: VoiceSettings,
+    /// Channels/roles that are exempt or enforced.
     pub scope: LevelingScope,
+    /// Styling for the rank card image.
     pub image_card: ImageCardSettings,
+    /// How level-up notifications are delivered.
     pub notify: NotificationSettings,
-
+    /// Maximum level a member can reach.
     pub level_cap: u64,
+    /// Whether XP is kept when a member leaves and rejoins.
     pub keep_level_on_leave: bool,
 }

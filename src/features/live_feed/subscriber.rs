@@ -5,6 +5,7 @@ use fred::prelude::*;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, trace, warn};
 
+/// Subscribes to Redis log channels and forwards parsed events to the broadcast sender.
 pub async fn start_live_feed_subscriber(
     subscriber_client: SubscriberClient,
     tx: broadcast::Sender<LogEvent>,

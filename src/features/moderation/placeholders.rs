@@ -57,6 +57,7 @@ pub fn replace_kick_placeholder(
     render(text, &ResolverChain(vec![&discord, &modctx]))
 }
 
+/// Renders moderation-related placeholders in a reason string.
 #[must_use]
 pub fn replace_reason_placeholders(
     text: &str,
@@ -120,6 +121,7 @@ pub fn replace_mute_placeholder(
     render(text, &ResolverChain(vec![&discord, &modctx]))
 }
 
+/// Renders moderation placeholders without a specific reason.
 #[must_use]
 pub fn replace_basic_placeholder(
     text: &str,
@@ -139,6 +141,7 @@ pub fn replace_basic_placeholder(
     render(text, &ResolverChain(vec![&discord, &modctx]))
 }
 
+/// Renders moderation placeholders for a system-issued ban (no member context).
 #[must_use]
 pub fn replace_system_ban_placeholders(
     text: &str,

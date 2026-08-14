@@ -2,8 +2,10 @@ use crate::core::config::state::{Context, Error};
 use linkify::{LinkFinder, LinkKind};
 use std::sync::LazyLock;
 
+/// Shared link finder instance for URL detection.
 pub static LINK_FINDER: LazyLock<LinkFinder> = LazyLock::new(LinkFinder::new);
 
+/// Removes all URLs from `input`, returning the cleaned text and the removed URLs.
 pub fn remove_urls(input: &str) -> (String, Vec<&str>) {
     let mut links_iter = LINK_FINDER.links(input).peekable();
 
@@ -26,6 +28,7 @@ pub fn remove_urls(input: &str) -> (String, Vec<&str>) {
     (cleaned, urls)
 }
 
+/// Sends `message` as an ephemeral reply visible only to the invoking user.
 pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Result<(), Error> {
     ctx.send(
         poise::CreateReply::default()

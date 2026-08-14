@@ -7,6 +7,7 @@ use fred::prelude::Expiration;
 use serenity::all::Message;
 use tracing::{debug, error, instrument};
 
+/// Spawns a background task to cache a message in Redis when message logging is enabled.
 pub async fn spawn_cache_message_in_redis(
     data: &BotData,
     msg: &Message,
@@ -35,6 +36,7 @@ pub async fn spawn_cache_message_in_redis(
     Ok(())
 }
 
+/// Caches a message's details in Redis so they survive the local cache.
 #[instrument(
     skip(redis, msg),
     fields(
@@ -172,10 +174,12 @@ pub async fn fetch_dist_edit_details(
     }
 }
 
+/// Publishes a message delete payload to the `discord:deletes` Redis channel.
 pub async fn publish_delete_event(redis: Client, payload_json: String) -> FredResult<()> {
     redis.publish("discord:deletes", payload_json).await
 }
 
+/// Publishes a message edit payload to the `discord:updates` Redis channel.
 pub async fn publish_edit_event(redis: &Client, payload_json: String) -> FredResult<()> {
     redis.publish("discord:updates", payload_json).await
 }

@@ -21,20 +21,29 @@ fn default_timezone() -> String {
     "UTC".to_string()
 }
 
+/// Config for the birthday announcements feature.
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BirthdayConfig {
+    /// Whether birthday announcements are enabled.
     pub enabled: bool,
+    /// Channel where announcements are posted.
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub channel_id: Option<u64>,
+    /// Hour of day (UTC) at which announcements are posted.
     pub announcement_hour: i16,
+    /// IANA timezone used for "today" calculations.
     #[serde(default = "default_timezone")]
     pub timezone: String,
+    /// Role granted to members on their birthday, if any.
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub birthday_role_id: Option<u64>,
+    /// Whether the birth year is required from members.
     pub require_year: bool,
+    /// Announcement message template for members with a known birth year.
     pub message_with_year: Value,
+    /// Announcement message template for members without a known birth year.
     pub message_without_year: Value,
 }
 

@@ -311,6 +311,7 @@ async fn handle_text_message(state: &WebState, sender: &Sender<Message>, guild_i
     let _ = sender.send(Message::Text(Utf8Bytes::from(json))).await;
 }
 
+/// Registers the music web route for the WebSocket control connection.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new().route("/ws/control", get(ws_handler))
 }

@@ -48,12 +48,15 @@ pub async fn get_username(
     Ok(None)
 }
 
+/// Queues a username update to be written to Postgres in batches.
 pub fn start_username_batch_worker(db: PgPool, rx: mpsc::Receiver<UserUpdate>) {
     tokio::spawn(async move {
         run_username_batch_worker(db, rx).await;
     });
 }
 
+/// Continuously drains queued [`UserUpdate`]s and flushes them to Postgres every
+/// 5 seconds, or earlier once 500 updates pile up.
 pub async fn run_username_batch_worker(db: PgPool, mut rx: mpsc::Receiver<UserUpdate>) {
     let mut ticker = interval(Duration::from_secs(5));
     let mut pending_updates: HashMap<u64, String> = HashMap::new();
@@ -100,7 +103,10 @@ async fn flush_updates(db: &PgPool, updates: &mut HashMap<u64, String>) {
     }
 }
 
+/// A pending username update for a Discord user.
 pub struct UserUpdate {
+    /// ID of the Discord user.
     pub id: u64,
+    /// New username.
     pub name: String,
 }

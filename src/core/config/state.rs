@@ -1,6 +1,6 @@
 use crate::core::config::settings::GuildSettings;
 use crate::features::automod::{SafeBrowsingClient, SpamTracker};
-use crate::features::bad_words::BadWordRuleset;
+use crate::features::bad_words::CompiledRuleset;
 use crate::features::live_feed::LogEvent;
 use crate::features::message_logging::CachedAuditLogs;
 use crate::features::music::MusicState;

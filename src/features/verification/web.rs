@@ -10,6 +10,7 @@ pub mod setup;
 pub mod teardown;
 pub mod verify;
 
+/// Registers the verification web routes for setup, teardown, and link verification.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/guilds/{guild_id}/verification", post(handle_verification_setup))

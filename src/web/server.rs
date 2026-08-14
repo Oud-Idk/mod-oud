@@ -19,6 +19,8 @@ use tracing::{error, info, instrument};
 use crate::features::music::MusicState;
 use crate::features::music::web_command::WebCommandBus;
 
+/// Starts the axum dashboard server on the `PORT` env var (default 8080),
+/// wiring up CORS, shared state, and the live-feed subscriber.
 #[instrument(skip(
     db,
     http,

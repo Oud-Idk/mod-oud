@@ -5,6 +5,7 @@ use crate::features::custom_commands::database::get_custom_command_by_name;
 use serenity::all::{Context, Message};
 use tracing::{debug, error, info};
 
+/// Handles a message and executes a custom command if the content matches one.
 pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> Result<(), Error> {
     if msg.author.bot { return Ok(()); }
     let Some(guild_id) = msg.guild_id else { return Ok(()); };

@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::state::Context;
 use crate::features::media_only::cache::{delete_media_only_channel, get_channel_media, store_media_only_channel};
 use crate::features::media_only::database::list_media_only_channels;
@@ -6,6 +7,7 @@ use crate::shared::messages::send_ephemeral;
 use anyhow::Result;
 use serenity::all::{Channel, CreateEmbed, Mentionable};
 
+/// Manage media-only channel enforcement for this server.
 #[poise::command(
     slash_command,
     guild_only,

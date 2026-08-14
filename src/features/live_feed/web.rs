@@ -59,6 +59,7 @@ pub async fn sse_handler(
     ))
 }
 
+/// Registers the live feed web route for the server-sent events stream.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/sse/events", get(sse_handler))

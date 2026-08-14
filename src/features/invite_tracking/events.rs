@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use tracing::{debug, warn};
 
+/// Refreshes the cached invite codes and inviters for a guild in Redis.
 pub async fn fetch_current_invites(
     ctx: &Context,
     guild: &Guild,
@@ -65,6 +66,7 @@ pub async fn fetch_current_invites(
     Ok(())
 }
 
+/// Stores a newly created invite code in the Redis cache.
 pub async fn store_invite(
     _: &Context,
     invite_data: &InviteCreateEvent,
@@ -105,6 +107,7 @@ pub async fn store_invite(
     Ok(())
 }
 
+/// Removes a deleted invite code from the Redis cache.
 pub async fn delete_invite(
     _: &Context,
     invite_data: &InviteDeleteEvent,
@@ -148,6 +151,7 @@ pub async fn delete_invite(
     Ok(())
 }
 
+/// Checks whether invite tracking is enabled for the given guild.
 pub async fn check_if_enabled(
     redis: &Client,
     db: &PgPool,
@@ -161,6 +165,7 @@ pub async fn check_if_enabled(
         .unwrap_or(false))
 }
 
+/// Attributes a member join to the inviter whose invite use count incremented.
 pub async fn store_member_invite(
     ctx: &Context,
     new_member: &Member,

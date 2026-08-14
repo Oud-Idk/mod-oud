@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::state::{Context, Error};
 use crate::features::birthday::types::Month;
 use crate::features::birthday::{database, pagination};

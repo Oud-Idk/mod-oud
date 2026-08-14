@@ -2,11 +2,13 @@ use crate::core::config::state::{BotData, Error};
 use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{ChannelId, Guild, GuildId, UserId};
 
+/// Redis key mapping a guild's users to the voice channel they are in.
 #[must_use]
 pub fn guild_vc_key(guild_id: GuildId) -> String {
     format!("vc:{guild_id}")
 }
 
+/// Stores a user's voice channel in Redis when they join a voice channel.
 pub async fn store_user_vc_on_join(data: &BotData, guild_id: GuildId, channel_id: ChannelId, user_id: UserId) -> Result<(), Error> {
     let guild_vc_key = guild_vc_key(guild_id);
     let redis = &data.core.redis;
@@ -15,6 +17,7 @@ pub async fn store_user_vc_on_join(data: &BotData, guild_id: GuildId, channel_id
     Ok(())
 }
 
+/// Removes a user's voice channel entry from Redis when they leave.
 pub async fn delete_user_vc_on_leave(data: &BotData, guild_id: GuildId, user_id: UserId) -> Result<(), Error> {
     let guild_vc_key = guild_vc_key(guild_id);
     let redis = &data.core.redis;
@@ -23,6 +26,7 @@ pub async fn delete_user_vc_on_leave(data: &BotData, guild_id: GuildId, user_id:
     Ok(())
 }
 
+/// Returns the voice channel a user is currently in, if cached in Redis.
 pub async fn get_user_vc_in_guild(data: &BotData, guild_id: GuildId, user_id: UserId) -> Result<Option<ChannelId>, Error> {
     let guild_vc_key = guild_vc_key(guild_id);
     let redis = &data.core.redis;
@@ -31,6 +35,8 @@ pub async fn get_user_vc_in_guild(data: &BotData, guild_id: GuildId, user_id: Us
     Ok(channel_id.map(ChannelId::new))
 }
 
+/// Rebuilds the Redis voice channel mapping for a guild from its current
+/// voice states.
 pub async fn sync_guild_voice_state(guild: &Guild, data: &BotData) -> Result<(), Error> {
     let redis = &data.core.redis;
 

@@ -5,6 +5,7 @@ use poise::serenity_prelude as serenity;
 use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, Reaction};
 use tracing::{info, warn};
 
+/// Assigns the configured role when a user reacts to a reaction role message.
 pub async fn handle_reaction_role_add(ctx: &Context, reaction: &Reaction, data: &BotData) -> Result<(), Error> {
     let Some(guild_id) = reaction.guild_id else { return Ok(()); };
     let Some(user_id) = reaction.user_id else { return Ok(()); };
@@ -23,6 +24,7 @@ pub async fn handle_reaction_role_add(ctx: &Context, reaction: &Reaction, data: 
     Ok(())
 }
 
+/// Removes the configured role when a user removes their reaction from a reaction role message.
 pub async fn handle_reaction_role_remove(ctx: &Context, reaction: &Reaction, data: &BotData) -> Result<(), Error> {
     let Some(guild_id) = reaction.guild_id else { return Ok(()); };
     let Some(user_id) = reaction.user_id else { return Ok(()); };
@@ -41,6 +43,7 @@ pub async fn handle_reaction_role_remove(ctx: &Context, reaction: &Reaction, dat
     Ok(())
 }
 
+/// Toggles the configured role for a user when they click a reaction role button.
 pub async fn handle_button_interaction(
     ctx: &Context,
     component: &ComponentInteraction,

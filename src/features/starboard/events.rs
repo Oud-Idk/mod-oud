@@ -10,6 +10,8 @@ use serenity::all::{ChannelId, Context, CreateEmbed, CreateMessage, EditMessage,
 use sqlx::PgPool;
 use tracing::{Instrument, debug, error, info, instrument, trace, warn};
 
+/// Deletes linked starboard messages when the original message is removed,
+/// unless the starboard is configured to keep deleted messages.
 #[instrument(skip(ctx, db, orig_msg_id), fields(orig_msg_id = orig_msg_id.get()))]
 pub async fn handle_cleanup_if_starboard(
     ctx: &Context,
@@ -49,12 +51,14 @@ pub async fn handle_cleanup_if_starboard(
     Ok(())
 }
 
+/// Handles a reaction added event for starboard processing.
 #[instrument(skip(ctx, data, add_reaction), fields(reaction = ?add_reaction.emoji))]
 pub async fn handle_reaction_add(ctx: &Context, add_reaction: &Reaction, data: &BotData) -> Result<()> {
     debug!("Handling reaction add event");
     handle_starboard_reaction(ctx, add_reaction, data, StarboardOp::Add).await
 }
 
+/// Handles a reaction removed event for starboard processing.
 #[instrument(skip(ctx, data, removed_reaction), fields(reaction = ?removed_reaction.emoji))]
 pub async fn handle_reaction_remove(ctx: &Context, removed_reaction: &Reaction, data: &BotData) -> Result<()> {
     debug!("Handling reaction remove event");
@@ -195,6 +199,8 @@ async fn handle_starboard_reaction(
     Ok(())
 }
 
+/// Creates or updates the starboard post for a message based on its emoji count
+/// and configured threshold, demoting or deleting posts that fall below it.
 #[instrument(skip(ctx, db, starboard, reaction, member), fields(starboard_id = starboard.id, orig_msg_id = %reaction.message_id, emoji_count = emoji_count
 ))]
 pub async fn upsert_starboard(

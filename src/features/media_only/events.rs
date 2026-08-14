@@ -13,6 +13,7 @@ fn has_matching_role(member: &Box<PartialMember>, roles: &[RoleId]) -> bool {
     })
 }
 
+/// Enforces media-only rules on a message, handling violations and optional auto-threads.
 pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data: &BotData) -> Result<()> {
     let channel_id = message.channel_id;
 

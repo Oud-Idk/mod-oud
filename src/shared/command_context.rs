@@ -4,9 +4,13 @@ use anyhow::Result;
 
 /// Common metadata extracted from a guild-only command context.
 pub struct GuildMetadata {
+    /// ID of the guild the command was run in.
     pub id: serenity::all::GuildId,
+    /// Name of the guild.
     pub name: String,
+    /// ID of the user who invoked the command.
     pub author_id: serenity::all::UserId,
+    /// URL of the guild's icon, if it has one.
     pub icon_url: Option<String>,
 }
 

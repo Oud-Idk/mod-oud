@@ -146,6 +146,7 @@ pub async fn handle_setup_member_counter(
     ))
 }
 
+/// Registers the member counter web route for setting up counter channels.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/guilds/{guild_id}/member-counter/setup", post(handle_setup_member_counter))

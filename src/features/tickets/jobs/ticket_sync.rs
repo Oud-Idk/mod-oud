@@ -73,6 +73,7 @@ async fn hydrate_active_tickets(
     Ok(())
 }
 
+/// Subscribes to ticket pub/sub updates and keeps the local active-tickets cache in sync with Redis.
 pub fn sync_tickets(
     redis_client: &Client,
     subscriber_client: &SubscriberClient,

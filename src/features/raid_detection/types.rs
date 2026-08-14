@@ -1,13 +1,19 @@
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 
+/// Config for the raid detection feature.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RaidDetectionConfig {
+    /// Whether raid detection is enabled.
     pub enabled: bool,
+    /// Number of standard deviations above the mean considered a raid.
     pub z_score_multiplier: f64,
+    /// Minimum join threshold before anomaly detection kicks in.
     pub min_safe_limit: i64,
+    /// Size of the rolling join-rate window, in seconds.
     pub window_size_seconds: i64,
+    /// Actions to run when a raid is detected.
     pub raid_actions: Vec<RaidAction>,
 }
 

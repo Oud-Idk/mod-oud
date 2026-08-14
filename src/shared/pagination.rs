@@ -25,6 +25,7 @@ impl PaginationState {
         }
     }
 
+    /// Returns the currently displayed page index (0-based).
     #[must_use]
     pub const fn current_page(&self) -> usize {
         self.current_page

@@ -100,6 +100,7 @@ pub async fn issue_kick(
     Ok(())
 }
 
+/// Bans a user from the guild, optionally sending a DM and scheduling an unban.
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id, duration_label
 ))]
 pub async fn issue_ban(
@@ -162,6 +163,7 @@ pub async fn issue_ban(
     Ok(())
 }
 
+/// Schedules an automatic unban for the given user after `dur` has elapsed.
 pub async fn schedule_unban(db: &PgPool, guild_id: GuildId, user: &User, dur: Duration) -> Result<TimeDelta> {
     let chrono_dur = chrono::Duration::from_std(dur)?;
     let unban_at = chrono::Utc::now() + chrono_dur;
@@ -177,6 +179,7 @@ pub async fn schedule_unban(db: &PgPool, guild_id: GuildId, user: &User, dur: Du
     Ok(chrono_dur)
 }
 
+/// Times out (mutes) a user for the given duration, optionally sending a DM.
 #[instrument(skip(db, redis_conn, guild_configs, http, user), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_mute(

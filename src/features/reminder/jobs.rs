@@ -30,6 +30,7 @@ struct ReminderRecord {
     message: Json<MessageLayout>,
 }
 
+/// Spawns a background worker that periodically processes and sends due reminders.
 pub fn start_reminder_worker(
     db_pool: sqlx::PgPool,
     http: Arc<serenity::Http>,

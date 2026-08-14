@@ -5,7 +5,11 @@ use futures_util::StreamExt;
 use tracing::trace;
 
 fn make_page(warn: &WarningInfo) -> String {
-    let status = if warn.is_active.unwrap_or(true) { "Active" } else { "Pardoned" };
+    let status = if warn.is_active.unwrap_or(true) {
+        "Active"
+    } else {
+        "Pardoned"
+    };
     let time_str = match warn.created_at {
         Some(ts) => format!("<t:{ts}:f> (<t:{ts}:R>)"),
         None => "*Unknown date*".to_string(),
@@ -31,8 +35,7 @@ pub async fn paginate_warnings(
 
     trace!(
         total_warnings = warnings.len(),
-        total_pages,
-        "Rendering warning pagination flow"
+        total_pages, "Rendering warning pagination flow"
     );
 
     pagination::paginate(ctx, total_pages, move |page_idx| {
@@ -47,7 +50,9 @@ pub async fn paginate_warnings(
             .description(embed_description)
             .color(0x5865F2)
             .footer(poise::serenity_prelude::CreateEmbedFooter::new(format!(
-                "Page {} of {}", page_idx + 1, total_pages
+                "Page {} of {}",
+                page_idx + 1,
+                total_pages
             )));
 
         if let Some(ref url) = thumbnail_url {
@@ -55,8 +60,8 @@ pub async fn paginate_warnings(
         }
 
         embed
-    }).await?;
+    })
+    .await?;
 
     Ok(())
 }
-

@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::state::{Context, Error};
 use crate::core::setup::ShardManagerContainer;
 use fred::interfaces::ClientLike;

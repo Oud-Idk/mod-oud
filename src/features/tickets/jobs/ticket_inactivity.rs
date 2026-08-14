@@ -17,6 +17,7 @@ struct WarnTarget {
     remaining_minutes: i64,
 }
 
+/// Starts the periodic background worker that warns inactive tickets and closes abandoned ones.
 pub fn start_ticket_inactivity_worker(
     pool: sqlx::PgPool,
     http: Arc<serenity::Http>,

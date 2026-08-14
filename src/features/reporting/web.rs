@@ -88,6 +88,7 @@ pub async fn handle_dashboard_command(
     Ok(StatusCode::OK)
 }
 
+/// Registers the reporting web route for dashboard moderation commands.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/commands", post(handle_dashboard_command))

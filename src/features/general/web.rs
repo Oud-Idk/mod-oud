@@ -86,6 +86,7 @@ pub async fn handle_send_custom_embed(
     ))
 }
 
+/// Registers the general web route for sending custom embeds.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/guilds/{guild_id}/embeds/send", post(handle_send_custom_embed))

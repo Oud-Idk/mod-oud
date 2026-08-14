@@ -16,6 +16,7 @@ use serenity::all::{
 };
 use tracing::{debug, info, instrument, trace, warn};
 
+/// Handles the open-ticket button interaction by creating a private ticket channel and initializing its state.
 #[instrument(skip(ctx, data, component), fields(guild_id = ?component.guild_id, user_id = %component.user.id
 ))]
 pub async fn on_open_ticket(

@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::ActionType;
 use crate::features::moderation::commands::helpers::parse_duration;

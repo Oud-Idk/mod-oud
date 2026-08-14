@@ -3,6 +3,7 @@ use sha2::Sha256;
 use std::time::SystemTime;
 use tracing::debug;
 
+/// Verifies that an HMAC signature is valid and has not expired.
 pub fn verify_sig(user_id: &str, guild_id: &str, expires: u64, sig: &str, secret_key: &[u8]) -> bool {
     // Check expiry
     let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
@@ -23,6 +24,7 @@ pub fn verify_sig(user_id: &str, guild_id: &str, expires: u64, sig: &str, secret
     expected_sig == sig
 }
 
+/// Generates a signed, expiring verification link for a user and guild.
 #[must_use]
 pub fn generate_verification_link(user_id: u64, guild_id: u64, secret_key: &[u8], domain: &str) -> String {
     // Link expires in 10 minutes (600 seconds)

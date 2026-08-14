@@ -99,14 +99,20 @@ impl GuildPlayer {
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 
+/// Global music state shared with the web server: per-guild actors, stats, and
+/// the events channel used to push now-playing updates.
 #[derive(Clone)]
 pub struct MusicState {
+    /// Map of guild ID to that guild's music actor channel.
     pub actors: Arc<Mutex<HashMap<GuildId, mpsc::Sender<GuildCommand>>>>,
+    /// Channel used to report playback statistics.
     pub stats_tx: StatsTx,
+    /// Broadcast channel for now-playing updates.
     pub events_tx: broadcast::Sender<(u64, Option<NowPlayingResponse>)>,
 }
 
 impl MusicState {
+    /// Creates an empty music state with a fresh events channel.
     #[must_use]
     pub fn new(stats_tx: StatsTx) -> Self {
         let (events_tx, _) = broadcast::channel(256);
@@ -117,6 +123,8 @@ impl MusicState {
         }
     }
 
+    /// Returns the actor channel for `guild_id`, spawning a new [`GuildActor`]
+    /// if none exists yet.
     pub async fn get_or_spawn_actor(
         &self,
         guild_id: GuildId,

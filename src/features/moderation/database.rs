@@ -22,6 +22,7 @@ impl ToPgInterval for TimeDelta {
     }
 }
 
+/// Records a moderation action in the audit log table.
 pub async fn log_moderation_action(
     db: &PgPool,
     guild_id: GuildId,

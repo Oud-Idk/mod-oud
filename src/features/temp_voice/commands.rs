@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 mod rename;
 mod kick;
 mod limit;

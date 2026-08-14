@@ -3,11 +3,14 @@ use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
 use std::fmt;
 
+/// The captcha provider used for verification.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CaptchaType {
+    /// Cloudflare Turnstile.
     #[default]
     Turnstile,
+    /// hCaptcha.
     #[serde(rename = "HCAPTCHA")]
     HCaptcha,
 }
@@ -21,20 +24,28 @@ impl fmt::Display for CaptchaType {
     }
 }
 
+/// Settings for the membership verification feature.
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[serde(default)]
 pub struct VerificationSettings {
+    /// Whether verification is enabled.
     pub enabled: Option<bool>,
+    /// ID of the message users react to in order to verify.
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub verification_message_id: Option<u64>,
+    /// ID of the channel the verification message is in.
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub verification_channel_id: Option<u64>,
+    /// ID of the role granted upon successful verification.
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub verification_role_id: Option<u64>,
+    /// Message layout used for verification embeds.
     pub message: MessageLayout,
+    /// Whether to use OAuth-based verification.
     #[serde(rename = "useOauth")]
     pub use_oauth: Option<bool>,
+    /// The captcha provider to use, if any.
     pub captcha_type: Option<CaptchaType>,
 }

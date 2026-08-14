@@ -149,6 +149,7 @@ pub async fn cleanup_expired_birthday_roles(
 }
 
 
+/// Spawns a background worker that runs birthday announcements and cleans up expired birthday roles.
 pub fn start_birthday_worker(
     pool: PgPool,
     redis_client: Client,

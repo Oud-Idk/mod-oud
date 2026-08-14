@@ -7,4 +7,4 @@ mod types;
 
 pub use events::filter_bad_words;
 pub use events::get_active_bad_word_rulesets;
-pub use types::BadWordRuleset;
+pub use types::{BadWordRuleset, CompiledRuleset};

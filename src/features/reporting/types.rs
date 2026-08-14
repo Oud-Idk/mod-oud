@@ -35,13 +35,17 @@ pub enum ReportStatus {
     Dismissed,
 }
 
+/// Config for the reporting feature.
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportConfig {
+    /// Whether reporting is enabled in the guild.
     pub enabled: bool,
+    /// Message sent to the reporter when a report is resolved.
     pub resolved_dm: Option<TogglableMessage>,
+    /// Message sent to the reporter when a report is dismissed.
     pub dismissed_dm: Option<TogglableMessage>,
 }
 
@@ -57,27 +61,42 @@ pub struct DashboardCommand {
     pub name: Option<String>,
 }
 
+/// Payload describing a reported message for the dashboard.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportedMessagePayload {
+    /// ID of the report row.
     #[serde(with = "string_i64")]
     pub id: i64,
+    /// ID of the guild the report belongs to.
     #[serde(with = "string_i64")]
     pub guild_id: i64,
+    /// ID of the channel the reported message was in.
     #[serde(with = "string_i64")]
     pub channel_id: i64,
+    /// ID of the reported message.
     #[serde(with = "string_i64")]
     pub message_id: i64,
+    /// ID of the reported message's author.
     #[serde(with = "string_i64")]
     pub author_id: i64,
+    /// ID of the user who filed the report.
     #[serde(with = "string_i64")]
     pub reporter_id: i64,
+    /// Reason given for the report.
     pub reason: String,
+    /// Content of the reported message.
     pub content: String,
+    /// URL of an attachment on the reported message, if any.
     pub attachment_url: Option<String>,
+    /// Current status of the report.
     pub status: ReportStatus,
+    /// Whether the reported message was deleted.
     pub message_deleted: bool,
+    /// Whether the author was warned.
     pub user_warned: bool,
+    /// Whether the author was timed out.
     pub user_timed_out: bool,
+    /// Whether the author was banned.
     pub user_banned: bool,
 }
 

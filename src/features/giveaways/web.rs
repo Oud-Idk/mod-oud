@@ -9,6 +9,7 @@ mod delete;
 mod edit;
 
 
+/// Registers the giveaway web routes for sending, editing, and deleting giveaway messages.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/guilds/{guild_id}/giveaways/{config_id}/send", post(send::handle_send_giveaway_message))

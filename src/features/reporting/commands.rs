@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::reporting::actions;
@@ -12,6 +13,7 @@ pub struct ReportModal {
     pub(crate) reason: String,
 }
 
+/// Report a message to the moderation team via the message context menu.
 #[poise::command(context_menu_command = "Report This Message", guild_only)]
 pub async fn report_message(
     ctx: Context<'_>,

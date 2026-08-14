@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::state::{Context, Error};
 use crate::features::raid_detection::triggers::{resolve_raid_manual, trigger_raid_manual};
 use anyhow::Context as _;

@@ -12,6 +12,7 @@ use crate::features::leveling::{cache, keys, notifications, rewards, rules};
 use serenity::all::{Context, Message};
 use tracing::{debug, info, trace, warn};
 
+/// Grants text chat XP for a message, applying cooldowns, multipliers, and level-ups.
 pub async fn handle_text_leveling(
     ctx: &Context,
     message: &Message,
@@ -132,6 +133,8 @@ pub async fn handle_text_leveling(
     Ok(())
 }
 
+/// Returns true if the message should be excluded from leveling based on tickets,
+/// excluded roles, or excluded channels.
 pub fn should_skip_leveling(message: &Message, data: &BotData, config: &LevelingConfig) -> bool {
     let guild_id = message.guild_id.map_or(0, serenity::all::GuildId::get);
     let channel_id_u64 = message.channel_id.get();
@@ -159,6 +162,7 @@ pub fn should_skip_leveling(message: &Message, data: &BotData, config: &Leveling
     false
 }
 
+/// Spawns a background task to send level-up notifications and apply role rewards.
 pub fn spawn_level_up_effects(
     ctx: Context,
     db: &sqlx::PgPool,

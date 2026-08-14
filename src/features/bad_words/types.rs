@@ -24,17 +24,26 @@ pub struct Pattern {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BadWordRuleset {
+    /// Unique ID of the ruleset.
     pub id: uuid::Uuid,
+    /// Guild the ruleset belongs to.
     pub guild_id: i64,
+    /// Display name of the ruleset.
     pub name: String,
+    /// Whether the ruleset is active.
     pub enabled: bool,
+    /// The patterns this ruleset matches against.
     pub patterns: Vec<Pattern>,
+    /// Actions to take when a pattern matches.
     pub actions: Vec<RuleAction>,
+    /// Timeout duration in seconds, if a timeout action is configured.
     pub timeout_duration_seconds: Option<i32>,
+    /// Scope the ruleset applies to.
     pub scope: RuleScope,
 }
 
 impl BadWordRuleset {
+    /// Converts the raw ruleset into a shared [`BaseRule`] for the automod pipeline.
     pub fn to_base_rule(&self) -> BaseRule {
         BaseRule {
             enabled: self.enabled,
@@ -48,12 +57,19 @@ impl BadWordRuleset {
 /// Pre-compiled, optimized structure kept in the L1 Moka cache
 #[derive(Debug, Clone)]
 pub struct CompiledRuleset {
+    /// Unique ID of the ruleset.
     pub id: uuid::Uuid,
+    /// Guild the ruleset belongs to.
     pub guild_id: i64,
+    /// Display name of the ruleset.
     pub name: String,
+    /// Whether the ruleset is active.
     pub enabled: bool,
+    /// Actions to take when a pattern matches.
     pub actions: Vec<RuleAction>,
+    /// Timeout duration in seconds, if a timeout action is configured.
     pub timeout_duration_seconds: Option<i32>,
+    /// Scope the ruleset applies to.
     pub scope: RuleScope,
 
     /// Lowercased exact words for O(1) hashset lookup
@@ -68,6 +84,7 @@ pub struct CompiledRuleset {
 }
 
 impl CompiledRuleset {
+    /// Converts the compiled ruleset into a shared [`BaseRule`] for the automod pipeline.
     pub fn to_base_rule(&self) -> BaseRule {
         BaseRule {
             enabled: self.enabled,

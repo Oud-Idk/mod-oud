@@ -10,6 +10,7 @@ use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, GuildId, Member, User, UserId, VoiceState};
 use tracing::{debug, trace};
 
+/// Tracks voice sessions and awards voice XP when a user leaves an eligible channel.
 pub async fn handle_voice_leveling(
     ctx: &Context,
     old: Option<&VoiceState>,

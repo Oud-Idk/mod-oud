@@ -4,6 +4,8 @@ use tokio::sync::oneshot;
 use tokio::time::{self, Duration};
 use tracing::{instrument, trace, warn};
 
+/// Owns a distributed Redis lock. Releasing the lock (or dropping the guard)
+/// stops the renewal watchdog and deletes the key.
 pub struct LockGuard {
     client: Client,
     key: String,
@@ -46,6 +48,9 @@ impl Drop for LockGuard {
     }
 }
 
+/// Acquires a distributed Redis lock with an atomic `SET NX EX` and spawns a
+/// background watchdog that extends the TTL every `heartbeat_interval_secs`.
+/// Returns `None` if the lock is already held by someone else.
 #[instrument(skip(client), fields(key = %key, value = %value))]
 pub async fn acquire_lock(
     client: &Client,

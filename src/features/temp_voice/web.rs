@@ -8,6 +8,7 @@ use crate::features::temp_voice::web::send_interface::handle_send_temp_voice_int
 pub mod send_interface;
 pub mod create_hub;
 
+/// Returns the axum router exposing the temporary voice hub and interface setup web endpoints.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/guilds/{guild_id}/temp-voice/setup", post(handle_create_temp_category_and_hub))

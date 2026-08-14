@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::Context;
 use crate::features::music::actor::GuildCommand;
@@ -77,6 +78,7 @@ fn track_embed(author: &User, title: String, thumbnail: Option<String>) -> Creat
         .color(BRAND_COLOR)
 }
 
+/// Music commands
 // Parent command
 #[poise::command(
     slash_command,

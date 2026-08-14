@@ -8,6 +8,7 @@ use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{ChannelId, ChannelType, Context, CreateChannel, GuildChannel, GuildId, Member, VoiceState};
 use tracing::{debug, trace, warn};
 
+/// Records user voice channel join/leave state for temporary voice tracking.
 pub async fn handle_log_user_join(
     data: &BotData,
     new: &VoiceState
@@ -257,6 +258,7 @@ pub async fn create_temp_vc(ctx: &Context, guild_id: &GuildId, member: &Member, 
     Ok(new_channel)
 }
 
+/// Routes voice state changes to temporary voice channel join and leave handling.
 pub async fn handle_voice_event(ctx: &Context, old: Option<&VoiceState>, new: &VoiceState, data: &BotData) -> Result<(), Error> {
     handle_join_hub_temp_vc(ctx, new, data).await?;
     handle_leave_temp_vc(ctx, old, new, data).await?;

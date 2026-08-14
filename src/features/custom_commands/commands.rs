@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use poise::CreateReply;
 use serenity::all::CreateEmbed;
 use tracing::error;

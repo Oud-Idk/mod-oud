@@ -4,6 +4,7 @@ use serenity::all::{ChannelId, ComponentInteraction, Context, CreateInteractionR
 use std::time::Duration;
 use tracing::{debug, info, instrument, trace, warn};
 
+/// Handles the close-ticket button interaction by purging ticket records and deleting the channel after a countdown.
 #[instrument(skip(ctx, data, component), fields(channel_id = %component.channel_id, user_id = %component.user.id
 ))]
 pub async fn on_close_ticket(

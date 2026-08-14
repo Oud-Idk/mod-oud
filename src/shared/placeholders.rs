@@ -4,10 +4,13 @@ use regex::{Captures, Regex};
 use serenity::all::{GuildChannel, Member, Message, User};
 use std::sync::OnceLock;
 
+/// Resolves a placeholder key (e.g. `server.name`) into its rendered value.
 pub trait PlaceholderResolver: Send + Sync {
+    /// Returns the replacement string for `key`, or `None` if unknown.
     fn resolve(&self, key: &str) -> Option<String>;
 }
 
+/// Chains multiple resolvers, returning the first non-`None` match.
 pub struct ResolverChain<'a>(pub Vec<&'a (dyn PlaceholderResolver + Send + Sync)>);
 
 impl PlaceholderResolver for ResolverChain<'_> {
@@ -16,6 +19,8 @@ impl PlaceholderResolver for ResolverChain<'_> {
     }
 }
 
+/// Replaces every `{key}` placeholder in `text` using `resolver`. Unknown
+/// placeholders are left untouched.
 pub fn render(text: &str, resolver: &dyn PlaceholderResolver) -> String {
     let re = get_placeholder_regex();
     re.replace_all(text, |caps: &Captures| {
@@ -24,13 +29,21 @@ pub fn render(text: &str, resolver: &dyn PlaceholderResolver) -> String {
         .into_owned()
 }
 
+/// Optional Discord context used to resolve user/member, channel, and message
+/// placeholders.
 #[derive(Default)]
 pub struct DiscordCtx<'a> {
+    /// Guild context for server-related placeholders.
     pub gctx: Option<&'a GuildCtx>,
+    /// Member whose user placeholders resolve to.
     pub member: Option<&'a Member>,
+    /// User for user-related placeholders.
     pub user: Option<&'a User>,
+    /// Channel for channel-related placeholders.
     pub channel: Option<&'a GuildChannel>,
+    /// Original channel the message was sent in.
     pub source_channel: Option<&'a GuildChannel>,
+    /// Message for message-related placeholders.
     pub message: Option<&'a Message>,
 }
 
@@ -127,6 +140,7 @@ impl PlaceholderResolver for DiscordCtx<'_> {
     }
 }
 
+/// Returns the shared regex used to match `{key}` placeholders.
 pub fn get_placeholder_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap())

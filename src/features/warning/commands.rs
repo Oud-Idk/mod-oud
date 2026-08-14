@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::pre_flight_check;
 use crate::features::warning::database::{fetch_warnings, search_warning_from_id, search_warnings_by_pattern};

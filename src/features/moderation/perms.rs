@@ -4,6 +4,8 @@ use anyhow::{Context as _, Result, bail};
 use serenity::all::{Member, PartialGuild, UserId};
 use tracing::{debug, trace, warn};
 
+/// Runs pre-flight permission checks (self-moderation, role hierarchy) before
+/// a moderation action and returns the guild metadata on success.
 pub async fn pre_flight_check<'a>(
     ctx: &Context<'a>,
     user_id: UserId,
@@ -35,6 +37,8 @@ pub async fn pre_flight_check<'a>(
     Ok(Some(GuildMetadata::extract(ctx)?))
 }
 
+/// Returns `true` (and sends a message) if the author is trying to moderate
+/// themselves.
 pub async fn check_self_moderation(
     ctx: &Context<'_>,
     target_id: UserId,

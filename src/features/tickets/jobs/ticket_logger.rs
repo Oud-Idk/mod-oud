@@ -4,6 +4,7 @@ use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, error, info, instrument, trace};
 
+/// Starts the background worker that batches ticket message logs and flushes them to the database.
 pub fn start_ticket_logger(
     mut rx: UnboundedReceiver<TicketLogPayload>,
     pool: PgPool,

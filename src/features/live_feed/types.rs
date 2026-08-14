@@ -5,12 +5,14 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 impl LogEvent {
+    /// Redis pub/sub channels the live feed subscribes to.
     pub const REDIS_CHANNELS: &'static [&'static str] = &[
         "discord:deletes",
         "discord:updates",
         "discord:reports",
     ];
 
+    /// Deserializes a payload from the given Redis channel into a [`LogEvent`].
     pub fn from_redis(channel: &str, payload: &str) -> Option<Self> {
         match channel {
             "discord:deletes" => serde_json::from_str::<DeletedMessagePayload>(payload)
@@ -32,6 +34,7 @@ impl LogEvent {
         }
     }
 
+    /// Converts the event into a server-sent event for the dashboard's SSE stream.
     pub fn to_sse_event(&self) -> Result<Event, axum::Error> {
         match self {
             Self::MessageDelete(payload) => {
@@ -46,6 +49,7 @@ impl LogEvent {
         }
     }
 
+    /// Returns the guild ID associated with this event, if any.
     #[must_use]
     pub const fn guild_id(&self) -> Option<i64> {
         match self {
@@ -56,10 +60,14 @@ impl LogEvent {
     }
 }
 
+/// An event streamed to the dashboard over SSE.
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(tag = "type", content = "payload")]
 pub enum LogEvent {
+    /// A message was deleted.
     MessageDelete(DeletedMessagePayload),
+    /// A message was edited.
     MessageEdit(ModifiedMessagePayload),
+    /// A message was reported.
     MessageReport(ReportedMessagePayload),
 }

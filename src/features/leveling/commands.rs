@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use crate::core::config::settings::{GuildSettings, get_settings};
 use crate::features::leveling::calculation::{calculate_cumulative_xp, calculate_xp_needed};
 use crate::features::leveling::database::{get_user_level, update_level};

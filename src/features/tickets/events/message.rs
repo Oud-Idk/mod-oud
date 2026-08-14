@@ -11,6 +11,7 @@ use serenity::all::{
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, info, instrument, trace};
 
+/// Intercepts messages in active ticket channels, logging them to the database and rotating the close button when activity thresholds are reached.
 #[instrument(
     skip(ctx, data, message),
     fields(

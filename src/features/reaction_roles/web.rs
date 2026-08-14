@@ -11,6 +11,7 @@ pub mod delete;
 pub mod edit;
 pub mod send;
 
+/// Registers the reaction role web routes for sending, editing, and deleting reaction role messages.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/guilds/{guild_id}/reaction-roles/{config_id}/send", post(handle_send_reaction_role_message))

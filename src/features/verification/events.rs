@@ -2,6 +2,7 @@ use crate::{core::config::state::BotData, features::verification::generate_verif
 use poise::serenity_prelude as serenity;
 use tracing::warn;
 
+/// Sends an ephemeral verification link to the user who interacted with the verify button.
 pub async fn send_verification_link(
     ctx: &serenity::prelude::Context,
     data: &BotData,

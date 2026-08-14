@@ -16,6 +16,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{debug, info, instrument};
 
+/// Issues a warning to a user, sending a DM and logging the action.
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user_id, moderator_id = %moderator_id
 ))]
 pub async fn issue_warning(

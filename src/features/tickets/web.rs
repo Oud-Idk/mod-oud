@@ -8,6 +8,7 @@ use crate::features::tickets::web::send_panel::handle_send_ticket_message;
 pub mod send_panel;
 pub mod delete_panel;
 
+/// Returns the axum router exposing the ticket panel send/delete web endpoints.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/guilds/{guild_id}/tickets/send-message", post(handle_send_ticket_message))
