@@ -20,10 +20,10 @@ export async function saveGiveawayAction(guildId: string, config: SaveGiveawayDa
         const validated = SaveGiveawaySchema.parse(config);
         const ret = await saveGiveaway(validated);
 
-        if (ret?.message_id) {
+        if (ret.message_id !== null) {
             try {
                 const backendUrl = globalConfig.backendInternalUrl;
-                await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${ret.id}/edit`, { method: "POST" });
+                await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${ret.id.toString()}/edit`, { method: "POST" });
             } catch (err) {
                 console.error("Failed to auto-update Discord message on save:", err);
             }
@@ -57,16 +57,16 @@ export async function sendGiveawayAction(guildId: string, id: number): Promise<S
 
         const backendUrl = globalConfig.backendInternalUrl;
         const response = await fetch(
-            `${backendUrl}/api/guilds/${validatedInput.guildId}/giveaways/${validatedInput.id}/send`,
+            `${backendUrl}/api/guilds/${validatedInput.guildId}/giveaways/${validatedInput.id.toString()}/send`,
             { method: "POST" }
         );
 
         if (!response.ok) {
-            throw new Error((await response.text()) || "Failed to dispatch giveaway message.");
+            const error_text = (await response.text()).trim();
+            throw new Error(error_text !== "" ? error_text : "Failed to dispatch giveaway message.");
         }
 
-        const data = await response.json();
-        const validatedResponse = sendGiveawayResponseSchema.parse(data);
+        const validatedResponse = sendGiveawayResponseSchema.parse(await response.json());
         revalidatePath(`/dashboard/${validatedInput.guildId}/giveaways`);
         return validatedResponse;
     } catch (error) {
@@ -78,10 +78,11 @@ export async function deleteGiveawayDiscordMessageAction(guildId: string, id: nu
     try {
         await verifyGuildAccess(guildId);
         const backendUrl = globalConfig.backendInternalUrl;
-        const response = await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${id}/message`, { method: "DELETE" });
+        const response = await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${id.toString()}/message`, { method: "DELETE" });
 
         if (!response.ok) {
-            throw new Error((await response.text()) || "Failed to delete Discord message.");
+            const error_text = (await response.text()).trim();
+            throw new Error(error_text !== "" ? error_text : "Failed to delete Discord message.");
         }
 
         revalidatePath(`/dashboard/${guildId}/giveaways`);

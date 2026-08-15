@@ -1,6 +1,8 @@
 import { config } from "@/config";
 import { z } from "zod";
 import {
+    AutoCreateResponse,
+    autoCreateResponseSchema,
     CounterChannel,
     MemberCounterConfig,
     memberCounterConfigSchema,
@@ -24,7 +26,7 @@ export async function saveMemberCounterConfig(
 export async function setupMemberCounterChannels(
     guildId: string,
     counters: CounterChannel[]
-) {
+): Promise<AutoCreateResponse> {
     const backendUrl = config.backendInternalUrl;
 
     const response = await fetch(`${backendUrl}/api/guilds/${guildId}/member-counter/setup`, {
@@ -36,9 +38,9 @@ export async function setupMemberCounterChannels(
     });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to create category and channels via bot backend.");
+        const text = (await response.text()).trim();
+        throw new Error(text !== "" ? text : "Failed to create category and channels via bot backend.");
     }
 
-    return await response.json();
+    return autoCreateResponseSchema.parse(await response.json());
 }

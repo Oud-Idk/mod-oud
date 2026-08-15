@@ -16,6 +16,10 @@ export const counterChannelSchema = z.object({
     nameTemplate: z.string().default("👥 Members: {count}"),
 });
 
+export const autoCreateResponseSchema = z.object({
+    counters: counterChannelSchema.array(),
+})
+
 export const memberCounterConfigSchema = z.object({
     enabled: z.boolean().default(false),
     updateIntervalMinutes: z.number().default(15),
@@ -25,17 +29,17 @@ export const memberCounterConfigSchema = z.object({
 export const saveMemberCounterConfigSchema = memberCounterConfigSchema.superRefine((data, ctx) => {
     if (data.enabled) {
         data.counters.forEach((counter, idx) => {
-            if (!counter.channelId) {
+            if (counter.channelId === null) {
                 ctx.addIssue({
                     code: 'custom',
-                    message: `Counter #${idx + 1} requires a target voice channel!`,
+                    message: `Counter #${(idx + 1).toString()} requires a target voice channel!`,
                     path: ["counters", idx, "channelId"],
                 });
             }
-            if (counter.counterType === "ROLE_COUNT" && !counter.roleId) {
+            if (counter.counterType === "ROLE_COUNT" && counter.roleId === null) {
                 ctx.addIssue({
                     code: 'custom',
-                    message: `Counter #${idx + 1} requires a specific role selected!`,
+                    message: `Counter #${(idx + 1).toString()} requires a specific role selected!`,
                     path: ["counters", idx, "roleId"],
                 });
             }
@@ -46,4 +50,5 @@ export const saveMemberCounterConfigSchema = memberCounterConfigSchema.superRefi
 export type CounterType = z.infer<typeof counterTypeSchema>;
 export type CounterChannel = z.infer<typeof counterChannelSchema>;
 export type MemberCounterConfig = z.infer<typeof memberCounterConfigSchema>;
+export type AutoCreateResponse = z.infer<typeof autoCreateResponseSchema>;
 export const defaultMemberCounterConfig: MemberCounterConfig = memberCounterConfigSchema.parse({});

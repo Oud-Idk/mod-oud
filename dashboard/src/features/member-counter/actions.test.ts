@@ -105,7 +105,6 @@ describe("Member Counter Server Actions", () => {
         it("should verify access, create channels, and return success", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(setupMemberCounterChannels).mockResolvedValue({
-                success: true,
                 counters: [{ id: "c1", channelId: "voice_1", counterType: "TOTAL_MEMBERS", roleId: null, nameTemplate: "👥 {count}" }],
             });
 
@@ -113,7 +112,6 @@ describe("Member Counter Server Actions", () => {
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
             expect(setupMemberCounterChannels).toHaveBeenCalledWith("guild_123", counters);
-            expect(result.success).toBe(true);
             expect(result.counters).toHaveLength(1);
         });
 
@@ -129,23 +127,19 @@ describe("Member Counter Server Actions", () => {
 
         it("should return a failure result when the backend throws", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(setupMemberCounterChannels).mockRejectedValue(new Error("backend exploded"));
+            vi.mocked(setupMemberCounterChannels).mockRejectedValue(new Error("spicy exploded"));
 
-            const result = await setupMemberCounterChannelsAction("guild_123", counters);
-
-            expect(result).toEqual({ success: false, error: "backend exploded" });
+            await expect(setupMemberCounterChannelsAction("guild_123", counters)).rejects.toThrow("spicy exploded");
         });
 
         it("should fall back to a generic error message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(setupMemberCounterChannels).mockRejectedValue("string throw");
 
-            const result = await setupMemberCounterChannelsAction("guild_123", counters);
 
-            expect(result).toEqual({
-                success: false,
-                error: "An unexpected error occurred while creating channels.",
-            });
+            await expect(setupMemberCounterChannelsAction("guild_123", counters)).rejects.toThrow(
+                "An unexpected error occurred while creating channels."
+            );
         });
     });
 });

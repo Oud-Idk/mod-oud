@@ -5,24 +5,17 @@ import { revalidatePath } from "next/cache";
 import {
     CounterChannel,
     MemberCounterConfig,
-    counterChannelSchema,
+    counterChannelSchema, AutoCreateResponse,
 } from "@/features/member-counter/types";
 import { saveMemberCounterConfig, setupMemberCounterChannels } from "@/features/member-counter/queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
-
-interface AutoCreateResponse {
-    success: boolean;
-    counters?: CounterChannel[];
-    error?: string;
-}
 
 export async function saveMemberCounterConfigAction(
     guildId: string,
     data: MemberCounterConfig
 ): Promise<void> {
-    await verifyGuildAccess(guildId);
-
     try {
+        await verifyGuildAccess(guildId);
         await saveMemberCounterConfig(guildId, data);
         revalidatePath(`/dashboard/${guildId}/member-counter`);
     } catch (error) {
@@ -38,21 +31,15 @@ export async function setupMemberCounterChannelsAction(
     guildId: string,
     counters: CounterChannel[]
 ): Promise<AutoCreateResponse> {
-    await verifyGuildAccess(guildId);
-
     try {
+        await verifyGuildAccess(guildId);
         const validCounters = z.array(counterChannelSchema).parse(counters);
-        const data = await setupMemberCounterChannels(guildId, validCounters);
-
-        return {
-            success: true,
-            counters: data.counters,
-        };
+        return await setupMemberCounterChannels(guildId, validCounters);
     } catch (error) {
-        console.error("[setupMemberCounterChannelsAction Error]:", error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "An unexpected error occurred while creating channels.",
-        };
+        console.error("Failed to setup member counter channels:", error);
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0].message);
+        }
+        throw new Error(error instanceof Error ? error.message : "An unexpected error occurred while creating channels.");
     }
 }

@@ -1,7 +1,8 @@
 import { ServerButton } from "@/features/overview/components/ServerButton";
 import { DiscordGuild } from "@/features/_shared/guild";
+import { JSX } from "react";
 
-export function InviteableServers({ inviteableGuilds }: { inviteableGuilds: DiscordGuild[] }) {
+export function InviteableServers({ inviteableGuilds }: { inviteableGuilds: DiscordGuild[] }): JSX.Element {
     return (
         <div className="mt-4">
             <h2 className="text-xl font-bold">

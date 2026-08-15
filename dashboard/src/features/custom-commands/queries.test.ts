@@ -28,7 +28,7 @@ function createMockCommand(overrides: Partial<SaveCommandInput> = {}): SaveComma
     return {
         guild_id: "guild_123",
         name: "default-cmd",
-        description: "I don't want head pats from SpicyWolf",
+        description: "I wish SpicyWolf will die tomorrow",
         enabled: true,
         delete_trigger: false,
         cooldown_type: "NONE",

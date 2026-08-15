@@ -24,8 +24,7 @@ export async function setupVerificationService(
         throw new Error(errText || "The backend application rejected the verification setup request.");
     }
 
-    const rawData = await response.json();
-    const data = setupBackendResponseSchema.parse(rawData);
+    const data = setupBackendResponseSchema.parse(await response.json());
 
     try {
         await invalidateGuildChannelCache(guildId);

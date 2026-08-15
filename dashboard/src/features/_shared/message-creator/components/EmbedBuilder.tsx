@@ -6,7 +6,7 @@ import { EmbedBuilderForm } from "@/features/_shared/message-creator/components/
 import { EmbedPreview } from "@/features/_shared/message-creator/components/EmbedPreview";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
 
-interface Props {
+interface EmbedBuilderProps {
     config: BuilderConfig;
     setEmbedState: (state: object) => void;
     initialEmbedState?: string | object;
@@ -112,8 +112,8 @@ export default function EmbedBuilder({
     initialEmbedState,
     enablePlaceholderList = true,
     customPreview: CustomPreview,
-    placeholderConfig
-}: Props): JSX.Element {
+    placeholderConfig,
+}: EmbedBuilderProps): JSX.Element {
     const embed = useMemo<EmbedState>(() => {
         const parsed = parseSavedEmbed(initialEmbedState, emptyState);
         return { ...emptyState, ...parsed };
@@ -128,6 +128,11 @@ export default function EmbedBuilder({
         const updated = { ...embed, [name]: value };
         setEmbedState(convertToDiscordEmbed(updated));
     };
+
+    const handleColorChange = (color: string): void => {
+        const updated = {...embed, color};
+        setEmbedState(convertToDiscordEmbed(updated));
+    }
 
     const handleFieldChange = (index: number, key: keyof EmbedField, value: string | boolean): void => {
         const updatedFields = [...embed.fields];
@@ -178,6 +183,7 @@ export default function EmbedBuilder({
                         removeField={removeField}
                         moveField={moveField}
                         isEmpty={isEmbedEmptyMemo}
+                        handleColorChange={handleColorChange}
                     />
                 </div>
 

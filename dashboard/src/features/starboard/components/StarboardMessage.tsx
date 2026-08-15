@@ -22,7 +22,7 @@ export const StarboardMessage = ({ config, embed, text }: EmbedProps): JSX.Eleme
     const { resolvedTheme } = useTheme();
 
     const renderWithPlaceholders = (text: string | undefined): string => {
-        if (!text) return "";
+        if (text === undefined) return "";
         let parsed = text;
 
         config.placeholders.forEach((ph) => {
@@ -40,7 +40,7 @@ export const StarboardMessage = ({ config, embed, text }: EmbedProps): JSX.Eleme
                 <p>{renderWithPlaceholders(text)}</p>
                 <DiscordEmbed
                     slot="embeds"
-                    color={embed.color || "#ffffff"}
+                    color={embed.color}
                     authorName={renderWithPlaceholders(embed.authorName)}
                     authorImage={renderWithPlaceholders(embed.authorIcon)}
                     embedTitle={renderWithPlaceholders(embed.title)}
@@ -48,28 +48,28 @@ export const StarboardMessage = ({ config, embed, text }: EmbedProps): JSX.Eleme
                     thumbnail={renderWithPlaceholders(embed.thumbnailUrl)}
                 >
                     {/* Use the dedicated Description Component */}
-                    {embed.description && (
+                    {embed.description !== "" && (
                         <DiscordEmbedDescription slot="description">
                             {renderWithPlaceholders(embed.description)}
                         </DiscordEmbedDescription>
                     )}
 
-                    {embed.fields && embed.fields.length > 0 && (
+                    {embed.fields.length > 0 && (
                         <DiscordEmbedFields slot="fields">
                             {embed.fields.map((field, index) => (
                                 <DiscordEmbedField
                                     key={index}
-                                    fieldTitle={renderWithPlaceholders(field.name) || "\u200B"}
+                                    fieldTitle={renderWithPlaceholders(field.name)}
                                     inline={field.inline}
                                 >
-                                    {renderWithPlaceholders(field.value) || "\u200B"}
+                                    {renderWithPlaceholders(field.value)}
                                 </DiscordEmbedField>
                             ))}
                         </DiscordEmbedFields>
                     )}
 
                     {/* Use the dedicated Footer Component */}
-                    {embed.footerText && (
+                    {embed.footerText !== "" && (
                         <DiscordEmbedFooter slot="footer">
                             {renderWithPlaceholders(embed.footerText)}
                         </DiscordEmbedFooter>

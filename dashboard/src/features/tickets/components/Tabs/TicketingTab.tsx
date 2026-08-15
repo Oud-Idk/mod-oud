@@ -38,15 +38,15 @@ export default function TicketingTab({
     isProcessing,
     isDirty,
 }: TicketingTabProps): JSX.Element {
-    const targetCategoryIsEmpty = !config.categoryId;
-    const targetRoleIsEmpty = !config.ticketRoleId;
-    const targetChannelIsEmpty = !config.channelId;
+    const targetCategoryIsEmpty = config.categoryId === null;
+    const targetRoleIsEmpty = config.ticketRoleId === null;
+    const targetChannelIsEmpty = config.channelId === null;
 
     const panelMessageConfig = useMemo<GenericMessageConfig>(() => ({
         format: config.panelMessage.message.format,
         content: config.panelMessage.message.content,
         embed: config.panelMessage.message.embed,
-        enabled: config.enabled ?? config.panelMessage?.enabled ?? false,
+        enabled: config.enabled,
         channel_id: config.channelId,
     }), [config.panelMessage, config.enabled, config.channelId]);
 
@@ -54,7 +54,7 @@ export default function TicketingTab({
         setConfig((prev) => {
             const nextEnabled = updated.enabled ?? prev.enabled;
             const nextChannelId = updated.channel_id ?? null;
-            const nextFormat = updated.format ?? "TEXT";
+            const nextFormat = updated.format;
             const nextContent = updated.content ?? "";
             const nextEmbed = updated.embed ?? {};
 
@@ -100,7 +100,7 @@ export default function TicketingTab({
         isDirty ||
         isProcessing ||
         !config.enabled ||
-        !config.channelId ||
+        config.channelId === null ||
         targetChannelIsEmpty ||
         targetCategoryIsEmpty ||
         targetRoleIsEmpty;
@@ -160,7 +160,7 @@ export default function TicketingTab({
                         </p>
                     </div>
 
-                    {config.postedMessageId ? (
+                    {config.postedMessageId !== null ? (
                         <Button
                             variant="danger"
                             onClick={onDeletePanel}

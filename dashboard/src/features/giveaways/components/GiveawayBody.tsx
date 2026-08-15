@@ -51,7 +51,7 @@ export function GiveawaysBody({
 
         const payload: SaveGiveawayData = {
             ...config,
-            host_id: config.host_id || userId,
+            host_id: config.host_id,
         };
 
         const result = SaveGiveawaySchema.safeParse(payload);
@@ -86,7 +86,7 @@ export function GiveawaysBody({
                     return (
                         <button
                             key={item.id}
-                            onClick={() =>{  router.push(`/dashboard/${guildId}/giveaways?id=${item.id}`); }}
+                            onClick={() =>{  router.push(`/dashboard/${guildId}/giveaways?id=${item.id.toString()}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -136,15 +136,16 @@ export function GiveawaysBody({
                     onSave({
                         channel_id: v.channel_id ?? null,
                         guild_id: guildId,
-                        prize: v.prize || "New Giveaway",
-                        winner_count: v.winner_count || 1,
-                        end_time: v.end_time || new Date().toISOString(),
+                        prize: v.prize ?? "New Giveaway",
+                        winner_count: v.winner_count ?? 1,
+                        end_time: v.end_time ?? new Date().toISOString(),
                         host_id: userId,
                         message_id: null,
                         message: DEFAULT_GIVEAWAY_MESSAGE,
                     })
                 }
                 channelMap={channelMap}
+                guildId={guildId}
             />
 
             {isDirty && <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending} />}

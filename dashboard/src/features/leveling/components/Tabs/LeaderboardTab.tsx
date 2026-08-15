@@ -3,6 +3,8 @@
 import { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { UserLevel } from "@/features/leveling/types";
 import Footer from "@/components/layout/Footer";
+import { toast } from "sonner";
+import { RotateCw } from "lucide-react";
 
 interface LeaderboardTabProps {
     levels?: UserLevel[];
@@ -14,24 +16,26 @@ export function LeaderboardTab({
     fetchMoreLevels,
 }: LeaderboardTabProps): JSX.Element {
     const [displayedLevels, setDisplayedLevels] = useState<UserLevel[]>(levels);
-    const [isLoading, setIsLoading] = useState(false);
-    const [hasMore, setHasMore] = useState(true);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [hasMore, setHasMore] = useState<boolean>(true);
+    const [hasError, setHasError] = useState<boolean>(false);
 
     const observer = useRef<IntersectionObserver | null>(null);
 
     useEffect(() => {
         setDisplayedLevels(levels);
         setHasMore(levels.length > 0);
+        setHasError(false);
     }, [levels]);
 
-    const loadMoreItems = useCallback(async () => {
-        if (isLoading || !hasMore || displayedLevels.length === 0) return;
+    const loadMoreItems = useCallback(async (): Promise<void> => {
+        if (isLoading || !hasMore || hasError || displayedLevels.length === 0) return;
 
         setIsLoading(true);
+        setHasError(false);
+
         try {
             const lastItem = displayedLevels[displayedLevels.length - 1];
-            if (!lastItem) return;
-
             const lowestXp = lastItem.cumulative_xp;
             const newLevels = await fetchMoreLevels(lowestXp);
 
@@ -40,42 +44,48 @@ export function LeaderboardTab({
             } else {
                 setDisplayedLevels((prev) => [...prev, ...newLevels]);
 
-                // Assuming a default limit of 20, we stop querying if fewer are returned
                 if (newLevels.length < 20) {
                     setHasMore(false);
                 }
             }
         } catch (error) {
             console.error("Error loading more leaderboard levels:", error);
+            setHasError(true);
+            toast.error("Failed to load more leaderboard rankings.");
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, hasMore, displayedLevels, fetchMoreLevels]);
+    }, [isLoading, hasMore, hasError, displayedLevels, fetchMoreLevels]);
+
+    const handleRetry = (): void => {
+        setHasError(false);
+        void loadMoreItems();
+    };
 
     const lastElementRef = useCallback(
-        (node: HTMLDivElement | null) => {
+        (node: HTMLDivElement | null): void => {
             if (isLoading) return;
 
-            if (observer.current) {
+            if (observer.current !== null) {
                 observer.current.disconnect();
             }
 
             observer.current = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting && hasMore) {
-                    loadMoreItems();
+                if (entries[0].isIntersecting && hasMore && !hasError) {
+                    void loadMoreItems();
                 }
             });
 
-            if (node) {
+            if (node !== null) {
                 observer.current.observe(node);
             }
         },
-        [isLoading, hasMore, loadMoreItems]
+        [isLoading, hasMore, hasError, loadMoreItems]
     );
 
     useEffect(() => {
         return () => {
-            if (observer.current) {
+            if (observer.current !== null) {
                 observer.current.disconnect();
             }
         };
@@ -87,7 +97,6 @@ export function LeaderboardTab({
                 {displayedLevels.map((userLevel, index) => {
                     const rank = index + 1;
 
-                    // Compute dynamic themes for top-tier ranks (Gold, Silver, Bronze)
                     let rowStyle = "bg-surface border-border hover:bg-surface-active/60";
                     let rankBadgeStyle = "text-muted-foreground";
 
@@ -102,6 +111,11 @@ export function LeaderboardTab({
                         rankBadgeStyle = "text-brand font-extrabold";
                     }
 
+                    const displayName =
+                        userLevel.username.length > 0
+                            ? userLevel.username
+                            : `User ${userLevel.user_id}`;
+
                     return (
                         <div
                             key={`${userLevel.guild_id}-${userLevel.user_id}`}
@@ -113,7 +127,7 @@ export function LeaderboardTab({
                                 </span>
                                 <div>
                                     <p className="font-bold text-sm text-foreground">
-                                        {userLevel.username || `User ${userLevel.user_id}`}
+                                        {displayName}
                                     </p>
                                     <Footer>
                                         Level {userLevel.current_level}
@@ -142,7 +156,18 @@ export function LeaderboardTab({
                         Loading more users...
                     </div>
                 )}
-                {!hasMore && displayedLevels.length > 0 && (
+
+                {hasError && !isLoading && (
+                    <button
+                        type="button"
+                        onClick={handleRetry}
+                        className="flex items-center gap-1.5 text-xs text-danger hover:underline font-medium cursor-pointer p-2"
+                    >
+                        <RotateCw className="w-3.5 h-3.5" /> Failed to load. Click to retry.
+                    </button>
+                )}
+
+                {!hasMore && !hasError && displayedLevels.length > 0 && (
                     <Footer>
                         End of Leaderboard
                     </Footer>

@@ -109,17 +109,15 @@ export function MemberCounterBody({
     const handleAutoCreateChannels = async (targetCounterId?: string): Promise<void> => {
         setIsCreatingChannels(true);
 
-        const countersToProcess = targetCounterId !== undefined
-            ? config.counters.filter((c) => c.id === targetCounterId)
-            : config.counters;
+        try {
+            const countersToProcess = targetCounterId !== undefined
+                ? config.counters.filter((c) => c.id === targetCounterId)
+                : config.counters;
 
-        const result = await setupMemberCounterChannelsAction(guildId, countersToProcess);
+            const result = await setupMemberCounterChannelsAction(guildId, countersToProcess);
 
-        setIsCreatingChannels(false);
-
-        if (result.success && result.counters !== undefined) {
             const updatedCounters = config.counters.map((c) => {
-                const matchedNew = result.counters?.find((nc) => nc.id === c.id);
+                const matchedNew = result.counters.find((nc) => nc.id === c.id);
                 return matchedNew !== undefined ? { ...c, channelId: matchedNew.channelId ?? null } : c;
             });
 
@@ -127,9 +125,16 @@ export function MemberCounterBody({
                 ...config,
                 counters: updatedCounters,
             });
-            toast.success("Channels created successfully");
-        } else {
-            toast.error(result.error ?? "Failed to auto-create Discord channels.");
+            toast.success("Channels created successfully! 🎉");
+        } catch (error) {
+            console.error("Failed to auto-create channels:", error);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to create channels. Please check bot permissions!"
+            );
+        } finally {
+            setIsCreatingChannels(false);
         }
     };
 

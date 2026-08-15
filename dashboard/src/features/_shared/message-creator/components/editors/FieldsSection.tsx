@@ -24,20 +24,20 @@ export function FieldsSection({
 }: FieldsSectionProps): JSX.Element {
     return (
         <Section
-            title={`Fields (${embed.fields?.length || 0})`}
+            title={`Fields (${embed.fields.length.toString()})`}
             defaultOpen={false}
         >
 
             <div className="flex flex-row justify-between items-center mt-4">
-                <p className="text-muted-foreground text-sm">{embed.fields?.length} fields added</p>
+                <p className="text-muted-foreground text-sm">{embed.fields.length} fields added</p>
                 <Button onClick={addField} className="text-xs py-1 px-2.5 flex items-center gap-1">
                     <Plus className="w-3.5 h-3.5" /> Add Field
                 </Button>
             </div>
-            {embed.fields?.length === 0 && (
+            {embed.fields.length === 0 && (
                 <p className="text-xs text-muted-foreground italic text-center py-2">No fields added yet.</p>
             )}
-            {embed.fields?.map((field, idx) => (
+            {embed.fields.map((field, idx) => (
                 <div key={idx} className="p-3 border border-border rounded-lg space-y-3 bg-surface-muted/50">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
@@ -61,7 +61,7 @@ export function FieldsSection({
                         <label className="flex items-center gap-2 cursor-pointer text-xs text-foreground select-none">
                             <input
                                 type="checkbox"
-                                checked={field.inline || false}
+                                checked={field.inline}
                                 onChange={(e) =>{  handleFieldChange(idx, "inline", e.target.checked); }}
                                 className="rounded border-border accent-brand text-brand focus-ring cursor-pointer"
                             />
@@ -79,7 +79,7 @@ export function FieldsSection({
                                     <MoveUp className="w-3.5 h-3.5" />
                                 </button>
                             )}
-                            {moveField && idx < (embed.fields?.length || 0) - 1 && (
+                            {moveField && idx < (embed.fields.length) - 1 && (
                                 <button
                                     type="button"
                                     onClick={() =>{  moveField(idx, idx + 1); }}

@@ -16,6 +16,7 @@ interface EmbedBuilderProps {
     removeField: (index: number) => void;
     moveField?: (fromIndex: number, toIndex: number) => void;
     isEmpty: boolean;
+    handleColorChange: (color: string) => void;
 }
 
 export const EmbedBuilderForm = ({
@@ -26,6 +27,7 @@ export const EmbedBuilderForm = ({
     removeField,
     moveField,
     isEmpty,
+    handleColorChange,
 }: EmbedBuilderProps): JSX.Element => {
     return (
         <div
@@ -41,7 +43,7 @@ export const EmbedBuilderForm = ({
             )}
 
             <AuthorSection embed={embed} handleChange={handleChange} />
-            <BodySection embed={embed} handleChange={handleChange} />
+            <BodySection embed={embed} handleChange={handleChange} handleColorChange={handleColorChange}/>
             <MediaSection embed={embed} handleChange={handleChange} />
             <FieldsSection
                 embed={embed}

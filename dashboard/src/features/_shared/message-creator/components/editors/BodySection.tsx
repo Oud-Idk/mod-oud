@@ -1,4 +1,4 @@
-import { ChangeEvent } from "react";
+import { ChangeEvent, JSX } from "react";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { TextInput } from "@/components/ui/TextInput";
 import { LongTextInput } from "@/components/ui/LongTextInput";
@@ -18,19 +18,21 @@ const DISCORD_COLORS = [
 export function BodySection({
     embed,
     handleChange,
+    handleColorChange,
 }: {
     embed: EmbedState;
     handleChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-}) {
+    handleColorChange: (value: string) => void;
+}): JSX.Element {
     return (
         <Section title="Message Body & Color" defaultOpen={true}>
             <div>
                 <InputLabel className="block mb-1.5">Title</InputLabel>
-                <TextInput name="title" value={embed.title || ""} onChange={handleChange} placeholder="Embed Title" />
+                <TextInput name="title" value={embed.title} onChange={handleChange} placeholder="Embed Title" />
             </div>
             <div>
                 <InputLabel className="block mb-1.5">Description Body</InputLabel>
-                <LongTextInput name="description" rows={4} value={embed.description || ""} onChange={handleChange} placeholder="Supports Markdown (*italic*, **bold**, links)..." />
+                <LongTextInput name="description" rows={4} value={embed.description} onChange={handleChange} placeholder="Supports Markdown (*italic*, **bold**, links)..." />
             </div>
             <div>
                 <InputLabel className="block mb-1.5">Accent Color</InputLabel>
@@ -38,7 +40,7 @@ export function BodySection({
                     <input
                         type="color"
                         name="color"
-                        value={embed.color || "#ffffff"}
+                        value={embed.color}
                         onChange={handleChange}
                         className="w-8 h-8 p-0 border border-border bg-surface cursor-pointer rounded overflow-hidden focus-ring"
                     />
@@ -46,7 +48,7 @@ export function BodySection({
                         <button
                             key={c.hex}
                             type="button"
-                            onClick={() =>{  handleChange({ target: { name: "color", value: c.hex } } as any); }}
+                            onClick={() =>{ handleColorChange(c.hex) }}
                             className="w-6 h-6 rounded-full border border-border transition-transform hover:scale-110 focus-ring"
                             style={{ backgroundColor: c.hex }}
                             title={c.name}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { ReactNode, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TextInput } from "@/components/ui/TextInput";
@@ -15,6 +15,7 @@ interface GiveawayCreateModalProps {
     onClose: () => void;
     onSave: (ruleset: Partial<Giveaway>) => Promise<Giveaway>;
     channelMap: Record<string, string>;
+    guildId: string;
 }
 
 export function GiveawayCreateModal({
@@ -22,10 +23,9 @@ export function GiveawayCreateModal({
     onClose,
     onSave,
     channelMap,
+    guildId,
 }: GiveawayCreateModalProps): ReactNode | null {
     const router = useRouter();
-    const params = useParams();
-    const guildId = params?.guild_id;
 
     const [isPending, startTransition] = useTransition();
     const [channelId, setChannelId] = useState("");
@@ -33,9 +33,9 @@ export function GiveawayCreateModal({
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent): void => {
+    const handleSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
-        if (!channelId || !prize) {
+        if (channelId.trim() === "" || prize.trim() === "") {
             toast.error("Please fill in all fields.");
             return;
         }
@@ -54,9 +54,7 @@ export function GiveawayCreateModal({
 
                 toast.success("Giveaway created successfully");
                 onClose();
-                if (newConfig?.id) {
-                    router.push(`/dashboard/${guildId}/giveaways?id=${newConfig.id}`);
-                }
+                    router.push(`/dashboard/${guildId}/giveaways?id=${newConfig.id.toString()}`);
             } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Failed to create giveaway.");
             }

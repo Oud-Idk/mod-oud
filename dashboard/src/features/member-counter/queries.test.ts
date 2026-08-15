@@ -96,7 +96,7 @@ describe("Member Counter Query Module", () => {
 
     describe("setupMemberCounterChannels", () => {
         const counters = [
-            { id: "c1", channelId: null, counterType: "TOTAL_MEMBERS" as const, roleId: null, nameTemplate: "👥 {count}" },
+            { id: "c1", channelId: null, counterType: "BOTS_ONLY" as const, roleId: null, nameTemplate: "👥 {count}" },
         ];
 
         beforeEach(() => {
@@ -108,7 +108,18 @@ describe("Member Counter Query Module", () => {
         });
 
         it("should POST the counters to the backend and return the JSON", async () => {
-            const backendResponse = { success: true, counters: [{ id: "c1", channelId: "voice_1" }] };
+            const backendResponse = {
+                counters: [
+                    {
+                        id: "c1",
+                        channelId: "voice_1",
+                        counterType: "BOTS_ONLY",
+                        roleId: null,
+                        nameTemplate: "👥 {count}"
+                    }
+                ]
+            };
+
             mockFetchTyped.mockResolvedValue({
                 ok: true,
                 json: () => Promise.resolve(backendResponse),
@@ -118,7 +129,6 @@ describe("Member Counter Query Module", () => {
             await expect(setupMemberCounterChannels("guild_123", counters)).resolves.toEqual(
                 backendResponse
             );
-
             expect(mockFetchTyped).toHaveBeenCalledWith(
                 "http://backend:8080/api/guilds/guild_123/member-counter/setup",
                 expect.objectContaining({ method: "POST" })
@@ -131,24 +141,12 @@ describe("Member Counter Query Module", () => {
         it("should throw the backend error message on a non-OK response", async () => {
             mockFetchTyped.mockResolvedValue({
                 ok: false,
-                json: () => Promise.resolve({ message: "backend exploded" }),
-                text: () => Promise.resolve(""),
+                json: () => Promise.resolve({ }),
+                text: () => Promise.resolve("backend exploded"),
             });
 
             await expect(setupMemberCounterChannels("guild_123", counters)).rejects.toThrow(
                 "backend exploded"
-            );
-        });
-
-        it("should throw a fallback when the backend returns an invalid error body", async () => {
-            mockFetchTyped.mockResolvedValue({
-                ok: false,
-                json: () => Promise.reject(new Error("bad json")),
-                text: () => Promise.resolve(""),
-            });
-
-            await expect(setupMemberCounterChannels("guild_123", counters)).rejects.toThrow(
-                "Failed to create category and channels via bot backend."
             );
         });
 
