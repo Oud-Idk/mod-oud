@@ -85,14 +85,6 @@ describe("Message Logging Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveMessageLoggingConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveMessageLoggingConfigAction("guild_123", config)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("fetchMoreEditedMessagesAction", () => {

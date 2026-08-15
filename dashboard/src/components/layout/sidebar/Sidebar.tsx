@@ -14,7 +14,7 @@ export async function Sidebar(): Promise<JSX.Element> {
     const session = await auth();
     let mutualGuilds: DiscordGuild[] = [];
 
-    if (session?.accessToken) {
+    if (session?.accessToken !== undefined) {
         const { mutualGuilds: fetchedGuilds } = await getGuildLists(session.accessToken);
         mutualGuilds = fetchedGuilds;
     }
@@ -51,10 +51,10 @@ export async function Sidebar(): Promise<JSX.Element> {
             >
                 <div className="flex items-center gap-2 overflow-hidden">
                     <div className="relative">
-                        {session?.user?.image ? (
+                        {(typeof session?.user.image === "string" ) ? (
                             <img
                                 src={session.user.image}
-                                alt={session.user.name || "Avatar"}
+                                alt={(typeof session.user.name === "string" ? session.user.name : "Avatar")}
                                 className="w-9 h-9 rounded-full object-cover"
                             />
                         ) : (
@@ -69,7 +69,7 @@ export async function Sidebar(): Promise<JSX.Element> {
                         className="flex flex-col overflow-hidden text-left"
                     >
                         <span className="text-md font-semibold truncate">
-                            {session?.user?.name || "Discord User"}
+                            {session?.user.name ?? "Discord User"}
                         </span>
                     </div>
                 </div>

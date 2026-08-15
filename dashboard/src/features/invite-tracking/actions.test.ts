@@ -87,14 +87,6 @@ describe("Invite Tracker Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveInviteTrackerConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveInviteTrackerConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("fetchInviteLeaderboardAction", () => {

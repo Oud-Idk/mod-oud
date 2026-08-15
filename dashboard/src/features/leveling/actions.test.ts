@@ -100,14 +100,6 @@ describe("Leveling Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(deleteXpMultipliers).mockRejectedValue(new z.ZodError([]));
-
-            await expect(deleteMultipliersAction("guild_123", ["role_1"])).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("saveMultipliersAction", () => {
@@ -169,14 +161,6 @@ describe("Leveling Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveXpMultipliers).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveMultipliersAction("guild_123", validTargets)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("saveRewardsAction", () => {
@@ -228,14 +212,6 @@ describe("Leveling Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveLevelRewards).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveRewardsAction("guild_123", validRewards)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("deleteRewardsAction", () => {
@@ -279,14 +255,6 @@ describe("Leveling Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(deleteLevelRewards).mockRejectedValue(new z.ZodError([]));
-
-            await expect(deleteRewardsAction("guild_123", [1])).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("fetchMoreLevelsAction", () => {
@@ -368,13 +336,5 @@ describe("Leveling Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveLevelingConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveLevelingConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 });

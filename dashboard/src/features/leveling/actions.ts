@@ -32,7 +32,7 @@ export async function deleteMultipliersAction(
     } catch (error: unknown) {
         console.error("Failed to delete multipliers:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message ?? "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error(error instanceof Error ? error.message : "Could not delete multipliers.");
     }
@@ -50,7 +50,7 @@ export async function saveMultipliersAction(
     } catch (error: unknown) {
         console.error("Failed to save multipliers:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message ?? "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error(error instanceof Error ? error.message : "Could not save multipliers.");
     }
@@ -68,7 +68,7 @@ export async function saveRewardsAction(
     } catch (error: unknown) {
         console.error("Failed to save rewards:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message ?? "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error(error instanceof Error ? error.message : "Could not save rewards.");
     }
@@ -86,7 +86,7 @@ export async function deleteRewardsAction(
     } catch (error: unknown) {
         console.error("Failed to delete rewards:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message ?? "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error(error instanceof Error ? error.message : "Could not delete rewards.");
     }
@@ -118,7 +118,7 @@ export async function saveLevelingConfigAction(
     } catch (error: unknown) {
         console.error("Failed to save leveling config:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message ?? "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }

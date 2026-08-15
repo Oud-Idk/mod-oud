@@ -102,14 +102,6 @@ describe("Message Filtering Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveMessageFilteringConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveMessageFilteringConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("saveBadWordRulesetAction", () => {
@@ -181,14 +173,6 @@ describe("Message Filtering Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveBadWordRuleset).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveBadWordRulesetAction("guild_123", validRuleset)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("deleteBadWordRulesetAction", () => {
@@ -242,13 +226,5 @@ describe("Message Filtering Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(deleteBadWordRuleset).mockRejectedValue(new z.ZodError([]));
-
-            await expect(deleteBadWordRulesetAction("guild_123", "uuid_1")).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 });

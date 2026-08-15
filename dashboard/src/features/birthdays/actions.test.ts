@@ -103,13 +103,5 @@ describe("Birthdays Server Actions", () => {
             ).rejects.toThrow("Birthday config validation failure");
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveBirthdayConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(
-                saveBirthdayConfigAction("guild_123", validDraftConfig)
-            ).rejects.toThrow("Validation Error");
-        });
     });
 });

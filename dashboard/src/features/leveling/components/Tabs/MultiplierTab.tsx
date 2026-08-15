@@ -78,7 +78,7 @@ export function MultiplierTab({
         for (const target of targetsToSave) {
             const result = saveXpMultiplierInputSchema.safeParse(target);
             if (!result.success) {
-                toast.error(result.error.issues[0]?.message || "Invalid multiplier configuration");
+                toast.error(result.error.issues[0].message);
                 return;
             }
         }

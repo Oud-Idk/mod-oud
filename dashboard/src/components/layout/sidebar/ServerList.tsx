@@ -13,12 +13,12 @@ export function ServerList({ guilds }: ServerListProps): JSX.Element {
     const params = useParams();
     const router = useRouter();
 
-    if (typeof params?.guild_id !== "string") {
+    if (typeof params.guild_id !== "string") {
         throw new Error("Guild ID is not string!");
     }
 
-    const currentGuildId = params?.guild_id;
-    const selected = guilds.find((g) => g.id === currentGuildId) || guilds[0] || null;
+    const currentGuildId = params.guild_id;
+    const selected = (guilds.find((g) => g.id === currentGuildId) ?? guilds[0]);
 
     const options = useMemo(() => {
         return guilds.map((g) => ({
@@ -34,7 +34,7 @@ export function ServerList({ guilds }: ServerListProps): JSX.Element {
     }
 
     const handleSelect = (id: string | null): void => {
-        if (id && id !== currentGuildId) {
+        if (id !== null && id !== currentGuildId) {
             router.push(`/dashboard/${id}`);
         }
     };
@@ -42,7 +42,7 @@ export function ServerList({ guilds }: ServerListProps): JSX.Element {
     return (
         <div className="w-full px-2">
             <Dropdown
-                options={options} value={selected?.id || ""} onChange={handleSelect} placeholder="Select a server"
+                options={options} value={selected.id} onChange={handleSelect} placeholder="Select a server"
             />
         </div>
     );

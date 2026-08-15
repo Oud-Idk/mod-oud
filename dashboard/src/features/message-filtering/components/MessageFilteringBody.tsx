@@ -112,7 +112,7 @@ export function MessageFilteringBody({
     const onValidatedSave = (): void => {
         const result = messageFilteringConfigSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            toast.error(result.error.issues[0].message);
             return;
         }
         handleSave();

@@ -58,7 +58,7 @@ export function BadWordTab({
         if (!config) return;
         const result = saveBadWordRulesetInputSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid ruleset configuration");
+            toast.error(result.error.issues[0].message);
             return;
         }
         await originalHandleSave();

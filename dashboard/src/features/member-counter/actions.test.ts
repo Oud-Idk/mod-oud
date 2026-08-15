@@ -97,14 +97,6 @@ describe("Member Counter Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveMemberCounterConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveMemberCounterConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("setupMemberCounterChannelsAction", () => {

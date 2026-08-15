@@ -87,7 +87,7 @@ export function MediaOnlyBody({
         for (const channel of config) {
             const result = mediaOnlyChannelSchema.safeParse(channel);
             if (!result.success) {
-                toast.error(result.error.issues[0]?.message || "Invalid configuration.");
+                toast.error(result.error.issues[0].message);
                 return;
             }
         }

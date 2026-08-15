@@ -149,13 +149,6 @@ describe("sendEmbedAction", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new z.ZodError([]));
-
-            await expect(sendEmbedAction(validGuildId, validPayload)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("Validation Handling (Zod Integration)", () => {

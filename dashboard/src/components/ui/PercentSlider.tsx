@@ -23,15 +23,13 @@ export function PercentSlider({
     disabled = false,
     className,
 }: PercentSliderProps): JSX.Element {
-    const percentageDisplay = `${Math.round(value * 100)}%`;
+    const percentageDisplay = `${Math.round(value * 100).toString()}%`;
 
     return (
         <div className={cn("flex flex-col gap-2 w-full max-w-md", disabled && "opacity-50 pointer-events-none", className)}>
-            {(label || value !== undefined) && (
+            {(label !== undefined) && (
                 <div className="flex justify-between items-center text-sm">
-                    {label && (
-                        <span className="font-medium text-foreground">{label}</span>
-                    )}
+                    <span className="font-medium text-foreground">{label}</span>
                     <span className="font-mono text-xs font-semibold text-muted-foreground px-2 py-0.5 rounded bg-surface-muted border border-border-subtle">
                         {percentageDisplay}
                     </span>
@@ -57,7 +55,7 @@ export function PercentSlider({
                         "hover:scale-110 active:scale-95 transition-transform duration-150",
                         "focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                     )}
-                    aria-label={label || "Percentage"}
+                    aria-label={label ?? "Percentage"}
                 />
             </Slider.Root>
         </div>

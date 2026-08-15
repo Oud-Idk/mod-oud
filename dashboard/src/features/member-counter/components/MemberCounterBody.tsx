@@ -147,7 +147,7 @@ export function MemberCounterBody({
     const onValidatedSave = (): void => {
         const validation = memberCounterConfigSchema.safeParse(config);
         if (!validation.success) {
-            toast.error(validation.error.issues[0]?.message ?? "Invalid configuration.");
+            toast.error(validation.error.issues[0].message);
             return;
         }
         void handleSave();

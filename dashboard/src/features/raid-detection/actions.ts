@@ -15,7 +15,7 @@ export async function saveRaidDetectionConfigAction(guildId: string, data: RaidD
     } catch (error) {
         console.error("Failed to save raid detection config:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }

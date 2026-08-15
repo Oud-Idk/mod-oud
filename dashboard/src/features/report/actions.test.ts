@@ -325,13 +325,6 @@ describe("Report Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(saveReportConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveReportConfigAction("guild_123", { enabled: true })).rejects.toThrow(
-                "Validation Error"
-            );
-        });
 
         it("should throw underlying error message on non-ZodError failure", async () => {
             vi.mocked(saveReportConfig).mockRejectedValue(new Error("Database write failure"));

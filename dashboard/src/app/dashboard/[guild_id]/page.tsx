@@ -34,7 +34,7 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
         return <BotNotSetup permissions={process.env.PERMISSION ?? ""} guild_id={guild_id}/>;
     }
 
-    const iconUrl = guildDetails.icon
+    const iconUrl = guildDetails.icon !== null
         ? `https://cdn.discordapp.com/icons/${guildDetails.id}/${guildDetails.icon}.png`
         : null;
 
@@ -45,7 +45,7 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
                 <div>
                     <div className="flex flex-row items-center gap-4">
-                        {iconUrl && (
+                        {(iconUrl !== null) && (
                             <Image src={iconUrl} alt="Server Icon" width="50" height="50" className="rounded-full"/>
                         )}
                         <h1 className="text-3xl font-bold tracking-tight">{guildDetails.name}</h1>
@@ -76,23 +76,23 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                 <Card
                     icon={<Users/>}
                     title="Total Members"
-                    main={guildDetails.approximate_member_count?.toString() || "X"}
-                    footer={`Online: ${guildDetails.approximate_presence_count ?? "X"}`}
+                    main={guildDetails.approximate_member_count?.toString() ?? "X"}
+                    footer={`Online: ${guildDetails.approximate_presence_count?.toString() ?? "X"}`}
                 />
                 <Card
                     icon={<Gavel/>}
                     title="Moderation Actions Count"
-                    main={weeklyModerationCount.toString() || "X"}
+                    main={weeklyModerationCount.toString()}
                     footer="This Week"
                 />
                 <Card
                     icon={<TicketX/>}
                     title="Resolved Tickets Count"
-                    main={weeklyResolvedTicketCount.toString() || "X"}
+                    main={weeklyResolvedTicketCount.toString()}
                     footer="Lifetime"
                 />
                 <Card
-                    icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount.toString() || "X"} footer="Now"
+                    icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount.toString()} footer="Now"
                 />
                 <Card
                     icon={<CircleArrowUp/>}

@@ -115,7 +115,7 @@ export function ModerationDMsBody({
     const onValidatedSave = (): void => {
         const result = moderationDMsConfigSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            toast.error(result.error.issues[0].message);
             return;
         }
         handleSave();

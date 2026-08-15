@@ -37,7 +37,7 @@ export async function saveMediaOnlyChannelsAction(
         console.error("Failed to save media-only channels:", error);
 
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0].message);
         }
 
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");

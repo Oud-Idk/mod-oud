@@ -29,7 +29,7 @@ export async function saveMessageFilteringConfigAction(
     } catch (error) {
         console.error("Failed to save message filtering config:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }
@@ -49,7 +49,7 @@ export async function saveBadWordRulesetAction(
     } catch (error) {
         console.error(`Failed to save bad word ruleset for guild ${guildId}:`, error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error("Could not save ruleset settings. Please try again.");
     }
@@ -68,7 +68,7 @@ export async function deleteBadWordRulesetAction(
     } catch (error) {
         console.error(`Failed to delete bad word ruleset ${id} for guild ${guildId}:`, error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         throw new Error("Could not delete ruleset. Please try again.");
     }

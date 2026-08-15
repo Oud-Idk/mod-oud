@@ -154,14 +154,6 @@ describe("Giveaways Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveGiveaway).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveGiveawayAction("guild_123", validSaveInput)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("deleteGiveawayAction", () => {

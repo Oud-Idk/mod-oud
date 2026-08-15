@@ -148,7 +148,7 @@ export function WarnThresholdTab({
 
         const validation = saveWarnThresholdsInputSchema.safeParse(payload);
         if (!validation.success) {
-            toast.error(validation.error.issues[0]?.message ?? "Invalid threshold configuration.");
+            toast.error(validation.error.issues[0].message);
             return;
         }
 

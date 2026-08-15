@@ -112,7 +112,7 @@ export function BirthdaysBody({
     const handleSave = (): void => {
         const result = SaveBirthdayConfigSchema.safeParse(config);
         if (!result.success) {
-            const firstMessage = result.error.issues[0]?.message ?? "Invalid birthday configuration.";
+            const firstMessage = result.error.issues[0].message;
             toast.error(firstMessage);
             return;
         }

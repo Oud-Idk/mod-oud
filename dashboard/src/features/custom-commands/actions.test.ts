@@ -172,14 +172,6 @@ describe("Custom Commands Server Actions", (): void => {
             ).rejects.toThrow("Custom command validation failure");
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async (): Promise<void> => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveCustomCommand).mockRejectedValue(new z.ZodError([]));
-
-            await expect(
-                saveCustomCommandAction("guild_123", validCommand)
-            ).rejects.toThrow("Validation Error");
-        });
     });
 
     describe("deleteCustomCommandAction", (): void => {

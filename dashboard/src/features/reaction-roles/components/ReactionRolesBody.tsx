@@ -58,7 +58,7 @@ export function ReactionRolesBody({
         if (config === null) return;
         const result = saveReactionMessageInputSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message ?? "Invalid configuration");
+            toast.error(result.error.issues[0].message);
             return;
         }
         void originalHandleSave();

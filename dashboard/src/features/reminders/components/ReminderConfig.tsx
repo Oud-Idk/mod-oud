@@ -126,7 +126,7 @@ export function ReminderConfig({
                 <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
                     <span>⚠️</span>
                     <span>
-                        {validationResult.error.issues[0]?.message ?? "Please complete required reminder fields before saving."}
+                        {validationResult.error.issues[0].message}
                     </span>
                 </div>
             )}

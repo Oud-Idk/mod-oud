@@ -132,14 +132,6 @@ describe("Ticket Server Actions", () => {
             ).rejects.toThrow("Tickets config validation failure");
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue({});
-            vi.mocked(saveTicketConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(
-                saveTicketsConfigAction("guild_123", { enabled: false })
-            ).rejects.toThrow("Validation Error");
-        });
     });
 
     describe("sendTicketMessageAction", () => {

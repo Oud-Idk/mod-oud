@@ -47,7 +47,7 @@ export function CustomCommandsBody({
 
         const result = SaveCustomCommandSchema.safeParse(config);
         if (!result.success) {
-            const firstMessage = result.error.issues[0]?.message || "Invalid custom command configuration.";
+            const firstMessage = result.error.issues[0].message;
             toast.error(firstMessage);
             return;
         }

@@ -166,13 +166,6 @@ describe("Warns Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            mockSaveWarnThresholds.mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveWarnThresholdsAction("guild_123", validInput)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("deleteWarnThresholdsAction", () => {
@@ -208,13 +201,6 @@ describe("Warns Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            mockDeleteWarnThresholds.mockRejectedValue(new z.ZodError([]));
-
-            await expect(deleteWarnThresholdsAction("guild_123", [1])).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("searchWarnsAction", () => {

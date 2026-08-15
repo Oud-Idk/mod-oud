@@ -63,7 +63,7 @@ export function ReportBody({
     const handleSave = useCallback(async () => {
         const result = reportConfigSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            toast.error(result.error.issues[0].message);
             return;
         }
         await originalHandleSave();

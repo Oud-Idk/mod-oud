@@ -19,7 +19,7 @@ export function useTicketConfig(
     const handleSave = useCallback(() => {
         const result = SaveTicketConfigSchema.safeParse(config);
         if (!result.success) {
-            const firstMessage = result.error.issues[0]?.message || "Invalid configuration.";
+            const firstMessage = result.error.issues[0].message;
             toast.error(firstMessage);
             return;
         }

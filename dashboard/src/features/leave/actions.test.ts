@@ -108,13 +108,5 @@ describe("Leave Server Actions", () => {
             ).rejects.toThrow("Leave config save validation failure");
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveLeaveConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(
-                saveLeaveConfigAction("guild_123", validLeaveConfig)
-            ).rejects.toThrow("Validation Error");
-        });
     });
 });

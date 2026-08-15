@@ -17,7 +17,7 @@ export async function saveStarboardConfigAction(guildId: string, data: Starboard
         return s.id;
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0].message);
         }
         console.error("Failed to save starboard config:", error);
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");

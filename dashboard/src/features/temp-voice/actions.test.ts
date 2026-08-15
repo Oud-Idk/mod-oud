@@ -112,13 +112,6 @@ describe("Temp Voice Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(saveTempVoiceHub).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveTempVoiceHubAction("guild_123", validHub)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("deleteTempVoiceHubAction", () => {
@@ -148,13 +141,6 @@ describe("Temp Voice Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(deleteTempVoiceHub).mockRejectedValue(new z.ZodError([]));
-
-            await expect(deleteTempVoiceHubAction("guild_123", "hub_1")).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("setupTempVoiceAction", () => {
@@ -232,17 +218,6 @@ describe("Temp Voice Action Module", () => {
             ).rejects.toThrow("Temp voice setup validation failure");
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            mockFetch.mockResolvedValue({
-                ok: true,
-                text: () => Promise.resolve(""),
-                json: () => Promise.reject(new z.ZodError([])),
-            });
-
-            await expect(
-                setupTempVoiceAction("guild_123", { categoryName: "Voice", hubChannelName: "Join" })
-            ).rejects.toThrow("Validation Error");
-        });
     });
 
     describe("sendInterfaceMessageAction", () => {

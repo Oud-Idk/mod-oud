@@ -48,7 +48,7 @@ export async function sendEmbedAction(
         };
     } catch (error) {
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0]?.message || "Validation Error");
+            throw new Error(error.issues[0].message);
         }
 
         throw new Error(

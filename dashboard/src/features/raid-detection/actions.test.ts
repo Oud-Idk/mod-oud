@@ -95,15 +95,5 @@ describe("Raid Detection Server Actions", () => {
             ).rejects.toThrow("First issue message");
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.spyOn(raidDetectionConfigSchema, "parse").mockImplementation(() => {
-                throw new z.ZodError([]);
-            });
-
-            await expect(
-                saveRaidDetectionConfigAction("guild_123", validConfig)
-            ).rejects.toThrow("Validation Error");
-        });
     });
 });

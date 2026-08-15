@@ -144,13 +144,6 @@ describe("Welcome Action Module", () => {
             ).rejects.toThrow("Welcome config save validation failure");
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            mockSaveWelcomeConfig.mockRejectedValue(new z.ZodError([]));
-
-            await expect(
-                saveWelcomeConfigAction("guild_123", welcomeConfigFixture())
-            ).rejects.toThrow("Validation Error");
-        });
     });
 
     describe("setupVerificationAction", () => {
@@ -211,13 +204,6 @@ describe("Welcome Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            mockSetupVerificationService.mockRejectedValue(new z.ZodError([]));
-
-            await expect(setupVerificationAction("guild_123", payload)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("teardownVerificationAction", () => {
@@ -267,12 +253,5 @@ describe("Welcome Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            mockTeardownVerificationService.mockRejectedValue(new z.ZodError([]));
-
-            await expect(teardownVerificationAction("guild_123", payload)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 });

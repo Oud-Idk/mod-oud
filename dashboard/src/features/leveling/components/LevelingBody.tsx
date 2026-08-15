@@ -87,7 +87,7 @@ export function LevelingBody({
     const handleSave = useCallback(async () => {
         const result = saveLevelingConfigSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            toast.error(result.error.issues[0].message);
             return;
         }
         await originalHandleSave();

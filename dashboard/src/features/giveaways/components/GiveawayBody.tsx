@@ -56,7 +56,7 @@ export function GiveawaysBody({
 
         const result = SaveGiveawaySchema.safeParse(payload);
         if (!result.success) {
-            const firstMessage = result.error.issues[0]?.message || "Invalid giveaway configuration.";
+            const firstMessage = result.error.issues[0].message;
             toast.error(firstMessage);
             return;
         }

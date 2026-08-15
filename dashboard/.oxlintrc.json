@@ -145,7 +145,6 @@
       "error",
       "error-handling-correctness-only"
     ],
-    "typescript/unbound-method": "error",
     "typescript/unified-signatures": "error",
     "typescript/use-unknown-in-catch-callback-variable": "error",
     "typescript/adjacent-overload-signatures": "error",

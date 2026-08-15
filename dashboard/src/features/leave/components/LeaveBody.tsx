@@ -41,7 +41,7 @@ export function LeaveBody({
     const handleSave = useCallback(async () => {
         const result = saveLeaveConfigSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration");
+            toast.error(result.error.issues[0].message);
             return;
         }
         await originalHandleSave();

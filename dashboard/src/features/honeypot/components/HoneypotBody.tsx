@@ -50,7 +50,7 @@ export function HoneypotBody({
     const handleSave = (): void => {
         const result = honeypotConfigSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message || "Invalid configuration.");
+            toast.error(result.error.issues[0].message);
             return;
         }
         originalHandleSave();

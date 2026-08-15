@@ -288,7 +288,7 @@ export async function saveTicketsConfigAction(guildId: string, rawData: unknown)
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Pick the first human-readable message to display in UI status banners
-      const firstError = error.issues[0]?.message || "Invalid configuration.";
+      const firstError = error.issues[0].message;
       throw new Error(firstError);
     }
     throw new Error(error instanceof Error ? error.message : "Could not save configuration.");

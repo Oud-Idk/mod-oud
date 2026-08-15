@@ -47,7 +47,7 @@ export function InviteTrackingBody({
     const handleSave = useCallback(async () => {
         const validation = inviteTrackerConfigSchema.safeParse(config);
         if (!validation.success) {
-            toast.error(validation.error.issues[0]?.message || "Invalid configuration");
+            toast.error(validation.error.issues[0].message);
             return;
         }
         await originalHandleSave();

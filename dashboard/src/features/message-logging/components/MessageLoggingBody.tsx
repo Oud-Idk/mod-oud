@@ -107,7 +107,7 @@ export function MessageLoggingBody({
     const onValidatedSave = (): void => {
         const validation = messageLoggingConfigSchema.safeParse(config);
         if (!validation.success) {
-            toast.error(validation.error.issues[0]?.message || "Invalid configuration.");
+            toast.error(validation.error.issues[0].message);
             return;
         }
         handleSave();

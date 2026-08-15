@@ -41,7 +41,7 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
         });
 
         if (!validationResult.success) {
-            const firstMessage = validationResult.error.issues[0]?.message || "Invalid embed configuration";
+            const firstMessage = validationResult.error.issues[0].message;
             toast.error(firstMessage);
             return;
         }

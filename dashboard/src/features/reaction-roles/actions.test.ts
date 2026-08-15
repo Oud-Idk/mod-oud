@@ -148,13 +148,6 @@ describe("Reaction Roles Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(saveReactionMessage).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveReactionMessageAction("guild_123", validInput)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
 
         it("should scan multiple pages of cache keys before deleting", async () => {
             vi.mocked(saveReactionMessage).mockResolvedValue(messageFixture());

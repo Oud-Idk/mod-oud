@@ -107,14 +107,6 @@ describe("Reminders Action Module", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveReminder).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveReminderAction("guild_123", validInput)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("deleteReminderAction", () => {

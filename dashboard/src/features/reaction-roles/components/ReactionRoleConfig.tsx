@@ -73,7 +73,7 @@ export function ReactionRoleConfig({
             return;
         }
         if (!validationResult.success) {
-            const firstErr = validationResult.error.issues[0]?.message ?? "Invalid configuration.";
+            const firstErr = validationResult.error.issues[0].message;
             toast.error(`Cannot send to Discord: ${firstErr}`);
             return;
         }
@@ -197,7 +197,7 @@ export function ReactionRoleConfig({
                 <div className="p-3 rounded-lg border border-warning/30 bg-warning-subtle text-warning-foreground text-xs font-medium flex items-center gap-2">
                     <span>⚠️</span>
                     <span>
-                        {validationResult.error.issues[0]?.message ?? "All channel and role mappings must be configured before saving."}
+                        {validationResult.error.issues[0].message}
                     </span>
                 </div>
             )}

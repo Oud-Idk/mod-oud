@@ -56,7 +56,7 @@ export function RemindersBody({
         if (config === null) return;
         const result = saveableReminderSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0]?.message ?? "Invalid configuration");
+            toast.error(result.error.issues[0].message);
             return;
         }
         void originalHandleSave();

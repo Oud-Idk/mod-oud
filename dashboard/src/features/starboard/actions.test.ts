@@ -128,14 +128,6 @@ describe("Starboard Server Actions", () => {
             );
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(upsertStarboardConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(saveStarboardConfigAction("guild_123", validInput)).rejects.toThrow(
-                "Validation Error"
-            );
-        });
     });
 
     describe("deleteStarboardConfigAction", () => {

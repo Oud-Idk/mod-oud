@@ -89,13 +89,5 @@ describe("Moderation DMs Action Module", () => {
             ).rejects.toThrow("Moderation DMs config validation failure");
         });
 
-        it("should fall back to 'Validation Error' when the zod error has no issues", async () => {
-            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveModerationDMsConfig).mockRejectedValue(new z.ZodError([]));
-
-            await expect(
-                saveModerationDMsConfigAction("guild_123", validConfig)
-            ).rejects.toThrow("Validation Error");
-        });
     });
 });

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar/Sidebar";
 import { MobileNav } from "@/components/layout/sidebar/MobileNav";
@@ -9,7 +9,7 @@ export default async function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
-}) {
+}): Promise<JSX.Element> {
     const session = await auth();
 
     if (!session) {

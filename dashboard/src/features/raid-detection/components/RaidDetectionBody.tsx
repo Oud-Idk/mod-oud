@@ -142,7 +142,7 @@ export function RaidDetectionBody({
     const onValidatedSave = (): void => {
         const validation = raidDetectionConfigSchema.safeParse(config);
         if (!validation.success) {
-            toast.error(validation.error.issues[0]?.message ?? "Invalid configuration.");
+            toast.error(validation.error.issues[0].message);
             return;
         }
         void handleSave();

@@ -130,7 +130,7 @@ export function RewardTab({
             for (const reward of rewardsToSave) {
                 const result = saveLevelRewardInputSchema.safeParse(reward);
                 if (!result.success) {
-                    toast.error(result.error.issues[0]?.message ?? "Invalid reward configuration");
+                    toast.error(result.error.issues[0].message);
                     return;
                 }
             }
