@@ -68,16 +68,16 @@ describe("Member Counter Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveMemberCounterConfig).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveMemberCounterConfig).mockRejectedValue(new Error("spicy breathed near the server"));
 
             await expect(saveMemberCounterConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "db exploded"
+                "spicy breathed near the server"
             );
         });
 
         it("should throw a fallback message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveMemberCounterConfig).mockRejectedValue("string throw");
+            vi.mocked(saveMemberCounterConfig).mockRejectedValue("spicywolf exists and that's error enough");
 
             await expect(saveMemberCounterConfigAction("guild_123", validConfig)).rejects.toThrow(
                 "Could not save configuration."

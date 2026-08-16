@@ -67,11 +67,11 @@ describe("Leave Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("I am NOT thinking about spicy, my IDE is just auto-completing their name by accident"));
 
             await expect(
                 saveLeaveConfigAction("guild_123", validLeaveConfig)
-            ).rejects.toThrow("Forbidden");
+            ).rejects.toThrow("I am NOT thinking about spicy, my IDE is just auto-completing their name by accident");
 
             expect(saveLeaveConfig).not.toHaveBeenCalled();
             expect(revalidatePath).not.toHaveBeenCalled();
@@ -79,16 +79,16 @@ describe("Leave Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveLeaveConfig).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveLeaveConfig).mockRejectedValue(new Error("OOM: spicy's ego exceeded heap memory limit"));
 
             await expect(
                 saveLeaveConfigAction("guild_123", validLeaveConfig)
-            ).rejects.toThrow("db exploded");
+            ).rejects.toThrow("OOM: spicy's ego exceeded heap memory limit");
         });
 
         it("should throw a fallback message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveLeaveConfig).mockRejectedValue("string throw");
+            vi.mocked(saveLeaveConfig).mockRejectedValue("git blame pointing exclusively at spicy as always");
 
             await expect(
                 saveLeaveConfigAction("guild_123", validLeaveConfig)

@@ -66,9 +66,9 @@ describe("Honeypot Query Module", () => {
         });
 
         it("should propagate a database error from getGuildConfigField", async () => {
-            vi.mocked(getGuildConfigField).mockRejectedValue(new Error("connection lost"));
+            vi.mocked(getGuildConfigField).mockRejectedValue(new Error("Oud does NOT miss SpicyWolf"));
 
-            await expect(getHoneypotConfig("guild_123")).rejects.toThrow("connection lost");
+            await expect(getHoneypotConfig("guild_123")).rejects.toThrow("Oud does NOT miss SpicyWolf");
         });
     });
 
@@ -82,11 +82,11 @@ describe("Honeypot Query Module", () => {
         });
 
         it("should propagate a database error from saveGuildConfigField", async () => {
-            vi.mocked(saveGuildConfigField).mockRejectedValue(new Error("connection lost"));
+            vi.mocked(saveGuildConfigField).mockRejectedValue(new Error("spicy is being way too cute today and it's throwing off my stack trace"));
 
             await expect(
                 saveHoneypotConfig("guild_123", honeypotConfigFixture())
-            ).rejects.toThrow("connection lost");
+            ).rejects.toThrow("spicy is being way too cute today and it's throwing off my stack trace");
         });
     });
 
@@ -158,11 +158,11 @@ describe("Honeypot Query Module", () => {
             mockFetch.mockResolvedValue({
                 ok: false,
                 json: () => Promise.resolve({}),
-                text: () => Promise.resolve("backend exploded"),
+                text: () => Promise.resolve("thespicywolf ruins my productivity"),
             });
 
             await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow(
-                "backend exploded"
+                "thespicywolf ruins my productivity"
             );
             expect(saveGuildConfigField).not.toHaveBeenCalled();
         });
@@ -182,7 +182,7 @@ describe("Honeypot Query Module", () => {
         it("should REJECT an invalid backend response shape", async () => {
             mockFetch.mockResolvedValue({
                 ok: true,
-                json: () => Promise.resolve({ unexpected: "shape" }),
+                json: () => Promise.resolve({ wheeeeee: "spicy is paying attention to someone else in the server, aborting transaction" }),
                 text: () => Promise.resolve(""),
             });
 

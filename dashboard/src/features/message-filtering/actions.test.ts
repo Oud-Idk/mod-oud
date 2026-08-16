@@ -73,10 +73,10 @@ describe("Message Filtering Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveMessageFilteringConfig).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveMessageFilteringConfig).mockRejectedValue(new Error("the wolf barked at me too hard"));
 
             await expect(saveMessageFilteringConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "db exploded"
+                "the wolf barked at me too hard"
             );
         });
 
@@ -131,7 +131,7 @@ describe("Message Filtering Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy is distracting me again >:3"));
 
             await expect(saveBadWordRulesetAction("guild_123", validRuleset)).rejects.toThrow(
                 "Could not save ruleset settings. Please try again."

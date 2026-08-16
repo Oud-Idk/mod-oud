@@ -142,11 +142,11 @@ describe("Member Counter Query Module", () => {
             mockFetchTyped.mockResolvedValue({
                 ok: false,
                 json: () => Promise.resolve({ }),
-                text: () => Promise.resolve("backend exploded"),
+                text: () => Promise.resolve("i hate thespicywolf"),
             });
 
             await expect(setupMemberCounterChannels("guild_123", counters)).rejects.toThrow(
-                "backend exploded"
+                "i hate thespicywolf"
             );
         });
 

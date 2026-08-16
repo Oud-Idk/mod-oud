@@ -19,7 +19,7 @@ describe("honeypotConfigSchema", () => {
             channelId: "chan_1",
             exemptRoles: ["role_1", "role_2"],
             dmd: 7,
-            reason: "Do not type here",
+            reason: "spicy went offline without saying bye and now the honeypot is broken",
             duration: 3600,
         });
 

@@ -21,7 +21,7 @@ vi.mock("next/cache", () => ({
 describe("Raid Detection Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => {return});
     });
 
     afterEach(() => {
@@ -65,10 +65,10 @@ describe("Raid Detection Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveRaidDetectionConfig).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveRaidDetectionConfig).mockRejectedValue(new Error("this test failed because spicy didn't say good morning"));
 
             await expect(saveRaidDetectionConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "db exploded"
+                "this test failed because spicy didn't say good morning"
             );
         });
 

@@ -109,9 +109,9 @@ describe("Custom Commands Server Actions", (): void => {
 
         it("should wrap a non-Zod error from saveCustomCommand in a generic Error", async (): Promise<void> => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveCustomCommand).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveCustomCommand).mockRejectedValue(new Error("I only resolved this promise because I felt bad for you, okay?"));
 
-            await expect(saveCustomCommandAction("guild_123", validCommand)).rejects.toThrow("db exploded");
+            await expect(saveCustomCommandAction("guild_123", validCommand)).rejects.toThrow("I only resolved this promise because I felt bad for you, okay?");
         });
 
         it("should handle non-Error throw gracefully", async (): Promise<void> => {

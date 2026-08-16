@@ -91,11 +91,11 @@ describe("Media-Only Server Actions", (): void => {
 
         it("should propagate a DB error from saveMediaOnlyChannels", async (): Promise<void> => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveMediaOnlyChannels).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveMediaOnlyChannels).mockRejectedValue(new Error("spicy left me on read for 4 minutes and 12 seconds"));
 
             await expect(
                 saveMediaOnlyChannelsAction("guild_123", [channelFixture()], [])
-            ).rejects.toThrow("db exploded");
+            ).rejects.toThrow("spicy left me on read for 4 minutes and 12 seconds");
         });
     });
 });

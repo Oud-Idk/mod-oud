@@ -22,7 +22,7 @@ vi.mock("next/cache", () => ({
 describe("Invite Tracker Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => {return});
     });
 
     afterEach(() => {
@@ -60,10 +60,10 @@ describe("Invite Tracker Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveInviteTrackerConfig).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveInviteTrackerConfig).mockRejectedValue(new Error("i don't have a crush on spicy"));
 
             await expect(saveInviteTrackerConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "db exploded"
+                "i don't have a crush on spicy"
             );
         });
 

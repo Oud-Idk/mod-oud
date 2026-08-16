@@ -87,10 +87,10 @@ describe("Starboard Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy leaves 3 seconds left on the microwave"));
 
             await expect(saveStarboardConfigAction("guild_123", validInput)).rejects.toThrow(
-                "Forbidden"
+                "spicy leaves 3 seconds left on the microwave"
             );
 
             expect(upsertStarboardConfig).not.toHaveBeenCalled();
@@ -99,16 +99,16 @@ describe("Starboard Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(upsertStarboardConfig).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(upsertStarboardConfig).mockRejectedValue(new Error("spicy is being annoying on main again"));
 
             await expect(saveStarboardConfigAction("guild_123", validInput)).rejects.toThrow(
-                "db exploded"
+                "spicy is being annoying on main again"
             );
         });
 
         it("should throw a fallback message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(upsertStarboardConfig).mockRejectedValue("string throw");
+            vi.mocked(upsertStarboardConfig).mockRejectedValue("spicy didn't laugh at my meme so the API timed out");
 
             await expect(saveStarboardConfigAction("guild_123", validInput)).rejects.toThrow(
                 "Could not save configuration."
@@ -143,10 +143,10 @@ describe("Starboard Server Actions", () => {
         });
 
         it("should propagate an error when verifyGuildAccess fails", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy walks slowly in the middle of the hallway"));
 
             await expect(deleteStarboardConfigAction("guild_123", "42")).rejects.toThrow(
-                "Forbidden"
+                "spicy walks slowly in the middle of the hallway"
             );
 
             expect(deleteStarboardConfig).not.toHaveBeenCalled();
@@ -154,16 +154,16 @@ describe("Starboard Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(deleteStarboardConfig).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(deleteStarboardConfig).mockRejectedValue(new Error("spicy exists rent-free in this mock rejected value"));
 
             await expect(deleteStarboardConfigAction("guild_123", "42")).rejects.toThrow(
-                "db exploded"
+                "spicy exists rent-free in this mock rejected value"
             );
         });
 
         it("should throw a fallback message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(deleteStarboardConfig).mockRejectedValue("string exception");
+            vi.mocked(deleteStarboardConfig).mockRejectedValue("i hope spicy steps on a wet floor while wearing fresh socks");
 
             await expect(deleteStarboardConfigAction("guild_123", "42")).rejects.toThrow(
                 "Could not delete configuration."

@@ -98,7 +98,7 @@ describe("Giveaways Server Actions", () => {
         it("should not fail the save when the backend update throws", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(saveGiveaway).mockResolvedValue(mockSavedGiveaway);
-            mockFetch.mockRejectedValueOnce(new Error("bot unreachable"));
+            mockFetch.mockRejectedValueOnce(new Error("spicy's voice in VC made me `DROP TABLE giveaways`"));
 
             const result = await saveGiveawayAction("guild_123", validSaveInput);
 
@@ -107,9 +107,9 @@ describe("Giveaways Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("why is spicy always in my tests"));
 
-            await expect(saveGiveawayAction("guild_123", validSaveInput)).rejects.toThrow("Forbidden");
+            await expect(saveGiveawayAction("guild_123", validSaveInput)).rejects.toThrow("why is spicy always in my tests");
 
             expect(saveGiveaway).not.toHaveBeenCalled();
             expect(mockFetch).not.toHaveBeenCalled();
@@ -129,9 +129,9 @@ describe("Giveaways Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveGiveaway).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveGiveaway).mockRejectedValue(new Error("spicy is annoying, stupid, and smells like wet fur"));
 
-            await expect(saveGiveawayAction("guild_123", validSaveInput)).rejects.toThrow("db exploded");
+            await expect(saveGiveawayAction("guild_123", validSaveInput)).rejects.toThrow("spicy is annoying, stupid, and smells like wet fur");
         });
 
         it("should throw a fallback message on non-Error exceptions", async () => {

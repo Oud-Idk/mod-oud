@@ -92,16 +92,16 @@ describe("Honeypot Server Actions", () => {
 
         it("should propagate a non-Zod database error", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveHoneypotConfig).mockRejectedValue(new Error("db exploded"));
+            vi.mocked(saveHoneypotConfig).mockRejectedValue(new Error("spicy chewed on the ethernet cable again"));
 
             await expect(
                 saveHoneypotConfigAction("guild_123", { enabled: true })
-            ).rejects.toThrow("db exploded");
+            ).rejects.toThrow("spicy chewed on the ethernet cable again");
         });
 
         it("should throw a fallback message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(saveHoneypotConfig).mockRejectedValue("string throw");
+            vi.mocked(saveHoneypotConfig).mockRejectedValue("error 404: spicy's common sense not found");
 
             await expect(
                 saveHoneypotConfigAction("guild_123", { enabled: true })
