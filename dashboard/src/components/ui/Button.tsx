@@ -7,7 +7,7 @@ const buttonVariants = cva(
     [
         "inline-flex items-center justify-center transition border cursor-pointer font-medium select-none focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
         "hover:bg-surface-muted/60",
-        "disabled:border-surface-muted disabled:text-surface-muted disabled:cursor-not-allowed",
+        "disabled:border-border disabled:text-border disabled:cursor-not-allowed",
     ],
     {
         variants: {
@@ -31,7 +31,9 @@ const buttonVariants = cva(
 
 export interface ButtonProps
     extends React.ComponentPropsWithoutRef<typeof HeadlessButton>,
-        VariantProps<typeof buttonVariants> {}
+        VariantProps<typeof buttonVariants> {
+    className?: string;
+}
 
 export function Button({ variant, size, className, children, ...props }: ButtonProps): JSX.Element {
     return (

@@ -20,8 +20,8 @@ export async function setupVerificationService(
     });
 
     if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || "The backend application rejected the verification setup request.");
+        const errText = (await response.text()).trim();
+        throw new Error(errText !== "" ? errText : "The backend application rejected the verification setup request.");
     }
 
     const data = setupBackendResponseSchema.parse(await response.json());
@@ -69,8 +69,8 @@ export async function teardownVerificationService(
     });
 
     if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || "The backend application rejected the verification removal request.");
+        const errText = (await response.text()).trim();
+        throw new Error(errText !== "" ? errText : "The backend application rejected the verification removal request.");
     }
 
     try {

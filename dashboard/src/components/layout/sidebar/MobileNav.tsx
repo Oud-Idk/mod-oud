@@ -1,7 +1,7 @@
 "use client";
 
 import React, { JSX, useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ShieldCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
@@ -9,56 +9,58 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
 
+    // Auto-close on navigation
     useEffect(() => {
         setIsOpen(false);
     }, [pathname]);
 
     return (
         <div className="md:hidden">
-            {/* Mobile Top Header */}
-            <header className="h-16 border-b flex items-center justify-between px-4 bg-white dark:bg-black w-full">
-                <span className="font-bold text-lg text-neutral-900 dark:text-white">Mod Oud</span>
+            {/* 1. The Mobile Top Header bar (Always visible on mobile) */}
+            <header className="h-14 border-b border-border-subtle flex items-center justify-between px-4 bg-surface text-foreground w-full sticky top-0 z-30">
+                <div className="flex items-center gap-2">
+                    <div className="p-1 rounded-md bg-brand-subtle text-brand border border-brand/20">
+                        <ShieldCheck className="w-4 h-4" strokeWidth={2.5} />
+                    </div>
+                    <span className="font-bold text-sm tracking-tight">Mod Oud</span>
+                </div>
 
                 <div className="flex items-center gap-2">
-                    {/* ThemeToggle is now handy on mobile too! */}
-                    <ThemeToggle/>
-
+                    <ThemeToggle />
                     <button
-                        onClick={() =>{  setIsOpen(true); }}
-                        className="p-2 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-md"
-                        aria-label="Open menu"
+                        type="button"
+                        onClick={() => { setIsOpen(true); }}
+                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-surface-active rounded-lg transition-colors focus-ring"
+                        aria-label="Open sidebar"
                     >
-                        <Menu className="w-6 h-6"/>
+                        <Menu className="w-5 h-5" />
                     </button>
                 </div>
             </header>
 
-            {/* Dark Overlay */}
+            {/* 2. Backdrop Overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() =>{  setIsOpen(false); }}
+                    className="fixed inset-0 z-40 bg-overlay backdrop-blur-xs transition-opacity duration-200"
+                    onClick={() => { setIsOpen(false); }}
+                    aria-hidden="true"
                 />
             )}
 
-            {/* Sliding Drawer */}
             <div
-                className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-white dark:bg-neutral-950 transform transition-transform duration-300 ease-in-out ${
+                className={`fixed top-0 bottom-0 left-0 z-50  bg-surface border-r border-border shadow-dropdown transform transition-transform duration-300 ease-in-out ${
                     isOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
             >
-                <div className="absolute top-3 right-3 z-50">
-                    <button
-                        onClick={() =>{  setIsOpen(false); }}
-                        className="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-900"
-                        aria-label="Close menu"
-                    >
-                        <X className="w-5 h-5"/>
-                    </button>
-                </div>
-
-                <div className="h-full w-full">
-                    {children}
-                </div>
+                <button
+                    type="button"
+                    onClick={() => { setIsOpen(false); }}
+                    className="absolute top-2 right-3 z-50 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-active transition-colors focus-ring"
+                    aria-label="Close sidebar"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+                {children}
             </div>
         </div>
     );

@@ -18,7 +18,7 @@ export async function CustomCommandsFeature({
 }: CustomCommandsFeatureProps): Promise<JSX.Element> {
     const session = await auth();
 
-    if (!session?.user?.id) {
+    if (session?.user.id === undefined) {
         redirect("/");
     }
 
@@ -29,9 +29,7 @@ export async function CustomCommandsFeature({
     ]);
 
     const activeConfig =
-        commands.find((c) => String(c.id) === String(activeId)) ||
-        commands[0] ||
-        null;
+        commands.find((c) => String(c.id) === String(activeId)) ?? commands[0];
 
     const onSave = saveCustomCommandAction.bind(null, guildId);
     const onDelete = deleteCustomCommandAction.bind(null, guildId);

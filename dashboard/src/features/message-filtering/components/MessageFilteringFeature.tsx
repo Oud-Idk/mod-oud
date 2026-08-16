@@ -27,7 +27,7 @@ export async function MessageFilteringFeature({ guildId, rulesetId }: MessageFil
         getRoleMap(guildId),
     ]);
 
-    const activeRuleset = badWordRulesets.find((r) => r.id === rulesetId) || null;
+    const activeRuleset = badWordRulesets.find((r) => r.id === rulesetId) ?? null;
 
     const onSave = saveMessageFilteringConfigAction.bind(null, guildId);
     const onSaveRuleset = saveBadWordRulesetAction.bind(null, guildId);

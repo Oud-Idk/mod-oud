@@ -71,7 +71,7 @@ export function HubForm({
     };
 
     function handleDelete(): void {
-        if (!initialHub.id) {
+        if (initialHub.id.trim() === "") {
             onDeleteSuccess();
             return;
         }
@@ -91,14 +91,14 @@ export function HubForm({
         <div className="space-y-2">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-foreground">
-                    {initialHub.id ? "Edit Voice Hub" : "Create Voice Hub"}
+                    {initialHub.id.trim() === "" ? "Edit Voice Hub" : "Create Voice Hub"}
                 </h3>
                 <Button
                     variant="danger"
                     onClick={handleDelete}
                     disabled={isPending || isDeleting}
                 >
-                    {isDeleting ? "Deleting..." : initialHub.id ? "Delete Hub" : "Cancel"}
+                    {isDeleting ? "Deleting..." : initialHub.id.trim() === "" ? "Delete Hub" : "Cancel"}
                 </Button>
             </div>
 

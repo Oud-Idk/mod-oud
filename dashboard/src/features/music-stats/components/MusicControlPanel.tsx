@@ -18,6 +18,7 @@ import {
     SkipForwardIcon,
     SquareIcon
 } from "lucide-react";
+import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
@@ -548,8 +549,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
     const hasTrack = nowPlaying !== null;
     const isLiveStream = Boolean(nowPlaying?.isLive);
 
-    const statusLabel = status === "connected" ? "Connected" : status === "connecting" ? "Connecting..." : "Disconnected";
-    const statusColor = status === "connected" ? "bg-success" : status === "connecting" ? "bg-warning" : "bg-danger";
+    const statusLabel = status === "connected" ? "CONNECTED" : status === "connecting" ? "CONNECTING" : "DISCONNECTED";
 
     return (
         <section
@@ -559,9 +559,8 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             {/* Header / Status */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2" role="status" aria-live="polite">
-                    <span className={`w-2.5 h-2.5 rounded-full ${statusColor}`} aria-hidden="true" />
                     <h4 className="text-lg font-semibold">Live Control</h4>
-                    <span className="text-xs text-muted-foreground">({statusLabel})</span>
+                    <ConnectionStatusPill status={statusLabel}/>
                 </div>
                 <Button
                     variant="secondary"

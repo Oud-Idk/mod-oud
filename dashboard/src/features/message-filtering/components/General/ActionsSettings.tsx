@@ -4,6 +4,7 @@ import { JSX } from "react";
 import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { RuleAction } from "@/features/message-filtering/types";
+import { NumberInput } from "@/components/ui/NumberInput";
 
 interface ActionsSettingsProps {
     actions: RuleAction[];
@@ -25,7 +26,7 @@ export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsS
         <div className="space-y-2 max-w-md">
             <InputLabel>Actions</InputLabel>
 
-            <Dropdown
+            <Dropdown<RuleAction>
                 multiple
                 options={ACTION_OPTIONS}
                 value={actions}
@@ -40,13 +41,7 @@ export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsS
             {actions.includes("TIMEOUT") && (
                 <div className="mt-2">
                     <InputLabel>Timeout duration (seconds)</InputLabel>
-                    <input
-                        type="number"
-                        min={1}
-                        value={timeoutDuration ?? 60}
-                        onChange={(e) =>{  onChange(actions, parseInt(e.target.value || "0", 10)); }}
-                        className="w-40 border rounded px-2 py-1 text-sm"
-                    />
+                    <NumberInput value={timeoutDuration ?? 60} onChange={v => { onChange(actions, v ?? 60) }}/>
                 </div>
             )}
         </div>

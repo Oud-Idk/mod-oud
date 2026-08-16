@@ -47,18 +47,38 @@ export const DEFAULT_MESSAGE_LAYOUT = Object.freeze({
     embed: {},
 });
 
-const isObject = (val: unknown): val is Record<string, unknown> => {
+
+function isObject(val: unknown): val is Record<string, unknown> {
     return typeof val === "object" && val !== null;
-};
+}
+
 
 export const isDeepEqual = (obj1: unknown, obj2: unknown): boolean => {
     if (obj1 === obj2) return true;
 
+    // Explicit check for undefined, null, or empty string (satisfies strict-boolean-expressions)
     const isEmpty = (val: unknown): boolean => val === undefined || val === null || val === "";
 
     if (isEmpty(obj1) && isEmpty(obj2)) return true;
 
+    if (obj1 instanceof Date && obj2 instanceof Date) {
+        return obj1.getTime() === obj2.getTime();
+    }
+
+    if (obj1 instanceof Date && typeof obj2 === "string") {
+        const time2 = new Date(obj2).getTime();
+        return !Number.isNaN(time2) && obj1.getTime() === time2;
+    }
+    if (typeof obj1 === "string" && obj2 instanceof Date) {
+        const time1 = new Date(obj1).getTime();
+        return !Number.isNaN(time1) && time1 === obj2.getTime();
+    }
+
     if (!isObject(obj1) || !isObject(obj2)) {
+        return false;
+    }
+
+    if (Array.isArray(obj1) !== Array.isArray(obj2)) {
         return false;
     }
 

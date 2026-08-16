@@ -1,25 +1,30 @@
 use chrono::{DateTime, Datelike, Duration, NaiveTime, Timelike, Utc};
+use chrono_tz::Tz;
 
 pub struct RecurrenceRule {
-    pub(crate) days_of_week: Vec<u32>, // 0 = Sunday, 1 = Monday, etc.
-    pub(crate) time_start: Option<NaiveTime>, // e.g., 13:00:00
-    pub(crate) time_end: Option<NaiveTime>, // e.g., 15:00:00
-    pub(crate) interval_seconds: Option<i64>, // e.g., 60
+    pub days_of_week: Vec<u32>,
+    pub time_start: Option<NaiveTime>,
+    pub time_end: Option<NaiveTime>,
+    pub interval_seconds: Option<i64>,
+    pub timezone: Option<Tz>,
 }
 
 fn is_time_in_range(current: NaiveTime, start: NaiveTime, end: NaiveTime) -> bool {
     if start <= end {
-        // Standard daytime range (like 13:00 to 15:00)
         current >= start && current < end
     } else {
-        // Overnight range wrapping around midnight (like 13:00 to 12:00 next day)
+        // Overnight range wrapping around midnight (e.g. 22:00 to 04:00)
         current >= start || current < end
     }
 }
 
 pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> DateTime<Utc> {
+    // If timezone is provided, do all math in local time then convert back to UTC
+    let tz = rule.timezone.unwrap_or(chrono_tz::UTC);
+    let local_now = now.with_timezone(&tz);
+
     let days = &rule.days_of_week;
-    let mut target_date = now;
+    let mut target_date = local_now;
 
     let start = rule.time_start.unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).unwrap());
     let end = rule.time_end.unwrap_or_else(|| NaiveTime::from_hms_opt(23, 59, 59).unwrap());
@@ -33,11 +38,16 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
 
         let current_time = target_date.time();
 
-        let inside_todays_window = is_active_day && is_time_in_range(current_time, start, end) && (start <= end || current_time >= start);
-        let inside_yesterdays_window = was_yesterday_active && (start > end) && (current_time < end);
+        let inside_todays_window = is_active_day
+            && is_time_in_range(current_time, start, end)
+            && (start <= end || current_time >= start);
 
-        if (inside_todays_window || inside_yesterdays_window)
-            && let Some(interval) = rule.interval_seconds {
+        let inside_yesterdays_window = was_yesterday_active
+            && (start > end)
+            && (current_time < end);
+
+        if let Some(interval) = rule.interval_seconds {
+            if inside_todays_window || inside_yesterdays_window {
                 let next_interval = target_date + Duration::seconds(interval);
                 let next_time = next_interval.time();
                 let days_diff = (next_interval.date_naive() - target_date.date_naive()).num_days();
@@ -51,25 +61,30 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
                     && days_diff == 0;
 
                 if still_in_today || still_in_yesterday {
-                    return next_interval;
+                    return next_interval.with_timezone(&Utc);
                 }
-            }
-
-        if is_active_day && current_time <= start {
-            let candidate = target_date
-                .with_hour(start.hour()).unwrap()
-                .with_minute(start.minute()).unwrap()
-                .with_second(0).unwrap();
-
-            if candidate > now {
-                return candidate;
             }
         }
 
+        if is_active_day && current_time <= start {
+            if let Some(candidate) = target_date
+                .with_hour(start.hour())
+                .and_then(|d| d.with_minute(start.minute()))
+                .and_then(|d| d.with_second(start.second()))
+                .and_then(|d| d.with_nanosecond(0))
+            {
+                if candidate > local_now {
+                    return candidate.with_timezone(&Utc);
+                }
+            }
+        }
+
+        // Move to the next day at midnight (00:00:00.000)
         target_date = (target_date + Duration::days(1))
             .with_hour(0).unwrap()
             .with_minute(0).unwrap()
-            .with_second(0).unwrap();
+            .with_second(0).unwrap()
+            .with_nanosecond(0).unwrap();
     }
 
     now + Duration::days(1)

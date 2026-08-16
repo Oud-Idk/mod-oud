@@ -3,7 +3,6 @@ import { getGuildLists } from "@/features/_shared/servers";
 import { MutualServers } from "@/features/overview/components/MutualServers";
 import { InviteableServers } from "@/features/overview/components/InviteableServers";
 import { JSX } from "react";
-import { Sparkles } from "lucide-react";
 
 export async function OverviewFeature(): Promise<JSX.Element> {
     const session = await auth();
@@ -13,7 +12,7 @@ export async function OverviewFeature(): Promise<JSX.Element> {
         : { mutualGuilds: [], inviteableGuilds: [] };
 
     return (
-        <main className="min-h-screen bg-surface text-foreground flex flex-col antialiased selection:bg-brand/20">
+        <main className="flex-1 bg-surface text-foreground flex flex-col antialiased selection:bg-brand/20">
             {/* Main Content Area */}
             <div className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4  flex flex-col">
                 {session ? (
@@ -45,15 +44,8 @@ export async function OverviewFeature(): Promise<JSX.Element> {
                     </div>
                 ) : (
                     /* Centered Sign-In Hero Card */
-                    <div className="flex-1 flex justify-center items-center py-12">
+                    <div className="flex-1 min-h-full flex justify-center items-center py-12">
                         <div className="w-full max-w-md p-8 rounded-2xl bg-surface-muted border border-border shadow-dropdown text-center relative overflow-hidden">
-                            {/* Ambient background glow using theme brand token */}
-                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand/10 rounded-full blur-3xl pointer-events-none" />
-
-                            <div className="inline-flex items-center justify-center p-3 rounded-full bg-brand-subtle text-brand mb-4 border border-brand/20">
-                                <Sparkles className="w-6 h-6" />
-                            </div>
-
                             <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">
                                 Welcome to Mod Oud
                             </h2>

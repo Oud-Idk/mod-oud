@@ -22,7 +22,6 @@ vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
 }));
 
-// Changed from "@/features/tickets/queries" to match the import path used in the files
 vi.mock("./queries", () => ({
     getTicketList: vi.fn(),
     getTicketHistory: vi.fn(),
@@ -147,7 +146,7 @@ describe("Ticket Server Actions", () => {
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                json: async () => ({ message_id: "discord_msg_999" }),
+                json: () => ({ message_id: "discord_msg_999" }),
             });
 
             const returnedMessageId = await sendTicketMessageAction("guild_123", "chan_1");
@@ -172,7 +171,7 @@ describe("Ticket Server Actions", () => {
 
             mockFetch.mockResolvedValueOnce({
                 ok: false,
-                text: async () => "Bot missing permissions in channel!",
+                text: () => "Bot missing permissions in channel!",
             });
 
             await expect(
@@ -185,7 +184,7 @@ describe("Ticket Server Actions", () => {
 
             mockFetch.mockResolvedValueOnce({
                 ok: false,
-                text: async () => "",
+                text: () => "",
             });
 
             await expect(
@@ -292,7 +291,7 @@ describe("Ticket Server Actions", () => {
 
             mockFetch.mockResolvedValueOnce({
                 ok: false,
-                text: async () => "Message already deleted",
+                text: () => "Message already deleted",
             });
 
             await expect(

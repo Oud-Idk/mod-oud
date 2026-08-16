@@ -34,12 +34,12 @@ export async function saveGiveaway(data: SaveGiveawayData): Promise<Giveaway> {
     const validData = SaveGiveawaySchema.parse(data);
 
     const messageLayout = JSON.stringify(
-        typeof validData.message === "object" && validData.message !== null
+        typeof validData.message === "object"
             ? { enabled: true, ...validData.message }
             : validData.message
     );
 
-    if (validData.id) {
+    if (validData.id !== undefined) {
         const query = `
             UPDATE giveaways
             SET channel_id     = $1,
@@ -66,7 +66,7 @@ export async function saveGiveaway(data: SaveGiveawayData): Promise<Giveaway> {
             validData.channel_id ?? null,
             validData.guild_id,
             validData.prize,
-            validData.winner_count ?? 1,
+            validData.winner_count,
             validData.end_time,
             validData.host_id,
             messageLayout,
@@ -102,7 +102,7 @@ export async function saveGiveaway(data: SaveGiveawayData): Promise<Giveaway> {
             validData.channel_id ?? null,
             validData.guild_id,
             validData.prize,
-            validData.winner_count ?? 1,
+            validData.winner_count,
             validData.end_time,
             validData.host_id,
             messageLayout,

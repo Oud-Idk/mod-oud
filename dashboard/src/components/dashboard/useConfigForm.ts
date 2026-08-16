@@ -1,4 +1,3 @@
-// path to your useConfigForm file
 import { Dispatch, SetStateAction, useCallback, useState, useTransition, useEffect } from "react";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { toast } from "sonner";
@@ -14,7 +13,7 @@ interface UseConfigFormReturn<T> {
     isPending: boolean;
     isDirty: boolean;
     resetKey: number;
-    handleSave: () => Promise<void>;
+    handleSave: () => void;
     handleCancel: () => void;
 }
 
@@ -32,7 +31,7 @@ export function useConfigForm<T>({
 
     const isDirty = !isDeepEqual(config, initialConfig);
 
-    const handleSave = useCallback(async () => {
+    const handleSave = useCallback((): void => {
         startTransition(async () => {
             try {
                 await onSave(config);

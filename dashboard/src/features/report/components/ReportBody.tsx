@@ -61,13 +61,13 @@ export function ReportBody({
         onSave,
     });
 
-    const handleSave = useCallback(async () => {
+    const handleSave = useCallback(() => {
         const result = reportConfigSchema.safeParse(config);
         if (!result.success) {
             toast.error(result.error.issues[0].message);
             return;
         }
-        await originalHandleSave();
+        originalHandleSave();
     }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<ReportConfig>) => {
@@ -188,7 +188,7 @@ export function ReportBody({
             {isDirty && (
                 <SavePopup
                     handleCancel={handleCancel}
-                    handleSave={() => { void handleSave() }}
+                    handleSave={() => { handleSave(); }}
                     isSaving={isPending}
                 />
             )}
@@ -202,14 +202,14 @@ export function ReportBody({
 
             <WarnModal
                 isOpen={warnReportId !== null}
-                onClose={() =>{  setWarnReportId(null); }}
+                onClose={() => { setWarnReportId(null); }}
                 onSubmit={handleWarnUser}
                 isSubmitting={isWarning}
             />
 
             <BanModal
                 isOpen={banReportId !== null}
-                onClose={() =>{  setBanReportId(null); }}
+                onClose={() => { setBanReportId(null); }}
                 onSubmit={handleBanUser}
                 isSubmitting={isBanning}
             />

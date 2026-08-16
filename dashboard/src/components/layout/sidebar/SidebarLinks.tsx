@@ -145,7 +145,7 @@ export function SidebarLinks(): JSX.Element | null {
             {/* Pinned Overview Link */}
             <Link
                 href={overviewLink.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-ring ${
                     isOverviewActive
                         ? "bg-surface-active text-foreground font-semibold"
                         : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
@@ -167,7 +167,7 @@ export function SidebarLinks(): JSX.Element | null {
                         <button
                             type="button"
                             onClick={() => { toggleGroup(group.title); }}
-                            className={`flex items-center justify-between w-full px-3 py-2 text-xs font-semibold uppercase tracking-wider rounded-md transition-colors ${
+                            className={`flex items-center justify-between w-full px-3 py-2 text-xs font-semibold uppercase tracking-wider rounded-md transition-colors focus-ring ${
                                 hasActiveChild
                                     ? "text-brand"
                                     : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
@@ -186,7 +186,7 @@ export function SidebarLinks(): JSX.Element | null {
 
                         {/* Collapsible List */}
                         {isOpen && (
-                            <div className="flex flex-col gap-0.5 mt-0.5 ml-2 pl-2 border-l border-border-subtle">
+                            <div className="flex flex-col gap-0.5 mt-0.5 ml-2 pl-2 border-l border-border-subtle focus-ring">
                                 {group.items.map((item) => {
                                     const isActive = pathname.startsWith(item.href);
 
@@ -194,7 +194,7 @@ export function SidebarLinks(): JSX.Element | null {
                                         <Link
                                             key={item.href}
                                             href={item.href}
-                                            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors focus-ring ${
                                                 isActive
                                                     ? "bg-surface-active text-foreground"
                                                     : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"

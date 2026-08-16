@@ -43,7 +43,7 @@ export function ScopeSettings({
     const currentMode = scope.mode.toUpperCase();
     const isExempt = currentMode === "EXEMPT";
 
-    const handleModeChange = (mode: ScopeActionMode) => {
+    const handleModeChange = (mode: ScopeActionMode): void => {
         onChange({ mode, channels: [], roles: [] });
     };
 
@@ -60,15 +60,15 @@ export function ScopeSettings({
                     Filter Behavior
                 </InputLabel>
                 <RadioGroup
-                    value={isExempt ? "EXEMPT" : "ENFORCED"}
-                    onChange={(v) =>{  handleModeChange(v as ScopeActionMode); }}
+                    value={isExempt ? "EXEMPT" as const : "ENFORCED" as const}
+                    onChange={(v) =>{  handleModeChange(v); }}
                     className="space-y-3"
                 >
                     <Radio
                         value="EXEMPT"
                         className={({ checked }) =>
                             cn(
-                                "flex items-center gap-3 py-2 px-4 rounded border cursor-pointer transition-all text-sm font-medium",
+                                "flex items-center gap-3 py-2 px-4 rounded border cursor-pointer transition-all text-sm font-medium focus-ring",
                                 checked
                                     ? "bg-surface-muted/50 border-brand text-foreground shadow-sm"
                                     : "bg-surface border-border hover:bg-surface-active/50 text-muted-foreground"
@@ -98,7 +98,7 @@ export function ScopeSettings({
                         value="ENFORCED"
                         className={({ checked }) =>
                             cn(
-                                "flex items-center gap-3 py-2 px-4 rounded border cursor-pointer transition-all text-sm font-medium",
+                                "flex items-center gap-3 py-2 px-4 rounded border cursor-pointer transition-all text-sm font-medium focus-ring",
                                 checked
                                     ? "bg-surface-muted/50 border-brand text-foreground shadow-sm"
                                     : "bg-surface border-border hover:bg-surface-active/50 text-muted-foreground"

@@ -19,6 +19,13 @@ export default async function DashboardLayout({
 
     return (
         <div className="theme-dashboard bg-surface text-foreground h-screen flex flex-col md:flex-row overflow-hidden antialiased">
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus-ring bg-surface rounded-lg"
+            >
+                Skip to main content
+            </a>
+
             <MobileNav>
                 <Sidebar />
             </MobileNav>
@@ -27,7 +34,7 @@ export default async function DashboardLayout({
                 <Sidebar />
             </aside>
 
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-surface">
+            <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 bg-surface" id="main-content">
                 {children}
             </main>
         </div>

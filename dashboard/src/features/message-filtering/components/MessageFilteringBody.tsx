@@ -129,7 +129,7 @@ export function MessageFilteringBody({
                     <BadWordTab
                         rulesets={badWordRulesets}
                         activeRuleset={activeRuleset}
-                        channelMap={channelMap || {}}
+                        channelMap={channelMap ?? {}}
                         roleMap={roleMap}
                         onSave={onSaveRuleset}
                         onDelete={onDeleteRuleset}

@@ -110,9 +110,7 @@ export function MessageLoggingBody({
             toast.error(validation.error.issues[0].message);
             return;
         }
-        handleSave().catch((err: unknown) => {
-            toast.error(err instanceof Error ? err.message : "Cannot save message logging config.");
-        });
+        handleSave();
     };
 
     const tabs: TabItem<"settings" | "logs">[] = [

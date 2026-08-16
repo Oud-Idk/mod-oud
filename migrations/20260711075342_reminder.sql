@@ -20,6 +20,7 @@ CREATE TABLE reminders
     time_start       TIME,  -- for recurring
     time_end         TIME,  -- also for recurring
     interval_seconds INT,
+    timezone         TEXT                              DEFAULT 'UTC',
 
     is_active        BOOLEAN                           DEFAULT TRUE
 );

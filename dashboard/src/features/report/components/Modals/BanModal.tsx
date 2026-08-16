@@ -11,7 +11,7 @@ import { TimeUnit } from "@/features/report/types";
 interface BanModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (durationMins: number | undefined, reason: string) => Promise<void>;
+    onSubmit: (durationMins: number | undefined, reason: string) => void;
     isSubmitting: boolean;
 }
 
@@ -69,7 +69,7 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
                             />
                             <Dropdown
                                 value={unit}
-                                onChange={v => v && setUnit(v ?? "MINUTES")}
+                                onChange={v => { setUnit(v ?? "DAYS"); }}
                                 options={[
                                     { value: "MINUTES", label: "Minutes" },
                                     { value: "HOURS", label: "Hours" },

@@ -54,9 +54,7 @@ export function HoneypotBody({
             return;
         }
 
-        originalHandleSave().catch((err: unknown) => {
-            toast.error(err instanceof Error ? err.message : "Failed to save honeypot configs.");
-        });
+        originalHandleSave();
     };
 
     const channelOptions = getAvailableChannelOptions(textChannelMap);

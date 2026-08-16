@@ -38,10 +38,10 @@ export const saveWarnThresholdItemSchema = z
         duration: z.number().nullish().default(null),
     })
     .superRefine((data, ctx) => {
-        if (data.actionType.includes("TIMEOUT") && (!data.duration || data.duration <= 0)) {
+        if (data.actionType.includes("TIMEOUT") && (data.duration === null || data.duration <= 0)) {
             ctx.addIssue({
                 code: 'custom',
-                message: `Timeout duration must be at least 1 minute for warn count ${data.warnCount}.`,
+                message: `Timeout duration must be at least 1 minute for warn count ${data.warnCount.toString()}.`,
                 path: ["duration"],
             });
         }
@@ -49,7 +49,7 @@ export const saveWarnThresholdItemSchema = z
         if (data.actionType.includes("ROLE_ADD") && (!data.rolesToAdd || data.rolesToAdd.length === 0)) {
             ctx.addIssue({
                 code: 'custom',
-                message: `Please select at least one role to add for warn count ${data.warnCount}.`,
+                message: `Please select at least one role to add for warn count ${data.warnCount.toString()}.`,
                 path: ["rolesToAdd"],
             });
         }
@@ -57,7 +57,7 @@ export const saveWarnThresholdItemSchema = z
         if (data.actionType.includes("ROLE_REMOVE") && (!data.rolesToRemove || data.rolesToRemove.length === 0)) {
             ctx.addIssue({
                 code: 'custom',
-                message: `Please select at least one role to remove for warn count ${data.warnCount}.`,
+                message: `Please select at least one role to remove for warn count ${data.warnCount.toString()}.`,
                 path: ["rolesToRemove"],
             });
         }

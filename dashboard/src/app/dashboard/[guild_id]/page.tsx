@@ -57,7 +57,7 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <ConnectionStatusPill status={status ? "CONNECTED" : "DISCONNECTED"} connectedText="Online!" disconnectedText="Offline (Oud is too distracted with Spicy right now)"/>
+                    <ConnectionStatusPill status={status ? "CONNECTED" : "DISCONNECTED"} connectedText="Online!" disconnectedText="Offline (Oud is too distracted with `The SpicyWolf` right now)"/>
                 </div>
             </div>
             <div className="grid gap-4 md:grid-cols-4">

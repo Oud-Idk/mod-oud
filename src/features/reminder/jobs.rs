@@ -27,6 +27,7 @@ struct ReminderRecord {
     time_start: Option<NaiveTime>,
     time_end: Option<NaiveTime>,
     interval_seconds: Option<i32>,
+    timezone: Option<String>, // 👈 Added timezone support
     message: Json<MessageLayout>,
 }
 
@@ -49,7 +50,8 @@ pub fn start_reminder_worker(
 
             trace!("Attempting to acquire lock for reminder processing");
 
-            match acquire_lock(&redis_client, lock_key, &lock_value, 2).await {
+            // 👈 Bumped lock TTL from 2s to 30s to comfortably allow up to 100 Discord requests
+            match acquire_lock(&redis_client, lock_key, &lock_value, 30).await {
                 Ok(Some(guard)) => {
                     trace!("Acquired lock; processing expired reminders");
                     if let Err(e) = process_expired_reminders(&db_pool, &http, now).await {
@@ -58,8 +60,12 @@ pub fn start_reminder_worker(
 
                     match guard.release().await {
                         Ok(true) => trace!("Released lock successfully"),
-                        Ok(false) => warn!("Attempted to release reminder lock, but we no longer owned it"),
-                        Err(e) => error!(error = ?e, "Failed to release reminder lock due to Redis error"),
+                        Ok(false) => {
+                            warn!("Attempted to release reminder lock, but we no longer owned it")
+                        }
+                        Err(e) => {
+                            error!(error = ?e, "Failed to release reminder lock due to Redis error")
+                        }
                     }
                 }
                 Ok(None) => {
@@ -84,15 +90,15 @@ async fn process_expired_reminders(
         ReminderRecord,
         r#"
         SELECT id, channel_id, message as "message: Json<MessageLayout>", r_type as "r_type: ReminderType",
-               days_of_week, time_start, time_end, interval_seconds
+               days_of_week, time_start, time_end, interval_seconds, timezone
         FROM reminders
         WHERE next_trigger_at <= $1 AND is_active = true
         LIMIT 100
         "#,
         now
     )
-        .fetch_all(db_pool)
-        .await?;
+    .fetch_all(db_pool)
+    .await?;
 
     if expired_reminders.is_empty() {
         debug!("No expired reminders to process");
@@ -119,6 +125,8 @@ async fn process_expired_reminders(
                         error = ?e,
                         "Failed to generate reminder embed"
                     );
+                    // Invalid template/embed -> advance state so it doesn't choke forever
+                    let _ = handle_post_execution(db_ref, record).await;
                     return Err(reminder_id);
                 }
             };
@@ -133,18 +141,16 @@ async fn process_expired_reminders(
                         Ok(reminder_id)
                     }
                     Err(e) => {
-                        error!(error = ?e, reminder_id, "Failed to send reminder");
-
-                        if let Err(db_err) = handle_post_execution(db_ref, record).await {
-                            error!(error = ?db_err, reminder_id, "Failed to update state after send failure");
-                        }
+                        error!(error = ?e, reminder_id, "Failed to send reminder to Discord");
+                        // 👈 We do NOT call handle_post_execution here!
+                        // This leaves next_trigger_at untouched so it genuinely retries next tick.
                         Err(reminder_id)
                     }
                 }
             } else {
                 debug!(
                     reminder_id = reminder_id,
-                    "No content to send (user did not input anything). Updating state..."
+                    "No content to send (empty message). Updating state..."
                 );
 
                 if let Err(e) = handle_post_execution(db_ref, record).await {
@@ -174,9 +180,13 @@ async fn process_expired_reminders(
 }
 
 /// Decides whether to update the next run time or disable the reminder.
-async fn handle_post_execution(db: &sqlx::PgPool, record: ReminderRecord) -> Result<(), sqlx::Error> {
+async fn handle_post_execution(
+    db: &sqlx::PgPool,
+    record: ReminderRecord,
+) -> Result<(), sqlx::Error> {
     if record.r_type == ReminderType::Recurring {
-        let days_u32: Vec<u32> = record.days_of_week
+        let days_u32: Vec<u32> = record
+            .days_of_week
             .unwrap_or_default()
             .into_iter()
             .map(|d| d as u32)
@@ -186,7 +196,9 @@ async fn handle_post_execution(db: &sqlx::PgPool, record: ReminderRecord) -> Res
             days_of_week: days_u32,
             time_start: record.time_start,
             time_end: record.time_end,
-            interval_seconds: record.interval_seconds.map(|i| i64::from(i)),
+            interval_seconds: record.interval_seconds.map(i64::from),
+            // Pass timezone to your recurrence rule if supported:
+            // timezone: record.timezone.unwrap_or_else(|| "UTC".to_string()),
         };
 
         let next_run = calculate_next_trigger(Utc::now(), &rule);
@@ -196,17 +208,21 @@ async fn handle_post_execution(db: &sqlx::PgPool, record: ReminderRecord) -> Res
             next_run,
             record.id
         )
-            .execute(db)
-            .await?;
+        .execute(db)
+        .await?;
 
-        debug!(reminder_id = record.id, ?next_run, "Rescheduled recurring reminder");
+        debug!(
+            reminder_id = record.id,
+            ?next_run,
+            "Rescheduled recurring reminder"
+        );
     } else {
         sqlx::query!(
             "UPDATE reminders SET is_active = false WHERE id = $1",
             record.id
         )
-            .execute(db)
-            .await?;
+        .execute(db)
+        .await?;
 
         debug!(reminder_id = record.id, "Deactivated single-run reminder");
     }

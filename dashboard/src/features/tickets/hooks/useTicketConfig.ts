@@ -1,14 +1,27 @@
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useState, useTransition, type Dispatch, type SetStateAction } from "react";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { SaveTicketConfigSchema, type TicketConfig } from "../types";
 import { toast } from "sonner";
+
+export interface UseTicketConfigReturn {
+    config: TicketConfig;
+    setConfig: Dispatch<SetStateAction<TicketConfig>>;
+    isDirty: boolean;
+    isPending: boolean;
+    isProcessingAction: boolean;
+    handleSave: () => void;
+    handleCancel: () => void;
+    handleSendLiveMessage: () => Promise<void>;
+    handleDeleteLiveMessage: () => Promise<void>;
+    isWarnThresholdInvalid: boolean;
+}
 
 export function useTicketConfig(
     initialConfig: TicketConfig,
     onSave: (config: TicketConfig) => Promise<void>,
     onSendTicketMessage: (channelId: string) => Promise<string | undefined>,
     onDeleteTicketMessage: (channelId: string, messageId: string) => Promise<void>
-) {
+): UseTicketConfigReturn {
     const [config, setConfig] = useState<TicketConfig>(initialConfig);
     const [isPending, startTransition] = useTransition();
     const [isProcessingAction, setIsProcessingAction] = useState(false);
@@ -19,7 +32,7 @@ export function useTicketConfig(
     const handleSave = useCallback(() => {
         const result = SaveTicketConfigSchema.safeParse(config);
         if (!result.success) {
-            const firstMessage = result.error.issues[0].message;
+            const firstMessage = result.error.issues[0]?.message ?? "Invalid configuration.";
             toast.error(firstMessage);
             return;
         }
@@ -39,7 +52,7 @@ export function useTicketConfig(
     }, [initialConfig]);
 
     const handleSendLiveMessage = async (): Promise<void> => {
-        if (!config.channelId) return;
+        if (config.channelId === null) return;
         setIsProcessingAction(true);
         try {
             await onSendTicketMessage(config.channelId);
@@ -52,7 +65,7 @@ export function useTicketConfig(
     };
 
     const handleDeleteLiveMessage = async (): Promise<void> => {
-        if (!config.channelId || !config.postedMessageId) return;
+        if (config.channelId === null || config.postedMessageId === null) return;
         setIsProcessingAction(true);
         try {
             await onDeleteTicketMessage(config.channelId, config.postedMessageId);

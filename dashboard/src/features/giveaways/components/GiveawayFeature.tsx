@@ -20,8 +20,7 @@ interface GiveawayFeatureProps {
 export async function GiveawayFeature({ guildId, activeId }: GiveawayFeatureProps): Promise<JSX.Element> {
     const session = await auth();
 
-    console.log(session);
-    if (!session?.user?.id) {
+    if (session?.user.id === undefined) {
         redirect("/");
     }
 
@@ -34,9 +33,8 @@ export async function GiveawayFeature({ guildId, activeId }: GiveawayFeatureProp
     ]);
 
     const activeConfig =
-        giveaways.find((g) => String(g.id) === String(activeId)) ||
-        giveaways[0] ||
-        null;
+        giveaways.find((g) => String(g.id) === String(activeId)) ??
+        giveaways[0];
 
     const onSave = saveGiveawayAction.bind(null, guildId);
     const onDelete = deleteGiveawayAction.bind(null, guildId);

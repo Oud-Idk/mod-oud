@@ -10,6 +10,10 @@ import {
     SendEmbedResponse,
 } from "./types";
 
+const sendEmbedResponseSchema = z.object({
+    message_id: z.string(),
+});
+
 export async function sendEmbedAction(
     guildId: string,
     payload: SendEmbedPayload
@@ -37,11 +41,11 @@ export async function sendEmbedAction(
         });
 
         if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(errText || "Backend returned an error state.");
+            const errText = (await response.text()).trim();
+            throw new Error(errText !== "" ? errText : "Backend returned an error state.");
         }
 
-        const data = await response.json();
+        const data = sendEmbedResponseSchema.parse(await response.json());
 
         return {
             messageId: data.message_id,

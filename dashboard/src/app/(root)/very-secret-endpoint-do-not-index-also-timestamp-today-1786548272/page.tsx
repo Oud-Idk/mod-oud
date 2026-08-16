@@ -29,19 +29,19 @@ export default async function SecretPage(): Promise<JSX.Element> {
                <MarkdownRenderer content={content} />
            </main>
 
-           <footer className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-md py-3">
+           <footer className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md py-4 bg-surface/80 border-t border-border-subtle">
                <div className="max-w-4xl mx-auto px-6 flex justify-between items-center text-xs font-jetbrains-mono tracking-widest gap-4 uppercase">
                    <div className="flex gap-6">
                        <span className="flex flex-col">
-                           <span className="text-[10px] italic">Word Count</span>
+                           <span className="text-[10px]">Word Count</span>
                            <span>{words.toLocaleString()}</span>
                        </span>
                        <span className="flex flex-col">
-                           <span className="text-[10px] italic">Time</span>
+                           <span className="text-[10px]">Time</span>
                            <span>{readingTime} Min</span>
                        </span>
                        <span className="flex flex-col">
-                           <span className="text-[10px] italic">Cites</span>
+                           <span className="text-[10px]">Cites</span>
                            <span>{citationCount}</span>
                        </span>
                    </div>

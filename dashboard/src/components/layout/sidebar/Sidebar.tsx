@@ -26,7 +26,7 @@ export async function Sidebar(): Promise<JSX.Element> {
             <div
                 className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 shrink-0"
             >
-                <Link href="/" className="font-bold">Mod Oud</Link>
+                <Link href="/" className="font-bold focus-ring">Mod Oud</Link>
                 <div className="hidden md:block">
                     <ThemeToggle/>
                 </div>

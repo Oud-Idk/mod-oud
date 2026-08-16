@@ -7,9 +7,9 @@ import { JSX } from "react";
 export function LogoutButton(): JSX.Element {
     return (
         <button
-            onClick={() => signOut()}
+            onClick={() => { void signOut(); }}
             title="Sign out"
-            className="p-1.5 rounded hover:bg-[#2b2d31] text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
+            className="p-1.5 rounded hover:bg-surface-elevated transition-colors cursor-pointer focus-ring"
         >
             <LogOut className="w-5 h-5"/>
         </button>

@@ -157,7 +157,7 @@ export function MultiplierTab({
     };
 
     // Filter out options that already have active multipliers applied
-    const excludedIds = (optimisticMultipliers || []).map((m) => m.target_id);
+    const excludedIds = optimisticMultipliers.map((m) => m.target_id);
 
     const filteredOptions = targetType === "ROLE"
         ? getAvailableRoleOptions(roleMap, excludedIds)
@@ -273,8 +273,8 @@ export function MultiplierTab({
                         <div className="divide-y divide-border">
                             {optimisticMultipliers.map((m) => {
                                 const displayName = m.target_type === "ROLE"
-                                    ? (roleMap[m.target_id] ? `@${roleMap[m.target_id]}` : `@Unknown Role`)
-                                    : (channelMap[m.target_id] ? `#${channelMap[m.target_id]}` : `#Unknown Channel`);
+                                    ? (roleMap[m.target_id] !== "" ? `@${roleMap[m.target_id]}` : `@Unknown Role`)
+                                    : (channelMap[m.target_id] !== "" ? `#${channelMap[m.target_id]}` : `#Unknown Channel`);
 
                                 return (
                                     <div

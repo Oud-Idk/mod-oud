@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, JSX, useState, useTransition } from "react";
+import React, { JSX, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { LongTextInput } from "@/components/ui/LongTextInput";
@@ -30,10 +30,10 @@ export function ReminderCreateModal({
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: FormEvent): void => {
+    const handleSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
 
-        if (!channelId) {
+        if (channelId === null) {
             toast.error("Please select a target channel.");
             return;
         }
@@ -44,7 +44,7 @@ export function ReminderCreateModal({
                     channelId,
                     message: {
                         format: "TEXT",
-                        content: content.trim() || "New reminder scheduled",
+                        content: content.trim() !== "" ? content : "New reminder scheduled",
                         embed: {},
                     },
                     rType,
@@ -116,7 +116,7 @@ export function ReminderCreateModal({
                     </Button>
                     <Button
                         type="submit"
-                        disabled={isPending || !channelId}
+                        disabled={isPending || channelId === null}
                     >
                         {isPending ? "Creating..." : "Create Reminder"}
                     </Button>
