@@ -4,7 +4,7 @@ import { JSX } from "react";
 
 export function InviteableServers({ inviteableGuilds }: { inviteableGuilds: DiscordGuild[] }): JSX.Element {
     return (
-        <div className="mt-4">
+        <div>
             <h2 className="text-xl font-bold">
                 Add Bot to Your Servers </h2>
             <div className="flex flex-col gap-3 mt-4">

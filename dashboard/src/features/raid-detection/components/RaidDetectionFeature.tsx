@@ -27,7 +27,7 @@ export async function RaidDetectionFeature({ guildId }: RaidDetectionFeatureProp
 
     return (
         <div>
-            <DashboardHeader>Raid Detection</DashboardHeader>
+            <DashboardHeader>Anti-Raid</DashboardHeader>
             <RaidDetectionBody
                 raidDetectionConfig={raidDetectionConfig}
                 welcomeConfig={welcomeConfig}

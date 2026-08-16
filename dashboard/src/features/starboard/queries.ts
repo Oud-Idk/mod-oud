@@ -21,7 +21,7 @@ export async function upsertStarboardConfig(
     let query: string;
     let values: unknown[];
 
-    if (config.id) {
+    if (config.id !== undefined) {
         query = `
             INSERT INTO starboards (
                 id,
@@ -133,8 +133,7 @@ export async function upsertStarboardConfig(
         console.error(`Failed to invalidate starboard cache for guild ${guildId}:`, redisError);
     }
 
-    const savedRow = res.rows[0];
-    return starboardConfigSchema.parse(savedRow);
+    return starboardConfigSchema.parse(res.rows[0]);
 }
 
 export async function deleteStarboardConfig(id: string, guildId: string): Promise<boolean> {

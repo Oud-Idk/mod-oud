@@ -1,43 +1,42 @@
-import fs from 'node:fs/promises'; // Use promises-based fs for async operations
+import fs from 'node:fs/promises';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
+import { z } from 'zod';
 
-// Type definitions for clarity
-interface LinguistLanguageDetails {
-    extensions?: string[];
-}
-type LinguistData = Record<string, LinguistLanguageDetails>;
-
+const linguistLanguageDetailsSchema = z.object({
+    extensions: z.string().array().optional(),
+})
+const linguistDataSchema = z.record(z.string(), linguistLanguageDetailsSchema)
 const LINGUIST_URL = 'https://raw.githubusercontent.com/github/linguist/master/lib/linguist/languages.yml';
 
 console.log('Starting language map generation...');
 
 try {
-    // 1. Fetch the YAML file from the remote URL
+    // Fetch the YAML file from the remote URL
     console.log(`Fetching data from ${LINGUIST_URL}...`);
     const res = await fetch(LINGUIST_URL);
     if (!res.ok) {
-        throw new Error(`HTTP error! Status: ${res.status}`);
+        throw new Error(`HTTP error! Status: ${res.status.toString()}`);
     }
     const yamlText = await res.text();
 
-    // 2. Parse the YAML data
-    const linguistData = yaml.load(yamlText) as LinguistData;
+    // Parse the YAML data
+    const linguistData = linguistDataSchema.parse(yaml.load(yamlText));
 
-    // 3. Build the simplified extension-to-language map
+    // Build the simplified extension-to-language map
     const extensionMap: Record<string, string> = {};
     for (const [languageName, details] of Object.entries(linguistData)) {
         if (details.extensions && Array.isArray(details.extensions)) {
             for (const ext of details.extensions) {
                 const cleanExt = ext.substring(1).toLowerCase();
-                if (!extensionMap[cleanExt]) {
+                if (extensionMap[cleanExt] !== "") {
                     extensionMap[cleanExt] = languageName;
                 }
             }
         }
     }
 
-    // 4. Write the optimized JSON file to the data directory
+    // Write the optimized JSON file to the data directory
     const outputDir = path.join(process.cwd(), 'src/data');
     const outputFilePath = path.join(outputDir, 'language-map.json');
 

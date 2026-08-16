@@ -21,11 +21,10 @@ export async function Sidebar(): Promise<JSX.Element> {
 
     return (
         <aside
-            className="w-64 h-screen border-r bg-white dark:bg-black flex flex-col"
+            className="w-64 h-screen border-r border-border bg-surface flex flex-col"
         >
-            {/* Fixed Header */}
             <div
-                className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 bg-white dark:bg-black shrink-0"
+                className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 shrink-0"
             >
                 <Link href="/" className="font-bold">Mod Oud</Link>
                 <div className="hidden md:block">
@@ -35,7 +34,7 @@ export async function Sidebar(): Promise<JSX.Element> {
 
             {/* Fixed Server List */}
             <div
-                className="h-14 flex justify-start items-center bg-white dark:bg-black shrink-0"
+                className="h-14 flex justify-start items-center shrink-0"
             >
                 <ServerList guilds={mutualGuilds}/>
             </div>
@@ -47,7 +46,7 @@ export async function Sidebar(): Promise<JSX.Element> {
 
             {/* Fixed Footer */}
             <div
-                className="p-3 dark:bg-neutral-950 bg-white flex items-center justify-between border-t shrink-0"
+                className="p-3 flex items-center justify-between border-t border-border shrink-0"
             >
                 <div className="flex items-center gap-2 overflow-hidden">
                     <div className="relative">

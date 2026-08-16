@@ -10,6 +10,7 @@ import { GiveawayCreateModal } from "@/features/giveaways/components/GiveawayCre
 import { isDeepEqual } from "@/features/_shared/embed";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/Button";
 
 interface GiveawaysBodyProps {
     giveaways: Giveaway[];
@@ -102,15 +103,24 @@ export function GiveawaysBody({
                 handleSave={handleSave}
                 handleCancel={handleCancel}
                 noActivePlaceholder={
-                    <>
-                        <p className="text-sm text-muted-foreground">Select a giveaway or create a new one to begin.</p>
-                        <button
-                            onClick={() =>{  setIsCreateModalOpen(true); }}
-                            className="text-xs px-3.5 py-1.5 bg-surface-muted border border-border hover:bg-surface-active rounded-lg transition text-foreground cursor-pointer focus-ring mt-2"
-                        >
-                            Create Your First Giveaway
-                        </button>
-                    </>
+                    <div className="max-w-md mx-auto space-y-4 flex items-center flex-col">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-foreground">
+                                Giveaways
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                                Create giveaways that will randomly choose a person that has reacted to a message.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                onClick={() => { setIsCreateModalOpen(true); }}
+                            >
+                                Create Your First Giveaway
+                            </Button>
+                        </div>
+                    </div>
                 }
             >
                 {config && (

@@ -44,9 +44,9 @@
 .dark {
     /* SURFACES & ELEVATION */
     --surface: oklch(0.13 0 0);
-    --surface-muted: oklch(0.18 0 0);
-    --surface-elevated: oklch(0.20 0 0);
-    --surface-active: oklch(0.25 0 0);
+    --surface-muted: oklch(0.15 0 0);
+    --surface-elevated: oklch(0.18 0 0);
+    --surface-active: oklch(0.20 0 0);
     --overlay: oklch(0 0 0 / 0.7);
 
     /* TYPOGRAPHY & BORDERS */
@@ -174,4 +174,15 @@ blockquote {
 
 .prose :where(blockquote p:first-of-type):before {
     content: normal;
+}
+
+
+.dark .theme-dashboard {
+    --surface: oklch(0 0 0);               /* Pure pitch black #000000 */
+    --surface-muted: oklch(0.08 0 0);       /* Subtle dark gray cards */
+    --surface-elevated: oklch(0.12 0 0);
+    --surface-active: oklch(0.16 0 0);
+
+    --border: oklch(0.20 0 0);             /* Ultra sharp subtle borders */
+    --border-subtle: oklch(0.15 0 0);
 }

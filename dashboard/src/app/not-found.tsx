@@ -14,7 +14,7 @@ export default function NotFound(): JSX.Element {
             <Footer>Nom nom nom!</Footer>
         </div>
         <div className="flex flex-col gap-2 text-center">
-            <Link href="/" className="p-2 px-4 border border-brand rounded-xl text-brand">Go Back to Home Page</Link>
+            <Link href="/public" className="p-2 px-4 border border-brand rounded-xl text-brand">Go Back to Home Page</Link>
             <Link
                 href="/very-secret-endpoint-do-not-index-also-timestamp-today-1786548272"
                 className="p-2 px-4 border border-pink-500 rounded-xl text-pink-500">

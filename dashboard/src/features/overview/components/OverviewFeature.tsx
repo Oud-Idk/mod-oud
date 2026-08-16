@@ -1,58 +1,83 @@
 import { auth, signIn } from "@/lib/auth";
 import { getGuildLists } from "@/features/_shared/servers";
-import { ProfileDropdown } from "@/components/layout/ProfileDropdown";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { MutualServers } from "@/features/overview/components/MutualServers";
 import { InviteableServers } from "@/features/overview/components/InviteableServers";
+import { JSX } from "react";
+import { Sparkles } from "lucide-react";
 
-export async function OverviewFeature() {
+export async function OverviewFeature(): Promise<JSX.Element> {
     const session = await auth();
 
-    const { mutualGuilds, inviteableGuilds } = session?.accessToken
+    const { mutualGuilds, inviteableGuilds } = session?.accessToken !== undefined
         ? await getGuildLists(session.accessToken)
         : { mutualGuilds: [], inviteableGuilds: [] };
 
     return (
-        <main
-            className="mx-auto p-2 md:p-4 font-sans min-h-screen flex flex-col"
-        >
-            <div className="flex justify-between items-center border-b pb-2">
-                <h1 className="text-2xl font-extrabold tracking-tight">
-                    Mod Oud Dashboard </h1>
-                <div className="flex gap-4 items-center">
-                    {session?.user && (
-                        <ProfileDropdown session={session}/>
-                    )}
-                    <ThemeToggle/>
-                </div>
-            </div>
+        <main className="min-h-screen bg-surface text-foreground flex flex-col antialiased selection:bg-brand/20">
+            {/* Main Content Area */}
+            <div className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4  flex flex-col">
+                {session ? (
+                    <div className="flex flex-col gap-4">
+                        {/* Welcome / Header Title */}
+                        <div>
+                            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                                Select a Server
+                            </h2>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Choose a server to configure or invite Mod Oud to start protecting.
+                            </p>
+                        </div>
 
-            {session ? (
-                <div className={mutualGuilds.length === 0 ? 'block max-w-3/4 mx-auto' : 'grid grid-cols-2 gap-4'}>
-                    {mutualGuilds.length > 0 && (<MutualServers mutualGuilds={mutualGuilds}/>)}
-                    {inviteableGuilds.length > 0 && (<InviteableServers inviteableGuilds={inviteableGuilds}/>)}
-                </div>
-            ) : (
-                <div className="flex justify-center items-center w-full h-full flex-1">
-                    <div className="max-w-sm">
-                        <p className="mb-6 leading-relaxed text-center">
-                            Please sign in with Discord to view and configure your server settings. </p>
-                        <form
-                            action={async () => {
-                                "use server";
-                                await signIn("discord");
-                            }}
-                        >
-                            <button
-                                type="submit"
-                                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3 px-6 rounded-lg font-bold transition-colors cursor-pointer shadow-sm text-center"
-                            >
-                                Sign in with Discord
-                            </button>
-                        </form>
+                        {/* Servers Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                            {mutualGuilds.length > 0 && (
+                                <div className="p-5 rounded-xl bg-surface-muted border border-border shadow-sm">
+                                    <MutualServers mutualGuilds={mutualGuilds} />
+                                </div>
+                            )}
+
+                            {inviteableGuilds.length > 0 && (
+                                <div className="p-5 rounded-xl bg-surface-muted border border-border shadow-sm">
+                                    <InviteableServers inviteableGuilds={inviteableGuilds} />
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                ) : (
+                    /* Centered Sign-In Hero Card */
+                    <div className="flex-1 flex justify-center items-center py-12">
+                        <div className="w-full max-w-md p-8 rounded-2xl bg-surface-muted border border-border shadow-dropdown text-center relative overflow-hidden">
+                            {/* Ambient background glow using theme brand token */}
+                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand/10 rounded-full blur-3xl pointer-events-none" />
+
+                            <div className="inline-flex items-center justify-center p-3 rounded-full bg-brand-subtle text-brand mb-4 border border-brand/20">
+                                <Sparkles className="w-6 h-6" />
+                            </div>
+
+                            <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">
+                                Welcome to Mod Oud
+                            </h2>
+                            <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+                                Sign in with Discord to manage auto-moderation, raid detection, and engagement tools across your servers.
+                            </p>
+
+                            <form
+                                action={async () => {
+                                    "use server";
+                                    await signIn("discord");
+                                }}
+                            >
+                                <button
+                                    type="submit"
+                                    className="w-full inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-brand-foreground py-3 px-6 rounded-lg font-semibold transition-all duration-150 cursor-pointer shadow-sm focus-ring active:scale-[0.99]"
+                                >
+                                    <span>Sign in with Discord</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
         </main>
     );
 }

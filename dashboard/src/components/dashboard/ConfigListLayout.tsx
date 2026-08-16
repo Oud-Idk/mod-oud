@@ -41,8 +41,8 @@ export function ConfigListLayout<T>({
     children,
 }: ConfigListLayoutProps<T>): JSX.Element {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-stretch mt-4">
-            <div className="md:col-span-1 flex flex-col min-h-100 p-4 rounded-lg border border-border bg-surface overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 items-stretch mt-4">
+            <div className="lg:col-span-1 flex flex-col min-h-70 lg:min-h-100 max-h-105 lg:max-h-none p-4 rounded-lg border border-border bg-surface overflow-hidden">
                 <div className="flex justify-between items-center pb-3 border-b border-border-subtle shrink-0">
                     <Emphasis>{title}</Emphasis>
                     <Button onClick={onCreateClick}>{createButtonText}</Button>
@@ -65,7 +65,7 @@ export function ConfigListLayout<T>({
             </div>
 
             {/* Main Content Details Panel */}
-            <div className="md:col-span-3 flex flex-col min-h-100 border border-border bg-surface p-4 rounded-lg">
+            <div className="lg:col-span-3 flex flex-col min-h-100 border border-border bg-surface p-4 rounded-lg">
                 {!hasActiveConfig ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
                         {noActivePlaceholder}

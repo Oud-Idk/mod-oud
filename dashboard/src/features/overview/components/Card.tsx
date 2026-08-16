@@ -1,4 +1,5 @@
 import { JSX} from "react";
+import Footer from "@/components/layout/Footer";
 
 interface CardProps {
     icon: JSX.Element;
@@ -9,22 +10,20 @@ interface CardProps {
 
 export function Card({ icon, title, main, footer }: CardProps): JSX.Element {
     return <div
-        className="p-6 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center gap-4"
+        className="p-4 py-3 rounded-lg border border-border bg-surface flex items-center gap-4"
     >
         <div
-            className="p-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-neutral-600 dark:text-neutral-300"
+            className="p-1"
         >
             {icon}
         </div>
         <div>
-            <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{title}</p>
+            <p className="text-sm">{title}</p>
             <h3 className="text-2xl font-bold">
                 {main}
             </h3>
-            {footer && (
-                <p className="text-xs text-neutral-400 mt-0.5">
-                    {footer}
-                </p>
+            {footer !== undefined && (
+                <Footer>{footer}</Footer>
             )}
         </div>
     </div>

@@ -5,6 +5,8 @@ import { Card } from "@/features/overview/components/Card";
 
 import { getGuildDetails, getGuildStats } from "@/features/overview/queries";
 import { JSX } from "react";
+import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
+import { Crab } from "@/features/overview/components/Crab";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -41,8 +43,8 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
     const { weeklyModerationCount, weeklyResolvedTicketCount, openTicketsCount } = stats;
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+        <div className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between">
                 <div>
                     <div className="flex flex-row items-center gap-4">
                         {(iconUrl !== null) && (
@@ -50,26 +52,12 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                         )}
                         <h1 className="text-3xl font-bold tracking-tight">{guildDetails.name}</h1>
                     </div>
-                    <p className="text-neutral-500 dark:text-neutral-400 mt-1">
-                        Managing server ID:{" "}
-                        <code className="bg-neutral-200 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono">
-                            {guild_id}
-                        </code>
+                    <p className="text-muted-foreground">
+                        Managing server ID <code>{guild_id}</code>
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                            status
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900"
-                                : "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-900"
-                        }`}
-                    >
-                        <span
-                            className={`w-2 h-2 rounded-full ${status ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
-                        />
-                        {status ? "Online" : "Offline (Oud (the only programmer) is an Idiot)"}
-                    </span>
+                    <ConnectionStatusPill status={status ? "CONNECTED" : "DISCONNECTED"} connectedText="Online!" disconnectedText="Offline (Oud is too distracted with Spicy right now)"/>
                 </div>
             </div>
             <div className="grid gap-4 md:grid-cols-4">
@@ -97,9 +85,9 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                 <Card
                     icon={<CircleArrowUp/>}
                     title="Features"
-                    main="Blazingly Fast & Zero Cost Abstractions"
-                    footer="Written in Rust"
+                    main="Blazingly Fast"
                 />
+                <Card icon={<Crab width={40}/>} title="Written In" main="Rust"/>
             </div>
         </div>
     );

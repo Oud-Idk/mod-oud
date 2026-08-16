@@ -54,9 +54,12 @@ export async function getGuildConfigField<T>(guildId: string, key: string): Prom
         WHERE guild_id = $1
     `;
     const res = await db.query<{ config: T | null }>(query, [guildId, key]);
-    const firstRow = res.rows[0];
 
-    return firstRow.config;
+    if (res.rows.length === 0) {
+        return null;
+    }
+
+    return res.rows[0].config ?? null;
 }
 
 /**

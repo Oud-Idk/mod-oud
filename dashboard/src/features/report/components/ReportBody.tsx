@@ -217,7 +217,7 @@ export function ReportBody({
             {activeImageUrl !== null && (
                 <Modal
                     headerText="Attachment Preview"
-                    onClose={() =>{  setActiveImageUrl(null); }}
+                    onClose={() => { setActiveImageUrl(null); }}
                 >
                     <div className="flex justify-center items-center overflow-hidden max-h-[75vh]">
                         <Image
@@ -225,6 +225,7 @@ export function ReportBody({
                             alt="Attachment Preview"
                             className="max-w-full max-h-[65vh] object-contain rounded-lg"
                             width={400}
+                            height={400}
                         />
                     </div>
                 </Modal>
