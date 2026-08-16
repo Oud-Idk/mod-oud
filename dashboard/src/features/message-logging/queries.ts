@@ -24,7 +24,7 @@ async function queryEditedMessages(
 
     if (validBeforeId !== undefined) {
         params.push(validBeforeId);
-        whereClause += ` AND id < $${params.length}`;
+        whereClause += ` AND id < $${params.length.toString()}`;
     }
 
     params.push(validLimit);
@@ -33,7 +33,7 @@ async function queryEditedMessages(
         FROM modified_messages
                  ${whereClause}
         ORDER BY id DESC
-        LIMIT $${params.length}
+        LIMIT $${params.length.toString()}
     `;
 
     try {
@@ -65,7 +65,7 @@ async function queryDeletedMessages(
 
     if (validBeforeId !== undefined) {
         params.push(validBeforeId);
-        whereClause += ` AND id < $${params.length}`;
+        whereClause += ` AND id < $${params.length.toString()}`;
     }
 
     params.push(validLimit);
@@ -73,8 +73,8 @@ async function queryDeletedMessages(
         SELECT id, message_id, author_id, channel_id, deleted_by_id, guild_id, content, attachment_url, deleted_at
         FROM deleted_messages
                  ${whereClause}
-        ORDER BY ${validBeforeId ? "id" : "deleted_at"} DESC
-        LIMIT $${params.length}
+        ORDER BY ${validBeforeId !== undefined ? "id" : "deleted_at"} DESC
+        LIMIT $${params.length.toString()}
     `;
 
     try {

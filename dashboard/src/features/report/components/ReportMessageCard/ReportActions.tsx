@@ -25,7 +25,7 @@ export function ReportActions({
     onBanClick,
     onWarnClick,
 }: ReportActionsProps): JSX.Element {
-    const statusLower = log.status?.toLowerCase();
+    const statusLower = log.status.toLowerCase();
     const isResolved = statusLower === "ACTIONED" || statusLower === "DISMISSED";
     const isMessageDeleted = log.message_deleted;
 
@@ -44,7 +44,7 @@ export function ReportActions({
                     >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
                     </svg>
-                    Report Resolved ({log.status?.replace("_", " ")})
+                    Report Resolved ({log.status.replace("_", " ")})
                 </span>
             </div>
         );
@@ -62,7 +62,7 @@ export function ReportActions({
                 </span>
             ) : (
                 <ReportActionButton
-                    onClick={() => onDelete(log.id, log.channel_id, log.message_id)}
+                    onClick={() => { void onDelete(log.id, log.channel_id, log.message_id); }}
                     disabled={isInteractionDisabled}
                     color="rose"
                 >Delete Message</ReportActionButton>
@@ -87,11 +87,11 @@ export function ReportActions({
             )}
 
             <ReportActionButton
-                onClick={() => onResolve(log.id, "ACTIONED")} disabled={isInteractionDisabled} color="blue"
+                onClick={() => { void onResolve(log.id, "ACTIONED"); }} disabled={isInteractionDisabled} color="blue"
             >{isResolving ? "Resolving..." : "Mark as Actioned"}</ReportActionButton>
 
             <ReportActionButton
-                onClick={() => onResolve(log.id, "DISMISSED")} disabled={isInteractionDisabled} color="neutral"
+                onClick={() => { void onResolve(log.id, "DISMISSED"); }} disabled={isInteractionDisabled} color="neutral"
             >{isResolving ? "Resolving..." : "Mark as Dismissed"}</ReportActionButton>
         </div>
     );

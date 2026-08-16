@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { useMarkdownScroller } from "../../../../../../../Websites/homework-app/frontend/src/hooks/useMarkdownScroller";
+import { useMarkdownScroller } from "@/components/ui/markdown/useMarkdownScroller";
+import { cn } from "@/lib/cn";
 
 interface ScrollableMarkdownViewerProps {
     content?: string;
@@ -21,7 +22,7 @@ export const ScrollableMarkdownViewer: React.FC<ScrollableMarkdownViewerProps> =
         <div
             ref={containerRef}
             onClick={handleLinkClick}
-            className={`overflow-auto ${className || ''}`}
+            className={cn("overflow-auto", className)}
         >
             <MarkdownRenderer content={content} className={markdownClassName} />
         </div>

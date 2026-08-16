@@ -53,7 +53,10 @@ export function HoneypotBody({
             toast.error(result.error.issues[0].message);
             return;
         }
-        originalHandleSave();
+
+        originalHandleSave().catch((err: unknown) => {
+            toast.error(err instanceof Error ? err.message : "Failed to save honeypot configs.");
+        });
     };
 
     const channelOptions = getAvailableChannelOptions(textChannelMap);
@@ -76,21 +79,24 @@ export function HoneypotBody({
     const handleSetup = async (): Promise<void> => {
         setIsSettingUp(true);
 
-        const result = await setupHoneypotAction(guildId, channelName);
-        setIsSettingUp(false);
+        try {
+            const { channelId } = await setupHoneypotAction(guildId, channelName);
 
-        if (result.success && result.channelId) {
             setConfig((prev) => ({
                 ...prev,
-                channelId: result.channelId,
+                channelId,
                 enabled: true,
             }));
+
             toast.success("Honeypot channel set up successfully!");
-        } else if (!result.success) {
-            toast.error(result.error || "Failed to set up channel.");
+        } catch (error) {
+            toast.error(
+                error instanceof Error ? error.message : "Failed to set up channel."
+            );
+        } finally {
+            setIsSettingUp(false);
         }
     };
-
     return (
         <div className="space-y-4">
             <ToggleSwitch
@@ -116,7 +122,7 @@ export function HoneypotBody({
                         <Dropdown
                             multiple
                             value={config.exemptRoles}
-                            onChange={(r) =>{  setConfig((prev) => ({ ...prev, exemptRoles: r ?? [] })); }}
+                            onChange={(r) =>{  setConfig((prev) => ({ ...prev, exemptRoles: r })); }}
                             options={roleOptions}
                             placeholder="Select Roles to Exempt"
                         />
@@ -151,11 +157,11 @@ export function HoneypotBody({
                         <Footer>
                             {config.duration === null
                                 ? "Time is either invalid or empty. Assuming permanent."
-                                : `${config.duration} ms`}
+                                : `${config.duration.toString()} ms`}
                         </Footer>
                     </div>
 
-                    {!config.channelId && (
+                    {config.channelId === null && (
                         <div className="space-y-2 pt-2 border-t border-border-subtle">
                             <InputLabel>Channel Name</InputLabel>
                             <TextInput

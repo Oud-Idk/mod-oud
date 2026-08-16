@@ -67,14 +67,14 @@ export function MessageLoggingBody({
 
     const handleAddUserId = (): void => {
         const trimmed = userIdInput.trim();
-        if (!trimmed) return;
+        if (trimmed === "") return;
 
         if (!/^\d+$/.test(trimmed)) {
             toast.error("Please enter a valid Discord User ID.");
             return;
         }
 
-        const current = config.ignoredUsers || [];
+        const current = config.ignoredUsers;
         if (!current.includes(trimmed)) {
             handleChange({ ...config, ignoredUsers: [...current, trimmed] });
         }
@@ -82,7 +82,7 @@ export function MessageLoggingBody({
     };
 
     const handleRemoveUserId = (id: string): void => {
-        const current = config.ignoredUsers || [];
+        const current = config.ignoredUsers;
         handleChange({ ...config, ignoredUsers: current.filter((item) => item !== id) });
     };
 
@@ -110,7 +110,9 @@ export function MessageLoggingBody({
             toast.error(validation.error.issues[0].message);
             return;
         }
-        handleSave();
+        handleSave().catch((err: unknown) => {
+            toast.error(err instanceof Error ? err.message : "Cannot save message logging config.");
+        });
     };
 
     const tabs: TabItem<"settings" | "logs">[] = [

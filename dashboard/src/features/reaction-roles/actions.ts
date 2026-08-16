@@ -22,7 +22,7 @@ import { verifyGuildAccess } from "@/features/_shared/guild";
  * Safely invalidates all cached emoji mappings associated with a specific Discord message ID.
  */
 async function invalidateMessageCache(messageId: string | null | undefined): Promise<void> {
-    if (!messageId) return;
+    if (messageId === null || messageId === undefined) return;
 
     try {
         const pattern = `reaction_role:${messageId}:*`;
@@ -53,7 +53,7 @@ export async function saveReactionMessageAction(
         const validatedInput = saveReactionMessageInputSchema.parse(configInput);
         const ret = await saveReactionMessage(validatedInput);
 
-        if (ret?.message_id) {
+        if (ret.message_id !== null && ret.message_id !== undefined) {
             await invalidateMessageCache(ret.message_id);
             await notifyBackendReactionMessageEdit(guildId, ret.id);
         }
@@ -79,7 +79,7 @@ export async function deleteReactionMessageAction(
         const msg = await getReactionMessageById(id);
         const ret = await deleteReactionMessage(id);
 
-        if (msg?.message_id) {
+        if (msg?.message_id !== null && msg?.message_id !== undefined) {
             await invalidateMessageCache(msg.message_id);
         }
 
@@ -100,9 +100,7 @@ export async function sendReactionMessageAction(
 
         const data = await sendReactionMessageToBackend(guildId, id);
 
-        if (data.message_id) {
-            await invalidateMessageCache(data.message_id);
-        }
+        await invalidateMessageCache(data.message_id);
 
         revalidatePath(`/dashboard/${guildId}/reaction-roles`);
         return data;
@@ -122,7 +120,7 @@ export async function deleteReactionDiscordMessageAction(
         const msg = await getReactionMessageById(id);
         await deleteDiscordMessageFromBackend(guildId, id);
 
-        if (msg?.message_id) {
+        if (msg?.message_id !== null && msg?.message_id !== undefined) {
             await invalidateMessageCache(msg.message_id);
         }
 

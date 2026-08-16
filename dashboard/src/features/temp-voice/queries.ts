@@ -55,17 +55,22 @@ export async function saveTempVoiceHub(
     return tempVoiceHubSchema.parse(res.rows[0]);
 }
 
+interface DeleteHubRow {
+    category_id: string;
+}
+
+
 export async function deleteTempVoiceHub(guildId: string, hubId: string): Promise<void> {
     const query = `DELETE
                    FROM temp_voice_hubs
                    WHERE id = $1
                      AND guild_id = $2
                    RETURNING category_id;`;
-    const dbRes = await db.query(query, [hubId, guildId]);
+
+    const dbRes = await db.query<DeleteHubRow>(query, [hubId, guildId]);
 
     if (dbRes.rows.length > 0) {
-        const row: Record<string, unknown> = dbRes.rows[0];
-        const categoryId = row.category_id;
+        const categoryId = dbRes.rows[0].category_id;
 
         const backendUrl = config.backendInternalUrl;
         const res = await fetch(`${backendUrl}/api/guilds/${guildId}/category/delete-entire`, {

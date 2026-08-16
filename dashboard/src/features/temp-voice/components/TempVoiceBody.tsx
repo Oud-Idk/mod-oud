@@ -44,7 +44,7 @@ export function TempVoiceBody({
         };
     }, []);
 
-    const activeHub = hubs.find((h) => h.id === activeHubId) || (activeHubId === "new" ? {
+    const activeHub = hubs.find((h) => h.id === activeHubId) ?? (activeHubId === "new" ? {
         id: "",
         guild_id: guildId,
         name: "New Hub",
@@ -72,7 +72,7 @@ export function TempVoiceBody({
             });
 
             // Validate we got everything back
-            if (!categoryId || !hubChannelId || !interfaceChannelId) {
+            if (categoryId === undefined || hubChannelId === undefined || interfaceChannelId === undefined) {
                 throw new Error("Channel setup completed, but expected IDs were missing.");
             }
 
@@ -122,7 +122,7 @@ export function TempVoiceBody({
                 >
                     <div className="font-semibold">{hub.name}</div>
                     <div className="text-muted-foreground mt-0.5">
-                        {hub.hub_channel_id && voiceChannels[hub.hub_channel_id]
+                        {hub.hub_channel_id !== null && voiceChannels[hub.hub_channel_id].trim() !== ""
                             ? `#${voiceChannels[hub.hub_channel_id]}`
                             : "Unconfigured"}
                     </div>
@@ -161,7 +161,7 @@ export function TempVoiceBody({
         >
             {activeHub && (
                 <HubForm
-                    key={activeHub.id || "new"}
+                    key={activeHub.id}
                     guildId={guildId}
                     initialHub={activeHub}
                     voiceChannels={voiceChannels}

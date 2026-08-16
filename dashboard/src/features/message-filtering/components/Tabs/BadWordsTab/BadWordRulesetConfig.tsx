@@ -31,13 +31,13 @@ export function BadWordRulesetConfig({
     const [wordInput, setWordInput] = useState("");
     const [strategyInput, setStrategyInput] = useState<StrategyType>("EXACT");
 
-    const patterns = config.patterns || [];
+    const patterns = config.patterns;
     const displayList = patterns.map((p) => `${p.value} [${p.strategy}]`);
 
     const addPattern = (e: ChangeEvent): void => {
-        if (e) e.preventDefault();
+        e.preventDefault();
         const trimmed = wordInput.trim();
-        if (!trimmed) return;
+        if (trimmed === "") return;
 
         const exists = patterns.some(
             (p) => p.value.toLowerCase() === trimmed.toLowerCase() && p.strategy === strategyInput

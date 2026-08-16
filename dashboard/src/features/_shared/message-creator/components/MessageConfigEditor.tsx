@@ -44,7 +44,7 @@ export function MessageConfigEditor({
     customFields: CustomFields,
 }: MessageConfigEditorProps): JSX.Element {
     const isEnabled = config.enabled ?? true;
-    const isChannelError = isEnabled && !config.channel_id;
+    const isChannelError = isEnabled && (config.channel_id === null || config.channel_id === undefined);
 
     // Handle target channel emptiness validation
     useEffect(() => {
@@ -52,7 +52,7 @@ export function MessageConfigEditor({
             if (!isEnabled) {
                 setTargetChannelIsEmpty(false);
             } else {
-                const normalizedChannelId = config.channel_id || "";
+                const normalizedChannelId = config.channel_id ?? "";
                 setTargetChannelIsEmpty(normalizedChannelId.trim() === "");
             }
         }
@@ -92,7 +92,7 @@ export function MessageConfigEditor({
 
                     {config.format === "TEXT" ? (
                         <PlaintextEditor
-                            value={config.content || ""}
+                            value={config.content ?? ""}
                             placeholder={placeholderText}
                             placeholderConfig={embedTemplateConfig}
                             disabled={disabled}
@@ -101,7 +101,7 @@ export function MessageConfigEditor({
                     ) : (
                         <EmbedBuilder
                             placeholderConfig={embedTemplateConfig}
-                            key={`${resetKey}`}
+                            key={resetKey.toString()}
                             setEmbedState={embed =>{  onChange({ ...config, embed: embed }); }}
                             config={embedTemplateConfig}
                             initialEmbedState={config.embed}

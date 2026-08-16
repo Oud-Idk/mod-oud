@@ -22,6 +22,7 @@ import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { toast } from "sonner";
+import Image from "next/image";
 
 interface ReportBodyProps {
     reportConfig: ReportConfig;
@@ -114,7 +115,7 @@ export function ReportBody({
 
     const filteredLogs = useMemo(() => {
         return logs.filter((log) => {
-            const currentStatus = log.status?.toLowerCase();
+            const currentStatus = log.status.toLowerCase();
             if (statusFilter === "OPEN") {
                 return currentStatus === "under_review";
             }
@@ -177,7 +178,7 @@ export function ReportBody({
                     <InputLabel>Send a Message for Every Report to</InputLabel>
                     <Dropdown
                         value={config.reportingChannel ?? ""}
-                        onChange={(c) =>{  handleChange({ reportingChannel: c || null }); }}
+                        onChange={(c) => { handleChange({ reportingChannel: c }); }}
                         options={channelOptions}
                         placeholder="Select a channel..."
                     />
@@ -187,7 +188,7 @@ export function ReportBody({
             {isDirty && (
                 <SavePopup
                     handleCancel={handleCancel}
-                    handleSave={handleSave}
+                    handleSave={() => { void handleSave() }}
                     isSaving={isPending}
                 />
             )}
@@ -213,16 +214,17 @@ export function ReportBody({
                 isSubmitting={isBanning}
             />
 
-            {activeImageUrl && (
+            {activeImageUrl !== null && (
                 <Modal
                     headerText="Attachment Preview"
                     onClose={() =>{  setActiveImageUrl(null); }}
                 >
                     <div className="flex justify-center items-center overflow-hidden max-h-[75vh]">
-                        <img
+                        <Image
                             src={activeImageUrl}
                             alt="Attachment Preview"
                             className="max-w-full max-h-[65vh] object-contain rounded-lg"
+                            width={400}
                         />
                     </div>
                 </Modal>

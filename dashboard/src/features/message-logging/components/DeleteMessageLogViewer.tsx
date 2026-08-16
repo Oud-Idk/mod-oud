@@ -35,11 +35,9 @@ export function DeletedMessageLogViewer({
                 eventName="message-delete"
                 emptyText="No activity recorded yet..."
                 renderItem={(log) => {
-                    const channelName = channelMap[log.channel_id]
-                        ? `#${channelMap[log.channel_id]}`
-                        : `ID: ${log.channel_id}`;
+                    const channelName = `#${channelMap[log.channel_id]}`;
 
-                    const images = log.attachment_url
+                    const images = log.attachment_url !== null
                         ? log.attachment_url
                             .split(",")
                             .map((url) => url.trim())
@@ -62,13 +60,13 @@ export function DeletedMessageLogViewer({
                                 </span>
                             </div>
 
-                            {log.deleted_by_id && (
+                            {log.deleted_by_id !== null && (
                                 <p className="text-xs text-muted-foreground">
                                     <span className="font-medium text-foreground">Deleted By:</span> {log.deleted_by_id}
                                 </p>
                             )}
 
-                            {log.content && (
+                            {log.content.trim() !== "" && (
                                 <p className="text-sm text-foreground/90 bg-surface p-2.5 rounded-md border border-border/60 wrap-break-word font-normal">
                                     {log.content}
                                 </p>
@@ -93,7 +91,7 @@ export function DeletedMessageLogViewer({
                 }}
             />
 
-            {activeImageUrl && (
+            {activeImageUrl !== null && (
                 <Modal onClose={() =>{  setActiveImageUrl(null); }} headerText="Attached Image">
                     <div className="relative w-full max-h-[80vh] flex items-center justify-center p-2">
                         <Image

@@ -28,7 +28,7 @@ export async function verifyGuildAccess(guildId: string): Promise<User> {
     }
 
     const accessToken = session.accessToken;
-    if (!accessToken) {
+    if (accessToken === undefined) {
         throw new Error("Unauthorized: Missing access token.");
     }
 
@@ -53,8 +53,10 @@ export async function getGuildConfigField<T>(guildId: string, key: string): Prom
         FROM guild_configs
         WHERE guild_id = $1
     `;
-    const res = await db.query(query, [guildId, key]);
-    return res.rows[0]?.config || null;
+    const res = await db.query<{ config: T | null }>(query, [guildId, key]);
+    const firstRow = res.rows[0];
+
+    return firstRow.config;
 }
 
 /**

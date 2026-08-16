@@ -37,6 +37,10 @@ export async function getTicketHistoryAction(guildId: string, channelId: string)
     }
 }
 
+const sendTicketMessageResponseSchema = z.object({
+    message_id: z.string(),
+});
+
 export async function sendTicketMessageAction(guildId: string, channelId: string): Promise<string> {
     try {
         await verifyGuildAccess(guildId);
@@ -51,11 +55,11 @@ export async function sendTicketMessageAction(guildId: string, channelId: string
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || "Could not instruct the bot to send the message.");
+            const errorText = (await response.text()).trim();
+            throw new Error(errorText !== "" ? errorText : "Could not instruct the bot to send the message.");
         }
 
-        const data = await response.json();
+        const data = sendTicketMessageResponseSchema.parse(await response.json());
 
         const currentConfig = await getTicketConfig(guildId);
         await saveTicketConfig(guildId, {
@@ -85,8 +89,8 @@ export async function deleteTicketMessageAction(guildId: string, channelId: stri
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || "Could not instruct the bot to delete the message.");
+            const errorText = (await response.text()).trim();
+            throw new Error(errorText !== "" ? errorText : "Could not instruct the bot to delete the message.");
         }
 
         const currentConfig = await getTicketConfig(guildId);

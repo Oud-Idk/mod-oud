@@ -80,7 +80,7 @@ export function CustomCommandsBody({
                     return (
                         <button
                             key={item.id}
-                            onClick={() =>{  router.push(`/dashboard/${guildId}/custom-commands?id=${item.id}`); }}
+                            onClick={() =>{  router.push(`/dashboard/${guildId}/custom-commands?id=${item.id.toString()}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -100,8 +100,8 @@ export function CustomCommandsBody({
                                 </span>
                             </div>
                             <div className="text-xs text-muted-foreground truncate mt-1 w-full">
-                                {actionCount === 1 ? "1 Action" : `${actionCount} Actions`}
-                                {item.description ? ` • ${item.description}` : ""}
+                                {actionCount === 1 ? "1 Action" : `${actionCount.toString()} Actions`}
+                                {item.description !== null ? ` • ${item.description}` : ""}
                             </div>
                         </button>
                     );
@@ -144,7 +144,7 @@ export function CustomCommandsBody({
                     const newCmd = await onSave({
                         guild_id: guildId,
                         name: v.name.replace(/^!/, ""),
-                        description: v.description || "",
+                        description: v.description,
                         enabled: true,
                         delete_trigger: false,
                         cooldown_type: "NONE",
@@ -174,7 +174,7 @@ export function CustomCommandsBody({
                         ],
                     });
                     setIsCreateModalOpen(false);
-                    router.push(`/dashboard/${guildId}/custom-commands?id=${newCmd.id}`);
+                    router.push(`/dashboard/${guildId}/custom-commands?id=${newCmd.id.toString()}`);
                 }}
             />
 

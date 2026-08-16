@@ -23,7 +23,6 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
         startTransition(async () => {
             try {
                 const list = await getTicketsListAction(guildId);
-                // 🛡️ Safety Guard: Ensure list is an array!
                 const safeList = Array.isArray(list) ? list : [];
                 setTickets(safeList);
             } catch (err) {
@@ -34,7 +33,6 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
     }, [guildId]);
 
     useEffect(() => {
-        // 🛡️ Safety Guard: Ensure tickets is an array before filtering!
         let result = Array.isArray(tickets) ? tickets : [];
 
         if (statusFilter !== "ALL") {
@@ -61,7 +59,6 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
         setTimeout(() =>{  setSelectedTicket(null); }, 200);
     };
 
-    // 🛡️ Extra fallback safety
     const safeFilteredTickets = Array.isArray(filteredTickets) ? filteredTickets : [];
 
     return (
@@ -72,7 +69,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                     <span className="text-sm font-medium text-muted-foreground">Status Filter:</span>
                     <Dropdown
                         value={statusFilter}
-                        onChange={(v) =>{  setStatusFilter(v || "ALL"); }}
+                        onChange={(v) =>{  setStatusFilter(v ?? "ALL"); }}
                         options={[
                             { value: "ALL", label: "All Tickets" },
                             { value: "OPEN", label: "Open" },
@@ -159,7 +156,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                                         </td>
                                         <td className="py-3.5 px-4 text-right">
                                             <button
-                                                onClick={() => handleViewHistory(ticket.channel_id)}
+                                                onClick={() => { void handleViewHistory(ticket.channel_id); }}
                                                 disabled={isLoadingThis}
                                                 className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-surface hover:bg-surface-muted text-foreground focus-ring cursor-pointer transition-colors disabled:opacity-50 shadow-xs"
                                             >
@@ -189,7 +186,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
             <div
                 role="dialog"
                 aria-modal="true"
-                aria-label={selectedTicket ? `Ticket #${selectedTicket.ticket_id} transcript` : "Ticket transcript"}
+                aria-label={selectedTicket ? `Ticket #${selectedTicket.ticket_id.toString()} transcript` : "Ticket transcript"}
                 className={cn(
                     "fixed top-0 right-0 h-full w-full sm:w-120 bg-surface border-l border-border shadow-xl z-50",
                     "flex flex-col transition-transform duration-200 ease-out",
@@ -217,17 +214,17 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
 
                         {/* Message Transcript Log */}
                         <div className="flex-1 overflow-y-auto space-y-3 p-4 bg-surface-muted/30">
-                            {(selectedTicket.messages ?? []).length === 0 ? (
+                            {selectedTicket.messages.length === 0 ? (
                                 <div className="text-muted-foreground text-center py-16 text-sm">
                                     No messages recorded in this ticket.
                                 </div>
                             ) : (
-                                selectedTicket.messages.map((msg, index) => {
+                                selectedTicket.messages.map((msg) => {
                                     const isManager = msg.is_ticket_manager;
 
                                     return (
                                         <div
-                                            key={msg.message_id || index}
+                                            key={msg.message_id}
                                             className={cn(
                                                 "p-3 rounded-lg border text-sm transition-colors",
                                                 isManager

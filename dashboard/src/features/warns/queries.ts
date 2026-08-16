@@ -65,7 +65,7 @@ export async function saveWarnThresholds(
                         t.duration ?? null
                     );
                     warnCounts.push(t.warnCount);
-                    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+                    return `($${(offset + 1).toString()}, $${(offset + 2).toString()}, $${(offset + 3).toString()}, $${(offset + 4).toString()}, $${(offset + 5).toString()}, $${(offset + 6).toString()})`;
                 })
                 .join(", ");
 

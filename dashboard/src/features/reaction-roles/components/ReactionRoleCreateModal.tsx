@@ -30,12 +30,12 @@ export function ReactionRoleCreateModal({
     const handleCreateSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
 
-        if (!modalChannelId) {
+        if (modalChannelId === null) {
             toast.error("Please choose a target channel.");
             return;
         }
 
-        if (!modalName.trim()) {
+        if (modalName.trim() === "") {
             toast.error("Please enter a configuration name.");
             return;
         }
@@ -51,10 +51,7 @@ export function ReactionRoleCreateModal({
                 onClose();
                 setModalChannelId(null);
                 setModalName("");
-
-                if (newConfig?.id && newConfig?.guild_id) {
-                    router.push(`/dashboard/${newConfig.guild_id}/reaction-roles?id=${newConfig.id}`);
-                }
+                router.push(`/dashboard/${newConfig.guild_id}/reaction-roles?id=${newConfig.id.toString()}`);
             } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Failed to create reaction role.");
             }

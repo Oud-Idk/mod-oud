@@ -73,10 +73,10 @@ export function LeaveBody({
                 onChange={(updated) =>{ 
                     handleChange({
                         enabled: updated.enabled ?? config.enabled,
-                        channelId: updated.channel_id || null,
+                        channelId: updated.channel_id ?? null,
                         message: {
                             ...config.message,
-                            format: updated.format ?? config.message.format,
+                            format: updated.format,
                             content: updated.content ?? "",
                             embed: updated.embed ?? {},
                         },
@@ -87,7 +87,7 @@ export function LeaveBody({
                 disabled={isPending}
                 toggleLabel="Send Public Message when User Leaves"
                 embedTemplateConfig={LEAVE_CONFIG}
-                resetKey={`${resetKey}_public`}
+                resetKey={`${resetKey.toString()}_public`}
                 modeLabel="Message Mode (Leave)"
                 placeholderText="{user.username} has left the server. Goodbye!"
                 setTargetChannelIsEmpty={setTargetChannelIsEmpty}
@@ -97,7 +97,7 @@ export function LeaveBody({
             {isDirty && (
                 <SavePopup
                     handleCancel={handleCancel}
-                    handleSave={handleSave}
+                    handleSave={() => { void handleSave() }}
                     isSaving={isPending}
                 />
             )}

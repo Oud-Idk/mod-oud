@@ -48,9 +48,7 @@ export function StarboardBody({
         onSave: async (updatedConfig) => {
             if (updatedConfig) {
                 const savedId = await onSave(updatedConfig);
-                if (savedId) {
-                    router.push(`/dashboard/${guildId}/starboard?id=${savedId}`);
-                }
+                router.push(`/dashboard/${guildId}/starboard?id=${savedId}`);
             }
         },
     });
@@ -75,11 +73,11 @@ export function StarboardBody({
                 items={starboardConfigs}
                 emptyMessage="No starboards configured yet."
                 hasActiveConfig={!!config}
-                handleSave={handleSave}
+                handleSave={() => { void handleSave(); }}
                 handleCancel={handleCancel}
                 renderItem={(board) => {
                     const isCurrent = activeConfig?.id === board.id;
-                    const channelName = board.starboard_channel_id ? (channelMap[board.starboard_channel_id] || "unknown-channel") : "Unassigned Channel";
+                    const channelName = board.starboard_channel_id !== null ? (channelMap[board.starboard_channel_id] ?? "unknown-channel") : "Unassigned Channel";
 
                     return (
                         <button
@@ -141,7 +139,7 @@ export function StarboardBody({
             {isDirty && (
                 <SavePopup
                     handleCancel={handleCancel}
-                    handleSave={handleSave}
+                    handleSave={() => { void handleSave(); }}
                     isSaving={isPending}
                 />
             )}

@@ -78,10 +78,8 @@ export function VerificationTab({
                 ...prev,
                 verification: {
                     ...prev.verification,
+                    ...res,
                     enabled: true,
-                    verificationChannelId: res.verificationChannelId ?? null,
-                    verificationRoleId: res.verificationRoleId ?? null,
-                    verificationMessageId: res.verificationMessageId ?? null,
                 },
             }));
         } catch (err) {
@@ -92,7 +90,7 @@ export function VerificationTab({
     };
 
     const handleRunTeardown = async (): Promise<void> => {
-        if (!config.verification.verificationChannelId || !config.verification.verificationRoleId) {
+        if (config.verification.verificationChannelId === null || config.verification.verificationRoleId === null) {
             toast.error("Missing active components to complete teardown execution.");
             return;
         }
@@ -184,7 +182,7 @@ export function VerificationTab({
                                 <Dropdown
                                     value={config.verification.captchaType}
                                     onChange={(captchaType) => {
-                                        if (captchaType) {
+                                        if (captchaType !== null) {
                                             setConfig((prev) => ({
                                                 ...prev,
                                                 verification: { ...prev.verification, captchaType: captchaType },
@@ -249,7 +247,7 @@ export function VerificationTab({
                                                     ...prev,
                                                     verification: {
                                                         ...prev.verification,
-                                                        verificationMessageId: val ? val : null
+                                                        verificationMessageId: val.trim() !== "" ? val : null
                                                     },
                                                 }));
                                             }}

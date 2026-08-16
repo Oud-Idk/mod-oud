@@ -27,7 +27,7 @@ export function InterfaceMessageTab({
             "This interface can be used to manage temporary voice channels. More options are available with /voice commands.",
         color: 0x55ee77,
     });
-    const selectedChannel = voiceConfig.interface_channel_id ?? "";
+    const selectedChannel = voiceConfig.interface_channel_id;
 
     const [isSending, setIsSending] = useState<boolean>(false);
 
@@ -38,10 +38,10 @@ export function InterfaceMessageTab({
         }));
     }, [channelMap]);
 
-    const canSend = selectedChannel && !isSending;
+    const canSend = selectedChannel !== null && !isSending;
 
     const handleSendEmbed = async (): Promise<void> => {
-        if (!canSend || !selectedChannel) return;
+        if (!canSend) return;
 
         setIsSending(true);
 
@@ -51,7 +51,11 @@ export function InterfaceMessageTab({
                 embedState: embedState,
             });
 
-            toast.success(`Embed dispatched successfully. Message ID: ${messageId}`);
+            if (messageId !== undefined) {
+                toast.success(`Embed dispatched successfully. Message ID: ${messageId}`);
+            } else {
+                toast.warning("Message appeared to be sent but there's no message ID.")
+            }
         } catch (error) {
             console.error("Failed to dispatch embed:", error);
 

@@ -21,7 +21,7 @@ vi.mock("next/cache", () => ({
 describe("Honeypot Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => {return});
     });
 
     afterEach(() => {
@@ -122,7 +122,7 @@ describe("Honeypot Server Actions", () => {
     });
 
     describe("setupHoneypotAction", () => {
-        it("should return success with the channelId and revalidate", async () => {
+        it("should return the channelId and revalidate on success", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(setupHoneypot).mockResolvedValue({ channelId: "chan_1" });
 
@@ -131,35 +131,35 @@ describe("Honeypot Server Actions", () => {
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
             expect(setupHoneypot).toHaveBeenCalledWith("guild_123", "dont-talk");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/honeypot");
-            expect(result).toEqual({ success: true, channelId: "chan_1" });
+            expect(result).toEqual({ channelId: "chan_1" });
         });
 
-        it("should return a failure result when verifyGuildAccess throws", async () => {
+        it("should throw when verifyGuildAccess throws", async () => {
             vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
 
-            const result = await setupHoneypotAction("guild_123", "dont-talk");
-
-            expect(result).toEqual({ success: false, error: "Forbidden" });
+            await expect(setupHoneypotAction("guild_123", "dont-talk")).rejects.toThrow(
+                "Forbidden"
+            );
             expect(setupHoneypot).not.toHaveBeenCalled();
             expect(revalidatePath).not.toHaveBeenCalled();
         });
 
-        it("should return a failure result when the backend setup throws", async () => {
+        it("should throw when the backend setup throws", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(setupHoneypot).mockRejectedValue(new Error("backend exploded"));
+            vi.mocked(setupHoneypot).mockRejectedValue(new Error("fuck you The SpicyWolf"));
 
-            const result = await setupHoneypotAction("guild_123", "dont-talk");
-
-            expect(result).toEqual({ success: false, error: "backend exploded" });
+            await expect(setupHoneypotAction("guild_123", "dont-talk")).rejects.toThrow(
+                "fuck you The SpicyWolf"
+            );
         });
 
         it("should fall back to a generic error message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(setupHoneypot).mockRejectedValue("string throw");
 
-            const result = await setupHoneypotAction("guild_123", "dont-talk");
-
-            expect(result).toEqual({ success: false, error: "An unknown error occurred" });
+            await expect(setupHoneypotAction("guild_123", "dont-talk")).rejects.toThrow(
+                "Failed to set up honeypot channel."
+            );
         });
     });
 });

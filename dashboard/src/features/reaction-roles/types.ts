@@ -30,7 +30,7 @@ export const saveReactionMessageInputSchema = z
         message: messageLayoutSchema.default(DEFAULT_MESSAGE_LAYOUT),
     })
     .superRefine((data, ctx) => {
-        if (!data.channel_id || data.channel_id.trim() === "") {
+        if (data.channel_id === null || data.channel_id === undefined || data.channel_id.trim() === "") {
             ctx.addIssue({
                 code: 'custom',
                 message: "Please select a target channel.",
@@ -47,17 +47,17 @@ export const saveReactionMessageInputSchema = z
                 });
             }
             data.reactions.forEach((item, index) => {
-                if (!item.emoji || item.emoji.trim() === "") {
+                if (item.emoji.trim() === "") {
                     ctx.addIssue({
                         code: 'custom',
-                        message: `Reaction #${index + 1} requires an emoji.`,
+                        message: `Reaction #${(index + 1).toString()} requires an emoji.`,
                         path: ["reactions", index, "emoji"],
                     });
                 }
-                if (!item.role_id || item.role_id.trim() === "") {
+                if (item.role_id === null || item.role_id === undefined || item.role_id.trim() === "") {
                     ctx.addIssue({
                         code: 'custom',
-                        message: `Reaction #${index + 1} requires an assigned role.`,
+                        message: `Reaction #${(index + 1).toString()} requires an assigned role.`,
                         path: ["reactions", index, "role_id"],
                     });
                 }
@@ -73,10 +73,10 @@ export const saveReactionMessageInputSchema = z
                 });
             }
             data.buttons.forEach((item, index) => {
-                if (!item.role_id || item.role_id.trim() === "") {
+                if (item.role_id === undefined || item.role_id === null || item.role_id.trim() === "") {
                     ctx.addIssue({
                         code: 'custom',
-                        message: `Button #${index + 1} requires an assigned role.`,
+                        message: `Button #${(index + 1).toString()} requires an assigned role.`,
                         path: ["buttons", index, "role_id"],
                     });
                 }

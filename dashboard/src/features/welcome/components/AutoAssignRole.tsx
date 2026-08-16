@@ -17,9 +17,7 @@ interface RoleOptionProps {
 }
 
 function RoleOption({ role, isSelected, isPending, onToggle }: RoleOptionProps): JSX.Element {
-    const roleColorHex = role.color
-        ? `#${role.color.toString(16).padStart(6, "0")}`
-        : "var(--muted-foreground)";
+    const roleColorHex = `#${role.color.toString(16).padStart(6, "0")}`
 
     const containerClasses = [
         "group relative flex items-center justify-between gap-3 p-2.5 px-3 rounded-lg border text-sm font-medium transition-all duration-150 select-none",
@@ -74,13 +72,13 @@ export function AutoAssignRole({
     setConfig,
     isPending,
 }: AutoAssignRoleProps): JSX.Element {
-    const selectedRolesSet = new Set(config.joinRoleIds || []);
+    const selectedRolesSet = new Set(config.joinRoleIds);
 
-    const handleRoleToggle = (roleId: string, checked: boolean) => {
+    const handleRoleToggle = (roleId: string, checked: boolean): void => {
         if (isPending) return;
 
         setConfig((prev) => {
-            const current = prev.joinRoleIds || [];
+            const current = prev.joinRoleIds;
             return {
                 ...prev,
                 joinRoleIds: checked ? [...current, roleId] : current.filter((id) => id !== roleId),

@@ -6,9 +6,9 @@ import { type HoneypotConfigInput, honeypotConfigSchema } from "./types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { z } from "zod";
 
-export type SetupHoneypotResult =
-    | { success: true; channelId: string }
-    | { success: false; error: string };
+export interface SetupHoneypotResult {
+    channelId: string;
+}
 
 export async function setupHoneypotAction(
     guildId: string,
@@ -18,13 +18,15 @@ export async function setupHoneypotAction(
         await verifyGuildAccess(guildId);
         const { channelId } = await setupHoneypot(guildId, channelName);
         revalidatePath(`/dashboard/${guildId}/honeypot`);
-        return { success: true, channelId };
+        return { channelId };
     } catch (error) {
         console.error("Honeypot setup error:", error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "An unknown error occurred",
-        };
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0].message);
+        }
+        throw new Error(
+            error instanceof Error ? error.message : "Failed to set up honeypot channel."
+        );
     }
 }
 
@@ -42,6 +44,8 @@ export async function saveHoneypotConfigAction(
         if (error instanceof z.ZodError) {
             throw new Error(error.issues[0].message);
         }
-        throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
+        throw new Error(
+            error instanceof Error ? error.message : "Could not save configuration."
+        );
     }
 }

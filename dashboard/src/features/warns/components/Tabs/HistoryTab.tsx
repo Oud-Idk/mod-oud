@@ -22,14 +22,14 @@ function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
     const [currentReason, setCurrentReason] = useState<string | null>(null);
 
     const onSearch = (): void => {
-        if (!userId.trim()) return;
+        if (userId.trim() === "") return;
         setIsSearching(true);
         searchWarnsAction(guildId, userId.trim())
             .then((result) => {
                 setWarns(result);
                 setSearchedUserId(userId.trim());
             })
-            .catch((err) => {
+            .catch((err: unknown) => {
                 console.error("Error searching warns:", err);
             })
             .finally(() => {
@@ -51,7 +51,7 @@ function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                     placeholder="Type User Discord ID..."
                     className="font-mono"
                 />
-                <Button onClick={onSearch} disabled={isSearching || !userId.trim()}>
+                <Button onClick={onSearch} disabled={isSearching || userId.trim() === ""}>
                     {isSearching ? "Searching..." : "Search"}
                 </Button>
             </div>
@@ -88,7 +88,7 @@ function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                 </Table>
             )}
 
-            {reasonModalOpen && currentReason && (
+            {(reasonModalOpen && currentReason !== "") && (
                 <Modal
                     headerText="Full Warn Reason"
                     onClose={() => {
@@ -102,7 +102,7 @@ function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                 </Modal>
             )}
 
-            {searchedUserId && warns.length === 0 && (
+            {(searchedUserId !== null) && warns.length === 0 && (
                 <Footer>No warning history found for User ID: {searchedUserId}</Footer>
             )}
         </div>

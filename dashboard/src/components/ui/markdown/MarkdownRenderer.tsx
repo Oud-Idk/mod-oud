@@ -21,37 +21,44 @@ import rehypeExternalLinks from 'rehype-external-links';
 import rehypeRaw from 'rehype-raw';
 import { Linguist } from "@/lib/linguist";
 
-interface PreProps {
-    node?: Element;
+interface CodeElementProps {
     className?: string;
     children?: ReactNode;
 }
 
-const CodeBlock: FC<PreProps> = ({ children, ...props }) => {
+interface PreProps extends React.HTMLAttributes<HTMLPreElement> {
+    _node?: Element;
+    className?: string;
+    children?: ReactNode;
+}
+
+const CodeBlock: FC<PreProps> = ({ children, _node, style: preStyle, ...props }) => {
     const [isCopied, setIsCopied] = useState(false);
     const { resolvedTheme } = useTheme();
     const child = React.Children.toArray(children)[0];
 
-    if (
-        React.isValidElement(child) &&
-        typeof child.props === 'object' &&
-        child.props !== null &&
-        'children' in child.props
-    ) {
-        let match;
-        if ('className' in child.props && typeof child.props.className === 'string') {
-            match = /language-(\w+)/.exec(child.props.className);
-        }
-        const language = match ? match[1] : 'plaintext';
-        const code = child.props.children;
+    if (React.isValidElement<CodeElementProps>(child)) {
+        const className = child.props.className;
+        const match = typeof className === "string" ? /language-(\w+)/.exec(className) : null;
+        const language = match?.[1] ?? "plaintext";
+
+        const rawChildren = child.props.children;
+        const code = typeof rawChildren === "string"
+            ? rawChildren
+            : Array.isArray(rawChildren)
+                ? rawChildren.filter((c): c is string => typeof c === "string").join("")
+                : "";
+
         const languageName = Linguist.get(language);
 
         const handleCopy = async (): Promise<void> => {
-            if (!code) return;
+            if (code.length === 0) return;
             try {
-                await navigator.clipboard.writeText(String(code ?? ""));
+                await navigator.clipboard.writeText(code);
                 setIsCopied(true);
-                setTimeout(() =>{  setIsCopied(false); }, 2000);
+                setTimeout(() => {
+                    setIsCopied(false);
+                }, 2000);
             } catch (err) {
                 console.error("Failed to copy code: ", err);
             }
@@ -63,7 +70,9 @@ const CodeBlock: FC<PreProps> = ({ children, ...props }) => {
                 <div className="flex items-center justify-between px-4 py-2 border-b border-border-subtle bg-surface/50 text-xs font-mono text-muted-foreground">
                     <span className="font-medium tracking-wide uppercase">{languageName ?? "Plaintext"}</span>
                     <button
-                        onClick={handleCopy}
+                        onClick={() => {
+                            void handleCopy();
+                        }}
                         aria-label="Copy code"
                         type="button"
                         className="inline-flex items-center gap-1.5 px-2 py-1 bg-surface rounded-md text-xs font-sans text-muted-foreground hover:text-foreground hover:bg-surface-active border border-border-subtle transition-all focus-ring"
@@ -96,17 +105,25 @@ const CodeBlock: FC<PreProps> = ({ children, ...props }) => {
                             background: "transparent",
                             fontSize: "0.875rem",
                             lineHeight: "1.6",
+                            ...preStyle,
                         }}
-                        {...props}
                     >
-                        {String(code ?? '').replace(/\n$/, '')}
+                        {code.replace(/\n$/, "")}
                     </SyntaxHighlighter>
                 </div>
             </div>
         );
     }
 
-    return <pre className="my-4 p-3 bg-surface-muted rounded-xl border border-border overflow-x-auto font-mono text-sm" {...props}>{children}</pre>;
+    return (
+        <pre
+            style={preStyle}
+            className="my-4 p-3 bg-surface-muted rounded-xl border border-border overflow-x-auto font-mono text-sm"
+            {...props}
+        >
+            {children}
+        </pre>
+    );
 };
 
 const markdownComponents: Components & Record<string, React.ElementType> = {
