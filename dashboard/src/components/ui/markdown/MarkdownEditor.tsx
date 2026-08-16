@@ -2,13 +2,14 @@
 
 import Editor from '@monaco-editor/react';
 import { useTheme } from "next-themes";
+import { JSX } from "react";
 
 interface MarkdownEditorProps {
     value?: string;
     onChange: (value: string | undefined) => void;
 }
 
-export const MarkdownEditor = ({ value, onChange }: MarkdownEditorProps) => {
+export const MarkdownEditor = ({ value, onChange }: MarkdownEditorProps): JSX.Element => {
     const { resolvedTheme } = useTheme();
 
     return (

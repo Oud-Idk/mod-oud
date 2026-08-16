@@ -19,7 +19,7 @@ import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import remarkDirective from 'remark-directive';
 import rehypeExternalLinks from 'rehype-external-links';
 import rehypeRaw from 'rehype-raw';
-import { Linguist } from "@/lib/linguist";
+import { getLinguist } from "@/lib/linguist";
 
 interface CodeElementProps {
     className?: string;
@@ -49,7 +49,7 @@ const CodeBlock: FC<PreProps> = ({ children, _node, style: preStyle, ...props })
                 ? rawChildren.filter((c): c is string => typeof c === "string").join("")
                 : "";
 
-        const languageName = Linguist.get(language);
+        const languageName = getLinguist(language);
 
         const handleCopy = async (): Promise<void> => {
             if (code.length === 0) return;

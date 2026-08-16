@@ -70,7 +70,7 @@ export function WelcomeBody({
             toast.error(result.error.issues[0].message);
             return;
         }
-        void originalHandleSave();
+        originalHandleSave();
     }, [config, originalHandleSave]);
 
     const isSystemConfigured =

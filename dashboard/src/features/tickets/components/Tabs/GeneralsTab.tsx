@@ -30,21 +30,21 @@ export default function GeneralsTab({
                     <NumberInput
                         label="Warn Threshold (Minutes)"
                         value={config.warnThreshold}
-                        onChange={(v) =>{  updateConfig({ warnThreshold: v }); }}
+                        onChange={(v) => { updateConfig({ warnThreshold: v }); }}
                         min={5}
                         max={10080}
                     />
                     <NumberInput
                         label="Close Threshold (Minutes)"
                         value={config.deleteThreshold}
-                        onChange={(v) =>{  updateConfig({ deleteThreshold: v }); }}
+                        onChange={(v) => { updateConfig({ deleteThreshold: v }); }}
                         min={5}
                         max={10080}
                     />
                     <NumberInput
                         label="Bump Close Button Every (Messages)"
                         value={config.bumpEvery}
-                        onChange={(v) =>{  updateConfig({ bumpEvery: v }); }}
+                        onChange={(v) => { updateConfig({ bumpEvery: v }); }}
                         min={0}
                         max={100}
                     />

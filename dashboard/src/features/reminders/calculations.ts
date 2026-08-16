@@ -23,7 +23,7 @@ interface DayWindow {
 }
 
 function parseTime(timeStr: string | null, fallback: TimeOfDay): TimeOfDay {
-    if (!timeStr) return fallback;
+    if (timeStr === null) return fallback;
     const parts = timeStr.split(":").map(Number);
     return {
         h: parts[0] ?? 0,
@@ -129,7 +129,7 @@ function startTimeCandidate(day: DayWindow, now: Date, start: TimeOfDay): Date |
 }
 
 export function calculateNextTriggerJS(now: Date, rule: TriggerRule): Date {
-    const days = rule.daysOfWeek || [];
+    const days = rule.daysOfWeek ?? [];
     const start = parseTime(rule.timeStart, { h: 0, m: 0, s: 0 });
     const end = parseTime(rule.timeEnd, { h: 23, m: 59, s: 59 });
 
@@ -138,7 +138,7 @@ export function calculateNextTriggerJS(now: Date, rule: TriggerRule): Date {
     for (let i = 0; i < 8; i++) {
         const day = describeDayWindow(targetDate, days, start, end);
 
-        if ((day.insideTodaysWindow || day.insideYesterdaysWindow) && rule.intervalSeconds) {
+        if ((day.insideTodaysWindow || day.insideYesterdaysWindow) && rule.intervalSeconds !== null) {
             const nextInterval = nextIntervalWithinWindow(day, start, end, rule.intervalSeconds);
             if (nextInterval) {
                 return nextInterval;

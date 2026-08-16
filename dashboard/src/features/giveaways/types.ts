@@ -38,7 +38,7 @@ export type SaveGiveawayData = z.infer<typeof saveGiveawayInputSchema>;
 
 // Strict Save Validation Schema
 export const SaveGiveawaySchema = saveGiveawayInputSchema.superRefine((data, ctx) => {
-    if (!data.prize || data.prize.trim() === "") {
+    if (data.prize.trim() === "") {
         ctx.addIssue({
             code: 'custom',
             message: "Prize description is required!",
@@ -46,7 +46,7 @@ export const SaveGiveawaySchema = saveGiveawayInputSchema.superRefine((data, ctx
         });
     }
 
-    if (!data.channel_id) {
+    if (data.channel_id === null) {
         ctx.addIssue({
             code: 'custom',
             message: "Please select a target Discord channel for the giveaway!",

@@ -44,7 +44,7 @@ export function FieldsSection({
                             <InputLabel className="block mb-1">Field Name</InputLabel>
                             <TextInput
                                 value={field.name}
-                                onChange={(e) =>{  handleFieldChange(idx, "name", e.target.value); }}
+                                onChange={(e) => { handleFieldChange(idx, "name", e.target.value); }}
                                 placeholder="Field Name"
                             />
                         </div>
@@ -52,7 +52,7 @@ export function FieldsSection({
                             <InputLabel className="block mb-1">Field Value</InputLabel>
                             <TextInput
                                 value={field.value}
-                                onChange={(e) =>{  handleFieldChange(idx, "value", e.target.value); }}
+                                onChange={(e) => { handleFieldChange(idx, "value", e.target.value); }}
                                 placeholder="Field Value"
                             />
                         </div>
@@ -62,7 +62,7 @@ export function FieldsSection({
                             <input
                                 type="checkbox"
                                 checked={field.inline}
-                                onChange={(e) =>{  handleFieldChange(idx, "inline", e.target.checked); }}
+                                onChange={(e) => { handleFieldChange(idx, "inline", e.target.checked); }}
                                 className="rounded border-border accent-brand text-brand focus-ring cursor-pointer"
                             />
                             <span>Display Inline</span>
@@ -72,7 +72,7 @@ export function FieldsSection({
                             {moveField && idx > 0 && (
                                 <button
                                     type="button"
-                                    onClick={() =>{  moveField(idx, idx - 1); }}
+                                    onClick={() => { moveField(idx, idx - 1); }}
                                     className="p-1 hover:bg-surface-active text-muted-foreground hover:text-foreground rounded transition-colors focus-ring"
                                     title="Move Up"
                                 >
@@ -82,14 +82,14 @@ export function FieldsSection({
                             {moveField && idx < (embed.fields.length) - 1 && (
                                 <button
                                     type="button"
-                                    onClick={() =>{  moveField(idx, idx + 1); }}
+                                    onClick={() => { moveField(idx, idx + 1); }}
                                     className="p-1 hover:bg-surface-active text-muted-foreground hover:text-foreground rounded transition-colors focus-ring"
                                     title="Move Down"
                                 >
                                     <MoveDown className="w-3.5 h-3.5" />
                                 </button>
                             )}
-                            <Button variant="danger" onClick={() =>{  removeField(idx); }} className="py-1 px-2 text-xs flex items-center gap-1">
+                            <Button variant="danger" onClick={() => { removeField(idx); }} className="py-1 px-2 text-xs flex items-center gap-1">
                                 <Trash2 className="w-3.5 h-3.5" /> Remove
                             </Button>
                         </div>

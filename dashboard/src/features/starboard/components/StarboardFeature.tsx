@@ -17,9 +17,9 @@ export async function StarboardFeature({ guildId, activeConfigId }: Props): Prom
         getRoleMap(guildId),
     ]);
 
-    const activeConfig = activeConfigId
-        ? (starboardConfigs.find((config) => config.id === activeConfigId) || null)
-        : (starboardConfigs[0] || null);
+    const activeConfig = activeConfigId !== undefined
+        ? (starboardConfigs.find((config) => config.id === activeConfigId) ?? null)
+        : (starboardConfigs[0] ?? null);
 
     const onSave = saveStarboardConfigAction.bind(null, guildId);
     const onDelete = deleteStarboardConfigAction.bind(null, guildId);

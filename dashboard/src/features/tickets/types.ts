@@ -31,7 +31,7 @@ export const TicketConfigSchema = z.object({
 
 export const SaveTicketConfigSchema = TicketConfigSchema.superRefine((data, ctx) => {
     if (data.enabled) {
-        if (!data.categoryId) {
+        if (data.categoryId === null) {
             ctx.addIssue({
                 code: 'custom',
                 message: "Please select a Discord Category for tickets!",
@@ -39,7 +39,7 @@ export const SaveTicketConfigSchema = TicketConfigSchema.superRefine((data, ctx)
             });
         }
 
-        if (!data.channelId) {
+        if (data.channelId === null) {
             ctx.addIssue({
                 code: 'custom',
                 message: "Please select a channel to post the panel!",
@@ -47,7 +47,7 @@ export const SaveTicketConfigSchema = TicketConfigSchema.superRefine((data, ctx)
             });
         }
 
-        if (!data.ticketRoleId) {
+        if (data.ticketRoleId === null) {
             ctx.addIssue({
                 code: 'custom',
                 message: "Please select a Support Staff Role!",

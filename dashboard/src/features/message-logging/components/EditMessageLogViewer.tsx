@@ -29,9 +29,7 @@ export function EditedMessageLogViewer({
             eventName="message-edit"
             emptyText="No edited messages recorded..."
             renderItem={(log) => {
-                const channelName = channelMap[log.channel_id]
-                    ? `#${channelMap[log.channel_id]}`
-                    : `ID: ${log.channel_id}`;
+                const channelName = channelMap[log.channel_id];
 
                 return (
                     <div
@@ -50,7 +48,7 @@ export function EditedMessageLogViewer({
                         </div>
 
                         <div className="space-y-1.5 text-xs">
-                            {log.old_content && (
+                            {log.old_content !== null && (
                                 <div className="text-sm text-muted-foreground bg-surface/50 p-2.5 rounded-md border border-border/50 wrap-break-word font-normal">
                                     <span className="font-bold text-warning/50 mr-1.5 font-mono">OLD:</span>
                                     <span>{log.old_content}</span>

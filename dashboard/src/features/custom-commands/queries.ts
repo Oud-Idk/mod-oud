@@ -36,7 +36,7 @@ export async function saveCustomCommand(data: SaveCustomCommandData): Promise<Cu
     let query: string;
     let params: unknown[];
 
-    if (data.id) {
+    if (data.id !== undefined) {
         query = `
             UPDATE custom_commands
             SET name             = $1,

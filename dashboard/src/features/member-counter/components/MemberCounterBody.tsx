@@ -155,7 +155,7 @@ export function MemberCounterBody({
             toast.error(validation.error.issues[0].message);
             return;
         }
-        void handleSave();
+        handleSave();
     };
 
     return (

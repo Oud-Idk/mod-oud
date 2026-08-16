@@ -44,13 +44,13 @@ export function InviteTrackingBody({
         onSave,
     });
 
-    const handleSave = useCallback(async () => {
+    const handleSave = useCallback((): void => {
         const validation = inviteTrackerConfigSchema.safeParse(config);
         if (!validation.success) {
             toast.error(validation.error.issues[0].message);
             return;
         }
-        await originalHandleSave();
+        originalHandleSave();
     }, [config, originalHandleSave]);
 
     const handleToggle = useCallback((checked: boolean): void => {
@@ -85,7 +85,9 @@ export function InviteTrackingBody({
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    loadMore();
+                    loadMore().catch((err: unknown) => {
+                        toast.error(err instanceof Error ? err.message : "Failed to load more invites");
+                    });
                 }
             },
             { threshold: 0.5 }

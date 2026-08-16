@@ -34,7 +34,7 @@ export function BadWordTab({
 }: BadWordsBodyProps): JSX.Element {
     const router = useRouter();
     const params = useParams();
-    if (typeof params?.guild_id !== "string") {
+    if (typeof params.guild_id !== "string") {
         throw new Error("Missing or invalid guild_id parameter");
     }
 
@@ -54,14 +54,14 @@ export function BadWordTab({
         },
     });
 
-    const handleSave = useCallback(async () => {
+    const handleSave = useCallback((): void => {
         if (!config) return;
         const result = saveBadWordRulesetInputSchema.safeParse(config);
         if (!result.success) {
             toast.error(result.error.issues[0].message);
             return;
         }
-        await originalHandleSave();
+        originalHandleSave();
     }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<SaveableBadWordRuleset>) => {
@@ -74,7 +74,7 @@ export function BadWordTab({
         <>
             <ConfigListLayout<BadWordRuleset>
                 title="Rulesets"
-                onCreateClick={() =>{  setIsCreateModalOpen(true); }}
+                onCreateClick={() => { setIsCreateModalOpen(true); }}
                 items={rulesets}
                 emptyMessage="No rulesets configured yet."
                 hasActiveConfig={!!config}
@@ -90,7 +90,7 @@ export function BadWordTab({
                     return (
                         <button
                             key={ruleset.id}
-                            onClick={() =>{  router.push(`/dashboard/${guildId}/message-filtering?id=${ruleset.id}`); }}
+                            onClick={() => { router.push(`/dashboard/${guildId}/message-filtering?id=${ruleset.id}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -112,7 +112,7 @@ export function BadWordTab({
                                 </span>
                             </div>
                             <div className="text-xs text-muted-foreground truncate mt-1">
-                                {patternCount === 1 ? "1 Pattern" : `${patternCount} Patterns`} • {ruleset.actions.join(", ")}
+                                {patternCount === 1 ? "1 Pattern" : `${patternCount.toString()} Patterns`} • {ruleset.actions.join(", ")}
                             </div>
                         </button>
                     );
@@ -125,7 +125,7 @@ export function BadWordTab({
                                 Select an active ruleset from the sidebar to edit its patterns, or create a new ruleset to begin filtering.
                             </p>
                         </div>
-                        <Button onClick={() =>{  setIsCreateModalOpen(true); }}>
+                        <Button onClick={() => { setIsCreateModalOpen(true); }}>
                             Create Your First Ruleset
                         </Button>
                     </div>
@@ -145,7 +145,7 @@ export function BadWordTab({
 
             <BadWordCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() =>{  setIsCreateModalOpen(false); }}
+                onClose={() => { setIsCreateModalOpen(false); }}
                 onSave={onSave}
             />
         </>

@@ -37,7 +37,7 @@ export function MediaOnlyCreateModal({
 
     const handleSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
-        if (!selectedChannelId) {
+        if (selectedChannelId === null) {
             toast.error("Please select a channel.");
             return;
         }
@@ -53,7 +53,7 @@ export function MediaOnlyCreateModal({
                     <Dropdown
                         options={options}
                         value={selectedChannelId ?? ""}
-                        onChange={(val) =>{  setSelectedChannelId(val); }}
+                        onChange={(val) => { setSelectedChannelId(val); }}
                         placeholder="Choose a channel..."
                     />
                 </div>

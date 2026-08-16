@@ -70,19 +70,19 @@ export function ReportActions({
 
             {!log.user_banned && (
                 <ReportActionButton
-                    onClick={() =>{  onBanClick(log.id); }} disabled={isInteractionDisabled} color="red"
+                    onClick={() => { onBanClick(log.id); }} disabled={isInteractionDisabled} color="red"
                 >Ban User</ReportActionButton>
             )}
 
             {!log.user_timed_out && (
                 <ReportActionButton
-                    onClick={() =>{  onTimeoutClick(log.id); }} disabled={isInteractionDisabled} color="orange"
+                    onClick={() => { onTimeoutClick(log.id); }} disabled={isInteractionDisabled} color="orange"
                 >Timeout User</ReportActionButton>
             )}
 
             {!log.user_warned && (
                 <ReportActionButton
-                    onClick={() =>{  onWarnClick(log.id); }} disabled={isInteractionDisabled} color="yellow"
+                    onClick={() => { onWarnClick(log.id); }} disabled={isInteractionDisabled} color="yellow"
                 >Warn User</ReportActionButton>
             )}
 

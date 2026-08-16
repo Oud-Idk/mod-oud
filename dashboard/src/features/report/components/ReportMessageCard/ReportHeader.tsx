@@ -39,7 +39,7 @@ export function ReportHeader({
                 </span>
             </div>
 
-            {(userWarned || userTimedOut || userBanned) && (
+            {(!!userWarned || !!userTimedOut || !!userBanned) && (
                 <div className="flex flex-wrap space-x-2 my-1">
                     {userBanned && (
                         <span className="py-0.5 px-1.5 text-sm border rounded border-red-500 text-red-500">

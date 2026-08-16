@@ -3,6 +3,7 @@
 import React, { JSX, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { LongTextInput } from "@/components/ui/LongTextInput";
+import { toast } from "sonner";
 
 interface WarnModalProps {
     isOpen: boolean;
@@ -18,7 +19,9 @@ export function WarnModal({ isOpen, onClose, onSubmit, isSubmitting }: WarnModal
 
     const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>): void => {
         e.preventDefault();
-        onSubmit(reason);
+        onSubmit(reason).catch((err: unknown) =>
+            toast.error(err instanceof Error ? err.message : "Failed to warn user.")
+        );;
     };
 
     return (
@@ -26,7 +29,7 @@ export function WarnModal({ isOpen, onClose, onSubmit, isSubmitting }: WarnModal
             <div className="space-y-1">
                 <label>Reason</label>
                 <LongTextInput
-                    onChange={r =>{  setReason(r.target.value); }}
+                    onChange={r => { setReason(r.target.value); }}
                     placeholder="Provide a reason for the warning..."
                     value={reason}
                 />

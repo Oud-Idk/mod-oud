@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, JSX } from 'react';
 import dynamic from 'next/dynamic';
 import { ScrollableMarkdownViewer } from "@/components/ui/markdown/ScrollableMarkdownViewer";
 import { useTheme } from "next-themes";
@@ -23,7 +23,7 @@ export function MarkdownEditorRenderer({
     value,
     onChange,
     heightClassName = 'h-60'
-}: MarkdownInputProps) {
+}: MarkdownInputProps): JSX.Element {
     const { resolvedTheme } = useTheme();
     const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
     const [editorValue, setEditorValue] = useState(value);
@@ -50,7 +50,7 @@ export function MarkdownEditorRenderer({
             <div className="md:hidden flex border-b border-neutral-200 dark:border-neutral-700 mb-2">
                 <button
                     type="button"
-                    onClick={() =>{  setViewMode('editor'); }}
+                    onClick={() => { setViewMode('editor'); }}
                     className={`px-4 py-2 text-sm font-medium ${
                         viewMode === 'editor'
                             ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
@@ -61,7 +61,7 @@ export function MarkdownEditorRenderer({
                 </button>
                 <button
                     type="button"
-                    onClick={() =>{  setViewMode('preview'); }}
+                    onClick={() => { setViewMode('preview'); }}
                     className={`px-4 py-2 text-sm font-medium ${
                         viewMode === 'preview'
                             ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
@@ -76,7 +76,7 @@ export function MarkdownEditorRenderer({
                 <div className={`w-full ${heightClassName} border rounded-md dark:border-neutral-600 overflow-hidden ${viewMode === 'editor' ? 'block' : 'hidden'} md:block`}>
                     <MonacoMarkdownEditor
                         value={editorValue}
-                        onChange={(newValue) =>{  setEditorValue(newValue || ''); }}
+                        onChange={(newValue) => { setEditorValue(newValue ?? ''); }}
                     />
                 </div>
                 <ScrollableMarkdownViewer

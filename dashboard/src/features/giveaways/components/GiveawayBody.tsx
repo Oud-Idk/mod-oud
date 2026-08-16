@@ -80,14 +80,14 @@ export function GiveawaysBody({
         <div>
             <ConfigListLayout<Giveaway>
                 title="Giveaways"
-                onCreateClick={() =>{  setIsCreateModalOpen(true); }}
+                onCreateClick={() => { setIsCreateModalOpen(true); }}
                 items={giveaways}
                 renderItem={(item) => {
                     const isCurrent = activeConfig?.id === item.id;
                     return (
                         <button
                             key={item.id}
-                            onClick={() =>{  router.push(`/dashboard/${guildId}/giveaways?id=${item.id.toString()}`); }}
+                            onClick={() => { router.push(`/dashboard/${guildId}/giveaways?id=${item.id.toString()}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -141,7 +141,7 @@ export function GiveawaysBody({
 
             <GiveawayCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() =>{  setIsCreateModalOpen(false); }}
+                onClose={() => { setIsCreateModalOpen(false); }}
                 onSave={(v) =>
                     onSave({
                         channel_id: v.channel_id ?? null,

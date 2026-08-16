@@ -20,7 +20,7 @@ export async function WelcomeFeature({ guildId }: WelcomeFeatureProps): Promise<
         getTextChannelMap(guildId),
     ]);
 
-    const profilePictureUrl = session?.user?.image || undefined;
+    const profilePictureUrl = session?.user.image ?? undefined;
     const onSave = saveWelcomeConfigAction.bind(null, guildId);
 
     return (

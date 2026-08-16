@@ -1,6 +1,7 @@
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
+import { JSX } from "react";
 
-export function TableSkeleton({ headers, rows = 5 }: { headers: string[]; rows?: number }) {
+export function TableSkeleton({ headers, rows = 5 }: { headers: string[]; rows?: number }): JSX.Element {
     return (
         <Table>
             <TableHeader headers={headers} />

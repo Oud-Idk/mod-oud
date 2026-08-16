@@ -21,7 +21,7 @@ export const BirthdayConfigSchema = z.object({
 });
 
 export const SaveBirthdayConfigSchema = BirthdayConfigSchema.superRefine((data, ctx) => {
-    if (data.enabled && !data.channelId) {
+    if (data.enabled && data.channelId === null) {
         ctx.addIssue({
             code: 'custom',
             message: "Please select an announcement channel for birthdays!",

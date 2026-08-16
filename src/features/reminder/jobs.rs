@@ -8,6 +8,7 @@ use futures_util::StreamExt;
 use poise::serenity_prelude as serenity;
 use sqlx::types::Json;
 use std::sync::Arc;
+use chrono_tz::Tz;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Default)]
@@ -97,8 +98,8 @@ async fn process_expired_reminders(
         "#,
         now
     )
-    .fetch_all(db_pool)
-    .await?;
+        .fetch_all(db_pool)
+        .await?;
 
     if expired_reminders.is_empty() {
         debug!("No expired reminders to process");
@@ -192,13 +193,17 @@ async fn handle_post_execution(
             .map(|d| d as u32)
             .collect();
 
+        let timezone: Option<Tz> = record
+            .timezone
+            .as_deref()
+            .and_then(|s| s.parse().ok());
+
         let rule = RecurrenceRule {
             days_of_week: days_u32,
             time_start: record.time_start,
             time_end: record.time_end,
             interval_seconds: record.interval_seconds.map(i64::from),
-            // Pass timezone to your recurrence rule if supported:
-            // timezone: record.timezone.unwrap_or_else(|| "UTC".to_string()),
+            timezone,
         };
 
         let next_run = calculate_next_trigger(Utc::now(), &rule);
@@ -208,8 +213,8 @@ async fn handle_post_execution(
             next_run,
             record.id
         )
-        .execute(db)
-        .await?;
+            .execute(db)
+            .await?;
 
         debug!(
             reminder_id = record.id,
@@ -221,8 +226,8 @@ async fn handle_post_execution(
             "UPDATE reminders SET is_active = false WHERE id = $1",
             record.id
         )
-        .execute(db)
-        .await?;
+            .execute(db)
+            .await?;
 
         debug!(reminder_id = record.id, "Deactivated single-run reminder");
     }

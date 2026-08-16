@@ -9,6 +9,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SidebarLinks } from "@/components/layout/sidebar/SidebarLinks";
 import { DiscordGuild } from "@/features/_shared/guild";
+import Image from "next/image";
 
 export async function Sidebar(): Promise<JSX.Element> {
     const session = await auth();
@@ -51,10 +52,12 @@ export async function Sidebar(): Promise<JSX.Element> {
                 <div className="flex items-center gap-2 overflow-hidden">
                     <div className="relative">
                         {(typeof session?.user.image === "string" ) ? (
-                            <img
+                            <Image
                                 src={session.user.image}
                                 alt={(typeof session.user.name === "string" ? session.user.name : "Avatar")}
                                 className="w-9 h-9 rounded-full object-cover"
+                                width="100"
+                                height="100"
                             />
                         ) : (
                             <div

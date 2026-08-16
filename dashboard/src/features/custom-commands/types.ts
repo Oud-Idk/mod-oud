@@ -66,7 +66,7 @@ export const customCommandSchema = saveCustomCommandInputSchema.extend({
 // Strict Save Validation Schema
 export const SaveCustomCommandSchema = saveCustomCommandInputSchema.superRefine((data, ctx) => {
     if (data.enabled) {
-        if (!data.actions || data.actions.length === 0) {
+        if (data.actions.length === 0) {
             ctx.addIssue({
                 code: 'custom',
                 message: "At least one action is required for a custom command!",

@@ -14,7 +14,7 @@ interface PlaceholderListProps {
 }
 
 export const PlaceholderList = ({ config }: PlaceholderListProps): JSX.Element | null => {
-    if (!config.placeholders?.length) return null;
+    if (config.placeholders.length === 0) return null;
 
     return (
         <div className="p-3 rounded-lg border border-border bg-surface mb-2">

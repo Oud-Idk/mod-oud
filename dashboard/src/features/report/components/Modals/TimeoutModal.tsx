@@ -6,6 +6,7 @@ import { LongTextInput } from "@/components/ui/LongTextInput";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { TimeUnit } from "@/features/report/types";
+import { toast } from "sonner";
 
 interface TimeoutModalProps {
     isOpen: boolean;
@@ -29,7 +30,9 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
         if (unit === "DAYS") factor = 1440;
 
         const durationMins = (duration ?? 0) * factor;
-        onSubmit(durationMins, reason);
+        onSubmit(durationMins, reason).catch((err: unknown) =>
+            toast.error(err instanceof Error ? err.message : "Failed to timeout user.")
+        );
     };
 
     return (
@@ -38,7 +41,7 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
                 <div className="space-y-1">
                     <label>Reason</label>
                     <LongTextInput
-                        onChange={r =>{  setReason(r.target.value); }}
+                        onChange={r => { setReason(r.target.value); }}
                         placeholder="Provide a reason for the timeout"
                         value={reason}
                     />
@@ -47,10 +50,10 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
                     <label>Duration</label>
                     <div className="flex gap-2">
                         <NumberInput
-                            value={duration} onChange={v =>{  setDuration(v); }} min={1} className="h-10"
+                            value={duration} onChange={v => { setDuration(v); }} min={1} className="h-10"
                         />
                         <Dropdown
-                            value={unit} onChange={v =>{  setUnit(v ?? "MINUTES"); }} options={[
+                            value={unit} onChange={v => { setUnit(v ?? "MINUTES"); }} options={[
                             { value: "MINUTES", label: "Minutes" },
                             { value: "HOURS", label: "Hours" },
                             { value: "DAYS", label: "Days" },

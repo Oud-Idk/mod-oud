@@ -78,7 +78,7 @@ export const levelingConfigSchema = z.object({
 });
 
 export const saveLevelingConfigSchema = levelingConfigSchema.superRefine((data, ctx) => {
-    if (data.notify.scope === "SPECIFIED_CHANNEL" && !data.notify.channelId) {
+    if (data.notify.scope === "SPECIFIED_CHANNEL" && data.notify.channelId === null) {
         ctx.addIssue({
             code: 'custom',
             message: "Please select a target channel for level-up notifications!",

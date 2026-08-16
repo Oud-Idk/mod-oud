@@ -130,12 +130,7 @@ export function ModerationDMsBody({
                 onChange={(updated) =>{ 
                     setConfig((prev) => ({
                         ...prev,
-                        [activeKey]: {
-                            enabled: updated.enabled ?? prev[activeKey].enabled,
-                            content: updated.content ?? "",
-                            embed: updated.embed ?? {},
-                            format: updated.format ?? "TEXT",
-                        },
+                        [activeKey]: updated,
                     })); }
                 }
                 onEmbedChange={(embed) =>{ 
@@ -147,7 +142,7 @@ export function ModerationDMsBody({
                 disabled={isPending}
                 toggleLabel={`Apply Custom Direct Messages for ${activeTab.charAt(0).toUpperCase() + activeTab.replace(/_/g, " ").slice(1).toLowerCase()}s`}
                 embedTemplateConfig={MODERATION_DM_CONFIGS[activeTab]}
-                resetKey={`${resetKey}_${activeTab}`}
+                resetKey={`${resetKey.toString()}_${activeTab}`}
                 modeLabel={`Message Mode (${activeTab.replace(/_/g, " ")})`}
                 placeholderText={PLACEHOLDERS[activeTab]}
             />

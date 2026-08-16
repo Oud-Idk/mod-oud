@@ -68,7 +68,7 @@ export const welcomeConfigSchema = z.object({
 });
 
 export const saveWelcomeConfigSchema = welcomeConfigSchema.superRefine((data, ctx) => {
-    if (data.public.enabled && (!data.public.channel_id || data.public.channel_id.trim() === "")) {
+    if (data.public.enabled && (data.public.channel_id === null || data.public.channel_id.trim() === "")) {
         ctx.addIssue({
             code: 'custom',
             message: "Please select a channel for public welcome messages.",

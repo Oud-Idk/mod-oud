@@ -2,6 +2,7 @@ import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
+import { JSX } from "react";
 
 interface CryptoAddressTabProp {
     config: MessageFilteringConfig;
@@ -15,7 +16,7 @@ export function CryptoAddressTab({
     channelMap,
     roleMap,
     handleChange,
-}: CryptoAddressTabProp) {
+}: CryptoAddressTabProp): JSX.Element {
     const filterConfig = config.cryptoAddress;
 
     const updateFilter = createFilterUpdater(config, handleChange, "cryptoAddress");

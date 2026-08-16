@@ -24,7 +24,7 @@ export default function InitialMessageTab({ config, onChange, onEmbedChange, dis
                 disabled={disabled}
                 toggleLabel="Customize Welcome Message"
                 embedTemplateConfig={TICKETS_WELCOME_CONFIG}
-                resetKey={`${resetKey}_welcome`}
+                resetKey={`${resetKey.toString()}_welcome`}
                 modeLabel="Message Mode (Welcome Message)"
                 placeholderText="Hello {member.mention}, welcome to your ticket. Please describe your issue."
                 noChannels

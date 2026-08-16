@@ -239,6 +239,7 @@ describe("Temp Voice Action Module", () => {
             expect(url).toContain("/api/guilds/guild_123/temp-voice/interface/setup");
             const init = mockFetch.mock.calls[0][1];
             expect(init?.method).toBe("POST");
+            // oxlint-disable-next-line typescript/no-unsafe-assignment
             const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
             expect(body).toEqual({
                 channelId: "chan_1",

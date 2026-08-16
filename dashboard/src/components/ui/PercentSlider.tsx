@@ -39,7 +39,7 @@ export function PercentSlider({
             <Slider.Root
                 className="relative flex items-center select-none touch-none w-full h-2 cursor-pointer disabled:cursor-not-allowed"
                 value={[value]}
-                onValueChange={(values) =>{  onChange(values[0]); }}
+                onValueChange={(values) => { onChange(values[0]); }}
                 min={min}
                 max={max}
                 step={step}

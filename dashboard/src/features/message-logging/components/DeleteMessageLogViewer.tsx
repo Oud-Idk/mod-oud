@@ -78,7 +78,7 @@ export function DeletedMessageLogViewer({
                                         <button
                                             key={index}
                                             type="button"
-                                            onClick={() =>{  setActiveImageUrl(url); }}
+                                            onClick={() => { setActiveImageUrl(url); }}
                                             className="group relative block overflow-hidden rounded-md border border-border hover:border-brand cursor-zoom-in text-left transition-all"
                                         >
                                             <AttachmentImage url={url} index={index} />
@@ -92,7 +92,7 @@ export function DeletedMessageLogViewer({
             />
 
             {activeImageUrl !== null && (
-                <Modal onClose={() =>{  setActiveImageUrl(null); }} headerText="Attached Image">
+                <Modal onClose={() => { setActiveImageUrl(null); }} headerText="Attached Image">
                     <div className="relative w-full max-h-[80vh] flex items-center justify-center p-2">
                         <Image
                             src={activeImageUrl}

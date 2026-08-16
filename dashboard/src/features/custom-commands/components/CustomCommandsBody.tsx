@@ -70,7 +70,7 @@ export function CustomCommandsBody({
         <div>
             <ConfigListLayout<CustomCommand>
                 title="Custom Commands"
-                onCreateClick={() =>{  setIsCreateModalOpen(true); }}
+                onCreateClick={() => { setIsCreateModalOpen(true); }}
                 items={commands}
                 renderItem={(item) => {
                     const isCurrent = activeConfig?.id === item.id;
@@ -80,7 +80,7 @@ export function CustomCommandsBody({
                     return (
                         <button
                             key={item.id}
-                            onClick={() =>{  router.push(`/dashboard/${guildId}/custom-commands?id=${item.id.toString()}`); }}
+                            onClick={() => { router.push(`/dashboard/${guildId}/custom-commands?id=${item.id.toString()}`); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -117,7 +117,7 @@ export function CustomCommandsBody({
                                 Select an existing custom command from the sidebar to edit its triggers and actions, or create a new one to begin.
                             </p>
                         </div>
-                        <Button onClick={() =>{  setIsCreateModalOpen(true); }}>
+                        <Button onClick={() => { setIsCreateModalOpen(true); }}>
                             Create Your First Command
                         </Button>
                     </div>
@@ -139,7 +139,7 @@ export function CustomCommandsBody({
 
             <CustomCommandCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() =>{  setIsCreateModalOpen(false); }}
+                onClose={() => { setIsCreateModalOpen(false); }}
                 onSave={async (v) => {
                     const newCmd = await onSave({
                         guild_id: guildId,

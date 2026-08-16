@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
 import {
     reminderFormatSchema,
     reminderTypeSchema,
@@ -72,7 +71,7 @@ describe("reminderBaseSchema", () => {
 });
 
 describe("saveableReminderSchema", () => {
-    function validBase() {
+    function validBase(): {channelId: string, rType: "SINGLE", message: {format: "TEXT", content: string, embed: object}} {
         return {
             channelId: "chan_1",
             rType: "SINGLE" as const,

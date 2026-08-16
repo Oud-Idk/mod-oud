@@ -20,7 +20,7 @@ export function MessageModeSelector({
     disabled = false,
     onChange
 }: MessageModeSelectorProps): JSX.Element {
-    const handleChange = (newFormat: Format) => {
+    const handleChange = (newFormat: Format): void => {
         if (newFormat !== format) {
             onChange(newFormat);
         }

@@ -30,7 +30,7 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
     }, [channelMap]);
 
     const handleSendEmbed = async (): Promise<void> => {
-        if (!selectedChannel) {
+        if (selectedChannel === null) {
             toast.error("Please select a channel");
             return;
         }
@@ -54,7 +54,7 @@ export function EmbedBuilderBody({ channelMap, guildId }: EmbedBuilderBodyProps)
                 embedState: embedState,
             });
 
-            toast.success(`Embed dispatched successfully. Message ID: ${messageId}`);
+            toast.success(`Embed dispatched successfully. Message ID: ${messageId?.toString() ?? "None? Did Spicy eat the message ID?"}`);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "An error occurred while sending the embed.");
         } finally {

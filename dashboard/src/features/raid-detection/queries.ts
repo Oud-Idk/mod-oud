@@ -64,7 +64,7 @@ export async function getRaidStatus(
     const windowMinutes = validWindowSizeSeconds / 60;
     const isRaidActive = Boolean(isActive);
 
-    if (!rawStats) {
+    if (rawStats === null) {
         return raidStatusSnapshotSchema.parse({
             currentJoinsInWindow,
             windowSizeSeconds: validWindowSizeSeconds,

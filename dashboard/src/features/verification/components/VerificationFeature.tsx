@@ -24,7 +24,7 @@ export async function VerificationFeature({ searchParams }: VerifyFeatureProps):
     const settings = await getWelcomeConfig(guildId);
     const currentUrl = `/verify?user_id=${userId}&guild_id=${guildId}&expires=${expires}&sig=${sig}`;
 
-    if (settings.verification.useOauth && !session?.accessToken) {
+    if (settings.verification.useOauth && session?.accessToken === undefined) {
         return (
             <main className="flex min-h-screen flex-col items-center justify-center p-4">
                 <div className="border border-border bg-surface">

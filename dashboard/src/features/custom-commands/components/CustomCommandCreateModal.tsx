@@ -25,7 +25,7 @@ export function CustomCommandCreateModal({
     if (!isOpen) return null;
 
     const handleCreate = async (): Promise<void> => {
-        if (!name.trim()) {
+        if (name.trim() === "") {
             toast.error("Command name is required");
             return;
         }
@@ -54,7 +54,7 @@ export function CustomCommandCreateModal({
                     <TextInput
                         placeholder="e.g. rules or info"
                         value={name}
-                        onChange={(e) =>{  setName(e.target.value.replace(/\s+/g, "")); }}
+                        onChange={(e) => { setName(e.target.value.replace(/\s+/g, "")); }}
                     />
                 </div>
 
@@ -65,7 +65,7 @@ export function CustomCommandCreateModal({
                     <TextInput
                         placeholder="e.g. Displays server information"
                         value={description}
-                        onChange={(e) =>{  setDescription(e.target.value); }}
+                        onChange={(e) => { setDescription(e.target.value); }}
                     />
                 </div>
 
@@ -79,7 +79,7 @@ export function CustomCommandCreateModal({
                     </Button>
                     <Button
                         onClick={handleCreate}
-                        disabled={isSaving || !name.trim()}
+                        disabled={isSaving || name.trim() === ""}
                     >
                         {isSaving ? "Creating..." : "Create Command"}
                     </Button>

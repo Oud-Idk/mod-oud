@@ -41,7 +41,7 @@ vi.mock("@/features/_shared/guild", () => ({
 describe("Message Filtering Query Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => {return});
     });
 
     afterEach(() => {

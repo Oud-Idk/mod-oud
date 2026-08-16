@@ -38,13 +38,13 @@ export function LeaveBody({
         onSave,
     });
 
-    const handleSave = useCallback(async () => {
+    const handleSave = useCallback((): void => {
         const result = saveLeaveConfigSchema.safeParse(config);
         if (!result.success) {
             toast.error(result.error.issues[0].message);
             return;
         }
-        await originalHandleSave();
+        originalHandleSave();
     }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<LeaveConfig>) => {
@@ -97,7 +97,7 @@ export function LeaveBody({
             {isDirty && (
                 <SavePopup
                     handleCancel={handleCancel}
-                    handleSave={() => { void handleSave() }}
+                    handleSave={() => { handleSave(); }}
                     isSaving={isPending}
                 />
             )}

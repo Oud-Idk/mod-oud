@@ -186,7 +186,7 @@ export function StarboardConfigEditor({
                             <InputLabel>Emojis</InputLabel>
                             <MultiSelectViewer
                                 selectedList={config.emojis ?? []}
-                                onDelete={(em) =>{  handleRemoveEmoji(em); }}
+                                onDelete={(em) => { handleRemoveEmoji(em); }}
                                 placeholder="⭐"
                                 className="mt-1"
                             />
@@ -195,7 +195,7 @@ export function StarboardConfigEditor({
                                     type="text"
                                     placeholder="Add emoji (e.g. ⭐)"
                                     value={emojiInput}
-                                    onChange={(e) =>{  setEmojiInput(e.target.value); }}
+                                    onChange={(e) => { setEmojiInput(e.target.value); }}
                                 />
                                 <Button type="submit">Add</Button>
                             </form>
@@ -204,19 +204,19 @@ export function StarboardConfigEditor({
                         <div className="space-y-2 p-4 rounded-lg border border-border-subtle flex flex-col">
                             <ToggleSwitch
                                 checked={config.prevent_self_star ?? false}
-                                onChange={(checked) =>{  onChange({ ...config, prevent_self_star: checked }); }}
+                                onChange={(checked) => { onChange({ ...config, prevent_self_star: checked }); }}
                                 disabled={false}
                                 text="Prevent Self-Starring"
                             />
                             <ToggleSwitch
                                 checked={config.allow_bot_messages ?? false}
-                                onChange={(checked) =>{  onChange({ ...config, allow_bot_messages: checked }); }}
+                                onChange={(checked) => { onChange({ ...config, allow_bot_messages: checked }); }}
                                 disabled={false}
                                 text="Allow Bot Messages to be Starred"
                             />
                             <ToggleSwitch
                                 checked={config.keep_deleted_messages ?? false}
-                                onChange={(checked) =>{  onChange({ ...config, keep_deleted_messages: checked }); }}
+                                onChange={(checked) => { onChange({ ...config, keep_deleted_messages: checked }); }}
                                 disabled={false}
                                 text="Keep Starred Messages even when Deleted"
                             />
@@ -232,7 +232,7 @@ export function StarboardConfigEditor({
                             <InputLabel>Plaintext Message Template</InputLabel>
                             <PlaintextEditor
                                 value={config.plaintext_template ?? ""}
-                                onChange={(v) =>{  onChange({ ...config, plaintext_template: v }); }}
+                                onChange={(v) => { onChange({ ...config, plaintext_template: v }); }}
                                 setIsEmpty={setIsEmpty}
                                 emptyable
                             />
@@ -243,7 +243,7 @@ export function StarboardConfigEditor({
                             <EmbedBuilder
                                 config={STARBOARD_CONFIG}
                                 initialEmbedState={config.embed_template}
-                                setEmbedState={(obj) =>{  onChange({ ...config, embed_template: obj }); }}
+                                setEmbedState={(obj) => { onChange({ ...config, embed_template: obj }); }}
                                 customPreview={(
                                     <StarboardMessage
                                         config={STARBOARD_CONFIG}
@@ -267,7 +267,7 @@ export function StarboardConfigEditor({
                                     <TextInput
                                         placeholder="e.g. 1 day"
                                         value={config.min_message_age ?? ""}
-                                        onChange={(e) =>{  onChange({ ...config, min_message_age: e.target.value }); }}
+                                        onChange={(e) => { onChange({ ...config, min_message_age: e.target.value }); }}
                                     />
                                     <Footer className="text-muted-foreground">e.g. &quot;1 hour&quot;, &quot;30 minutes&quot;</Footer>
                                 </div>
@@ -276,7 +276,7 @@ export function StarboardConfigEditor({
                                     <TextInput
                                         placeholder="e.g. 90 days"
                                         value={config.max_message_age ?? ""}
-                                        onChange={(e) =>{  onChange({ ...config, max_message_age: e.target.value }); }}
+                                        onChange={(e) => { onChange({ ...config, max_message_age: e.target.value }); }}
                                     />
                                     <Footer className="text-muted-foreground">e.g. &quot;90 days&quot;, &quot;7 days&quot;</Footer>
                                 </div>
@@ -297,7 +297,7 @@ export function StarboardConfigEditor({
                                     { value: "ONLY_THESE", label: "Allow Only Selected Roles (Whitelist)" },
                                 ]}
                                 value={config.role_restriction_type ?? "NONE"}
-                                onChange={(val) =>{  onChange({ ...config, role_restriction_type: val ?? "NONE" }); }}
+                                onChange={(val) => { onChange({ ...config, role_restriction_type: val ?? "NONE" }); }}
                                 className="max-w-md"
                             />
                             {config.role_restriction_type !== "NONE" && (
@@ -338,7 +338,7 @@ export function StarboardConfigEditor({
                                     { value: "ONLY_THESE", label: "Allow Only Selected Channels (Whitelist)" },
                                 ]}
                                 value={config.channel_restriction_type ?? "NONE"}
-                                onChange={(val) =>{  onChange({ ...config, channel_restriction_type: val ?? "NONE" }); }}
+                                onChange={(val) => { onChange({ ...config, channel_restriction_type: val ?? "NONE" }); }}
                                 className="max-w-md"
                             />
                             {config.channel_restriction_type !== "NONE" && (

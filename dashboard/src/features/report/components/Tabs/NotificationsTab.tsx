@@ -67,7 +67,7 @@ export function NotificationsTab({
                         activeDmTab === "RESOLVED_DM" ? "Actioned" : "Dismissed"
                     }`}
                     embedTemplateConfig={REPORT_DM_CONFIGS[activeDmTab]}
-                    resetKey={`${resetKey}_${activeDmTab}`}
+                    resetKey={`${resetKey.toString()}_${activeDmTab}`}
                     modeLabel={`Message Mode (${
                         activeDmTab === "RESOLVED_DM" ? "Actioned" : "Dismissed"
                     })`}

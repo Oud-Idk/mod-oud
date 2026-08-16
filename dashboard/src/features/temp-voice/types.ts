@@ -23,7 +23,7 @@ export const saveTempVoiceHubInputSchema = z
         default_channel_name: z.string().min(1, "Default channel name is required"),
     })
     .superRefine((data, ctx) => {
-        if (!data.hub_channel_id || data.hub_channel_id.trim() === "") {
+        if (data.hub_channel_id === null || data.hub_channel_id.trim() === "") {
             ctx.addIssue({
                 code: 'custom',
                 message: "Please select a trigger voice channel.",
@@ -31,7 +31,7 @@ export const saveTempVoiceHubInputSchema = z
             });
         }
 
-        if (!data.category_id || data.category_id.trim() === "") {
+        if (data.category_id === null || data.category_id.trim() === "") {
             ctx.addIssue({
                 code: 'custom',
                 message: "Please select a parent category.",

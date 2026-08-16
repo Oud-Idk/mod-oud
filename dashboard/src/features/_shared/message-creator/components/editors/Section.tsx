@@ -33,7 +33,7 @@ export function Section({
                         </DisclosureButton>
 
                         {/* Separate action button outside DisclosureButton to prevent accidental toggles */}
-                        {action && <div className="pr-3 shrink-0">{action}</div>}
+                        {action !== null && <div className="pr-3 shrink-0">{action}</div>}
                     </div>
 
                     {/* static keeps it mounted so we can drive the animation ourselves */}

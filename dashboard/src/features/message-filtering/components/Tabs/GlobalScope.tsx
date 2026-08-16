@@ -2,8 +2,9 @@ import ScopeSettings from "@/features/message-filtering/components/General/Scope
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
+import { JSX } from "react";
 
-interface GlobalScopeTab {
+interface GlobalScopeTabProps {
     config: MessageFilteringConfig;
     handleChange: (config: MessageFilteringConfig) => void;
     channelMap?: Record<string, string>;
@@ -15,7 +16,7 @@ export function GlobalScopeTab({
     channelMap,
     roleMap,
     handleChange,
-}: GlobalScopeTab) {
+}: GlobalScopeTabProps): JSX.Element {
     const filterConfig = config.globalSettings;
 
     const updateFilter = createFilterUpdater(config, handleChange, "globalSettings");

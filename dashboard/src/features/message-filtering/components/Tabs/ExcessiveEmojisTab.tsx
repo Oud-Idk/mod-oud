@@ -3,6 +3,7 @@ import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
+import { JSX } from "react";
 
 interface ExcessiveEmojisTabProp {
     config: MessageFilteringConfig;
@@ -16,7 +17,7 @@ export function ExcessiveEmojisTab({
     channelMap,
     roleMap,
     handleChange,
-}: ExcessiveEmojisTabProp) {
+}: ExcessiveEmojisTabProp): JSX.Element {
     const filterConfig = config.excessiveEmojis;
 
     const updateFilter = createFilterUpdater(config, handleChange, "excessiveEmojis");
@@ -31,7 +32,7 @@ export function ExcessiveEmojisTab({
         >
             <NumberInput
                 value={filterConfig.maxEmojis}
-                onChange={(v) =>{  updateFilter({ maxEmojis: v }); }}
+                onChange={(v) => { updateFilter({ maxEmojis: v }); }}
                 label="Maximum Absolute Emojis per Message"
             />
         </FilterLayoutWrapper>

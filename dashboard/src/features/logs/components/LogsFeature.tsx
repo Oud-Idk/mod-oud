@@ -6,7 +6,7 @@ interface LogsFeatureProps {
     guildId: string;
 }
 
-export async function LogsFeature({ guildId }: LogsFeatureProps): Promise<JSX.Element> {
+export function LogsFeature({ guildId }: LogsFeatureProps): JSX.Element {
     return (
         <div className="space-y-6">
             <DashboardHeader>Logs</DashboardHeader>

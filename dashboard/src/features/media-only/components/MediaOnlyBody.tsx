@@ -71,14 +71,14 @@ export function MediaOnlyBody({
     };
 
     const handleUpdate = (patch: Partial<MediaOnlyChannel>): void => {
-        if (!activeChannelId) return;
+        if (activeChannelId === null) return;
         setConfig((prev) =>
             prev.map((c) => (c.channelId === activeChannelId ? { ...c, ...patch } : c))
         );
     };
 
     const handleRemove = (): void => {
-        if (!activeChannelId) return;
+        if (activeChannelId === null) return;
         setConfig((prev) => prev.filter((c) => c.channelId !== activeChannelId));
         setActiveChannelId(null);
     };
@@ -91,7 +91,7 @@ export function MediaOnlyBody({
                 return;
             }
         }
-        void originalHandleSave();
+        originalHandleSave();
     };
 
     return (
@@ -99,7 +99,7 @@ export function MediaOnlyBody({
             <ConfigListLayout<MediaOnlyChannel>
                 title="Channels"
                 createButtonText="+ Add"
-                onCreateClick={() =>{  setIsCreateModalOpen(true); }}
+                onCreateClick={() => { setIsCreateModalOpen(true); }}
                 items={config}
                 emptyMessage="No media-only channels configured yet."
                 hasActiveConfig={!!activeChannel}
@@ -114,7 +114,7 @@ export function MediaOnlyBody({
                         <button
                             key={channel.channelId}
                             type="button"
-                            onClick={() =>{  setActiveChannelId(channel.channelId); }}
+                            onClick={() => { setActiveChannelId(channel.channelId); }}
                             className={cn(
                                 "w-full flex flex-col text-left p-3 rounded-md transition-all cursor-pointer border focus-ring",
                                 isCurrent
@@ -123,7 +123,7 @@ export function MediaOnlyBody({
                             )}
                         >
                             <span className="truncate font-semibold text-sm">
-                                #{textChannelMap[channel.channelId] || channel.channelId}
+                                #{textChannelMap[channel.channelId]}
                             </span>
                             <span
                                 className={cn(
@@ -161,7 +161,7 @@ export function MediaOnlyBody({
 
             <MediaOnlyCreateModal
                 isOpen={isCreateModalOpen}
-                onClose={() =>{  setIsCreateModalOpen(false); }}
+                onClose={() => { setIsCreateModalOpen(false); }}
                 textChannelMap={textChannelMap}
                 configuredIds={config.map((c) => c.channelId)}
                 onCreate={handleCreate}

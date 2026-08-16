@@ -33,12 +33,12 @@ export function AntiSpamFilterTab({
             <p>Uses a sliding window system to keep track of messages over time.</p>
             <NumberInput
                 value={filterConfig.messagesPerWindow}
-                onChange={(v) =>{  updateFilter({ messagesPerWindow: v }); }}
+                onChange={(v) => { updateFilter({ messagesPerWindow: v }); }}
                 label="Maximum Allowed Messages in Window"
             />
             <NumberInput
                 value={filterConfig.windowSeconds}
-                onChange={(v) =>{  updateFilter({ windowSeconds: v }); }}
+                onChange={(v) => { updateFilter({ windowSeconds: v }); }}
                 label="Window Duration (seconds)"
             />
         </FilterLayoutWrapper>

@@ -18,7 +18,7 @@ export async function RemindersFeature({
     const channelIds = Object.keys(channelMap);
     const reminders = await getRemindersByChannels(channelIds);
 
-    const activeReminder = reminders.find((r) => r.id === activeReminderId) || null;
+    const activeReminder = reminders.find((r) => r.id === activeReminderId) ?? null;
 
     const onSaveReminder = saveReminderAction.bind(null, guildId);
     const onDeleteReminder = deleteReminderAction.bind(null, guildId);

@@ -24,7 +24,7 @@ export function ThemeToggle(): JSX.Element {
     return (
         <Button
             variant="secondary"
-            onClick={() =>{  setTheme(isDark ? "light" : "dark"); }} className="p-2" aria-label="Toggle Theme"
+            onClick={() => { setTheme(isDark ? "light" : "dark"); }} className="p-2" aria-label="Toggle Theme"
         >
             {isDark ? (
                 <Sun className="h-5 w-5 text-yellow-500"/>

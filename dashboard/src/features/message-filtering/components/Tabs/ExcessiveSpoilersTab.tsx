@@ -3,6 +3,7 @@ import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
+import { JSX } from "react";
 
 interface ExcessiveSpoilersTabProp {
     config: MessageFilteringConfig;
@@ -16,7 +17,7 @@ export function ExcessiveSpoilersTab({
     channelMap,
     roleMap,
     handleChange,
-}: ExcessiveSpoilersTabProp) {
+}: ExcessiveSpoilersTabProp): JSX.Element {
     const filterConfig = config.excessiveSpoilers;
 
     const updateFilter = createFilterUpdater(config, handleChange, "excessiveSpoilers");
@@ -31,7 +32,7 @@ export function ExcessiveSpoilersTab({
         >
             <PercentSlider
                 value={filterConfig.threshold}
-                onChange={(v) =>{  updateFilter({ threshold: v }); }}
+                onChange={(v) => { updateFilter({ threshold: v }); }}
                 label="Maximum Percenatage of Characters in Spoilers"
             />
         </FilterLayoutWrapper>

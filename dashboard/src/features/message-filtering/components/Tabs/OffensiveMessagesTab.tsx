@@ -25,10 +25,10 @@ export function OffensiveMessagesTab({
 
     const updateFilter = createFilterUpdater(config, handleChange, "offensiveMessages");
 
-    const handleThresholdChange = (v: FlagThreshold | null): void => {
-        if (!v) return;
-        setSelected(v);
-        updateFilter({ flagThreshold: v });
+    const handleThresholdChange = (threshold: FlagThreshold | null): void => {
+        if (threshold === null) return;
+        setSelected(threshold);
+        updateFilter({ flagThreshold: threshold });
     };
 
     const options: DropdownOption<FlagThreshold>[] = [

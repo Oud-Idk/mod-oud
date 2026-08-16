@@ -89,7 +89,7 @@ export function NumberInput({
 
     return (
         <Field className={cn("flex flex-col w-full", className)}>
-            {label && (
+            {label !== undefined && (
                 <InputLabel className={cn(disabled ? "text-muted-foreground" : "text-foreground")}>
                     {label}
                     {required && <span className="text-danger ml-1" aria-hidden="true">*</span>}

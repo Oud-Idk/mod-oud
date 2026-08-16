@@ -84,13 +84,13 @@ export function LevelingBody({
         onSave,
     });
 
-    const handleSave = useCallback(async () => {
+    const handleSave = useCallback((): void => {
         const result = saveLevelingConfigSchema.safeParse(config);
         if (!result.success) {
             toast.error(result.error.issues[0].message);
             return;
         }
-        await originalHandleSave();
+        originalHandleSave();
     }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<LevelingConfig>) => {

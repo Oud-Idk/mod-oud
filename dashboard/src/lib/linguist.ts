@@ -1,13 +1,8 @@
 import extensionMap from '@/data/language-map.json';
 
-const map = extensionMap as Record<string, string>;
+const map: Record<string, string> = extensionMap;
 
-export class Linguist {
-    /**
-     * Synchronously gets the language name from a file extension.
-     */
-    public static get(key: string): string | undefined {
-        if (!key) return undefined;
-        return map[key.toLowerCase()];
-    }
+export function getLinguist(key: string): string | undefined {
+    if (key.trim() === "") return undefined;
+    return map[key.toLowerCase()];
 }

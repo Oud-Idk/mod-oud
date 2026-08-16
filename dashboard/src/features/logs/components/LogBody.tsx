@@ -24,7 +24,7 @@ export function LogBody({ guildId }: LogBodyProps): JSX.Element {
     return (
         <div className="space-y-4">
             <Tabs
-                tabs={LOG_TABS} activeTab={activeTab} onChange={(v) =>{  setActiveTab(v); }}
+                tabs={LOG_TABS} activeTab={activeTab} onChange={(v) => { setActiveTab(v); }}
             />
 
             <div className="mt-4">

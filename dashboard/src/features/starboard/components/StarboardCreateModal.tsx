@@ -79,7 +79,7 @@ export function StarboardCreateModal({
                     <Dropdown
                         options={getAvailableChannelOptions(channelMap)}
                         value={modalChannelId ?? ""}
-                        onChange={(val) =>{  setModalChannelId(val); }}
+                        onChange={(val) => { setModalChannelId(val); }}
                         placeholder="Choose channel..."
                     />
                 </div>
@@ -88,7 +88,7 @@ export function StarboardCreateModal({
                     <InputLabel required>Initial Star Threshold</InputLabel>
                     <NumberInput
                         value={modalThreshold}
-                        onChange={(v) =>{  setModalThreshold(v ?? 1); }}
+                        onChange={(v) => { setModalThreshold(v ?? 1); }}
                         min={1}
                     />
                 </div>

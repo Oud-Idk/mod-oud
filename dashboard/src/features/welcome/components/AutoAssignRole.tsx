@@ -50,7 +50,7 @@ function RoleOption({ role, isSelected, isPending, onToggle }: RoleOptionProps):
                 type="checkbox"
                 checked={isSelected}
                 disabled={isPending}
-                onChange={(e) =>{  onToggle(role.id, e.target.checked); }}
+                onChange={(e) => { onToggle(role.id, e.target.checked); }}
                 className="sr-only"
             />
 

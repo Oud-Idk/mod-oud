@@ -31,12 +31,11 @@ export async function setupHoneypot(guildId: string, channelName: string): Promi
     });
 
     if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Rust backend request failed.");
+        const errorText = (await res.text()).trim();
+        throw new Error(errorText !== "" ? errorText : "Rust backend request failed.");
     }
 
-    const rawJson = await res.json();
-    const data = backendHoneypotResponseSchema.parse(rawJson);
+    const data = backendHoneypotResponseSchema.parse(await res.json());
 
     try {
         await invalidateGuildChannelCache(guildId);

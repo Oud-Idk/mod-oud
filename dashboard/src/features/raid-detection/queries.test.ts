@@ -36,7 +36,7 @@ vi.mock("@/features/_shared/guild", () => ({
 describe("Raid Detection Query Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => {return});
     });
 
     afterEach(() => {

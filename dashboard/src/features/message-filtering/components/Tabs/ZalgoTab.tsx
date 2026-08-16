@@ -2,6 +2,7 @@ import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
+import { JSX } from "react";
 
 interface ZalgoTabProp {
     config: MessageFilteringConfig;
@@ -15,7 +16,7 @@ export function ZalgoTab({
     channelMap,
     roleMap,
     handleChange,
-}: ZalgoTabProp) {
+}: ZalgoTabProp): JSX.Element {
     const filterConfig = config.zalgo;
 
     const updateFilter = createFilterUpdater(config, handleChange, "zalgo");

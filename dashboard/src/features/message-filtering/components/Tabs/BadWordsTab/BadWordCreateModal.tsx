@@ -28,7 +28,7 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
     const handleSubmit = async (e: React.SyntheticEvent): Promise<void> => {
         e.preventDefault();
         const trimmed = name.trim();
-        if (!trimmed) {
+        if (trimmed === "") {
             toast.error("Ruleset name is required");
             return;
         }
@@ -60,14 +60,14 @@ export function BadWordCreateModal({ isOpen, onClose, onSave }: BadWordCreateMod
                 <TextInput
                     placeholder="e.g. Hate Speech, Spam Keywords..."
                     value={name}
-                    onChange={(e) =>{  setName(e.target.value); }}
+                    onChange={(e) => { setName(e.target.value); }}
                     className="min-w-full"
                 />
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
                 <Button onClick={onClose} disabled={isSaving} variant="secondary">Cancel</Button>
-                <Button disabled={isSaving || !name.trim()} onClick={handleSubmit}>
+                <Button disabled={isSaving || name.trim() === ""} onClick={handleSubmit}>
                     {isSaving ? "Creating..." : "Create"}
                 </Button>
             </div>

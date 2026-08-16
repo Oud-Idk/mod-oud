@@ -20,8 +20,8 @@ export function ReportContent({
     attachmentUrl,
     onImageClick,
 }: ReportContentProps): JSX.Element {
-    const cleanContent = (messageContent ?? "").trim();
-    const attachments = attachmentUrl ? attachmentUrl.split(",").map(u => u.trim()) : [];
+    const cleanContent = messageContent.trim();
+    const attachments = typeof attachmentUrl === 'string' ? attachmentUrl.split(",").map(u => u.trim()) : [];
 
     return (
         <div className="space-y-2">
@@ -47,12 +47,12 @@ export function ReportContent({
                             <button
                                 key={idx}
                                 type="button"
-                                onClick={() =>{  onImageClick(url); }}
+                                onClick={() => { onImageClick(url); }}
                                 className="group relative block overflow-hidden rounded border border-neutral-800/50 hover:border-neutral-500/50 cursor-zoom-in text-left"
                             >
                                 <Image
                                     src={url}
-                                    alt={`Attachment ${idx}`}
+                                    alt={`Attachment ${idx.toString()}`}
                                     className="text-xs hover:underline px-2 py-0.5 rounded border"
                                     width={200}
                                     height={200}

@@ -130,7 +130,7 @@ export function ReportBody({
         <div className="flex-1 scrollbar-thin space-y-4">
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={(v) =>{  handleChange({ enabled: v }); }}
+                onChange={(v) => { handleChange({ enabled: v }); }}
                 disabled={false}
                 text="Enable Reporting"
             />
@@ -195,7 +195,7 @@ export function ReportBody({
 
             <TimeoutModal
                 isOpen={timeoutReportId !== null}
-                onClose={() =>{  setTimeoutReportId(null); }}
+                onClose={() => { setTimeoutReportId(null); }}
                 onSubmit={handleTimeoutUser}
                 isSubmitting={isTimingOut}
             />
@@ -210,7 +210,7 @@ export function ReportBody({
             <BanModal
                 isOpen={banReportId !== null}
                 onClose={() => { setBanReportId(null); }}
-                onSubmit={handleBanUser}
+                onSubmit={(time, reason) => { void handleBanUser(time, reason); }}
                 isSubmitting={isBanning}
             />
 

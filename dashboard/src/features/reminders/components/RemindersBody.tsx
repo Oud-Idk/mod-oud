@@ -59,7 +59,7 @@ export function RemindersBody({
             toast.error(result.error.issues[0].message);
             return;
         }
-        void originalHandleSave();
+        originalHandleSave();
     }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<ReminderRow>): void => {

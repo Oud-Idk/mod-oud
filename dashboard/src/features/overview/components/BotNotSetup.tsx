@@ -7,6 +7,8 @@ interface BotNotSetupProps {
 }
 
 export function BotNotSetup({ permissions, guild_id }: BotNotSetupProps): JSX.Element {
+    if (process.env.AUTH_DISCORD_ID === undefined) { return <div>Configs are invalid. Please contact the hoster.</div> }
+
     const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${process.env.AUTH_DISCORD_ID}&permissions=${permissions}&integration_type=0&scope=bot+applications.commands&guild_id=${guild_id}&disable_guild_select=true`
 
     return (

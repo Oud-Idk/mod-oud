@@ -30,7 +30,7 @@ export function ToggleSwitch({
                 className
             )}
         >
-            {text && <span>{text}</span>}
+            {text !== undefined && <span>{text}</span>}
 
             <Switch
                 checked={checked}

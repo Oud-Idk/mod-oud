@@ -61,7 +61,7 @@ export function ReactionRolesBody({
             toast.error(result.error.issues[0].message);
             return;
         }
-        void originalHandleSave();
+        originalHandleSave();
     }, [config, originalHandleSave]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

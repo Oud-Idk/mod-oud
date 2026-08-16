@@ -120,7 +120,7 @@ export function MessageLoggingBody({
 
     return (
         <div className="space-y-4">
-            <Tabs tabs={tabs} activeTab={activeTab} onChange={(t) =>{  setActiveTab(t); }}/>
+            <Tabs tabs={tabs} activeTab={activeTab} onChange={(t) => { setActiveTab(t); }}/>
 
             {activeTab === "settings" && (
                 <div className="space-y-2">
@@ -185,7 +185,7 @@ export function MessageLoggingBody({
                                     <TextInput
                                         onSubmit={handleAddUserId}
                                         value={userIdInput}
-                                        onChange={(e) =>{  setUserIdInput(e.target.value); }}
+                                        onChange={(e) => { setUserIdInput(e.target.value); }}
                                         placeholder="Type User ID & press Enter"
                                     />
                                 </div>

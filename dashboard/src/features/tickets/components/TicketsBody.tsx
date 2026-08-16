@@ -61,9 +61,9 @@ export function TicketsBody({
         setConfig((prev) => ({
             ...prev,
             welcomeMessage: {
-                enabled: updated.enabled ?? prev.welcomeMessage.enabled ?? false,
+                enabled: updated.enabled ?? prev.welcomeMessage.enabled,
                 message: {
-                    format: updated.format ?? prev.welcomeMessage.message.format,
+                    format: updated.format,
                     content: updated.content ?? prev.welcomeMessage.message.content,
                     embed: updated.embed ?? prev.welcomeMessage.message.embed,
                 },

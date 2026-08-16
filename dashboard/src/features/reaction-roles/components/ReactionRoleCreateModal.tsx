@@ -76,7 +76,7 @@ export function ReactionRoleCreateModal({
                     <Dropdown
                         options={getAvailableChannelOptions(channelMap)}
                         value={modalChannelId ?? ""}
-                        onChange={(val) =>{  setModalChannelId(val ?? null); }}
+                        onChange={(val) => { setModalChannelId(val ?? null); }}
                         placeholder="Choose channel..."
                     />
                 </div>
@@ -85,7 +85,7 @@ export function ReactionRoleCreateModal({
                     <label className="text-sm font-medium text-foreground">Reaction Role Name</label>
                     <TextInput
                         value={modalName}
-                        onChange={(e) =>{  setModalName(e.target.value); }}
+                        onChange={(e) => { setModalName(e.target.value); }}
                         placeholder="e.g. Self Roles"
                     />
                 </div>
