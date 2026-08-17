@@ -14,7 +14,7 @@ mod web;
 
 pub use cache::{cache_automod_name, invalidate_rule_cache};
 pub use commands::honeypot;
-pub use database::insert_automod_row;
+pub use database::{AutomodEntryRow, insert_automod_row};
 pub use events::{handle_automod, store_automod};
 pub use rules::should_skip_scope;
 pub use safe_browsing::SafeBrowsingClient;

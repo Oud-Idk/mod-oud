@@ -1,4 +1,5 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::pre_flight_check;
 use crate::features::warning::database::{
@@ -10,7 +11,6 @@ use crate::features::warning::pagination;
 use crate::shared::command_context::GuildMetadata;
 use crate::shared::messages::send_ephemeral;
 use serenity::all::{Member, User};
-use crate::constants::BRAND_COLOR;
 
 /// Warns a user in the server.
 #[poise::command(
@@ -44,7 +44,7 @@ pub async fn warn(
         &ctx.author().name,
         &member.user.name,
     )
-        .await?;
+    .await?;
 
     ctx.send(
         poise::CreateReply::default()
@@ -54,7 +54,7 @@ pub async fn warn(
             ))
             .ephemeral(true),
     )
-        .await?;
+    .await?;
 
     Ok(())
 }
@@ -91,7 +91,7 @@ pub async fn history(
             &ctx,
             format!("<@{}> has no active warnings.", member.user.id),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
@@ -119,7 +119,7 @@ pub async fn search(
         target_user_id.map(|id| id as i64),
         &search_pattern,
     )
-        .await?;
+    .await?;
 
     if records.is_empty() {
         let filter_message = match user {
@@ -130,7 +130,7 @@ pub async fn search(
             &ctx,
             format!("No warnings {filter_message}found matching `{query}`."),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
@@ -180,7 +180,7 @@ pub async fn view(
                 &ctx,
                 format!("Could not find warning with ID **#{id}** in this server."),
             )
-                .await?;
+            .await?;
         }
     }
 
@@ -225,7 +225,7 @@ pub async fn delete(
         id,
         ctx.author(),
     )
-        .await?;
+    .await?;
 
     match result {
         Some((target_user_id, reason)) => {
@@ -241,7 +241,7 @@ pub async fn delete(
                 &ctx,
                 format!("Could not find a warning with ID **#{id}** in this server."),
             )
-                .await?;
+            .await?;
         }
     }
 

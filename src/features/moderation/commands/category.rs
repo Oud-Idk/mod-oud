@@ -1,11 +1,15 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::channels::delete_entire_category;
 use serenity::all::GuildChannel;
 use tracing::debug;
 
 /// Deletes an entire category and its channels recursively
-#[poise::command(slash_command, default_member_permissions = "MANAGE_CHANNELS", guild_only)]
+#[poise::command(
+    slash_command,
+    default_member_permissions = "MANAGE_CHANNELS",
+    guild_only
+)]
 pub async fn delete_category(
     ctx: Context<'_>,
     #[description = "The category to delete"]
@@ -15,7 +19,8 @@ pub async fn delete_category(
     ctx.defer().await?;
 
     let Some(guild_id) = ctx.guild_id() else {
-        ctx.say("This command can only be used inside a server.").await?;
+        ctx.say("This command can only be used inside a server.")
+            .await?;
         debug!("Command ran in a server.");
         return Ok(());
     };

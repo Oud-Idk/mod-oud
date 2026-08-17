@@ -12,7 +12,7 @@ use std::time::Duration;
 ///
 /// # Errors
 /// Returns `Err` if Redis fails to set the key
-pub async fn cache_automod_name(redis: &Client, rule_id: &RuleId, rule: &Rule) -> FredResult<()> {
+pub async fn cache_automod_name(redis: &Client, rule_id: RuleId, rule: &Rule) -> FredResult<()> {
     let redis_key = keys::automod_rule_key(rule_id);
 
     redis
@@ -29,7 +29,7 @@ pub async fn cache_automod_name(redis: &Client, rule_id: &RuleId, rule: &Rule) -
 /// Retrieves a cached `AutoMod` rule name from Redis by its [`RuleId`].
 pub async fn get_rule_name_from_cache(
     redis: &Client,
-    rule_id: &RuleId,
+    rule_id: RuleId,
 ) -> FredResult<Option<String>> {
     let redis_key = keys::automod_rule_key(rule_id);
     redis.get::<Option<String>, _>(&redis_key).await
@@ -39,7 +39,7 @@ pub async fn get_rule_name_from_cache(
 ///
 /// # Errors
 /// Returns `Err` if Redis fails to delete the key
-pub async fn invalidate_rule_cache(redis: &Client, rule_id: &RuleId) -> FredResult<()> {
+pub async fn invalidate_rule_cache(redis: &Client, rule_id: RuleId) -> FredResult<()> {
     let redis_key = keys::automod_rule_key(rule_id);
     redis.del(&redis_key).await
 }
@@ -52,7 +52,7 @@ pub async fn get_rule_name(
     ctx: &Context,
     redis: &Client,
     guild_id: &GuildId,
-    rule_id: &RuleId,
+    rule_id: RuleId,
 ) -> String {
     if let Ok(Some(cached_name)) = get_rule_name_from_cache(redis, rule_id).await {
         return cached_name;

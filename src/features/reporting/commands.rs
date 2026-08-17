@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::reporting::actions;
@@ -19,7 +19,9 @@ pub async fn report_message(
     ctx: Context<'_>,
     message: serenity::all::Message,
 ) -> Result<(), Error> {
-    let app_ctx = if let Context::Application(x) = ctx { x } else {
+    let app_ctx = if let Context::Application(x) = ctx {
+        x
+    } else {
         warn!(
             caller_id = ctx.author().id.get(),
             "report_message command triggered with a non-application context"
@@ -33,25 +35,31 @@ pub async fn report_message(
 
     info!(
         caller_id,
-        message_id,
-        guild_id,
-        "Invoked report_message context menu command"
+        message_id, guild_id, "Invoked report_message context menu command"
     );
 
     let db = &ctx.data().core.db;
     let redis = ctx.data().core.redis.clone();
     let guild_configs = &ctx.data().core.guild_configs_cache;
 
-    trace!(guild_id, "Fetching server settings for report configuration check");
+    trace!(
+        guild_id,
+        "Fetching server settings for report configuration check"
+    );
     let config = get_settings(db, &redis, guild_configs, guild_id).await?;
     let report_enabled = config.report.is_some_and(|r| r.enabled);
 
     if !report_enabled {
-        debug!(guild_id, "Report command execution cancelled: report feature is disabled in this guild");
-        ctx.send(poise::CreateReply::default()
-            .content("Reporting isn't enabled in this guild.")
-            .ephemeral(true)
-        ).await?;
+        debug!(
+            guild_id,
+            "Report command execution cancelled: report feature is disabled in this guild"
+        );
+        ctx.send(
+            poise::CreateReply::default()
+                .content("Reporting isn't enabled in this guild.")
+                .ephemeral(true),
+        )
+        .await?;
         return Ok(());
     }
 
@@ -59,19 +67,26 @@ pub async fn report_message(
     let modal_data = ReportModal::execute(app_ctx).await?;
 
     if let Some(modal) = modal_data {
-        debug!(caller_id, message_id, "Report modal submitted; issuing report");
+        debug!(
+            caller_id,
+            message_id, "Report modal submitted; issuing report"
+        );
         let result = actions::issue_report(
-            db, &ctx.data().core.redis, &ctx.data().core.username_tx,
-            guild_id, message.channel_id.get() as i64,
-            &message, ctx.author(), modal.reason,
-        ).await?;
+            db,
+            &ctx.data().core.redis,
+            &ctx.data().core.username_tx,
+            guild_id,
+            message.channel_id.get() as i64,
+            &message,
+            ctx.author(),
+            modal.reason,
+        )
+        .await?;
 
         let reply_content = if let Some(report_id) = result {
             info!(
                 caller_id,
-                message_id,
-                report_id,
-                "Message report successfully created and recorded"
+                message_id, report_id, "Message report successfully created and recorded"
             );
             "Your report has been submitted to the moderation team."
         } else {
@@ -83,12 +98,15 @@ pub async fn report_message(
             "Someone has already reported this message."
         };
 
-        ctx.send(poise::CreateReply::default().content(reply_content).ephemeral(true)).await?;
+        ctx.send(
+            poise::CreateReply::default()
+                .content(reply_content)
+                .ephemeral(true),
+        )
+        .await?;
     } else {
         trace!(caller_id, "Report modal was cancelled or timed out");
     }
 
     Ok(())
 }
-
-

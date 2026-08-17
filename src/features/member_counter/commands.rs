@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::member_counter::counters::update_guild_counters;
@@ -21,20 +21,30 @@ pub async fn counters(_ctx: Context<'_>) -> Result<(), Error> {
 pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let guild_id_u64 = if let Some(id) = ctx.guild_id() { id.get() } else {
-        ctx.say("This command can only be used in a server.").await?;
+    let guild_id_u64 = if let Some(id) = ctx.guild_id() {
+        id.get()
+    } else {
+        ctx.say("This command can only be used in a server.")
+            .await?;
         return Ok(());
     };
     let guild_id = guild_id_u64;
 
     let data = ctx.data();
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id).await?;
+    let settings = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id,
+    )
+    .await?;
 
     let counter_config = match settings.member_counter {
         Some(ref c) if c.enabled => c,
         _ => {
-            ctx.say("❌ Member counters are currently disabled or not configured on this server.").await?;
+            ctx.say("❌ Member counters are currently disabled or not configured on this server.")
+                .await?;
             return Ok(());
         }
     };
@@ -52,10 +62,7 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
                 • 🤖 **Bots:** {}\n\
                 • 🟢 **Online:** {}\n\n\
                 🏷️ **Channels Evaluated:**\n",
-                counts.total_members,
-                counts.humans_count,
-                counts.bots_count,
-                counts.online_count
+                counts.total_members, counts.humans_count, counts.bots_count, counts.online_count
             );
 
             if counts.counters.is_empty() {
@@ -70,9 +77,7 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
 
                     response.push_str(&format!(
                         "• <#{}> ➔ `{}` ({})\n",
-                        counter.channel_id,
-                        counter.new_name,
-                        status_tag
+                        counter.channel_id, counter.new_name, status_tag
                     ));
                 }
             }
@@ -81,7 +86,8 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
         }
         Err(e) => {
             tracing::error!(error = ?e, guild_id = guild_id_u64, "Failed to force sync counters via command");
-            ctx.say("❌ Failed to update member counters due to an internal error.").await?;
+            ctx.say("❌ Failed to update member counters due to an internal error.")
+                .await?;
         }
     }
 

@@ -44,12 +44,13 @@ pub struct BadWordRuleset {
 
 impl BadWordRuleset {
     /// Converts the raw ruleset into a shared [`BaseRule`] for the automod pipeline.
+    #[must_use]
     pub fn to_base_rule(&self) -> BaseRule {
         BaseRule {
             enabled: self.enabled,
             action: self.actions.clone(),
             scope: self.scope.clone(),
-            timeout_duration_seconds: self.timeout_duration_seconds.map(|t| t as u64),
+            timeout_duration_seconds: self.timeout_duration_seconds,
         }
     }
 }
@@ -85,12 +86,13 @@ pub struct CompiledRuleset {
 
 impl CompiledRuleset {
     /// Converts the compiled ruleset into a shared [`BaseRule`] for the automod pipeline.
+    #[must_use]
     pub fn to_base_rule(&self) -> BaseRule {
         BaseRule {
             enabled: self.enabled,
             action: self.actions.clone(),
             scope: self.scope.clone(),
-            timeout_duration_seconds: self.timeout_duration_seconds.map(|t| t as u64),
+            timeout_duration_seconds: self.timeout_duration_seconds,
         }
     }
 }

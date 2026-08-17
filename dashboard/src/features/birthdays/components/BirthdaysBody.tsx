@@ -1,17 +1,15 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useTransition, JSX } from "react";
+import React, { useState, useMemo, useTransition, JSX } from "react";
 import { toast } from "sonner";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Dropdown } from "@/components/ui/Dropdown";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { BirthdayConfig, SaveBirthdayConfigSchema } from "@/features/birthdays/types";
 import { BIRTHDAY_TEMPLATE_CONFIG } from "@/features/birthdays/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
-import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { MessageLayout, isDeepEqual } from "@/features/_shared/embed";
+import { isDeepEqual } from "@/features/_shared/embed";
 
 interface BirthdaysBodyProps {
     initialConfig: BirthdayConfig;
@@ -51,7 +49,6 @@ export function BirthdaysBody({
 }: BirthdaysBodyProps): JSX.Element | null {
     const [config, setConfig] = useState<BirthdayConfig>(initialConfig);
     const [isPending, startTransition] = useTransition();
-    const [activeTab, setActiveTab] = useState<"withYear" | "withoutYear">("withYear");
 
     const isDirty = !isDeepEqual(config, initialConfig);
     const isChannelMissing =
@@ -93,21 +90,6 @@ export function BirthdaysBody({
             };
         });
     }, []);
-
-    const currentMsg = activeTab === "withYear" ? config.messageWithYear : config.messageWithoutYear;
-
-    const handleMsgChange = useCallback((updated: GenericMessageConfig): void => {
-        const updatedLayout: MessageLayout = {
-            format: updated.format,
-            content: updated.content ?? "",
-            embed: updated.embed ?? {},
-        };
-
-        setConfig((prev) => ({
-            ...prev,
-            [activeTab === "withYear" ? "messageWithYear" : "messageWithoutYear"]: updatedLayout,
-        }));
-    }, [activeTab]);
 
     const handleSave = (): void => {
         const result = SaveBirthdayConfigSchema.safeParse(config);
@@ -212,23 +194,12 @@ export function BirthdaysBody({
                     />
 
                     <div className="space-y-3 pt-2">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <InputLabel className="mb-0">Birthday Messages</InputLabel>
-
-                            <SegmentedControl<"withYear" | "withoutYear">
-                                value={activeTab}
-                                options={[
-                                    { value: "withYear", label: "With Year Known" },
-                                    { value: "withoutYear", label: "Without Year" },
-                                ]}
-                                onChange={setActiveTab}
-                            />
-                        </div>
-
                         <MessageConfigEditor
-                            key={activeTab}
-                            config={currentMsg}
-                            onChange={handleMsgChange}
+                            config={config.message}
+                            onChange={(msg) => {
+                                setConfig((prev) =>
+                                    ({ ...prev, message: {...msg, content: msg.content ?? "", embed: msg.embed ?? {}} }));
+                            }}
                             embedTemplateConfig={BIRTHDAY_TEMPLATE_CONFIG}
                             enableToggle={false}
                             noChannels={true}

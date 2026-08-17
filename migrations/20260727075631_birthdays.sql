@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS user_birthdays
     user_id     BIGINT PRIMARY KEY,
     birth_month SMALLINT    NOT NULL CHECK (birth_month BETWEEN 1 AND 12),
     birth_day   SMALLINT    NOT NULL CHECK (birth_day BETWEEN 1 AND 31),
-    birth_year  SMALLINT             DEFAULT NULL CHECK (birth_year IS NULL OR (birth_year BETWEEN 1920 AND 2100)),
+    birth_year  INT                  DEFAULT NULL CHECK (birth_year IS NULL OR (birth_year BETWEEN 1920 AND 2100)),
     timezone    VARCHAR(64)          DEFAULT 'UTC',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS birthday_logs
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     guild_id   BIGINT      NOT NULL,
     user_id    BIGINT      NOT NULL,
-    year_sent  SMALLINT    NOT NULL,              -- e.g. 2026
+    year_sent  INT         NOT NULL,              -- e.g. 2026
     channel_id BIGINT      NOT NULL,
     message_id BIGINT               DEFAULT NULL, -- Useful if you want to delete/edit it later
     sent_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

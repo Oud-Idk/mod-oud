@@ -109,10 +109,19 @@ impl DiscordEmbed {
         self.title.as_deref().unwrap_or("").trim().is_empty()
             && self.description.as_deref().unwrap_or("").trim().is_empty()
             && self.color.is_none()
-            && self.thumbnail.as_ref().is_none_or(|t| t.url.trim().is_empty())
+            && self
+                .thumbnail
+                .as_ref()
+                .is_none_or(|t| t.url.trim().is_empty())
             && self.image.as_ref().is_none_or(|i| i.url.trim().is_empty())
-            && self.author.as_ref().is_none_or(|a| a.name.as_deref().unwrap_or("").trim().is_empty())
-            && self.footer.as_ref().is_none_or(|f| f.text.as_deref().unwrap_or("").trim().is_empty())
+            && self
+                .author
+                .as_ref()
+                .is_none_or(|a| a.name.as_deref().unwrap_or("").trim().is_empty())
+            && self
+                .footer
+                .as_ref()
+                .is_none_or(|f| f.text.as_deref().unwrap_or("").trim().is_empty())
     }
 
     /// Builds a serenity `CreateEmbed` using a custom placeholder replacement function.
@@ -121,7 +130,9 @@ impl DiscordEmbed {
         F: FnMut(&str) -> String,
     {
         if self.is_empty() {
-            anyhow::bail!("Cannot build Discord embed: embed has no title, description, or fields.");
+            anyhow::bail!(
+                "Cannot build Discord embed: embed has no title, description, or fields."
+            );
         }
 
         let mut embed = CreateEmbed::new();
@@ -245,7 +256,10 @@ where
 
 /// Like [`create_basic_embed`] but returns an HTTP-friendly error for the
 /// dashboard when the payload would render to an empty message or fails to compile.
-pub fn create_embed_for_web<T, F>(payload: &T, replace_fn: F) -> Result<CreateMessage, (StatusCode, String)>
+pub fn create_embed_for_web<T, F>(
+    payload: &T,
+    replace_fn: F,
+) -> Result<CreateMessage, (StatusCode, String)>
 where
     T: MessageGetter,
     F: Fn(&str) -> String,
@@ -265,4 +279,3 @@ where
         }
     }
 }
-

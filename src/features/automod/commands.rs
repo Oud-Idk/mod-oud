@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 
 use crate::core::config::settings::{get_settings, save_settings};
 use crate::core::config::state::{Context, Error};

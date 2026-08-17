@@ -34,8 +34,6 @@ export async function verifyGuildAccess(guildId: string): Promise<User> {
 
     const { mutualGuilds } = await getGuildLists(accessToken);
 
-    console.log(mutualGuilds);
-
     const hasAccess = mutualGuilds.some((guild) => guild.id === guildId);
     if (!hasAccess) {
         throw new Error("Forbidden: You do not have permission to manage this server or the bot is not present.");

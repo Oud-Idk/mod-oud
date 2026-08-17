@@ -116,10 +116,10 @@ pub async fn dispatch_events(
         }
 
         FullEvent::AutoModRuleCreate { rule } | FullEvent::AutoModRuleUpdate { rule } => {
-            automod::cache_automod_name(&data.core.redis, &rule.id, rule).await?;
+            automod::cache_automod_name(&data.core.redis, rule.id, rule).await?;
         }
         FullEvent::AutoModRuleDelete { rule } => {
-            automod::invalidate_rule_cache(&data.core.redis, &rule.id).await?;
+            automod::invalidate_rule_cache(&data.core.redis, rule.id).await?;
         }
 
         _ => {}

@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::settings::{GuildSettings, get_settings};
 use crate::features::leveling::calculation::{calculate_cumulative_xp, calculate_xp_needed};
 use crate::features::leveling::database::{get_user_level, update_level};
@@ -8,6 +8,7 @@ use serenity::all::{CreateAttachment, CreateEmbed, User};
 use std::sync::OnceLock;
 use tracing::{debug, trace};
 
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use anyhow::Context as _;
 use anyhow::Result;
@@ -18,7 +19,6 @@ use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{Options, Tree};
 use std::io::Cursor;
 use unit_prefix::NumberPrefix;
-use crate::constants::BRAND_COLOR;
 
 static RESVG_OPTIONS: OnceLock<Options<'static>> = OnceLock::new();
 
@@ -83,7 +83,7 @@ pub async fn view(
         &stats_key,
         &target_user.name,
     )
-        .await?;
+    .await?;
 
     trace!(
         target_id = target_id_u64,
@@ -114,8 +114,8 @@ pub async fn view(
         user_level.current_level,
         user_level.current_xp,
     )
-        .await?
-        .map_or("Not Available".to_string(), |r| r.to_string());
+    .await?
+    .map_or("Not Available".to_string(), |r| r.to_string());
 
     // 👇 FORMATTING APPLIED HERE FOR EMBED
     let formatted_xp = format_compact(user_level.current_xp as u64);
@@ -204,7 +204,7 @@ pub async fn card(
         &stats_key,
         &target_user.name,
     )
-        .await?;
+    .await?;
 
     let xp_needed = calculate_xp_needed(user_level.current_level);
 
@@ -215,8 +215,8 @@ pub async fn card(
         user_level.current_level,
         user_level.current_xp,
     )
-        .await?
-        .map_or(0, |r| r as u64);
+    .await?
+    .map_or(0, |r| r as u64);
 
     let level: u64 = user_level.current_level as u64;
     let xp: u64 = user_level.current_xp as u64;

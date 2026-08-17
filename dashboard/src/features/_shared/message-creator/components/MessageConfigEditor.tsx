@@ -9,6 +9,7 @@ import { PlaintextEditor } from "@/features/_shared/message-creator/components/P
 
 import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBuilder";
 import { DiscordChannel } from "@/features/_shared/channels.types";
+import { MessagePreview } from "@/features/_shared/message-creator/components/MessagePreview";
 
 interface MessageConfigEditorProps {
     config: GenericMessageConfig;
@@ -91,13 +92,16 @@ export function MessageConfigEditor({
                     />
 
                     {config.format === "TEXT" ? (
-                        <PlaintextEditor
-                            value={config.content ?? ""}
-                            placeholder={placeholderText}
-                            placeholderConfig={embedTemplateConfig}
-                            disabled={disabled}
-                            onChange={(val) => { onChange({ ...config, content: val }); }}
-                        />
+                        <div className="flex flex-row gap-8">
+                            <PlaintextEditor
+                                value={config.content ?? ""}
+                                placeholder={placeholderText}
+                                placeholderConfig={embedTemplateConfig}
+                                disabled={disabled}
+                                onChange={(val) => { onChange({ ...config, content: val }); }}
+                            />
+                            <MessagePreview config={embedTemplateConfig} plaintext={config.content ?? undefined}/>
+                        </div>
                     ) : (
                         <EmbedBuilder
                             placeholderConfig={embedTemplateConfig}

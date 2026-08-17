@@ -103,7 +103,7 @@ pub struct PbDuration {
 }
 
 /// The response payload returned by the Safe Browsing `urls:search` endpoint.
-#[derive(Clone, PartialEq, Message)]
+#[derive(Clone, PartialEq, Eq, Message)]
 pub struct SearchUrlsResponse {
     /// The list of identified threats for the queried URLs.
     #[prost(message, repeated, tag = "1")]

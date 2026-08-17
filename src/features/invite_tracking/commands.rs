@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
 use crate::features::invite_tracking;
 use crate::features::invite_tracking::database;

@@ -10,6 +10,9 @@ pub trait HasRoles {
 
     /// Returns `true` if the member possesses at least one of the target role IDs represented as raw `u64` integers.
     fn has_any_role_u64(&self, target_role_ids: &[u64]) -> bool;
+
+    /// Returns `true` if the member possesses at least one of the target role IDs represented as raw `i64` integers.
+    fn has_any_role_i64(&self, target_role_ids: &[i64]) -> bool;
 }
 
 impl HasRoles for Member {
@@ -31,6 +34,12 @@ impl HasRoles for Member {
             .iter()
             .any(|role_id| target_role_ids.contains(&role_id.get()))
     }
+
+    fn has_any_role_i64(&self, target_role_ids: &[i64]) -> bool {
+        self.roles
+            .iter()
+            .any(|role_id| target_role_ids.contains(&(role_id.get() as i64)))
+    }
 }
 
 impl HasRoles for PartialMember {
@@ -51,5 +60,11 @@ impl HasRoles for PartialMember {
         self.roles
             .iter()
             .any(|role_id| target_role_ids.contains(&role_id.get()))
+    }
+
+    fn has_any_role_i64(&self, target_role_ids: &[i64]) -> bool {
+        self.roles
+            .iter()
+            .any(|role_id| target_role_ids.contains(&(role_id.get() as i64)))
     }
 }

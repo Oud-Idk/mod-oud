@@ -117,7 +117,7 @@ async fn process_expired_reminders(
         let channel_id = serenity::ChannelId::new(record.channel_id as u64);
 
         async move {
-            let content_opt = match create_basic_embed(&record.message, std::string::ToString::to_string) {
+            let content_opt = match create_basic_embed(&record.message, ToString::to_string) {
                 Ok(c) => c,
                 Err(e) => {
                     error!(

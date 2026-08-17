@@ -1,4 +1,5 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::Context;
 use crate::features::media_only::cache::{
     delete_media_only_channel, get_channel_media, store_media_only_channel,
@@ -8,13 +9,12 @@ use crate::features::media_only::types::MediaOnlyChannel;
 use crate::shared::messages::send_ephemeral;
 use anyhow::Result;
 use serenity::all::{Channel, CreateEmbed, Mentionable};
-use crate::constants::BRAND_COLOR;
 
 /// Manage media-only channel enforcement for this server.
 #[poise::command(
     slash_command,
     guild_only,
-    subcommands("set", "disable", "info", "list", )
+    subcommands("set", "disable", "info", "list",)
 )]
 pub async fn media_only(_: Context<'_>) -> Result<()> {
     Ok(())
@@ -51,7 +51,7 @@ pub async fn set(
                 channel.mention()
             ),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
@@ -64,7 +64,7 @@ pub async fn set(
         &ctx,
         format!("Enforcing media-only mode on {}", channel.mention()),
     )
-        .await?;
+    .await?;
 
     Ok(())
 }
@@ -85,7 +85,7 @@ pub async fn disable(
             &ctx,
             format!("Disabled media-only mode for {}", channel.mention()),
         )
-            .await?;
+        .await?;
     } else {
         send_ephemeral(
             &ctx,
@@ -94,7 +94,7 @@ pub async fn disable(
                 channel.mention()
             ),
         )
-            .await?;
+        .await?;
     }
 
     Ok(())

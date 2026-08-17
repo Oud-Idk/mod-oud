@@ -67,8 +67,8 @@ pub async fn check_for_filter(
         .as_ref()
         .and_then(|f| f.global_settings.as_ref());
 
-    let should_apply = global_settings.map_or(true, |global_scope| {
-        should_apply_filter(global_scope, channel_id_u64, message.member.as_ref())
+    let should_apply = global_settings.is_none_or(|global_scope| {
+        should_apply_filter(global_scope, channel_id_u64, message.member.as_deref())
     });
 
     if !should_apply {

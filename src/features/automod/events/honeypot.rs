@@ -61,7 +61,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
 
     log_automod_event(
         &data.core.db,
-        &message,
+        message,
         "Honeypot",
         Some(&message.content),
         &["BAN"],

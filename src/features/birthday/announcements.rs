@@ -2,7 +2,11 @@ use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::features::birthday::placeholders::replace_birthday_placeholders;
 use crate::features::birthday::types::BirthdayMember;
 use crate::features::birthday::{BirthdayConfig, database};
-use serenity::all::{ChannelId, Context, CreateMessage, GuildId, RoleId};
+use crate::shared::embed::build_custom_message;
+use anyhow::{Context as _, Result, anyhow};
+use serenity::all::{ChannelId, Context, GuildId, RoleId};
+use serenity::model::channel::Message;
+use serenity::model::id::MessageId;
 use sqlx::PgPool;
 
 pub async fn send_birthday_message(
@@ -11,42 +15,45 @@ pub async fn send_birthday_message(
     celebrants: &[BirthdayMember],
     birthday_cfg: &BirthdayConfig,
     guild_id: u64,
-) -> Option<i64> {
-    let gctx = get_guild_ctx(GuildId::new(guild_id), &ctx.http)
-        .await
-        .ok()?;
+) -> Result<Message> {
+    let gctx = get_guild_ctx(GuildId::new(guild_id), &ctx.http).await?;
 
-    let has_birth_year = celebrants.iter().any(|c| c.birth_year.is_some());
-    let payload = if has_birth_year {
-        &birthday_cfg.message_with_year
-    } else {
-        &birthday_cfg.message_without_year
-    };
+    let msg = build_custom_message(
+        birthday_cfg.message.format,
+        &birthday_cfg.message.content,
+        &birthday_cfg.message.embed,
+        |t| replace_birthday_placeholders(t, &gctx, celebrants),
+    )?
+    .ok_or_else(|| anyhow!("Message is not valid"))?;
 
-    let raw_content = payload
-        .get("content")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let rendered_content = replace_birthday_placeholders(raw_content, &gctx, celebrants);
-
-    let create_msg = CreateMessage::new().content(rendered_content);
     channel_id
-        .send_message(&ctx.http, create_msg)
+        .send_message(&ctx.http, msg)
         .await
-        .ok()
-        .map(|msg| msg.id.get() as i64)
+        .context("Failed to send message")
+}
+
+pub struct BirthdayAnnouncement<'a> {
+    pub guild_id: u64,
+    pub channel_id: ChannelId,
+    pub sent_msg_id: Option<MessageId>,
+    pub celebrants: &'a [BirthdayMember],
+    pub current_year: i32,
 }
 
 pub async fn process_celebrant_roles(
     db: &PgPool,
     ctx: &Context,
-    celebrants: &[BirthdayMember],
     birthday_cfg: &BirthdayConfig,
-    guild_id: u64,
-    channel_id: ChannelId,
-    sent_msg_id: Option<i64>,
-    current_year: i32,
+    announcement: BirthdayAnnouncement<'_>,
 ) {
+    let BirthdayAnnouncement {
+        guild_id,
+        channel_id,
+        sent_msg_id,
+        celebrants,
+        current_year,
+    } = announcement;
+
     if celebrants.is_empty() {
         return;
     }
@@ -56,7 +63,7 @@ pub async fn process_celebrant_roles(
     let birthday_role_id = birthday_cfg.birthday_role_id.map(RoleId::new);
 
     for celebrant in celebrants {
-        let uid = celebrant.user_id.get() as i64;
+        let uid = celebrant.user_id.get();
 
         let _ =
             database::store_birthday_log(db, current_year, guild_id, channel_id, sent_msg_id, uid)

@@ -1,16 +1,16 @@
-#![allow(missing_docs)]
-mod rename;
+#![allow(missing_docs, clippy::unused_async)]
+mod block;
+mod delete;
+mod invite;
 mod kick;
 mod limit;
-mod delete;
-mod transfer;
 mod lock;
-mod unlock;
+mod rename;
+mod transfer;
 mod trust;
-mod untrust;
-mod block;
 mod unblock;
-mod invite;
+mod unlock;
+mod untrust;
 
 use crate::core::config::state::{Context, Error};
 use block::block;
@@ -31,18 +31,8 @@ use untrust::untrust;
     slash_command,
     guild_only,
     subcommands(
-        "rename",
-        "limit",
-        "lock",
-        "unlock",
-        "trust",
-        "untrust",
-        "block",
-        "unblock",
-        "kick",
-        "delete",
-        "transfer",
-        "invite",
+        "rename", "limit", "lock", "unlock", "trust", "untrust", "block", "unblock", "kick",
+        "delete", "transfer", "invite",
     )
 )]
 pub async fn voice(_: Context<'_>) -> Result<(), Error> {

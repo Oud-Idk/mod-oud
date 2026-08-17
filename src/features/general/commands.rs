@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
 use crate::core::setup::ShardManagerContainer;
 use fred::interfaces::ClientLike;
@@ -16,14 +16,16 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     let redis = &ctx.data().core.redis;
     let data = ctx.serenity_context().data.read().await;
 
-    let shard_manager = if let Some(v) = data.get::<ShardManagerContainer>() { v } else {
+    let shard_manager = if let Some(v) = data.get::<ShardManagerContainer>() {
+        v
+    } else {
         warn!("Failed to retrieve ShardManagerContainer from serenity context data");
         ctx.send(
             poise::CreateReply::default()
                 .content("Failed to retrieve shard manager")
                 .ephemeral(true),
         )
-            .await?;
+        .await?;
         return Ok(());
     };
 
@@ -75,7 +77,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
                 .content("Could not find shard runner.")
                 .ephemeral(true),
         )
-            .await?;
+        .await?;
     }
 
     Ok(())
@@ -97,7 +99,10 @@ async fn check_db_status(pool: &sqlx::PgPool) -> String {
 
     match db_query {
         Ok(_) => {
-            trace!(latency_ms = db_latency, "PostgreSQL database connection is healthy");
+            trace!(
+                latency_ms = db_latency,
+                "PostgreSQL database connection is healthy"
+            );
             format!("PostgreSQL connection is healthy (`SELECT 1` yields {db_latency:.2}ms).")
         }
         Err(err) => {
@@ -114,7 +119,10 @@ async fn check_redis_status(redis: &fred::clients::Client) -> String {
 
     match redis_ping {
         Ok(_) => {
-            trace!(latency_ms = redis_latency, "Redis cache connection is healthy");
+            trace!(
+                latency_ms = redis_latency,
+                "Redis cache connection is healthy"
+            );
             format!("Redis connection is healthy (`PING` yields {redis_latency:.2}ms).")
         }
         Err(err) => {

@@ -1,11 +1,9 @@
 /// Formats integers to ordinal strings (e.g. 21 -> "21st", 22 -> "22nd", 11 -> "11th")
 pub fn format_ordinal(n: i32) -> String {
     let suffix = match (n % 10, n % 100) {
-        (1, 11) => "th",
+        (1, 11) | (2, 12) | (3, 13) => "th",
         (1, _) => "st",
-        (2, 12) => "th",
         (2, _) => "nd",
-        (3, 13) => "th",
         (3, _) => "rd",
         _ => "th",
     };
@@ -13,6 +11,7 @@ pub fn format_ordinal(n: i32) -> String {
 }
 
 /// Joins a vector into a natural list: ["A"] -> "A", ["A", "B"] -> "A and B", ["A", "B", "C"] -> "A, B, and C"
+#[allow(clippy::doc_link_with_quotes)]
 pub fn format_natural_list(items: &[String]) -> String {
     match items.len() {
         0 => String::new(),

@@ -3,6 +3,7 @@ use crate::core::config::state::Error;
 use crate::features::custom_commands::payload::{pick_payload, send_payload};
 use crate::features::custom_commands::placeholders;
 use crate::features::custom_commands::types::{CommandAction, CooldownType, CustomCommand};
+use crate::shared::permissions::HasRoles;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
@@ -20,7 +21,7 @@ pub async fn handle_custom_command(
         return Ok(());
     }
 
-    let channel_id = msg.channel_id.get() as i64;
+    let channel_id = msg.channel_id.get().cast_signed();
     if !command.allowed_channels.is_empty() && !command.allowed_channels.contains(&channel_id) {
         return Ok(());
     }
@@ -29,12 +30,10 @@ pub async fn handle_custom_command(
     }
 
     if let Some(member) = &msg.member {
-        let user_roles: Vec<i64> = member.roles.iter().map(|r| r.get() as i64).collect();
-
-        if !command.allowed_roles.is_empty() && !user_roles.iter().any(|r| command.allowed_roles.contains(r)) {
+        if !command.allowed_roles.is_empty() && !member.has_any_role_i64(&command.allowed_roles) {
             return Ok(());
         }
-        if user_roles.iter().any(|r| command.ignored_roles.contains(r)) {
+        if member.has_any_role_i64(&command.ignored_roles) {
             return Ok(());
         }
     }
@@ -52,7 +51,15 @@ pub async fn handle_custom_command(
                 msg.reply(&ctx.http, "You are on cooldown!").await?;
                 return Ok(());
             }
-            let _: () = redis.set(&key, "1", Some(Expiration::EX(i64::from(command.cooldown_seconds))), None, false).await?;
+            let _: () = redis
+                .set(
+                    &key,
+                    "1",
+                    Some(Expiration::EX(i64::from(command.cooldown_seconds))),
+                    None,
+                    false,
+                )
+                .await?;
         }
     }
 
@@ -84,7 +91,7 @@ async fn execute_payload(
             send_payload(&ctx.http, cid, payload, |t| {
                 placeholders::replace_general_placeholders(t, msg, gctx, channel)
             })
-                .await?;
+            .await?;
         }
         CommandAction::RespondCurrentChannel {
             is_dm,
@@ -97,12 +104,12 @@ async fn execute_payload(
                 send_payload(&ctx.http, dm_channel.id, payload, |t| {
                     placeholders::replace_general_placeholders(t, msg, gctx, channel)
                 })
-                    .await?;
+                .await?;
             } else {
                 send_payload(&ctx.http, msg.channel_id, payload, |t| {
                     placeholders::replace_general_placeholders(t, msg, gctx, channel)
                 })
-                    .await?;
+                .await?;
             }
         }
         CommandAction::AddRole { role_id } => {

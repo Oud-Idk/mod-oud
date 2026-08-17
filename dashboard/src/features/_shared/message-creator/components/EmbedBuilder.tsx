@@ -3,7 +3,7 @@ import { DiscordEmbed, DiscordEmbedSchema, EmbedField, isEmbedEmpty } from "@/fe
 import React, { ReactNode, useMemo, JSX } from "react";
 import { PlaceholderList } from "@/features/_shared/message-creator/components/PlaceholderList";
 import { EmbedBuilderForm } from "@/features/_shared/message-creator/components/EmbedBuilderForm";
-import { EmbedPreview } from "@/features/_shared/message-creator/components/EmbedPreview";
+import { MessagePreview } from "@/features/_shared/message-creator/components/MessagePreview";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
 
 interface EmbedBuilderProps {
@@ -170,7 +170,6 @@ export default function EmbedBuilder({
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="flex flex-col space-y-4 pt-2">
-
                     {enablePlaceholderList && (placeholderConfig?.placeholders.length ?? 0) > 0 && (
                         <PlaceholderList config={placeholderConfig ?? config} />
                     )}
@@ -191,7 +190,7 @@ export default function EmbedBuilder({
                     {CustomPreview !== undefined && CustomPreview !== null ? (
                         <>{CustomPreview}</>
                     ) : (
-                        <EmbedPreview config={config} embed={embed} />
+                        <MessagePreview config={config} embed={embed} />
                     )}
                 </div>
             </div>

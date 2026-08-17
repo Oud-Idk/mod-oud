@@ -30,11 +30,10 @@ pub async fn get_custom_command_by_name(
         guild_id.cast_signed(),
         cmd_name
     )
-        .fetch_optional(pool)
-        .await?;
+    .fetch_optional(pool)
+    .await?;
 
-    cache::cache_command_to_redis(redis, &cache_key, &command).await;
+    cache::cache_command_to_redis(redis, &cache_key, command.as_ref()).await;
 
     Ok(command)
 }
-

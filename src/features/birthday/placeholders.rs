@@ -38,17 +38,10 @@ impl PlaceholderResolver for BirthdayResolver<'_> {
 
             // Bulleted List with Ordinal Ages (Ideal for Embed descriptions)
             "user.list" => {
-                let list: Vec<String> = self
+                let list: Vec<_> = self
                     .celebrants
                     .iter()
-                    .map(|m| {
-                        if let Some(year) = m.birth_year {
-                            let age = self.current_year - i32::from(year);
-                            format!("• <@{}> ({} Birthday!)", m.user_id, format::format_ordinal(age))
-                        } else {
-                            format!("• <@{}>", m.user_id)
-                        }
-                    })
+                    .map(|m| m.format_line(self.current_year))
                     .collect();
                 Some(list.join("\n"))
             }

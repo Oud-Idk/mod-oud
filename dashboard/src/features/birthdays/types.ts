@@ -15,9 +15,7 @@ export const BirthdayConfigSchema = z.object({
     timezone: z.string().default("UTC"),
     birthdayRoleId: z.string().nullish().default(null),
     requireYear: z.boolean().default(false),
-
-    messageWithYear: messageLayoutSchema.default(DEFAULT_BIRTHDAY_MESSAGE),
-    messageWithoutYear: messageLayoutSchema.default(DEFAULT_BIRTHDAY_MESSAGE),
+    message: messageLayoutSchema.default(DEFAULT_BIRTHDAY_MESSAGE),
 });
 
 export const SaveBirthdayConfigSchema = BirthdayConfigSchema.superRefine((data, ctx) => {

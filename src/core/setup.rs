@@ -122,6 +122,7 @@ pub fn setup<'a>(
             redis_client: &redis_client,
             subscriber_client: &subscriber_client,
             guild_configs_cache: &guild_configs_cache,
+            username_tx: &username_tx,
             ctx,
             active_tickets_cache: &active_tickets_cache,
             ticket_rx,
@@ -207,7 +208,7 @@ async fn hydrate_active_tickets_cache(redis_client: &Client) -> Cache<u64, ()> {
 
 /// Parameters needed to spin up all the background worker jobs.
 pub struct JobParams<'a> {
-    /// Database pool for PostgreSQL.
+    /// Database pool for `PostgreSQL`.
     pub db: &'a Pool<Postgres>,
 
     /// Primary Redis client for caching and pub/sub.
@@ -230,6 +231,9 @@ pub struct JobParams<'a> {
 
     /// Channel receiver for processing username updates.
     pub username_rx: mpsc::Receiver<UserUpdate>,
+
+    /// Channel transmitter for storing usernames.
+    pub username_tx: &'a mpsc::Sender<UserUpdate>,
 }
 
 /// Spawns background worker tasks for tickets, moderation, level flushing, reminders, and feature jobs.
@@ -243,6 +247,7 @@ pub fn start_jobs(params: JobParams) {
         active_tickets_cache,
         ticket_rx,
         username_rx,
+        username_tx,
     } = params;
 
     sync_tickets(redis_client, subscriber_client, active_tickets_cache);
@@ -276,6 +281,7 @@ pub fn start_jobs(params: JobParams) {
         db.clone(),
         redis_client.clone(),
         guild_configs_cache.clone(),
+        username_tx.clone(),
         ctx.clone(),
     );
 

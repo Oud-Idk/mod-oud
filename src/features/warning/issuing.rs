@@ -1,3 +1,4 @@
+use crate::constants::BRAND_COLOR;
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
@@ -19,7 +20,6 @@ use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, Http
 use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{debug, info, instrument};
-use crate::constants::BRAND_COLOR;
 
 /// Issues a warning to a user, sending a DM and logging the action.
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user_id, moderator_id = %moderator_id
@@ -116,7 +116,7 @@ pub async fn issue_warning_status_change(
         return Ok(None);
     };
 
-    let target_user_id = row.user_id as u64;
+    let target_user_id = row.user_id.cast_unsigned();
     let user_id = UserId::new(target_user_id);
     let reason = row
         .reason
@@ -128,10 +128,10 @@ pub async fn issue_warning_status_change(
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);
     let user = &member.user;
 
-    let (action_past_tense, action_type, color) = if set_active {
-        ("unpardoned", ActionType::Unpardon, 0xFF5757)
+    let (action_past_tense, action_type) = if set_active {
+        ("unpardoned", ActionType::Unpardon)
     } else {
-        ("pardoned", ActionType::Pardon, 0x2AB83C)
+        ("pardoned", ActionType::Pardon)
     };
 
     log_moderation_action(
@@ -143,7 +143,7 @@ pub async fn issue_warning_status_change(
         action_type,
         None,
     )
-        .await?;
+    .await?;
 
     let dm_settings_opt = if set_active {
         settings.moderation_dms.and_then(|m| m.unpardon_warn)
@@ -165,7 +165,7 @@ pub async fn issue_warning_status_change(
                 ))
                 .field("Warning Reason", &reason, false)
                 .field("Warning ID", id.to_string(), false)
-                .color(color);
+                .color(BRAND_COLOR);
 
             if let Some(url) = &gctx.icon_url {
                 embed = embed.thumbnail(url);

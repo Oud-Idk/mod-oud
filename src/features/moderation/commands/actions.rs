@@ -1,9 +1,11 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::ActionType;
 use crate::features::moderation::commands::helpers::parse_duration;
 use crate::features::moderation::database::log_moderation_action;
-use crate::features::moderation::issuing::{issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute};
+use crate::features::moderation::issuing::{
+    issue_ban, issue_kick, issue_mute, issue_softban, issue_unmute,
+};
 use crate::features::moderation::perms::pre_flight_check;
 use crate::shared::command_context::GuildMetadata;
 use crate::shared::messages::send_ephemeral;
@@ -21,8 +23,7 @@ pub async fn kick(
     let target_id = user.id.get();
     info!(
         caller_id = ctx.author().id.get(),
-        target_id,
-        "Invoked kick command"
+        target_id, "Invoked kick command"
     );
 
     ctx.defer_ephemeral().await?;
@@ -42,9 +43,14 @@ pub async fn kick(
         user.clone(),
         ctx.author().clone(),
         reason_str,
-    ).await?;
+    )
+    .await?;
 
-    send_ephemeral(&ctx, format!("{} is kicked for reason: \"{}\"", user.name, reason_str)).await?;
+    send_ephemeral(
+        &ctx,
+        format!("{} is kicked for reason: \"{}\"", user.name, reason_str),
+    )
+    .await?;
 
     info!(target_id, "User successfully kicked");
     Ok(())
@@ -85,7 +91,11 @@ pub async fn ban(
     let parsed_duration = match &duration {
         Some(ds) => {
             let Some(dur) = parse_duration(&ctx, ds).await? else {
-                debug!(target_id, duration_str = ds, "Ban duration parsing returned empty (aborted)");
+                debug!(
+                    target_id,
+                    duration_str = ds,
+                    "Ban duration parsing returned empty (aborted)"
+                );
                 return Ok(());
             };
             Some(dur)
@@ -105,17 +115,24 @@ pub async fn ban(
         dmd_time,
         parsed_duration,
         duration_label,
-    ).await?;
+    )
+    .await?;
 
     let conf_msg = format!(
         "**Successfully banned {}** {} (Reason: `{}`).",
         user.tag(),
-        duration.as_ref().map_or("permanently".to_string(), |d| format!("for {d}")),
+        duration
+            .as_ref()
+            .map_or("permanently".to_string(), |d| format!("for {d}")),
         reason_str
     );
     send_ephemeral(&ctx, conf_msg).await?;
 
-    info!(target_id, duration = duration_label, "User successfully banned");
+    info!(
+        target_id,
+        duration = duration_label,
+        "User successfully banned"
+    );
     Ok(())
 }
 
@@ -147,7 +164,10 @@ pub async fn purge(
         .messages(&ctx.serenity_context().http, builder)
         .await?;
 
-    trace!(fetched_count = messages.len(), "Retrieved messages from channel for purging");
+    trace!(
+        fetched_count = messages.len(),
+        "Retrieved messages from channel for purging"
+    );
     let message_ids: Vec<MessageId> = get_to_be_deleted_message_ids(&messages);
 
     if message_ids.is_empty() {
@@ -208,11 +228,17 @@ pub async fn mute(
             duration_secs = dur.as_secs(),
             "Mute aborted: duration lies outside Discord bounds (60s - 28d)"
         );
-        send_ephemeral(&ctx, "Discord timeouts cannot exceed 28 days or fall short of 60 seconds.").await?;
+        send_ephemeral(
+            &ctx,
+            "Discord timeouts cannot exceed 28 days or fall short of 60 seconds.",
+        )
+        .await?;
         return Ok(());
     }
 
-    let future_unix = (SystemTime::now() + dur).duration_since(UNIX_EPOCH)?.as_secs() as i64;
+    let future_unix = (SystemTime::now() + dur)
+        .duration_since(UNIX_EPOCH)?
+        .as_secs() as i64;
     let timestamp = serenity::all::Timestamp::from_unix_timestamp(future_unix)?;
 
     issue_mute(
@@ -226,12 +252,17 @@ pub async fn mute(
         reason_str,
         &dur,
         timestamp,
-    ).await?;
+    )
+    .await?;
 
     send_ephemeral(
         &ctx,
-        format!("**{}** has been muted for {} (Reason: `{}`)", member.user.name, duration, reason_str),
-    ).await?;
+        format!(
+            "**{}** has been muted for {} (Reason: `{}`)",
+            member.user.name, duration, reason_str
+        ),
+    )
+    .await?;
 
     info!(target_id, duration = %duration, "User successfully muted");
     Ok(())
@@ -250,8 +281,7 @@ pub async fn unmute(
     let target_id = member.user.id.get();
     info!(
         caller_id = ctx.author().id.get(),
-        target_id,
-        "Invoked unmute command"
+        target_id, "Invoked unmute command"
     );
 
     ctx.defer_ephemeral().await?;
@@ -268,7 +298,8 @@ pub async fn unmute(
                 "You cannot unmute **{}** as that member is not muted in the first place.",
                 member.user.name
             ),
-        ).await?;
+        )
+        .await?;
         return Ok(());
     }
 
@@ -282,9 +313,14 @@ pub async fn unmute(
         meta.id,
         member.user.clone(),
         ctx.author().clone(),
-    ).await?;
+    )
+    .await?;
 
-    send_ephemeral(&ctx, format!("**Successfully unmuted {}**.", member.user.name)).await?;
+    send_ephemeral(
+        &ctx,
+        format!("**Successfully unmuted {}**.", member.user.name),
+    )
+    .await?;
 
     info!(target_id, "User successfully unmuted");
     Ok(())
@@ -304,9 +340,7 @@ pub async fn softban(
     let target_id = member.user.id.get();
     info!(
         caller_id = ctx.author().id.get(),
-        target_id,
-        dmd,
-        "Invoked softban command"
+        target_id, dmd, "Invoked softban command"
     );
 
     ctx.defer_ephemeral().await?;
@@ -328,12 +362,14 @@ pub async fn softban(
         ctx.author().clone(),
         reason_str,
         dmd,
-    ).await?;
+    )
+    .await?;
 
     send_ephemeral(
         &ctx,
         format!("**Successfully soft-banned {}**", member.user.name),
-    ).await?;
+    )
+    .await?;
 
     info!(target_id, "User successfully soft-banned");
     Ok(())
@@ -349,8 +385,7 @@ pub async fn unban(
     let target_id = user.id.get();
     info!(
         caller_id = ctx.author().id.get(),
-        target_id,
-        "Invoked unban command"
+        target_id, "Invoked unban command"
     );
 
     ctx.defer_ephemeral().await?;
@@ -361,15 +396,22 @@ pub async fn unban(
     match unban_result {
         Ok(()) => {
             log_moderation_action(
-                &ctx.data().core.db, meta.id, Some(&user), ctx.author(), Some(&reason_str), ActionType::Unban, None,
-            ).await?;
+                &ctx.data().core.db,
+                meta.id,
+                Some(&user),
+                ctx.author(),
+                Some(&reason_str),
+                ActionType::Unban,
+                None,
+            )
+            .await?;
 
             ctx.say(format!(
                 "Successfully unbanned **{}** (ID: `{}`).",
                 user.tag(),
                 user.id
             ))
-                .await?;
+            .await?;
 
             info!(target_id, "User successfully unbanned");
         }

@@ -4,10 +4,11 @@ use crate::features::bad_words::rules::should_be_skipped_ruleset;
 use crate::features::bad_words::types::{BadWordRuleset, CompiledRuleset};
 use crate::features::bad_words::{cache, database, keys};
 use fred::interfaces::KeysInterface;
+use futures::FutureExt as _;
 use serenity::all::Message;
 use std::borrow::Cow;
 use std::sync::Arc;
-use tracing::{debug, instrument, trace};
+use tracing::{debug, trace};
 
 /// Lazy container so we don't lowercase or allocate strings unless a rule needs it
 struct MessageContext<'a> {
@@ -16,7 +17,7 @@ struct MessageContext<'a> {
 }
 
 impl<'a> MessageContext<'a> {
-    fn new(original: &'a str) -> Self {
+    const fn new(original: &'a str) -> Self {
         Self {
             original,
             lower: None,
@@ -91,7 +92,13 @@ fn block_verdict<'a>(ruleset: &'a CompiledRuleset, trigger: &str) -> FilterVerdi
 }
 
 /// Fetch active rulesets using Moka L1 -> Redis L2 -> Postgres L3
-#[instrument(skip(data), fields(guild_id = guild_id))]
+///
+/// # Errors
+/// Returns an [`Error`] if:
+/// - A cache miss occurs (or Redis contains invalid/corrupted data) and querying `PostgreSQL` fails.
+/// - The concurrent cache loader task fails, panics, or gets cancelled across threads.
+///
+/// Transient Redis read/write failures do not return an error directly.
 pub async fn get_active_bad_word_rulesets(
     data: &BotData,
     guild_id: u64,
@@ -124,12 +131,13 @@ pub async fn get_active_bad_word_rulesets(
             // Explicitly annotate Error type for the async block
             Ok::<Arc<Vec<CompiledRuleset>>, Error>(Arc::new(compiled))
         })
+        .boxed()
         .await
         .map_err(|arc_err| {
             // Unwraps the inner Error or formats it if shared across threads
             match Arc::try_unwrap(arc_err) {
                 Ok(err) => err,
-                Err(arc) => anyhow::anyhow!("{arc}").into(),
+                Err(arc) => anyhow::anyhow!("{arc}"),
             }
         })
 }

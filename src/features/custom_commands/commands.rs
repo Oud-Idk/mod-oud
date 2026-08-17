@@ -1,9 +1,9 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
+use crate::constants::BRAND_COLOR;
+use crate::core::config::state::{Context, Error};
 use poise::CreateReply;
 use serenity::all::CreateEmbed;
 use tracing::error;
-use crate::constants::BRAND_COLOR;
-use crate::core::config::state::{Context, Error};
 
 /// List all custom commands available in this server
 #[poise::command(slash_command, guild_only)]
@@ -26,8 +26,8 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
         "#,
         guild_id.cast_signed()
     )
-        .fetch_all(pool)
-        .await
+    .fetch_all(pool)
+    .await
     {
         Ok(cmds) => cmds,
         Err(e) => {

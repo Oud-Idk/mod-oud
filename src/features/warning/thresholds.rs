@@ -1,5 +1,5 @@
 use crate::core::config::state::Error;
-use crate::features::automod::insert_automod_row;
+use crate::features::automod::{AutomodEntryRow, insert_automod_row};
 use crate::features::warning::types::{WarnAction, WarnThreshold};
 use serenity::all::{Http, Member, RoleId, Timestamp};
 use sqlx::PgPool;
@@ -13,7 +13,11 @@ pub async fn apply_threshold_actions(
     member: &mut Member,
     thresholds: &[&WarnThreshold],
 ) -> Result<(), Error> {
+    let mut actions = Vec::new();
+    let mut warn_count = 0;
+
     for threshold in thresholds {
+        warn_count = threshold.warn_count;
         for action in &threshold.action_type {
             match action {
                 WarnAction::Ban => {
@@ -21,14 +25,14 @@ pub async fn apply_threshold_actions(
                     member
                         .ban_with_reason(http, 7, "Reached warning threshold")
                         .await?;
-                    insert_threshold_automod_log(db, member, threshold, "BAN").await?;
+                    actions.push("BAN");
                 }
                 WarnAction::Kick => {
                     debug!("Executing auto-kick");
                     member
                         .kick_with_reason(http, "Reached warning threshold")
                         .await?;
-                    insert_threshold_automod_log(db, member, threshold, "KICK").await?;
+                    actions.push("KICK");
                 }
                 WarnAction::Timeout => {
                     if let Some(secs) = threshold.duration {
@@ -41,16 +45,18 @@ pub async fn apply_threshold_actions(
                         builder = builder.disable_communication_until(until.to_string());
                         member.edit(http, builder).await?;
                     }
-                    insert_threshold_automod_log(db, member, threshold, "MUTE").await?;
+                    actions.push("MUTE");
                 }
                 WarnAction::RoleAdd => {
                     if let Some(ref roles) = threshold.roles_to_add {
                         for role_id in roles {
                             debug!(role_id, "Adding role from threshold");
-                            member.add_role(http, RoleId::new(*role_id as u64)).await?;
+                            member
+                                .add_role(http, RoleId::new((*role_id).cast_unsigned()))
+                                .await?;
                         }
                     }
-                    insert_threshold_automod_log(db, member, threshold, "ROLE_ADD").await?;
+                    actions.push("ROLE_ADD");
                 }
                 WarnAction::RoleRemove => {
                     if let Some(ref roles) = threshold.roles_to_remove {
@@ -61,17 +67,21 @@ pub async fn apply_threshold_actions(
                                 .await?;
                         }
                     }
-                    insert_threshold_automod_log(db, member, threshold, "ROLE_REMOVE").await?;
+                    actions.push("ROLE_REMOVE");
                 }
                 WarnAction::RoleRemoveAll => {
                     debug!("Removing all roles from member");
                     for role in &member.roles {
                         member.remove_role(http, *role).await?;
                     }
-                    insert_threshold_automod_log(db, member, threshold, "ROLE_REMOVE_ALL").await?;
+                    actions.push("ROLE_REMOVE_ALL");
                 }
             }
         }
+    }
+
+    if warn_count > 0 {
+        insert_threshold_automod_log(db, member, warn_count, &actions).await?;
     }
     Ok(())
 }
@@ -79,21 +89,22 @@ pub async fn apply_threshold_actions(
 async fn insert_threshold_automod_log(
     db: &PgPool,
     member: &mut Member,
-    threshold: &WarnThreshold,
-    name: &str,
+    warn_count: i32,
+    actions_taken: &[&str],
 ) -> Result<(), Error> {
     debug("Inserting automod-log for threshold");
-    insert_automod_row(
-        db,
-        member.guild_id.get(),
-        member.user.id.get(),
-        None,
-        None,
-        &format!("Warn Threshold: {}", threshold.warn_count),
-        None,
-        None,
-        &[name],
-    )
-    .await?;
+
+    let entry = AutomodEntryRow {
+        guild_id: member.guild_id.get(),
+        user_id: member.user.id.get(),
+        channel_id: None,
+        message_id: None,
+        rule_name: &format!("Warn Threshold: {}", warn_count),
+        trigger_content: None,
+        original_content: None,
+        actions_taken,
+    };
+
+    insert_automod_row(db, entry).await?;
     Ok(())
 }

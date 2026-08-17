@@ -1,9 +1,9 @@
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::birthday::format::format_ordinal;
 use crate::features::birthday::types::FullUserBirthdayRecord;
 use crate::shared::pagination::paginate;
 use chrono::{Datelike, Utc};
-use crate::constants::BRAND_COLOR;
 
 const MONTH_NAMES: [&str; 12] = [
     "January",
@@ -22,16 +22,17 @@ const MONTH_NAMES: [&str; 12] = [
 
 fn format_birthday_line(b: &FullUserBirthdayRecord) -> String {
     let month_name = MONTH_NAMES
-        .get((b.birth_month - 1) as usize)
-        .unwrap_or(&"Unknown");
+        .get(
+            usize::try_from(b.birth_month - 1)
+                .unwrap_or_else(|_| panic!("Postgres lied. Month is: {}", b.birth_month)),
+        )
+        .unwrap_or_else(|| panic!("Postgres lied. Month is: {}", b.birth_month));
     let current_year = Utc::now().year();
 
-    let age_str = if let Some(year) = b.birth_year {
-        let age = current_year - i32::from(year);
+    let age_str = b.birth_year.map_or_else(String::new, |year| {
+        let age = current_year - year;
         format!(" ({})", format_ordinal(age))
-    } else {
-        String::new()
-    };
+    });
 
     format!(
         "• <@{}> — **{} {}**{}\n",
@@ -66,7 +67,7 @@ pub async fn paginate_birthdays(
                 total_pages
             )))
     })
-        .await?;
+    .await?;
 
     Ok(())
 }

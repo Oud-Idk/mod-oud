@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::{ActionType, lockdown, log_moderation_action};
 use crate::shared::command_context::GuildMetadata;

@@ -1,6 +1,6 @@
 use serenity::all::RuleId;
 
-pub fn automod_rule_key(rule_id: &RuleId) -> String {
+pub fn automod_rule_key(rule_id: RuleId) -> String {
     format!("automod_rule:{}", rule_id.get())
 }
 

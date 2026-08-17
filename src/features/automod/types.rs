@@ -179,6 +179,7 @@ pub enum FilterVerdict<'a> {
 
 impl FilterVerdict<'_> {
     /// Returns the original verdict if it is not [`FilterVerdict::Pass`], otherwise computes and returns `f()`.
+    #[must_use]
     pub fn or_else<F>(self, f: F) -> Self
     where
         F: FnOnce() -> Self,
@@ -360,7 +361,7 @@ pub struct BaseRule {
 
     /// The duration in seconds for timeouts, if applicable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub timeout_duration_seconds: Option<u64>,
+    pub timeout_duration_seconds: Option<i32>,
 
     /// The scope defining which roles and channels this rule applies to.
     pub scope: RuleScope,

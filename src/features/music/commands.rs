@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::Context;
 use crate::features::music::actor::GuildCommand;
@@ -38,21 +38,32 @@ impl<T> PreparedCommand<Result<T>> {
     }
 }
 
-async fn prepare_command<T>(ctx: &Context<'_>, require_vc: bool) -> Result<Option<PreparedCommand<T>>> {
+async fn prepare_command<T>(
+    ctx: &Context<'_>,
+    require_vc: bool,
+) -> Result<Option<PreparedCommand<T>>> {
     ctx.defer().await?;
-    let Some(guild_id) = ctx.guild_id() else { return Ok(None) };
+    let Some(guild_id) = ctx.guild_id() else {
+        return Ok(None);
+    };
 
     let manager = songbird::get(ctx.serenity_context())
         .await
         .context("Failed to get song manager")?;
     let reqwest_client = ctx.data().core.reqwest_client.clone();
 
-    let actor_tx = ctx.data().music_state
+    let actor_tx = ctx
+        .data()
+        .music_state
         .get_or_spawn_actor(guild_id, manager, reqwest_client)
         .await;
 
     let vc_channel_id = if require_vc {
-        if let Some(channel_id) = get_user_vc_in_guild(ctx.data(), guild_id, ctx.author().id).await? { Some(channel_id) } else {
+        if let Some(channel_id) =
+            get_user_vc_in_guild(ctx.data(), guild_id, ctx.author().id).await?
+        {
+            Some(channel_id)
+        } else {
             reply(ctx, "You are not in any voice channels!").await?;
             return Ok(None);
         }
@@ -85,8 +96,13 @@ fn track_embed(author: &User, title: String, thumbnail: Option<String>) -> Creat
     guild_only,
     subcommands(
         "play",
-        "prev", "pause", "resume", "next",
-        "stop", "seek", "restart",
+        "prev",
+        "pause",
+        "resume",
+        "next",
+        "stop",
+        "seek",
+        "restart",
         "nowplaying",
         "go_to_channel",
         "queue",
@@ -98,22 +114,21 @@ pub async fn music(ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
-#[poise::command(slash_command, guild_only, subcommands(
-    "add", "list", "clear", "remove", "shuffle", "goto"
-))]
+#[poise::command(
+    slash_command,
+    guild_only,
+    subcommands("add", "list", "clear", "remove", "shuffle", "goto")
+)]
 pub async fn queue(ctx: Context<'_>) -> Result<()> {
     debug!(author = %ctx.author().name, "Subcommand group /music queue invoked");
     Ok(())
 }
 
-#[poise::command(slash_command, guild_only, subcommands(
-    "history_list", "history_goto"
-))]
+#[poise::command(slash_command, guild_only, subcommands("history_list", "history_goto"))]
 pub async fn history(ctx: Context<'_>) -> Result<()> {
     debug!(author = %ctx.author().name, "Subcommand group /music history invoked");
     Ok(())
 }
-
 
 /// Instantly overrides the currently playing song without clearing the queue.
 #[poise::command(slash_command, guild_only)]
@@ -121,16 +136,20 @@ pub async fn play(
     ctx: Context<'_>,
     #[description = "YouTube/Spotify URL or search query"] query: String,
 ) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
-    let outcome = p.dispatch(|respond| GuildCommand::Play {
-        query,
-        vc_channel_id,
-        requested_by_name: ctx.author().name.clone(),
-        requested_by_id: ctx.author().id.get(),
-        respond,
-    }).await?;
+    let outcome = p
+        .dispatch(|respond| GuildCommand::Play {
+            query,
+            vc_channel_id,
+            requested_by_name: ctx.author().name.clone(),
+            requested_by_id: ctx.author().id.get(),
+            respond,
+        })
+        .await?;
 
     match outcome {
         PlayOutcome::Single(info) => {
@@ -138,17 +157,22 @@ pub async fn play(
                 ctx.author(),
                 format!("Playing {}", info.title),
                 info.thumbnail,
-            ))).await?;
+            )))
+            .await?;
         }
         PlayOutcome::Playlist { first_track, count } => {
             ctx.send(CreateReply::default().embed(track_embed(
                 ctx.author(),
-                format!("Playing {} (and queued {} remaining playlist tracks)", first_track.title, count - 1),
+                format!(
+                    "Playing {} (and queued {} remaining playlist tracks)",
+                    first_track.title,
+                    count - 1
+                ),
                 first_track.thumbnail,
-            ))).await?;
+            )))
+            .await?;
         }
     }
-
 
     Ok(())
 }
@@ -161,14 +185,21 @@ pub async fn go_to_channel(
     #[channel_types("Voice")]
     channel: serenity::all::GuildChannel,
 ) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, false).await? else {
+        return Ok(());
+    };
 
     p.dispatch(|respond| GuildCommand::GoToChannel {
         vc_channel_id: channel.id,
         respond,
-    }).await?;
+    })
+    .await?;
 
-    reply(&ctx, format!("Moved the music bot to **{}**.", channel.name)).await?;
+    reply(
+        &ctx,
+        format!("Moved the music bot to **{}**.", channel.name),
+    )
+    .await?;
 
     Ok(())
 }
@@ -176,10 +207,18 @@ pub async fn go_to_channel(
 /// Restarts the currently playing track from the beginning.
 #[poise::command(slash_command, guild_only)]
 pub async fn restart(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
 
-    let info = p.dispatch(|respond| GuildCommand::Restart { respond }).await?;
-    reply(&ctx, format!("Restarted **{}** from the beginning.", info.title)).await?;
+    let info = p
+        .dispatch(|respond| GuildCommand::Restart { respond })
+        .await?;
+    reply(
+        &ctx,
+        format!("Restarted **{}** from the beginning.", info.title),
+    )
+    .await?;
 
     Ok(())
 }
@@ -187,7 +226,9 @@ pub async fn restart(ctx: Context<'_>) -> Result<()> {
 /// Stops the current player and leaves
 #[poise::command(slash_command, guild_only)]
 pub async fn stop(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
 
     p.dispatch(|respond| GuildCommand::Stop { respond }).await?;
     reply(&ctx, "Stopped current track.").await?;
@@ -198,9 +239,12 @@ pub async fn stop(ctx: Context<'_>) -> Result<()> {
 /// Pauses the current track
 #[poise::command(slash_command, guild_only)]
 pub async fn pause(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
 
-    p.dispatch(|respond| GuildCommand::Pause { respond }).await?;
+    p.dispatch(|respond| GuildCommand::Pause { respond })
+        .await?;
     reply(&ctx, "Paused current track.").await?;
 
     Ok(())
@@ -209,9 +253,12 @@ pub async fn pause(ctx: Context<'_>) -> Result<()> {
 /// Resumes playback
 #[poise::command(slash_command, guild_only)]
 pub async fn resume(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
 
-    p.dispatch(|respond| GuildCommand::Resume { respond }).await?;
+    p.dispatch(|respond| GuildCommand::Resume { respond })
+        .await?;
     reply(&ctx, "Resumed current track.").await?;
 
     Ok(())
@@ -223,10 +270,24 @@ pub async fn seek(
     ctx: Context<'_>,
     #[description = "Time in MM:SS or offset in +N"] time: String,
 ) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
 
-    let duration = p.dispatch(|respond| GuildCommand::Seek { input: time, respond }).await?;
-    reply(&ctx, format!("Seeked current track to {}.", format_duration(Some(duration)))).await?;
+    let duration = p
+        .dispatch(|respond| GuildCommand::Seek {
+            input: time,
+            respond,
+        })
+        .await?;
+    reply(
+        &ctx,
+        format!(
+            "Seeked current track to {}.",
+            format_duration(Some(duration))
+        ),
+    )
+    .await?;
 
     Ok(())
 }
@@ -234,7 +295,9 @@ pub async fn seek(
 /// Skips the current track and plays the next one in the queue.
 #[poise::command(slash_command, guild_only)]
 pub async fn next(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
 
     let next_title = p.dispatch(|respond| GuildCommand::Skip { respond }).await?;
 
@@ -245,7 +308,6 @@ pub async fn next(ctx: Context<'_>) -> Result<()> {
 
     Ok(())
 }
-
 
 fn make_progress_bar(position_sec: f64, duration_sec: Option<u64>) -> String {
     let Some(total) = duration_sec.filter(|&d| d > 0) else {
@@ -271,14 +333,23 @@ fn make_progress_bar(position_sec: f64, duration_sec: Option<u64>) -> String {
 /// Shows the currently playing track.
 #[poise::command(slash_command, guild_only)]
 pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, false).await? else {
+        return Ok(());
+    };
 
-    let res = p.dispatch(|respond| GuildCommand::NowPlaying { respond }).await?;
+    let res = p
+        .dispatch(|respond| GuildCommand::NowPlaying { respond })
+        .await?;
 
     match res {
         Some(np) => {
             let track = np.track;
-            let title = track.metadata.title.as_deref().unwrap_or("Untitled").to_string();
+            let title = track
+                .metadata
+                .title
+                .as_deref()
+                .unwrap_or("Untitled")
+                .to_string();
             let duration_fmt = format_duration(track.metadata.duration);
             let position_fmt = format_duration(Some(Duration::from_secs_f64(np.position_sec)));
             let duration_secs = track.metadata.duration.map(|d| d.as_secs());
@@ -288,7 +359,11 @@ pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
                 _ => format!("**{title}**"),
             };
 
-            let status_str = if np.is_paused { "⏸️ Paused" } else { "▶️ Playing" };
+            let status_str = if np.is_paused {
+                "⏸️ Paused"
+            } else {
+                "▶️ Playing"
+            };
             let bar = make_progress_bar(np.position_sec, duration_secs);
 
             let description = format!(
@@ -296,14 +371,20 @@ pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
                 title_fmt, bar, position_fmt, duration_fmt, status_str, track.requested_by
             );
 
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::new()
-                    .author(CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face()))
-                    .title("Now Playing")
-                    .description(description)
-                    .thumbnail(track.metadata.thumbnail.unwrap_or_default())
-                    .color(BRAND_COLOR),
-            )).await?;
+            ctx.send(
+                CreateReply::default().embed(
+                    CreateEmbed::new()
+                        .author(
+                            CreateEmbedAuthor::new(&ctx.author().name)
+                                .icon_url(ctx.author().face()),
+                        )
+                        .title("Now Playing")
+                        .description(description)
+                        .thumbnail(track.metadata.thumbnail.unwrap_or_default())
+                        .color(BRAND_COLOR),
+                ),
+            )
+            .await?;
         }
         None => {
             reply(&ctx, "Nothing is currently playing.").await?;
@@ -316,10 +397,17 @@ pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
 /// Goes back to the previously played track.
 #[poise::command(slash_command, guild_only)]
 pub async fn prev(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
-    let info = p.dispatch(|respond| GuildCommand::Prev { vc_channel_id, respond }).await?;
+    let info = p
+        .dispatch(|respond| GuildCommand::Prev {
+            vc_channel_id,
+            respond,
+        })
+        .await?;
     reply(&ctx, format!("Playing previous track: **{}**.", info.title)).await?;
 
     Ok(())
@@ -331,15 +419,19 @@ pub async fn add(
     ctx: Context<'_>,
     #[description = "YouTube/Spotify URL or search query"] query: String,
 ) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
-    let outcome = p.dispatch(|respond| GuildCommand::QueueAdd {
-        query,
-        vc_channel_id,
-        requested_by: ctx.author().clone(),
-        respond,
-    }).await?;
+    let outcome = p
+        .dispatch(|respond| GuildCommand::QueueAdd {
+            query,
+            vc_channel_id,
+            requested_by: ctx.author().clone(),
+            respond,
+        })
+        .await?;
 
     match outcome {
         QueueAddOutcome::Played(info) => {
@@ -347,21 +439,24 @@ pub async fn add(
                 ctx.author(),
                 format!("Playing {}", info.title),
                 info.thumbnail,
-            ))).await?;
+            )))
+            .await?;
         }
         QueueAddOutcome::Queued(info) => {
             ctx.send(CreateReply::default().embed(track_embed(
                 ctx.author(),
                 format!("Queued {}", info.title),
                 info.thumbnail,
-            ))).await?;
+            )))
+            .await?;
         }
         QueueAddOutcome::PlaylistQueued { count, first_track } => {
             ctx.send(CreateReply::default().embed(track_embed(
                 ctx.author(),
                 format!("Queued {count} tracks from Spotify Playlist!"),
                 first_track.thumbnail,
-            ))).await?;
+            )))
+            .await?;
         }
     }
 
@@ -371,9 +466,13 @@ pub async fn add(
 /// Lists all currently queued tracks with interactive pagination buttons!
 #[poise::command(slash_command, guild_only)]
 pub async fn list(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, false).await? else {
+        return Ok(());
+    };
 
-    let snapshot = p.dispatch(|respond| GuildCommand::QueueList { respond }).await?;
+    let snapshot = p
+        .dispatch(|respond| GuildCommand::QueueList { respond })
+        .await?;
 
     if snapshot.current_meta.is_none() && snapshot.queue.is_empty() {
         reply(&ctx, "The queue is currently empty and nothing is playing.").await?;
@@ -435,7 +534,8 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
             .footer(CreateEmbedFooter::new(format!(
                 "Total queued tracks: {total_tracks} | Page {page}/{total_pages}"
             )))
-    }).await?;
+    })
+    .await?;
 
     Ok(())
 }
@@ -443,9 +543,13 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
 /// Clears all tracks from the queue.
 #[poise::command(slash_command, guild_only)]
 pub async fn clear(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, false).await? else {
+        return Ok(());
+    };
 
-    let count = p.dispatch(|respond| GuildCommand::QueueClear { respond }).await?;
+    let count = p
+        .dispatch(|respond| GuildCommand::QueueClear { respond })
+        .await?;
 
     if count == 0 {
         reply(&ctx, "The queue is already empty.").await?;
@@ -462,10 +566,19 @@ pub async fn remove(
     ctx: Context<'_>,
     #[description = "Track position in queue to remove (1-based index)"] position: usize,
 ) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, false).await? else {
+        return Ok(());
+    };
 
-    let removed = p.dispatch(|respond| GuildCommand::QueueRemove { position, respond }).await?;
-    let title = removed.metadata.title.as_deref().unwrap_or("untitled").to_string();
+    let removed = p
+        .dispatch(|respond| GuildCommand::QueueRemove { position, respond })
+        .await?;
+    let title = removed
+        .metadata
+        .title
+        .as_deref()
+        .unwrap_or("untitled")
+        .to_string();
 
     reply(&ctx, format!("Removed **{title}** from the queue.")).await?;
     Ok(())
@@ -474,9 +587,13 @@ pub async fn remove(
 /// Shuffles the order of all queued tracks (the current track is untouched).
 #[poise::command(slash_command, guild_only)]
 pub async fn shuffle(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, false).await? else {
+        return Ok(());
+    };
 
-    let count = p.dispatch(|respond| GuildCommand::QueueShuffle { respond }).await?;
+    let count = p
+        .dispatch(|respond| GuildCommand::QueueShuffle { respond })
+        .await?;
 
     if count == 0 {
         reply(&ctx, "The queue is empty, there's nothing to shuffle.").await?;
@@ -493,9 +610,13 @@ pub async fn goto(
     ctx: Context<'_>,
     #[description = "Track position in queue to play (1-based index)"] position: usize,
 ) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
 
-    let info = p.dispatch(|respond| GuildCommand::QueueJump { position, respond }).await?;
+    let info = p
+        .dispatch(|respond| GuildCommand::QueueJump { position, respond })
+        .await?;
     reply(&ctx, format!("Jumped to **{}**.", info.title)).await?;
 
     Ok(())
@@ -504,9 +625,13 @@ pub async fn goto(
 /// Lists previously played tracks, most recent first.
 #[poise::command(slash_command, guild_only, rename = "list")]
 pub async fn history_list(ctx: Context<'_>) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, false).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, false).await? else {
+        return Ok(());
+    };
 
-    let snapshot = p.dispatch(|respond| GuildCommand::HistoryList { respond }).await?;
+    let snapshot = p
+        .dispatch(|respond| GuildCommand::HistoryList { respond })
+        .await?;
 
     if snapshot.is_empty() {
         reply(&ctx, "No tracks in the play history yet.").await?;
@@ -547,7 +672,8 @@ pub async fn history_list(ctx: Context<'_>) -> Result<()> {
             .footer(CreateEmbedFooter::new(format!(
                 "Most recent first | Page {page}/{total_pages}"
             )))
-    }).await?;
+    })
+    .await?;
 
     Ok(())
 }
@@ -558,9 +684,13 @@ pub async fn history_goto(
     ctx: Context<'_>,
     #[description = "Track position in history to play (1 = most recently played)"] position: usize,
 ) -> Result<()> {
-    let Some(p) = prepare_command(&ctx, true).await? else { return Ok(()) };
+    let Some(p) = prepare_command(&ctx, true).await? else {
+        return Ok(());
+    };
 
-    let info = p.dispatch(|respond| GuildCommand::HistoryJump { position, respond }).await?;
+    let info = p
+        .dispatch(|respond| GuildCommand::HistoryJump { position, respond })
+        .await?;
     reply(&ctx, format!("Replaying **{}**.", info.title)).await?;
 
     Ok(())

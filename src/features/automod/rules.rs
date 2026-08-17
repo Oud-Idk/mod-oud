@@ -64,7 +64,7 @@ pub fn check_rule<'a, T: HasBaseRule>(rule_opt: Option<&'a T>, message: &Message
 pub fn should_apply_filter(
     scope: &RuleScope,
     channel_id: u64,
-    member: Option<&Box<PartialMember>>,
+    member: Option<&PartialMember>,
 ) -> bool {
     let is_channel_matched = scope.channels.contains(&channel_id);
     let is_role_matched = member.is_some_and(|m| m.has_any_role_u64(&scope.roles));

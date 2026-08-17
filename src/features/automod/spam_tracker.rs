@@ -1,4 +1,5 @@
 use crate::features::automod::{cache, keys};
+use anyhow::Result;
 use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
 use std::time::Duration;
@@ -62,7 +63,7 @@ impl SpamTracker {
         user_id: u64,
         limit: usize,
         window: Duration,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool> {
         let key = keys::spam_record_key(guild_id, user_id);
 
         // Calculate current UNIX timestamp in seconds (with decimal float precision)
@@ -126,11 +127,11 @@ impl SpamTracker {
         guild_id: u64,
         user_id: u64,
         cooldown: Duration,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool> {
         trace!("Checking warning cooldown status in Redis");
         let key = keys::spam_warned_key(guild_id, user_id);
+        let cooldown = i64::try_from(cooldown.as_millis())?;
 
-        // Atomic Redis trick:
         // Set key to "1" with expiration PX (milliseconds).
         // SetOptions::NX = "Set if Not eXists".
         //
@@ -141,7 +142,7 @@ impl SpamTracker {
             .set(
                 &key,
                 "1",
-                Some(Expiration::PX(cooldown.as_millis() as i64)),
+                Some(Expiration::PX(cooldown)),
                 Some(SetOptions::NX),
                 false, // get = false (we don't need the old value)
             )

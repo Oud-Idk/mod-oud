@@ -200,11 +200,10 @@ async fn apply_mute(
         return;
     };
 
-    let duration = Duration::from_secs(duration_secs);
+    let duration = Duration::from_secs(u64::try_from(duration_secs).unwrap_or(u64::MAX));
     let now_secs = Timestamp::now().unix_timestamp();
     let Some(timeout_until) =
-        Timestamp::from_unix_timestamp(now_secs + i64::try_from(duration_secs).unwrap_or(i64::MAX))
-            .ok()
+        Timestamp::from_unix_timestamp(now_secs + i64::from(duration_secs)).ok()
     else {
         error!("Could not calculate a valid mute timestamp");
         return;

@@ -43,6 +43,7 @@ export function PlaintextEditor({
                 disabled={disabled}
                 onChange={(e) => { onChange(e.target.value); }}
                 placeholder={placeholder}
+                rows={5}
                 className={`mb-0 ${isEmpty ? "border-danger-border" : ""}`}
             />
 
