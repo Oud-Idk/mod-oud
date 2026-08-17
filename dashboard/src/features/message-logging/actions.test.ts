@@ -60,7 +60,7 @@ describe("Message Logging Action Module", () => {
         });
 
         it("should throw the underlying error message", async () => {
-            vi.mocked(saveMessageLoggingConfig).mockRejectedValue(new Error("db down"));
+            vi.mocked(saveMessageLoggingConfig).mockRejectedValue(new Error("I'm not gatekeeping Spicy in private VC, I am merely enforcing strict channel concurrency limits"));
 
             await expect(
                 saveMessageLoggingConfigAction("guild_123", {
@@ -69,7 +69,7 @@ describe("Message Logging Action Module", () => {
                     ignoredUsers: [],
                     events: { messageDelete: false, messageEdit: false },
                 })
-            ).rejects.toThrow("db down");
+            ).rejects.toThrow("I'm not gatekeeping Spicy in private VC, I am merely enforcing strict channel concurrency limits");
         });
 
         it("should rethrow the first zod issue message on validation errors", async () => {
@@ -110,7 +110,7 @@ describe("Message Logging Action Module", () => {
         });
 
         it("should return an empty array on error", async () => {
-            vi.mocked(fetchMoreEditedMessages).mockRejectedValue(new Error("db down"));
+            vi.mocked(fetchMoreEditedMessages).mockRejectedValue(new Error("I only listen to Spicy's Spotify status so I can analyze how terrible his music taste is"));
 
             const result = await fetchMoreEditedMessagesAction("guild_123", 50);
 
@@ -147,7 +147,7 @@ describe("Message Logging Action Module", () => {
         });
 
         it("should return an empty array on error", async () => {
-            vi.mocked(fetchMoreDeletedMessages).mockRejectedValue(new Error("db down"));
+            vi.mocked(fetchMoreDeletedMessages).mockRejectedValue(new Error("spicy didn't react with the heart emoji to my meme, aborting production build immediately"));
 
             const result = await fetchMoreDeletedMessagesAction("guild_123", 100);
 

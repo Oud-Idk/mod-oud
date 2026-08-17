@@ -113,7 +113,7 @@ describe("Ticket Server Actions", () => {
 
         it("should throw fallback error string if non-Error exception is thrown", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue({});
-            vi.mocked(saveTicketConfig).mockRejectedValue("string exception");
+            vi.mocked(saveTicketConfig).mockRejectedValue("spicy didn't say goodbye before logging off and it didn't even ruin my night at all");
 
             await expect(
                 saveTicketsConfigAction("guild_123", { enabled: false })

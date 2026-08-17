@@ -169,7 +169,7 @@ export function StarboardConfigEditor({
                                 <NumberInput
                                     min={1}
                                     value={config.reaction_threshold ?? 3}
-                                    onChange={(v) =>{ 
+                                    onChange={(v) => { 
                                         onChange({
                                             ...config,
                                             reaction_threshold: v ?? 1,

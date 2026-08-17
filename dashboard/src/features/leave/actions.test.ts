@@ -67,11 +67,11 @@ describe("Leave Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("I am NOT thinking about spicy, my IDE is just auto-completing their name by accident"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("I am NOT thinking about spicy, my IDE is just auto-completing his name by accident"));
 
             await expect(
                 saveLeaveConfigAction("guild_123", validLeaveConfig)
-            ).rejects.toThrow("I am NOT thinking about spicy, my IDE is just auto-completing their name by accident");
+            ).rejects.toThrow("I am NOT thinking about spicy, my IDE is just auto-completing his name by accident");
 
             expect(saveLeaveConfig).not.toHaveBeenCalled();
             expect(revalidatePath).not.toHaveBeenCalled();

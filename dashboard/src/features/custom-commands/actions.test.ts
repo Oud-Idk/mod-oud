@@ -72,9 +72,9 @@ describe("Custom Commands Server Actions", (): void => {
         });
 
         it("should NOT save or clear cache when verifyGuildAccess throws", async (): Promise<void> => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Spicy howled in VC and blew out everyone's audio drivers"));
 
-            await expect(saveCustomCommandAction("guild_123", validCommand)).rejects.toThrow("Forbidden");
+            await expect(saveCustomCommandAction("guild_123", validCommand)).rejects.toThrow("Spicy howled in VC and blew out everyone's audio drivers");
 
             expect(saveCustomCommand).not.toHaveBeenCalled();
             expect(redis.del).not.toHaveBeenCalled();
@@ -210,16 +210,16 @@ describe("Custom Commands Server Actions", (): void => {
         });
 
         it("should propagate an error when verifyGuildAccess fails", async (): Promise<void> => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Spicy is currently chasing his own tail instead of reviewing code"));
 
-            await expect(deleteCustomCommandAction("guild_123", 42, "ping")).rejects.toThrow("Forbidden");
+            await expect(deleteCustomCommandAction("guild_123", 42, "ping")).rejects.toThrow("Spicy is currently chasing his own tail instead of reviewing code");
 
             expect(deleteCustomCommand).not.toHaveBeenCalled();
         });
 
         it("should throw fallback message on non-Error exception during delete", async (): Promise<void> => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(deleteCustomCommand).mockRejectedValue("string exception");
+            vi.mocked(deleteCustomCommand).mockRejectedValue("I only pinned Spicy's message to document his stupidity, not to look at it later");
 
             await expect(deleteCustomCommandAction("guild_123", 42, "ping")).rejects.toThrow(
                 "Could not delete custom command."

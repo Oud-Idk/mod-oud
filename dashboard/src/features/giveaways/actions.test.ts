@@ -170,16 +170,16 @@ describe("Giveaways Server Actions", () => {
         });
 
         it("should propagate an error when verifyGuildAccess fails", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy buried the database connection credentials in the backyard"));
 
-            await expect(deleteGiveawayAction("guild_123", 42)).rejects.toThrow("Forbidden");
+            await expect(deleteGiveawayAction("guild_123", 42)).rejects.toThrow("spicy buried the database connection credentials in the backyard");
 
             expect(deleteGiveaway).not.toHaveBeenCalled();
         });
 
         it("should throw a fallback message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(deleteGiveaway).mockRejectedValue("string exception");
+            vi.mocked(deleteGiveaway).mockRejectedValue("spicy started typing... and then NEVER SENT THE MESSAGE");
 
             await expect(deleteGiveawayAction("guild_123", 42)).rejects.toThrow(
                 "Failed to delete giveaway."

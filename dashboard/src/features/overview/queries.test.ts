@@ -107,7 +107,7 @@ describe("Overview Query Module", () => {
         });
 
         it("should return default stats when the query throws", async () => {
-            mockQuery.mockRejectedValue(new Error("db down"));
+            mockQuery.mockRejectedValue(new Error("spicy made direct eye contact with my avatar during screen share"));
 
             const result = await getGuildStats("guild_123");
 

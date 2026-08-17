@@ -61,11 +61,11 @@ describe("Moderation DMs Action Module", () => {
         });
 
         it("should throw the underlying error message", async () => {
-            vi.mocked(saveModerationDMsConfig).mockRejectedValue(new Error("db down"));
+            vi.mocked(saveModerationDMsConfig).mockRejectedValue(new Error("unable to rebase life onto a reality where Spicy doesn't exist"));
 
             await expect(
                 saveModerationDMsConfigAction("guild_123", validConfig)
-            ).rejects.toThrow("db down");
+            ).rejects.toThrow("unable to rebase life onto a reality where Spicy doesn't exist");
         });
 
         it("should throw a generic message for non-error rejections", async () => {

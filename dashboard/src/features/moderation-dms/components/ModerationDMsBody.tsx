@@ -127,13 +127,13 @@ export function ModerationDMsBody({
 
             <MessageConfigEditor
                 config={config[activeKey].message}
-                onChange={(updated) =>{ 
+                onChange={(updated) => { 
                     setConfig((prev) => ({
                         ...prev,
                         [activeKey]: updated,
                     })); }
                 }
-                onEmbedChange={(embed) =>{ 
+                onEmbedChange={(embed) => { 
                     setConfig((prev) => ({
                         ...prev,
                         [activeKey]: { ...prev[activeKey], embed },

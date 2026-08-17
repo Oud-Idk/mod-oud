@@ -132,7 +132,7 @@ export function VerificationTab({
                     <div className="space-y-1 flex flex-col">
                         <ToggleSwitch
                             checked={config.verification.enabled}
-                            onChange={(enabled) =>{ 
+                            onChange={(enabled) => { 
                                 setConfig((prev) => ({
                                     ...prev,
                                     verification: { ...prev.verification, enabled },
@@ -144,7 +144,7 @@ export function VerificationTab({
                         {config.verification.enabled && (
                             <ToggleSwitch
                                 checked={config.verification.useOauth}
-                                onChange={(useOauth) =>{ 
+                                onChange={(useOauth) => { 
                                     setConfig((prev) => ({
                                         ...prev,
                                         verification: { ...prev.verification, useOauth },
@@ -212,7 +212,7 @@ export function VerificationTab({
                                         <Dropdown
                                             options={roleOptions}
                                             value={config.verification.verificationRoleId}
-                                            onChange={(val) =>{ 
+                                            onChange={(val) => { 
                                                 setConfig((prev) => ({
                                                     ...prev,
                                                     verification: { ...prev.verification, verificationRoleId: val },
@@ -227,7 +227,7 @@ export function VerificationTab({
                                         <Dropdown
                                             options={channelOptions}
                                             value={config.verification.verificationChannelId}
-                                            onChange={(val) =>{ 
+                                            onChange={(val) => { 
                                                 setConfig((prev) => ({
                                                     ...prev,
                                                     verification: { ...prev.verification, verificationChannelId: val },
@@ -308,7 +308,7 @@ export function VerificationTab({
 
                     <MessageConfigEditor
                         config={config.verification.message}
-                        onChange={(changed) =>{ 
+                        onChange={(changed) => { 
                             setConfig((prev) => ({
                                 ...prev,
                                 verification: {

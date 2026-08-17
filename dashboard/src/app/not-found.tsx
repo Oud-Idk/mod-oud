@@ -29,16 +29,16 @@ export default async function NotFound(): Promise<JSX.Element> {
             <Emphasis className="text-2xl sm:text-4xl font-bold">Mod Oud</Emphasis>
             <Emphasis className="text-lg sm:text-2xl">Oops! Hello there, lost traveler.</Emphasis>
             <p className="text-sm sm:text-base">Seems like you ended up in a page that doesn&apos;t exist! Here, have this banana</p>
-            <div>
+            <div className="flex flex-col items-center">
                 <BananaIcon className="w-24 h-24 text-yellow-500"/>
-                <Footer>Nom nom nom!</Footer>
+                <Footer>Nom nom nom, I still do not know why Lucide provided a banana icon lmao.</Footer>
             </div>
             <div className="flex flex-col gap-2 text-center">
                 <Link href="/" className="p-2 px-4 border border-brand rounded-xl text-brand">Go Back to Home Page</Link>
                 <Link
                     href="/very-secret-endpoint-do-not-index-also-timestamp-today-1786548272"
                     className="p-2 px-4 border border-pink-500 rounded-xl text-pink-500">
-                    Or if you&apos;re lonely, Go Here!
+                    If You&apos;re Emo, Go Here!
                 </Link>
             </div>
         </div>

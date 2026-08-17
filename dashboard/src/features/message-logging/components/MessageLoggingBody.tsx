@@ -127,7 +127,7 @@ export function MessageLoggingBody({
                     <div className="flex flex-col gap-1">
                         <ToggleSwitch
                             checked={config.events.messageDelete}
-                            onChange={(checked) =>{ 
+                            onChange={(checked) => { 
                                 handleChange({
                                     events: { ...config.events, messageDelete: checked },
                                 }); }
@@ -136,7 +136,7 @@ export function MessageLoggingBody({
                         />
                         <ToggleSwitch
                             checked={config.events.messageEdit}
-                            onChange={(checked) =>{ 
+                            onChange={(checked) => { 
                                 handleChange({
                                     events: { ...config.events, messageEdit: checked },
                                 }); }
@@ -155,7 +155,7 @@ export function MessageLoggingBody({
                                         multiple
                                         options={channelOptions}
                                         value={config.ignoredChannels}
-                                        onChange={(selectedValues: string[]) =>{ 
+                                        onChange={(selectedValues: string[]) => { 
                                             handleChange({ ignoredChannels: selectedValues }); }
                                         }
                                         placeholder="Select channels to ignore..."
@@ -168,7 +168,7 @@ export function MessageLoggingBody({
                                         multiple
                                         options={roleOptions}
                                         value={config.ignoredRoles}
-                                        onChange={(selectedValues: string[]) =>{ 
+                                        onChange={(selectedValues: string[]) => { 
                                             handleChange({ ignoredRoles: selectedValues }); }
                                         }
                                         placeholder="Select roles to ignore..."

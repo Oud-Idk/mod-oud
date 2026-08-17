@@ -48,7 +48,7 @@ export function BodySection({
                         <button
                             key={c.hex}
                             type="button"
-                            onClick={() =>{ handleColorChange(c.hex) }}
+                            onClick={() => { handleColorChange(c.hex) }}
                             className="w-6 h-6 rounded-full border border-border transition-transform hover:scale-110 focus-ring"
                             style={{ backgroundColor: c.hex }}
                             title={c.name}

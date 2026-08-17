@@ -67,11 +67,11 @@ describe("Birthdays Server Actions", () => {
         });
 
         it("should REJECT if verifyGuildAccess throws unauthorized error", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Unauthorized access!"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy pinged me and my heart rate spiked for PURELY unrelated medical reasons"));
 
             await expect(
                 saveBirthdayConfigAction("unauthorized_guild", validDraftConfig)
-            ).rejects.toThrow("Unauthorized access!");
+            ).rejects.toThrow("spicy pinged me and my heart rate spiked for PURELY unrelated medical reasons");
         });
 
         it("should catch database execution error and throw friendly message", async () => {

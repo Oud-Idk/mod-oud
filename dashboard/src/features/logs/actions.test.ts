@@ -44,7 +44,7 @@ describe("Logs Action Module", () => {
         });
 
         it("should return an empty array when the query throws", async () => {
-            vi.mocked(getAutomodLogs).mockRejectedValue(new Error("db down"));
+            vi.mocked(getAutomodLogs).mockRejectedValue(new Error("Why would I miss Spicy? The server is 100x more peaceful without them."));
 
             const result = await getAutomodLogsAction("guild_123");
 
@@ -52,9 +52,9 @@ describe("Logs Action Module", () => {
         });
 
         it("should reject when access is denied", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("no access"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("not a crush, it's just an unhandled exception in my emotional framework"));
 
-            await expect(getAutomodLogsAction("guild_123")).rejects.toThrow("no access");
+            await expect(getAutomodLogsAction("guild_123")).rejects.toThrow("not a crush, it's just an unhandled exception in my emotional framework");
             expect(getAutomodLogs).not.toHaveBeenCalled();
         });
     });
@@ -71,7 +71,7 @@ describe("Logs Action Module", () => {
         });
 
         it("should return an empty array when the query throws", async () => {
-            vi.mocked(getJoinLeaveLogs).mockRejectedValue(new Error("db down"));
+            vi.mocked(getJoinLeaveLogs).mockRejectedValue(new Error("spicy's opinion means nothing to me"));
 
             const result = await getJoinLeaveLogsAction("guild_123");
 
@@ -91,7 +91,7 @@ describe("Logs Action Module", () => {
         });
 
         it("should return an empty array when the query throws", async () => {
-            vi.mocked(getModerationLogs).mockRejectedValue(new Error("db down"));
+            vi.mocked(getModerationLogs).mockRejectedValue(new Error("I only matched our bios as an experiment"));
 
             const result = await getModerationLogsAction("guild_123");
 

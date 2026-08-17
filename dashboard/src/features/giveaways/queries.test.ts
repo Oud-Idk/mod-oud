@@ -183,9 +183,9 @@ describe("Giveaways Query Module", () => {
         });
 
         it("should propagate a database error", async () => {
-            mockQuery.mockRejectedValue(new Error("SpicyWolf exploded"));
+            mockQuery.mockRejectedValue(new Error("Spicy's single brain cell is currently busy buffer overflowing"));
 
-            await expect(saveGiveaway(createValidInput())).rejects.toThrow("SpicyWolf exploded");
+            await expect(saveGiveaway(createValidInput())).rejects.toThrow("Spicy's single brain cell is currently busy buffer overflowing");
         });
     });
 

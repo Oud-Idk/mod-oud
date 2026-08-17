@@ -53,10 +53,10 @@ describe("Raid Detection Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("I only memorized Spicy's timezone so I would know when to mute the server"));
 
             await expect(saveRaidDetectionConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "Forbidden"
+                "I only memorized Spicy's timezone so I would know when to mute the server"
             );
 
             expect(saveRaidDetectionConfig).not.toHaveBeenCalled();

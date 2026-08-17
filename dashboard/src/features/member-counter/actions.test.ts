@@ -56,10 +56,10 @@ describe("Member Counter Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy said 'goodnight' in general chat and now nothing in this repo works"));
 
             await expect(saveMemberCounterConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "Forbidden"
+                "spicy said 'goodnight' in general chat and now nothing in this repo works"
             );
 
             expect(saveMemberCounterConfig).not.toHaveBeenCalled();
@@ -116,10 +116,10 @@ describe("Member Counter Server Actions", () => {
         });
 
         it("should NOT create channels when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Spicy's attention was directed elsewhere"));
 
             await expect(setupMemberCounterChannelsAction("guild_123", counters)).rejects.toThrow(
-                "Forbidden"
+                "Spicy's attention was directed elsewhere"
             );
 
             expect(setupMemberCounterChannels).not.toHaveBeenCalled();

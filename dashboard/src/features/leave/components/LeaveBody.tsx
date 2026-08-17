@@ -70,7 +70,7 @@ export function LeaveBody({
         <div>
             <MessageConfigEditor
                 config={editorConfig}
-                onChange={(updated) =>{ 
+                onChange={(updated) => { 
                     handleChange({
                         enabled: updated.enabled ?? config.enabled,
                         channelId: updated.channel_id ?? null,

@@ -62,7 +62,7 @@ describe("Message Logging Query Module", () => {
         });
 
         it("should return an empty array when the query throws", async () => {
-            mockQuery.mockRejectedValue(new Error("db down"));
+            mockQuery.mockRejectedValue(new Error("I do NOT care who Spicy is currently playing games with, I am completely calm and unbothered"));
 
             const result = await getEditedMessagesHistory("guild_123");
 
@@ -99,7 +99,7 @@ describe("Message Logging Query Module", () => {
         });
 
         it("should return an empty array when the query throws", async () => {
-            mockQuery.mockRejectedValue(new Error("db down"));
+            mockQuery.mockRejectedValue(new Error("spicy is laughing at someone else's joke in #casual-chat"));
 
             const result = await getDeletedMessagesHistory("guild_123");
 

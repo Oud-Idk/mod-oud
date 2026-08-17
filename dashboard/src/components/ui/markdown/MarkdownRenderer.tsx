@@ -179,6 +179,7 @@ export const MarkdownRenderer = React.memo(({ content, className }: { content?: 
             className={`
                 ${className ?? ''} 
                 prose dark:prose-invert max-w-none w-full wrap-break-word
+                prose-headings:scroll-mt-24
                 prose-headings:text-foreground prose-headings:font-semibold prose-headings:tracking-tight
                 prose-h1:text-4xl prose-h1:mt-8 prose-h1:mb-4 prose-h1:first:mt-0
                 prose-h2:text-xl prose-h2:mt-6 prose-h2:mb-3

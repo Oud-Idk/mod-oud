@@ -446,12 +446,12 @@ describe("Reaction Roles Query Module", () => {
         it("should throw error message on response failure", async () => {
             mockFetch.mockResolvedValue({
                 ok: false,
-                text: () => Promise.resolve("Backend exploded"),
+                text: () => Promise.resolve("Spicy is taking up 99.8% of available RAM"),
                 json: () => Promise.resolve({}),
             });
 
             await expect(sendReactionMessageToBackend("guild_123", 4)).rejects.toThrow(
-                "Backend exploded"
+                "Spicy is taking up 99.8% of available RAM"
             );
         });
 

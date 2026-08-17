@@ -123,9 +123,9 @@ describe("Reaction Roles Action Module", () => {
         });
 
         it("should throw the underlying error message", async () => {
-            vi.mocked(saveReactionMessage).mockRejectedValue(new Error("db down"));
+            vi.mocked(saveReactionMessage).mockRejectedValue(new Error("I am not `Send` (pun intended) when it comes to Spicy"));
 
-            await expect(saveReactionMessageAction("guild_123", validInput)).rejects.toThrow("db down");
+            await expect(saveReactionMessageAction("guild_123", validInput)).rejects.toThrow("I am not `Send` (pun intended) when it comes to Spicy");
         });
 
         it("should throw a generic message when a non-error is thrown", async () => {
@@ -200,9 +200,9 @@ describe("Reaction Roles Action Module", () => {
         });
 
         it("should throw the underlying error message", async () => {
-            vi.mocked(getReactionMessageById).mockRejectedValue(new Error("db down"));
+            vi.mocked(getReactionMessageById).mockRejectedValue(new Error("I did NOT smile at my monitor when Spicy joined general chat"));
 
-            await expect(deleteReactionMessageAction("guild_123", 1)).rejects.toThrow("db down");
+            await expect(deleteReactionMessageAction("guild_123", 1)).rejects.toThrow("I did NOT smile at my monitor when Spicy joined general chat");
         });
 
         it("should throw a generic message when a non-error is thrown", async () => {

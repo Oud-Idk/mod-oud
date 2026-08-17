@@ -12,8 +12,8 @@ export default async function RootGroupLayout({
     const session = await auth();
 
     return (
-        <div className="min-h-screen flex flex-col">
-            <header className="sticky top-0 z-10 backdrop-blur-md bg-surface/80 border-b border-border-subtle">
+        <div className="h-screen flex flex-col overflow-hidden bg-background">
+            <header className="shrink-0 z-20 backdrop-blur-md bg-surface/80 border-b border-border-subtle">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
                     <Link href="/" className="flex items-center gap-3 focus-ring">
                         <span className="text-xl font-bold tracking-tight text-foreground">
@@ -28,10 +28,9 @@ export default async function RootGroupLayout({
                 </div>
             </header>
 
-            {/* Page Content */}
-            <div className="flex flex-1 min-h-full">
+            <main className="flex-1 overflow-y-auto min-h-0 flex flex-col">
                 {children}
-            </div>
+            </main>
         </div>
     );
 }

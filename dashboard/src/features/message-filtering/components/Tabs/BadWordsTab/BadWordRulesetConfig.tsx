@@ -135,7 +135,7 @@ export function BadWordRulesetConfig({
                     <ActionsSettings
                         actions={config.actions}
                         timeoutDuration={config.timeoutDurationSeconds ?? undefined}
-                        onChange={(actions, timeout) =>{ 
+                        onChange={(actions, timeout) => { 
                             onChange({ actions, timeoutDurationSeconds: timeout ?? null }); }
                         }
                     />

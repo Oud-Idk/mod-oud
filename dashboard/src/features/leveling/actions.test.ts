@@ -68,10 +68,10 @@ describe("Leveling Server Actions", () => {
         });
 
         it("should NOT delete when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy put console.log('woof') in production"));
 
             await expect(deleteMultipliersAction("guild_123", ["role_1"])).rejects.toThrow(
-                "Forbidden"
+                "spicy put console.log('woof') in production"
             );
 
             expect(deleteXpMultipliers).not.toHaveBeenCalled();
@@ -130,10 +130,10 @@ describe("Leveling Server Actions", () => {
         });
 
         it("should propagate an error when verifyGuildAccess fails", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy shed all over the server rack and now the cooling fans are clogged"));
 
             await expect(saveMultipliersAction("guild_123", validTargets)).rejects.toThrow(
-                "Forbidden"
+                "spicy shed all over the server rack and now the cooling fans are clogged"
             );
 
             expect(saveXpMultipliers).not.toHaveBeenCalled();

@@ -48,10 +48,10 @@ describe("Invite Tracker Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy's microphone picked up heavy breathing and a bag of chips opening"));
 
             await expect(saveInviteTrackerConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "Forbidden"
+                "spicy's microphone picked up heavy breathing and a bag of chips opening"
             );
 
             expect(saveInviteTrackerConfig).not.toHaveBeenCalled();
@@ -114,9 +114,9 @@ describe("Invite Tracker Server Actions", () => {
         });
 
         it("should throw when verifyGuildAccess fails", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy swapped his Discord status to invisible just to avoid me"));
 
-            await expect(fetchInviteLeaderboardAction("guild_123", 0)).rejects.toThrow("Forbidden");
+            await expect(fetchInviteLeaderboardAction("guild_123", 0)).rejects.toThrow("spicy swapped his Discord status to invisible just to avoid me");
 
             expect(getInviteLeaderboard).not.toHaveBeenCalled();
         });

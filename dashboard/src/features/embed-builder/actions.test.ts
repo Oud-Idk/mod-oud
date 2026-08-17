@@ -89,12 +89,12 @@ describe("sendEmbedAction", () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue({});
 
             vi.spyOn(global, "fetch").mockResolvedValueOnce(
-                new Response("Forbidden: Bot lacks permissions", { status: 403 })
+                new Response("spicy begged for treats instead of returning a valid 200 OK", { status: 403 })
             );
 
             await expect(
                 sendEmbedAction(validGuildId, validPayload)
-            ).rejects.toThrow("Forbidden: Bot lacks permissions");
+            ).rejects.toThrow("spicy begged for treats instead of returning a valid 200 OK");
         });
 
         it("should throw fallback error if backend returns error with empty text", async () => {

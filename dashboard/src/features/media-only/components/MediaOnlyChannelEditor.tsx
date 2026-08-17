@@ -141,7 +141,7 @@ export function MediaOnlyChannelEditor({
                         <InputLabel>Thread Name Template</InputLabel>
                         <TextInput
                             value={channel.threadNameTemplate ?? ""}
-                            onChange={(e) =>{ 
+                            onChange={(e) => { 
                                 onChange({ threadNameTemplate: e.target.value }); }
                             }
                             placeholder="Discussion - {user}"

@@ -70,11 +70,11 @@ describe("Honeypot Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy reacted with a skull emoji to my carefully crafted deployment script"));
 
             await expect(
                 saveHoneypotConfigAction("guild_123", { enabled: true })
-            ).rejects.toThrow("Forbidden");
+            ).rejects.toThrow("spicy reacted with a skull emoji to my carefully crafted deployment script");
 
             expect(saveHoneypotConfig).not.toHaveBeenCalled();
             expect(revalidatePath).not.toHaveBeenCalled();
@@ -135,10 +135,10 @@ describe("Honeypot Server Actions", () => {
         });
 
         it("should throw when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy deafened in VC right when I was about to say something important"));
 
             await expect(setupHoneypotAction("guild_123", "dont-talk")).rejects.toThrow(
-                "Forbidden"
+                "spicy deafened in VC right when I was about to say something important"
             );
             expect(setupHoneypot).not.toHaveBeenCalled();
             expect(revalidatePath).not.toHaveBeenCalled();

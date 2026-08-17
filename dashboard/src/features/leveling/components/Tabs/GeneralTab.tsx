@@ -82,7 +82,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                         embed: config.notify.message.embed,
                         channel_id: config.notify.channelId ?? "",
                     }}
-                    onChange={(updatedConfig) =>{ 
+                    onChange={(updatedConfig) => { 
                         handleChange({
                             notify: {
                                 ...config.notify,
@@ -96,7 +96,7 @@ export function GeneralTab({ config, handleChange, channelMap, roleMap, channels
                             },
                         }); }
                     }
-                    onEmbedChange={(embed) =>{ 
+                    onEmbedChange={(embed) => { 
                         handleChange({
                             notify: {
                                 ...config.notify,

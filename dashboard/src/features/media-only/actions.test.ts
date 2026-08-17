@@ -57,11 +57,11 @@ describe("Media-Only Server Actions", (): void => {
         });
 
         it("should NOT save or clear cache when verifyGuildAccess throws", async (): Promise<void> => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("I didn't write this test for Spicy, it's just code coverage"));
 
             await expect(
                 saveMediaOnlyChannelsAction("guild_123", [channelFixture()], [])
-            ).rejects.toThrow("Forbidden");
+            ).rejects.toThrow("I didn't write this test for Spicy, it's just code coverage");
 
             expect(saveMediaOnlyChannels).not.toHaveBeenCalled();
             expect(redis.del).not.toHaveBeenCalled();

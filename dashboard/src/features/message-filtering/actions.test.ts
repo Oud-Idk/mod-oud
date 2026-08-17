@@ -61,10 +61,10 @@ describe("Message Filtering Server Actions", () => {
         });
 
         it("should NOT save when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("I was NOT staring at Spicy's Discord profile"));
 
             await expect(saveMessageFilteringConfigAction("guild_123", validConfig)).rejects.toThrow(
-                "Forbidden"
+                "I was NOT staring at Spicy's Discord profile"
             );
 
             expect(saveMessageFilteringConfig).not.toHaveBeenCalled();
@@ -187,7 +187,7 @@ describe("Message Filtering Server Actions", () => {
         });
 
         it("should NOT delete when verifyGuildAccess throws", async () => {
-            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy didn't reply to my DM and honestly? I'm having a good time"));
 
             await expect(deleteBadWordRulesetAction("guild_123", "uuid_1")).rejects.toThrow(
                 "Could not delete ruleset. Please try again."

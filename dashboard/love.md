@@ -1051,7 +1051,7 @@ In other words, they filter themselves so they're not annoying, angry, or end up
 
 ### Texts are Ambiguous
 
-When communications only in text messages and/or video calls, humans end up doing **behavioral adaptation** (Jiang & Hancock, 2013). You share deeper shits to compensate for distance and the lack of meeting up, and your partner ends up misinterpreting those messages as a sign of soulmates (Jiang & Hancock, 2013; Walther, 1996). For example, a simple "thinking of you :3" might end up being overthought by the other party as a poem.
+When communications only in text messages and/or video calls, humans end up doing **behavioral adaptation** (Jiang & Hancock, 2013). You share deeper shits to compensate for distance and the lack of meeting up, and your partner ends up misinterpreting those messages as a sign of soulmates (Jiang & Hancock, 2013; Walther, 1996). For example, a simple "thinking of you \:3" might end up being overthought by the other party as a poem.
 
 ---
 
@@ -1112,7 +1112,7 @@ So, you want to stay in an LDR? I gochu. Researchers (and me) don't want you fee
 
 ### Nitpicks And Thoughts I Want to Share
 
-1. **Time Zone**. Let's say you're at +08:00 and someone another is -05:00. You might accidentally say "good afternoon" when it's midnight for them lol.
+1. **Time Zone**. Let's say you're at +08\:00 and someone another is -05\:00. You might accidentally say "good afternoon" when it's midnight for them lol.
 2. **Logistics** are hard. Like, genuinely, why is a flight from SIN to SFO, like, S\$1,000?! That's just accounting for the flights, don't get me started on hotels, foods, data, and other needs.
 3. When **Wi-Fi** decides to do its own thing, imagine if you had to say, "Hey, can you say whatever you said 30 seconds ago? I didn't pick it up."
 
