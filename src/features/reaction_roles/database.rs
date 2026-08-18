@@ -1,7 +1,9 @@
 use crate::core::config::message_layout::MessageLayout;
 use crate::core::config::state::{BotData, Error, WebState};
 use crate::features::reaction_roles::types::ButtonStyle;
-use crate::features::reaction_roles::types::{ButtonRole, InteractionMode, ReactionMessage, ReactionRole};
+use crate::features::reaction_roles::types::{
+    ButtonRole, InteractionMode, ReactionMessage, ReactionRole,
+};
 use axum::http::StatusCode;
 use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
@@ -44,18 +46,28 @@ pub async fn get_reaction_role(
         message_id,
         emoji
     )
-        .fetch_optional(&data.core.db)
-        .await?;
+    .fetch_optional(&data.core.db)
+    .await?;
 
     if let Some(record) = row {
         let role_id_u64 = record.role_id as u64;
-        if let Err(e) = data.core.redis.set::<(), _, _>(&cache_key, role_id_u64, None, None, false).await {
+        if let Err(e) = data
+            .core
+            .redis
+            .set::<(), _, _>(&cache_key, role_id_u64, None, None, false)
+            .await
+        {
             warn!("Failed to write reaction role to Redis: {}", e);
         }
         Ok(Some(RoleId::new(role_id_u64)))
     } else {
         let expiration = Expiration::EX(300);
-        if let Err(e) = data.core.redis.set::<(), _, _>(&cache_key, "none", Some(expiration), None, false).await {
+        if let Err(e) = data
+            .core
+            .redis
+            .set::<(), _, _>(&cache_key, "none", Some(expiration), None, false)
+            .await
+        {
             warn!("Failed to write negative cache result to Redis: {}", e);
         }
         Ok(None)
@@ -71,7 +83,6 @@ pub async fn fetch_reaction_message(
         warn!(error = ?e, guild_id, "Invalid guild_id format");
         (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
     })?;
-
 
     sqlx::query_as!(
         ReactionMessage,
@@ -109,12 +120,21 @@ pub async fn fetch_active_reactions(
         "#,
         reaction_message_id
     )
-        .fetch_all(pool).await
-        .inspect_err(|e| warn!(error = ?e, "Failed fetching reaction list"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))
+    .fetch_all(pool)
+    .await
+    .inspect_err(|e| warn!(error = ?e, "Failed fetching reaction list"))
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        )
+    })
 }
 
-pub async fn fetch_buttons(pool: &PgPool, reaction_message_id: i64) -> Result<Vec<ButtonRole>, (StatusCode, String)> {
+pub async fn fetch_buttons(
+    pool: &PgPool,
+    reaction_message_id: i64,
+) -> Result<Vec<ButtonRole>, (StatusCode, String)> {
     sqlx::query_as!(
         ButtonRole,
         r#"
@@ -124,36 +144,52 @@ pub async fn fetch_buttons(pool: &PgPool, reaction_message_id: i64) -> Result<Ve
         "#,
         reaction_message_id,
     )
-        .fetch_all(pool).await
-        .inspect_err(|e| warn!(error = ?e, "Failed to fetch button details"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))
+    .fetch_all(pool)
+    .await
+    .inspect_err(|e| warn!(error = ?e, "Failed to fetch button details"))
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        )
+    })
 }
 
-pub async fn delete_message_from_db(state: &Arc<WebState>, config_id: i64) -> Result<(), (StatusCode, String)> {
+pub async fn delete_message_from_db(
+    state: &Arc<WebState>,
+    config_id: i64,
+) -> Result<(), (StatusCode, String)> {
     sqlx::query!(
         "UPDATE reaction_messages SET message_id = NULL WHERE id = $1",
         config_id
     )
-        .execute(&state.core.db).await
-        .inspect_err(|e| warn!(error = ?e, "Failed to clear message ID in database"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
+    .execute(&state.core.db)
+    .await
+    .inspect_err(|e| warn!(error = ?e, "Failed to clear message ID in database"))
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        )
+    })?;
     Ok(())
 }
 
-pub async fn add_message_to_db(state: &Arc<WebState>, config_row: ReactionMessage, message_id: i64) -> Result<PgQueryResult, sqlx::Error> {
+pub async fn add_message_to_db(
+    state: &Arc<WebState>,
+    config_row: ReactionMessage,
+    message_id: i64,
+) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         "UPDATE reaction_messages SET message_id = $1 WHERE id = $2",
         message_id,
         config_row.id
     )
-        .execute(&state.core.db)
-        .await
+    .execute(&state.core.db)
+    .await
 }
 
-pub async fn get_button_role(
-    data: &BotData,
-    custom_id: &str,
-) -> Result<Option<RoleId>, Error> {
+pub async fn get_button_role(data: &BotData, custom_id: &str) -> Result<Option<RoleId>, Error> {
     let cache_key = format!("button_role:{custom_id}");
 
     match data.core.redis.get::<Option<String>, _>(&cache_key).await {
@@ -178,18 +214,28 @@ pub async fn get_button_role(
         "#,
         custom_id
     )
-        .fetch_optional(&data.core.db)
-        .await?;
+    .fetch_optional(&data.core.db)
+    .await?;
 
     if let Some(record) = row {
         let role_id_u64 = record.role_id as u64;
-        if let Err(e) = data.core.redis.set::<(), _, _>(&cache_key, role_id_u64, None, None, false).await {
+        if let Err(e) = data
+            .core
+            .redis
+            .set::<(), _, _>(&cache_key, role_id_u64, None, None, false)
+            .await
+        {
             warn!("Failed to write button role to Redis: {}", e);
         }
         Ok(Some(RoleId::new(role_id_u64)))
     } else {
         let expiration = Expiration::EX(300);
-        if let Err(e) = data.core.redis.set::<(), _, _>(&cache_key, "none", Some(expiration), None, false).await {
+        if let Err(e) = data
+            .core
+            .redis
+            .set::<(), _, _>(&cache_key, "none", Some(expiration), None, false)
+            .await
+        {
             warn!("Failed to write negative cache result to Redis: {}", e);
         }
         Ok(None)

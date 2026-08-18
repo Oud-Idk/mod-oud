@@ -29,6 +29,7 @@ pub async fn create(
     #[description = "Channel to host in (defaults to current)"] channel: Option<ChannelId>,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
 
     // Parse duration (using humantime crate)
     let Ok(parsed_duration) = humantime::parse_duration(&duration) else {
@@ -42,10 +43,6 @@ pub async fn create(
 
     let winner_count = winners.unwrap_or(1).max(1);
     let target_channel = channel.unwrap_or_else(|| ctx.channel_id());
-    let guild_id = ctx
-        .guild_id()
-        .with_context(|| "Must be run in a server")?
-        .get();
     let host_id = ctx.author().id;
 
     let end_time = Utc::now() + chrono::Duration::from_std(parsed_duration)?;

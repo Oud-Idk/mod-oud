@@ -1,4 +1,4 @@
-use crate::core::config::state::{Context, BotData};
+use crate::core::config::state::{BotData, Context};
 use crate::features::moderation::keys;
 use crate::shared::locking::acquire_lock;
 use anyhow::Context as _;
@@ -6,7 +6,10 @@ use anyhow::Result;
 use fred::interfaces::KeysInterface;
 use fred::types::SetOptions;
 use serde::{Deserialize, Serialize};
-use serenity::all::{ChannelId, ChannelType, Context as SerenityContext, GuildChannel, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId};
+use serenity::all::{
+    ChannelId, ChannelType, Context as SerenityContext, GuildChannel, GuildId, PermissionOverwrite,
+    PermissionOverwriteType, Permissions, RoleId,
+};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, trace, warn};
 
@@ -23,7 +26,6 @@ fn generate_sweep_token() -> String {
         .as_nanos();
     format!("{}-{}", std::process::id(), nanos)
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 enum StoredOverwriteState {
@@ -155,7 +157,10 @@ pub async fn apply_global_lock(
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
-        .await? { guard } else {
+    .await?
+    {
+        guard
+    } else {
         debug!(
             %guild_id,
             "Global lock sweep already in progress for this guild; skipping"
@@ -231,7 +236,10 @@ pub async fn apply_global_unlock(
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
-        .await? { guard } else {
+    .await?
+    {
+        guard
+    } else {
         debug!(
             %guild_id,
             "Global lock sweep already in progress for this guild; skipping"

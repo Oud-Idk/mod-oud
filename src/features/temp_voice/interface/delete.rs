@@ -14,15 +14,12 @@ pub async fn handle_delete_temp_vc(
 
     let user_id = interaction.user.id;
 
-    let response_message = service::delete_temp_vc(
-        &ctx.http,
-        &data.core.redis,
-        guild_id,
-        channel_id,
-        user_id,
-    ).await?;
+    let response_message =
+        service::delete_temp_vc(&ctx.http, &data.core.redis, guild_id, channel_id, user_id).await?;
 
-    interaction.create_response(&ctx, create_ephemeral_msg(&response_message)).await?;
+    interaction
+        .create_response(&ctx, create_ephemeral_msg(&response_message))
+        .await?;
 
     Ok(())
 }

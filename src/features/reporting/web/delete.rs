@@ -15,7 +15,15 @@ pub async fn handle_delete_message(
 ) -> Result<StatusCode, WebError> {
     info!(%channel_id, %message_id, "Attempting message deletion");
 
-    match state.serenity_http.delete_message(channel_id, message_id, Some("Deleted via Moderation Dashboard")).await {
+    match state
+        .serenity_http
+        .delete_message(
+            channel_id,
+            message_id,
+            Some("Deleted via Moderation Dashboard"),
+        )
+        .await
+    {
         Ok(()) => {
             info!("Discord message deleted successfully");
         }

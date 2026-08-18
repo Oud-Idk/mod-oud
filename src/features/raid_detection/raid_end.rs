@@ -1,13 +1,15 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_unlock;
+use crate::features::raid_detection::keys;
+use crate::features::raid_detection::keys::active_raids_key;
 use crate::features::raid_detection::snapshot::restore_preraid_state;
 use crate::features::raid_detection::types::RaidAction;
-use crate::features::raid_detection::keys;
 use fred::interfaces::{KeysInterface, SetsInterface};
-use serenity::all::{ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp};
+use serenity::all::{
+    ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
+};
 use tracing::{error, info};
-use crate::features::raid_detection::keys::active_raids_key;
 
 pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
     tokio::spawn(async move {
@@ -35,9 +37,16 @@ pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
     });
 }
 
-pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id: GuildId) -> Result<(), Error> {
-    let restored = restore_preraid_state(ctx, data, guild_id).await
-        .inspect_err(|e| error!(error = ?e, "Failed to restore pre-raid state for guild {guild_id}"))
+pub async fn handle_raid_end(
+    ctx: &Context,
+    data: &BotData,
+    guild_id: GuildId,
+) -> Result<(), Error> {
+    let restored = restore_preraid_state(ctx, data, guild_id)
+        .await
+        .inspect_err(
+            |e| error!(error = ?e, "Failed to restore pre-raid state for guild {guild_id}"),
+        )
         .unwrap_or(false);
 
     if !restored {
@@ -45,8 +54,14 @@ pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id: GuildId) -
     }
 
     let Some(raid_config) = get_settings(
-        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id,
-    ).await?.raid_detection else {
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id,
+    )
+    .await?
+    .raid_detection
+    else {
         return Ok(());
     };
 
@@ -63,9 +78,13 @@ pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id: GuildId) -
             }
             RaidAction::PauseInvites { .. } => {
                 let past_timestamp = Timestamp::from_unix_timestamp(0)?;
-                let builder = EditGuildIncidentActions::new().invites_disabled_until(past_timestamp);
+                let builder =
+                    EditGuildIncidentActions::new().invites_disabled_until(past_timestamp);
 
-                if let Err(e) = guild_id.edit_guild_incident_actions(&ctx.http, guild_id, builder).await {
+                if let Err(e) = guild_id
+                    .edit_guild_incident_actions(&ctx.http, guild_id, builder)
+                    .await
+                {
                     error!(error = ?e, "Failed to unpause invites on raid end");
                 }
             }

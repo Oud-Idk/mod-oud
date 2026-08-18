@@ -8,13 +8,15 @@ use serenity::all::{ChannelId, Context, CreateThread, Message, PartialMember, Ro
 use tracing::trace;
 
 fn has_matching_role(member: &Box<PartialMember>, roles: &[RoleId]) -> bool {
-    member.roles.iter().any(|role_id| {
-        roles.contains(role_id)
-    })
+    member.roles.iter().any(|role_id| roles.contains(role_id))
 }
 
 /// Enforces media-only rules on a message, handling violations and optional auto-threads.
-pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data: &BotData) -> Result<()> {
+pub async fn handle_media_channel_message(
+    ctx: &Context,
+    message: &Message,
+    data: &BotData,
+) -> Result<()> {
     let channel_id = message.channel_id;
 
     // Checks exempt roles and disabled channel, and check if config exists
@@ -26,9 +28,8 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
 
     if analyze_initial_text(message, &config, text, urls) {
         violation::handle_violation(ctx, message, &config).await?;
-        return Ok(())
+        return Ok(());
     }
-
 
     for attachment in &message.attachments {
         let Some(mime) = attachment.content_type.as_deref() else {
@@ -50,22 +51,31 @@ pub async fn handle_media_channel_message(ctx: &Context, message: &Message, data
 
     if let Some(thread_name_template) = config.thread_name_template {
         if !config.auto_thread {
-            return Ok(())
+            return Ok(());
         }
 
         let thread_name = thread_name_template
             .replace("{user}", message.author.name.as_str())
-            .replace("{timestamp}", message.timestamp.to_rfc3339().unwrap_or_default().as_str());
+            .replace(
+                "{timestamp}",
+                message.timestamp.to_rfc3339().unwrap_or_default().as_str(),
+            );
 
         let builder = CreateThread::new(thread_name);
 
-        ctx.http.create_thread_from_message(message.channel_id, message.id, &builder, None).await?;
+        ctx.http
+            .create_thread_from_message(message.channel_id, message.id, &builder, None)
+            .await?;
     }
 
     Ok(())
 }
 
-async fn preflight_checks(message: &Message, channel_id: ChannelId, data: &BotData) -> Result<Option<MediaOnlyChannel>> {
+async fn preflight_checks(
+    message: &Message,
+    channel_id: ChannelId,
+    data: &BotData,
+) -> Result<Option<MediaOnlyChannel>> {
     if message.author.bot {
         trace!("Author is a bot. Skipping");
         return Ok(None);
@@ -94,7 +104,6 @@ async fn preflight_checks(message: &Message, channel_id: ChannelId, data: &BotDa
 }
 
 fn attachment_is_valid(config: &MediaOnlyChannel, mime: &str) -> bool {
-    
     if mime.starts_with("image/gif") {
         config.allow_gif
     } else if mime.starts_with("image/") {
@@ -108,7 +117,12 @@ fn attachment_is_valid(config: &MediaOnlyChannel, mime: &str) -> bool {
     }
 }
 
-fn analyze_initial_text(message: &Message, config: &MediaOnlyChannel, text: String, urls: Vec<&str>) -> bool {
+fn analyze_initial_text(
+    message: &Message,
+    config: &MediaOnlyChannel,
+    text: String,
+    urls: Vec<&str>,
+) -> bool {
     if !text.is_empty() && !config.allow_embedded_text {
         trace!("Text is not allowed in this channel.");
         return true;
@@ -129,4 +143,3 @@ fn analyze_initial_text(message: &Message, config: &MediaOnlyChannel, text: Stri
 
     false
 }
-

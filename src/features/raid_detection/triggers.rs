@@ -9,7 +9,9 @@ use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::RaidAction;
 use fred::interfaces::KeysInterface;
-use serenity::all::{ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp};
+use serenity::all::{
+    ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
+};
 use tracing::{error, info, instrument, warn};
 
 #[instrument(
@@ -31,12 +33,7 @@ pub async fn trigger_raid_manual(
         "Manual raid mode activation requested by moderator"
     );
 
-    let detector = DynamicRaidDetector::new(
-        data.core.redis.clone(),
-        60,
-        3.0,
-        5,
-    );
+    let detector = DynamicRaidDetector::new(data.core.redis.clone(), 60, 3.0, 5);
 
     let is_first_trigger = detector.try_set_raid_active(guild_id, 300).await?;
     if !is_first_trigger {
@@ -62,8 +59,14 @@ pub async fn trigger_raid_manual(
     spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
 
     let Some(raid_config) = get_settings(
-        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id,
-    ).await?.raid_detection else {
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id,
+    )
+    .await?
+    .raid_detection
+    else {
         warn!(
             %guild_id,
             "Raid mode set active manually, but no raid configuration found for mitigation actions"
@@ -92,7 +95,9 @@ pub async fn trigger_raid_manual(
                 let until = chrono::Utc::now() + chrono::Duration::hours(*hours);
                 let timestamp = Timestamp::from_unix_timestamp(until.timestamp())?;
                 let builder = EditGuildIncidentActions::new().invites_disabled_until(timestamp);
-                guild_id.edit_guild_incident_actions(&ctx.http, guild_id, builder).await?;
+                guild_id
+                    .edit_guild_incident_actions(&ctx.http, guild_id, builder)
+                    .await?;
             }
             RaidAction::Alert { channel_id } => {
                 info!(%guild_id, channel_id, "Sending manual raid alert message");

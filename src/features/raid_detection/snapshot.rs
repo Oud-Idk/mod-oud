@@ -29,9 +29,7 @@ pub async fn ensure_preraid_state_saved(
     debug!(%guild_id, "Fetching current guild state and permissions for pre-raid snapshot");
 
     // Fetch current guild state from Discord HTTP/Cache
-    let partial_guild = guild_id
-        .to_partial_guild(&ctx.http)
-        .await?;
+    let partial_guild = guild_id.to_partial_guild(&ctx.http).await?;
 
     let everyone_role_id = RoleId::new(guild_id.get());
     let everyone_perms = partial_guild
@@ -46,7 +44,13 @@ pub async fn ensure_preraid_state_saved(
         original_everyone_permissions: everyone_perms,
     };
 
-    let settings = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id).await?;
+    let settings = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id,
+    )
+    .await?;
     if let Some(verification_settings) = settings.welcome.and_then(|w| w.verification) {
         snapshot.original_verification_type = verification_settings.captcha_type;
         snapshot.original_oauth_required = verification_settings.use_oauth;
@@ -126,9 +130,7 @@ pub async fn restore_preraid_state(
     }
 
     // Restore verification settings in the database
-    let captcha_str = snapshot
-        .original_verification_type
-        .map(|c| format!("{c}"));
+    let captcha_str = snapshot.original_verification_type.map(|c| format!("{c}"));
 
     debug!(%guild_id, "Restoring verification settings in database");
     database::restore_verification_settings(
@@ -137,7 +139,7 @@ pub async fn restore_preraid_state(
         snapshot.original_oauth_required,
         captcha_str.as_deref(),
     )
-        .await?;
+    .await?;
 
     // Remove from active raids set
     let _: () = cache::remove_guild_from_raid(guild_id, &data.core.redis).await?;
@@ -146,4 +148,3 @@ pub async fn restore_preraid_state(
 
     Ok(true)
 }
-

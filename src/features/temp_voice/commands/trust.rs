@@ -22,7 +22,8 @@ pub async fn trust(
         channel_id,
         vec![target.id],
         member.user.id,
-    ).await?;
+    )
+    .await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

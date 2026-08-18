@@ -1,6 +1,9 @@
 use crate::features::music::actor::GuildActor;
 use crate::features::music::actor::GuildCommand;
 use crate::features::music::stats::StatsTx;
+use serde;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use serenity::all::GuildId;
 use songbird::Songbird;
 use songbird::input::AuxMetadata;
@@ -8,9 +11,6 @@ use songbird::tracks::TrackHandle;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
-use serde;
-use serde::{Serialize, Serializer};
-use serde::ser::SerializeStruct;
 use tokio::sync::{Mutex, mpsc};
 
 #[derive(Debug, Serialize)]
@@ -22,7 +22,10 @@ pub struct StartedTrackInfo {
 pub enum QueueAddOutcome {
     Played(StartedTrackInfo),
     Queued(StartedTrackInfo),
-    PlaylistQueued { count: usize, first_track: StartedTrackInfo },
+    PlaylistQueued {
+        count: usize,
+        first_track: StartedTrackInfo,
+    },
 }
 
 pub enum PlayOutcome {
@@ -51,7 +54,6 @@ where
     state.serialize_field("source_url", &metadata.source_url)?;
     state.end()
 }
-
 
 #[derive(Clone, Debug, Serialize)]
 pub struct QueuedTrack {
@@ -83,11 +85,14 @@ impl GuildPlayer {
         self.push_history_batch(std::iter::once(track));
     }
 
-    pub fn push_history_batch(&mut self, tracks: impl IntoIterator<Item=QueuedTrack>) {
+    pub fn push_history_batch(&mut self, tracks: impl IntoIterator<Item = QueuedTrack>) {
         Self::push_history_to(&mut self.history, tracks);
     }
 
-    pub fn push_history_to(history: &mut Vec<QueuedTrack>, tracks: impl IntoIterator<Item=QueuedTrack>) {
+    pub fn push_history_to(
+        history: &mut Vec<QueuedTrack>,
+        tracks: impl IntoIterator<Item = QueuedTrack>,
+    ) {
         history.extend(tracks);
         if history.len() > HISTORY_LIMIT {
             let overflow = history.len() - HISTORY_LIMIT;
@@ -134,9 +139,10 @@ impl MusicState {
         let mut map = self.actors.lock().await;
 
         if let Some(tx) = map.get(&guild_id)
-            && !tx.is_closed() {
-                return tx.clone();
-            }
+            && !tx.is_closed()
+        {
+            return tx.clone();
+        }
 
         let tx = GuildActor::spawn(
             guild_id,

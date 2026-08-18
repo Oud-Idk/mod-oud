@@ -18,8 +18,7 @@ pub async fn fetch_starboard_message_id(
         .await?
         .flatten();
 
-    Ok(existing_post_id.map(|id| id as u64)
-        .map(MessageId::new))
+    Ok(existing_post_id.map(|id| id as u64).map(MessageId::new))
 }
 
 /// Helper to delete the message from Discord and remove its entry from the database
@@ -31,15 +30,17 @@ pub async fn handle_starboard_demotion(
     orig_msg_id: MessageId,
     starboard_id: i64,
 ) -> Result<()> {
-    let _ = starboard_channel.delete_message(&ctx.http, starboard_msg_id).await;
+    let _ = starboard_channel
+        .delete_message(&ctx.http, starboard_msg_id)
+        .await;
 
     sqlx::query!(
         "DELETE FROM starred_messages WHERE original_message_id = $1 AND starboard_id = $2",
         orig_msg_id.get() as i64,
         starboard_id
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(())
 }
@@ -89,8 +90,8 @@ pub async fn insert_starred_message(
         author_id.get() as i64,
         emoji_count as i32
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(())
 }
@@ -103,8 +104,8 @@ pub async fn delete_starboard(db: &PgPool, id: i64) -> Result<()> {
         "#,
         id
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
     Ok(())
 }
 
@@ -119,7 +120,7 @@ pub async fn fetch_starboard(db: &PgPool, id: i64) -> Result<Vec<SimpleStarboard
         "#,
         id
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
     Ok(rows)
 }

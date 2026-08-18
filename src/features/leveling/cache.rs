@@ -4,7 +4,9 @@ use crate::features::leveling::types::{LevelingConfig, UserLevel, XpMultiplier};
 use crate::features::leveling::{database, keys};
 use anyhow::Result;
 use fred::clients::Client;
-use fred::interfaces::{FredResult, HashesInterface, KeysInterface, SetsInterface, TransactionInterface};
+use fred::interfaces::{
+    FredResult, HashesInterface, KeysInterface, SetsInterface, TransactionInterface,
+};
 use fred::prelude::Expiration;
 use fred::types::SetOptions;
 use serenity::all::{ChannelId, GuildId, UserId};
@@ -37,7 +39,15 @@ pub async fn cache_aside_multipliers(
 
         debug!(key = %multiplier_key, "Serializing and caching multipliers in Redis");
         let serialized = serde_json::to_string(&db_multipliers)?;
-        let _: () = redis.set(multiplier_key, serialized, Some(Expiration::EX(3600)), None, false).await?;
+        let _: () = redis
+            .set(
+                multiplier_key,
+                serialized,
+                Some(Expiration::EX(3600)),
+                None,
+                false,
+            )
+            .await?;
 
         db_multipliers
     };
@@ -93,16 +103,38 @@ pub async fn save_leveling_cache(
 
     let trx = redis.multi();
 
-    let _: () = trx.set(stats_key, &serialized, Some(Expiration::EX(3600)), None, false).await?;
-    let _: () = trx.hset(&guild_pending_key, (user_field, &serialized)).await?;
+    let _: () = trx
+        .set(
+            stats_key,
+            &serialized,
+            Some(Expiration::EX(3600)),
+            None,
+            false,
+        )
+        .await?;
+    let _: () = trx
+        .hset(&guild_pending_key, (user_field, &serialized))
+        .await?;
     let _: () = trx.sadd("levels:dirty_guilds", guild_id_str).await?;
     let _: () = trx.exec(false).await?;
 
     Ok(())
 }
 
-pub async fn save_user_level_cache(redis: &Client, stats_key: &str, serialized: String) -> FredResult<()> {
-    redis.set(stats_key, serialized, Some(Expiration::EX(3600)), None, false).await
+pub async fn save_user_level_cache(
+    redis: &Client,
+    stats_key: &str,
+    serialized: String,
+) -> FredResult<()> {
+    redis
+        .set(
+            stats_key,
+            serialized,
+            Some(Expiration::EX(3600)),
+            None,
+            false,
+        )
+        .await
 }
 
 /// Adds a user to a channel's eligible-occupant set.
@@ -133,10 +165,17 @@ pub async fn remove_occupant(
     Ok(count)
 }
 
-async fn get_occupants(redis: &Client, guild_id: GuildId, channel_id: ChannelId) -> Result<Vec<u64>> {
+async fn get_occupants(
+    redis: &Client,
+    guild_id: GuildId,
+    channel_id: ChannelId,
+) -> Result<Vec<u64>> {
     let key = keys::occupants_key(guild_id, channel_id);
     let members: Vec<String> = redis.smembers(&key).await?;
-    Ok(members.into_iter().filter_map(|m| m.parse::<u64>().ok()).collect())
+    Ok(members
+        .into_iter()
+        .filter_map(|m| m.parse::<u64>().ok())
+        .collect())
 }
 
 /// Resumes the accrual clock for every eligible occupant in a channel.
@@ -205,7 +244,8 @@ pub async fn resume_clock(
 ) -> Result<()> {
     let key = keys::session_key(guild_id, user_id);
     if let Some(mut s) = get_session(redis, &key).await?
-        && s.clock_started_at.is_none() {
+        && s.clock_started_at.is_none()
+    {
         trace!(%guild_id, user_id = user_id.get(), "Resuming voice XP clock");
         s.clock_started_at = Some(now);
         set_session(redis, &key, &s).await?;
@@ -223,7 +263,8 @@ pub async fn pause_clock(
 ) -> Result<()> {
     let key = leveling::keys::session_key(guild_id, user_id);
     if let Some(mut s) = get_session(redis, &key).await?
-        && let Some(started) = s.clock_started_at.take() {
+        && let Some(started) = s.clock_started_at.take()
+    {
         trace!(%guild_id, user_id = user_id.get(), "Pausing voice XP clock (alone in channel)");
         s.accumulated_secs += (now - started).max(0);
         set_session(redis, &key, &s).await?;

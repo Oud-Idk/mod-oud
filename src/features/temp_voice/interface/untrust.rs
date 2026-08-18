@@ -20,11 +20,13 @@ pub async fn handle_untrust_temp_vc(
 
     let select_menu = CreateSelectMenu::new(
         "temp_voice_untrust_select",
-        CreateSelectMenuKind::User { default_users: None },
+        CreateSelectMenuKind::User {
+            default_users: None,
+        },
     )
-        .placeholder("Choose users to untrust...")
-        .min_values(1)
-        .max_values(25);
+    .placeholder("Choose users to untrust...")
+    .min_values(1)
+    .max_values(25);
 
     let row = CreateActionRow::SelectMenu(select_menu);
 
@@ -50,7 +52,8 @@ pub async fn handle_untrust_temp_vc_submit(
         return Ok(());
     };
 
-    let response_message = service::untrust_users_in_vc(&ctx.http, channel_id, target_user_ids).await?;
+    let response_message =
+        service::untrust_users_in_vc(&ctx.http, channel_id, target_user_ids).await?;
 
     interaction
         .create_response(&ctx.http, create_ephemeral_msg(&response_message))

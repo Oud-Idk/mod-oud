@@ -2,8 +2,8 @@ use crate::features::automod::{BaseRule, RuleAction, RuleScope};
 use aho_corasick::AhoCorasick;
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use serenity::all::GuildId;
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

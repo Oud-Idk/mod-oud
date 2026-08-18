@@ -35,6 +35,6 @@ pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Re
             .content(message)
             .ephemeral(true),
     )
-        .await?;
+    .await?;
     Ok(())
 }

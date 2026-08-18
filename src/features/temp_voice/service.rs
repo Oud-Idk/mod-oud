@@ -8,7 +8,10 @@ use anyhow::Context as _;
 use fred::clients::Client as RedisClient;
 use fred::interfaces::{HashesInterface, KeysInterface};
 use fred::prelude::Expiration;
-use serenity::all::{Channel, ChannelId, Context, EditChannel, EditMember, GuildId, Http, Member, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId};
+use serenity::all::{
+    Channel, ChannelId, Context, EditChannel, EditMember, GuildId, Http, Member,
+    PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId,
+};
 use sqlx::PgPool;
 
 /// Service: Rename Temp Voice Channel
@@ -24,15 +27,19 @@ pub async fn rename_temp_vc(
     let trimmed = raw_name.trim();
 
     let final_name = if trimmed.is_empty() {
-        let guild_channel = Channel::guild(channel_id.to_channel(&ctx).await?).with_context(|| "Channel not found")?;
-        let category_id = guild_channel.parent_id.with_context(|| "Channel has no category parent")?;
+        let guild_channel = Channel::guild(channel_id.to_channel(&ctx).await?)
+            .with_context(|| "Channel not found")?;
+        let category_id = guild_channel
+            .parent_id
+            .with_context(|| "Channel has no category parent")?;
 
         let cache_key = format!("temp_voice_hub_by_category:{guild_id}:{category_id}");
         let cached_json: Option<String> = redis.get(&cache_key).await?;
 
-        let hub_info = get_hub_info_by_category(guild_id, redis, db, category_id, &cache_key, cached_json)
-            .await?
-            .with_context(|| "No hub config found")?;
+        let hub_info =
+            get_hub_info_by_category(guild_id, redis, db, category_id, &cache_key, cached_json)
+                .await?
+                .with_context(|| "No hub config found")?;
 
         replace_channel_placeholders(&hub_info.default_channel_name, &guild_id, ctx, member).await?
     } else {
@@ -56,8 +63,13 @@ pub async fn kick_user_by_id(
 ) -> Result<String, Error> {
     let edit_builder = EditMember::new().disconnect_member();
 
-    match guild_id.edit_member(http, target_user_id, edit_builder).await {
-        Ok(_) => Ok(format!("Successfully kicked <@{target_user_id}> from the channel.")),
+    match guild_id
+        .edit_member(http, target_user_id, edit_builder)
+        .await
+    {
+        Ok(_) => Ok(format!(
+            "Successfully kicked <@{target_user_id}> from the channel."
+        )),
         Err(err) => {
             tracing::error!("Failed to disconnect member {}: {:?}", target_user_id, err);
             Ok("Could not kick the user. Do I have the 'Move Members' permission?".to_string())
@@ -124,7 +136,9 @@ pub async fn kick_user_by_query(
     }
 
     let Some(target_id) = target_user_id else {
-        return Ok("Could not find a user in your voice channel matching that name or ID.".to_string());
+        return Ok(
+            "Could not find a user in your voice channel matching that name or ID.".to_string(),
+        );
     };
 
     // Kick the resolved user
@@ -146,7 +160,8 @@ pub async fn set_temp_vc_limit(
             Err(_) => {
                 return Ok("Input isn't valid or is negative. \
                     Please enter a number between 1 and 99, or leave it blank to reset. \
-                    0 is an alias for resetting too.".to_string());
+                    0 is an alias for resetting too."
+                    .to_string());
             }
         }
     };
@@ -157,11 +172,14 @@ pub async fn set_temp_vc_limit(
 
     let builder = EditChannel::new().user_limit(limit_parsed);
     match channel_id.edit(&ctx, builder).await {
-        Ok(_) => Ok(format!("Success! The voice channel limit is now set to {limit_parsed}.")),
+        Ok(_) => Ok(format!(
+            "Success! The voice channel limit is now set to {limit_parsed}."
+        )),
         Err(err) => {
             tracing::error!("Failed to edit channel {channel_id}: {:?}", err);
             Ok("Uh oh, I couldn't update the limit. \
-                Do I have the 'Manage Channels' permission?".to_string())
+                Do I have the 'Manage Channels' permission?"
+                .to_string())
         }
     }
 }
@@ -188,11 +206,16 @@ pub async fn delete_temp_vc(
         return Ok("You don't own this channel! Only the channel owner can delete it.".to_string());
     }
 
-    tracing::debug!(channel_id = channel_id.get(), "Owner requested manual deletion of temp VC. Cleaning up.");
+    tracing::debug!(
+        channel_id = channel_id.get(),
+        "Owner requested manual deletion of temp VC. Cleaning up."
+    );
 
     if let Err(e) = channel_id.delete(http).await {
         tracing::error!("Failed to delete temp VC {}: {:?}", channel_id, e);
-        return Ok("Could not delete the channel. Do I have the 'Manage Channels' permission?".to_string());
+        return Ok(
+            "Could not delete the channel. Do I have the 'Manage Channels' permission?".to_string(),
+        );
     }
 
     let owner_hash = temp_vc_owners_key(guild_id);
@@ -206,7 +229,10 @@ pub async fn delete_temp_vc(
         tracing::warn!("Failed to delete temp VC mapping from cache: {:?}", e);
     }
     if let Err(e) = r2 {
-        tracing::warn!("Failed to delete owner reverse index mapping from cache: {:?}", e);
+        tracing::warn!(
+            "Failed to delete owner reverse index mapping from cache: {:?}",
+            e
+        );
     }
 
     Ok("Your voice channel has been deleted.".to_string())
@@ -238,7 +264,9 @@ pub async fn initiate_temp_vc_transfer(
 
     let owner_hash = temp_vc_owners_key(guild_id);
 
-    let target_existing_vc: Option<String> = redis.hget(&owner_hash, new_owner_id.get().to_string()).await?;
+    let target_existing_vc: Option<String> = redis
+        .hget(&owner_hash, new_owner_id.get().to_string())
+        .await?;
     if target_existing_vc.is_some() {
         tracing::debug!("Transfer rejected: Target user already owns a temporary voice channel");
         return Ok("That user already owns a temporary voice channel!".to_string());
@@ -276,7 +304,10 @@ pub async fn lock_temp_vc(
 
     channel_id.create_permission(http, overwrite).await?;
 
-    Ok("This channel is now **locked**. Members will no longer be able to join unless trusted.".to_string())
+    Ok(
+        "This channel is now **locked**. Members will no longer be able to join unless trusted."
+            .to_string(),
+    )
 }
 
 /// Service: Unlock a temporary voice channel by removing the @everyone permission overwrite
@@ -353,7 +384,11 @@ pub async fn untrust_users_in_vc(
     let mut untrusted_mentions = Vec::new();
 
     for target_user_id in target_user_ids {
-        tracing::debug!("Untrusting user {} in channel {}", target_user_id, channel_id);
+        tracing::debug!(
+            "Untrusting user {} in channel {}",
+            target_user_id,
+            channel_id
+        );
         let target = PermissionOverwriteType::Member(target_user_id);
 
         if let Err(e) = channel_id.delete_permission(http, target).await {
@@ -369,7 +404,10 @@ pub async fn untrust_users_in_vc(
         untrusted_mentions.push(format!("<@{target_user_id}>"));
     }
 
-    Ok(format!("Removed {} from the trusted list.", untrusted_mentions.join(", ")))
+    Ok(format!(
+        "Removed {} from the trusted list.",
+        untrusted_mentions.join(", ")
+    ))
 }
 
 /// Service: Block users from a temporary voice channel by denying `VIEW_CHANNEL` and CONNECT
@@ -425,7 +463,11 @@ pub async fn unblock_users_from_vc(
     let mut unblocked_mentions = Vec::new();
 
     for target_user_id in target_user_ids {
-        tracing::debug!("Unblocking user {} in channel {}", target_user_id, channel_id);
+        tracing::debug!(
+            "Unblocking user {} in channel {}",
+            target_user_id,
+            channel_id
+        );
         let target = PermissionOverwriteType::Member(target_user_id);
 
         if let Err(e) = channel_id.delete_permission(http, target).await {
@@ -441,5 +483,8 @@ pub async fn unblock_users_from_vc(
         unblocked_mentions.push(format!("<@{target_user_id}>"));
     }
 
-    Ok(format!("The following users have been **unblocked**: {}", unblocked_mentions.join(", ")))
+    Ok(format!(
+        "The following users have been **unblocked**: {}",
+        unblocked_mentions.join(", ")
+    ))
 }

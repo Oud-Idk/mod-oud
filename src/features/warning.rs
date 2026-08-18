@@ -1,10 +1,10 @@
 mod commands;
 mod database;
-mod types;
 mod issuing;
-mod thresholds;
-mod pagination;
 mod modify_warns;
+mod pagination;
+mod thresholds;
+mod types;
 
-pub use issuing::issue_warning;
 pub use commands::{warn, warnings};
+pub use issuing::issue_warning;

@@ -20,11 +20,13 @@ pub async fn handle_block_temp_vc(
 
     let select_menu = CreateSelectMenu::new(
         "temp_voice_block_select",
-        CreateSelectMenuKind::User { default_users: None },
+        CreateSelectMenuKind::User {
+            default_users: None,
+        },
     )
-        .placeholder("Choose users to block...")
-        .min_values(1)
-        .max_values(25);
+    .placeholder("Choose users to block...")
+    .min_values(1)
+    .max_values(25);
 
     let row = CreateActionRow::SelectMenu(select_menu);
 
@@ -46,7 +48,8 @@ pub async fn handle_block_temp_vc_submit(
     data: &BotData,
     target_user_ids: Vec<UserId>,
 ) -> Result<(), Error> {
-    let Ok(Some((channel_id, guild_id))) = preflight_button_check(ctx, interaction, data).await else {
+    let Ok(Some((channel_id, guild_id))) = preflight_button_check(ctx, interaction, data).await
+    else {
         return Ok(());
     };
 
@@ -56,7 +59,8 @@ pub async fn handle_block_temp_vc_submit(
         channel_id,
         target_user_ids,
         interaction.user.id,
-    ).await?;
+    )
+    .await?;
 
     interaction
         .create_response(&ctx.http, create_ephemeral_msg(&response_message))

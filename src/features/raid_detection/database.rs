@@ -26,9 +26,9 @@ pub async fn bump_verification_to_max(
         true,
         "HCAPTCHA"
     )
-        .execute(pool)
-        .await?
-        .rows_affected();
+    .execute(pool)
+    .await?
+    .rows_affected();
 
     Ok(rows_affected)
 }
@@ -60,9 +60,9 @@ pub async fn restore_verification_settings(
         use_oauth,
         captcha_type
     )
-        .execute(pool)
-        .await?
-        .rows_affected();
+    .execute(pool)
+    .await?
+    .rows_affected();
 
     Ok(rows_affected)
 }

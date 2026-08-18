@@ -1,5 +1,7 @@
 use crate::core::config::state::{BotData, Error};
-use crate::features::temp_voice::interface::{create_ephemeral_msg, get_input_value, preflight_button_check, preflight_modal_check};
+use crate::features::temp_voice::interface::{
+    create_ephemeral_msg, get_input_value, preflight_button_check, preflight_modal_check,
+};
 use crate::features::temp_voice::service;
 use serenity::all::{
     ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse,
@@ -18,18 +20,11 @@ pub async fn handle_kick_temp_vc(
 
     debug!("Showing kick modal");
 
-    let input = CreateInputText::new(
-        InputTextStyle::Short,
-        "User to kick",
-        "user_to_kick",
-    )
+    let input = CreateInputText::new(InputTextStyle::Short, "User to kick", "user_to_kick")
         .placeholder("Enter username, nickname, or User ID")
         .required(true);
 
-    let modal = CreateModal::new(
-        "temp_voice_kick_modal",
-        "Kick from Voice Channel",
-    )
+    let modal = CreateModal::new("temp_voice_kick_modal", "Kick from Voice Channel")
         .components(vec![CreateActionRow::InputText(input)]);
 
     interaction
@@ -47,7 +42,8 @@ pub async fn handle_kick_temp_vc_submit(
     };
 
     let query_raw = get_input_value(interaction, "user_to_kick").unwrap_or_default();
-    let response_message = service::kick_user_by_query(ctx, guild_id, channel_id, &query_raw).await?;
+    let response_message =
+        service::kick_user_by_query(ctx, guild_id, channel_id, &query_raw).await?;
 
     interaction
         .create_response(&ctx.http, create_ephemeral_msg(&response_message))

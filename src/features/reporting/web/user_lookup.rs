@@ -13,8 +13,15 @@ pub async fn resolve_moderator_id(
             .get_current_user()
             .await
             .map(|u| u.id)
-            .inspect_err(|e| warn!(error = %e, "Failed to fetch fallback bot details from Discord API"))
-            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())),
+            .inspect_err(
+                |e| warn!(error = %e, "Failed to fetch fallback bot details from Discord API"),
+            )
+            .map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error.".to_string(),
+                )
+            }),
     }
 }
 

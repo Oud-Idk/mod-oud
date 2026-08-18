@@ -1,7 +1,7 @@
-mod web;
-mod types;
 mod subscriber;
+mod types;
+mod web;
 
-pub use web::routes;
-pub use types::LogEvent;
 pub use subscriber::start_live_feed_subscriber;
+pub use types::LogEvent;
+pub use web::routes;

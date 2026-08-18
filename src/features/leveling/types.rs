@@ -72,7 +72,13 @@ pub struct UserLevel {
 }
 
 impl UserLevel {
-    pub fn from_raw(guild_id: i64, user_id: i64, cumulative_xp: i32, current_level: i32, current_xp: i32) -> Self {
+    pub fn from_raw(
+        guild_id: i64,
+        user_id: i64,
+        cumulative_xp: i32,
+        current_level: i32,
+        current_xp: i32,
+    ) -> Self {
         Self {
             guild_id: GuildId::new(guild_id as u64),
             user_id: UserId::new(user_id as u64),

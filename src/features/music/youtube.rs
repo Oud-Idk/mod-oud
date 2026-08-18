@@ -60,16 +60,25 @@ fn extract_video_id(url: &str) -> Option<&str> {
     if url.contains("v=") {
         url.split("v=").nth(1)?.split('&').next()
     } else if url.contains("youtu.be/") {
-        url.split("youtu.be/").nth(1)?.split('?').next()?.split('&').next()
+        url.split("youtu.be/")
+            .nth(1)?
+            .split('?')
+            .next()?
+            .split('&')
+            .next()
     } else if url.contains("shorts/") {
-        url.split("shorts/").nth(1)?.split('?').next()?.split('&').next()
+        url.split("shorts/")
+            .nth(1)?
+            .split('?')
+            .next()?
+            .split('&')
+            .next()
     } else if !url.contains('/') && !url.contains('.') {
         Some(url)
     } else {
         None
     }
 }
-
 
 /// Fetches ALL video URLs from a `YouTube` Playlist by paginating 50 items at a time!
 pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Option<Vec<String>> {
@@ -79,7 +88,9 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
 
     let playlist_id = extract_playlist_id(url)?;
 
-    let api_key = if let Ok(key) = std::env::var("YOUTUBE_API_KEY") { key } else {
+    let api_key = if let Ok(key) = std::env::var("YOUTUBE_API_KEY") {
+        key
+    } else {
         warn!("YOUTUBE_API_KEY environment variable is not set.");
         return None;
     };
@@ -138,10 +149,11 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
         for item in &items {
             if let Some(snippet) = &item.snippet
                 && let Some(resource_id) = &snippet.resource_id
-                    && let Some(video_id) = &resource_id.video_id {
-                        // Returns playable YouTube URL
-                        video_urls.push(format!("https://www.youtube.com/watch?v={video_id}"));
-                    }
+                && let Some(video_id) = &resource_id.video_id
+            {
+                // Returns playable YouTube URL
+                video_urls.push(format!("https://www.youtube.com/watch?v={video_id}"));
+            }
         }
 
         // Check if a next page exists for pagination
@@ -155,7 +167,10 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
         warn!(url = %url, "Failed to fetch videos from YouTube API or playlist was empty");
         None
     } else {
-        debug!(count = video_urls.len(), "Successfully fetched all YouTube playlist tracks");
+        debug!(
+            count = video_urls.len(),
+            "Successfully fetched all YouTube playlist tracks"
+        );
         Some(video_urls)
     }
 }
@@ -164,7 +179,9 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
 pub async fn resolve_youtube_video(client: &reqwest::Client, url: &str) -> Option<String> {
     let video_id = extract_video_id(url)?;
 
-    let api_key = if let Ok(key) = std::env::var("YOUTUBE_API_KEY") { key } else {
+    let api_key = if let Ok(key) = std::env::var("YOUTUBE_API_KEY") {
+        key
+    } else {
         warn!("YOUTUBE_API_KEY environment variable is not set.");
         return None;
     };

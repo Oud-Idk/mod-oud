@@ -62,8 +62,8 @@ pub async fn get_reported_message_by_id(
         "#,
         id
     )
-        .fetch_optional(pool)
-        .await?;
+    .fetch_optional(pool)
+    .await?;
 
     Ok(row.map(|r| ReportedMessagePayload {
         id: r.id,
@@ -91,11 +91,16 @@ pub async fn fetch_target_report(
         "SELECT guild_id, author_id FROM reported_messages WHERE id = $1",
         report_id
     )
-        .fetch_optional(pool)
-        .await
-        .inspect_err(|e| error!(error = ?e, report_id, "Failed to fetch reported message by ID"))
-        .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Report ID not found".to_string()))?;
+    .fetch_optional(pool)
+    .await
+    .inspect_err(|e| error!(error = ?e, report_id, "Failed to fetch reported message by ID"))
+    .map_err(|_e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        )
+    })?
+    .ok_or_else(|| (StatusCode::NOT_FOUND, "Report ID not found".to_string()))?;
 
     let guild_id = GuildId::new(report.guild_id as u64);
     let user_id = UserId::new(report.author_id as u64);
@@ -120,45 +125,50 @@ pub async fn update_reported_message(
                 status_str,
                 report_id
             )
-                .execute(pool)
-                .await
+            .execute(pool)
+            .await
         }
         ReportUpdate::MessageDeleted => {
             sqlx::query!(
                 "UPDATE reported_messages SET message_deleted = TRUE WHERE id = $1",
                 report_id
             )
-                .execute(pool)
-                .await
+            .execute(pool)
+            .await
         }
         ReportUpdate::UserWarned => {
             sqlx::query!(
                 "UPDATE reported_messages SET user_warned = TRUE WHERE id = $1",
                 report_id
             )
-                .execute(pool)
-                .await
+            .execute(pool)
+            .await
         }
         ReportUpdate::UserTimedOut => {
             sqlx::query!(
                 "UPDATE reported_messages SET user_timed_out = TRUE WHERE id = $1",
                 report_id
             )
-                .execute(pool)
-                .await
+            .execute(pool)
+            .await
         }
         ReportUpdate::UserBanned => {
             sqlx::query!(
                 "UPDATE reported_messages SET user_banned = TRUE WHERE id = $1",
                 report_id
             )
-                .execute(pool)
-                .await
+            .execute(pool)
+            .await
         }
     };
 
     result
         .map(|_| ())
         .inspect_err(|e| warn!(error = ?e, "Failed to update reported message"))
-        .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()))
+        .map_err(|_e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error".to_string(),
+            )
+        })
 }

@@ -1,14 +1,25 @@
 use crate::core::config::state::Error;
-use crate::features::raid_detection::constants::{CACHE_STATS_TTL_SECONDS, HASH_TTL_DAYS, HISTORY_HOURS};
+use crate::features::raid_detection::constants::{
+    CACHE_STATS_TTL_SECONDS, HASH_TTL_DAYS, HISTORY_HOURS,
+};
 use crate::features::raid_detection::keys;
 use crate::features::raid_detection::types::Stats;
 use chrono::{DateTime, Duration, Utc};
 use fred::clients::Client;
-use fred::interfaces::{FredResult, HashesInterface, KeysInterface, SetsInterface, SortedSetsInterface};
+use fred::interfaces::{
+    FredResult, HashesInterface, KeysInterface, SetsInterface, SortedSetsInterface,
+};
 use fred::prelude::Expiration;
 use serenity::all::{GuildId, UserId};
 
-pub async fn record_join_event(redis: &Client, window_size_seconds: i64, guild_id: GuildId, user_id: UserId, now_ts: i64, hour_str: &str) -> Result<i64, Error> {
+pub async fn record_join_event(
+    redis: &Client,
+    window_size_seconds: i64,
+    guild_id: GuildId,
+    user_id: UserId,
+    now_ts: i64,
+    hour_str: &str,
+) -> Result<i64, Error> {
     let joins_key = keys::recent_join_hash_key(guild_id);
     let stats_key = keys::hourly_stats_hash_key(guild_id);
     let member_key = keys::member_key(user_id, now_ts);
@@ -17,28 +28,49 @@ pub async fn record_join_event(redis: &Client, window_size_seconds: i64, guild_i
 
     let pipeline = redis.pipeline();
 
-    let _: () = pipeline.zadd(&joins_key, None, None, false, false, (now_ts as f64, &member_key)).await?;
-    let _: () = pipeline.zremrangebyscore(&joins_key, "-inf", cutoff).await?;
+    let _: () = pipeline
+        .zadd(
+            &joins_key,
+            None,
+            None,
+            false,
+            false,
+            (now_ts as f64, &member_key),
+        )
+        .await?;
+    let _: () = pipeline
+        .zremrangebyscore(&joins_key, "-inf", cutoff)
+        .await?;
     let _: () = pipeline.zcard(&joins_key).await?;
-    let _: () = pipeline.expire(&joins_key, window_size_seconds * 2, None).await?;
+    let _: () = pipeline
+        .expire(&joins_key, window_size_seconds * 2, None)
+        .await?;
     let _: () = pipeline.hincrby(&stats_key, hour_str, 1).await?;
-    let _: () = pipeline.expire(&stats_key, HASH_TTL_DAYS * 86400, None).await?;
+    let _: () = pipeline
+        .expire(&stats_key, HASH_TTL_DAYS * 86400, None)
+        .await?;
 
-    let ((), _, current_joins_in_window, _, _, _): ((), i64, i64, bool, i64, bool) = pipeline.all().await?;
+    let ((), _, current_joins_in_window, _, _, _): ((), i64, i64, bool, i64, bool) =
+        pipeline.all().await?;
 
     Ok(current_joins_in_window)
 }
 
 pub async fn get_threshold(redis: &Client, stats_cache_key: &str) -> Result<Option<Stats>, Error> {
     if let Ok(Some(cached_json)) = redis.get::<Option<String>, _>(stats_cache_key).await
-        && let Ok(stats) = serde_json::from_str::<Stats>(&cached_json) {
+        && let Ok(stats) = serde_json::from_str::<Stats>(&cached_json)
+    {
         return Ok(Some(stats));
     }
 
     Ok(None)
 }
 
-pub async fn get_history_from_cache(redis: &Client, now: DateTime<Utc>, hash_key: &str) -> Result<Vec<f64>, Error> {
+pub async fn get_history_from_cache(
+    redis: &Client,
+    now: DateTime<Utc>,
+    hash_key: &str,
+) -> Result<Vec<f64>, Error> {
     let fields: Vec<String> = (1..=HISTORY_HOURS)
         .map(|i| (now - Duration::hours(i)).format("%Y%m%d%H").to_string())
         .collect();
@@ -51,7 +83,13 @@ pub async fn get_history_from_cache(redis: &Client, now: DateTime<Utc>, hash_key
     Ok(history)
 }
 
-pub async fn cache_calculated_stats(redis: &Client, now: DateTime<Utc>, stats_cache_key: &str, hash_key: &str, stats: &Stats) -> Result<(), Error> {
+pub async fn cache_calculated_stats(
+    redis: &Client,
+    now: DateTime<Utc>,
+    stats_cache_key: &str,
+    hash_key: &str,
+    stats: &Stats,
+) -> Result<(), Error> {
     // Cache calculated stats
     let json_str = serde_json::to_string(&stats)?;
     let old_field = (now - Duration::hours(HISTORY_HOURS + 1))
@@ -63,7 +101,8 @@ pub async fn cache_calculated_stats(redis: &Client, now: DateTime<Utc>, stats_ca
             stats_cache_key,
             json_str,
             Some(Expiration::EX(CACHE_STATS_TTL_SECONDS)),
-            None, false,
+            None,
+            false,
         )
         .await?;
 

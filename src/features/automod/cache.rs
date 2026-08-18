@@ -1,12 +1,12 @@
 use crate::features::automod::keys;
 use fred::clients::{Client, Transaction};
-use fred::error::Error;
 use fred::interfaces::{FredResult, KeysInterface, SortedSetsInterface};
 use fred::prelude::{Expiration, SetOptions};
 use fred::types::ExpireOptions;
 use fred::types::sorted_sets::Ordering;
 use serenity::all::{Context, GuildId, Rule, RuleId};
 use std::time::Duration;
+use anyhow::Result;
 
 /// Caches an `AutoMod` rule name in Redis with a 24-hour expiration time.
 ///
@@ -85,7 +85,7 @@ pub async fn store_spam_record(
     clear_before: f64,
     member: &str,
     redis_multi_tx: Transaction,
-) -> Result<usize, Error> {
+) -> Result<usize> {
     let _: () = redis_multi_tx
         .zremrangebyscore(key, "-inf", clear_before)
         .await?;

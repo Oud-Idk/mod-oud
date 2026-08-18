@@ -138,10 +138,7 @@ async fn warn_inactive_tickets(
         "Evaluating tickets for inactivity warning"
     );
 
-    let unique_guild_ids: HashSet<GuildId> = candidates
-        .iter()
-        .map(|c| c.guild_id)
-        .collect();
+    let unique_guild_ids: HashSet<GuildId> = candidates.iter().map(|c| c.guild_id).collect();
     let settings_map = fetch_guild_settings(pool, redis, guild_configs, unique_guild_ids).await;
 
     let mut tickets_to_warn = Vec::new();
@@ -162,7 +159,8 @@ async fn warn_inactive_tickets(
         let delete_duration =
             ChronoDuration::from_std(delete_std).unwrap_or(ChronoDuration::minutes(45));
 
-        if let Some(last_activity) = row.last_activity && last_activity < now - warn_duration
+        if let Some(last_activity) = row.last_activity
+            && last_activity < now - warn_duration
         {
             let remaining_minutes = (delete_duration - warn_duration).num_minutes();
             tickets_to_warn.push(WarnTarget {
@@ -247,10 +245,7 @@ async fn close_abandoned_tickets(
     let candidates_count = candidates.len();
     debug!(candidates_count, "Evaluating tickets for abandoned closure");
 
-    let unique_guild_ids: HashSet<GuildId> = candidates
-        .iter()
-        .map(|c| c.guild_id)
-        .collect();
+    let unique_guild_ids: HashSet<GuildId> = candidates.iter().map(|c| c.guild_id).collect();
     let settings_map = fetch_guild_settings(pool, redis, guild_configs, unique_guild_ids).await;
 
     let mut tickets_to_close = Vec::new();

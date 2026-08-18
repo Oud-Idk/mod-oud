@@ -91,7 +91,7 @@ async fn execute_payload(
             send_payload(&ctx.http, cid, payload, |t| {
                 placeholders::replace_general_placeholders(t, msg, gctx, channel)
             })
-                .await?;
+            .await?;
         }
         CommandAction::RespondCurrentChannel {
             is_dm,
@@ -104,12 +104,12 @@ async fn execute_payload(
                 send_payload(&ctx.http, dm_channel.id, payload, |t| {
                     placeholders::replace_general_placeholders(t, msg, gctx, channel)
                 })
-                    .await?;
+                .await?;
             } else {
                 send_payload(&ctx.http, msg.channel_id, payload, |t| {
                     placeholders::replace_general_placeholders(t, msg, gctx, channel)
                 })
-                    .await?;
+                .await?;
             }
         }
         CommandAction::AddRole { role_id } => {

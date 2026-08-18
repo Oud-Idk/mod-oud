@@ -1,9 +1,9 @@
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::Context;
 use crate::shared::messages::send_ephemeral;
 use crate::shared::voice_state::get_user_vc_in_guild;
 use anyhow::{Context as _, Result};
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage, Mentionable, User};
-use crate::constants::BRAND_COLOR;
 
 /// Send an invitation to your currently joined voice channel to the current channel.
 #[poise::command(slash_command)]

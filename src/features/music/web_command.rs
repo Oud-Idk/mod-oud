@@ -20,7 +20,9 @@ impl WebCommandBus {
     /// Publishes a command to the music actor, returning an error string if the
     /// actor has shut down.
     pub fn send(&self, command: WebCommand) -> Result<(), String> {
-        self.tx.send(command).map_err(|e| format!("Web command bus is closed: {e}"))
+        self.tx
+            .send(command)
+            .map_err(|e| format!("Web command bus is closed: {e}"))
     }
 }
 
@@ -126,7 +128,12 @@ mod tests {
             .expect("should deserialize");
 
         match message {
-            ClientMessage::Music { request_id, action, query, requested_by_id } => {
+            ClientMessage::Music {
+                request_id,
+                action,
+                query,
+                requested_by_id,
+            } => {
                 assert_eq!(request_id.as_deref(), Some("abc"));
                 assert_eq!(action, MusicAction::Play);
                 assert_eq!(query.as_deref(), Some("Never Gonna Give You Up"));
@@ -140,37 +147,66 @@ mod tests {
         let message: ClientMessage = serde_json::from_str(
             r#"{"type":"music","action":"play","query":"x","requestedById":123}"#,
         )
-            .expect("should deserialize");
+        .expect("should deserialize");
         match message {
-            ClientMessage::Music { requested_by_id, .. } => assert_eq!(requested_by_id, Some(123)),
+            ClientMessage::Music {
+                requested_by_id, ..
+            } => assert_eq!(requested_by_id, Some(123)),
         }
     }
 
     #[test]
     fn deserializes_play_message_without_requested_by() {
-        let message: ClientMessage = serde_json::from_str(
-            r#"{"type":"music","action":"play","query":"x"}"#,
-        )
-            .expect("should deserialize");
+        let message: ClientMessage =
+            serde_json::from_str(r#"{"type":"music","action":"play","query":"x"}"#)
+                .expect("should deserialize");
         match message {
-            ClientMessage::Music { requested_by_id, .. } => assert_eq!(requested_by_id, None),
+            ClientMessage::Music {
+                requested_by_id, ..
+            } => assert_eq!(requested_by_id, None),
         }
     }
 
     #[test]
     fn deserializes_unit_actions() {
         for (name, payload, expected) in [
-            ("pause", r#"{"type":"music","action":"pause"}"#, MusicAction::Pause),
-            ("resume", r#"{"type":"music","requestId":"x","action":"resume"}"#, MusicAction::Resume),
-            ("skip", r#"{"type":"music","action":"skip"}"#, MusicAction::Skip),
-            ("stop", r#"{"type":"music","action":"stop"}"#, MusicAction::Stop),
-            ("shuffle", r#"{"type":"music","action":"shuffle"}"#, MusicAction::Shuffle),
-            ("clearQueue", r#"{"type":"music","action":"clearQueue"}"#, MusicAction::ClearQueue),
+            (
+                "pause",
+                r#"{"type":"music","action":"pause"}"#,
+                MusicAction::Pause,
+            ),
+            (
+                "resume",
+                r#"{"type":"music","requestId":"x","action":"resume"}"#,
+                MusicAction::Resume,
+            ),
+            (
+                "skip",
+                r#"{"type":"music","action":"skip"}"#,
+                MusicAction::Skip,
+            ),
+            (
+                "stop",
+                r#"{"type":"music","action":"stop"}"#,
+                MusicAction::Stop,
+            ),
+            (
+                "shuffle",
+                r#"{"type":"music","action":"shuffle"}"#,
+                MusicAction::Shuffle,
+            ),
+            (
+                "clearQueue",
+                r#"{"type":"music","action":"clearQueue"}"#,
+                MusicAction::ClearQueue,
+            ),
         ] {
             let message: ClientMessage = serde_json::from_str(payload)
                 .unwrap_or_else(|e| panic!("failed to deserialize {name}: {e}"));
             match message {
-                ClientMessage::Music { action, .. } => assert_eq!(action, expected, "{name} mismatch"),
+                ClientMessage::Music { action, .. } => {
+                    assert_eq!(action, expected, "{name} mismatch")
+                }
             }
         }
     }

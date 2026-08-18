@@ -19,7 +19,7 @@ use crate::shared::username_cache::{UserUpdate, start_username_batch_worker};
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::SetsInterface;
 use moka::future::Cache;
-use serenity::all::{Context, GuildId, Ready, ShardId, ShardInfo, ShardManager, ChannelId};
+use serenity::all::{ChannelId, Context, GuildId, Ready, ShardId, ShardInfo, ShardManager};
 use sqlx::{Pool, Postgres};
 use std::env;
 use std::future::Future;
@@ -89,7 +89,7 @@ pub struct SetupParams<'a> {
 #[must_use]
 pub fn setup<'a>(
     params: SetupParams<'a>,
-) -> Pin<Box<dyn Future<Output=Result<BotData, Error>> + Send + 'a>> {
+) -> Pin<Box<dyn Future<Output = Result<BotData, Error>> + Send + 'a>> {
     Box::pin(async move {
         let SetupParams {
             safe_browsing_api_key,
@@ -200,7 +200,9 @@ async fn hydrate_active_tickets_cache(redis_client: &Client) -> Cache<ChannelId,
 
     for channel_str in active_tickets_list {
         if let Ok(channel_id) = channel_str.parse::<u64>() {
-            active_tickets_cache.insert(ChannelId::from(channel_id), ()).await;
+            active_tickets_cache
+                .insert(ChannelId::from(channel_id), ())
+                .await;
         }
     }
     active_tickets_cache

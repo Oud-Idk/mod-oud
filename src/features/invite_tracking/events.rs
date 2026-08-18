@@ -1,30 +1,35 @@
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
-use crate::features::invite_tracking::cache::collect_pairs;
+use crate::features::invite_tracking::cache::{
+    collect_pairs, replace_guild_invites, store_invite_to_redis_hash,
+};
 use crate::features::invite_tracking::database::attribute_join;
 use crate::features::invite_tracking::keys;
 use crate::shared::store_username_relation;
+use anyhow::Context as _;
 use fred::clients::Client;
-use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
+use fred::interfaces::{HashesInterface, SetsInterface};
 use moka::future::Cache;
 use serenity::all::{Context, Guild, GuildId, InviteCreateEvent, InviteDeleteEvent, Member};
+use serenity::model::id::UserId;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use tracing::{debug, warn};
 
 /// Refreshes the cached invite codes and inviters for a guild in Redis.
+///
+/// # Errors
+/// Returns [`Err`] if any step of the Redis pipeline fails.
 pub async fn fetch_current_invites(
     ctx: &Context,
     guild: &Guild,
     data: &BotData,
 ) -> Result<(), Error> {
-    let redis = &data.core.redis;
-    let db = &data.core.db;
-    let cache = &data.core.guild_configs_cache;
+    let core = &data.core;
 
-    if !check_if_enabled(redis, db, cache, guild.id).await? {
+    if !check_if_enabled(&core.redis, &core.db, &core.guild_configs_cache, guild.id).await? {
         return Ok(());
     }
 
@@ -32,40 +37,20 @@ pub async fn fetch_current_invites(
 
     for invite in &invites {
         if let Some(inviter) = &invite.inviter {
-            store_username_relation(&data.core.username_tx, inviter.id.get(), &inviter.name)
-                .await?;
+            store_username_relation(&core.username_tx, inviter.id.get(), &inviter.name).await?;
         }
     }
 
-    let cache_key = keys::invites_key(guild.id);
-    let inv_key = keys::inviters_key(guild.id);
-
-    let pipe = redis.pipeline();
-    let _: () = pipe.del(&cache_key).await?;
-    let _: () = pipe.del(&inv_key).await?;
-
-    if invites.is_empty() {
-        let _: () = pipe.all().await?;
-        return Ok(());
-    }
-
-    let (uses_items, inviter_items, codes_by_user) = collect_pairs(&invites);
-
-    // Save active codes into per-user sets
-    for (user_id, codes) in codes_by_user {
-        let user_key = keys::user_invites_key(guild.id, user_id);
-        let _: () = pipe.del(&user_key).await?;
-        let _: () = pipe.sadd(&user_key, codes).await?;
-    }
-
-    let _: () = pipe.hset(&cache_key, uses_items).await?;
-    let _: () = pipe.hset(&inv_key, inviter_items).await?;
-    let _: () = pipe.all().await?;
+    let cache_pairs = collect_pairs(&invites);
+    replace_guild_invites(&core.redis, guild.id, cache_pairs).await?;
 
     Ok(())
 }
 
 /// Stores a newly created invite code in the Redis cache.
+///
+/// # Errors
+/// Returns [`Err`] if any step of the Redis pipeline fails.
 pub async fn store_invite(
     _: &Context,
     invite_data: &InviteCreateEvent,
@@ -82,31 +67,14 @@ pub async fn store_invite(
         return Ok(());
     }
 
-    let cache_key = keys::invites_key(guild_id);
-    let inv_key = keys::inviters_key(guild_id);
-
-    let pipe = redis.pipeline();
-    let _: () = pipe
-        .hset(&cache_key, (invite_data.code.as_str(), invite_data.uses))
-        .await?;
-
-    if let Some(inviter) = &invite_data.inviter {
-        let _: () = pipe
-            .hset(&inv_key, (invite_data.code.as_str(), inviter.id.get()))
-            .await?;
-        let _: () = pipe
-            .sadd(
-                &keys::user_invites_key(guild_id, inviter.id.get()),
-                invite_data.code.as_str(),
-            )
-            .await?;
-    }
-
-    let _: () = pipe.all().await?;
+    store_invite_to_redis_hash(guild_id, redis, invite_data).await?;
     Ok(())
 }
 
 /// Removes a deleted invite code from the Redis cache.
+///
+/// # Errors
+/// Returns [`Err`] if any step of the Redis pipeline fails.
 pub async fn delete_invite(
     _: &Context,
     invite_data: &InviteDeleteEvent,
@@ -137,10 +105,10 @@ pub async fn delete_invite(
     let _: () = pipe.hdel(&inv_key, invite_data.code.as_str()).await?;
 
     // Remove code from the user's active set
-    if let Some(uid) = inviter_id {
+    if let Some(inviter_id) = inviter_id.map(UserId::from) {
         let _: () = pipe
             .srem(
-                &keys::user_invites_key(guild_id, uid),
+                &keys::user_invites_key(guild_id, inviter_id),
                 invite_data.code.as_str(),
             )
             .await?;
@@ -151,20 +119,25 @@ pub async fn delete_invite(
 }
 
 /// Checks whether invite tracking is enabled for the given guild.
+///
+/// # Errors
+/// Returns [`Err`] if getting settings failed
 pub async fn check_if_enabled(
     redis: &Client,
     db: &PgPool,
     cache: &Cache<GuildId, GuildSettings>,
     guild_id: GuildId,
 ) -> Result<bool, Error> {
-    Ok(get_settings(db, redis, cache, guild_id)
-        .await?
-        .invite_tracker
-        .and_then(|s| s.enabled)
-        .unwrap_or(false))
+    get_settings(db, redis, cache, guild_id)
+        .await
+        .map(|s| s.invite_tracker.and_then(|s| s.enabled).unwrap_or(false))
+        .context("Failed to get settings to check whether invite tracking is enabled")
 }
 
 /// Attributes a member join to the inviter whose invite use count incremented.
+///
+/// # Errors
+/// Returns [`Err`] if any step of the Redis pipeline fails.
 pub async fn store_member_invite(
     ctx: &Context,
     new_member: &Member,
@@ -212,9 +185,9 @@ pub async fn store_member_invite(
     }
 
     // Refresh uses cache with current state
-    let (uses_items, _, _) = collect_pairs(&current_invites);
-    if !uses_items.is_empty() {
-        let _: () = redis.hset(&cache_key, uses_items).await?;
+    let cache_pairs = collect_pairs(&current_invites);
+    if !cache_pairs.uses_items.is_empty() {
+        let _: () = redis.hset(&cache_key, cache_pairs.uses_items).await?;
     }
 
     let Some(code) = used_code else {
@@ -239,7 +212,7 @@ pub async fn store_member_invite(
         inviter_id,
         &code,
     )
-        .await?;
+    .await?;
 
     let pipe = redis.pipeline();
     let _: () = pipe

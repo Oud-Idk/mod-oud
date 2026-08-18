@@ -1,5 +1,5 @@
-use serenity::all::{Cache, ChannelId, GuildId, Http, RoleId};
 use crate::features::member_counter::types::{CounterType, MemberCounterConfig};
+use serenity::all::{Cache, ChannelId, GuildId, Http, RoleId};
 use tracing::{info, trace, warn};
 
 #[derive(Debug, Clone)]
@@ -136,11 +136,7 @@ pub async fn update_guild_counters(
 }
 
 /// Helper function to count guild members with a specific role ID.
-fn count_members_with_role(
-    serenity_cache: &Cache,
-    guild_id: GuildId,
-    role_id: RoleId,
-) -> u64 {
+fn count_members_with_role(serenity_cache: &Cache, guild_id: GuildId, role_id: RoleId) -> u64 {
     if let Some(guild) = serenity_cache.guild(guild_id) {
         guild
             .members

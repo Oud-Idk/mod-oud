@@ -1,9 +1,9 @@
-use std::str::FromStr;
 use crate::core::config::settings::GuildSettings;
 use fred::clients::SubscriberClient;
 use fred::prelude::{EventInterface, PubsubInterface};
 use moka::future::Cache;
 use serenity::all::GuildId;
+use std::str::FromStr;
 
 /// Listens for Redis Pub/Sub events on `config_updates` and evicts matching guild IDs from the Moka cache.
 ///

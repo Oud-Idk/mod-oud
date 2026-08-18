@@ -74,7 +74,7 @@ pub async fn handle_voice_leveling(
                     data,
                     &leveling_config,
                 )
-                    .await?;
+                .await?;
             } else {
                 debug!(
                     %guild_id,
@@ -150,7 +150,7 @@ async fn award_vc_xp_for_session(
         channel_id,
         &member.roles,
     )
-        .await?;
+    .await?;
 
     let elapsed_minutes = elapsed_seconds / 60;
     let total_added_xp =
@@ -165,7 +165,7 @@ async fn award_vc_xp_for_session(
         leveling_config,
         total_added_xp,
     )
-        .await?
+    .await?
     else {
         return Ok(());
     };
@@ -183,7 +183,7 @@ async fn award_vc_xp_for_session(
             channel_id,
             previous_level,
         )
-            .await?;
+        .await?;
     }
 
     persist_user_level(data, &stats_key, &mut user_level).await?;
@@ -246,7 +246,7 @@ async fn apply_xp_and_process_levels(
         stats_key,
         &mut user_level,
     )
-        .await?;
+    .await?;
     if should_be_clamped {
         return Ok(None);
     }
@@ -288,7 +288,7 @@ async fn handle_level_up(
             channel_id,
             previous_level,
         )
-            .await?;
+        .await?;
     }
 
     let _ = rewards::apply_level_rewards(
@@ -298,6 +298,6 @@ async fn handle_level_up(
         user.id,
         user_level.current_level,
     )
-        .await;
+    .await;
     Ok(())
 }

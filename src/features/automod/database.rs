@@ -53,8 +53,8 @@ pub async fn insert_automod_row(db: &sqlx::PgPool, entry: AutomodEntryRow<'_>) -
         entry.original_content,
         &actions_vec,
     )
-    .execute(db)
-    .await?;
+        .execute(db)
+        .await?;
 
     Ok(())
 }

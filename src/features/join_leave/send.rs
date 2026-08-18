@@ -2,7 +2,7 @@ use crate::core::config::guild_ctx::GuildCtx;
 use crate::core::config::state::Error;
 use crate::features::join_leave::messages;
 use crate::features::join_leave::types::WelcomeConfig;
-use serenity::all::{ChannelId, GuildChannel};
+use serenity::all::GuildChannel;
 use tracing::{debug, trace, warn};
 
 /// Assembles and sends the public welcome message to the designated channel.
@@ -17,7 +17,11 @@ pub async fn send_public_welcome(
     let guild_id = member.guild_id;
     let user_id = member.user.id;
 
-    let Some(public) = config.public.as_ref().filter(|p| p.enabled.unwrap_or(false)) else {
+    let Some(public) = config
+        .public
+        .as_ref()
+        .filter(|p| p.enabled.unwrap_or(false))
+    else {
         return Ok(());
     };
 
@@ -28,7 +32,14 @@ pub async fn send_public_welcome(
 
     trace!(%guild_id, %user_id, %channel_id, "Assembling public welcome message layout");
 
-    match messages::build_welcome_message(public, member, context_channel, gctx, warning_text, false) {
+    match messages::build_welcome_message(
+        public,
+        member,
+        context_channel,
+        gctx,
+        warning_text,
+        false,
+    ) {
         Ok(builder) => {
             if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
                 warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "Failed to send public welcome message to channel");
@@ -56,19 +67,36 @@ pub async fn send_private_welcome(
     let guild_id = member.guild_id.get();
     let user_id = member.user.id.get();
 
-    let Some(private) = config.private.as_ref().filter(|p| p.enabled.unwrap_or(false)) else {
+    let Some(private) = config
+        .private
+        .as_ref()
+        .filter(|p| p.enabled.unwrap_or(false))
+    else {
         return Ok(());
     };
 
-    trace!(guild_id, user_id, "Establishing private DM context for welcome message");
+    trace!(
+        guild_id,
+        user_id, "Establishing private DM context for welcome message"
+    );
     match member.user.create_dm_channel(&ctx.http).await {
         Ok(dm_channel) => {
-            match messages::build_welcome_message(private, member, context_channel, gctx, warning_text, true) {
+            match messages::build_welcome_message(
+                private,
+                member,
+                context_channel,
+                gctx,
+                warning_text,
+                true,
+            ) {
                 Ok(builder) => {
                     if let Err(e) = dm_channel.send_message(&ctx.http, builder).await {
                         warn!(error = ?e, guild_id, user_id, "Failed to send private DM welcome message to user");
                     } else {
-                        debug!(guild_id, user_id, "Private DM welcome message sent successfully");
+                        debug!(
+                            guild_id,
+                            user_id, "Private DM welcome message sent successfully"
+                        );
                     }
                 }
                 Err(e) => {

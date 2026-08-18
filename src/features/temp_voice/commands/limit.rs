@@ -18,11 +18,8 @@ pub async fn limit(
 
     let raw_input = new_limit.as_deref().unwrap_or("");
 
-    let response_message = service::set_temp_vc_limit(
-        ctx.serenity_context(),
-        channel_id,
-        raw_input,
-    ).await?;
+    let response_message =
+        service::set_temp_vc_limit(ctx.serenity_context(), channel_id, raw_input).await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

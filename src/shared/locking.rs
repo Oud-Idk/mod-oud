@@ -30,7 +30,10 @@ impl LockGuard {
             end
         "#;
 
-        let res: u32 = self.client.eval(script, self.key.clone(), self.value.clone()).await?;
+        let res: u32 = self
+            .client
+            .eval(script, self.key.clone(), self.value.clone())
+            .await?;
         let success = res == 1;
 
         trace!(success, "Attempted to release Redis lock via guard");

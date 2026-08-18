@@ -1,8 +1,8 @@
 use crate::features::message_logging::types::MessageLoggingConfig;
 use crate::features::message_logging::types::{EditDetails, MessageDetails};
+use crate::shared::permissions::HasRoles;
 use serenity::all::{Cache, ChannelId, Context, GuildId, MessageId, UserId};
 use tracing::{debug, trace, warn};
-use crate::shared::permissions::HasRoles;
 
 /// Checks if a message should be excluded from logging based on channel, user, or role exclusions.
 pub async fn should_exclude_from_logging(
@@ -21,24 +21,25 @@ pub async fn should_exclude_from_logging(
 
     // Check if channel is ignored
     if let Some(ref ignored_channels) = config.ignored_channels
-        && ignored_channels.contains(&channel_id) {
+        && ignored_channels.contains(&channel_id)
+    {
         debug!(%channel_id, "Message excluded: channel is ignored");
         return true;
     }
 
     // Check if user is ignored
     if let Some(ref ignored_users) = config.ignored_users
-        && ignored_users.contains(&author_id) {
+        && ignored_users.contains(&author_id)
+    {
         debug!(%author_id, "Message excluded: user is ignored");
         return true;
     }
 
     // Check if user has any ignored roles
     if let Some(ref ignored_roles) = config.ignored_roles
-        && !ignored_roles.is_empty() {
-        let member_result = guild_id
-            .member(ctx, author_id)
-            .await;
+        && !ignored_roles.is_empty()
+    {
+        let member_result = guild_id.member(ctx, author_id).await;
 
         match member_result {
             Ok(member) => {
@@ -81,7 +82,9 @@ pub fn fetch_cached_message(
         "Fetching message from cache"
     );
 
-    let message = if let Some(msg) = cache.message(channel_id, message_id) { msg } else {
+    let message = if let Some(msg) = cache.message(channel_id, message_id) {
+        msg
+    } else {
         trace!(
             chan_id = channel_id.get(),
             msg_id = message_id.get(),
@@ -162,7 +165,8 @@ pub fn extract_edit_details(
             return None;
         }
     } else if let Some(old) = old_if_available
-        && old.author.bot {
+        && old.author.bot
+    {
         debug!(%msg_id, "Edit ignored: author is a bot (from cache)");
         return None;
     }
@@ -172,7 +176,10 @@ pub fn extract_edit_details(
         .author
         .as_ref()
         .map(|u| u.id)
-        .or_else(|| old_if_available.map(|m| m.author.id)) { id } else {
+        .or_else(|| old_if_available.map(|m| m.author.id))
+    {
+        id
+    } else {
         warn!(%msg_id, "Unable to resolve author ID for edit event");
         return None;
     };
@@ -181,7 +188,10 @@ pub fn extract_edit_details(
         .author
         .as_ref()
         .map(|u| u.name.clone())
-        .or_else(|| old_if_available.map(|m| m.author.name.clone())) { name } else {
+        .or_else(|| old_if_available.map(|m| m.author.name.clone()))
+    {
+        name
+    } else {
         warn!(%msg_id, "Unable to resolve author username for edit event");
         return None;
     };

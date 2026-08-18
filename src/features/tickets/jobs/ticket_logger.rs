@@ -6,10 +6,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, error, info, instrument, trace};
 
 /// Starts the background worker that batches ticket message logs and flushes them to the database.
-pub fn start_ticket_logger(
-    mut rx: UnboundedReceiver<TicketLogPayload>,
-    pool: PgPool,
-) {
+pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: PgPool) {
     tokio::spawn(async move {
         let mut buffer = Vec::with_capacity(100);
         let mut interval = tokio::time::interval(Duration::from_secs(2));
@@ -71,9 +68,15 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<TicketLogPayload>) -> Result<
     let records = std::mem::replace(buffer, Vec::with_capacity(100));
     let batch_size = records.len();
 
-    debug!(batch_size, "Starting batch flush of ticket logs to database");
+    debug!(
+        batch_size,
+        "Starting batch flush of ticket logs to database"
+    );
     database::flush_ticket_logs_to_db(db, &records).await?;
-    debug!(batch_size, "Successfully committed ticket log batch to database");
+    debug!(
+        batch_size,
+        "Successfully committed ticket log batch to database"
+    );
 
     Ok(())
 }

@@ -37,7 +37,7 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     let Some(ticket_config) = settings.tickets.as_ref().filter(|cfg| cfg.enabled) else {
         return Ok(());
@@ -55,7 +55,9 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
         if let Some(ref member) = message.member {
             member.roles.contains(&role_id)
         } else if let Some(has_role) = ctx.cache.guild(guild_id).and_then(|g| {
-            g.members.get(&message.author.id).map(|m| m.roles.contains(&role_id))
+            g.members
+                .get(&message.author.id)
+                .map(|m| m.roles.contains(&role_id))
         }) {
             has_role
         } else {
@@ -67,20 +69,19 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
     };
 
     trace!(has_role, "Logging message payload to database queue");
-    log_message_to_db(
-        &data.ticket_log_tx,
-        channel_id,
-        message,
-        has_role,
-    );
+    log_message_to_db(&data.ticket_log_tx, channel_id, message, has_role);
 
     // Single format allocation instead of intermediate channel_id_str String
     let ticket_key = keys::ticket_key(channel_id);
 
     trace!("Updating Redis ticket activity tracking");
     // Directly pass the message count threshold (no Duration minutes division)
-    let (should_rotate, last_button_id_str) =
-        update_activity_redis(&data.core.redis, &ticket_key, ticket_config.bump_every as i32).await?;
+    let (should_rotate, last_button_id_str) = update_activity_redis(
+        &data.core.redis,
+        &ticket_key,
+        ticket_config.bump_every as i32,
+    )
+    .await?;
 
     if should_rotate {
         info!("Message threshold reached; rotating close button placement");
@@ -92,7 +93,7 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
             &ticket_key,
             last_button_id_str,
         )
-            .await?;
+        .await?;
     }
 
     Ok(())

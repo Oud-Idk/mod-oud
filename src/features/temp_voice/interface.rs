@@ -1,10 +1,14 @@
-use crate::core::config::state::{Context as PoiseContext, BotData, Error};
+use crate::core::config::state::{BotData, Context as PoiseContext, Error};
 use crate::features::temp_voice::cache;
 use crate::features::temp_voice::keys::temp_vcs_key;
 use crate::shared::messages::send_ephemeral;
 use anyhow::Context as _;
 use fred::interfaces::HashesInterface;
-use serenity::all::{ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, Context, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Interaction, Member, ModalInteraction};
+use serenity::all::{
+    ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, Context,
+    CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Interaction, Member,
+    ModalInteraction,
+};
 
 mod block;
 mod delete;
@@ -24,14 +28,16 @@ macro_rules! impl_preflight_check {
         pub async fn $fn_name(
             ctx: &Context,
             interaction: &$interaction_type,
-            data: &BotData
+            data: &BotData,
         ) -> Result<Option<(ChannelId, GuildId)>, Error> {
-            match cache::find_active_temp_vc(
-                data, interaction.guild_id, interaction.user.id
-            ).await? {
+            match cache::find_active_temp_vc(data, interaction.guild_id, interaction.user.id)
+                .await?
+            {
                 Ok((channel_id, guild_id)) => Ok(Some((channel_id, guild_id))),
                 Err(error_msg) => {
-                    interaction.create_response(&ctx.http, create_ephemeral_msg(error_msg)).await?;
+                    interaction
+                        .create_response(&ctx.http, create_ephemeral_msg(error_msg))
+                        .await?;
                     Ok(None)
                 }
             }
@@ -44,7 +50,9 @@ impl_preflight_check!(preflight_modal_check, ModalInteraction);
 
 pub fn create_ephemeral_msg(msg: &str) -> CreateInteractionResponse {
     CreateInteractionResponse::Message(
-        CreateInteractionResponseMessage::new().content(msg).ephemeral(true),
+        CreateInteractionResponseMessage::new()
+            .content(msg)
+            .ephemeral(true),
     )
 }
 
@@ -69,7 +77,9 @@ pub fn get_new_name(interaction: &ModalInteraction) -> Option<String> {
 pub async fn preflight_slash_check(
     ctx: &PoiseContext<'_>,
 ) -> Result<Option<(ChannelId, GuildId, Member)>, Error> {
-    let guild_id = if let Some(g) = ctx.guild_id() { g } else {
+    let guild_id = if let Some(g) = ctx.guild_id() {
+        g
+    } else {
         send_ephemeral(ctx, "This command can only be used in a server.").await?;
         return Ok(None);
     };
@@ -77,19 +87,26 @@ pub async fn preflight_slash_check(
     let author_id = ctx.author().id;
 
     // Get current user's voice channel from cache
-    let user_vc_id = ctx.cache().guild(guild_id).and_then(|g| {
-        g.voice_states.get(&author_id).and_then(|vs| vs.channel_id)
-    });
+    let user_vc_id = ctx
+        .cache()
+        .guild(guild_id)
+        .and_then(|g| g.voice_states.get(&author_id).and_then(|vs| vs.channel_id));
 
     let Some(channel_id) = user_vc_id else {
-        send_ephemeral(ctx, "You must be inside your temporary voice channel to use this command!").await?;
+        send_ephemeral(
+            ctx,
+            "You must be inside your temporary voice channel to use this command!",
+        )
+        .await?;
         return Ok(None);
     };
 
     // Verify ownership via Redis
     let redis = &ctx.data().core.redis;
     let temp_vc_hash = temp_vcs_key(guild_id);
-    let owner_id_str: Option<String> = redis.hget(&temp_vc_hash, channel_id.get().to_string()).await?;
+    let owner_id_str: Option<String> = redis
+        .hget(&temp_vc_hash, channel_id.get().to_string())
+        .await?;
 
     let is_owner = match owner_id_str {
         Some(ref id) => id == &author_id.get().to_string(),
@@ -97,11 +114,19 @@ pub async fn preflight_slash_check(
     };
 
     if !is_owner {
-        send_ephemeral(ctx, "You do not own this voice channel! Only the channel owner can control it.").await?;
+        send_ephemeral(
+            ctx,
+            "You do not own this voice channel! Only the channel owner can control it.",
+        )
+        .await?;
         return Ok(None);
     }
 
-    let member = ctx.author_member().await.with_context(|| "Failed to fetch member.")?.into_owned();
+    let member = ctx
+        .author_member()
+        .await
+        .with_context(|| "Failed to fetch member.")?
+        .into_owned();
 
     Ok(Some((channel_id, guild_id, member)))
 }
@@ -113,61 +138,69 @@ pub async fn handle_interaction(
     data: &BotData,
 ) -> Result<(), Error> {
     match interaction {
-        Interaction::Component(component) => {
-            match component.data.custom_id.as_str() {
-                "temp_voice_rename" => rename::handle_rename_temp_vc(ctx, component, data).await?,
-                "temp_voice_limit" => limit::handle_set_limit_vc(ctx, component, data).await?,
-                "temp_voice_kick" => kick::handle_kick_temp_vc(ctx, component, data).await?,
-                "temp_voice_lock" => lock::handle_lock_temp_vc(ctx, component, data).await?,
-                "temp_voice_unlock" => unlock::handle_unlock_temp_vc(ctx, component, data).await?,
-                "temp_voice_trust" => trust::handle_trust_temp_vc(ctx, component, data).await?,
-                "temp_voice_untrust" => untrust::handle_untrust_temp_vc(ctx, component, data).await?,
-                "temp_voice_block" => block::handle_block_temp_vc(ctx, component, data).await?,
-                "temp_voice_unblock" => unblock::handle_unblock_temp_vc(ctx, component, data).await?,
-                "temp_voice_delete" => delete::handle_delete_temp_vc(ctx, component, data).await?,
-                "temp_voice_transfer" => transfer::handle_transfer_temp_vc(ctx, component, data).await?,
-                "temp_voice_transfer_accept" => transfer_action::handle_accept_transfer(ctx, component, data).await?,
-                "temp_voice_transfer_decline" => transfer_action::handle_decline_transfer(ctx, component, data).await?,
-
-                "temp_voice_trust_select" => {
-                    if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                        trust::handle_trust_temp_vc_submit(ctx, component, data, values.clone()).await?;
-                    }
-                }
-
-                "temp_voice_transfer_select" => {
-                    if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                        transfer::handle_transfer_temp_vc_submit(ctx, component, data, values.clone()).await?;
-                    }
-                }
-                "temp_voice_untrust_select" => {
-                    if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                        untrust::handle_untrust_temp_vc_submit(ctx, component, data, values.clone()).await?;
-                    }
-                }
-                "temp_voice_block_select" => {
-                    if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                        block::handle_block_temp_vc_submit(ctx, component, data, values.clone()).await?;
-                    }
-                }
-                "temp_voice_unblock_select" => {
-                    if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                        unblock::handle_unblock_temp_vc_submit(ctx, component, data, values.clone()).await?;
-                    }
-                }
-                _ => {}
+        Interaction::Component(component) => match component.data.custom_id.as_str() {
+            "temp_voice_rename" => rename::handle_rename_temp_vc(ctx, component, data).await?,
+            "temp_voice_limit" => limit::handle_set_limit_vc(ctx, component, data).await?,
+            "temp_voice_kick" => kick::handle_kick_temp_vc(ctx, component, data).await?,
+            "temp_voice_lock" => lock::handle_lock_temp_vc(ctx, component, data).await?,
+            "temp_voice_unlock" => unlock::handle_unlock_temp_vc(ctx, component, data).await?,
+            "temp_voice_trust" => trust::handle_trust_temp_vc(ctx, component, data).await?,
+            "temp_voice_untrust" => untrust::handle_untrust_temp_vc(ctx, component, data).await?,
+            "temp_voice_block" => block::handle_block_temp_vc(ctx, component, data).await?,
+            "temp_voice_unblock" => unblock::handle_unblock_temp_vc(ctx, component, data).await?,
+            "temp_voice_delete" => delete::handle_delete_temp_vc(ctx, component, data).await?,
+            "temp_voice_transfer" => {
+                transfer::handle_transfer_temp_vc(ctx, component, data).await?
             }
-        }
-        Interaction::Modal(modal) => {
-            match modal.data.custom_id.as_str() {
-                "temp_voice_rename_modal" => rename::handle_rename_temp_vc_submit(ctx, modal, data).await?,
-                "temp_voice_limit_modal" => limit::handle_set_limit_vc_submit(ctx, modal, data).await?,
-                "temp_voice_kick_modal" => kick::handle_kick_temp_vc_submit(ctx, modal, data).await?,
-                _ => {}
+            "temp_voice_transfer_accept" => {
+                transfer_action::handle_accept_transfer(ctx, component, data).await?
             }
-        }
+            "temp_voice_transfer_decline" => {
+                transfer_action::handle_decline_transfer(ctx, component, data).await?
+            }
+
+            "temp_voice_trust_select" => {
+                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
+                    trust::handle_trust_temp_vc_submit(ctx, component, data, values.clone())
+                        .await?;
+                }
+            }
+
+            "temp_voice_transfer_select" => {
+                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
+                    transfer::handle_transfer_temp_vc_submit(ctx, component, data, values.clone())
+                        .await?;
+                }
+            }
+            "temp_voice_untrust_select" => {
+                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
+                    untrust::handle_untrust_temp_vc_submit(ctx, component, data, values.clone())
+                        .await?;
+                }
+            }
+            "temp_voice_block_select" => {
+                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
+                    block::handle_block_temp_vc_submit(ctx, component, data, values.clone())
+                        .await?;
+                }
+            }
+            "temp_voice_unblock_select" => {
+                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
+                    unblock::handle_unblock_temp_vc_submit(ctx, component, data, values.clone())
+                        .await?;
+                }
+            }
+            _ => {}
+        },
+        Interaction::Modal(modal) => match modal.data.custom_id.as_str() {
+            "temp_voice_rename_modal" => {
+                rename::handle_rename_temp_vc_submit(ctx, modal, data).await?
+            }
+            "temp_voice_limit_modal" => limit::handle_set_limit_vc_submit(ctx, modal, data).await?,
+            "temp_voice_kick_modal" => kick::handle_kick_temp_vc_submit(ctx, modal, data).await?,
+            _ => {}
+        },
         _ => {}
     }
     Ok(())
 }
-

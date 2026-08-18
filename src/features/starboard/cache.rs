@@ -9,17 +9,14 @@ use sqlx::postgres::types::PgInterval;
 use sqlx::types::Json;
 use tracing::instrument;
 
-pub async fn get_starboards(
-    guild_id: u64,
-    db: &PgPool,
-    redis: &Client,
-) -> Result<Vec<Starboard>> {
+pub async fn get_starboards(guild_id: u64, db: &PgPool, redis: &Client) -> Result<Vec<Starboard>> {
     let cache_key = format!("starboard:config:{guild_id}");
 
     if let Ok(Some(cached_data)) = redis.get::<Option<String>, _>(&cache_key).await
-        && let Ok(configs) = serde_json::from_str::<Vec<Starboard>>(&cached_data) {
-            return Ok(configs);
-        }
+        && let Ok(configs) = serde_json::from_str::<Vec<Starboard>>(&cached_data)
+    {
+        return Ok(configs);
+    }
 
     let starboards = sqlx::query_as!(
         Starboard,
@@ -48,13 +45,19 @@ pub async fn get_starboards(
         "#,
         guild_id.cast_signed(),
     )
-        .fetch_all(db)
-        .await
-        .context("Failed to query starboard configurations from Postgres")?;
+    .fetch_all(db)
+    .await
+    .context("Failed to query starboard configurations from Postgres")?;
 
     if let Ok(serialized) = serde_json::to_string(&starboards) {
         let _: Result<(), _> = redis
-            .set(&cache_key, serialized, Some(Expiration::EX(86400)), None, false)
+            .set(
+                &cache_key,
+                serialized,
+                Some(Expiration::EX(86400)),
+                None,
+                false,
+            )
             .await;
     }
 

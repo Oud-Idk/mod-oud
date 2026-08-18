@@ -1,6 +1,8 @@
 use crate::core::config::state::Error;
 use crate::features::leveling::database::fetch_level_rewards;
-use crate::features::leveling::reward::{apply_role_modifications, determine_role_changes, fetch_member_roles};
+use crate::features::leveling::reward::{
+    apply_role_modifications, determine_role_changes, fetch_member_roles,
+};
 use crate::features::leveling::types::LevelReward;
 use serenity::all::{Context, GuildId, UserId};
 use sqlx::PgPool;
@@ -62,7 +64,7 @@ pub async fn apply_level_rewards(
         roles_to_add,
         roles_to_remove,
     )
-        .await;
+    .await;
 
     Ok(())
 }

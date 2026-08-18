@@ -25,11 +25,11 @@ pub async fn save_settings_to_db(
         guild_id.get().cast_signed(),
         json_value
     )
-        .execute(db)
-        .await
-        .with_context(|| {
-            format!("Failed to save guild settings to database for guild_id {guild_id}")
-        })?;
+    .execute(db)
+    .await
+    .with_context(|| {
+        format!("Failed to save guild settings to database for guild_id {guild_id}")
+    })?;
     Ok(())
 }
 
@@ -45,8 +45,8 @@ pub async fn get_settings_from_database(
         "SELECT settings FROM guild_configs WHERE guild_id = $1",
         guild_id.get().cast_signed()
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     Ok(row.map(|r| r.settings))
 }

@@ -33,7 +33,10 @@ impl PaginationState {
 
     /// Generates button components based on the current page.
     pub fn create_components(&self) -> Vec<serenity::all::CreateActionRow> {
-        trace!(current_page = self.current_page, "Generating active button components");
+        trace!(
+            current_page = self.current_page,
+            "Generating active button components"
+        );
         let prev_btn = serenity::all::CreateButton::new(&self.prev_id)
             .label("◀")
             .style(serenity::all::ButtonStyle::Primary)
@@ -44,7 +47,9 @@ impl PaginationState {
             .style(serenity::all::ButtonStyle::Primary)
             .disabled(self.current_page == self.total_pages - 1);
 
-        vec![serenity::all::CreateActionRow::Buttons(vec![prev_btn, next_btn])]
+        vec![serenity::all::CreateActionRow::Buttons(vec![
+            prev_btn, next_btn,
+        ])]
     }
 
     /// Generates disabled buttons for the final inactive message state.
@@ -60,7 +65,9 @@ impl PaginationState {
             .style(serenity::all::ButtonStyle::Primary)
             .disabled(true);
 
-        vec![serenity::all::CreateActionRow::Buttons(vec![prev_btn, next_btn])]
+        vec![serenity::all::CreateActionRow::Buttons(vec![
+            prev_btn, next_btn,
+        ])]
     }
 
     /// Handles an incoming button interaction ID.
@@ -81,7 +88,10 @@ impl PaginationState {
             debug!(new_page = self.current_page, "Page incremented");
             true
         } else {
-            trace!(custom_id, "Interaction ignored (does not match expected active IDs)");
+            trace!(
+                custom_id,
+                "Interaction ignored (does not match expected active IDs)"
+            );
             false
         }
     }
@@ -113,13 +123,16 @@ where
                 .embed(make_embed(pagination_state.current_page()))
                 .ephemeral(true),
         )
-            .await?;
+        .await?;
         Ok(None)
     }
 }
 
-fn get_stream_collector(ctx: &Context<'_>) -> impl Stream<Item=ComponentInteraction> {
-    trace!(author_id = ctx.author().id.get(), "Initializing component interaction collector");
+fn get_stream_collector(ctx: &Context<'_>) -> impl Stream<Item = ComponentInteraction> {
+    trace!(
+        author_id = ctx.author().id.get(),
+        "Initializing component interaction collector"
+    );
     serenity::all::ComponentInteractionCollector::new(ctx.serenity_context())
         .author_id(ctx.author().id)
         .timeout(std::time::Duration::from_mins(2))
@@ -131,7 +144,11 @@ pub async fn paginate<F>(ctx: Context<'_>, total_pages: usize, make_embed: F) ->
 where
     F: Fn(usize) -> serenity::all::CreateEmbed + Send + Sync,
 {
-    debug!(total_pages, ctx_id = ctx.id(), "Starting pagination handler");
+    debug!(
+        total_pages,
+        ctx_id = ctx.id(),
+        "Starting pagination handler"
+    );
 
     if total_pages == 0 {
         trace!("Zero pages provided, skipping execution");

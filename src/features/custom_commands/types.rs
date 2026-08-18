@@ -4,7 +4,10 @@ use serenity::all::{ChannelId, GuildId, RoleId};
 use sqlx::types::Json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "COMMAND_COOLDOWN_TYPE", rename_all = "SCREAMING_SNAKE_CASE")]
+#[sqlx(
+    type_name = "COMMAND_COOLDOWN_TYPE",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CooldownType {
     None,
@@ -78,17 +81,33 @@ impl From<CustomCommandRow> for CustomCommand {
     fn from(row: CustomCommandRow) -> Self {
         Self {
             id: row.id,
-            guild_id: GuildId::new(row.guild_id as u64),
+            guild_id: GuildId::new(row.guild_id.cast_unsigned()),
             name: row.name,
             description: row.description,
             enabled: row.enabled,
             delete_trigger: row.delete_trigger,
             cooldown_type: row.cooldown_type,
             cooldown_seconds: row.cooldown_seconds,
-            allowed_roles: row.allowed_roles.into_iter().map(|id| RoleId::new(id as u64)).collect(),
-            ignored_roles: row.ignored_roles.into_iter().map(|id| RoleId::new(id as u64)).collect(),
-            allowed_channels: row.allowed_channels.into_iter().map(|id| ChannelId::new(id as u64)).collect(),
-            ignored_channels: row.ignored_channels.into_iter().map(|id| ChannelId::new(id as u64)).collect(),
+            allowed_roles: row
+                .allowed_roles
+                .into_iter()
+                .map(|id| RoleId::new(id.cast_unsigned()))
+                .collect(),
+            ignored_roles: row
+                .ignored_roles
+                .into_iter()
+                .map(|id| RoleId::new(id.cast_unsigned()))
+                .collect(),
+            allowed_channels: row
+                .allowed_channels
+                .into_iter()
+                .map(|id| ChannelId::new(id.cast_unsigned()))
+                .collect(),
+            ignored_channels: row
+                .ignored_channels
+                .into_iter()
+                .map(|id| ChannelId::new(id.cast_unsigned()))
+                .collect(),
             actions: row.actions,
         }
     }

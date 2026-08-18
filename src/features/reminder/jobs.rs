@@ -3,12 +3,12 @@ use crate::features::reminder::timings::{RecurrenceRule, calculate_next_trigger}
 use crate::shared::embed::create_basic_embed;
 use crate::shared::locking::acquire_lock;
 use chrono::{DateTime, NaiveTime, Utc};
+use chrono_tz::Tz;
 use fred::prelude::*;
 use futures_util::StreamExt;
 use poise::serenity_prelude as serenity;
 use sqlx::types::Json;
 use std::sync::Arc;
-use chrono_tz::Tz;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Default)]
@@ -193,10 +193,7 @@ async fn handle_post_execution(
             .map(|d| d as u32)
             .collect();
 
-        let timezone: Option<Tz> = record
-            .timezone
-            .as_deref()
-            .and_then(|s| s.parse().ok());
+        let timezone: Option<Tz> = record.timezone.as_deref().and_then(|s| s.parse().ok());
 
         let rule = RecurrenceRule {
             days_of_week: days_u32,
@@ -213,8 +210,8 @@ async fn handle_post_execution(
             next_run,
             record.id
         )
-            .execute(db)
-            .await?;
+        .execute(db)
+        .await?;
 
         debug!(
             reminder_id = record.id,
@@ -226,8 +223,8 @@ async fn handle_post_execution(
             "UPDATE reminders SET is_active = false WHERE id = $1",
             record.id
         )
-            .execute(db)
-            .await?;
+        .execute(db)
+        .await?;
 
         debug!(reminder_id = record.id, "Deactivated single-run reminder");
     }

@@ -24,11 +24,13 @@ pub async fn handle_transfer_temp_vc(
 
     let select_menu = CreateSelectMenu::new(
         "temp_voice_transfer_select",
-        CreateSelectMenuKind::User { default_users: None },
+        CreateSelectMenuKind::User {
+            default_users: None,
+        },
     )
-        .placeholder("Choose the next owner...")
-        .min_values(1)
-        .max_values(1);
+    .placeholder("Choose the next owner...")
+    .min_values(1)
+    .max_values(1);
 
     let row = CreateActionRow::SelectMenu(select_menu);
 
@@ -58,7 +60,8 @@ pub async fn handle_transfer_temp_vc_submit(
     data: &BotData,
     target_user_ids: Vec<UserId>,
 ) -> Result<(), Error> {
-    let Ok(Some((channel_id, guild_id))) = preflight_button_check(ctx, interaction, data).await else {
+    let Ok(Some((channel_id, guild_id))) = preflight_button_check(ctx, interaction, data).await
+    else {
         debug!("Preflight check failed during target user submission");
         return Ok(());
     };
@@ -77,7 +80,8 @@ pub async fn handle_transfer_temp_vc_submit(
         channel_id,
         current_owner_id,
         new_owner_id,
-    ).await?;
+    )
+    .await?;
 
     interaction
         .create_response(&ctx.http, create_ephemeral_msg(&response_message))
@@ -96,7 +100,9 @@ pub async fn handle_transfer_temp_vc_submit(
         "<@{new_owner_id}>, <@{current_owner_id}> wants to transfer ownership of this channel to you! You have 90 seconds to accept."
     );
 
-    let msg = CreateMessage::new().content(message_content).components(vec![row]);
+    let msg = CreateMessage::new()
+        .content(message_content)
+        .components(vec![row]);
     info!(
         "Sending transfer offer in channel {} from owner {} to target {}",
         channel_id.get(),

@@ -28,9 +28,7 @@ impl DynamicRaidDetector {
     ) -> Self {
         debug!(
             window_size_seconds,
-            z_score_multiplier,
-            min_safe_limit,
-            "Initializing DynamicRaidDetector"
+            z_score_multiplier, min_safe_limit, "Initializing DynamicRaidDetector"
         );
         Self {
             redis,
@@ -91,7 +89,7 @@ impl DynamicRaidDetector {
             now_ts,
             &hour_str,
         )
-            .await?;
+        .await?;
 
         let threshold = stats.threshold;
         let is_anomaly = current_joins_in_window >= threshold;
@@ -102,7 +100,8 @@ impl DynamicRaidDetector {
             current_joins_in_window,
             calculated_threshold: threshold,
             avg_joins_per_min: ((stats.mean_window / window_minutes) * 100.0).round() / 100.0,
-            std_dev_per_min: ((stats.std_dev_window / window_minutes.sqrt()) * 100.0).round() / 100.0,
+            std_dev_per_min: ((stats.std_dev_window / window_minutes.sqrt()) * 100.0).round()
+                / 100.0,
         };
 
         if is_anomaly {
@@ -144,18 +143,21 @@ impl DynamicRaidDetector {
         let lock_key = keys::lock_key(&stats_cache_key);
         let lock_value = Uuid::new_v4().to_string();
 
-        let lock_guard = if let Some(guard) = acquire_lock(&self.redis, &lock_key, &lock_value, 2).await? { guard } else {
-            warn!(
-                %guild_id,
-                min_safe_limit = self.min_safe_limit,
-                "Could not acquire lock to recompute threshold; falling back to min_safe_limit"
-            );
-            return Ok(Stats {
-                threshold: self.min_safe_limit,
-                mean_window: 0.0,
-                std_dev_window: 0.0,
-            });
-        };
+        let lock_guard =
+            if let Some(guard) = acquire_lock(&self.redis, &lock_key, &lock_value, 2).await? {
+                guard
+            } else {
+                warn!(
+                    %guild_id,
+                    min_safe_limit = self.min_safe_limit,
+                    "Could not acquire lock to recompute threshold; falling back to min_safe_limit"
+                );
+                return Ok(Stats {
+                    threshold: self.min_safe_limit,
+                    mean_window: 0.0,
+                    std_dev_window: 0.0,
+                });
+            };
 
         let stats_res = self.recompute_stats(guild_id, now, &stats_cache_key).await;
 
@@ -226,11 +228,8 @@ fn calculate_threshold(
     let n = history.len() as f64;
     let mean_hour = history.iter().sum::<f64>() / n;
 
-    let variance_hour = history
-        .iter()
-        .map(|x| (x - mean_hour).powi(2))
-        .sum::<f64>()
-        / (n - 1.0).max(1.0);
+    let variance_hour =
+        history.iter().map(|x| (x - mean_hour).powi(2)).sum::<f64>() / (n - 1.0).max(1.0);
 
     let std_dev_hour = variance_hour.sqrt();
 

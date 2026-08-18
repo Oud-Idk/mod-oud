@@ -3,7 +3,7 @@ use crate::features::tickets::keys;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use fred::types::scan::Scanner;
-use futures_util::{pin_mut, StreamExt};
+use futures_util::{StreamExt, pin_mut};
 use moka::future::Cache;
 use serenity::all::ChannelId;
 use tracing::{debug, error, info, instrument, warn};
@@ -50,8 +50,7 @@ where
 
     debug!(
         total_elements = all_members.len(),
-        pages_scanned,
-        "Completed set scan"
+        pages_scanned, "Completed set scan"
     );
     Ok(all_members)
 }
@@ -73,7 +72,10 @@ async fn hydrate_active_tickets(
         cache.insert(channel_id, ()).await;
     }
 
-    info!(hydrated_count = count, "Successfully hydrated active tickets into local cache");
+    info!(
+        hydrated_count = count,
+        "Successfully hydrated active tickets into local cache"
+    );
     Ok(())
 }
 
@@ -169,9 +171,14 @@ pub fn sync_tickets(
         }
 
         debug!("Subscribing to 'ticket_updates' pub/sub channel");
-        match subscriber_clone_startup.subscribe(keys::ticket_updates_channel()).await {
+        match subscriber_clone_startup
+            .subscribe(keys::ticket_updates_channel())
+            .await
+        {
             Ok(()) => {
-                info!("Subscribed to 'ticket_updates' channel. Auto-reconnect and re-hydration active");
+                info!(
+                    "Subscribed to 'ticket_updates' channel. Auto-reconnect and re-hydration active"
+                );
             }
             Err(e) => {
                 error!(error = ?e, "Failed to subscribe to 'ticket_updates'");

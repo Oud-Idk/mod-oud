@@ -12,8 +12,7 @@ pub async fn set_warning_active_status(
 ) -> Result<(), Error> {
     trace!(
         warning_id = id,
-        set_active,
-        "Initiating warning active status adjustment"
+        set_active, "Initiating warning active status adjustment"
     );
 
     let meta = GuildMetadata::extract(&ctx)?;
@@ -27,20 +26,20 @@ pub async fn set_warning_active_status(
         id,
         set_active,
         ctx.author(),
-    ).await?;
+    )
+    .await?;
 
-    let action_past_tense  = if set_active {
-        "unpardoned" 
-    } else {
-        "pardoned" 
-    };
+    let action_past_tense = if set_active { "unpardoned" } else { "pardoned" };
 
     match result {
         Some((target_user_id, _reason)) => {
             send_ephemeral(
                 &ctx,
-                format!("Successfully {action_past_tense} warning **#{id}** for <@{target_user_id}>."),
-            ).await?;
+                format!(
+                    "Successfully {action_past_tense} warning **#{id}** for <@{target_user_id}>."
+                ),
+            )
+            .await?;
 
             info!(
                 warning_id = id,

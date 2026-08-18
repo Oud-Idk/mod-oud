@@ -1,8 +1,8 @@
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::warning::types::WarningInfo;
 use crate::shared::pagination;
 use tracing::trace;
-use crate::constants::BRAND_COLOR;
 
 fn make_page(warn: &WarningInfo) -> String {
     let status = if warn.is_active.unwrap_or(true) {
@@ -61,7 +61,7 @@ pub async fn paginate_warnings(
 
         embed
     })
-        .await?;
+    .await?;
 
     Ok(())
 }

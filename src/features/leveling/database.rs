@@ -24,16 +24,24 @@ pub async fn get_level(
         user_id.get() as i64,
         guild_id.get().cast_signed(),
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
-    Ok(row.map(|r| UserLevel::from_raw(r.guild_id, r.user_id, r.cumulative_xp, r.current_level, r.current_xp)))
+    Ok(row.map(|r| {
+        UserLevel::from_raw(
+            r.guild_id,
+            r.user_id,
+            r.cumulative_xp,
+            r.current_level,
+            r.current_xp,
+        )
+    }))
 }
 
 pub async fn insert_level(
     db: &PgPool,
     guild_id: GuildId,
-    user_id: UserId
+    user_id: UserId,
 ) -> Result<UserLevel, sqlx::Error> {
     let row = sqlx::query!(
         r#"
@@ -44,10 +52,16 @@ pub async fn insert_level(
         user_id.get() as i64,
         guild_id.get().cast_signed(),
     )
-        .fetch_one(db)
-        .await?;
+    .fetch_one(db)
+    .await?;
 
-    Ok(UserLevel::from_raw(row.guild_id, row.user_id, row.cumulative_xp, row.current_level, row.current_xp))
+    Ok(UserLevel::from_raw(
+        row.guild_id,
+        row.user_id,
+        row.cumulative_xp,
+        row.current_level,
+        row.current_xp,
+    ))
 }
 
 pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQueryResult> {
@@ -61,8 +75,8 @@ pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQuery
         user_level.user_id.get().cast_signed(),
         user_level.guild_id.get().cast_signed(),
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(result)
 }
@@ -77,14 +91,17 @@ pub async fn get_multipliers(db: &PgPool, guild_id: u64) -> Result<Vec<XpMultipl
         "#,
         guild_id.cast_signed()
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     Ok(multipliers)
 }
 
 /// Fetches all level rewards for a specific guild
-pub async fn fetch_level_rewards(db: &PgPool, guild_id: GuildId) -> Result<Vec<LevelReward>, sqlx::Error> {
+pub async fn fetch_level_rewards(
+    db: &PgPool,
+    guild_id: GuildId,
+) -> Result<Vec<LevelReward>, sqlx::Error> {
     let rows = sqlx::query!(
         r#"
         SELECT level_requirement, roles_to_add, remove_previous_roles
@@ -93,19 +110,16 @@ pub async fn fetch_level_rewards(db: &PgPool, guild_id: GuildId) -> Result<Vec<L
         "#,
         guild_id.get().cast_signed()
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     let rewards = rows
         .into_iter()
         .map(|row| LevelReward {
             level_requirement: row.level_requirement,
-            roles_to_add: row.roles_to_add.map(|roles| {
-                roles
-                    .into_iter()
-                    .map(|id| RoleId::new(id as u64))
-                    .collect()
-            }),
+            roles_to_add: row
+                .roles_to_add
+                .map(|roles| roles.into_iter().map(|id| RoleId::new(id as u64)).collect()),
             remove_previous_roles: row.remove_previous_roles,
         })
         .collect();
@@ -150,7 +164,7 @@ pub async fn load_leveling_config(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     let Some(leveling_config) = config.leveling else {
         trace!(
@@ -170,7 +184,6 @@ pub async fn load_leveling_config(
 
     Ok(Some(leveling_config))
 }
-
 
 pub async fn upsert_level(
     db: &PgPool,
@@ -204,8 +217,8 @@ pub async fn upsert_level(
         current_levels,
         current_xps
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(())
 }
@@ -229,8 +242,8 @@ pub async fn get_user_rank(
         guild_id.get().cast_signed(),
         user_id.get() as i64
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     Ok(rank)
 }

@@ -26,8 +26,12 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
     let days = &rule.days_of_week;
     let mut target_date = local_now;
 
-    let start = rule.time_start.unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).unwrap());
-    let end = rule.time_end.unwrap_or_else(|| NaiveTime::from_hms_opt(23, 59, 59).unwrap());
+    let start = rule
+        .time_start
+        .unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+    let end = rule
+        .time_end
+        .unwrap_or_else(|| NaiveTime::from_hms_opt(23, 59, 59).unwrap());
 
     for _ in 0..8 {
         let weekday_num = target_date.weekday().num_days_from_sunday();
@@ -42,9 +46,8 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
             && is_time_in_range(current_time, start, end)
             && (start <= end || current_time >= start);
 
-        let inside_yesterdays_window = was_yesterday_active
-            && (start > end)
-            && (current_time < end);
+        let inside_yesterdays_window =
+            was_yesterday_active && (start > end) && (current_time < end);
 
         if let Some(interval) = rule.interval_seconds {
             if inside_todays_window || inside_yesterdays_window {
@@ -56,9 +59,8 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
                     && is_time_in_range(next_time, start, end)
                     && (days_diff == 0 || (start > end && days_diff == 1));
 
-                let still_in_yesterday = inside_yesterdays_window
-                    && next_time < end
-                    && days_diff == 0;
+                let still_in_yesterday =
+                    inside_yesterdays_window && next_time < end && days_diff == 0;
 
                 if still_in_today || still_in_yesterday {
                     return next_interval.with_timezone(&Utc);
@@ -81,10 +83,14 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
 
         // Move to the next day at midnight (00:00:00.000)
         target_date = (target_date + Duration::days(1))
-            .with_hour(0).unwrap()
-            .with_minute(0).unwrap()
-            .with_second(0).unwrap()
-            .with_nanosecond(0).unwrap();
+            .with_hour(0)
+            .unwrap()
+            .with_minute(0)
+            .unwrap()
+            .with_second(0)
+            .unwrap()
+            .with_nanosecond(0)
+            .unwrap();
     }
 
     now + Duration::days(1)

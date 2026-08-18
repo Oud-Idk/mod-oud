@@ -1,5 +1,5 @@
-use crate::core::config::state::WebState;
 use crate::core::config::settings::get_settings;
+use crate::core::config::state::WebState;
 use crate::features::reporting::database::update_reported_message;
 use crate::features::reporting::types::ReportStatus;
 use crate::features::reporting::types::{DashboardCommand, ReportUpdate};
@@ -21,10 +21,15 @@ pub async fn handle_resolve_report(
 ) -> Result<StatusCode, WebError> {
     info!("Resolving report status and notifying reporter");
 
-    let config = get_settings(&state.core.db, redis, &state.core.guild_configs_cache, guild_id)
-        .await
-        .inspect_err(|e| error!(error = %e, "Failed to resolve guild config"))
-        .map_err(|_| WebError::Internal)?;
+    let config = get_settings(
+        &state.core.db,
+        redis,
+        &state.core.guild_configs_cache,
+        guild_id,
+    )
+    .await
+    .inspect_err(|e| error!(error = %e, "Failed to resolve guild config"))
+    .map_err(|_| WebError::Internal)?;
 
     let Some(report_config) = config.report else {
         warn!("Report config was missing for target guild during report resolution");
@@ -35,22 +40,18 @@ pub async fn handle_resolve_report(
         "SELECT reporter_id FROM reported_messages WHERE id = $1",
         cmd.report_id
     )
-        .fetch_one(&state.core.db)
-        .await
-        .inspect_err(|e| error!(error = ?e, "Failed to retrieve reporter ID from database"))
-        .map_err(|_e| WebError::Internal)?;
+    .fetch_one(&state.core.db)
+    .await
+    .inspect_err(|e| error!(error = ?e, "Failed to retrieve reporter ID from database"))
+    .map_err(|_e| WebError::Internal)?;
 
     let reporter_id_u64: u64 = reporter_id as u64;
     let reporter_id = UserId::new(reporter_id_u64);
 
-    update_reported_message(
-        &state.core.db,
-        cmd.report_id,
-        ReportUpdate::Status(*status),
-    )
+    update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::Status(*status))
         .await
         .inspect_err(|e| error!(error = ?e, "Database report status update failed"))
-        .map_err(|_| { WebError::Internal })?;
+        .map_err(|_| WebError::Internal)?;
 
     let dm_channel = reporter_id
         .create_dm_channel(&state.serenity_http)
@@ -67,7 +68,9 @@ pub async fn handle_resolve_report(
     };
 
     if layout_opt.is_none_or(|l| !l.enabled) {
-        info!("Report status resolved; skipping DM layout dispatch since configurations are disabled");
+        info!(
+            "Report status resolved; skipping DM layout dispatch since configurations are disabled"
+        );
         return Ok(StatusCode::OK);
     }
 
@@ -80,8 +83,8 @@ pub async fn handle_resolve_report(
             &layout.message.embed,
             replace_fn,
         )
-            .inspect_err(|e| error!(error = %e, "Failed to generate custom messaging content layout"))
-            .map_err(|_e| { WebError::Internal })?
+        .inspect_err(|e| error!(error = %e, "Failed to generate custom messaging content layout"))
+        .map_err(|_e| WebError::Internal)?
     } else {
         None
     };

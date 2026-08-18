@@ -8,7 +8,7 @@ pub mod string_i64 {
     /// Serializes an `i64` as a string.
     pub fn serialize<S>(val: &i64, s: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer
+        S: Serializer,
     {
         val.to_string().serialize(s)
     }
@@ -16,9 +16,11 @@ pub mod string_i64 {
     /// Parses a string back into an `i64`.
     pub fn deserialize<'de, D>(d: D) -> Result<i64, D::Error>
     where
-        D: Deserializer<'de>
+        D: Deserializer<'de>,
     {
-        String::deserialize(d)?.parse().map_err(serde::de::Error::custom)
+        String::deserialize(d)?
+            .parse()
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -29,7 +31,7 @@ pub mod opt_string_i64 {
     /// Serializes an `Option<i64>` as an optional string.
     pub fn serialize<S>(val: &Option<i64>, s: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer
+        S: Serializer,
     {
         val.map(|v| v.to_string()).serialize(s)
     }
@@ -37,7 +39,7 @@ pub mod opt_string_i64 {
     /// Parses an optional string into an `Option<i64>`.
     pub fn deserialize<'de, D>(d: D) -> Result<Option<i64>, D::Error>
     where
-        D: Deserializer<'de>
+        D: Deserializer<'de>,
     {
         Option::<String>::deserialize(d)?
             .map(|s| s.parse().map_err(serde::de::Error::custom))

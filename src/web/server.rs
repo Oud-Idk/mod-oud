@@ -4,6 +4,8 @@ use crate::core::config::state::WebState;
 use crate::core::config::state::{AppConfig, CoreServices};
 use crate::features::live_feed;
 use crate::features::live_feed::LogEvent;
+use crate::features::music::MusicState;
+use crate::features::music::web_command::WebCommandBus;
 use crate::web::router::get_router;
 use axum::http::{HeaderValue, Method};
 use fred::clients::SubscriberClient;
@@ -16,8 +18,6 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 use tracing::{error, info, instrument};
-use crate::features::music::MusicState;
-use crate::features::music::web_command::WebCommandBus;
 
 /// Starts the axum dashboard server on the `PORT` env var (default 8080),
 /// wiring up CORS, shared state, and the live-feed subscriber.

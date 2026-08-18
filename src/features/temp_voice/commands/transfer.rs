@@ -24,7 +24,8 @@ pub async fn transfer(
         channel_id,
         member.user.id,
         target.id,
-    ).await?;
+    )
+    .await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

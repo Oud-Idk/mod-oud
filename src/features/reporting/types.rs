@@ -17,10 +17,14 @@ pub enum ReportUpdate {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "action", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DashboardAction {
-    ResolveReport { status: ReportStatus },
+    ResolveReport {
+        status: ReportStatus,
+    },
     DeleteMessage {
-        #[serde_as(as = "DisplayFromStr")] channel_id: ChannelId,
-        #[serde_as(as = "DisplayFromStr")] message_id: MessageId,
+        #[serde_as(as = "DisplayFromStr")]
+        channel_id: ChannelId,
+        #[serde_as(as = "DisplayFromStr")]
+        message_id: MessageId,
     },
     WarnUser,
     TimeoutUser,
@@ -101,4 +105,3 @@ pub struct ReportedMessagePayload {
     /// Whether the author was banned.
     pub user_banned: bool,
 }
-

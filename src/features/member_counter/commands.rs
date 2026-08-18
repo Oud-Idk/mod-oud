@@ -23,7 +23,7 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
     let Some(guild_id) = ctx.guild_id() else {
         send_ephemeral(&ctx, "You're not in a guild!").await?;
-        return Ok(())
+        return Ok(());
     };
     let data = ctx.data();
 
@@ -33,7 +33,7 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     let counter_config = match settings.member_counter {
         Some(ref c) if c.enabled => c,

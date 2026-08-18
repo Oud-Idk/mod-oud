@@ -11,7 +11,10 @@ impl IntoResponse for WebError {
     fn into_response(self) -> Response {
         let (status, msg) = match self {
             Self::BadRequest(s) => (StatusCode::BAD_REQUEST, s),
-            Self::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "internal server error".to_string()),
+            Self::Internal => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal server error".to_string(),
+            ),
             Self::BadGateway(s) => (StatusCode::BAD_GATEWAY, s),
         };
         (status, msg).into_response()

@@ -2,7 +2,7 @@ use crate::core::config::state::WebState;
 use crate::features::reaction_roles;
 use crate::features::reaction_roles::database::fetch_active_reactions;
 use crate::features::reaction_roles::types::{ButtonStyle, ReactionMessage};
-use crate::shared::embed::{build_custom_message, DiscordEmbed, Format};
+use crate::shared::embed::{DiscordEmbed, Format, build_custom_message};
 use axum::http::StatusCode;
 use serenity::all::{ChannelId, CreateButton, MessageId};
 use sqlx::PgPool;
@@ -11,7 +11,10 @@ use tracing::warn;
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
-        (StatusCode::BAD_REQUEST, "Invalid Configuration ID format".to_string())
+        (
+            StatusCode::BAD_REQUEST,
+            "Invalid Configuration ID format".to_string(),
+        )
     })
 }
 
@@ -32,15 +35,17 @@ pub async fn fetch_and_build_buttons(
         });
 
         if let Some(lbl) = b.label
-            && !lbl.trim().is_empty() {
-                btn = btn.label(lbl);
-            }
+            && !lbl.trim().is_empty()
+        {
+            btn = btn.label(lbl);
+        }
 
         if let Some(emoji_str) = b.emoji
             && !emoji_str.trim().is_empty()
-                && let Ok(emoji) = emoji_str.parse::<serenity::all::ReactionType>() {
-                    btn = btn.emoji(emoji);
-                }
+            && let Ok(emoji) = emoji_str.parse::<serenity::all::ReactionType>()
+        {
+            btn = btn.emoji(emoji);
+        }
 
         button_components.push(btn);
     }
@@ -54,15 +59,12 @@ pub fn build_custom_msg(
     content: &str,
     embed: &DiscordEmbed,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
-    build_custom_message(
-        format,
-        content,
-        embed,
-        std::string::ToString::to_string,
-    )
-        .map_err(|_e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
-        })
+    build_custom_message(format, content, embed, std::string::ToString::to_string).map_err(|_e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal Server Error".to_string(),
+        )
+    })
 }
 
 /// Converts an optional custom `CreateMessage` into an `EditMessage` builder
@@ -80,7 +82,9 @@ pub fn convert_create_to_edit_message(
             if let Some(embeds_json) = val.get("embeds").and_then(|v| v.as_array()) {
                 let mut create_embeds = Vec::new();
                 for embed_json in embeds_json {
-                    if let Ok(embed) = serde_json::from_value::<serenity::all::Embed>(embed_json.clone()) {
+                    if let Ok(embed) =
+                        serde_json::from_value::<serenity::all::Embed>(embed_json.clone())
+                    {
                         create_embeds.push(serenity::all::CreateEmbed::from(embed));
                     }
                 }
@@ -94,7 +98,12 @@ pub fn convert_create_to_edit_message(
     edit_builder
 }
 
-pub async fn edit_reactions(state: &Arc<WebState>, config_row: &ReactionMessage, channel_id: &ChannelId, message_id: &MessageId) -> Result<(), (StatusCode, String)> {
+pub async fn edit_reactions(
+    state: &Arc<WebState>,
+    config_row: &ReactionMessage,
+    channel_id: &ChannelId,
+    message_id: &MessageId,
+) -> Result<(), (StatusCode, String)> {
     let reactions = fetch_active_reactions(&state.core.db, config_row.id).await?;
 
     if let Ok(message) = channel_id.message(&state.serenity_http, message_id).await {
@@ -110,17 +119,29 @@ pub async fn edit_reactions(state: &Arc<WebState>, config_row: &ReactionMessage,
             });
 
             if !is_still_active
-                && state.serenity_http.delete_message_reaction_emoji(*channel_id, *message_id, &emoji_type).await.is_err() {
-                    let _ = state.serenity_http.delete_reaction_me(*channel_id, *message_id, &emoji_type).await;
-                }
+                && state
+                    .serenity_http
+                    .delete_message_reaction_emoji(*channel_id, *message_id, &emoji_type)
+                    .await
+                    .is_err()
+            {
+                let _ = state
+                    .serenity_http
+                    .delete_reaction_me(*channel_id, *message_id, &emoji_type)
+                    .await;
+            }
         }
     }
 
     for r in reactions {
         if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>()
-            && let Err(err) = state.serenity_http.create_reaction(*channel_id, *message_id, &emoji).await {
-                warn!(error = ?err, "Failed applying reaction emoji to edited post");
-            }
+            && let Err(err) = state
+                .serenity_http
+                .create_reaction(*channel_id, *message_id, &emoji)
+                .await
+        {
+            warn!(error = ?err, "Failed applying reaction emoji to edited post");
+        }
     }
     Ok(())
 }

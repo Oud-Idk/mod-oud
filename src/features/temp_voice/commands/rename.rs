@@ -26,7 +26,8 @@ pub async fn rename(
         channel_id,
         &member,
         raw_input,
-    ).await?;
+    )
+    .await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

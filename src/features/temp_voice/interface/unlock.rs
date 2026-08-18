@@ -8,9 +8,8 @@ pub async fn handle_unlock_temp_vc(
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    let Ok(Some((channel_id, guild_id))) = preflight_button_check(
-        ctx, interaction, data
-    ).await else {
+    let Ok(Some((channel_id, guild_id))) = preflight_button_check(ctx, interaction, data).await
+    else {
         return Ok(());
     };
 

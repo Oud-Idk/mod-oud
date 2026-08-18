@@ -25,7 +25,7 @@ pub async fn setup_tickets(
     #[description = "The role for viewing the tickets."] role: Option<Role>,
 ) -> Result<(), Error> {
     let Some(guild_id) = ctx.guild_id() else {
-        return Ok(())
+        return Ok(());
     };
 
     info!(
@@ -39,7 +39,7 @@ pub async fn setup_tickets(
         &ctx.data().core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     if let Some(ref ticket_cfg) = settings.tickets
         && ticket_cfg.posted_message_id == None
@@ -95,7 +95,6 @@ pub async fn setup_tickets(
         None => ctx.channel_id(),
     };
 
-
     debug!(%guild_id, "Compiling ticket panel layouts and assets");
     let message_builder = if let Some(ref ticket_cfg) = settings.tickets {
         build_ticket_message_payload(
@@ -106,7 +105,7 @@ pub async fn setup_tickets(
             &ticket_cfg.panel_message.message.content,
             &ticket_cfg.panel_message.message.embed,
         )
-            .await?
+        .await?
     } else {
         debug!(%guild_id, "Ticket setup blocked: no message configured");
         ctx.send(
@@ -116,7 +115,7 @@ pub async fn setup_tickets(
                 )
                 .ephemeral(true),
         )
-            .await?;
+        .await?;
         return Ok(());
     };
 
@@ -150,14 +149,15 @@ pub async fn setup_tickets(
         &ctx.data().core.guild_configs_cache,
         guild_id,
         &new_settings,
-    ).await?;
+    )
+    .await?;
 
     ctx.send(
         CreateReply::default()
             .content("Ticket system has been set up successfully!")
             .ephemeral(true),
     )
-        .await?;
+    .await?;
 
     info!(
         %guild_id,
@@ -169,4 +169,3 @@ pub async fn setup_tickets(
 
     Ok(())
 }
-

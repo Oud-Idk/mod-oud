@@ -1,16 +1,16 @@
 //! Music playback, queue management, and WebSocket control.
 
-mod commands;
-mod state;
-mod player;
 mod actor;
-mod stats;
-mod spotify;
-mod youtube;
+mod commands;
 mod ffmpeg_live;
+mod player;
+mod spotify;
+mod state;
+mod stats;
 mod web;
 /// Web command bus types used to bridge the web control server and the music actor.
 pub mod web_command;
+mod youtube;
 
 pub use commands::music;
 pub use state::MusicState;

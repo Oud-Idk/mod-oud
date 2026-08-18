@@ -7,6 +7,8 @@
 //! - [`shared`]: cross-cutting utilities used by three or more features.
 //! - [`web`]: the axum HTTP dashboard.
 
+/// Shared compile-time constants.
+pub mod constants;
 /// Core bootstrapping: configuration, setup, and error types.
 pub mod core;
 /// Event dispatch from serenity to features.
@@ -17,5 +19,3 @@ pub mod features;
 pub mod shared;
 /// The axum HTTP dashboard.
 pub mod web;
-/// Shared compile-time constants.
-pub mod constants;

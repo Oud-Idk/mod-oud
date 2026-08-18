@@ -4,10 +4,7 @@ use crate::shared::embed::build_custom_message;
 use rand::prelude::IndexedRandom;
 use serenity::all::{ChannelId, Http, Message};
 
-pub fn pick_payload(
-    messages: &[MessageLayout],
-    randomize: bool,
-) -> Option<&MessageLayout> {
+pub fn pick_payload(messages: &[MessageLayout], randomize: bool) -> Option<&MessageLayout> {
     if messages.is_empty() {
         return None;
     }
@@ -32,12 +29,8 @@ where
         return Ok(None);
     };
 
-    let message_builder = build_custom_message(
-        payload.format,
-        &payload.content,
-        &payload.embed,
-        replace_fn,
-    )?;
+    let message_builder =
+        build_custom_message(payload.format, &payload.content, &payload.embed, replace_fn)?;
 
     if let Some(builder) = message_builder {
         let msg = channel_id.send_message(http, builder).await?;

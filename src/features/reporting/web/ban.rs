@@ -27,7 +27,9 @@ pub async fn handle_ban_user(
     )?;
 
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
-    let duration = cmd.duration_mins.map(|mins| std::time::Duration::from_secs(mins * 60));
+    let duration = cmd
+        .duration_mins
+        .map(|mins| std::time::Duration::from_secs(mins * 60));
 
     let duration_label = match cmd.duration_mins {
         Some(mins) if mins >= 1440 => format!("Temporary ({} days)", mins / 1440),
@@ -49,9 +51,9 @@ pub async fn handle_ban_user(
         duration,
         &duration_label,
     )
-        .await
-        .inspect_err(|e| error!(error = %e, "Failed to complete ban operation"))
-        .map_err(|_e| WebError::Internal)?;
+    .await
+    .inspect_err(|e| error!(error = %e, "Failed to complete ban operation"))
+    .map_err(|_e| WebError::Internal)?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserBanned).await?;
     Ok(StatusCode::OK)

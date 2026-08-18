@@ -5,10 +5,7 @@ use fred::prelude::Expiration;
 use serenity::all::GuildId;
 use tracing::{trace, warn};
 
-pub async fn get_settings_from_redis(
-    redis: &Client,
-    cache_key: &str,
-) -> Option<GuildSettings> {
+pub async fn get_settings_from_redis(redis: &Client, cache_key: &str) -> Option<GuildSettings> {
     let cached_string: String = redis.get(cache_key).await.ok()?;
 
     match serde_json::from_str::<GuildSettings>(&cached_string) {

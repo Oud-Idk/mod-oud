@@ -1,10 +1,10 @@
-use std::sync::Arc;
-use std::time::Duration;
 use anyhow::{Context as _, Result};
 use serenity::all::GuildId;
 use songbird::input::{AuxMetadata, Compose, Input, YoutubeDl};
 use songbird::tracks::TrackHandle;
 use songbird::{Call, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent};
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, error};
 use uuid::Uuid;
@@ -96,7 +96,7 @@ pub async fn start_streaming(
     requested_by: Arc<str>,
     requested_by_id: u64,
 ) -> StartedTrack {
-    use crate::features::music::ffmpeg_live::{is_audio_toolchain_available, FfmpegLiveInput};
+    use crate::features::music::ffmpeg_live::{FfmpegLiveInput, is_audio_toolchain_available};
 
     let source: Input = if is_live_stream(&metadata) && is_audio_toolchain_available().await {
         // Live streams (e.g. YouTube) are typically only served as muxed MPEG-TS
@@ -153,7 +153,15 @@ pub async fn prepare_and_play(
         Some(metadata) => metadata,
         None => fetch_metadata(services.clone(), &query).await?,
     };
-    Ok(start_streaming(services, call, query, metadata, requested_by, requested_by_id).await)
+    Ok(start_streaming(
+        services,
+        call,
+        query,
+        metadata,
+        requested_by,
+        requested_by_id,
+    )
+    .await)
 }
 
 /// Swaps the active track directly inside the `GuildPlayer` state owned by the actor,
@@ -215,14 +223,18 @@ pub fn parse_timestamp(input: &str) -> Option<Duration> {
         [mins, secs] => {
             let m: u64 = mins.parse().ok()?;
             let s: u64 = secs.parse().ok()?;
-            if s >= 60 { return None; }
+            if s >= 60 {
+                return None;
+            }
             Some(Duration::from_secs(m * 60 + s))
         }
         [hours, mins, secs] => {
             let h: u64 = hours.parse().ok()?;
             let m: u64 = mins.parse().ok()?;
             let s: u64 = secs.parse().ok()?;
-            if m >= 60 || s >= 60 { return None; }
+            if m >= 60 || s >= 60 {
+                return None;
+            }
             Some(Duration::from_secs(h * 3600 + m * 60 + s))
         }
         _ => None,

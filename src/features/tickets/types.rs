@@ -1,6 +1,6 @@
 use crate::core::config::message_layout::TogglableMessage;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, serde_conv, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as, serde_conv};
 use serenity::all::{ChannelId, MessageId, RoleId, UserId};
 use std::time::Duration;
 
@@ -25,9 +25,7 @@ serde_conv!(
     DurationMinutes,
     Duration,
     |duration: &Duration| duration.as_secs() / 60,
-    |mins: u64| -> Result<_, std::convert::Infallible> {
-        Ok(Duration::from_secs(mins * 60))
-    }
+    |mins: u64| -> Result<_, std::convert::Infallible> { Ok(Duration::from_secs(mins * 60)) }
 );
 
 /// Config for the ticket system.

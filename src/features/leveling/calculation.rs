@@ -6,8 +6,15 @@ use anyhow::Result;
 use fred::clients::Client;
 use sqlx::PgPool;
 
-pub async fn clamp_to_level_cap(leveling_config: &LevelingConfig, redis: &Client, db: &PgPool, stats_key: &str, user_level: &mut UserLevel) -> Result<bool> {
-    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32 {
+pub async fn clamp_to_level_cap(
+    leveling_config: &LevelingConfig,
+    redis: &Client,
+    db: &PgPool,
+    stats_key: &str,
+    user_level: &mut UserLevel,
+) -> Result<bool> {
+    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32
+    {
         let mut needs_update = false;
         if user_level.current_level > leveling_config.level_cap as i32 {
             user_level.current_level = leveling_config.level_cap as i32;
@@ -18,7 +25,8 @@ pub async fn clamp_to_level_cap(leveling_config: &LevelingConfig, redis: &Client
             needs_update = true;
         }
         if needs_update {
-            user_level.cumulative_xp = calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
+            user_level.cumulative_xp =
+                calculate_cumulative_xp(user_level.current_level, user_level.current_xp);
             database::update_level(db, user_level).await?;
             let serialized = serde_json::to_string(&user_level)?;
             let _: () = save_user_level_cache(redis, stats_key, serialized).await?;
@@ -28,7 +36,9 @@ pub async fn clamp_to_level_cap(leveling_config: &LevelingConfig, redis: &Client
     Ok(false)
 }
 
-pub const fn calculate_xp_needed(level: i32) -> i32 { 5 * level.pow(2) + 50 * level + 100 }
+pub const fn calculate_xp_needed(level: i32) -> i32 {
+    5 * level.pow(2) + 50 * level + 100
+}
 
 pub const fn calculate_cumulative_xp(level: i32, current_xp: i32) -> i32 {
     if level <= 0 {
@@ -44,9 +54,14 @@ pub const fn calculate_cumulative_xp(level: i32, current_xp: i32) -> i32 {
     current_xp + (sum_sq + sum_linear + sum_const) as i32
 }
 
-pub fn calculate_level_up(leveling_config: &LevelingConfig, applied_multiplier: f32, user_level: &mut UserLevel) -> (i32, i32) {
+pub fn calculate_level_up(
+    leveling_config: &LevelingConfig,
+    applied_multiplier: f32,
+    user_level: &mut UserLevel,
+) -> (i32, i32) {
     let previous_level = user_level.current_level;
-    let mut add_level = rand::random_range(leveling_config.text.xp_range.min..=leveling_config.text.xp_range.max);
+    let mut add_level =
+        rand::random_range(leveling_config.text.xp_range.min..=leveling_config.text.xp_range.max);
     add_level = (add_level as f32 * applied_multiplier) as i32;
     (previous_level, add_level)
 }

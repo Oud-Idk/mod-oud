@@ -32,7 +32,7 @@ pub async fn handle_text_leveling(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
     let config_maybe = settings.leveling;
     let Some(leveling_config) = config_maybe else {
         return Ok(());
@@ -127,7 +127,7 @@ pub async fn handle_text_leveling(
         &guild_id.get().to_string(),
         &author.id.get().to_string(),
     )
-        .await?;
+    .await?;
 
     Ok(())
 }
@@ -191,7 +191,7 @@ pub fn spawn_level_up_effects(
                 &guild_id,
                 previous_level,
             )
-                .await
+            .await
             {
                 warn!(error = ?e, "Failed to send level-up notification");
             }
@@ -203,14 +203,9 @@ pub fn spawn_level_up_effects(
             level = current_level_val,
             "Evaluating reward assignments"
         );
-        if let Err(e) = rewards::apply_level_rewards(
-            &ctx,
-            &db_lvl_up,
-            guild_id,
-            author_id,
-            current_level_val,
-        )
-            .await
+        if let Err(e) =
+            rewards::apply_level_rewards(&ctx, &db_lvl_up, guild_id, author_id, current_level_val)
+                .await
         {
             warn!(
                 error = ?e,

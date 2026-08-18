@@ -17,11 +17,9 @@ pub async fn unblock(
         None => return Ok(()),
     };
 
-    let response_message = service::unblock_users_from_vc(
-        &ctx.serenity_context().http,
-        channel_id,
-        vec![target.id],
-    ).await?;
+    let response_message =
+        service::unblock_users_from_vc(&ctx.serenity_context().http, channel_id, vec![target.id])
+            .await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

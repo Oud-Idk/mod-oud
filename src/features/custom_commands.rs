@@ -1,12 +1,12 @@
-mod types;
+mod cache;
+mod commands;
 mod custom_command;
+mod database;
+mod events;
+mod keys;
 mod payload;
 mod placeholders;
-mod events;
-mod database;
-mod commands;
-mod cache;
-mod keys;
+mod types;
 
-pub use events::handle_custom_cmd;
 pub use commands::custom_commands;
+pub use events::handle_custom_cmd;

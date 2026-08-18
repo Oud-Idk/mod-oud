@@ -14,7 +14,12 @@ pub async fn store_username_relation(
     id: u64,
     name: &str,
 ) -> anyhow::Result<()> {
-    let _ = buf.send(UserUpdate { id, name: name.to_string() }).await;
+    let _ = buf
+        .send(UserUpdate {
+            id,
+            name: name.to_string(),
+        })
+        .await;
     Ok(())
 }
 
@@ -34,13 +39,19 @@ pub async fn get_username(
         "SELECT username FROM discord_users WHERE user_id = $1",
         id as i64
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     if let Some(record) = db_record {
-        redis.set::<(), &str, &str>(
-            &redis_key, &record.username, Some(Expiration::EX(86400)), None, false,
-        ).await?;
+        redis
+            .set::<(), &str, &str>(
+                &redis_key,
+                &record.username,
+                Some(Expiration::EX(86400)),
+                None,
+                false,
+            )
+            .await?;
 
         return Ok(Some(record.username));
     }
@@ -82,10 +93,8 @@ pub async fn run_username_batch_worker(db: PgPool, mut rx: mpsc::Receiver<UserUp
 }
 
 async fn flush_updates(db: &PgPool, updates: &mut HashMap<u64, String>) {
-    let (ids, names): (Vec<i64>, Vec<String>) = updates
-        .drain()
-        .map(|(id, name)| (id as i64, name))
-        .unzip();
+    let (ids, names): (Vec<i64>, Vec<String>) =
+        updates.drain().map(|(id, name)| (id as i64, name)).unzip();
 
     let result = sqlx::query!(
         "INSERT INTO discord_users (user_id, username, updated_at) \
@@ -95,8 +104,8 @@ async fn flush_updates(db: &PgPool, updates: &mut HashMap<u64, String>) {
         &ids[..],
         &names[..]
     )
-        .execute(db)
-        .await;
+    .execute(db)
+    .await;
 
     if let Err(e) = result {
         tracing::error!(error = %e, "Failed to flush username batch to DB");

@@ -1,17 +1,17 @@
 use crate::core::config::state::WebState;
 use crate::shared;
-use crate::shared::embed::{DiscordEmbed, MessageGetter, Format, DEFAULT_EMBED};
+use crate::shared::embed::{DEFAULT_EMBED, DiscordEmbed, Format, MessageGetter};
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
     routing::post,
-    Json, Router,
 };
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
-use std::sync::Arc;
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::GuildId;
+use std::sync::Arc;
 use tracing::{debug, info, warn};
 
 #[serde_as]
@@ -84,6 +84,8 @@ pub async fn handle_send_custom_embed(
 
 /// Registers the general web route for sending custom embeds.
 pub fn routes() -> Router<Arc<WebState>> {
-    Router::new()
-        .route("/guilds/{guild_id}/embeds/send", post(handle_send_custom_embed))
+    Router::new().route(
+        "/guilds/{guild_id}/embeds/send",
+        post(handle_send_custom_embed),
+    )
 }

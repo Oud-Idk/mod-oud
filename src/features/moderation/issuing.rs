@@ -1,3 +1,4 @@
+use crate::constants::BRAND_COLOR;
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
@@ -15,6 +16,7 @@ use chrono::TimeDelta;
 use duration_str::HumanFormat;
 use fred::clients::Client;
 use humantime::format_duration;
+use moka::future::Cache;
 use serenity::all::{
     ChannelId, CreateEmbed, CreateEmbedFooter, CreateInvite, CreateMessage, GuildId, Http,
     Timestamp, User,
@@ -22,9 +24,7 @@ use serenity::all::{
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
-use moka::future::Cache;
 use tracing::{debug, info, instrument, warn};
-use crate::constants::BRAND_COLOR;
 
 #[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
@@ -50,17 +50,17 @@ pub async fn issue_kick(
         // Adjusted to traverse through `message` block and handle non-optional embed struct
         let contains_invite = kick_dm_settings.message.content.contains("invite.url")
             || kick_dm_settings
-            .message
-            .embed
-            .description
-            .as_ref()
-            .is_some_and(|d| d.contains("invite.url"))
+                .message
+                .embed
+                .description
+                .as_ref()
+                .is_some_and(|d| d.contains("invite.url"))
             || kick_dm_settings
-            .message
-            .embed
-            .title
-            .as_ref()
-            .is_some_and(|t| t.contains("invite.url"));
+                .message
+                .embed
+                .title
+                .as_ref()
+                .is_some_and(|t| t.contains("invite.url"));
 
         if contains_invite {
             debug!("Generating transient invite URL for kick DM fallback");
@@ -117,7 +117,7 @@ pub async fn issue_kick(
         ActionType::Kick,
         None,
     )
-        .await?;
+    .await?;
 
     debug!("Executing kick via Discord HTTP API");
     guild_id.kick_with_reason(http, user.id, reason).await?;
@@ -193,7 +193,7 @@ pub async fn issue_ban(
         ActionType::Ban,
         dur,
     )
-        .await?;
+    .await?;
 
     info!("Successfully banned user from guild");
     Ok(())
@@ -215,8 +215,8 @@ pub async fn schedule_unban(
         user.id.get() as i64,
         unban_at
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
     Ok(chrono_dur)
 }
 
@@ -279,7 +279,7 @@ pub async fn issue_mute(
         ActionType::Mute,
         Some(timedelta),
     )
-        .await?;
+    .await?;
 
     info!("Successfully muted user in guild");
     Ok(())
@@ -326,7 +326,7 @@ pub async fn issue_unmute(
         ActionType::Unmute,
         None,
     )
-        .await?;
+    .await?;
 
     info!("Successfully unmuted user in guild");
     Ok(())
@@ -393,7 +393,7 @@ pub async fn issue_softban(
         ActionType::Softban,
         None,
     )
-        .await?;
+    .await?;
 
     info!("Successfully soft-banned user from guild");
     Ok(())

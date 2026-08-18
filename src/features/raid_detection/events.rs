@@ -29,8 +29,14 @@ pub async fn handle_raid_detection(
     let now = chrono::Utc::now();
 
     let Some(raid_config) = get_settings(
-        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id,
-    ).await?.raid_detection else {
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id,
+    )
+    .await?
+    .raid_detection
+    else {
         trace!(%guild_id, "Raid detection is disabled or unconfigured");
         return Ok(());
     };
@@ -117,7 +123,9 @@ pub async fn handle_raid_detection(
                 let timestamp = Timestamp::from_unix_timestamp(until.timestamp())?;
 
                 let builder = EditGuildIncidentActions::new().invites_disabled_until(timestamp);
-                guild_id.edit_guild_incident_actions(&ctx.http, guild_id, builder).await?;
+                guild_id
+                    .edit_guild_incident_actions(&ctx.http, guild_id, builder)
+                    .await?;
             }
             RaidAction::Alert { channel_id } if is_first_trigger => {
                 info!(%guild_id, channel_id, "Sending raid notification alert to channel");
@@ -154,7 +162,11 @@ pub async fn handle_raid_detection(
                         "Auto-banning account created too recently during active raid"
                     );
                     new_member
-                        .ban_with_reason(ctx, 0, "Account joined during active raid and is too new.")
+                        .ban_with_reason(
+                            ctx,
+                            0,
+                            "Account joined during active raid and is too new.",
+                        )
                         .await?;
                 }
             }
@@ -165,11 +177,14 @@ pub async fn handle_raid_detection(
                     timeout_mins = mins,
                     "Applying communication timeout to new join during active raid"
                 );
-                let timeout_until = chrono::Utc::now() + chrono::Duration::minutes(i64::from(*mins));
+                let timeout_until =
+                    chrono::Utc::now() + chrono::Duration::minutes(i64::from(*mins));
                 let timestamp = Timestamp::from_unix_timestamp(timeout_until.timestamp())?;
                 let builder = EditMember::new().disable_communication_until_datetime(timestamp);
 
-                guild_id.edit_member(&ctx.http, new_member.user.id, builder).await?;
+                guild_id
+                    .edit_member(&ctx.http, new_member.user.id, builder)
+                    .await?;
             }
 
             _ => {} // Ignore global actions on non-first triggers

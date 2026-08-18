@@ -1,6 +1,6 @@
-use serenity::all::{GuildChannel, Message, PartialMember, User};
 use crate::core::config::guild_ctx::GuildCtx;
-use crate::shared::placeholders::{render, DiscordCtx, PlaceholderResolver, ResolverChain};
+use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver, ResolverChain, render};
+use serenity::all::{GuildChannel, Message, PartialMember, User};
 
 pub struct PartialMemberCtx<'a> {
     pub member: Option<&'a PartialMember>,
@@ -10,7 +10,10 @@ pub struct PartialMemberCtx<'a> {
 impl PlaceholderResolver for PartialMemberCtx<'_> {
     fn resolve(&self, key: &str) -> Option<String> {
         // Resolve Member / User keys
-        if ["user", "member", "player", "host"].iter().any(|prefix| key.starts_with(prefix)) {
+        if ["user", "member", "player", "host"]
+            .iter()
+            .any(|prefix| key.starts_with(prefix))
+        {
             // First try resolving from user
             if let Some(user) = self.user {
                 let val = match key {
@@ -19,7 +22,9 @@ impl PlaceholderResolver for PartialMemberCtx<'_> {
                     }
                     "user.name" | "member.username" | "host.name" => Some(user.name.clone()),
                     "user.id" | "member.id" | "host.id" => Some(user.id.to_string()),
-                    "user.avatar_url" | "member.avatar_url" | "member.profile_picture" => Some(user.face()),
+                    "user.avatar_url" | "member.avatar_url" | "member.profile_picture" => {
+                        Some(user.face())
+                    }
                     "user.bot" | "member.bot" => Some(user.bot.to_string()),
                     _ => None,
                 };
@@ -40,7 +45,12 @@ impl PlaceholderResolver for PartialMemberCtx<'_> {
     }
 }
 
-pub fn replace_general_placeholders(text: &str, msg: &Message, gctx: &GuildCtx, channel: Option<&GuildChannel>) -> String {
+pub fn replace_general_placeholders(
+    text: &str,
+    msg: &Message,
+    gctx: &GuildCtx,
+    channel: Option<&GuildChannel>,
+) -> String {
     let discord_ctx = DiscordCtx {
         gctx: Some(gctx),
         user: Some(&msg.author),

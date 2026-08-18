@@ -143,7 +143,7 @@ pub async fn issue_warning_status_change(
         action_type,
         None,
     )
-        .await?;
+    .await?;
 
     let dm_settings_opt = if set_active {
         settings.moderation_dms.and_then(|m| m.unpardon_warn)

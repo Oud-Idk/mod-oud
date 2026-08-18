@@ -4,7 +4,10 @@ use crate::features::join_leave::placeholders::replace_welcome_goodbye_placehold
 use crate::features::join_leave::types::LeaveConfig;
 use crate::features::join_leave::types::WelcomeMessageSettings;
 use crate::shared::embed::build_custom_message;
-use serenity::all::{ChannelId, ChannelType, Color, Context, CreateEmbed, CreateMessage, GuildChannel, GuildId, Member, Mentionable, Timestamp, User};
+use serenity::all::{
+    ChannelId, ChannelType, Color, Context, CreateEmbed, CreateMessage, GuildChannel, GuildId,
+    Member, Mentionable, Timestamp, User,
+};
 use tracing::{debug, trace, warn};
 
 pub fn build_welcome_message(
@@ -17,31 +20,59 @@ pub fn build_welcome_message(
 ) -> Result<CreateMessage, Error> {
     let user_id = member.user.id.get();
     let guild_id = member.guild_id.get();
-    trace!(guild_id, user_id, is_dm, "Compiling welcome notification message template");
+    trace!(
+        guild_id,
+        user_id, is_dm, "Compiling welcome notification message template"
+    );
 
     let custom_msg_opt = build_custom_message(
         settings.message.format,
         &settings.message.content,
         &settings.message.embed,
-        |text| replace_welcome_goodbye_placeholders(text, gctx, member, channel, None, Some(warning_text)),
+        |text| {
+            replace_welcome_goodbye_placeholders(
+                text,
+                gctx,
+                member,
+                channel,
+                None,
+                Some(warning_text),
+            )
+        },
     )?;
 
     Ok(custom_msg_opt.unwrap_or_else(|| {
-        debug!(guild_id, user_id, is_dm, "No custom welcome template found; rendering standard layout");
+        debug!(
+            guild_id,
+            user_id, is_dm, "No custom welcome template found; rendering standard layout"
+        );
         let base_msg = if is_dm {
-            format!("Welcome to the server, {}! We are glad to have you here.", member.user.mention())
+            format!(
+                "Welcome to the server, {}! We are glad to have you here.",
+                member.user.mention()
+            )
         } else {
-            format!("Welcome to the server, {}! We are glad to have you here.{}", member.user.mention(), warning_text)
+            format!(
+                "Welcome to the server, {}! We are glad to have you here.{}",
+                member.user.mention(),
+                warning_text
+            )
         };
         CreateMessage::new().content(base_msg)
     }))
 }
 
-pub fn build_fallback_message(user: &serenity::all::User, member: &Option<Member>) -> CreateMessage {
+pub fn build_fallback_message(
+    user: &serenity::all::User,
+    member: Option<&Member>,
+) -> CreateMessage {
     let roles_text = format_member_roles(member);
     let embed = CreateEmbed::new()
         .title("Member Left / Kicked")
-        .description(format!("**{}** (`{}`) is no longer in the server.", user.name, user.id))
+        .description(format!(
+            "**{}** (`{}`) is no longer in the server.",
+            user.name, user.id
+        ))
         .field("Roles before leaving", roles_text, false)
         .thumbnail(user.face())
         .color(Color::from_rgb(255, 0, 0))
@@ -54,16 +85,16 @@ pub async fn build_goodbye_message(
     ctx: &Context,
     guild_id: GuildId,
     user: &User,
-    member_data_if_available: &Option<Member>,
+    member_data_if_available: Option<&Member>,
     leave_cfg: &LeaveConfig,
 ) -> CreateMessage {
-    let member = if let Some(m) = member_data_if_available { m } else {
+    let Some(member) = member_data_if_available else {
         debug!(
             %guild_id,
             user_id = user.id.get(),
             "No member metadata available in cache; constructing default fallback layout"
         );
-        return build_fallback_message(user, &None);
+        return build_fallback_message(user, None);
     };
 
     trace!(
@@ -81,8 +112,18 @@ pub async fn build_goodbye_message(
                 leave_cfg.message.format,
                 &leave_cfg.message.content,
                 &leave_cfg.message.embed,
-                |text| replace_welcome_goodbye_placeholders(text, &gctx, member, &context_channel, None, None),
-            ).unwrap_or_else(|e| {
+                |text| {
+                    replace_welcome_goodbye_placeholders(
+                        text,
+                        &gctx,
+                        member,
+                        &context_channel,
+                        None,
+                        None,
+                    )
+                },
+            )
+            .unwrap_or_else(|e| {
                 warn!(
                     error = ?e,
                     %guild_id,
@@ -107,7 +148,7 @@ pub async fn build_goodbye_message(
     }
 }
 
-pub fn format_member_roles(member_data: &Option<Member>) -> String {
+pub fn format_member_roles(member_data: Option<&Member>) -> String {
     let Some(member) = member_data else {
         return "Unknown (User was not in bot cache)".to_string();
     };
@@ -132,12 +173,12 @@ pub async fn get_context_channel(
     let guild_id = member.guild_id;
     trace!(%guild_id, "Resolving text channel context for placeholder evaluation");
 
-    if let Some(ch_id) = public_channel_id {
-        if let Ok(channel) = ch_id.to_channel(ctx).await
-            && let Some(guild_ch) = channel.guild() {
-            trace!(%guild_id, channel_id = %ch_id, "Resolved configured target channel context");
-            return Ok(guild_ch);
-        }
+    if let Some(ch_id) = public_channel_id
+        && let Ok(channel) = ch_id.to_channel(ctx).await
+        && let Some(guild_ch) = channel.guild()
+    {
+        trace!(%guild_id, channel_id = %ch_id, "Resolved configured target channel context");
+        return Ok(guild_ch);
     }
 
     debug!(%guild_id, "No valid public welcome channel provided; scanning for any standard text channel context");
@@ -150,8 +191,5 @@ pub async fn get_context_channel(
     }
 
     warn!(%guild_id, "Failed to resolve any valid text channel context in guild");
-    Err(std::io::Error::other(
-        "Could not resolve a suitable text channel context.",
-    )
-        .into())
+    Err(std::io::Error::other("Could not resolve a suitable text channel context.").into())
 }

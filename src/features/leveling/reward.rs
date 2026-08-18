@@ -11,7 +11,7 @@ pub async fn fetch_member_roles(
         Ok(member) => {
             debug!("Fetch {}'s roles", user_id);
             Some(member.roles)
-        },
+        }
         Err(e) => {
             warn!(
                 "Could not fetch roles for user {}: {}. Proceeding without cache.",
@@ -58,12 +58,17 @@ pub async fn apply_role_modifications(
 ) {
     for role_id in roles_to_add {
         if let Some(current_roles) = member_roles
-            && current_roles.contains(&role_id) {
+            && current_roles.contains(&role_id)
+        {
             trace!(%role_id, "User already contains role");
             continue;
         }
 
-        if let Err(e) = ctx.http.add_member_role(guild_id, user_id, role_id, Some("Level reward granted")).await {
+        if let Err(e) = ctx
+            .http
+            .add_member_role(guild_id, user_id, role_id, Some("Level reward granted"))
+            .await
+        {
             warn!("Failed to add role {} to user {}: {}", role_id, user_id, e);
             continue;
         }
@@ -72,13 +77,21 @@ pub async fn apply_role_modifications(
 
     for role_id in roles_to_remove {
         if let Some(current_roles) = member_roles
-            && !current_roles.contains(&role_id) {
+            && !current_roles.contains(&role_id)
+        {
             trace!(%role_id, "User already doesn't contains role");
             continue;
         }
 
-        if let Err(e) = ctx.http.remove_member_role(guild_id, user_id, role_id, Some("Level reward cleanup")).await {
-            warn!("Failed to remove role {} from user {}: {}", role_id, user_id, e);
+        if let Err(e) = ctx
+            .http
+            .remove_member_role(guild_id, user_id, role_id, Some("Level reward cleanup"))
+            .await
+        {
+            warn!(
+                "Failed to remove role {} from user {}: {}",
+                role_id, user_id, e
+            );
             continue;
         }
 

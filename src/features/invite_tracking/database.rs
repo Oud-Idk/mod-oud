@@ -1,6 +1,9 @@
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use serenity::all::{GuildId, Member};
+use serenity::{
+    all::{GuildId, Member},
+    model::id::UserId,
+};
 use sqlx::{PgPool, Postgres, Transaction};
 
 pub async fn upsert_invited_member(
@@ -82,4 +85,62 @@ pub async fn get_inviter_details(
     .fetch_optional(db)
     .await
     .context("Failed to fetch inviter details")
+}
+
+pub struct InviterLeaderboardEntry {
+    pub inviter_id: UserId,
+    pub count: i64,
+}
+
+/// Fetch total invite count for a specific user
+pub async fn get_user_invite_count(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<i64, sqlx::Error> {
+    let count = sqlx::query_scalar!(
+        r#"
+        SELECT count
+        FROM inviter_counts
+        WHERE guild_id = $1 AND inviter_id = $2
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+    )
+    .fetch_optional(db)
+    .await?;
+
+    Ok(count.unwrap_or(0))
+}
+
+/// Fetch top inviters with at least 1 invite
+pub async fn get_top_inviters(
+    db: &PgPool,
+    guild_id: GuildId,
+    limit: i64,
+) -> Result<Vec<InviterLeaderboardEntry>, sqlx::Error> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT inviter_id, count
+        FROM inviter_counts
+        WHERE guild_id = $1 AND count > 0
+        ORDER BY count DESC
+        LIMIT $2
+        "#,
+        guild_id.get().cast_signed(),
+        limit,
+    )
+    .fetch_all(db)
+    .await?;
+
+    // Convert raw signed integer DB snowflakes directly into serenity `UserId`
+    let entries = rows
+        .into_iter()
+        .map(|row| InviterLeaderboardEntry {
+            inviter_id: UserId::new(row.inviter_id.cast_unsigned()),
+            count: row.count,
+        })
+        .collect();
+
+    Ok(entries)
 }

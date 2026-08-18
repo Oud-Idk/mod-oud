@@ -3,9 +3,9 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::Deserialize;
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, EditRole, GuildId, Permissions, RoleId};
 use std::sync::Arc;
-use serde_with::{serde_as, DisplayFromStr};
 use tracing::warn;
 
 #[serde_as]
@@ -30,13 +30,15 @@ pub async fn handle_verification_teardown(
     let mut execution_errors = Vec::new();
 
     if let Err(e) = channel_id.delete(http).await
-        && !is_not_found_error(&e) {
+        && !is_not_found_error(&e)
+    {
         warn!(error = ?e, %channel_id, "Failed to delete channel during teardown");
         execution_errors.push("Failed to delete verification channel".to_string());
     }
 
     if let Err(e) = guild_id.delete_role(http, role_id).await
-        && !is_not_found_error(&e) {
+        && !is_not_found_error(&e)
+    {
         warn!(error = ?e, %role_id, "Failed to delete role during teardown");
         execution_errors.push("Failed to delete verification role".to_string());
     }
@@ -49,7 +51,10 @@ pub async fn handle_verification_teardown(
                 restored_permissions.insert(Permissions::VIEW_CHANNEL);
 
                 let edit_builder = EditRole::new().permissions(restored_permissions);
-                if let Err(e) = guild_id.edit_role(http, everyone_role_id, edit_builder).await {
+                if let Err(e) = guild_id
+                    .edit_role(http, everyone_role_id, edit_builder)
+                    .await
+                {
                     warn!(error = ?e, "Failed to restore @everyone permissions during teardown");
                     execution_errors.push("Failed to restore @everyone permissions".to_string());
                 }
@@ -74,10 +79,10 @@ pub async fn handle_verification_teardown(
     Ok(StatusCode::OK)
 }
 
-
 fn is_not_found_error(err: &serenity::Error) -> bool {
     if let serenity::Error::Http(http_err) = err
-        && let Some(status) = http_err.status_code() {
+        && let Some(status) = http_err.status_code()
+    {
         return status == StatusCode::NOT_FOUND;
     }
     false

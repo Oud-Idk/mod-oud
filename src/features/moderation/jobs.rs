@@ -16,11 +16,7 @@ const fn is_unknown_ban_error(err: &serenity::Error) -> bool {
 }
 
 /// Starts the background task for processing expired temporary bans.
-pub fn start_temp_ban_worker(
-    db_pool: PgPool,
-    http: Arc<serenity::Http>,
-    redis_client: Client,
-) {
+pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_client: Client) {
     tokio::spawn(async move {
         let lock_key = "lock:temp_ban_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
@@ -43,8 +39,12 @@ pub fn start_temp_ban_worker(
                     // Release lock
                     match guard.release().await {
                         Ok(true) => trace!("Released lock successfully"),
-                        Ok(false) => warn!("Attempted to release temp ban lock, but ownership was lost"),
-                        Err(e) => error!(error = ?e, "Failed to release temp ban lock due to Redis error"),
+                        Ok(false) => {
+                            warn!("Attempted to release temp ban lock, but ownership was lost")
+                        }
+                        Err(e) => {
+                            error!(error = ?e, "Failed to release temp ban lock due to Redis error")
+                        }
                     }
                 }
                 Ok(None) => {
@@ -121,7 +121,10 @@ async fn process_expired_temp_bans(
         .collect()
         .await;
 
-    let successful_ids: Vec<i64> = results.into_iter().filter_map(std::result::Result::ok).collect();
+    let successful_ids: Vec<i64> = results
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+        .collect();
     let successful_count = successful_ids.len();
 
     if !successful_ids.is_empty() {

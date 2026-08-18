@@ -27,7 +27,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     let Some(honeypot) = config.honeypot.as_ref() else {
         return Ok(false);
@@ -66,8 +66,8 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         Some(&message.content),
         &["BAN"],
     )
-        .await
-        .context("Failed to log honeypot automod action")?;
+    .await
+    .context("Failed to log honeypot automod action")?;
 
     if let Ok(dm_channel) = message.author.create_dm_channel(&ctx.http).await {
         let honeypot_dm_settings = config

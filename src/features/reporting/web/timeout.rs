@@ -31,22 +31,23 @@ pub async fn handle_timeout(
         resolve_moderator_user(&state.serenity_http, mod_id)
     )?;
 
-    let reason_str = cmd.reason.as_deref().unwrap_or("Timeout applied via Moderation Dashboard");
+    let reason_str = cmd
+        .reason
+        .as_deref()
+        .unwrap_or("Timeout applied via Moderation Dashboard");
 
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs();
 
-    let future_secs = now_secs
-        .checked_add(duration_mins * 60)
-        .ok_or_else(|| {
-            error!("Duration calculation overflowed during timeout window generation");
-            WebError::BadRequest("Duration calculation overflowed".to_string())
-        })?;
+    let future_secs = now_secs.checked_add(duration_mins * 60).ok_or_else(|| {
+        error!("Duration calculation overflowed during timeout window generation");
+        WebError::BadRequest("Duration calculation overflowed".to_string())
+    })?;
 
     let timestamp = poise::serenity_prelude::Timestamp::from_unix_timestamp(future_secs as i64)
         .inspect_err(|e| error!(error = %e, "Failed to construct valid serenity Timestamp"))
-        .map_err(|_e| { WebError::Internal })?;
+        .map_err(|_e| WebError::Internal)?;
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
 
@@ -62,9 +63,9 @@ pub async fn handle_timeout(
         &duration,
         timestamp,
     )
-        .await
-        .inspect_err(|e| error!(error = %e, "Failed to issue mute inside core utilities"))
-        .map_err(|_e| { WebError::Internal })?;
+    .await
+    .inspect_err(|e| error!(error = %e, "Failed to issue mute inside core utilities"))
+    .map_err(|_e| WebError::Internal)?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserTimedOut).await?;
     Ok(StatusCode::OK)

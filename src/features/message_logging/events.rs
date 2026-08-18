@@ -2,14 +2,14 @@ use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features;
 use crate::features::message_logging::cache::{fetch_dist_cached_message, fetch_dist_edit_details};
-use crate::features::message_logging::{database, filters};
 use crate::features::message_logging::types::{
     CachedAuditLogs, DeletedMessagePayload, ModifiedMessagePayload,
 };
+use crate::features::message_logging::{database, filters};
 use fred::interfaces::FredResult;
-use serenity::all::{audit_log, ChannelId, MessageAction, MessageId, GuildId, Context, UserId};
-use std::sync::Arc;
 use moka::future::Cache;
+use serenity::all::{ChannelId, Context, GuildId, MessageAction, MessageId, UserId, audit_log};
+use std::sync::Arc;
 use tracing::{debug, error, instrument, trace, warn};
 
 #[instrument(
@@ -64,7 +64,9 @@ async fn determine_deleter(
     };
 
     for entry in &audit_data.entries {
-        let target_matches = entry.target_id.is_some_and(|id| id.get() == author_id.get()); // GenericId for some reason
+        let target_matches = entry
+            .target_id
+            .is_some_and(|id| id.get() == author_id.get()); // GenericId for some reason
         let mut channel_matches = false;
 
         if let Some(options) = &entry.options
@@ -119,7 +121,7 @@ pub async fn message_log_delete(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
     let Some(logging_config) = &settings.message_logging else {
         return Ok(());
     };
@@ -137,15 +139,19 @@ pub async fn message_log_delete(
     let Some(msg) = (match filters::fetch_cached_message(&ctx.cache, channel_id, deleted_message_id)
     {
         Some(local_msg) => Some(local_msg),
-        None => {
-            fetch_dist_cached_message(&data.core.redis, channel_id, deleted_message_id).await?
-        }
+        None => fetch_dist_cached_message(&data.core.redis, channel_id, deleted_message_id).await?,
     }) else {
         return Ok(());
     };
 
-    if filters::should_exclude_from_logging(logging_config, msg.author_id, msg.chan_id, guild_id, &ctx)
-        .await
+    if filters::should_exclude_from_logging(
+        logging_config,
+        msg.author_id,
+        msg.chan_id,
+        guild_id,
+        &ctx,
+    )
+    .await
     {
         return Ok(());
     }
@@ -167,7 +173,7 @@ pub async fn message_log_delete(
             msg_clone.author_id,
             &audit_log_cache,
         )
-            .await;
+        .await;
 
         let joined_image_urls = msg_clone.image_urls.join(",");
         // Possible bottleneck here because not batching the queries
@@ -179,7 +185,7 @@ pub async fn message_log_delete(
             &joined_image_urls,
             deleted_by.as_ref(),
         )
-            .await;
+        .await;
 
         if let Err(e) = db_res {
             error!(error = %e, "Failed to insert deleted message log into database");
@@ -272,15 +278,14 @@ pub async fn log_message_update(
         guild_id,
         ctx,
     )
-        .await
+    .await
     {
         debug!("Message edit logging skipped due to inclusion/exclusion filters");
         return Ok(());
     }
 
     debug!("Inserting message modification history into the database");
-    database::insert_modified_messages(&data.core.db, &details, guild_id)
-        .await?;
+    database::insert_modified_messages(&data.core.db, &details, guild_id).await?;
 
     let payload = ModifiedMessagePayload {
         id: details.msg_id,

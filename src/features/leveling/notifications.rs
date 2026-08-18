@@ -23,12 +23,14 @@ pub async fn send_according_to_config(
     match config.notify.scope {
         NotificationScope::CurrentChannel => {
             channel_id.send_message(&ctx.http, msg).await?;
-        },
+        }
         NotificationScope::SpecifiedChannel => {
             if let Some(channel_id) = config.notify.channel_id {
-                ChannelId::from(channel_id).send_message(ctx.http.clone(), msg).await?;
+                ChannelId::from(channel_id)
+                    .send_message(ctx.http.clone(), msg)
+                    .await?;
             }
-        },
+        }
         NotificationScope::Dm => {
             let _ = author.dm(&ctx.http, msg).await;
         }
@@ -69,8 +71,9 @@ pub async fn send_message(
                 user_level.current_level,
                 previous_level,
             )
-        }
-    ).unwrap_or_else(|e| {
+        },
+    )
+    .unwrap_or_else(|e| {
         warn!(
             error = ?e,
             %guild_id,
@@ -86,7 +89,10 @@ pub async fn send_message(
             user_id = %user_id,
             "Using fallback level-up announcement string"
         );
-        let content = format!("Congratulations, <@{}>. You have leveled up to **level {}**", user_level.user_id, user_level.current_level);
+        let content = format!(
+            "Congratulations, <@{}>. You have leveled up to **level {}**",
+            user_level.user_id, user_level.current_level
+        );
         CreateMessage::new().content(content)
     });
 
@@ -125,14 +131,14 @@ pub async fn send_voice_level_up_message(
             )
         },
     )
-        .unwrap_or_else(|e| {
-            warn!(
+    .unwrap_or_else(|e| {
+        warn!(
             error = ?e,
             %guild_id,
             "Failed to construct custom VC level-up layout; using standard fallback"
         );
-            None
-        });
+        None
+    });
 
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(

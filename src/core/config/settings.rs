@@ -170,9 +170,7 @@ pub async fn get_settings_inner(
 
     // Get from Redis
     let cache_key = guild_config_key(guild_id);
-    if let Some(settings) =
-        Box::pin(redis::get_settings_from_redis(redis, &cache_key)).await
-    {
+    if let Some(settings) = Box::pin(redis::get_settings_from_redis(redis, &cache_key)).await {
         cache.insert(guild_id, settings.clone()).await;
         return Ok(settings);
     }

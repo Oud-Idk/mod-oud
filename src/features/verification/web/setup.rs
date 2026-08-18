@@ -7,7 +7,11 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::Serialize;
 use serde_with::{DisplayFromStr, serde_as};
-use serenity::all::{ButtonStyle, ChannelId, ChannelType, CreateActionRow, CreateButton, CreateChannel, EditRole, GuildChannel, GuildId, Http, Message, MessageId, PermissionOverwrite, PermissionOverwriteType, Permissions, Role, RoleId};
+use serenity::all::{
+    ButtonStyle, ChannelId, ChannelType, CreateActionRow, CreateButton, CreateChannel, EditRole,
+    GuildChannel, GuildId, Http, Message, MessageId, PermissionOverwrite, PermissionOverwriteType,
+    Permissions, Role, RoleId,
+};
 use std::sync::Arc;
 use tracing::{trace, warn};
 
@@ -42,18 +46,23 @@ impl RollbackState {
     /// Reverts successfully applied changes in reverse chronological order.
     async fn rollback(self, http: &Http, guild_id: GuildId) {
         if let Some(channel_id) = self.created_channel_id
-            && let Err(e) = channel_id.delete(http).await {
+            && let Err(e) = channel_id.delete(http).await
+        {
             warn!(error = ?e, channel_id = channel_id.get(), "Rollback: Failed to delete created channel");
         }
 
         if let Some(role_id) = self.created_role_id
-            && let Err(e) = guild_id.delete_role(http, role_id).await {
+            && let Err(e) = guild_id.delete_role(http, role_id).await
+        {
             warn!(error = ?e, %role_id, "Rollback: Failed to delete created role");
         }
 
         if let Some(orig_perms) = self.original_everyone_permissions {
             let edit_builder = EditRole::new().permissions(orig_perms);
-            if let Err(e) = guild_id.edit_role(http, self.everyone_role_id, edit_builder).await {
+            if let Err(e) = guild_id
+                .edit_role(http, self.everyone_role_id, edit_builder)
+                .await
+            {
                 warn!(error = ?e, "Rollback: Failed to restore original @everyone permissions");
             }
         }
@@ -68,14 +77,23 @@ pub async fn handle_verification_setup(
     let http = &state.serenity_http;
     let everyone_role_id = RoleId::new(guild_id.get());
 
-    let roles = guild_id.roles(http)
+    let roles = guild_id
+        .roles(http)
         .await
         .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to get roles for guild"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".to_string(),
+            )
+        })?;
 
     let Some(everyone_role) = roles.get(&everyone_role_id) else {
         warn!("Cannot get @everyone from roles.");
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()));
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        ));
     };
 
     match execute_setup(http, guild_id, everyone_role_id, everyone_role, &payload).await {
@@ -96,10 +114,14 @@ async fn execute_setup(
 ) -> Result<SetupVerificationResponse, (StatusCode, String, RollbackState)> {
     let mut rollback_state = RollbackState::new(everyone_role_id);
 
-    if let Err(e) = remove_perms_from_everyone(http, guild_id, everyone_role_id, everyone_role).await {
+    if let Err(e) =
+        remove_perms_from_everyone(http, guild_id, everyone_role_id, everyone_role).await
+    {
         warn!(error = ?e, %guild_id, "Failed to remove perms from everyone for guild");
         return Err((
-            StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(), rollback_state,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+            rollback_state,
         ));
     }
     rollback_state.original_everyone_permissions = Some(everyone_role.permissions);
@@ -109,22 +131,26 @@ async fn execute_setup(
         Err(e) => {
             warn!(error = ?e, %guild_id, "Failed to create verify role for guild");
             return Err((
-                StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(), rollback_state,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".to_string(),
+                rollback_state,
             ));
         }
     };
     rollback_state.created_role_id = Some(verify_role.id);
 
-    let verify_channel = match create_verify_channel(http, guild_id, everyone_role_id, verify_role.id).await {
-        Ok(channel) => channel,
-        Err(e) => {
-            warn!(error = ?e, %guild_id, "Failed to create verification channel for guild");
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(),
-                rollback_state,
-            ));
-        }
-    };
+    let verify_channel =
+        match create_verify_channel(http, guild_id, everyone_role_id, verify_role.id).await {
+            Ok(channel) => channel,
+            Err(e) => {
+                warn!(error = ?e, %guild_id, "Failed to create verification channel for guild");
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error.".to_string(),
+                    rollback_state,
+                ));
+            }
+        };
     rollback_state.created_channel_id = Some(verify_channel.id);
 
     let verify_message = match send_verification_panel(payload, http, &verify_channel).await {
@@ -211,9 +237,8 @@ async fn create_verify_channel(
 }
 
 async fn create_verify_role(http: &Arc<Http>, guild_id: GuildId) -> serenity::Result<Role> {
-    let default_permissions = Permissions::VIEW_CHANNEL
-        | Permissions::SEND_MESSAGES
-        | Permissions::READ_MESSAGE_HISTORY;
+    let default_permissions =
+        Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::READ_MESSAGE_HISTORY;
 
     let role_builder = EditRole::new()
         .name("verified")
@@ -232,15 +257,13 @@ async fn remove_perms_from_everyone(
     let mut new_permissions = everyone_role.permissions;
     new_permissions.remove(Permissions::VIEW_CHANNEL);
     let edit_builder = EditRole::new().permissions(new_permissions);
-    guild_id.edit_role(http, everyone_role_id, edit_builder).await?;
+    guild_id
+        .edit_role(http, everyone_role_id, edit_builder)
+        .await?;
     Ok(())
 }
 
-async fn grant_role_to_existing_members(
-    http: Arc<Http>,
-    guild_id: GuildId,
-    role_id: RoleId,
-) {
+async fn grant_role_to_existing_members(http: Arc<Http>, guild_id: GuildId, role_id: RoleId) {
     let mut after = None;
 
     loop {
@@ -261,19 +284,25 @@ async fn grant_role_to_existing_members(
                         continue;
                     }
 
-                    if let Err(e) = http.add_member_role(
-                        guild_id,
-                        member.user.id,
-                        role_id,
-                        Some("Verification setup: adding role to existing members"),
-                    ).await {
+                    if let Err(e) = http
+                        .add_member_role(
+                            guild_id,
+                            member.user.id,
+                            role_id,
+                            Some("Verification setup: adding role to existing members"),
+                        )
+                        .await
+                    {
                         warn!(
                             error = ?e,
                             user_id = member.user.id.get(),
                             "Failed to add verification role to existing user"
                         );
                     } else {
-                        trace!(user_id = member.user.id.get(), "Successfully added verification role to existing user");
+                        trace!(
+                            user_id = member.user.id.get(),
+                            "Successfully added verification role to existing user"
+                        );
                     }
                 }
             }

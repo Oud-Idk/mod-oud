@@ -1,10 +1,10 @@
 use crate::core::config::state::WebState;
 use crate::shared::error;
+use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::Json;
 use serde::Deserialize;
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, MessageId};
 use std::sync::Arc;
 use tracing::{debug, error, instrument};
@@ -38,8 +38,10 @@ pub async fn handle_delete_ticket_message(
         })
         .inspect_err(|e| error!(error = ?e, "Failed to delete message via Discord API"))
         .map(|()| StatusCode::NO_CONTENT)
-        .map_err(|_| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal server error.".to_string(),
-        ))
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".to_string(),
+            )
+        })
 }

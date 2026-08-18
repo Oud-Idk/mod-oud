@@ -1,9 +1,9 @@
 #![allow(missing_docs, clippy::unused_async)]
 
 use crate::core::config::settings::{get_settings, save_settings};
-use crate::core::config::state::{Context, Error};
+use crate::core::config::state::Context;
 use crate::features::automod::HoneypotConfig;
-use anyhow::anyhow;
+use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 use serenity::all::GuildChannel;
 
@@ -14,7 +14,7 @@ use serenity::all::GuildChannel;
     guild_only,
     required_permissions = "MANAGE_GUILD"
 )]
-pub async fn honeypot(_ctx: Context<'_>) -> Result<(), Error> {
+pub async fn honeypot(_ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
@@ -23,11 +23,8 @@ pub async fn honeypot(_ctx: Context<'_>) -> Result<(), Error> {
 pub async fn set(
     ctx: Context<'_>,
     #[description = "The channel to use as a honeypot"] channel: GuildChannel,
-) -> Result<(), Error> {
-    let guild_id = ctx
-        .guild_id()
-        .ok_or_else(|| anyhow!("Command must be used inside a server."))?;
-
+) -> Result<()> {
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
     let data = ctx.data();
 
     // Fetch existing guild settings
@@ -37,7 +34,7 @@ pub async fn set(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     // Get or initialize HoneypotConfig
     let mut honeypot = settings.honeypot.unwrap_or_else(|| {
@@ -61,23 +58,21 @@ pub async fn set(
         guild_id,
         &settings,
     )
-        .await?;
+    .await?;
 
     ctx.say(format!(
         "Honeypot channel set to <#{}> and enabled.",
         channel.id
     ))
-        .await?;
+    .await?;
 
     Ok(())
 }
 
 /// Quick helper command to disable the honeypot feature
 #[poise::command(slash_command, guild_only, required_permissions = "MANAGE_GUILD")]
-pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
-    let guild_id = ctx
-        .guild_id()
-        .ok_or_else(|| anyhow!("Must be used in a server"))?;
+pub async fn disable(ctx: Context<'_>) -> Result<()> {
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
     let data = ctx.data();
 
     let mut settings = get_settings(
@@ -86,7 +81,7 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     if let Some(ref mut honeypot) = settings.honeypot {
         honeypot.enabled = Some(false);
@@ -98,7 +93,7 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
             guild_id,
             &settings,
         )
-            .await?;
+        .await?;
 
         ctx.say("Honeypot has been disabled.").await?;
     } else {

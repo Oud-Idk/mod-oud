@@ -3,7 +3,8 @@ use crate::features::starboard::types::Starboard;
 use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver, ResolverChain, render};
 use fred::prelude::*;
 use serenity::all::{
-    Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId, Reaction, ReactionType, UserId,
+    Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId,
+    Reaction, ReactionType, UserId,
 };
 use tracing::{debug, instrument, trace, warn};
 
@@ -18,7 +19,11 @@ impl PlaceholderResolver for StarboardCtx<'_> {
             let sb = self.starboard?;
             return Some(match key {
                 "starboard.emojis" => sb.emojis.as_ref().map(|e| e.join(", ")).unwrap_or_default(),
-                "starboard.first_emoji" => sb.emojis.as_ref().and_then(|v| v.first().cloned()).unwrap_or_default(),
+                "starboard.first_emoji" => sb
+                    .emojis
+                    .as_ref()
+                    .and_then(|v| v.first().cloned())
+                    .unwrap_or_default(),
                 _ => return None,
             });
         }
@@ -29,8 +34,15 @@ impl PlaceholderResolver for StarboardCtx<'_> {
     }
 }
 
-pub async fn get_channel(ctx: &Context, guild_id: GuildId, channel_id: ChannelId) -> Option<GuildChannel> {
-    let cached_channel = ctx.cache.guild(guild_id).and_then(|g| g.channels.get(&channel_id).cloned());
+pub async fn get_channel(
+    ctx: &Context,
+    guild_id: GuildId,
+    channel_id: ChannelId,
+) -> Option<GuildChannel> {
+    let cached_channel = ctx
+        .cache
+        .guild(guild_id)
+        .and_then(|g| g.channels.get(&channel_id).cloned());
 
     if let Some(channel) = cached_channel {
         Some(channel)
@@ -44,17 +56,28 @@ pub async fn get_channel(ctx: &Context, guild_id: GuildId, channel_id: ChannelId
 
 pub fn is_emoji_match(a: &ReactionType, b: &ReactionType) -> bool {
     match (a, b) {
-        (ReactionType::Custom { id: id_a, .. }, ReactionType::Custom { id: id_b, .. }) => id_a == id_b,
+        (ReactionType::Custom { id: id_a, .. }, ReactionType::Custom { id: id_b, .. }) => {
+            id_a == id_b
+        }
         (ReactionType::Unicode(uni_a), ReactionType::Unicode(uni_b)) => uni_a == uni_b,
         _ => false,
     }
 }
 
-pub async fn resolve_member(ctx: &Context, guild_id: GuildId, user_id: UserId, reaction: &Reaction) -> Option<Member> {
+pub async fn resolve_member(
+    ctx: &Context,
+    guild_id: GuildId,
+    user_id: UserId,
+    reaction: &Reaction,
+) -> Option<Member> {
     if let Some(member) = &reaction.member {
         return Some(member.clone());
     }
-    if let Some(member) = ctx.cache.guild(guild_id).and_then(|g| g.members.get(&user_id).cloned()) {
+    if let Some(member) = ctx
+        .cache
+        .guild(guild_id)
+        .and_then(|g| g.members.get(&user_id).cloned())
+    {
         return Some(member);
     }
     ctx.http.get_member(guild_id, user_id).await.ok()
@@ -83,9 +106,15 @@ pub async fn build_starboard_message(
     starboard_channel: ChannelId,
 ) -> Result<Option<(String, CreateEmbed, Message)>, anyhow::Error> {
     debug!("Building message structures from templates");
-    let Some(guild_id) = reaction.guild_id else { return Ok(None) };
-    let Some(guild_starboard_channel) = get_channel(ctx, guild_id, starboard_channel).await else { return Ok(None) };
-    let Some(origin_channel) = get_channel(ctx, guild_id, reaction.channel_id).await else { return Ok(None) };
+    let Some(guild_id) = reaction.guild_id else {
+        return Ok(None);
+    };
+    let Some(guild_starboard_channel) = get_channel(ctx, guild_id, starboard_channel).await else {
+        return Ok(None);
+    };
+    let Some(origin_channel) = get_channel(ctx, guild_id, reaction.channel_id).await else {
+        return Ok(None);
+    };
 
     let origin_message = reaction.message(ctx).await?;
     let gctx = get_guild_ctx(guild_id, ctx).await?;
@@ -136,7 +165,10 @@ pub async fn count_emoji_and_cache(
 ) -> FredResult<u64> {
     match value {
         Some(count) => {
-            trace!(count = count, "Count provided by Redis script, utilizing cache value");
+            trace!(
+                count = count,
+                "Count provided by Redis script, utilizing cache value"
+            );
             Ok(count)
         }
         None => {
@@ -149,9 +181,15 @@ pub async fn count_emoji_and_cache(
 
             if starboard.prevent_self_star.unwrap_or(false) {
                 trace!("Self-star prevention active; checking reaction authors");
-                let has_author_reacted = has_user_reacted(ctx, removed_reaction.channel_id, removed_reaction.message_id, &removed_reaction.emoji, msg.author.id)
-                    .await
-                    .unwrap_or(false);
+                let has_author_reacted = has_user_reacted(
+                    ctx,
+                    removed_reaction.channel_id,
+                    removed_reaction.message_id,
+                    &removed_reaction.emoji,
+                    msg.author.id,
+                )
+                .await
+                .unwrap_or(false);
                 if has_author_reacted && count > 0 {
                     debug!("Self-star detected; decrementing official reaction count");
                     count -= 1;
@@ -159,7 +197,9 @@ pub async fn count_emoji_and_cache(
             }
 
             trace!(key = %cached_key, count = count, "Updating Redis emoji cache");
-            let _: () = redis.set(cached_key, count, Some(Expiration::EX(3600)), None, false).await?;
+            let _: () = redis
+                .set(cached_key, count, Some(Expiration::EX(3600)), None, false)
+                .await?;
             Ok(count)
         }
     }

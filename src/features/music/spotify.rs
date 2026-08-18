@@ -1,5 +1,5 @@
-use std::time::Duration;
 use serde::Deserialize;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::Instant;
 use tracing::{debug, warn};
@@ -40,15 +40,15 @@ struct CachedToken {
 // Store this in your app state or GuildActor/PlaybackServices
 static TOKEN_CACHE: RwLock<Option<CachedToken>> = RwLock::const_new(None);
 
-
 /// Fetches a temporary access token using Spotify Client Credentials
 async fn get_spotify_api_token(client: &reqwest::Client) -> Option<String> {
     {
         let cache = TOKEN_CACHE.read().await;
         if let Some(cached) = cache.as_ref()
-            && cached.expires_at > Instant::now() + Duration::from_mins(1) {
-                return Some(cached.token.clone());
-            }
+            && cached.expires_at > Instant::now() + Duration::from_mins(1)
+        {
+            return Some(cached.token.clone());
+        }
     }
 
     let client_id = std::env::var("SPOTIFY_CLIENT_ID").ok()?;
@@ -81,7 +81,9 @@ pub async fn resolve_spotify_playlist(client: &reqwest::Client, url: &str) -> Op
 
     let playlist_id = url.split("/playlist/").nth(1)?.split('?').next()?;
 
-    let token = if let Some(t) = get_spotify_api_token(client).await { t } else {
+    let token = if let Some(t) = get_spotify_api_token(client).await {
+        t
+    } else {
         warn!("Could not retrieve Spotify API token. Check SPOTIFY_CLIENT_ID / SECRET env vars.");
         return None;
     };
@@ -150,7 +152,11 @@ pub async fn resolve_spotify_playlist(client: &reqwest::Client, url: &str) -> Op
                         .and_then(|a| a.name.as_deref())
                         .unwrap_or("");
 
-                    search_terms.push(format!("ytsearch:{artist_name} {track_name}").trim().to_string());
+                    search_terms.push(
+                        format!("ytsearch:{artist_name} {track_name}")
+                            .trim()
+                            .to_string(),
+                    );
                 }
             }
         }
@@ -166,7 +172,10 @@ pub async fn resolve_spotify_playlist(client: &reqwest::Client, url: &str) -> Op
         warn!(url = %url, "Failed to fetch tracks from Spotify API or playlist was empty");
         None
     } else {
-        debug!(count = search_terms.len(), "Successfully fetched all playlist tracks");
+        debug!(
+            count = search_terms.len(),
+            "Successfully fetched all playlist tracks"
+        );
         Some(search_terms)
     }
 }
@@ -190,19 +199,16 @@ pub async fn resolve_spotify_track(client: &reqwest::Client, url: &str) -> Optio
         url.split("/track/").nth(1)?.split('?').next()?
     };
 
-    let token = if let Some(t) = get_spotify_api_token(client).await { t } else {
+    let token = if let Some(t) = get_spotify_api_token(client).await {
+        t
+    } else {
         warn!("Could not retrieve Spotify API token for track resolution.");
         return None;
     };
 
     let api_url = format!("https://api.spotify.com/v1/tracks/{track_id}");
 
-    let res = client
-        .get(&api_url)
-        .bearer_auth(&token)
-        .send()
-        .await
-        .ok()?;
+    let res = client.get(&api_url).bearer_auth(&token).send().await.ok()?;
 
     if !res.status().is_success() {
         warn!(status = %res.status(), track_id = %track_id, "Spotify API returned error for track");

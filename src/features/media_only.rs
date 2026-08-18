@@ -1,9 +1,9 @@
 mod cache;
-mod types;
-mod database;
-mod keys;
 mod commands;
+mod database;
 mod events;
+mod keys;
+mod types;
 mod violation;
 
 pub use commands::media_only;

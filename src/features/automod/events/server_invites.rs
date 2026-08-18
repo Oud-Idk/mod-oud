@@ -1,10 +1,10 @@
-use std::borrow::Cow;
-use serenity::all::Message;
-use tracing::{debug, trace};
+use super::super::rules::check_rule;
 use crate::features::automod::patterns::INVITE_REGEX;
 use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::{HasBaseRule, MessageFilteringConfig};
-use super::super::rules::check_rule;
+use serenity::all::Message;
+use std::borrow::Cow;
+use tracing::{debug, trace};
 
 pub fn filter_server_invites<'a>(
     message: &'a Message,

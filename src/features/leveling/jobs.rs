@@ -11,10 +11,7 @@ use std::time::Duration;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 /// Spawns a background worker that periodically flushes pending user levels from Redis to the database.
-pub fn start_level_flush_worker(
-    db_pool: PgPool,
-    redis_client: Client
-) {
+pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
     tokio::spawn(async move {
         let lock_key = "lock:level_flush_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
@@ -52,11 +49,7 @@ pub fn start_level_flush_worker(
 }
 
 #[instrument(skip(redis), fields(src = %src, dst = %dst))]
-async fn claim_if_exists(
-    redis: &Client,
-    src: &str,
-    dst: &str,
-) -> Result<bool, Error> {
+async fn claim_if_exists(redis: &Client, src: &str, dst: &str) -> Result<bool, Error> {
     let claimed: i32 = redis
         .eval(
             r#"
@@ -124,7 +117,15 @@ async fn process_flushing_key(
         let records_to_upsert = guild_ids.len();
         debug!(records_to_upsert, "Upserting user levels to database");
 
-        database::upsert_level(db, &guild_ids, &user_ids, &cumulative_xps, &current_levels, &current_xps).await?;
+        database::upsert_level(
+            db,
+            &guild_ids,
+            &user_ids,
+            &cumulative_xps,
+            &current_levels,
+            &current_xps,
+        )
+        .await?;
 
         debug!(records_to_upsert, "Database upsert complete");
     }
@@ -169,7 +170,7 @@ async fn flush_guild(
 #[instrument(skip_all)]
 async fn flush_pending_levels(
     db: &PgPool,
-    redis: &Client
+    redis: &Client,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let dirty_guilds: Vec<String> = redis.smembers("levels:dirty_guilds").await?;
 

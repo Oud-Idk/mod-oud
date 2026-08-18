@@ -52,8 +52,14 @@ pub fn record_track_start(
     handle_uuid: Uuid,
     metadata: &AuxMetadata,
 ) {
-    let title = metadata.title.clone().unwrap_or_else(|| "Unknown".to_string());
-    let artist = metadata.artist.clone().unwrap_or_else(|| "Unknown".to_string());
+    let title = metadata
+        .title
+        .clone()
+        .unwrap_or_else(|| "Unknown".to_string());
+    let artist = metadata
+        .artist
+        .clone()
+        .unwrap_or_else(|| "Unknown".to_string());
     let track_url = metadata.source_url.clone();
     let duration_ms = metadata.duration.map(|d| d.as_millis() as i64);
 
@@ -150,9 +156,9 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
                 duration_ms.as_ref().copied(),
                 handle_uuid,
             )
-                .execute(&mut *tx)
-                .await
-                .map(|_| ()),
+            .execute(&mut *tx)
+            .await
+            .map(|_| ()),
             StatsEvent::End {
                 handle_uuid,
                 listened_ms,
@@ -165,9 +171,9 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
                 listened_ms,
                 handle_uuid,
             )
-                .execute(&mut *tx)
-                .await
-                .map(|_| ()),
+            .execute(&mut *tx)
+            .await
+            .map(|_| ()),
         };
 
         if let Err(e) = result {
@@ -206,8 +212,12 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                     }
                     match guard.release().await {
                         Ok(true) => trace!("Music stats prune lock released successfully"),
-                        Ok(false) => warn!("Attempted to release music stats prune lock, but we no longer owned it"),
-                        Err(e) => error!(error = ?e, "Failed to release music stats prune lock due to a Redis error"),
+                        Ok(false) => warn!(
+                            "Attempted to release music stats prune lock, but we no longer owned it"
+                        ),
+                        Err(e) => {
+                            error!(error = ?e, "Failed to release music stats prune lock due to a Redis error")
+                        }
                     }
                 }
                 Ok(None) => {
@@ -231,8 +241,8 @@ async fn prune_play_events(db: &PgPool) -> Result<()> {
         "#,
         BACKFILL_WINDOW,
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     sqlx::query!(
         r#"
@@ -241,8 +251,8 @@ async fn prune_play_events(db: &PgPool) -> Result<()> {
         "#,
         STATS_RETENTION,
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(())
 }

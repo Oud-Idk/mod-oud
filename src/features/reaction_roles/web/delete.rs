@@ -23,14 +23,20 @@ pub async fn handle_delete_reaction_role_message(
 
     let Some(channel_id_u64) = record.channel_id.map(|id| id as u64) else {
         debug!("Channel ID is not specified, skipping.");
-        return Err((StatusCode::BAD_REQUEST, "Channel ID is not specified".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Channel ID is not specified".to_string(),
+        ));
     };
     let message_id_u64 = message_id_str as u64;
 
     let channel = serenity::all::ChannelId::new(channel_id_u64);
     let message_id = serenity::all::MessageId::new(message_id_u64);
 
-    match channel.delete_message(&state.serenity_http, message_id).await {
+    match channel
+        .delete_message(&state.serenity_http, message_id)
+        .await
+    {
         Ok(()) => {
             debug!("Discord message deleted successfully");
         }

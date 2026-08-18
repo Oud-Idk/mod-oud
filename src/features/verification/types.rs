@@ -1,6 +1,6 @@
 use crate::core::config::message_layout::MessageLayout;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, MessageId, RoleId};
 use std::fmt;
 

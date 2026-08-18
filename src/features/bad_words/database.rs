@@ -1,6 +1,6 @@
-use serenity::all::GuildId;
 use crate::features::automod::{RuleAction, RuleScope};
 use crate::features::bad_words::types::{BadWordRuleset, Pattern};
+use serenity::all::GuildId;
 use sqlx::PgPool;
 use sqlx::types::Json;
 
@@ -21,8 +21,8 @@ pub async fn fetch_bad_word_rows(
         "#,
         guild_id.get().cast_signed(),
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     let rulesets = records
         .into_iter()

@@ -149,7 +149,14 @@ pub fn replace_system_ban_placeholders(
     user: &User,
     duration: Option<Duration>,
 ) -> String {
-    let discord = DiscordCtx { gctx: Some(gctx), user: Some(user), ..Default::default() };
-    let modctx = ModerationCtx { duration, ..Default::default() };
+    let discord = DiscordCtx {
+        gctx: Some(gctx),
+        user: Some(user),
+        ..Default::default()
+    };
+    let modctx = ModerationCtx {
+        duration,
+        ..Default::default()
+    };
     render(text, &ResolverChain(vec![&discord, &modctx]))
 }

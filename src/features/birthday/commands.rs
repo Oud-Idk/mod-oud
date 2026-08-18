@@ -58,7 +58,7 @@ async fn set(
             ))
             .ephemeral(true),
     )
-        .await?;
+    .await?;
 
     Ok(())
 }
@@ -67,9 +67,7 @@ async fn set(
 #[poise::command(slash_command, default_member_permissions = "MANAGE_GUILD", guild_only)]
 async fn test(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let guild_id = ctx
-        .guild_id()
-        .with_context(|| "Must be run in a guild")?;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
 
     let settings = crate::core::config::settings::get_settings(
         &ctx.data().core.db,
@@ -77,7 +75,7 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
         &ctx.data().core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     let Some(birthday_cfg) = settings.birthday.filter(|c| c.enabled) else {
         send_ephemeral(&ctx, "Birthday announcements are disabled for this server.").await?;
@@ -91,11 +89,7 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
         birth_year: Some(2000),
     };
 
-    let gctx = get_guild_ctx(
-        guild_id,
-        &ctx.serenity_context().http,
-    )
-        .await?;
+    let gctx = get_guild_ctx(guild_id, &ctx.serenity_context().http).await?;
 
     let msg = build_custom_message(
         birthday_cfg.message.format,
@@ -103,7 +97,7 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
         &birthday_cfg.message.embed,
         |t| replace_birthday_placeholders(t, &gctx, slice::from_ref(&mock_celebrant)),
     )?
-        .ok_or_else(|| anyhow!("Message is not valid or is not set up"))?;
+    .ok_or_else(|| anyhow!("Message is not valid or is not set up"))?;
 
     send_ephemeral(&ctx, format!("**Preview Announcement:**\n\n{msg:?}")).await?;
 
@@ -125,7 +119,7 @@ pub async fn upcoming(
             &ctx,
             format!("No upcoming birthdays in the next **{lookahead_days}** days."),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
@@ -141,7 +135,7 @@ pub async fn upcoming(
 #[poise::command(slash_command)]
 async fn view(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let uid = ctx.author().id.get();
+    let uid = ctx.author().id;
 
     let birthday = database::get_user_birthday(&ctx.data().core.db, uid).await?;
 
@@ -170,14 +164,14 @@ async fn view(ctx: Context<'_>) -> Result<(), Error> {
                     month_name, b.birth_day, year_str
                 ),
             )
-                .await?;
+            .await?;
         }
         None => {
             send_ephemeral(
                 &ctx,
                 "You haven't registered a birthday yet. Use `/birthday set` to add one.",
             )
-                .await?;
+            .await?;
         }
     }
 
@@ -188,16 +182,15 @@ async fn view(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command)]
 async fn remove(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let uid = ctx.author().id.get();
 
-    let birthday = database::get_user_birthday(&ctx.data().core.db, uid).await?;
+    let birthday = database::get_user_birthday(&ctx.data().core.db, ctx.author().id).await?;
 
     if birthday.is_none() {
         send_ephemeral(&ctx, "You don't have a birthday registered.").await?;
         return Ok(());
     }
 
-    database::remove_birthday(&ctx.data().core.db, uid).await?;
+    database::remove_birthday(&ctx.data().core.db, ctx.author().id).await?;
     send_ephemeral(&ctx, "Your birthday has been removed.").await?;
 
     Ok(())
@@ -233,7 +226,7 @@ async fn force_set(
             ))
             .ephemeral(true),
     )
-        .await?;
+    .await?;
 
     Ok(())
 }
@@ -245,20 +238,18 @@ async fn force_remove(
     #[description = "User to remove birthday for"] user: serenity::User,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let uid = user.id.get();
-
-    let birthday = database::get_user_birthday(&ctx.data().core.db, uid).await?;
+    let birthday = database::get_user_birthday(&ctx.data().core.db, ctx.author().id).await?;
 
     if birthday.is_none() {
         send_ephemeral(
             &ctx,
             format!("**{}** doesn't have a birthday registered.", user.name),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
-    database::remove_birthday(&ctx.data().core.db, uid).await?;
+    database::remove_birthday(&ctx.data().core.db, ctx.author().id).await?;
     send_ephemeral(&ctx, format!("Removed birthday for **{}**.", user.name)).await?;
 
     Ok(())

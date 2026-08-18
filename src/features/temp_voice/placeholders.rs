@@ -30,10 +30,11 @@ pub async fn replace_channel_placeholders(
     let mut needs_gctx = false;
     for caps in re.captures_iter(text) {
         if let Some(key_match) = caps.name("key")
-            && placeholder_needs_gctx(key_match.as_str()) {
-                needs_gctx = true;
-                break;
-            }
+            && placeholder_needs_gctx(key_match.as_str())
+        {
+            needs_gctx = true;
+            break;
+        }
     }
 
     // Only query the guild context if it is required by the text template
@@ -43,8 +44,8 @@ pub async fn replace_channel_placeholders(
         None
     };
 
-    Ok(
-        re.replace_all(text, |caps: &Captures| {
+    Ok(re
+        .replace_all(text, |caps: &Captures| {
             let key = &caps["key"];
 
             if let Some(val) = replace_placeholder(gctx.as_ref(), member, key) {
@@ -52,6 +53,6 @@ pub async fn replace_channel_placeholders(
             }
 
             caps[0].to_string()
-        }).into_owned()
-    )
+        })
+        .into_owned())
 }

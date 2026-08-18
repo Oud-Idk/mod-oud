@@ -20,9 +20,7 @@ pub async fn raid(_ctx: Context<'_>) -> Result<(), Error> {
 pub async fn trigger(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
 
-    let guild_id = ctx
-        .guild_id()
-        .with_context(|| "Must be run in a server")?;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?;
     let author_name = ctx.author().name.clone();
 
     match trigger_raid_manual(ctx.serenity_context(), ctx.data(), guild_id, &author_name).await {
@@ -49,9 +47,7 @@ pub async fn trigger(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn resolve(ctx: Context<'_>) -> Result<()> {
     ctx.defer().await?;
 
-    let guild_id = ctx
-        .guild_id()
-        .with_context(|| "Must be run in a server")?;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?;
 
     match resolve_raid_manual(ctx.serenity_context(), ctx.data(), guild_id).await {
         Ok(true) => {

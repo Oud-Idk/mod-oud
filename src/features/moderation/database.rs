@@ -1,10 +1,10 @@
+use crate::features::moderation::ActionType;
+use crate::features::moderation::types::TempBanRecord;
 use anyhow::Result;
 use chrono::TimeDelta;
 use serenity::all::{GuildId, User};
-use sqlx::postgres::types::PgInterval;
 use sqlx::PgPool;
-use crate::features::moderation::ActionType;
-use crate::features::moderation::types::TempBanRecord;
+use sqlx::postgres::types::PgInterval;
 
 trait ToPgInterval {
     fn to_pg_interval(&self) -> PgInterval;
@@ -65,19 +65,13 @@ pub async fn fetch_expired_temp_bans(
         "#,
         now
     )
-        .fetch_all(db)
-        .await?)
+    .fetch_all(db)
+    .await?)
 }
 
 /// Deletes processed temp ban records by ID.
-pub async fn delete_processed_temp_bans(
-    db: &PgPool,
-    ids: &[i64],
-) -> Result<u64, sqlx::Error> {
-    let result = sqlx::query!(
-        "DELETE FROM temp_bans WHERE id = ANY($1)",
-        ids
-    )
+pub async fn delete_processed_temp_bans(db: &PgPool, ids: &[i64]) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query!("DELETE FROM temp_bans WHERE id = ANY($1)", ids)
         .execute(db)
         .await?;
 

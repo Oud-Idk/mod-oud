@@ -17,7 +17,8 @@ pub async fn kick(
         None => return Ok(()),
     };
 
-    let response_message = service::kick_user_by_id(&ctx.serenity_context().http, guild_id, target.id).await?;
+    let response_message =
+        service::kick_user_by_id(&ctx.serenity_context().http, guild_id, target.id).await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

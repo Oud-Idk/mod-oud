@@ -24,9 +24,11 @@ impl PlaceholderResolver for ResolverChain<'_> {
 pub fn render(text: &str, resolver: &dyn PlaceholderResolver) -> String {
     let re = get_placeholder_regex();
     re.replace_all(text, |caps: &Captures| {
-        resolver.resolve(&caps["key"]).unwrap_or_else(|| caps[0].to_string())
+        resolver
+            .resolve(&caps["key"])
+            .unwrap_or_else(|| caps[0].to_string())
     })
-        .into_owned()
+    .into_owned()
 }
 
 /// Optional Discord context used to resolve user/member, channel, and message
@@ -79,14 +81,11 @@ impl PlaceholderResolver for DiscordCtx<'_> {
         {
             let user = self.user()?;
             return Some(match key {
-                "user"
-                | "user.mention"
-                | "member"
-                | "member.mention"
-                | "player"
-                | "host"
+                "user" | "user.mention" | "member" | "member.mention" | "player" | "host"
                 | "host.mention" => format!("<@{}>", user.id),
-                "user.name" | "member.username" | "host.name" | "host.username" => user.name.clone(),
+                "user.name" | "member.username" | "host.name" | "host.username" => {
+                    user.name.clone()
+                }
                 "user.id" | "member.id" | "host.id" => user.id.to_string(),
                 "user.avatar" | "member.avatar" | "host.avatar" => {
                     user.avatar.map(|h| h.to_string()).unwrap_or_default()

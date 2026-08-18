@@ -1,11 +1,11 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::WebState;
 use crate::features::tickets::panel::build_ticket_message_payload;
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::Json;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, GuildId, MessageId};
 use std::sync::Arc;
 use tracing::{debug, info, instrument, warn};
@@ -41,14 +41,14 @@ pub async fn handle_send_ticket_message(
         &state.core.guild_configs_cache,
         guild_id,
     )
-        .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to load guild configuration settings"))
-        .map_err(|_| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal server error.".to_string(),
-            )
-        })?;
+    .await
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to load guild configuration settings"))
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        )
+    })?;
 
     let ticket_cfg = settings.tickets.ok_or_else(|| {
         debug!(%guild_id, "Ticket dispatch failed: system is unconfigured");
@@ -77,14 +77,14 @@ pub async fn handle_send_ticket_message(
         &ticket_cfg.panel_message.message.content,
         &ticket_cfg.panel_message.message.embed,
     )
-        .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to compile custom ticket layout payload"))
-        .map_err(|_| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal server error.".to_string(),
-            )
-        })?;
+    .await
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to compile custom ticket layout payload"))
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        )
+    })?;
 
     let message = payload
         .channel_id

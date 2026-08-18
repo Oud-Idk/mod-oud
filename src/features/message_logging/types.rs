@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{AuditLogEntry, ChannelId, GuildId, MessageId, RoleId, User, UserId};
+use std::collections::HashMap;
 
 pub struct MessageDetails {
     pub msg_id: MessageId,

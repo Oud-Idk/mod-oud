@@ -6,7 +6,8 @@ pub struct PartialWarning {
     pub(crate) reason: Option<String>,
 }
 
-pub const MODERATION_FOOTER: &str = "If you believe this was a mistake, please contact an administrator.";
+pub const MODERATION_FOOTER: &str =
+    "If you believe this was a mistake, please contact an administrator.";
 
 #[derive(Debug, Clone, Copy, sqlx::Type, PartialEq, Eq, Deserialize, Serialize)]
 #[sqlx(type_name = "moderation_action", rename_all = "SCREAMING_SNAKE_CASE")]

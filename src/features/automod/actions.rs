@@ -5,8 +5,11 @@ use crate::features::automod::types::{BaseRule, RuleAction};
 use crate::features::moderation::issue_mute;
 use crate::features::warning::issue_warning;
 use crate::shared::username_cache::UserUpdate;
-use serenity::all::{ChannelId, CreateMessage, GuildId, Mentionable, Message, Timestamp, User};
+use serenity::all::{ChannelId, Context, CreateMessage, GuildId, Mentionable, Message, Timestamp, User};
 use std::time::Duration;
+use fred::clients::Client;
+use moka::future::Cache;
+use tokio::sync::mpsc;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 pub struct RuleActionPayload<'a> {
@@ -26,7 +29,7 @@ pub struct RuleActionPayload<'a> {
     )
 )]
 pub async fn execute_rule_actions(
-    ctx: &serenity::all::Context,
+    ctx: &Context,
     data: &BotData,
     message: &Message,
     payload: RuleActionPayload<'_>,
@@ -76,7 +79,7 @@ pub async fn execute_rule_actions(
 }
 
 async fn handle_automod(
-    ctx: &serenity::all::Context,
+    ctx: &Context,
     message: &Message,
     base: &BaseRule,
     data: &BotData,
@@ -135,13 +138,13 @@ async fn handle_automod(
 #[instrument(skip(ctx, message, db, redis_conn, guild_configs), fields(user_id = %message.author.id.get(), rule = rule_name
 ))]
 async fn apply_warning(
-    ctx: &serenity::all::Context,
+    ctx: &Context,
     rule_name: &str,
     message: &Message,
     db: &sqlx::PgPool,
-    redis_conn: &fred::clients::Client,
-    guild_configs: &moka::future::Cache<GuildId, GuildSettings>,
-    username_buf_tx: &tokio::sync::mpsc::Sender<UserUpdate>,
+    redis_conn: &Client,
+    guild_configs: &Cache<GuildId, GuildSettings>,
+    username_buf_tx: &mpsc::Sender<UserUpdate>,
 ) {
     let Some(guild_id) = message.guild_id else {
         trace!("Skipping automated warning: Message was not sent in a guild.");

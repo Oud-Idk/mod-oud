@@ -25,8 +25,8 @@ pub async fn store_birthday_log(
         channel_id.get().cast_signed(),
         sent_msg_id.map(|m| m.get().cast_signed()),
     )
-        .execute(db)
-        .await
+    .execute(db)
+    .await
 }
 
 pub async fn get_unannounced_birthdays(
@@ -54,8 +54,8 @@ pub async fn get_unannounced_birthdays(
         guild_id.get().cast_signed(),
         current_year
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     Ok(rows
         .into_iter()
@@ -83,8 +83,8 @@ pub async fn save_user_with_birthday_role(
         uid.get().cast_signed(),
         role_id.get().cast_signed(),
     )
-        .execute(db)
-        .await
+    .execute(db)
+    .await
 }
 
 pub async fn fetch_expired_birthday_roles(pool: &PgPool) -> Result<Vec<ExpiredRole>, sqlx::Error> {
@@ -95,15 +95,15 @@ pub async fn fetch_expired_birthday_roles(pool: &PgPool) -> Result<Vec<ExpiredRo
         WHERE expires_at <= CURRENT_TIMESTAMP
         "#
     )
-        .fetch_all(pool)
-        .await?;
+    .fetch_all(pool)
+    .await?;
 
     Ok(rows
         .into_iter()
         .map(|r| ExpiredRole {
-            guild_id: GuildId::new(r.guild_id as u64),
-            user_id: UserId::new(r.user_id as u64),
-            role_id: RoleId::new(r.role_id as u64),
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            role_id: RoleId::new(r.role_id.cast_unsigned()),
         })
         .collect())
 }
@@ -123,10 +123,14 @@ pub async fn fetch_enabled_guild_ids(
         i32::try_from(current_hour)
             .expect("Since when is there more than 2 billion hours in a day")
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
-    Ok(ids.into_iter().map(i64::cast_unsigned).map(GuildId::from).collect())
+    Ok(ids
+        .into_iter()
+        .map(i64::cast_unsigned)
+        .map(GuildId::from)
+        .collect())
 }
 
 pub async fn delete_expired_birthday_roles(
@@ -151,8 +155,8 @@ pub async fn delete_expired_birthday_roles(
         &raw_guild_ids[..],
         &raw_user_ids[..],
     )
-        .execute(pool)
-        .await?;
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
@@ -178,8 +182,8 @@ pub async fn set_birthday(
         day,
         year
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(())
 }
@@ -208,7 +212,7 @@ pub async fn get_upcoming_birthdays(
     Ok(rows
         .into_iter()
         .map(|r| FullUserBirthdayRecord {
-            user_id: UserId::new(r.user_id as u64),
+            user_id: UserId::new(r.user_id.cast_unsigned()),
             birth_month: r.birth_month,
             birth_day: r.birth_day,
             birth_year: r.birth_year,
@@ -219,7 +223,7 @@ pub async fn get_upcoming_birthdays(
 /// Get a user's birthday record
 pub async fn get_user_birthday(
     db: &PgPool,
-    user_id: u64,
+    user_id: UserId,
 ) -> Result<Option<FullUserBirthdayRecord>, sqlx::Error> {
     let row = sqlx::query!(
         r#"
@@ -227,13 +231,13 @@ pub async fn get_user_birthday(
         FROM user_birthdays
         WHERE user_id = $1
         "#,
-        user_id.cast_signed()
+        user_id.get().cast_signed()
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     Ok(row.map(|r| FullUserBirthdayRecord {
-        user_id: UserId::new(r.user_id as u64),
+        user_id: UserId::new(r.user_id.cast_unsigned()),
         birth_month: r.birth_month,
         birth_day: r.birth_day,
         birth_year: r.birth_year,
@@ -241,16 +245,16 @@ pub async fn get_user_birthday(
 }
 
 /// Remove a user's birthday record
-pub async fn remove_birthday(db: &PgPool, user_id: u64) -> Result<(), Error> {
+pub async fn remove_birthday(db: &PgPool, user_id: UserId) -> Result<(), Error> {
     sqlx::query!(
         r#"
         DELETE FROM user_birthdays
         WHERE user_id = $1
         "#,
-        user_id.cast_signed()
+        user_id.get().cast_signed()
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(())
 }

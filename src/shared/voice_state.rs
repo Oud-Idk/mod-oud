@@ -9,16 +9,27 @@ pub fn guild_vc_key(guild_id: GuildId) -> String {
 }
 
 /// Stores a user's voice channel in Redis when they join a voice channel.
-pub async fn store_user_vc_on_join(data: &BotData, guild_id: GuildId, channel_id: ChannelId, user_id: UserId) -> Result<(), Error> {
+pub async fn store_user_vc_on_join(
+    data: &BotData,
+    guild_id: GuildId,
+    channel_id: ChannelId,
+    user_id: UserId,
+) -> Result<(), Error> {
     let guild_vc_key = guild_vc_key(guild_id);
     let redis = &data.core.redis;
-    let _: () = redis.hset(&guild_vc_key, (user_id.get(), channel_id.get())).await?;
+    let _: () = redis
+        .hset(&guild_vc_key, (user_id.get(), channel_id.get()))
+        .await?;
 
     Ok(())
 }
 
 /// Removes a user's voice channel entry from Redis when they leave.
-pub async fn delete_user_vc_on_leave(data: &BotData, guild_id: GuildId, user_id: UserId) -> Result<(), Error> {
+pub async fn delete_user_vc_on_leave(
+    data: &BotData,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<(), Error> {
     let guild_vc_key = guild_vc_key(guild_id);
     let redis = &data.core.redis;
     let _: () = redis.hdel(&guild_vc_key, user_id.get()).await?;
@@ -27,7 +38,11 @@ pub async fn delete_user_vc_on_leave(data: &BotData, guild_id: GuildId, user_id:
 }
 
 /// Returns the voice channel a user is currently in, if cached in Redis.
-pub async fn get_user_vc_in_guild(data: &BotData, guild_id: GuildId, user_id: UserId) -> Result<Option<ChannelId>, Error> {
+pub async fn get_user_vc_in_guild(
+    data: &BotData,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<Option<ChannelId>, Error> {
     let guild_vc_key = guild_vc_key(guild_id);
     let redis = &data.core.redis;
     let channel_id: Option<u64> = redis.hget(&guild_vc_key, user_id.get()).await?;

@@ -5,9 +5,7 @@ use crate::shared::messages::send_ephemeral;
 
 /// Delete your temporary voice channel.
 #[poise::command(slash_command)]
-pub async fn delete(
-    ctx: Context<'_>,
-) -> Result<(), Error> {
+pub async fn delete(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
     let (channel_id, guild_id, member) = match preflight_slash_check(&ctx).await? {
@@ -21,7 +19,8 @@ pub async fn delete(
         guild_id,
         channel_id,
         member.user.id,
-    ).await?;
+    )
+    .await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

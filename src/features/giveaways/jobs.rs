@@ -18,7 +18,13 @@ pub async fn get_all_reaction_users(
 
     loop {
         let batch = http
-            .get_reaction_users(channel_id, message_id, reaction, 100, last_user_id.map(UserId::get))
+            .get_reaction_users(
+                channel_id,
+                message_id,
+                reaction,
+                100,
+                last_user_id.map(UserId::get),
+            )
             .await?;
 
         if batch.is_empty() {

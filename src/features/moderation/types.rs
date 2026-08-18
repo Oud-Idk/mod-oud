@@ -43,4 +43,5 @@ pub struct TempBanRecord {
 }
 
 /// Footer appended to moderation embeds.
-pub const MODERATION_FOOTER: &str = "If you believe this was a mistake, please contact an administrator.";
+pub const MODERATION_FOOTER: &str =
+    "If you believe this was a mistake, please contact an administrator.";

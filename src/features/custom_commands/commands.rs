@@ -3,8 +3,7 @@ use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::custom_commands::database;
 use poise::CreateReply;
-use serenity::all::{CreateEmbed, GuildId};
-use sqlx::PgPool;
+use serenity::all::CreateEmbed;
 use tracing::error;
 
 /// List all custom commands available in this server
@@ -18,8 +17,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
 
     let pool = &ctx.data().core.db;
 
-    let commands = match database::get_custom_command(pool, guild_id).await
-    {
+    let commands = match database::get_custom_command(pool, guild_id).await {
         Ok(cmds) => cmds,
         Err(e) => {
             error!(error = ?e, %guild_id, "Failed to fetch custom commands");
@@ -68,4 +66,3 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(CreateReply::default().embed(embed)).await?;
     Ok(())
 }
-

@@ -3,7 +3,10 @@ use crate::features::temp_voice::interface::create_ephemeral_msg;
 use crate::features::temp_voice::keys;
 use crate::features::temp_voice::keys::{pending_transfer_key, temp_vc_owners_key};
 use fred::interfaces::{HashesInterface, KeysInterface};
-use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId};
+use serenity::all::{
+    ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
+    PermissionOverwrite, PermissionOverwriteType, Permissions, UserId,
+};
 use tracing::{debug, error, info, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(acceptor_id = %interaction.user.id.get()))]
@@ -12,13 +15,17 @@ pub async fn handle_accept_transfer(
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    let guild_id = if let Some(g) = interaction.guild_id { g } else {
+    let guild_id = if let Some(g) = interaction.guild_id {
+        g
+    } else {
         debug!("Transfer acceptance interaction received outside of a guild");
         return Ok(());
     };
 
     let Some(channel_id) = ctx.cache.guild(guild_id).and_then(|g| {
-        g.voice_states.get(&interaction.user.id).and_then(|vs| vs.channel_id)
+        g.voice_states
+            .get(&interaction.user.id)
+            .and_then(|vs| vs.channel_id)
     }) else {
         debug!("User attempting to accept transfer is not in a voice channel");
         interaction
@@ -37,9 +44,15 @@ pub async fn handle_accept_transfer(
     let target_owner_str: Option<String> = redis.get(&pending_key).await?;
 
     let Some(target_owner) = target_owner_str else {
-        debug!("Transfer acceptance failed: No pending key in Redis or key expired for channel {}", channel_id.get());
+        debug!(
+            "Transfer acceptance failed: No pending key in Redis or key expired for channel {}",
+            channel_id.get()
+        );
         interaction
-            .create_response(&ctx.http, create_ephemeral_msg("No pending transfer request found, or it expired!"))
+            .create_response(
+                &ctx.http,
+                create_ephemeral_msg("No pending transfer request found, or it expired!"),
+            )
             .await?;
         return Ok(());
     };
@@ -51,31 +64,40 @@ pub async fn handle_accept_transfer(
             target_owner
         );
         interaction
-            .create_response(&ctx.http, create_ephemeral_msg("This transfer offer wasn't made for you!"))
+            .create_response(
+                &ctx.http,
+                create_ephemeral_msg("This transfer offer wasn't made for you!"),
+            )
             .await?;
         return Ok(());
     }
 
     let temp_vc_hash = keys::temp_vcs_key(guild_id);
     let owner_hash = temp_vc_owners_key(guild_id);
-    let current_owner_str: Option<String> = redis.hget(&temp_vc_hash, channel_id.get().to_string()).await?;
+    let current_owner_str: Option<String> = redis
+        .hget(&temp_vc_hash, channel_id.get().to_string())
+        .await?;
 
     let Some(current_owner) = current_owner_str else {
-        warn!("No current owner recorded in Redis for active channel {}", channel_id.get());
+        warn!(
+            "No current owner recorded in Redis for active channel {}",
+            channel_id.get()
+        );
         return Ok(());
     };
 
     let acceptor_existing_vc: Option<String> = redis.hget(&owner_hash, &target_owner).await?;
     if let Some(existing_channel) = acceptor_existing_vc
-        && existing_channel != channel_id.get().to_string() {
-            warn!(
-                acceptor_id = %interaction.user.id.get(),
-                existing_channel = %existing_channel,
-                offered_channel = %channel_id.get(),
-                "Acceptor now owns a different temp VC; refusing to complete transfer"
-            );
-            let _: Result<(), _> = redis.del(&pending_key).await;
-            interaction
+        && existing_channel != channel_id.get().to_string()
+    {
+        warn!(
+            acceptor_id = %interaction.user.id.get(),
+            existing_channel = %existing_channel,
+            offered_channel = %channel_id.get(),
+            "Acceptor now owns a different temp VC; refusing to complete transfer"
+        );
+        let _: Result<(), _> = redis.del(&pending_key).await;
+        interaction
                 .create_response(
                     &ctx.http,
                     create_ephemeral_msg(
@@ -83,8 +105,8 @@ pub async fn handle_accept_transfer(
                     ),
                 )
                 .await?;
-            return Ok(());
-        }
+        return Ok(());
+    }
 
     let new_overwrite = PermissionOverwrite {
         allow: Permissions::VIEW_CHANNEL
@@ -97,11 +119,20 @@ pub async fn handle_accept_transfer(
         kind: PermissionOverwriteType::Member(interaction.user.id),
     };
 
-    debug!("Applying new channel permissions for user {}", interaction.user.id.get());
+    debug!(
+        "Applying new channel permissions for user {}",
+        interaction.user.id.get()
+    );
     if let Err(e) = channel_id.create_permission(&ctx.http, new_overwrite).await {
-        error!("Failed to apply permission override to Discord API: {:?}", e);
+        error!(
+            "Failed to apply permission override to Discord API: {:?}",
+            e
+        );
         interaction
-            .create_response(&ctx.http, create_ephemeral_msg("Discord API error. Try again!"))
+            .create_response(
+                &ctx.http,
+                create_ephemeral_msg("Discord API error. Try again!"),
+            )
             .await?;
         return Ok(());
     }
@@ -112,17 +143,31 @@ pub async fn handle_accept_transfer(
             deny: Permissions::empty(),
             kind: PermissionOverwriteType::Member(UserId::new(old_owner_id)),
         };
-        debug!("Demoting old owner {} to member-level permissions", old_owner_id);
-        if let Err(e) = channel_id.create_permission(&ctx.http, old_owner_overwrite).await {
+        debug!(
+            "Demoting old owner {} to member-level permissions",
+            old_owner_id
+        );
+        if let Err(e) = channel_id
+            .create_permission(&ctx.http, old_owner_overwrite)
+            .await
+        {
             warn!("Failed to demote old owner's permissions: {:?}", e);
         }
     }
 
     debug!("Executing Redis pipeline to finalize transfer");
     let pipe = redis.pipeline();
-    pipe.hset::<(), _, _>(&temp_vc_hash, vec![(channel_id.get().to_string(), target_owner.clone())]).await?;
+    pipe.hset::<(), _, _>(
+        &temp_vc_hash,
+        vec![(channel_id.get().to_string(), target_owner.clone())],
+    )
+    .await?;
     pipe.hdel::<(), _, _>(&owner_hash, &current_owner).await?;
-    pipe.hset::<(), _, _>(&owner_hash, vec![(target_owner.clone(), channel_id.get().to_string())]).await?;
+    pipe.hset::<(), _, _>(
+        &owner_hash,
+        vec![(target_owner.clone(), channel_id.get().to_string())],
+    )
+    .await?;
     pipe.del::<(), _>(&pending_key).await?;
 
     if let Err(e) = pipe.all::<Vec<i64>>().await {
@@ -137,7 +182,10 @@ pub async fn handle_accept_transfer(
         target_owner
     );
 
-    let updated_text = format!("<@{}> accepted the offer and is now the owner of this channel!", interaction.user.id);
+    let updated_text = format!(
+        "<@{}> accepted the offer and is now the owner of this channel!",
+        interaction.user.id
+    );
     interaction
         .create_response(
             &ctx.http,
@@ -158,13 +206,17 @@ pub async fn handle_decline_transfer(
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    let guild_id = if let Some(g) = interaction.guild_id { g } else {
+    let guild_id = if let Some(g) = interaction.guild_id {
+        g
+    } else {
         debug!("Transfer decline interaction received outside of a guild");
         return Ok(());
     };
 
     let Some(channel_id) = ctx.cache.guild(guild_id).and_then(|g| {
-        g.voice_states.get(&interaction.user.id).and_then(|vs| vs.channel_id)
+        g.voice_states
+            .get(&interaction.user.id)
+            .and_then(|vs| vs.channel_id)
     }) else {
         debug!("User attempting to decline transfer is not in a voice channel");
         interaction
@@ -183,9 +235,15 @@ pub async fn handle_decline_transfer(
     let target_owner_str: Option<String> = redis.get(&pending_key).await?;
 
     let Some(target_owner) = target_owner_str else {
-        debug!("Transfer decline failed: No pending key in Redis or key expired for channel {}", channel_id.get());
+        debug!(
+            "Transfer decline failed: No pending key in Redis or key expired for channel {}",
+            channel_id.get()
+        );
         interaction
-            .create_response(&ctx.http, create_ephemeral_msg("No pending transfer request found, or it expired!"))
+            .create_response(
+                &ctx.http,
+                create_ephemeral_msg("No pending transfer request found, or it expired!"),
+            )
             .await?;
         return Ok(());
     };
@@ -197,12 +255,18 @@ pub async fn handle_decline_transfer(
             target_owner
         );
         interaction
-            .create_response(&ctx.http, create_ephemeral_msg("This transfer offer wasn't made for you!"))
+            .create_response(
+                &ctx.http,
+                create_ephemeral_msg("This transfer offer wasn't made for you!"),
+            )
             .await?;
         return Ok(());
     }
 
-    debug!("Deleting pending transfer key from Redis for channel {}", channel_id.get());
+    debug!(
+        "Deleting pending transfer key from Redis for channel {}",
+        channel_id.get()
+    );
     let _: Result<(), _> = redis.del(&pending_key).await;
 
     info!(
@@ -211,7 +275,10 @@ pub async fn handle_decline_transfer(
         interaction.user.id.get()
     );
 
-    let updated_text = format!("❌ **Transfer Declined**\n<@{}> decided they didn't want the crown today.", interaction.user.id);
+    let updated_text = format!(
+        "❌ **Transfer Declined**\n<@{}> decided they didn't want the crown today.",
+        interaction.user.id
+    );
     interaction
         .create_response(
             &ctx.http,

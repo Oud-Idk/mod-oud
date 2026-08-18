@@ -12,7 +12,9 @@ impl PlaceholderResolver for JoinLeaveResolver<'_> {
     fn resolve(&self, key: &str) -> Option<String> {
         match key {
             "plan" | "plan.name" => self.plan_name.map(std::string::ToString::to_string),
-            "achievement" | "warning" | "alt_warning" => self.achievement.map(std::string::ToString::to_string),
+            "achievement" | "warning" | "alt_warning" => {
+                self.achievement.map(std::string::ToString::to_string)
+            }
             _ => None,
         }
     }

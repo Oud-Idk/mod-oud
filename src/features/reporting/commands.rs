@@ -33,7 +33,6 @@ pub async fn report_message(
         return Ok(());
     };
 
-
     info!(
         reporter_id = %reporter.id,
         reported_message_id = %reported_message.id, %guild_id, "Invoked report_message context menu command"
@@ -60,7 +59,7 @@ pub async fn report_message(
                 .content("Reporting isn't enabled in this guild.")
                 .ephemeral(true),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
@@ -81,7 +80,7 @@ pub async fn report_message(
             reporter,
             modal.reason,
         )
-            .await?;
+        .await?;
 
         let reply_content = if let Some(report_id) = result {
             info!(
@@ -103,7 +102,7 @@ pub async fn report_message(
                 .content(reply_content)
                 .ephemeral(true),
         )
-            .await?;
+        .await?;
     } else {
         trace!(reporter_id = %reporter.id, "Report modal was cancelled or timed out");
     }

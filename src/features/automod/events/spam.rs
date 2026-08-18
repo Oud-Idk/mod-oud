@@ -1,19 +1,20 @@
-use crate::core::config::state::{BotData, Error};
+use crate::core::config::state::{BotData};
 use crate::features::automod::actions::{RuleActionPayload, execute_rule_actions};
 use crate::features::automod::types::{AntiSpamRule, MessageFilteringConfig};
-use serenity::all::Message;
+use serenity::all::{Context, Message};
 use serenity::model::id::{GuildId, UserId};
 use std::time::Duration;
+use anyhow::Result;
 
 async fn handle_spam(
-    ctx: &serenity::all::Context,
+    ctx: &Context,
     message: &Message,
     data: &BotData,
     guild_id: GuildId,
     author_id: UserId,
     warning_cooldown: Duration,
     anti_spam_rule: &AntiSpamRule,
-) -> Result<(), Error> {
+) -> Result<()> {
     let should_warn = data
         .security
         .spam_tracker
@@ -36,13 +37,13 @@ async fn handle_spam(
 /// Checks the spam tracker and handles deletions/warnings if the limit is exceeded.
 /// Returns `Ok(true)` if spam was detected, indicating execution should stop.
 pub async fn handle_spam_prevention(
-    ctx: &serenity::all::Context,
+    ctx: &Context,
     message: &Message,
     data: &BotData,
     filtering: &MessageFilteringConfig,
     guild_id: GuildId,
     author_id: UserId,
-) -> Result<bool, Error> {
+) -> Result<bool> {
     let Some(anti_spam) = &filtering.anti_spam else {
         return Ok(false);
     };
@@ -67,7 +68,7 @@ pub async fn handle_spam_prevention(
             warning_cooldown,
             anti_spam,
         )
-        .await?;
+            .await?;
         return Ok(true);
     }
 

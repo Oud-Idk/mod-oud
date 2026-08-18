@@ -44,13 +44,13 @@ pub async fn kick(
         ctx.author().clone(),
         reason_str,
     )
-    .await?;
+        .await?;
 
     send_ephemeral(
         &ctx,
         format!("{} is kicked for reason: \"{}\"", user.name, reason_str),
     )
-    .await?;
+        .await?;
 
     info!(target_id, "User successfully kicked");
     Ok(())
@@ -116,14 +116,14 @@ pub async fn ban(
         parsed_duration,
         duration_label,
     )
-    .await?;
+        .await?;
 
     let conf_msg = format!(
         "**Successfully banned {}** {} (Reason: `{}`).",
         user.tag(),
         duration
             .as_ref()
-            .map_or("permanently".to_string(), |d| format!("for {d}")),
+            .map_or_else(|| "permanently".to_string(), |d| format!("for {d}")),
         reason_str
     );
     send_ephemeral(&ctx, conf_msg).await?;
@@ -232,7 +232,7 @@ pub async fn mute(
             &ctx,
             "Discord timeouts cannot exceed 28 days or fall short of 60 seconds.",
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -253,7 +253,7 @@ pub async fn mute(
         &dur,
         timestamp,
     )
-    .await?;
+        .await?;
 
     send_ephemeral(
         &ctx,
@@ -262,7 +262,7 @@ pub async fn mute(
             member.user.name, duration, reason_str
         ),
     )
-    .await?;
+        .await?;
 
     info!(target_id, duration = %duration, "User successfully muted");
     Ok(())
@@ -299,7 +299,7 @@ pub async fn unmute(
                 member.user.name
             ),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -314,13 +314,13 @@ pub async fn unmute(
         member.user.clone(),
         ctx.author().clone(),
     )
-    .await?;
+        .await?;
 
     send_ephemeral(
         &ctx,
         format!("**Successfully unmuted {}**.", member.user.name),
     )
-    .await?;
+        .await?;
 
     info!(target_id, "User successfully unmuted");
     Ok(())
@@ -363,13 +363,13 @@ pub async fn softban(
         reason_str,
         dmd,
     )
-    .await?;
+        .await?;
 
     send_ephemeral(
         &ctx,
         format!("**Successfully soft-banned {}**", member.user.name),
     )
-    .await?;
+        .await?;
 
     info!(target_id, "User successfully soft-banned");
     Ok(())
@@ -404,14 +404,14 @@ pub async fn unban(
                 ActionType::Unban,
                 None,
             )
-            .await?;
+                .await?;
 
             ctx.say(format!(
                 "Successfully unbanned **{}** (ID: `{}`).",
                 user.tag(),
                 user.id
             ))
-            .await?;
+                .await?;
 
             info!(target_id, "User successfully unbanned");
         }

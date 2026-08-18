@@ -3,6 +3,7 @@ use crate::features::giveaways::types::Giveaway;
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
 use serenity::model::id::ChannelId;
+use serenity::model::id::GuildId;
 use serenity::model::id::MessageId;
 use serenity::model::id::UserId;
 use sqlx::PgPool;
@@ -113,7 +114,7 @@ pub async fn mark_giveaway_finished(pool: &PgPool, giveaway_id: i64) -> Result<(
 #[allow(dead_code)] // For reasons I don't understand, Rust considers this function dead code
 pub async fn create_giveaway(
     pool: &PgPool,
-    guild_id: u64,
+    guild_id: GuildId,
     host_id: UserId,
     channel_id: ChannelId,
     prize: &str,
@@ -126,7 +127,7 @@ pub async fn create_giveaway(
         VALUES ($1, $2, $3, $4, $5, $6, FALSE, '{"enabled": true, "format": "TEXT", "content": "", "embed": {}}'::jsonb)
         RETURNING id
         "#,
-        guild_id.cast_signed(),
+        guild_id.get().cast_signed(),
         host_id.get().cast_signed(),
         channel_id.get().cast_signed(),
         prize,

@@ -1,9 +1,15 @@
+use crate::features::message_logging::types::{EditDetails, MessageDetails};
 use serenity::all::{GuildId, UserId};
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
-use crate::features::message_logging::types::{EditDetails, MessageDetails};
 
-pub async fn insert_deleted_message(db: &PgPool, msg: &MessageDetails, guild_id: GuildId, joined_image_urls: &str, deleted_by: Option<&(UserId, String)>) -> Result<PgQueryResult, sqlx::Error> {
+pub async fn insert_deleted_message(
+    db: &PgPool,
+    msg: &MessageDetails,
+    guild_id: GuildId,
+    joined_image_urls: &str,
+    deleted_by: Option<&(UserId, String)>,
+) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO deleted_messages (message_id, author_id, channel_id, guild_id, content, attachment_url, deleted_by_id)
@@ -21,7 +27,11 @@ pub async fn insert_deleted_message(db: &PgPool, msg: &MessageDetails, guild_id:
         .await
 }
 
-pub async fn insert_modified_messages(db: &PgPool, edit_details: &EditDetails, guild_id: GuildId) -> Result<PgQueryResult, sqlx::Error> {
+pub async fn insert_modified_messages(
+    db: &PgPool,
+    edit_details: &EditDetails,
+    guild_id: GuildId,
+) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO modified_messages (message_id, author_id, channel_id, guild_id, old_content, new_content)

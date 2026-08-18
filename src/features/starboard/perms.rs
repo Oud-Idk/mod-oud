@@ -29,7 +29,9 @@ pub fn is_event_allowed(
 }
 
 fn is_role_allowed(starboard: &Starboard, member: &Member) -> bool {
-    let restriction_type = starboard.role_restriction_type.unwrap_or(RestrictionType::None);
+    let restriction_type = starboard
+        .role_restriction_type
+        .unwrap_or(RestrictionType::None);
     if restriction_type == RestrictionType::None {
         return true;
     }
@@ -51,7 +53,9 @@ fn is_role_allowed(starboard: &Starboard, member: &Member) -> bool {
 }
 
 fn is_channel_allowed(starboard: &Starboard, reaction: &Reaction) -> bool {
-    let restriction_type = starboard.channel_restriction_type.unwrap_or(RestrictionType::None);
+    let restriction_type = starboard
+        .channel_restriction_type
+        .unwrap_or(RestrictionType::None);
     if restriction_type == RestrictionType::None {
         return true;
     }
@@ -77,12 +81,16 @@ fn is_message_age_allowed(starboard: &Starboard, message_timestamp: i64) -> bool
     let message_age_ms = now - message_timestamp;
 
     if let Some(min_age) = starboard.min_message_age
-        && message_age_ms < calculate_duration_ms(min_age.days, min_age.months, min_age.microseconds) {
+        && message_age_ms
+            < calculate_duration_ms(min_age.days, min_age.months, min_age.microseconds)
+    {
         return false;
     }
 
     if let Some(max_age) = starboard.max_message_age
-        && message_age_ms > calculate_duration_ms(max_age.days, max_age.months, max_age.microseconds) {
+        && message_age_ms
+            > calculate_duration_ms(max_age.days, max_age.months, max_age.microseconds)
+    {
         return false;
     }
 
@@ -91,11 +99,12 @@ fn is_message_age_allowed(starboard: &Starboard, message_timestamp: i64) -> bool
 
 #[inline]
 fn calculate_duration_ms(days: i32, months: i32, microseconds: i64) -> i64 {
-    (days as i64 * 86_400_000)
-        + (months as i64 * 2_592_000_000)
-        + (microseconds / 1000)
+    (days as i64 * 86_400_000) + (months as i64 * 2_592_000_000) + (microseconds / 1000)
 }
 
 fn member_has_any_role(member: &Member, target_role_ids: &[RoleId]) -> bool {
-    member.roles.iter().any(|role_id| target_role_ids.contains(role_id))
+    member
+        .roles
+        .iter()
+        .any(|role_id| target_role_ids.contains(role_id))
 }

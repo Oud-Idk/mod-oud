@@ -14,9 +14,7 @@ impl PlaceholderResolver for TicketResolver<'_> {
             "role" | "role.mention" | "ticket.role" | "ticket.role.mention" => {
                 Some(format!("<@&{}>", self.role_id))
             }
-            "role.id" | "ticket.role.id" => {
-                Some(self.role_id.to_string())
-            }
+            "role.id" | "ticket.role.id" => Some(self.role_id.to_string()),
             "role.name" | "ticket.role.name" => {
                 self.role_name.map(std::string::ToString::to_string)
             }

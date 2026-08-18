@@ -7,26 +7,32 @@ use tracing::warn;
 
 impl LogEvent {
     /// Redis pub/sub channels the live feed subscribes to.
-    pub const REDIS_CHANNELS: &'static [&'static str] = &[
-        "discord:deletes",
-        "discord:updates",
-        "discord:reports",
-    ];
+    pub const REDIS_CHANNELS: &'static [&'static str] =
+        &["discord:deletes", "discord:updates", "discord:reports"];
 
     /// Deserializes a payload from the given Redis channel into a [`LogEvent`].
     pub fn from_redis(channel: &str, payload: &str) -> Option<Self> {
         match channel {
             "discord:deletes" => serde_json::from_str::<DeletedMessagePayload>(payload)
-                .inspect_err(|e| warn!(error = %e, %channel, "Failed to deserialize DeletedMessagePayload"))
-                .ok().map(Self::MessageDelete),
+                .inspect_err(
+                    |e| warn!(error = %e, %channel, "Failed to deserialize DeletedMessagePayload"),
+                )
+                .ok()
+                .map(Self::MessageDelete),
 
             "discord:updates" => serde_json::from_str::<ModifiedMessagePayload>(payload)
-                .inspect_err(|e| warn!(error = %e, %channel, "Failed to deserialize ModifiedMessagePayload"))
-                .ok().map(Self::MessageEdit),
+                .inspect_err(
+                    |e| warn!(error = %e, %channel, "Failed to deserialize ModifiedMessagePayload"),
+                )
+                .ok()
+                .map(Self::MessageEdit),
 
             "discord:reports" => serde_json::from_str::<ReportedMessagePayload>(payload)
-                .inspect_err(|e| warn!(error = %e, %channel, "Failed to deserialize ReportedMessagePayload"))
-                .ok().map(Self::MessageReport),
+                .inspect_err(
+                    |e| warn!(error = %e, %channel, "Failed to deserialize ReportedMessagePayload"),
+                )
+                .ok()
+                .map(Self::MessageReport),
 
             _ => {
                 warn!(%channel, "Received subscription data from an unexpected channel");
@@ -41,9 +47,7 @@ impl LogEvent {
             Self::MessageDelete(payload) => {
                 Event::default().event("message-delete").json_data(payload)
             }
-            Self::MessageEdit(payload) => {
-                Event::default().event("message-edit").json_data(payload)
-            }
+            Self::MessageEdit(payload) => Event::default().event("message-edit").json_data(payload),
             Self::MessageReport(payload) => {
                 Event::default().event("message-report").json_data(payload)
             }

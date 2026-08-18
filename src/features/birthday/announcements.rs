@@ -4,7 +4,7 @@ use crate::features::birthday::types::BirthdayMember;
 use crate::features::birthday::{BirthdayConfig, database};
 use crate::shared::embed::build_custom_message;
 use anyhow::{Context as _, Result, anyhow};
-use serenity::all::{ChannelId, Context, GuildId, RoleId};
+use serenity::all::{ChannelId, Context, GuildId};
 use serenity::model::channel::Message;
 use serenity::model::id::MessageId;
 use sqlx::PgPool;
@@ -24,7 +24,7 @@ pub async fn send_birthday_message(
         &birthday_cfg.message.embed,
         |t| replace_birthday_placeholders(t, &gctx, celebrants),
     )?
-        .ok_or_else(|| anyhow!("Message is not valid"))?;
+    .ok_or_else(|| anyhow!("Message is not valid"))?;
 
     channel_id
         .send_message(&ctx.http, msg)
@@ -64,9 +64,15 @@ pub async fn process_celebrant_roles(
     for celebrant in celebrants {
         let user_id = celebrant.user_id;
 
-        let _ =
-            database::store_birthday_log(db, current_year, guild_id, channel_id, sent_msg_id, user_id)
-                .await;
+        let _ = database::store_birthday_log(
+            db,
+            current_year,
+            guild_id,
+            channel_id,
+            sent_msg_id,
+            user_id,
+        )
+        .await;
 
         let Some(role_id) = birthday_role_id else {
             continue;
@@ -74,12 +80,7 @@ pub async fn process_celebrant_roles(
 
         let Ok(()) = ctx
             .http
-            .add_member_role(
-                guild_id,
-                celebrant.user_id,
-                role_id,
-                Some("Birthday Role"),
-            )
+            .add_member_role(guild_id, celebrant.user_id, role_id, Some("Birthday Role"))
             .await
         else {
             continue;

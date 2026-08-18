@@ -7,7 +7,11 @@ use fred::prelude::Expiration;
 use serenity::all::{GuildId, User, UserId};
 use sqlx::PgPool;
 
-pub async fn fetch_warnings(db: &PgPool, guild_id: u64, user_id: i64) -> Result<Vec<WarningInfo>, sqlx::Error> {
+pub async fn fetch_warnings(
+    db: &PgPool,
+    guild_id: u64,
+    user_id: i64,
+) -> Result<Vec<WarningInfo>, sqlx::Error> {
     sqlx::query_as!(
         WarningInfo,
         r#"
@@ -21,11 +25,16 @@ pub async fn fetch_warnings(db: &PgPool, guild_id: u64, user_id: i64) -> Result<
         guild_id.cast_signed(),
         user_id,
     )
-        .fetch_all(db)
-        .await
+    .fetch_all(db)
+    .await
 }
 
-pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: u64, target_user_id: Option<i64>, pattern: &str) -> Result<Vec<WarningInfo>, sqlx::Error> {
+pub async fn search_warnings_by_pattern(
+    db: &PgPool,
+    guild_id: u64,
+    target_user_id: Option<i64>,
+    pattern: &str,
+) -> Result<Vec<WarningInfo>, sqlx::Error> {
     sqlx::query_as!(
         WarningInfo,
         r#"
@@ -41,8 +50,8 @@ pub async fn search_warnings_by_pattern(db: &PgPool, guild_id: u64, target_user_
         pattern,
         target_user_id,
     )
-        .fetch_all(db)
-        .await
+    .fetch_all(db)
+    .await
 }
 
 pub async fn search_warning_from_id(db: &PgPool, guild_id: u64, id: i64) -> Option<WarningInfo> {
@@ -56,13 +65,19 @@ pub async fn search_warning_from_id(db: &PgPool, guild_id: u64, id: i64) -> Opti
         id,
         guild_id.cast_signed(),
     )
-        .fetch_optional(db)
-        .await
-        .ok()
-        .flatten()
+    .fetch_optional(db)
+    .await
+    .ok()
+    .flatten()
 }
 
-pub async fn update_warn(db: &PgPool, set_active: bool, id: i64, guild_id: u64, expected_current_state: bool) -> Result<Option<PartialWarning>, sqlx::Error> {
+pub async fn update_warn(
+    db: &PgPool,
+    set_active: bool,
+    id: i64,
+    guild_id: u64,
+    expected_current_state: bool,
+) -> Result<Option<PartialWarning>, sqlx::Error> {
     sqlx::query_as!(
         PartialWarning,
         r#"
@@ -76,11 +91,15 @@ pub async fn update_warn(db: &PgPool, set_active: bool, id: i64, guild_id: u64, 
         guild_id.cast_signed(),
         expected_current_state,
     )
-        .fetch_optional(db)
-        .await
+    .fetch_optional(db)
+    .await
 }
 
-pub async fn delete_warn(db: &PgPool, id: i64, guild_id: u64) -> Result<Option<PartialWarning>, sqlx::Error> {
+pub async fn delete_warn(
+    db: &PgPool,
+    id: i64,
+    guild_id: u64,
+) -> Result<Option<PartialWarning>, sqlx::Error> {
     sqlx::query_as!(
         PartialWarning,
         r#"
@@ -91,8 +110,8 @@ pub async fn delete_warn(db: &PgPool, id: i64, guild_id: u64) -> Result<Option<P
         id,
         guild_id.cast_signed()
     )
-        .fetch_optional(db)
-        .await
+    .fetch_optional(db)
+    .await
 }
 
 pub async fn insert_warn(
@@ -119,18 +138,25 @@ pub async fn insert_warn(
         moderator_id.get() as i64,
         reason,
     )
-        .fetch_one(db)
-        .await?;
+    .fetch_one(db)
+    .await?;
 
     Ok((res.id, res.count as i32))
 }
 
-pub async fn fetch_warn_thresholds(db: &PgPool, redis: &Client, guild_id: &GuildId) -> Result<Vec<WarnThreshold>> {
+pub async fn fetch_warn_thresholds(
+    db: &PgPool,
+    redis: &Client,
+    guild_id: &GuildId,
+) -> Result<Vec<WarnThreshold>> {
     let cache_key = format!("warn_thresholds:{}", guild_id.get());
     let cached_data: Option<String> = redis.get(&cache_key).await.ok();
 
     if let Some(json_string) = cached_data
-        && let Ok(thresholds) = serde_json::from_str::<Vec<WarnThreshold>>(&json_string) { return Ok(thresholds); }
+        && let Ok(thresholds) = serde_json::from_str::<Vec<WarnThreshold>>(&json_string)
+    {
+        return Ok(thresholds);
+    }
 
     let thresholds = sqlx::query_as!(
         WarnThreshold,
@@ -143,12 +169,35 @@ pub async fn fetch_warn_thresholds(db: &PgPool, redis: &Client, guild_id: &Guild
     ).fetch_all(db).await?;
 
     if let Ok(json_string) = serde_json::to_string(&thresholds) {
-        let _: FredResult<()> = redis.set(&cache_key, json_string, Some(Expiration::EX(86400)), None, false).await;
+        let _: FredResult<()> = redis
+            .set(
+                &cache_key,
+                json_string,
+                Some(Expiration::EX(86400)),
+                None,
+                false,
+            )
+            .await;
     }
 
     Ok(thresholds)
 }
 
-pub async fn log_warning(db: &PgPool, guild_id: GuildId, user: &User, moderator: &User, reason: &str) -> Result<()> {
-    log_moderation_action(db, guild_id, Some(user), moderator, Some(reason), ActionType::Warn, None).await
+pub async fn log_warning(
+    db: &PgPool,
+    guild_id: GuildId,
+    user: &User,
+    moderator: &User,
+    reason: &str,
+) -> Result<()> {
+    log_moderation_action(
+        db,
+        guild_id,
+        Some(user),
+        moderator,
+        Some(reason),
+        ActionType::Warn,
+        None,
+    )
+    .await
 }

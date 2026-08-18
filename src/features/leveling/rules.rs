@@ -17,7 +17,10 @@ pub fn should_exclude_from_level_up(
             if config.scope.channels.contains(&channel_id) {
                 return true;
             }
-            if user_roles.iter().any(|role| config.scope.roles.contains(role)) {
+            if user_roles
+                .iter()
+                .any(|role| config.scope.roles.contains(role))
+            {
                 return true;
             }
             false
@@ -27,7 +30,9 @@ pub fn should_exclude_from_level_up(
                 return true;
             }
             if !config.scope.roles.is_empty() {
-                let has_allowed_role = user_roles.iter().any(|role| config.scope.roles.contains(role));
+                let has_allowed_role = user_roles
+                    .iter()
+                    .any(|role| config.scope.roles.contains(role));
                 if !has_allowed_role {
                     return true;
                 }
@@ -37,7 +42,11 @@ pub fn should_exclude_from_level_up(
     }
 }
 
-fn calculate_multiplier(multipliers: Vec<XpMultiplier>, channel_id: u64, role_ids: Vec<u64>) -> f32 {
+fn calculate_multiplier(
+    multipliers: Vec<XpMultiplier>,
+    channel_id: u64,
+    role_ids: Vec<u64>,
+) -> f32 {
     let mut applied_multiplier = 1.0f32;
     let role_ids_i64: Vec<i64> = role_ids.iter().map(|r| *r as i64).collect();
 
@@ -89,7 +98,9 @@ pub async fn get_multiplier(
         })?;
 
     let channel_id = message.channel_id.get();
-    let roles = message.member.as_ref()
+    let roles = message
+        .member
+        .as_ref()
         .map(|m| m.roles.iter().map(|r| r.get()).collect())
         .unwrap_or_default();
 

@@ -1,6 +1,9 @@
 use crate::core::config::state::{BotData, Error};
 use crate::features::tickets;
-use serenity::all::{ChannelId, ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage};
+use serenity::all::{
+    ChannelId, ComponentInteraction, Context, CreateInteractionResponse,
+    CreateInteractionResponseMessage, CreateMessage,
+};
 use std::time::Duration;
 use tracing::{debug, info, instrument, trace, warn};
 

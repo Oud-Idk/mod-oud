@@ -13,7 +13,8 @@ pub fn extract_image_urls(message: &Message) -> Vec<String> {
     let mut urls = Vec::new();
 
     for attachment in &message.attachments {
-        let is_image = attachment.content_type
+        let is_image = attachment
+            .content_type
             .as_deref()
             .is_some_and(|mime| mime.starts_with("image/"))
             || attachment.dimensions().is_some();
@@ -54,7 +55,12 @@ pub async fn issue_report(
     );
 
     let reported_author = &reported_message.author;
-    store_username_relation(username_buf, reported_author.id.get(), &reported_author.name).await?;
+    store_username_relation(
+        username_buf,
+        reported_author.id.get(),
+        &reported_author.name,
+    )
+    .await?;
 
     let content = reported_message.content.clone();
     let attachment_url = extract_image_urls(reported_message).join(",");
@@ -69,7 +75,8 @@ pub async fn issue_report(
         reported_message,
         reporter,
     )
-        .await? else {
+    .await?
+    else {
         debug!(
             message_id = reported_message.id.get(),
             reporter_id = reporter.id.get(),
@@ -78,9 +85,11 @@ pub async fn issue_report(
         return Ok(None);
     };
 
-
     let id = row.id;
-    debug!(report_id = id, "Successfully saved reported message to database");
+    debug!(
+        report_id = id,
+        "Successfully saved reported message to database"
+    );
 
     let status = ReportStatus::UnderReview;
 
@@ -107,14 +116,21 @@ pub async fn issue_report(
         err
     })?;
 
-    debug!(report_id = id, "Publishing report payload to Redis 'discord:reports' channel");
+    debug!(
+        report_id = id,
+        "Publishing report payload to Redis 'discord:reports' channel"
+    );
 
     cache::publish_report(redis, &payload_str)
         .map_err(|err| {
             warn!(error = ?err, report_id = id, "Failed to publish report to Redis Pub/Sub");
             err
-        }).await?;
+        })
+        .await?;
 
-    debug!(report_id = id, "Successfully completed report processing and transmission");
+    debug!(
+        report_id = id,
+        "Successfully completed report processing and transmission"
+    );
     Ok(Some(row.id))
 }

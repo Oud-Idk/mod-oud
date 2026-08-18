@@ -100,19 +100,13 @@ impl FfmpegLiveInput {
             .spawn()
             .map_err(|e| {
                 AudioStreamError::Fail(
-                    std::io::Error::other(
-                        format!("could not start '{FFMPEG}': {e}"),
-                    )
-                    .into(),
+                    std::io::Error::other(format!("could not start '{FFMPEG}': {e}")).into(),
                 )
             })?;
 
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| AudioStreamError::Fail(
-                std::io::Error::other("no stdout pipe from ffmpeg").into(),
-            ))?;
+        let stdout = child.stdout.take().ok_or_else(|| {
+            AudioStreamError::Fail(std::io::Error::other("no stdout pipe from ffmpeg").into())
+        })?;
 
         // Reap ffmpeg once it exits (e.g. SIGPIPE when songbird stops the track).
         tokio::spawn(async move {

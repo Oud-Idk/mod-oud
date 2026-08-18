@@ -17,11 +17,9 @@ pub async fn untrust(
         None => return Ok(()),
     };
 
-    let response_message = service::untrust_users_in_vc(
-        &ctx.serenity_context().http,
-        channel_id,
-        vec![target.id],
-    ).await?;
+    let response_message =
+        service::untrust_users_in_vc(&ctx.serenity_context().http, channel_id, vec![target.id])
+            .await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

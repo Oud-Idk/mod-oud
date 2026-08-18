@@ -7,7 +7,7 @@ use crate::features::music::MusicState;
 use crate::features::music::web_command::WebCommandBus;
 use crate::features::tickets::TicketLogPayload;
 use crate::shared::username_cache::UserUpdate;
-use serenity::all::{GuildId, ShardInfo, ChannelId};
+use serenity::all::{ChannelId, GuildId, ShardInfo};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::UnboundedSender;

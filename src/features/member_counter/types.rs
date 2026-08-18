@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, RoleId};
 use uuid::Uuid;
 
@@ -48,4 +48,6 @@ pub struct MemberCounterConfig {
     pub category_id: Option<ChannelId>,
 }
 
-const fn default_interval() -> u32 { 15 }
+const fn default_interval() -> u32 {
+    15
+}

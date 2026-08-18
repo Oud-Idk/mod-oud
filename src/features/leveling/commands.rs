@@ -81,7 +81,7 @@ pub async fn view(
         &stats_key,
         &target_user.name,
     )
-        .await?;
+    .await?;
 
     trace!(
         %target_id,
@@ -105,11 +105,7 @@ pub async fn view(
         "⬛".repeat(empty_blocks)
     );
 
-    let rank = database::get_user_rank(
-        db,
-        guild_id,
-        target_id,
-    )
+    let rank = database::get_user_rank(db, guild_id, target_id)
         .await?
         .map_or("Not Available".to_string(), |r| r.to_string());
 
@@ -200,15 +196,11 @@ pub async fn card(
         &stats_key,
         &target_user.name,
     )
-        .await?;
+    .await?;
 
     let xp_needed = calculate_xp_needed(user_level.current_level);
 
-    let rank = database::get_user_rank(
-        db,
-        guild_id,
-        target_user.id,
-    )
+    let rank = database::get_user_rank(db, guild_id, target_user.id)
         .await?
         .map_or(0, |r| r as u64);
 

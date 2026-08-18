@@ -2,13 +2,15 @@ use crate::core::config::state::WebState;
 use crate::features::reaction_roles;
 use crate::features::reaction_roles::database::{fetch_active_reactions, fetch_reaction_message};
 use crate::features::reaction_roles::types::InteractionMode;
-use crate::features::reaction_roles::web::helpers::{build_custom_msg, fetch_and_build_buttons, parse_config_id};
+use crate::features::reaction_roles::web::helpers::{
+    build_custom_msg, fetch_and_build_buttons, parse_config_id,
+};
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::Serialize;
+use serde_with::{DisplayFromStr, serde_as};
 use std::sync::Arc;
-use serde_with::{serde_as, DisplayFromStr};
 use tracing::{debug, info, warn};
 
 #[serde_as]
@@ -33,7 +35,10 @@ pub async fn handle_send_reaction_role_message(
 
     let Some(channel_id_u64) = config_row.channel_id.map(|id| id as u64) else {
         debug!("Channel ID is not specified, skipping.");
-        return Err((StatusCode::BAD_REQUEST, "Channel ID is not specified".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Channel ID is not specified".to_string(),
+        ));
     };
     let channel = serenity::all::ChannelId::new(channel_id_u64);
 
@@ -50,9 +55,10 @@ pub async fn handle_send_reaction_role_message(
         InteractionMode::Button => {
             let button_components = fetch_and_build_buttons(&state.core.db, config_row.id).await?;
             if !button_components.is_empty() {
-                message_builder = message_builder.components(vec![
-                    serenity::all::CreateActionRow::Buttons(button_components),
-                ]);
+                message_builder =
+                    message_builder.components(vec![serenity::all::CreateActionRow::Buttons(
+                        button_components,
+                    )]);
             }
         }
         InteractionMode::Reaction => {}
@@ -63,21 +69,26 @@ pub async fn handle_send_reaction_role_message(
         .await
         .map_err(|e| {
             warn!(error = ?e, "Failed to send payload to Discord channel");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal Server Error".to_string(),
+            )
         })?;
 
     if matches!(config_row.mode, InteractionMode::Reaction) {
         let reactions = fetch_active_reactions(&state.core.db, config_row.id).await?;
         for r in reactions {
             if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>()
-                && let Err(err) = message.react(&state.serenity_http, emoji).await {
-                    warn!(error = ?err, "Failed applying reaction emoji to post");
-                }
+                && let Err(err) = message.react(&state.serenity_http, emoji).await
+            {
+                warn!(error = ?err, "Failed applying reaction emoji to post");
+            }
         }
     }
 
     let message_id = message.id.get();
-    let _ = reaction_roles::database::add_message_to_db(&state, config_row, message_id as i64).await;
+    let _ =
+        reaction_roles::database::add_message_to_db(&state, config_row, message_id as i64).await;
 
     info!(
         guild_id = guild_id_str,
@@ -87,6 +98,6 @@ pub async fn handle_send_reaction_role_message(
 
     Ok((
         StatusCode::OK,
-        Json(SendReactionMessageResponse { message_id, }),
+        Json(SendReactionMessageResponse { message_id }),
     ))
 }

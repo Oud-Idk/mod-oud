@@ -1,5 +1,7 @@
 use crate::core::config::state::Error;
-use crate::features::custom_commands::types::{CommandAction, CooldownType, CustomCommand, CustomCommandRow};
+use crate::features::custom_commands::types::{
+    CommandAction, CooldownType, CustomCommand, CustomCommandRow,
+};
 use crate::features::custom_commands::{cache, keys};
 use fred::clients::Client;
 use serenity::all::GuildId;
@@ -9,7 +11,7 @@ use sqlx::types::Json;
 pub async fn get_custom_command_by_name(
     pool: &PgPool,
     redis: &Client,
-    guild_id: u64,
+    guild_id: GuildId,
     cmd_name: &str,
 ) -> Result<Option<CustomCommand>, Error> {
     let normalized_name = cmd_name.to_lowercase();
@@ -29,19 +31,22 @@ pub async fn get_custom_command_by_name(
         FROM custom_commands
         WHERE guild_id = $1 AND LOWER(name) = $2 AND enabled = TRUE
         "#,
-        guild_id as i64,
+        guild_id.get().cast_signed(),
         normalized_name
     )
-        .fetch_optional(pool)
-        .await?
-        .map(CustomCommand::from);
+    .fetch_optional(pool)
+    .await?
+    .map(CustomCommand::from);
 
     cache::cache_command_to_redis(redis, &cache_key, command.as_ref()).await;
 
     Ok(command)
 }
 
-pub async fn get_custom_command(pool: &PgPool, guild_id: GuildId) -> Result<Vec<SimpleCustomCommand>, sqlx::Error> {
+pub async fn get_custom_command(
+    pool: &PgPool,
+    guild_id: GuildId,
+) -> Result<Vec<SimpleCustomCommand>, sqlx::Error> {
     sqlx::query_as!(
         SimpleCustomCommand,
         r#"
@@ -52,8 +57,8 @@ pub async fn get_custom_command(pool: &PgPool, guild_id: GuildId) -> Result<Vec<
         "#,
         guild_id.get().cast_signed()
     )
-        .fetch_all(pool)
-        .await
+    .fetch_all(pool)
+    .await
 }
 
 pub struct SimpleCustomCommand {

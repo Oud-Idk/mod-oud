@@ -40,9 +40,12 @@ impl From<MediaOnlyChannelRow> for MediaOnlyChannel {
             auto_thread: row.auto_thread,
             thread_name_template: row.thread_name_template,
             delete_warning_after_secs: row.delete_warning_after_secs,
-            exempt_roles: row
-                .exempt_roles
-                .map(|roles| roles.into_iter().map(|id| RoleId::new(id.cast_unsigned())).collect()),
+            exempt_roles: row.exempt_roles.map(|roles| {
+                roles
+                    .into_iter()
+                    .map(|id| RoleId::new(id.cast_unsigned()))
+                    .collect()
+            }),
         }
     }
 }

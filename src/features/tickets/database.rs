@@ -12,14 +12,18 @@ pub async fn mark_ticket_as_closed_db(data: &&BotData, channel_id: ChannelId) ->
         "UPDATE tickets SET status = 'CLOSED', closed_at = NOW() WHERE channel_id = $1",
         channel_id.get() as i64
     )
-        .execute(&data.core.db)
-        .await?;
+    .execute(&data.core.db)
+    .await?;
     Ok(())
 }
 
-pub async fn update_close_button_db(data: &&BotData, channel_id: ChannelId, new_msg_id_i64: i64) -> Result<()> {
+pub async fn update_close_button_db(
+    data: &&BotData,
+    channel_id: ChannelId,
+    new_msg_id_i64: i64,
+) -> Result<()> {
     sqlx::query!(
-            r#"
+        r#"
             UPDATE tickets
             SET message_count = 0,
                 last_button_message_id = $1,
@@ -27,11 +31,11 @@ pub async fn update_close_button_db(data: &&BotData, channel_id: ChannelId, new_
                 warned = FALSE
             WHERE channel_id = $2
             "#,
-            new_msg_id_i64,
-            channel_id.get() as i64
-        )
-        .execute(&data.core.db)
-        .await?;
+        new_msg_id_i64,
+        channel_id.get() as i64
+    )
+    .execute(&data.core.db)
+    .await?;
 
     Ok(())
 }
@@ -56,11 +60,10 @@ pub async fn save_ticket_to_db(
         user_id.get() as i64,
         welcome_msg_id.get() as i64,
     )
-        .execute(&data.core.db)
-        .await?;
+    .execute(&data.core.db)
+    .await?;
     Ok(())
 }
-
 
 #[derive(Debug, Clone)]
 pub struct InactiveTicket {
@@ -82,8 +85,8 @@ pub async fn fetch_inactive_tickets(
         "#,
         safety_threshold
     )
-        .fetch_all(pool)
-        .await?;
+    .fetch_all(pool)
+    .await?;
 
     let candidates = rows
         .into_iter()
@@ -108,8 +111,8 @@ pub async fn mark_ticket_as_warned(pool: &PgPool, target_ids: &[ChannelId]) -> R
         "UPDATE tickets SET warned = TRUE WHERE channel_id = ANY($1)",
         &ids as &[i64]
     )
-        .execute(pool)
-        .await?;
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
@@ -127,8 +130,8 @@ pub async fn fetch_closing_candidates(
         "#,
         safety_threshold
     )
-        .fetch_all(pool)
-        .await?;
+    .fetch_all(pool)
+    .await?;
 
     let candidates = rows
         .into_iter()
@@ -153,8 +156,8 @@ pub async fn mark_ticket_as_closed(pool: &PgPool, tickets_to_close: &[ChannelId]
         "UPDATE tickets SET status = 'CLOSED' WHERE channel_id = ANY($1)",
         &ids as &[i64]
     )
-        .execute(pool)
-        .await?;
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
@@ -185,14 +188,9 @@ pub async fn flush_ticket_logs_to_db(
     let mut tx = pool.begin().await?;
 
     bulk_insert_ticket_messages(
-        &mut tx,
-        &chan_ids,
-        &msg_ids,
-        &auth_ids,
-        &contents,
-        &managers,
+        &mut tx, &chan_ids, &msg_ids, &auth_ids, &contents, &managers,
     )
-        .await?;
+    .await?;
 
     bulk_increment_ticket_message_counts(&mut tx, &chan_ids).await?;
 
@@ -244,8 +242,8 @@ async fn bulk_increment_ticket_message_counts(
         "#,
         chan_ids
     )
-        .execute(&mut **tx)
-        .await?;
+    .execute(&mut **tx)
+    .await?;
 
     Ok(())
 }

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 
 /// Config for the raid detection feature.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -41,11 +41,17 @@ pub struct RaidCheckResult {
 pub enum RaidAction {
     LockdownServer,
     BumpVerification,
-    PauseInvites { hours: i64 },
+    PauseInvites {
+        hours: i64,
+    },
     Alert {
         #[serde_as(as = "DisplayFromStr")]
         channel_id: u64,
     },
-    AutoBanNewAccounts { max_age_hours: u64 },
-    TimeoutNewJoins { mins: u32 },
+    AutoBanNewAccounts {
+        max_age_hours: u64,
+    },
+    TimeoutNewJoins {
+        mins: u32,
+    },
 }

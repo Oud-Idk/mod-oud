@@ -4,9 +4,18 @@ use std::time::SystemTime;
 use tracing::debug;
 
 /// Verifies that an HMAC signature is valid and has not expired.
-pub fn verify_sig(user_id: &str, guild_id: &str, expires: u64, sig: &str, secret_key: &[u8]) -> bool {
+pub fn verify_sig(
+    user_id: &str,
+    guild_id: &str,
+    expires: u64,
+    sig: &str,
+    secret_key: &[u8],
+) -> bool {
     // Check expiry
-    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     if now > expires {
         debug!(user_id = user_id, "User link expired, skipping.");
         return false;
@@ -26,16 +35,24 @@ pub fn verify_sig(user_id: &str, guild_id: &str, expires: u64, sig: &str, secret
 
 /// Generates a signed, expiring verification link for a user and guild.
 #[must_use]
-pub fn generate_verification_link(user_id: u64, guild_id: u64, secret_key: &[u8], domain: &str) -> String {
+pub fn generate_verification_link(
+    user_id: u64,
+    guild_id: u64,
+    secret_key: &[u8],
+    domain: &str,
+) -> String {
     // Link expires in 10 minutes (600 seconds)
-    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let expires = now + 600;
 
     let payload = format!("{user_id}:{guild_id}:{expires}");
 
     // Sign the payload using secret
-    let mut mac: Hmac<Sha256> = Hmac::new_from_slice(secret_key)
-        .expect("HMAC can take key of any size");
+    let mut mac: Hmac<Sha256> =
+        Hmac::new_from_slice(secret_key).expect("HMAC can take key of any size");
     mac.update(payload.as_bytes());
     let result = mac.finalize();
     let signature = hex::encode(result.into_bytes());
@@ -44,4 +61,3 @@ pub fn generate_verification_link(user_id: u64, guild_id: u64, secret_key: &[u8]
         "https://{domain}/verify/?user_id={user_id}&guild_id={guild_id}&expires={expires}&sig={signature}"
     )
 }
-

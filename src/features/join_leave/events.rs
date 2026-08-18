@@ -3,7 +3,7 @@ use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::join_leave::{database, log_join_to_db, messages, send};
 use anyhow::Result;
-use serenity::all::{ChannelId, Context, EditMember, GuildId, Member, RoleId, User};
+use serenity::all::{Context, EditMember, GuildId, Member, RoleId, User};
 use std::collections::HashSet;
 use tracing::{debug, info, trace, warn};
 
@@ -15,7 +15,7 @@ pub async fn send_leave_message(
     ctx: &Context,
     guild_id: GuildId,
     user: &User,
-    member_data_if_available: &Option<Member>,
+    member_data_if_available: Option<&Member>,
     data: &BotData,
 ) -> Result<()> {
     let user_id = user.id;
@@ -27,7 +27,7 @@ pub async fn send_leave_message(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled) else {
         trace!(
@@ -106,7 +106,7 @@ pub async fn handle_member_welcome(ctx: &Context, member: &Member, data: &BotDat
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
     let Some(config) = settings.welcome else {
         return Ok(());
     };

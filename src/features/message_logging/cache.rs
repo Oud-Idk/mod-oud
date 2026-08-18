@@ -1,6 +1,8 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
-use crate::features::message_logging::types::{DistributedCachedMessage, EditDetails, MessageDetails};
+use crate::features::message_logging::types::{
+    DistributedCachedMessage, EditDetails, MessageDetails,
+};
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface, PubsubInterface};
 use fred::prelude::Expiration;
@@ -8,17 +10,22 @@ use serenity::all::{ChannelId, Message, MessageId};
 use tracing::{debug, error, instrument};
 
 /// Spawns a background task to cache a message in Redis when message logging is enabled.
-pub async fn spawn_cache_message_in_redis(
-    data: &BotData,
-    msg: &Message,
-) -> Result<(), Error> {
-    if msg.author.bot { return Ok(()); }
+pub async fn spawn_cache_message_in_redis(data: &BotData, msg: &Message) -> Result<(), Error> {
+    if msg.author.bot {
+        return Ok(());
+    }
 
     let Some(guild_id) = msg.guild_id else {
         return Ok(());
     };
 
-    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id).await?;
+    let config = get_settings(
+        &data.core.db,
+        &data.core.redis,
+        &data.core.guild_configs_cache,
+        guild_id,
+    )
+    .await?;
 
     if !config.is_message_logging_enabled() {
         return Ok(());
@@ -45,10 +52,7 @@ pub async fn spawn_cache_message_in_redis(
         author_id = msg.author.id.get()
     )
 )]
-pub async fn cache_message_in_redis(
-    redis: &Client,
-    msg: &Message,
-) -> Result<(), Error> {
+pub async fn cache_message_in_redis(redis: &Client, msg: &Message) -> Result<(), Error> {
     let cached = DistributedCachedMessage {
         author_id: msg.author.id,
         author_name: msg.author.name.clone(),
@@ -65,7 +69,9 @@ pub async fn cache_message_in_redis(
     };
 
     let key = format!("msg:{}:{}", msg.channel_id.get(), msg.id.get());
-    let _: () = redis.set(&key, &serialized, Some(Expiration::EX(18000)), None, false).await?;
+    let _: () = redis
+        .set(&key, &serialized, Some(Expiration::EX(18000)), None, false)
+        .await?;
 
     debug!(key = %key, "Message successfully cached in Redis");
     Ok(())
@@ -157,7 +163,9 @@ pub async fn fetch_dist_edit_details(
                 }
             };
 
-            let _: () = redis.set(&key, serialized, Some(Expiration::EX(18000)), None, false).await?;
+            let _: () = redis
+                .set(&key, serialized, Some(Expiration::EX(18000)), None, false)
+                .await?;
         }
 
         Ok(Some(EditDetails {

@@ -5,9 +5,7 @@ use crate::shared::messages::send_ephemeral;
 
 /// Unlock your temporary voice channel.
 #[poise::command(slash_command)]
-pub async fn unlock(
-    ctx: Context<'_>,
-) -> Result<(), Error> {
+pub async fn unlock(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
     let (channel_id, guild_id, _) = match preflight_slash_check(&ctx).await? {
@@ -15,11 +13,8 @@ pub async fn unlock(
         None => return Ok(()),
     };
 
-    let response_message = service::unlock_temp_vc(
-        &ctx.serenity_context().http,
-        guild_id,
-        channel_id,
-    ).await?;
+    let response_message =
+        service::unlock_temp_vc(&ctx.serenity_context().http, guild_id, channel_id).await?;
 
     send_ephemeral(&ctx, response_message).await?;
 
