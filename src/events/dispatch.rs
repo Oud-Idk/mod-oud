@@ -56,7 +56,7 @@ pub async fn dispatch_events(
                 event,
                 data,
             )
-            .await?;
+                .await?;
         }
 
         FullEvent::Message { new_message } => {
@@ -72,7 +72,7 @@ pub async fn dispatch_events(
             user,
             member_data_if_available,
         } => {
-            join_leave::send_leave_message(ctx, guild_id, user, member_data_if_available, data)
+            join_leave::send_leave_message(ctx, *guild_id, user, member_data_if_available, data)
                 .await?;
         }
 
@@ -104,7 +104,7 @@ pub async fn dispatch_events(
                 sync_guild_voice_state(guild, data).await?;
                 Ok::<(), Error>(())
             })
-            .await?;
+                .await?;
         }
 
         FullEvent::InviteCreate { data: invite_data } => {
@@ -141,7 +141,7 @@ async fn on_voice_state_update(
         leveling::handle_voice_leveling(ctx, old, new, data).await?;
         Ok::<(), Error>(())
     })
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -157,7 +157,7 @@ async fn on_member_join(
         invite_tracking::store_member_invite(ctx, new_member, data).await?;
         Ok::<(), Error>(())
     })
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -170,10 +170,10 @@ async fn on_message_delete(
 ) -> Result<(), anyhow::Error> {
     Box::pin(async move {
         starboard::handle_cleanup_if_starboard(ctx, &data.core.db, deleted_message_id).await?;
-        message_logging::message_log_delete(ctx, channel_id, deleted_message_id, guild_id, data)
+        message_logging::message_log_delete(ctx, *channel_id, *deleted_message_id, guild_id, data)
             .await
     })
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -195,7 +195,7 @@ async fn on_message(
         media_only::handle_media_channel_message(ctx, new_message, data).await?;
         Ok(())
     })
-    .await?;
+        .await?;
     Ok(())
 }
 
@@ -219,7 +219,7 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
                 new_message.author.id.get(),
                 &new_message.author.name,
             )
-            .await?;
+                .await?;
         }
         FullEvent::MessageUpdate {
             old_if_available: Some(message),
@@ -230,7 +230,7 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
                 message.author.id.get(),
                 &message.author.name,
             )
-            .await?;
+                .await?;
         }
         FullEvent::GuildMemberAddition { new_member } => {
             store_username_relation(
@@ -238,7 +238,7 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
                 new_member.user.id.get(),
                 &new_member.user.name,
             )
-            .await?;
+                .await?;
         }
         FullEvent::GuildMemberRemoval { user, .. } => {
             store_username_relation(&data.core.username_tx, user.id.get(), &user.name).await?;
@@ -250,7 +250,7 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
                     member.user.id.get(),
                     &member.user.name,
                 )
-                .await?;
+                    .await?;
             }
             if let Some(member) = old.as_ref().and_then(|old| old.member.as_ref()) {
                 store_username_relation(
@@ -258,7 +258,7 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
                     member.user.id.get(),
                     &member.user.name,
                 )
-                .await?;
+                    .await?;
             }
         }
         FullEvent::InteractionCreate { interaction } => {

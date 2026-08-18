@@ -45,7 +45,7 @@ pub async fn handle_delete_entire_category(
         .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()))?;
 
     info!(
-        guild_id = guild_id_u64,
+        %guild_id,
         category_id = payload.category_id,
         deleted_children = deleted_count,
         "Successfully deleted category and nested channels via API"

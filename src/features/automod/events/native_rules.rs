@@ -4,10 +4,7 @@ use crate::features::automod::database::AutomodEntryRow;
 use crate::features::automod::insert_automod_row;
 use crate::features::automod::types::LoggedAction;
 use anyhow::Result;
-use serenity::{
-    all::{ActionExecution, Context},
-    model::id::{ChannelId, MessageId},
-};
+use serenity::all::{ActionExecution, Context};
 
 /// Persists an `AutoMod` rule execution event into the database for logging and auditing.
 ///
@@ -32,10 +29,10 @@ pub async fn store_automod(
     let rule_name = get_rule_name(ctx, redis, &execution.guild_id, execution.rule_id).await;
 
     let entry = AutomodEntryRow {
-        guild_id: execution.guild_id.get(),
-        user_id: execution.user_id.get(),
-        channel_id: execution.channel_id.map(ChannelId::get),
-        message_id: execution.message_id.map(MessageId::get),
+        guild_id: execution.guild_id,
+        user_id: execution.user_id,
+        channel_id: execution.channel_id,
+        message_id: execution.message_id,
         rule_name: &rule_name,
         trigger_content: execution.matched_content.as_deref(),
         original_content: Some(execution.content.as_str()),

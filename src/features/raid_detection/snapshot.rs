@@ -1,8 +1,10 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
-use crate::features::raid_detection::{database, keys};
+use crate::features::raid_detection::{cache, database, keys};
 use crate::features::verification::CaptchaType;
+use fred::clients::Client;
 use fred::interfaces::{KeysInterface, SetsInterface};
+use fred::prelude::FredResult;
 use fred::types::{Expiration, SetOptions};
 use serde::{Deserialize, Serialize};
 use serenity::all::Context;
@@ -18,20 +20,20 @@ pub struct PreRaidState {
 }
 
 /// Saves original guild state into Redis if a snapshot doesn't already exist for this raid session.
-#[instrument(skip(ctx, data), fields(guild_id = guild_id))]
+#[instrument(skip(ctx, data), fields(guild_id = %guild_id))]
 pub async fn ensure_preraid_state_saved(
     ctx: &Context,
     data: &BotData,
-    guild_id: u64,
+    guild_id: GuildId,
 ) -> Result<(), Error> {
-    debug!(guild_id, "Fetching current guild state and permissions for pre-raid snapshot");
+    debug!(%guild_id, "Fetching current guild state and permissions for pre-raid snapshot");
 
     // Fetch current guild state from Discord HTTP/Cache
-    let partial_guild = GuildId::new(guild_id)
+    let partial_guild = guild_id
         .to_partial_guild(&ctx.http)
         .await?;
 
-    let everyone_role_id = RoleId::new(guild_id);
+    let everyone_role_id = RoleId::new(guild_id.get());
     let everyone_perms = partial_guild
         .roles
         .get(&everyone_role_id)
@@ -65,61 +67,60 @@ pub async fn ensure_preraid_state_saved(
         )
         .await?;
 
-    let _: () = conn.sadd(keys::active_raids_key(), guild_id).await?;
+    let _: () = cache::add_guild_to_raid(guild_id, conn).await?;
 
     if res.is_some() {
         info!(
-            guild_id,
+            %guild_id,
             everyone_permissions = everyone_perms,
             verification_type = ?snapshot.original_verification_type,
             use_oauth = ?snapshot.original_oauth_required,
             "Successfully created and saved pre-raid state snapshot"
         );
     } else {
-        debug!(guild_id, "Pre-raid snapshot already exists in Redis; skipping overwrite");
+        debug!(%guild_id, "Pre-raid snapshot already exists in Redis; skipping overwrite");
     }
 
     Ok(())
 }
 
 /// Restores original guild state saved in Redis prior to the raid and removes the snapshot.
-#[instrument(skip(ctx, data), fields(guild_id = guild_id))]
+#[instrument(skip(ctx, data), fields(guild_id = %guild_id))]
 pub async fn restore_preraid_state(
     ctx: &Context,
     data: &BotData,
-    guild_id: u64,
+    guild_id: GuildId,
 ) -> Result<bool, Error> {
-    info!(guild_id, "Initiating pre-raid state restoration");
+    info!(%guild_id, "Initiating pre-raid state restoration");
 
     let redis_key = keys::raid_snapshot_key(guild_id);
 
-    // GETDEL atomically gets the string AND deletes the key in Redis
     let json_str: Option<String> = data.core.redis.getdel(&redis_key).await?;
     let Some(json_str) = json_str else {
         // Another worker or manual intervention already claimed and processed this snapshot!
-        debug!(guild_id, "Snapshot already claimed or non-existent; skipping duplicate restoration");
+        debug!(%guild_id, "Snapshot already claimed or non-existent; skipping duplicate restoration");
         return Ok(false);
     };
 
     let snapshot: PreRaidState = serde_json::from_str(&json_str)?;
 
     debug!(
-        guild_id,
+        %guild_id,
         raid_start_time = %snapshot.raid_start_time,
         "Restoring @everyone role permissions"
     );
 
-    let everyone_role_id = RoleId::new(guild_id);
+    let everyone_role_id = RoleId::new(guild_id.get());
     let original_perms = Permissions::from_bits_truncate(snapshot.original_everyone_permissions);
     let role_builder = EditRole::new().permissions(original_perms);
 
-    if let Err(e) = GuildId::new(guild_id)
+    if let Err(e) = guild_id
         .edit_role(&ctx.http, everyone_role_id, role_builder)
         .await
     {
         error!(
             error = ?e,
-            guild_id,
+            %guild_id,
             "Failed to restore @everyone role permissions"
         );
     }
@@ -129,7 +130,7 @@ pub async fn restore_preraid_state(
         .original_verification_type
         .map(|c| format!("{c}"));
 
-    debug!(guild_id, "Restoring verification settings in database");
+    debug!(%guild_id, "Restoring verification settings in database");
     database::restore_verification_settings(
         &data.core.db,
         guild_id,
@@ -139,9 +140,10 @@ pub async fn restore_preraid_state(
         .await?;
 
     // Remove from active raids set
-    let _: () = data.core.redis.srem(keys::active_raids_key(), guild_id).await?;
+    let _: () = cache::remove_guild_from_raid(guild_id, &data.core.redis).await?;
 
-    info!(guild_id, "Successfully claimed and restored pre-raid state");
+    info!(%guild_id, "Successfully claimed and restored pre-raid state");
 
     Ok(true)
 }
+

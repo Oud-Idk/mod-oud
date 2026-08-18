@@ -6,9 +6,10 @@ use crate::shared::username_cache::UserUpdate;
 use anyhow::Result;
 use fred::clients::Client;
 use futures_util::TryFutureExt;
+use serenity::all::{ChannelId, GuildId, Message, User};
 use tracing::{debug, trace, warn};
 
-pub fn extract_image_urls(message: &serenity::all::Message) -> Vec<String> {
+pub fn extract_image_urls(message: &Message) -> Vec<String> {
     let mut urls = Vec::new();
 
     for attachment in &message.attachments {
@@ -40,50 +41,43 @@ pub async fn issue_report(
     db: &sqlx::PgPool,
     redis: &Client,
     username_buf: &tokio::sync::mpsc::Sender<UserUpdate>,
-    guild_id: u64,
-    channel_id: i64,
-    message: &serenity::all::Message,
-    reporter: &serenity::all::User,
+    guild_id: GuildId,
+    reported_message: &Message,
+    reporter: &User,
     reason: String,
 ) -> Result<Option<i64>> {
     trace!(
-        guild_id = guild_id,
-        channel_id = channel_id,
-        message_id = message.id.get(),
-        reporter_id = reporter.id.get(),
+        %guild_id,
+        message_id = %reported_message.id,
+        reporter_id = %reporter.id,
         "Starting issue_report process"
     );
 
-    let author = &message.author;
-    let message_id = message.id.get() as i64;
-    let content = message.content.clone();
-    let attachment_url = extract_image_urls(message).join(",");
+    let reported_author = &reported_message.author;
+    store_username_relation(username_buf, reported_author.id.get(), &reported_author.name).await?;
 
-    let author_name = author.name.clone();
-    let author_id = author.id.get() as i64;
-    let reporter_name = reporter.name.clone();
+    let content = reported_message.content.clone();
+    let attachment_url = extract_image_urls(reported_message).join(",");
 
     trace!("Attempting to insert reported message into the database");
     let Some(row) = insert_reported_message(
         db,
         guild_id,
-        channel_id,
+        reported_message.channel_id,
         &attachment_url,
         &reason,
-        &reporter_name,
-        message,
+        reported_message,
         reporter,
     )
         .await? else {
         debug!(
-            message_id = message.id.get(),
+            message_id = reported_message.id.get(),
             reporter_id = reporter.id.get(),
             "Report creation skipped: message was already reported by this user"
         );
         return Ok(None);
     };
 
-    store_username_relation(username_buf, author.id.get(), &author_name).await?;
 
     let id = row.id;
     debug!(report_id = id, "Successfully saved reported message to database");
@@ -92,10 +86,10 @@ pub async fn issue_report(
 
     let payload = ReportedMessagePayload {
         id,
-        guild_id: guild_id.cast_signed(),
-        message_id,
-        author_id,
-        channel_id,
+        guild_id,
+        message_id: reported_message.id,
+        author_id: reported_message.author.id,
+        channel_id: reported_message.channel_id,
         reason,
         content,
         attachment_url: Some(attachment_url),
@@ -104,7 +98,7 @@ pub async fn issue_report(
         user_warned: false,
         user_timed_out: false,
         user_banned: false,
-        reporter_id: 0,
+        reporter_id: reporter.id,
     };
 
     trace!(report_id = id, "Serializing report payload to JSON");

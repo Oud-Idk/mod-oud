@@ -1,6 +1,6 @@
 use crate::core::config::state::Error;
 use crate::features::birthday::types::{ExpiredRole, FullUserBirthdayRecord, UserBirthdayRecord};
-use serenity::all::{ChannelId, RoleId};
+use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 use serenity::model::id::MessageId;
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
@@ -8,10 +8,10 @@ use sqlx::postgres::PgQueryResult;
 pub async fn store_birthday_log(
     db: &PgPool,
     current_year: i32,
-    guild_id: u64,
+    guild_id: GuildId,
     channel_id: ChannelId,
     sent_msg_id: Option<MessageId>,
-    uid: u64,
+    uid: UserId,
 ) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         r#"
@@ -19,14 +19,14 @@ pub async fn store_birthday_log(
         VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (guild_id, user_id, year_sent) DO NOTHING
         "#,
-        guild_id.cast_signed(),
-        uid.cast_signed(),
+        guild_id.get().cast_signed(),
+        uid.get().cast_signed(),
         current_year,
         channel_id.get().cast_signed(),
         sent_msg_id.map(|m| m.get().cast_signed()),
     )
-    .execute(db)
-    .await
+        .execute(db)
+        .await
 }
 
 pub async fn get_unannounced_birthdays(
@@ -34,10 +34,9 @@ pub async fn get_unannounced_birthdays(
     current_month: i16,
     current_day: i16,
     current_year: i32,
-    guild_id: u64,
+    guild_id: GuildId,
 ) -> Result<Vec<UserBirthdayRecord>, sqlx::Error> {
-    sqlx::query_as!(
-        UserBirthdayRecord,
+    let rows = sqlx::query!(
         r#"
         SELECT ub.user_id, ub.birth_year
         FROM user_birthdays ub
@@ -52,17 +51,25 @@ pub async fn get_unannounced_birthdays(
         "#,
         current_month,
         current_day,
-        guild_id.cast_signed(),
+        guild_id.get().cast_signed(),
         current_year
     )
-    .fetch_all(db)
-    .await
+        .fetch_all(db)
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| UserBirthdayRecord {
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            birth_year: r.birth_year,
+        })
+        .collect())
 }
 
 pub async fn save_user_with_birthday_role(
     db: &PgPool,
-    guild_id: u64,
-    uid: u64,
+    guild_id: GuildId,
+    uid: UserId,
     role_id: RoleId,
 ) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
@@ -72,31 +79,39 @@ pub async fn save_user_with_birthday_role(
         ON CONFLICT (guild_id, user_id) DO UPDATE
         SET expires_at = EXCLUDED.expires_at
         "#,
-        guild_id.cast_signed(),
-        uid.cast_signed(),
+        guild_id.get().cast_signed(),
+        uid.get().cast_signed(),
         role_id.get().cast_signed(),
     )
-    .execute(db)
-    .await
+        .execute(db)
+        .await
 }
 
 pub async fn fetch_expired_birthday_roles(pool: &PgPool) -> Result<Vec<ExpiredRole>, sqlx::Error> {
-    sqlx::query_as!(
-        ExpiredRole,
+    let rows = sqlx::query!(
         r#"
         SELECT guild_id, user_id, role_id
         FROM active_birthday_roles
         WHERE expires_at <= CURRENT_TIMESTAMP
-        "#,
+        "#
     )
-    .fetch_all(pool)
-    .await
+        .fetch_all(pool)
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| ExpiredRole {
+            guild_id: GuildId::new(r.guild_id as u64),
+            user_id: UserId::new(r.user_id as u64),
+            role_id: RoleId::new(r.role_id as u64),
+        })
+        .collect())
 }
 
 pub async fn fetch_enabled_guild_ids(
     db: &PgPool,
     current_hour: u32,
-) -> Result<Vec<u64>, sqlx::Error> {
+) -> Result<Vec<GuildId>, sqlx::Error> {
     let ids = sqlx::query_scalar!(
         r#"
         SELECT guild_id
@@ -108,17 +123,24 @@ pub async fn fetch_enabled_guild_ids(
         i32::try_from(current_hour)
             .expect("Since when is there more than 2 billion hours in a day")
     )
-    .fetch_all(db)
-    .await?;
+        .fetch_all(db)
+        .await?;
 
-    Ok(ids.into_iter().map(i64::cast_unsigned).collect())
+    Ok(ids.into_iter().map(i64::cast_unsigned).map(GuildId::from).collect())
 }
 
 pub async fn delete_expired_birthday_roles(
     pool: &PgPool,
-    guild_ids: &[i64],
-    user_ids: &[i64],
+    guild_ids: &[GuildId],
+    user_ids: &[UserId],
 ) -> Result<(), sqlx::Error> {
+    if guild_ids.is_empty() || user_ids.is_empty() {
+        return Ok(());
+    }
+
+    let raw_guild_ids: Vec<i64> = guild_ids.iter().map(|id| id.get().cast_signed()).collect();
+    let raw_user_ids: Vec<i64> = user_ids.iter().map(|id| id.get().cast_signed()).collect();
+
     sqlx::query!(
         r#"
         DELETE FROM active_birthday_roles
@@ -126,11 +148,11 @@ pub async fn delete_expired_birthday_roles(
             SELECT * FROM UNNEST($1::bigint[], $2::bigint[])
         )
         "#,
-        guild_ids,
-        user_ids
+        &raw_guild_ids[..],
+        &raw_user_ids[..],
     )
-    .execute(pool)
-    .await?;
+        .execute(pool)
+        .await?;
 
     Ok(())
 }
@@ -156,30 +178,42 @@ pub async fn set_birthday(
         day,
         year
     )
-    .execute(db)
-    .await?;
+        .execute(db)
+        .await?;
+
     Ok(())
 }
 
-/// Fetches upcoming birthdays within N days
+/// Fetches upcoming birthdays within N days (handles year-end wrap-around)
 pub async fn get_upcoming_birthdays(
     db: &PgPool,
     lookahead_days: i32,
 ) -> Result<Vec<FullUserBirthdayRecord>, sqlx::Error> {
-    sqlx::query_as!(
-        FullUserBirthdayRecord,
+    let rows = sqlx::query!(
         r#"
         SELECT user_id, birth_month, birth_day, birth_year
         FROM user_birthdays
-        WHERE MAKE_DATE(2000, birth_month, birth_day) >= MAKE_DATE(2000, EXTRACT(MONTH FROM CURRENT_DATE)::int, EXTRACT(DAY FROM CURRENT_DATE)::int)
-          AND MAKE_DATE(2000, birth_month, birth_day) <= MAKE_DATE(2000, EXTRACT(MONTH FROM CURRENT_DATE)::int, EXTRACT(DAY FROM CURRENT_DATE)::int) + ($1::int * INTERVAL '1 day')
-        ORDER BY birth_month, birth_day
+        WHERE (
+            (MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int, birth_month, birth_day) - CURRENT_DATE + 365) % 365
+        ) BETWEEN 0 AND $1
+        ORDER BY
+            ((MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int, birth_month, birth_day) - CURRENT_DATE + 365) % 365)
         LIMIT 25
         "#,
         lookahead_days
     )
         .fetch_all(db)
-        .await
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| FullUserBirthdayRecord {
+            user_id: UserId::new(r.user_id as u64),
+            birth_month: r.birth_month,
+            birth_day: r.birth_day,
+            birth_year: r.birth_year,
+        })
+        .collect())
 }
 
 /// Get a user's birthday record
@@ -187,8 +221,7 @@ pub async fn get_user_birthday(
     db: &PgPool,
     user_id: u64,
 ) -> Result<Option<FullUserBirthdayRecord>, sqlx::Error> {
-    sqlx::query_as!(
-        FullUserBirthdayRecord,
+    let row = sqlx::query!(
         r#"
         SELECT user_id, birth_month, birth_day, birth_year
         FROM user_birthdays
@@ -196,8 +229,15 @@ pub async fn get_user_birthday(
         "#,
         user_id.cast_signed()
     )
-    .fetch_optional(db)
-    .await
+        .fetch_optional(db)
+        .await?;
+
+    Ok(row.map(|r| FullUserBirthdayRecord {
+        user_id: UserId::new(r.user_id as u64),
+        birth_month: r.birth_month,
+        birth_day: r.birth_day,
+        birth_year: r.birth_year,
+    }))
 }
 
 /// Remove a user's birthday record
@@ -209,7 +249,8 @@ pub async fn remove_birthday(db: &PgPool, user_id: u64) -> Result<(), Error> {
         "#,
         user_id.cast_signed()
     )
-    .execute(db)
-    .await?;
+        .execute(db)
+        .await?;
+
     Ok(())
 }

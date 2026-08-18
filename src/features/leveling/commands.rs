@@ -45,15 +45,13 @@ pub async fn view(
         .with_context(|| "This command can only be used inside a server.")?;
     let target_user = user.as_ref().unwrap_or(ctx.author());
 
-    let caller_id = ctx.author().id.get();
+    let caller_id = ctx.author().id;
     let target_id = target_user.id;
-    let target_id_u64 = target_id.get();
-    let guild_id_u64 = guild_id.get();
 
     debug!(
-        caller_id,
-        target_id = target_id_u64,
-        guild_id = guild_id_u64,
+        %caller_id,
+        %target_id,
+        %guild_id,
         "Invoked level view slash command"
     );
 
@@ -61,16 +59,16 @@ pub async fn view(
     let db = &ctx.data().core.db;
     let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
-    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
+    let settings = get_settings(db, redis, guild_configs_cache, guild_id).await?;
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
         return Ok(());
     }
 
-    let stats_key = keys::member_stats_key(&guild_id, target_id);
+    let stats_key = keys::member_stats_key(guild_id, target_id);
 
     trace!(
-        target_id = target_id_u64,
+        %target_id,
         key = %stats_key,
         "Retrieving level profile from database/cache"
     );
@@ -78,15 +76,15 @@ pub async fn view(
     let user_level = get_user_level(
         redis,
         db,
-        &guild_id,
-        &target_id,
+        guild_id,
+        target_id,
         &stats_key,
         &target_user.name,
     )
-    .await?;
+        .await?;
 
     trace!(
-        target_id = target_id_u64,
+        %target_id,
         level = user_level.current_level,
         xp = user_level.current_xp,
         "Successfully retrieved level metadata"
@@ -109,15 +107,13 @@ pub async fn view(
 
     let rank = database::get_user_rank(
         db,
-        guild_id.get(),
-        target_id.get() as i64,
-        user_level.current_level,
-        user_level.current_xp,
+        guild_id,
+        target_id,
     )
-    .await?
-    .map_or("Not Available".to_string(), |r| r.to_string());
+        .await?
+        .map_or("Not Available".to_string(), |r| r.to_string());
 
-    // 👇 FORMATTING APPLIED HERE FOR EMBED
+    // FORMATTING APPLIED HERE FOR EMBED
     let formatted_xp = format_compact(user_level.current_xp as u64);
     let formatted_xp_needed = format_compact(xp_needed as u64);
 
@@ -145,7 +141,7 @@ pub async fn view(
         .color(BRAND_COLOR);
 
     trace!(
-        target_id = target_id_u64,
+        %target_id,
         "Dispatching response embed back to channel"
     );
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
@@ -187,36 +183,34 @@ pub async fn card(
     let db = &ctx.data().core.db;
     let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
-    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
+    let settings = get_settings(db, redis, guild_configs_cache, guild_id).await?;
 
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
         return Ok(());
     }
 
-    let stats_key = keys::member_stats_key(&guild_id, target_user.id);
+    let stats_key = keys::member_stats_key(guild_id, target_user.id);
 
     let user_level = get_user_level(
         redis,
         db,
-        &guild_id,
-        &target_user.id,
+        guild_id,
+        target_user.id,
         &stats_key,
         &target_user.name,
     )
-    .await?;
+        .await?;
 
     let xp_needed = calculate_xp_needed(user_level.current_level);
 
     let rank = database::get_user_rank(
         db,
-        guild_id.get(),
-        target_user.id.get() as i64,
-        user_level.current_level,
-        user_level.current_xp,
+        guild_id,
+        target_user.id,
     )
-    .await?
-    .map_or(0, |r| r as u64);
+        .await?
+        .map_or(0, |r| r as u64);
 
     let level: u64 = user_level.current_level as u64;
     let xp: u64 = user_level.current_xp as u64;
@@ -332,15 +326,15 @@ pub async fn add(
     let db = &ctx.data().core.db;
     let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
-    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
+    let settings = get_settings(db, redis, guild_configs_cache, guild_id).await?;
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
         return Ok(());
     }
 
-    let stats_key = keys::member_stats_key(&guild_id, user.id);
+    let stats_key = keys::member_stats_key(guild_id, user.id);
     let mut user_level =
-        get_user_level(redis, db, &guild_id, &user.id, &stats_key, &user.name).await?;
+        get_user_level(redis, db, guild_id, user.id, &stats_key, &user.name).await?;
 
     let old_level = user_level.current_level;
 
@@ -399,15 +393,15 @@ pub async fn remove(
     let db = &ctx.data().core.db;
     let guild_configs_cache = &ctx.data().core.guild_configs_cache;
 
-    let settings = get_settings(db, redis, guild_configs_cache, guild_id.get()).await?;
+    let settings = get_settings(db, redis, guild_configs_cache, guild_id).await?;
     if !is_leveling_enabled(&settings) {
         send_ephemeral(&ctx, "Leveling isn't enabled!").await?;
         return Ok(());
     }
 
-    let stats_key = keys::member_stats_key(&guild_id, user.id);
+    let stats_key = keys::member_stats_key(guild_id, user.id);
     let mut user_level =
-        get_user_level(redis, db, &guild_id, &user.id, &stats_key, &user.name).await?;
+        get_user_level(redis, db, guild_id, user.id, &stats_key, &user.name).await?;
 
     let old_level = user_level.current_level;
 

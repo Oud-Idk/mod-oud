@@ -14,31 +14,30 @@ pub async fn send_public_welcome(
     gctx: &GuildCtx,
     warning_text: &str,
 ) -> Result<(), Error> {
-    let guild_id = member.guild_id.get();
-    let user_id = member.user.id.get();
+    let guild_id = member.guild_id;
+    let user_id = member.user.id;
 
     let Some(public) = config.public.as_ref().filter(|p| p.enabled.unwrap_or(false)) else {
         return Ok(());
     };
 
-    let Some(channel_id_u64) = public.channel_id else {
+    let Some(channel_id) = public.channel_id else {
         warn!("Channel ID for welcome is somehow empty!");
         return Ok(());
     };
 
-    let channel_id = ChannelId::new(channel_id_u64);
-    trace!(guild_id, user_id, target_channel = channel_id_u64, "Assembling public welcome message layout");
+    trace!(%guild_id, %user_id, %channel_id, "Assembling public welcome message layout");
 
     match messages::build_welcome_message(public, member, context_channel, gctx, warning_text, false) {
         Ok(builder) => {
             if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
-                warn!(error = ?e, guild_id, user_id, target_channel = channel_id_u64, "Failed to send public welcome message to channel");
+                warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "Failed to send public welcome message to channel");
             } else {
-                debug!(guild_id, user_id, target_channel = channel_id_u64, "Public welcome message sent successfully");
+                debug!(%guild_id, %user_id, target_channel = %channel_id, "Public welcome message sent successfully");
             }
         }
         Err(e) => {
-            warn!(error = ?e, guild_id, user_id, "Failed to compile public welcome layout template");
+            warn!(error = ?e, %guild_id, %user_id, "Failed to compile public welcome layout template");
         }
     }
 

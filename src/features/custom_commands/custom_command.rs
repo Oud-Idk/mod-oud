@@ -21,7 +21,7 @@ pub async fn handle_custom_command(
         return Ok(());
     }
 
-    let channel_id = msg.channel_id.get().cast_signed();
+    let channel_id = msg.channel_id;
     if !command.allowed_channels.is_empty() && !command.allowed_channels.contains(&channel_id) {
         return Ok(());
     }
@@ -30,10 +30,10 @@ pub async fn handle_custom_command(
     }
 
     if let Some(member) = &msg.member {
-        if !command.allowed_roles.is_empty() && !member.has_any_role_i64(&command.allowed_roles) {
+        if !command.allowed_roles.is_empty() && !member.has_any_role(&command.allowed_roles) {
             return Ok(());
         }
-        if member.has_any_role_i64(&command.ignored_roles) {
+        if member.has_any_role(&command.ignored_roles) {
             return Ok(());
         }
     }
@@ -91,7 +91,7 @@ async fn execute_payload(
             send_payload(&ctx.http, cid, payload, |t| {
                 placeholders::replace_general_placeholders(t, msg, gctx, channel)
             })
-            .await?;
+                .await?;
         }
         CommandAction::RespondCurrentChannel {
             is_dm,
@@ -104,12 +104,12 @@ async fn execute_payload(
                 send_payload(&ctx.http, dm_channel.id, payload, |t| {
                     placeholders::replace_general_placeholders(t, msg, gctx, channel)
                 })
-                .await?;
+                    .await?;
             } else {
                 send_payload(&ctx.http, msg.channel_id, payload, |t| {
                     placeholders::replace_general_placeholders(t, msg, gctx, channel)
                 })
-                .await?;
+                    .await?;
             }
         }
         CommandAction::AddRole { role_id } => {

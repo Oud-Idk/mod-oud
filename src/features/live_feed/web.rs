@@ -11,6 +11,7 @@ use std::time::Duration;
 use axum::Router;
 use axum::routing::get;
 use serde_with::{serde_as, DisplayFromStr};
+use serenity::all::GuildId;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::{debug, error, instrument, warn};
@@ -19,7 +20,7 @@ use tracing::{debug, error, instrument, warn};
 #[derive(Deserialize, Debug)]
 pub struct SseQuery {
     #[serde_as(as = "DisplayFromStr")]
-    pub guild_id: u64,
+    pub guild_id: GuildId,
 }
 
 #[instrument(skip(state))]
@@ -38,7 +39,7 @@ pub async fn sse_handler(
         })
         .filter(move |msg| {
             msg.guild_id().is_some_and(|g_id| {
-                let is_match = g_id as u64 == params.guild_id;
+                let is_match = g_id == params.guild_id;
                 if is_match {
                     debug!(guild_id = %g_id, "Routing matching event to client");
                 }

@@ -84,7 +84,7 @@ async fn handle_starboard_reaction(
     }
 
     let Some(member) = builder::resolve_member(ctx, guild_id, user_id, reaction).await else {
-        warn!(guild_id = %guild_id, user_id = %user_id, "Could not resolve reacting member");
+        warn!(%guild_id, user_id = %user_id, "Could not resolve reacting member");
         return Ok(());
     };
 

@@ -45,11 +45,10 @@ pub async fn send_message(
     guild_id: &GuildId,
     previous_level: i32,
 ) -> Result<()> {
-    let guild_id_u64 = guild_id.get();
-    let user_id = &user_level.user_id;
+    let user_id = user_level.user_id;
 
     trace!(
-        guild_id = guild_id_u64,
+        %guild_id,
         user_id = %user_id,
         current_level = user_level.current_level,
         "Initiating level up notification sequence"
@@ -74,7 +73,7 @@ pub async fn send_message(
     ).unwrap_or_else(|e| {
         warn!(
             error = ?e,
-            guild_id = guild_id_u64,
+            %guild_id,
             user_id = %user_id,
             "Failed to compile custom level-up layout; using standard fallback"
         );
@@ -83,7 +82,7 @@ pub async fn send_message(
 
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(
-            guild_id = guild_id_u64,
+            %guild_id,
             user_id = %user_id,
             "Using fallback level-up announcement string"
         );
@@ -101,20 +100,16 @@ pub async fn send_voice_level_up_message(
     user: &User,
     user_level: &UserLevel,
     config: &LevelingConfig,
-    guild_id: &GuildId,
+    guild_id: GuildId,
     voice_channel_id: ChannelId,
     previous_level: i32,
 ) -> Result<()> {
-    let guild_id_u64 = guild_id.get();
-    let user_id_u64 = user.id.get();
-
     trace!(
-        guild_id = guild_id_u64,
-        user_id = user_id_u64,
+        %guild_id,
         "Compiling custom voice level up message"
     );
 
-    let gctx = get_guild_ctx(*guild_id, ctx.http.as_ref()).await?;
+    let gctx = get_guild_ctx(guild_id, ctx.http.as_ref()).await?;
 
     let custom_message_opt = build_custom_message(
         config.notify.message.format,
@@ -133,8 +128,7 @@ pub async fn send_voice_level_up_message(
         .unwrap_or_else(|e| {
             warn!(
             error = ?e,
-            guild_id = guild_id_u64,
-            user_id = user_id_u64,
+            %guild_id,
             "Failed to construct custom VC level-up layout; using standard fallback"
         );
             None
@@ -142,8 +136,7 @@ pub async fn send_voice_level_up_message(
 
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(
-            guild_id = guild_id_u64,
-            user_id = user_id_u64,
+            %guild_id,
             "Using fallback default voice level-up message"
         );
         let content = format!(

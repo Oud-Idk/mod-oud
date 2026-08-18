@@ -1,10 +1,11 @@
 use crate::core::config::state::{BotData, Error};
+use crate::features::tickets::keys;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, HashesInterface, KeysInterface, LuaInterface, PubsubInterface, SetsInterface};
 use serenity::all::{ChannelId, GuildChannel};
 use tracing::debug;
 
-pub fn is_ticket_active(data: &BotData, channel_id: u64) -> bool {
+pub fn is_ticket_active(data: &BotData, channel_id: ChannelId) -> bool {
     data.caches.active_tickets.contains_key(&channel_id)
 }
 
@@ -12,9 +13,9 @@ pub async fn mark_ticket_as_closed_redis(channel_id: ChannelId, channel_id_str: 
     debug!("Running Redis pipeline to remove ticket keys and publish close event");
     let pipeline = redis.pipeline();
 
-    let _: () = pipeline.srem("active_tickets", channel_id_str).await?;
-    let _: () = pipeline.del(format!("ticket:{channel_id_str}")).await?;
-    let _: () = pipeline.publish("ticket_updates", format!("close:{}", channel_id.get())).await?;
+    let _: () = pipeline.srem(keys::active_tickets_key(), channel_id_str).await?;
+    let _: () = pipeline.del(keys::ticket_key(channel_id)).await?;
+    let _: () = pipeline.publish(keys::ticket_updates_channel(), format!("close:{}", channel_id.get())).await?;
     let _: () = pipeline.all().await?;
     Ok(())
 }
@@ -26,7 +27,7 @@ pub async fn update_close_button_redis(redis: &Client, ticket_key: &str, new_msg
 
 pub async fn publish_open_ticket(redis: &Client, ticket_channel: &GuildChannel) -> FredResult<()> {
     redis
-        .publish("ticket_updates", format!("open:{}", ticket_channel.id.get()))
+        .publish(keys::ticket_updates_channel(), format!("open:{}", ticket_channel.id.get()))
         .await
 }
 
@@ -67,7 +68,7 @@ pub async fn initialize_redis_state(
     welcome_msg_id: serenity::all::MessageId,
 ) -> Result<(), Error> {
     let channel_id_str = channel_id.get().to_string();
-    let ticket_key = format!("ticket:{channel_id_str}");
+    let ticket_key = keys::ticket_key(channel_id);
 
     let now_ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -76,7 +77,7 @@ pub async fn initialize_redis_state(
 
     let pipeline = data.core.redis.pipeline();
 
-    let _: () = pipeline.sadd("active_tickets", &channel_id_str).await?;
+    let _: () = pipeline.sadd(keys::active_tickets_key(), &channel_id_str).await?;
 
     let hset_fields = vec![
         ("message_count", 0u64),
@@ -84,7 +85,7 @@ pub async fn initialize_redis_state(
         ("last_button_message_id", welcome_msg_id.get()),
     ];
     let _: () = pipeline.hset(&ticket_key, hset_fields).await?;
-    let _: () = pipeline.publish("ticket_updates", format!("open:{}", channel_id.get())).await?;
+    let _: () = pipeline.publish(keys::ticket_updates_channel(), format!("open:{}", channel_id.get())).await?;
 
     let _: () = pipeline.all().await?;
 

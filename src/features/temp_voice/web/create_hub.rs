@@ -40,12 +40,12 @@ pub async fn handle_create_temp_category_and_hub(
     let category_builder = serenity::all::CreateChannel::new(&payload.category_name)
         .kind(serenity::all::ChannelType::Category);
 
-    info!(guild_id = guild_id_u64, name = %payload.category_name, "Creating temporary category");
+    info!(%guild_id, name = %payload.category_name, "Creating temporary category");
 
     let category = guild_id
         .create_channel(&state.serenity_http, category_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create category"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create category"))
         .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     let interface_builder = serenity::all::CreateChannel::new("Interface")
@@ -55,11 +55,11 @@ pub async fn handle_create_temp_category_and_hub(
     let interface_channel = guild_id
         .create_channel(&state.serenity_http, interface_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create interface channel"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create interface channel"))
         .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     info!(
-        guild_id = guild_id_u64,
+        %guild_id,
         channel_id = interface_channel.id.get(),
         "Created interface channel."
     );
@@ -71,11 +71,11 @@ pub async fn handle_create_temp_category_and_hub(
     let voice_channel = guild_id
         .create_channel(&state.serenity_http, voice_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, guild_id = guild_id_u64, "Failed to create voice hub channel"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create voice hub channel"))
         .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     info!(
-        guild_id = guild_id_u64,
+        %guild_id,
         category_id = %category.id,
         interface_channel_id = %interface_channel.id.get(),
         voice_channel_id = %voice_channel.id,

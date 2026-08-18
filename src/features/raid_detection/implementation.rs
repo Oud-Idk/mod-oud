@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use fred::clients::Client;
 use fred::interfaces::KeysInterface; // Needed for .set() method
 use fred::types::{Expiration, SetOptions};
+use serenity::all::{GuildId, UserId};
 use tracing::{debug, error, info, instrument, trace, warn};
 use uuid::Uuid;
 
@@ -39,10 +40,10 @@ impl DynamicRaidDetector {
         }
     }
 
-    #[instrument(skip(self), fields(guild_id = guild_id, ttl_seconds = ttl_seconds))]
+    #[instrument(skip(self), fields(%guild_id, ttl_seconds = ttl_seconds))]
     pub async fn try_set_raid_active(
         &self,
-        guild_id: u64,
+        guild_id: GuildId,
         ttl_seconds: i64,
     ) -> Result<bool, Error> {
         let active_key = keys::raid_active_key(guild_id);
@@ -60,26 +61,26 @@ impl DynamicRaidDetector {
 
         let set_success = res.is_some();
         if set_success {
-            info!(guild_id, ttl_seconds, "Set raid active flag for guild");
+            info!(%guild_id, ttl_seconds, "Set raid active flag for guild");
         } else {
-            debug!(guild_id, "Raid active flag already set for guild");
+            debug!(%guild_id, "Raid active flag already set for guild");
         }
 
         Ok(set_success)
     }
 
     /// Records a member join and checks if it triggers a raid alert.
-    #[instrument(skip(self, now), fields(guild_id = guild_id, user_id = user_id))]
+    #[instrument(skip(self, now), fields(guild_id = %guild_id, user_id = %user_id))]
     pub async fn record_join(
         &self,
-        guild_id: u64,
-        user_id: u64,
+        guild_id: GuildId,
+        user_id: UserId,
         now: DateTime<Utc>,
     ) -> Result<RaidCheckResult, Error> {
         let now_ts = now.timestamp();
         let hour_str = now.format("%Y%m%d%H").to_string();
 
-        trace!(guild_id, user_id, "Fetching or updating threshold stats");
+        trace!(%guild_id, %user_id, "Fetching or updating threshold stats");
         let stats = self.get_or_update_threshold(guild_id, now).await?;
 
         let current_joins_in_window = cache::record_join_event(
@@ -106,8 +107,8 @@ impl DynamicRaidDetector {
 
         if is_anomaly {
             warn!(
-                guild_id,
-                user_id,
+                %guild_id,
+                %user_id,
                 current_joins_in_window,
                 threshold,
                 avg_joins_per_min = result.avg_joins_per_min,
@@ -115,8 +116,8 @@ impl DynamicRaidDetector {
             );
         } else {
             debug!(
-                guild_id,
-                user_id,
+                %guild_id,
+                %user_id,
                 current_joins_in_window,
                 threshold,
                 "Join recorded within normal thresholds"
@@ -126,26 +127,26 @@ impl DynamicRaidDetector {
         Ok(result)
     }
 
-    #[instrument(skip(self, now), fields(guild_id = guild_id))]
+    #[instrument(skip(self, now), fields(guild_id = %guild_id))]
     async fn get_or_update_threshold(
         &self,
-        guild_id: u64,
+        guild_id: GuildId,
         now: DateTime<Utc>,
     ) -> Result<Stats, Error> {
         let stats_cache_key = keys::stats_cache_key(guild_id);
 
         if let Ok(Some(stats)) = cache::get_threshold(&self.redis, &stats_cache_key).await {
-            trace!(guild_id, "Retrieved stats threshold from cache");
+            trace!(%guild_id, "Retrieved stats threshold from cache");
             return Ok(stats);
         }
 
-        debug!(guild_id, "Stats cache miss, acquiring recompute lock");
+        debug!(%guild_id, "Stats cache miss, acquiring recompute lock");
         let lock_key = keys::lock_key(&stats_cache_key);
         let lock_value = Uuid::new_v4().to_string();
 
         let lock_guard = if let Some(guard) = acquire_lock(&self.redis, &lock_key, &lock_value, 2).await? { guard } else {
             warn!(
-                guild_id,
+                %guild_id,
                 min_safe_limit = self.min_safe_limit,
                 "Could not acquire lock to recompute threshold; falling back to min_safe_limit"
             );
@@ -159,7 +160,7 @@ impl DynamicRaidDetector {
         let stats_res = self.recompute_stats(guild_id, now, &stats_cache_key).await;
 
         if let Err(ref e) = stats_res {
-            error!(guild_id, error = %e, "Failed to recompute stats");
+            error!(%guild_id, error = %e, "Failed to recompute stats");
         }
 
         let _ = lock_guard.release().await;
@@ -167,10 +168,10 @@ impl DynamicRaidDetector {
         stats_res
     }
 
-    #[instrument(skip(self, now), fields(guild_id = guild_id))]
+    #[instrument(skip(self, now), fields(guild_id = %guild_id))]
     async fn recompute_stats(
         &self,
-        guild_id: u64,
+        guild_id: GuildId,
         now: DateTime<Utc>,
         stats_cache_key: &str,
     ) -> Result<Stats, Error> {
@@ -178,7 +179,7 @@ impl DynamicRaidDetector {
         let history = cache::get_history_from_cache(&self.redis, now, &hash_key).await?;
 
         debug!(
-            guild_id,
+            %guild_id,
             history_points = history.len(),
             "Calculating threshold from historical data"
         );
@@ -192,7 +193,7 @@ impl DynamicRaidDetector {
         cache::cache_calculated_stats(&self.redis, now, stats_cache_key, &hash_key, &stats).await?;
 
         info!(
-            guild_id,
+            %guild_id,
             threshold = stats.threshold,
             mean_window = stats.mean_window,
             std_dev_window = stats.std_dev_window,
@@ -202,15 +203,15 @@ impl DynamicRaidDetector {
         Ok(stats)
     }
 
-    #[instrument(skip(self), fields(guild_id = guild_id, ttl_seconds = ttl_seconds))]
+    #[instrument(skip(self), fields(guild_id = %guild_id, ttl_seconds = ttl_seconds))]
     pub async fn extend_raid_active(
         &self,
-        guild_id: u64,
+        guild_id: GuildId,
         ttl_seconds: i64,
     ) -> Result<(), Error> {
         let active_key = keys::raid_active_key(guild_id);
         let _: () = self.redis.expire(active_key, ttl_seconds, None).await?;
-        debug!(guild_id, ttl_seconds, "Extended raid active TTL");
+        debug!(%guild_id, ttl_seconds, "Extended raid active TTL");
         Ok(())
     }
 }
@@ -257,10 +258,10 @@ fn calculate_threshold(
     }
 }
 
-#[instrument(skip(redis), fields(guild_id = guild_id))]
-pub async fn clear_raid_active(redis: &Client, guild_id: u64) -> Result<(), Error> {
+#[instrument(skip(redis), fields(guild_id = %guild_id))]
+pub async fn clear_raid_active(redis: &Client, guild_id: GuildId) -> Result<(), Error> {
     let active_key = keys::raid_active_key(guild_id);
     let _: () = redis.del(active_key).await?;
-    info!(guild_id, "Cleared raid active state");
+    info!(%guild_id, "Cleared raid active state");
     Ok(())
 }

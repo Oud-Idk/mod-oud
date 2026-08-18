@@ -9,7 +9,7 @@ use axum::http::{HeaderValue, Method};
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
 use moka::future::Cache;
-use serenity::all::Http;
+use serenity::all::{GuildId, Http};
 use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ pub async fn start_web_server(
     http: Arc<Http>,
     redis_client: Client,
     subscriber_client: SubscriberClient,
-    guild_configs: Cache<u64, GuildSettings>,
+    guild_configs: Cache<GuildId, GuildSettings>,
     tx: broadcast::Sender<LogEvent>,
     reqwest_client: reqwest::Client,
     username_tx: tokio::sync::mpsc::Sender<crate::shared::username_cache::UserUpdate>,

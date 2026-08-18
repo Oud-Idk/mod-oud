@@ -2,6 +2,7 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::member_counter::counters::update_guild_counters;
+use crate::shared::messages::send_ephemeral;
 
 /// Manage member counter channels for this server.
 #[poise::command(
@@ -20,16 +21,10 @@ pub async fn counters(_ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command, guild_only)]
 pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-
-    let guild_id_u64 = if let Some(id) = ctx.guild_id() {
-        id.get()
-    } else {
-        ctx.say("This command can only be used in a server.")
-            .await?;
-        return Ok(());
+    let Some(guild_id) = ctx.guild_id() else {
+        send_ephemeral(&ctx, "You're not in a guild!").await?;
+        return Ok(())
     };
-    let guild_id = guild_id_u64;
-
     let data = ctx.data();
 
     let settings = get_settings(
@@ -38,7 +33,7 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
         &data.core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
 
     let counter_config = match settings.member_counter {
         Some(ref c) if c.enabled => c,
@@ -85,7 +80,7 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
             ctx.say(response).await?;
         }
         Err(e) => {
-            tracing::error!(error = ?e, guild_id = guild_id_u64, "Failed to force sync counters via command");
+            tracing::error!(error = ?e, %guild_id, "Failed to force sync counters via command");
             ctx.say("❌ Failed to update member counters due to an internal error.")
                 .await?;
         }

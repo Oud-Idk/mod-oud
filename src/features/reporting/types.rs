@@ -2,6 +2,7 @@ use crate::core::config::message_layout::TogglableMessage;
 use crate::shared::string_i64;
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
+use serenity::all::{ChannelId, GuildId, MessageId, UserId};
 
 #[derive(Debug)]
 pub enum ReportUpdate {
@@ -18,8 +19,8 @@ pub enum ReportUpdate {
 pub enum DashboardAction {
     ResolveReport { status: ReportStatus },
     DeleteMessage {
-        #[serde_as(as = "DisplayFromStr")] channel_id: u64,
-        #[serde_as(as = "DisplayFromStr")] message_id: u64,
+        #[serde_as(as = "DisplayFromStr")] channel_id: ChannelId,
+        #[serde_as(as = "DisplayFromStr")] message_id: MessageId,
     },
     WarnUser,
     TimeoutUser,
@@ -55,33 +56,34 @@ pub struct DashboardCommand {
     pub action: DashboardAction,
     #[serde(with = "string_i64")]
     pub report_id: i64,
-    pub moderator_id: Option<i64>,
+    pub moderator_id: Option<UserId>,
     pub reason: Option<String>,
     pub duration_mins: Option<u64>,
     pub name: Option<String>,
 }
 
 /// Payload describing a reported message for the dashboard.
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportedMessagePayload {
     /// ID of the report row.
-    #[serde(with = "string_i64")]
+    #[serde_as(as = "DisplayFromStr")]
     pub id: i64,
     /// ID of the guild the report belongs to.
-    #[serde(with = "string_i64")]
-    pub guild_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub guild_id: GuildId,
     /// ID of the channel the reported message was in.
-    #[serde(with = "string_i64")]
-    pub channel_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: ChannelId,
     /// ID of the reported message.
-    #[serde(with = "string_i64")]
-    pub message_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub message_id: MessageId,
     /// ID of the reported message's author.
-    #[serde(with = "string_i64")]
-    pub author_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub author_id: UserId,
     /// ID of the user who filed the report.
-    #[serde(with = "string_i64")]
-    pub reporter_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub reporter_id: UserId,
     /// Reason given for the report.
     pub reason: String,
     /// Content of the reported message.

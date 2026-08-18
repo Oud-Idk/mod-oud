@@ -52,15 +52,15 @@ pub async fn check_for_filter(
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get(),
+        guild_id,
     )
-    .await?;
+        .await?;
 
-    let guild_id = guild_id.get();
-    tracing::Span::current().record("guild_id", guild_id);
+    let guild_id = guild_id;
+    tracing::Span::current().record("guild_id", guild_id.get());
 
-    let author_id = message.author.id.get();
-    let channel_id_u64 = message.channel_id.get();
+    let author_id = message.author.id;
+    let channel_id = message.channel_id;
 
     let global_settings = config
         .message_filtering
@@ -68,7 +68,7 @@ pub async fn check_for_filter(
         .and_then(|f| f.global_settings.as_ref());
 
     let should_apply = global_settings.is_none_or(|global_scope| {
-        should_apply_filter(global_scope, channel_id_u64, message.member.as_deref())
+        should_apply_filter(global_scope, channel_id, message.member.as_deref())
     });
 
     if !should_apply {

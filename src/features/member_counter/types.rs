@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, NoneAsEmptyString, DisplayFromStr};
+use serde_with::{serde_as, DisplayFromStr};
+use serenity::all::{ChannelId, RoleId};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -18,13 +19,13 @@ pub enum CounterType {
 pub struct CounterChannel {
     #[serde_as(as = "DisplayFromStr")]
     pub id: Uuid,
-    #[serde_as(as = "NoneAsEmptyString")]
+    #[serde_as(as = "Option<DisplayFromStr>")]
     #[serde(default)]
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<ChannelId>,
     pub counter_type: CounterType,
-    #[serde_as(as = "NoneAsEmptyString")]
+    #[serde_as(as = "Option<DisplayFromStr>")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub role_id: Option<u64>,
+    pub role_id: Option<RoleId>,
     pub name_template: String,
 }
 
@@ -44,7 +45,7 @@ pub struct MemberCounterConfig {
     /// Category where counter channels are created.
     #[serde(default)]
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub category_id: Option<u64>,
+    pub category_id: Option<ChannelId>,
 }
 
 const fn default_interval() -> u32 { 15 }

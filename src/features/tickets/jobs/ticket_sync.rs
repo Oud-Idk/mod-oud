@@ -1,9 +1,11 @@
 use crate::core::config::state::Error;
+use crate::features::tickets::keys;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use fred::types::scan::Scanner;
-use futures_util::{StreamExt, pin_mut};
+use futures_util::{pin_mut, StreamExt};
 use moka::future::Cache;
+use serenity::all::ChannelId;
 use tracing::{debug, error, info, instrument, warn};
 
 #[instrument(skip(redis), fields(set_key = %set_key))]
@@ -57,12 +59,14 @@ where
 #[instrument(skip(redis_client, cache))]
 async fn hydrate_active_tickets(
     redis_client: &Client,
-    cache: &Cache<u64, ()>,
+    cache: &Cache<ChannelId, ()>,
 ) -> Result<(), Error> {
     debug!("Invalidating local ticket cache before hydration");
     cache.invalidate_all();
 
-    let active_channels: Vec<u64> = scan_all_set_members(redis_client, "active_tickets", 250).await?;
+    // Serenity's ChannelId implements std::str::FromStr, so scan_all_set_members parses directly into ChannelId
+    let active_channels: Vec<ChannelId> =
+        scan_all_set_members(redis_client, keys::active_tickets_key(), 250).await?;
     let count = active_channels.len();
 
     for channel_id in active_channels {
@@ -77,7 +81,7 @@ async fn hydrate_active_tickets(
 pub fn sync_tickets(
     redis_client: &Client,
     subscriber_client: &SubscriberClient,
-    active_tickets_cache: &Cache<u64, ()>,
+    active_tickets_cache: &Cache<ChannelId, ()>,
 ) {
     let cache_clone = active_tickets_cache.clone();
 
@@ -85,7 +89,7 @@ pub fn sync_tickets(
         let cache = cache_clone.clone();
 
         async move {
-            if msg.channel != "ticket_updates" {
+            if msg.channel != keys::ticket_updates_channel() {
                 return Ok(());
             }
 
@@ -106,7 +110,7 @@ pub fn sync_tickets(
             }
 
             let action = parts[0];
-            let channel_id = match parts[1].parse::<u64>() {
+            let channel_id = match parts[1].parse::<ChannelId>() {
                 Ok(id) => id,
                 Err(e) => {
                     warn!(
@@ -165,7 +169,7 @@ pub fn sync_tickets(
         }
 
         debug!("Subscribing to 'ticket_updates' pub/sub channel");
-        match subscriber_clone_startup.subscribe("ticket_updates").await {
+        match subscriber_clone_startup.subscribe(keys::ticket_updates_channel()).await {
             Ok(()) => {
                 info!("Subscribed to 'ticket_updates' channel. Auto-reconnect and re-hydration active");
             }

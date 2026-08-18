@@ -2,14 +2,15 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::automod::actions::{RuleActionPayload, execute_rule_actions};
 use crate::features::automod::types::{AntiSpamRule, MessageFilteringConfig};
 use serenity::all::Message;
+use serenity::model::id::{GuildId, UserId};
 use std::time::Duration;
 
 async fn handle_spam(
     ctx: &serenity::all::Context,
     message: &Message,
     data: &BotData,
-    guild_id: u64,
-    author_id: u64,
+    guild_id: GuildId,
+    author_id: UserId,
     warning_cooldown: Duration,
     anti_spam_rule: &AntiSpamRule,
 ) -> Result<(), Error> {
@@ -39,8 +40,8 @@ pub async fn handle_spam_prevention(
     message: &Message,
     data: &BotData,
     filtering: &MessageFilteringConfig,
-    guild_id: u64,
-    author_id: u64,
+    guild_id: GuildId,
+    author_id: UserId,
 ) -> Result<bool, Error> {
     let Some(anti_spam) = &filtering.anti_spam else {
         return Ok(false);

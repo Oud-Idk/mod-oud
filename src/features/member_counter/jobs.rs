@@ -6,21 +6,23 @@ use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use moka::future::Cache;
+use serenity::all::{GuildId, Http};
 use tokio::time::{Instant, interval};
 use tracing::{error, info, trace, warn};
 
 /// Starts the member counter background task loop.
 pub fn start_member_counter_job(
-    http: Arc<serenity::all::Http>,
+    http: Arc<Http>,
     serenity_cache: Arc<serenity::all::Cache>,
     db: PgPool,
     redis: Client,
-    cache: moka::future::Cache<u64, GuildSettings>,
+    cache: Cache<GuildId, GuildSettings>,
 ) {
     tokio::spawn(async move {
         info!("Member counter background job started");
 
-        let mut last_updated: HashMap<u64, Instant> = HashMap::new();
+        let mut last_updated: HashMap<GuildId, Instant> = HashMap::new();
 
         let mut timer = interval(Duration::from_mins(1));
 
@@ -44,15 +46,15 @@ pub fn start_member_counter_job(
 }
 
 async fn process_all_member_counters(
-    http: &serenity::all::Http,
+    http: &Http,
     serenity_cache: &serenity::all::Cache,
     db: &PgPool,
     redis: &Client,
-    cache: &moka::future::Cache<u64, GuildSettings>,
-    last_updated: &mut HashMap<u64, Instant>,
+    cache: &Cache<GuildId, GuildSettings>,
+    last_updated: &mut HashMap<GuildId, Instant>,
 ) -> anyhow::Result<()> {
     // Query database for all guild IDs that have member counter enabled
-    let guild_ids: Vec<u64> = sqlx::query_scalar(
+    let guild_ids: Vec<GuildId> = sqlx::query_scalar::<_, i64>(
         r"
         SELECT guild_id
         FROM guild_configs
@@ -61,13 +63,15 @@ async fn process_all_member_counters(
     )
         .fetch_all(db)
         .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(|id| GuildId::new(id as u64))
+                .collect()
+        })
         .unwrap_or_else(|e| {
             warn!(error = ?e, "Failed to query active member counter guilds from DB");
             Vec::new()
-        })
-        .into_iter()
-        .map(|id: i64| id.cast_unsigned())
-        .collect();
+        });
 
     if guild_ids.is_empty() {
         trace!("No active member counters to process");
@@ -79,7 +83,7 @@ async fn process_all_member_counters(
         let settings = match get_settings(db, redis, cache, guild_id).await {
             Ok(s) => s,
             Err(e) => {
-                warn!(guild_id, error = ?e, "Failed to fetch settings for guild");
+                warn!(%guild_id, error = ?e, "Failed to fetch settings for guild");
                 continue;
             }
         };
@@ -93,12 +97,12 @@ async fn process_all_member_counters(
         let interval_secs = u64::from(counter_config.update_interval_minutes.max(5)) * 60;
         if let Some(last_time) = last_updated.get(&guild_id)
             && last_time.elapsed().as_secs() < interval_secs {
-                continue; // Not time yet for this guild
-            }
+            continue; // Not time yet for this guild
+        }
 
         // Process counters for this guild
         if let Err(e) = update_guild_counters(http, serenity_cache, guild_id, counter_config).await {
-            warn!(guild_id, error = ?e, "Failed to update member counter channels for guild");
+            warn!(%guild_id, error = ?e, "Failed to update member counter channels for guild");
         } else {
             last_updated.insert(guild_id, Instant::now());
         }

@@ -5,7 +5,7 @@ use crate::features::automod::types::{BaseRule, RuleAction};
 use crate::features::moderation::issue_mute;
 use crate::features::warning::issue_warning;
 use crate::shared::username_cache::UserUpdate;
-use serenity::all::{ChannelId, CreateMessage, Mentionable, Message, Timestamp, User};
+use serenity::all::{ChannelId, CreateMessage, GuildId, Mentionable, Message, Timestamp, User};
 use std::time::Duration;
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -52,12 +52,12 @@ pub async fn execute_rule_actions(
 
     if should_warn.unwrap_or(true)
         && let Err(e) = log_automod_event(
-            &data.core.db,
-            message,
-            rule_name,
-            trigger_content,
-            &actions_taken,
-        )
+        &data.core.db,
+        message,
+        rule_name,
+        trigger_content,
+        &actions_taken,
+    )
         .await
     {
         error!(error = %e, "Failed to log automod event");
@@ -72,7 +72,7 @@ pub async fn execute_rule_actions(
         should_warn,
         custom_dm_message,
     )
-    .await;
+        .await;
 }
 
 async fn handle_automod(
@@ -104,7 +104,7 @@ async fn handle_automod(
                     &data.core.guild_configs_cache,
                     &data.core.username_tx,
                 )
-                .await;
+                    .await;
             }
             RuleAction::Timeout => {
                 apply_mute(
@@ -116,7 +116,7 @@ async fn handle_automod(
                     &data.core.redis,
                     &data.core.guild_configs_cache,
                 )
-                .await;
+                    .await;
             }
             RuleAction::RemindPublicly => {
                 if warn_enabled {
@@ -140,7 +140,7 @@ async fn apply_warning(
     message: &Message,
     db: &sqlx::PgPool,
     redis_conn: &fred::clients::Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &moka::future::Cache<GuildId, GuildSettings>,
     username_buf_tx: &tokio::sync::mpsc::Sender<UserUpdate>,
 ) {
     let Some(guild_id) = message.guild_id else {
@@ -170,7 +170,7 @@ async fn apply_warning(
         &moderator_username,
         &target_username,
     )
-    .await
+        .await
     {
         Ok(warn_id) => info!(
             warn_id,
@@ -191,7 +191,7 @@ async fn apply_mute(
     base: &BaseRule,
     db: &sqlx::PgPool,
     redis_conn: &fred::clients::Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &moka::future::Cache<GuildId, GuildSettings>,
 ) {
     let Some(guild_id) = message.guild_id else {
         return;
@@ -226,7 +226,7 @@ async fn apply_mute(
         &duration,
         timeout_until,
     )
-    .await
+        .await
     {
         Ok(()) => info!(
             duration_secs,
@@ -252,7 +252,7 @@ async fn apply_public_reminder(ctx: &serenity::all::Context, message: &Message, 
         ),
         Duration::from_secs(5),
     )
-    .await;
+        .await;
 }
 
 #[instrument(skip(ctx, message), fields(user_id = %message.author.id.get()))]

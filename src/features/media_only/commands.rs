@@ -37,8 +37,8 @@ pub async fn set(
     let mut config = get_channel_media(data, channel_id)
         .await?
         .unwrap_or_else(|| MediaOnlyChannel {
-            channel_id: channel_id.get() as i64,
-            guild_id: guild_id.get() as i64,
+            channel_id,
+            guild_id,
             enabled: true,
             ..Default::default()
         });
@@ -56,8 +56,8 @@ pub async fn set(
     }
 
     config.enabled = true;
-    config.channel_id = channel_id.get() as i64;
-    config.guild_id = guild_id.get() as i64;
+    config.channel_id = channel_id;
+    config.guild_id = guild_id;
 
     store_media_only_channel(&data.core.db, &data.core.redis, config).await?;
     send_ephemeral(
@@ -123,7 +123,7 @@ pub async fn info(
         .map(|roles| {
             roles
                 .iter()
-                .map(|id| format!("<@&{}>", *id as u64))
+                .map(|id| format!("<@&{id}>"))
                 .collect::<Vec<_>>()
                 .join(", ")
         });
@@ -178,7 +178,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
 
     let mut list = "Media only channels in this guild:\n".to_string();
     for channel in channels {
-        list.push_str(&format!("- <#{}>\n", channel.channel_id as u64));
+        list.push_str(&format!("- <#{}>\n", channel.channel_id));
     }
 
     send_ephemeral(&ctx, list).await?;

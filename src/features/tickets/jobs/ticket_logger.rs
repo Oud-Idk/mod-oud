@@ -1,5 +1,6 @@
+use crate::features::tickets::database;
 use crate::features::tickets::types::TicketLogPayload;
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, error, info, instrument, trace};
@@ -30,9 +31,9 @@ pub fn start_ticket_logger(
                 msg = rx.recv() => {
                     if let Some(payload) = msg {
                         trace!(
-                            ticket_channel_id = payload.ticket_channel_id,
-                            message_id = payload.message_id,
-                            author_id = payload.author_id,
+                            ticket_channel_id = %payload.ticket_channel_id,
+                            message_id = %payload.message_id,
+                            author_id = %payload.author_id,
                             "Received ticket log payload"
                         );
 
@@ -71,58 +72,8 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<TicketLogPayload>) -> Result<
     let batch_size = records.len();
 
     debug!(batch_size, "Starting batch flush of ticket logs to database");
-
-    let mut chan_ids = Vec::with_capacity(records.len());
-    let mut msg_ids = Vec::with_capacity(records.len());
-    let mut auth_ids = Vec::with_capacity(records.len());
-    let mut contents = Vec::with_capacity(records.len());
-    let mut managers = Vec::with_capacity(records.len());
-
-    for rec in records {
-        chan_ids.push(rec.ticket_channel_id);
-        msg_ids.push(rec.message_id);
-        auth_ids.push(rec.author_id);
-        contents.push(rec.content);
-        managers.push(rec.is_ticket_manager);
-    }
-
-    // Start a transaction so our bulk insert and bulk update are consistent!
-    let mut tx = db.begin().await?;
-
-    // Bulk Insert logs
-    sqlx::query!(
-        r#"
-        INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content, is_ticket_manager)
-        SELECT * FROM UNNEST($1::bigint[], $2::bigint[], $3::bigint[], $4::text[], $5::boolean[])
-        "#,
-        &chan_ids[..],
-        &msg_ids[..],
-        &auth_ids[..],
-        &contents[..],
-        &managers[..]
-    )
-        .execute(&mut *tx)
-        .await?;
-
-    // Bulk Update tickets count
-    sqlx::query!(
-        r#"
-        UPDATE tickets t
-        SET message_count = t.message_count + sub.cnt
-        FROM (
-            SELECT ticket_channel_id, COUNT(*) as cnt
-            FROM UNNEST($1::bigint[]) AS ticket_channel_id
-            GROUP BY ticket_channel_id
-        ) sub
-        WHERE t.channel_id = sub.ticket_channel_id;
-        "#,
-        &chan_ids
-    )
-        .execute(&mut *tx)
-        .await?;
-
-    tx.commit().await?;
-
+    database::flush_ticket_logs_to_db(db, &records).await?;
     debug!(batch_size, "Successfully committed ticket log batch to database");
+
     Ok(())
 }

@@ -1,12 +1,14 @@
+use std::str::FromStr;
 use crate::core::config::settings::GuildSettings;
 use fred::clients::SubscriberClient;
 use fred::prelude::{EventInterface, PubsubInterface};
 use moka::future::Cache;
+use serenity::all::GuildId;
 
 /// Listens for Redis Pub/Sub events on `config_updates` and evicts matching guild IDs from the Moka cache.
 ///
 /// Expects payload format: `invalidate:GUILD_ID`.
-pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<u64, GuildSettings>) {
+pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<GuildId, GuildSettings>) {
     let cache_clone = config_cache.clone();
 
     // Runs on every pub/sub events
@@ -41,7 +43,7 @@ pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<u64, Gui
             }
 
             // Parses the second element (`guild_id`) as u64
-            let Ok(guild_id) = parts[1].parse::<u64>().inspect_err(|e| {
+            let Ok(guild_id) = GuildId::from_str(parts[1]).inspect_err(|e| {
                 tracing::warn!(
                     guild_id_raw = %parts[1],
                     error = ?e,
@@ -53,7 +55,7 @@ pub fn sync_configs(subscriber: &SubscriberClient, config_cache: &Cache<u64, Gui
 
             // Invalidate the Moka cache
             cache.invalidate(&guild_id).await;
-            tracing::info!(guild_id = %guild_id, "Evicted guild config from memory cache via pub/sub");
+            tracing::info!(%guild_id, "Evicted guild config from memory cache via pub/sub");
 
             Ok(())
         }

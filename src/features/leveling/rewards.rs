@@ -10,7 +10,7 @@ use tracing::{debug, info, instrument};
 #[instrument(
     skip(ctx, db),
     fields(
-        guild_id = %guild_id.get(),
+        %guild_id,
         user_id = %user_id.get(),
         new_level
     )
@@ -18,12 +18,12 @@ use tracing::{debug, info, instrument};
 pub async fn apply_level_rewards(
     ctx: &Context,
     db: &PgPool,
-    guild_id: &GuildId,
+    guild_id: GuildId,
     user_id: UserId,
     new_level: i32,
 ) -> Result<(), Error> {
     debug!("Fetching level rewards from database");
-    let rewards = fetch_level_rewards(db, guild_id.get()).await?;
+    let rewards = fetch_level_rewards(db, guild_id).await?;
 
     let mut eligible_rewards: Vec<&LevelReward> = rewards
         .iter()
@@ -47,7 +47,7 @@ pub async fn apply_level_rewards(
     );
 
     debug!("Fetching current roles for member");
-    let member_roles = fetch_member_roles(ctx, *guild_id, user_id).await;
+    let member_roles = fetch_member_roles(ctx, guild_id, user_id).await;
 
     info!(
         "Applying role modifications to user: adding {:?}, removing {:?}",
@@ -56,7 +56,7 @@ pub async fn apply_level_rewards(
 
     apply_role_modifications(
         ctx,
-        *guild_id,
+        guild_id,
         user_id,
         member_roles.as_deref(),
         roles_to_add,

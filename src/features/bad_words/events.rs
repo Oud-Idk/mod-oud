@@ -6,6 +6,7 @@ use crate::features::bad_words::{cache, database, keys};
 use fred::interfaces::KeysInterface;
 use futures::FutureExt as _;
 use serenity::all::Message;
+use serenity::model::id::GuildId;
 use std::borrow::Cow;
 use std::sync::Arc;
 use tracing::{debug, trace};
@@ -101,7 +102,7 @@ fn block_verdict<'a>(ruleset: &'a CompiledRuleset, trigger: &str) -> FilterVerdi
 /// Transient Redis read/write failures do not return an error directly.
 pub async fn get_active_bad_word_rulesets(
     data: &BotData,
-    guild_id: u64,
+    guild_id: GuildId,
 ) -> Result<Arc<Vec<CompiledRuleset>>, Error> {
     data.caches
         .bad_words
@@ -113,7 +114,7 @@ pub async fn get_active_bad_word_rulesets(
                 Ok(Some(cached_str)) => {
                     match serde_json::from_str::<Vec<BadWordRuleset>>(&cached_str) {
                         Ok(parsed) => {
-                            debug!(guild_id, "Redis L2 Cache hit for bad word rulesets");
+                            debug!(%guild_id, "Redis L2 Cache hit for bad word rulesets");
                             parsed
                         }
                         Err(_) => fetch_and_cache_from_db(data, guild_id, &cache_key).await?,
@@ -145,11 +146,11 @@ pub async fn get_active_bad_word_rulesets(
 /// Helper to fetch rows from Postgres L3 and write-through to Redis L2
 async fn fetch_and_cache_from_db(
     data: &BotData,
-    guild_id: u64,
+    guild_id: GuildId,
     cache_key: &str,
 ) -> Result<Vec<BadWordRuleset>, Error> {
     let db_rows = database::fetch_bad_word_rows(&data.core.db, guild_id).await?;
-    debug!(guild_id, "PostgreSQL Fetch for bad word rulesets");
+    debug!(%guild_id, "PostgreSQL Fetch for bad word rulesets");
 
     if let Ok(serialized) = serde_json::to_string(&db_rows) {
         let _ = cache::cache_bad_word(cache_key, &data.core.redis, serialized).await;

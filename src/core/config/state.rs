@@ -7,7 +7,7 @@ use crate::features::music::MusicState;
 use crate::features::music::web_command::WebCommandBus;
 use crate::features::tickets::TicketLogPayload;
 use crate::shared::username_cache::UserUpdate;
-use serenity::all::ShardInfo;
+use serenity::all::{GuildId, ShardInfo, ChannelId};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::UnboundedSender;
@@ -31,7 +31,7 @@ pub struct CoreServices {
     pub reqwest_client: reqwest::Client,
 
     /// In-memory cache for [`GuildSettings`], indexed by Discord guild ID.
-    pub guild_configs_cache: moka::future::Cache<u64, GuildSettings>,
+    pub guild_configs_cache: moka::future::Cache<GuildId, GuildSettings>,
 
     /// Channel sender for queueing asynchronous username updates.
     pub username_tx: tokio::sync::mpsc::Sender<UserUpdate>,
@@ -77,13 +77,13 @@ impl AppConfig {
 #[derive(Clone)]
 pub struct BotCaches {
     /// Cache tracking currently active support ticket channel IDs.
-    pub active_tickets: moka::future::Cache<u64, ()>,
+    pub active_tickets: moka::future::Cache<ChannelId, ()>,
 
     /// Cache storing recently fetched Discord audit log entries.
-    pub audit_logs: moka::future::Cache<u64, Arc<CachedAuditLogs>>,
+    pub audit_logs: moka::future::Cache<GuildId, Arc<CachedAuditLogs>>,
 
     /// Cache all bad word rulesets for bad word feature
-    pub bad_words: moka::future::Cache<u64, Arc<Vec<CompiledRuleset>>>,
+    pub bad_words: moka::future::Cache<GuildId, Arc<Vec<CompiledRuleset>>>,
 }
 
 /// Security and automated moderation services.

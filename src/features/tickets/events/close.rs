@@ -58,7 +58,7 @@ async fn cleanup_ticket_records(data: &BotData, channel_id: ChannelId) -> Result
     tickets::cache::mark_ticket_as_closed_redis(channel_id, &channel_id_str, redis).await?;
 
     debug!("Evicting ticket from local active cache");
-    data.caches.active_tickets.remove(&channel_id.get()).await;
+    data.caches.active_tickets.remove(&channel_id).await;
 
     info!("Database and cache records cleaned up successfully");
     Ok(())

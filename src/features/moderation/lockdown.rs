@@ -157,7 +157,7 @@ pub async fn apply_global_lock(
     )
         .await? { guard } else {
         debug!(
-            guild_id = guild_id.get(),
+            %guild_id,
             "Global lock sweep already in progress for this guild; skipping"
         );
         return Ok(None);
@@ -204,7 +204,7 @@ pub async fn apply_global_lock(
     // Explicit release (rather than just letting the guard drop) so the lock frees up
     // immediately instead of waiting out its TTL if another sweep wants to run right after.
     if let Err(err) = guard.release().await {
-        warn!(error = ?err, guild_id = guild_id.get(), "Failed to explicitly release sweep lock; it will still expire via TTL");
+        warn!(error = ?err, %guild_id, "Failed to explicitly release sweep lock; it will still expire via TTL");
     }
 
     Ok(Some(report))
@@ -233,7 +233,7 @@ pub async fn apply_global_unlock(
     )
         .await? { guard } else {
         debug!(
-            guild_id = guild_id.get(),
+            %guild_id,
             "Global lock sweep already in progress for this guild; skipping"
         );
         return Ok(None);
@@ -268,7 +268,7 @@ pub async fn apply_global_unlock(
     }
 
     if let Err(err) = guard.release().await {
-        warn!(error = ?err, guild_id = guild_id.get(), "Failed to explicitly release sweep lock; it will still expire via TTL");
+        warn!(error = ?err, %guild_id, "Failed to explicitly release sweep lock; it will still expire via TTL");
     }
 
     Ok(Some(report))

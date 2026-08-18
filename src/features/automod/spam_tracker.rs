@@ -2,6 +2,7 @@ use crate::features::automod::{cache, keys};
 use anyhow::Result;
 use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
+use serenity::model::id::{GuildId, UserId};
 use std::time::Duration;
 use tracing::{debug, instrument, trace};
 
@@ -51,7 +52,7 @@ impl SpamTracker {
         name = "spam_tracker::check_and_record",
         skip(self),
         fields(
-            guild_id = %guild_id,
+            %guild_id,
             user_id = %user_id,
             limit
         ),
@@ -59,8 +60,8 @@ impl SpamTracker {
     )]
     pub async fn check_and_record_async(
         &self,
-        guild_id: u64,
-        user_id: u64,
+        guild_id: GuildId,
+        user_id: UserId,
         limit: usize,
         window: Duration,
     ) -> Result<bool> {
@@ -117,15 +118,15 @@ impl SpamTracker {
         name = "spam_tracker::check_warning_cooldown",
         skip(self),
         fields(
-            guild_id = %guild_id,
+            %guild_id,
             user_id = %user_id
         ),
         err
     )]
     pub async fn check_warning_cooldown_async(
         &self,
-        guild_id: u64,
-        user_id: u64,
+        guild_id: GuildId,
+        user_id: UserId,
         cooldown: Duration,
     ) -> Result<bool> {
         trace!("Checking warning cooldown status in Redis");

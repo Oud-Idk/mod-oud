@@ -7,8 +7,9 @@ use crate::features::raid_detection::keys;
 use fred::interfaces::{KeysInterface, SetsInterface};
 use serenity::all::{ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp};
 use tracing::{error, info};
+use crate::features::raid_detection::keys::active_raids_key;
 
-pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: u64) {
+pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
     tokio::spawn(async move {
         let active_key = keys::raid_active_key(guild_id);
 
@@ -34,11 +35,9 @@ pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: u64) {
     });
 }
 
-pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id_u64: u64) -> Result<(), Error> {
-    let guild_id = GuildId::new(guild_id_u64);
-
-    let restored = restore_preraid_state(ctx, data, guild_id_u64).await
-        .inspect_err(|e| error!(error = ?e, "Failed to restore pre-raid state for guild {guild_id_u64}"))
+pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id: GuildId) -> Result<(), Error> {
+    let restored = restore_preraid_state(ctx, data, guild_id).await
+        .inspect_err(|e| error!(error = ?e, "Failed to restore pre-raid state for guild {guild_id}"))
         .unwrap_or(false);
 
     if !restored {
@@ -46,7 +45,7 @@ pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id_u64: u64) -
     }
 
     let Some(raid_config) = get_settings(
-        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id_u64,
+        &data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id,
     ).await?.raid_detection else {
         return Ok(());
     };
@@ -86,7 +85,14 @@ pub async fn handle_raid_end(ctx: &Context, data: &BotData, guild_id_u64: u64) -
 
 /// Re-attaches raid monitors or reverts stale raid state for tracked guilds at startup.
 pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(), Error> {
-    let tracked_guilds: Vec<u64> = data.core.redis.smembers("active_raids").await?;
+    let tracked_guilds: Vec<GuildId> = data
+        .core
+        .redis
+        .smembers::<Vec<u64>, _>(active_raids_key())
+        .await?
+        .into_iter()
+        .map(GuildId::new)
+        .collect();
 
     for guild_id in tracked_guilds {
         let active_key = keys::raid_active_key(guild_id);

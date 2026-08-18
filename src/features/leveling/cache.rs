@@ -11,12 +11,12 @@ use serenity::all::{ChannelId, GuildId, UserId};
 use sqlx::PgPool;
 use tracing::{debug, instrument, trace, warn};
 
-#[instrument(skip(redis, db), fields(guild_id = %guild_id.get()))]
+#[instrument(skip(redis, db), fields(%guild_id))]
 pub async fn cache_aside_multipliers(
     redis: &Client,
     multiplier_key: &str,
     db: &PgPool,
-    guild_id: &GuildId,
+    guild_id: GuildId,
 ) -> Result<Vec<XpMultiplier>> {
     debug!(key = %multiplier_key, "Checking Redis cache for multipliers");
     let cached_multipliers: Option<String> = redis.get(multiplier_key).await.ok();
@@ -173,15 +173,15 @@ pub async fn open_session(
     redis: &Client,
     guild_id: GuildId,
     user_id: UserId,
-    channel_id: u64,
+    channel_id: ChannelId,
     now: i64,
     start_clock: bool,
 ) -> Result<()> {
-    let key = leveling::keys::session_key(guild_id, user_id);
+    let key = keys::session_key(guild_id, user_id);
     trace!(
-        guild_id = guild_id.get(),
-        user_id = user_id.get(),
-        channel_id,
+        %guild_id,
+        %user_id,
+        %channel_id,
         start_clock,
         "Opening voice session"
     );
@@ -203,13 +203,13 @@ pub async fn resume_clock(
     user_id: UserId,
     now: i64,
 ) -> Result<()> {
-    let key = leveling::keys::session_key(guild_id, user_id);
+    let key = keys::session_key(guild_id, user_id);
     if let Some(mut s) = get_session(redis, &key).await?
         && s.clock_started_at.is_none() {
-            trace!(guild_id = guild_id.get(), user_id = user_id.get(), "Resuming voice XP clock");
-            s.clock_started_at = Some(now);
-            set_session(redis, &key, &s).await?;
-        }
+        trace!(%guild_id, user_id = user_id.get(), "Resuming voice XP clock");
+        s.clock_started_at = Some(now);
+        set_session(redis, &key, &s).await?;
+    }
     Ok(())
 }
 
@@ -224,10 +224,10 @@ pub async fn pause_clock(
     let key = leveling::keys::session_key(guild_id, user_id);
     if let Some(mut s) = get_session(redis, &key).await?
         && let Some(started) = s.clock_started_at.take() {
-            trace!(guild_id = guild_id.get(), user_id = user_id.get(), "Pausing voice XP clock (alone in channel)");
-            s.accumulated_secs += (now - started).max(0);
-            set_session(redis, &key, &s).await?;
-        }
+        trace!(%guild_id, user_id = user_id.get(), "Pausing voice XP clock (alone in channel)");
+        s.accumulated_secs += (now - started).max(0);
+        set_session(redis, &key, &s).await?;
+    }
     Ok(())
 }
 

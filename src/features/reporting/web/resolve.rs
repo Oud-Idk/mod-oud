@@ -10,18 +10,18 @@ use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
 use tracing::{error, info, instrument, warn};
 
-#[instrument(skip(state, redis), fields(report_id = cmd.report_id, guild_id = %guild_id, status = ?status
+#[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, status = ?status
 ))]
 pub async fn handle_resolve_report(
     state: &WebState,
     cmd: &DashboardCommand,
     status: &ReportStatus,
-    guild_id: &GuildId,
+    guild_id: GuildId,
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
     info!("Resolving report status and notifying reporter");
 
-    let config = get_settings(&state.core.db, redis, &state.core.guild_configs_cache, guild_id.get())
+    let config = get_settings(&state.core.db, redis, &state.core.guild_configs_cache, guild_id)
         .await
         .inspect_err(|e| error!(error = %e, "Failed to resolve guild config"))
         .map_err(|_| WebError::Internal)?;

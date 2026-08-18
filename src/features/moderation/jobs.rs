@@ -85,7 +85,7 @@ async fn process_expired_temp_bans(
             match guild_id.unban(http_ref, user_id).await {
                 Ok(()) => {
                     debug!(
-                        guild_id = %guild_id,
+                        %guild_id,
                         user_id = %user_id,
                         ban_id = record.id,
                         "Successfully unbanned user"
@@ -95,7 +95,7 @@ async fn process_expired_temp_bans(
                 Err(e) => {
                     if is_unknown_ban_error(&e) {
                         debug!(
-                            guild_id = %guild_id,
+                            %guild_id,
                             user_id = %user_id,
                             ban_id = record.id,
                             "User was already unbanned manually (Unknown Ban error); assuming success"
@@ -103,7 +103,7 @@ async fn process_expired_temp_bans(
                         Ok(record.id)
                     } else {
                         error!(
-                            guild_id = %guild_id,
+                            %guild_id,
                             user_id = %user_id,
                             ban_id = record.id,
                             error = ?e,

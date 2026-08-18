@@ -58,7 +58,7 @@ async fn set(
             ))
             .ephemeral(true),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -69,8 +69,7 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
     let guild_id = ctx
         .guild_id()
-        .with_context(|| "Must be run in a guild")?
-        .get();
+        .with_context(|| "Must be run in a guild")?;
 
     let settings = crate::core::config::settings::get_settings(
         &ctx.data().core.db,
@@ -78,7 +77,7 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
         &ctx.data().core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
 
     let Some(birthday_cfg) = settings.birthday.filter(|c| c.enabled) else {
         send_ephemeral(&ctx, "Birthday announcements are disabled for this server.").await?;
@@ -93,10 +92,10 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
     };
 
     let gctx = get_guild_ctx(
-        serenity::GuildId::new(guild_id),
+        guild_id,
         &ctx.serenity_context().http,
     )
-    .await?;
+        .await?;
 
     let msg = build_custom_message(
         birthday_cfg.message.format,
@@ -104,7 +103,7 @@ async fn test(ctx: Context<'_>) -> Result<(), Error> {
         &birthday_cfg.message.embed,
         |t| replace_birthday_placeholders(t, &gctx, slice::from_ref(&mock_celebrant)),
     )?
-    .ok_or_else(|| anyhow!("Message is not valid or is not set up"))?;
+        .ok_or_else(|| anyhow!("Message is not valid or is not set up"))?;
 
     send_ephemeral(&ctx, format!("**Preview Announcement:**\n\n{msg:?}")).await?;
 
@@ -126,7 +125,7 @@ pub async fn upcoming(
             &ctx,
             format!("No upcoming birthdays in the next **{lookahead_days}** days."),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -171,14 +170,14 @@ async fn view(ctx: Context<'_>) -> Result<(), Error> {
                     month_name, b.birth_day, year_str
                 ),
             )
-            .await?;
+                .await?;
         }
         None => {
             send_ephemeral(
                 &ctx,
                 "You haven't registered a birthday yet. Use `/birthday set` to add one.",
             )
-            .await?;
+                .await?;
         }
     }
 
@@ -234,7 +233,7 @@ async fn force_set(
             ))
             .ephemeral(true),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -255,7 +254,7 @@ async fn force_remove(
             &ctx,
             format!("**{}** doesn't have a birthday registered.", user.name),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 

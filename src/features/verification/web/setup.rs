@@ -7,7 +7,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::Serialize;
 use serde_with::{DisplayFromStr, serde_as};
-use serenity::all::{ButtonStyle, ChannelId, ChannelType, CreateActionRow, CreateButton, CreateChannel, EditRole, GuildChannel, GuildId, Http, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, Role, RoleId};
+use serenity::all::{ButtonStyle, ChannelId, ChannelType, CreateActionRow, CreateButton, CreateChannel, EditRole, GuildChannel, GuildId, Http, Message, MessageId, PermissionOverwrite, PermissionOverwriteType, Permissions, Role, RoleId};
 use std::sync::Arc;
 use tracing::{trace, warn};
 
@@ -15,11 +15,11 @@ use tracing::{trace, warn};
 #[derive(Serialize, Clone, Debug)]
 pub struct SetupVerificationResponse {
     #[serde_as(as = "DisplayFromStr")]
-    verification_message_id: u64,
+    pub verification_message_id: MessageId,
     #[serde_as(as = "DisplayFromStr")]
-    verification_channel_id: u64,
+    pub verification_channel_id: ChannelId,
     #[serde_as(as = "DisplayFromStr")]
-    verification_role_id: u64,
+    pub verification_role_id: RoleId,
 }
 
 struct RollbackState {
@@ -48,7 +48,7 @@ impl RollbackState {
 
         if let Some(role_id) = self.created_role_id
             && let Err(e) = guild_id.delete_role(http, role_id).await {
-            warn!(error = ?e, role_id = role_id.get(), "Rollback: Failed to delete created role");
+            warn!(error = ?e, %role_id, "Rollback: Failed to delete created role");
         }
 
         if let Some(orig_perms) = self.original_everyone_permissions {
@@ -62,21 +62,15 @@ impl RollbackState {
 
 pub async fn handle_verification_setup(
     State(state): State<Arc<WebState>>,
-    Path(guild_id_str): Path<String>,
+    Path(guild_id): Path<GuildId>, // Extracted directly!
     Json(payload): Json<MessageLayout>,
 ) -> Result<(StatusCode, Json<SetupVerificationResponse>), (StatusCode, String)> {
     let http = &state.serenity_http;
-
-    let guild_id_u64 = guild_id_str
-        .parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string()))?;
-    let guild_id = GuildId::from(guild_id_u64);
-    let everyone_role_id = RoleId::from(guild_id.get());
+    let everyone_role_id = RoleId::new(guild_id.get());
 
     let roles = guild_id.roles(http)
         .await
-        .inspect_err(|e| warn!(error = ?e, guild_id = guild_id.get(), "Failed to get roles for guild"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to get roles for guild"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     let Some(everyone_role) = roles.get(&everyone_role_id) else {
@@ -103,7 +97,7 @@ async fn execute_setup(
     let mut rollback_state = RollbackState::new(everyone_role_id);
 
     if let Err(e) = remove_perms_from_everyone(http, guild_id, everyone_role_id, everyone_role).await {
-        warn!(error = ?e, guild_id = guild_id.get(), "Failed to remove perms from everyone for guild");
+        warn!(error = ?e, %guild_id, "Failed to remove perms from everyone for guild");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(), rollback_state,
         ));
@@ -113,7 +107,7 @@ async fn execute_setup(
     let verify_role = match create_verify_role(http, guild_id).await {
         Ok(role) => role,
         Err(e) => {
-            warn!(error = ?e, guild_id = guild_id.get(), "Failed to create verify role for guild");
+            warn!(error = ?e, %guild_id, "Failed to create verify role for guild");
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(), rollback_state,
             ));
@@ -124,7 +118,7 @@ async fn execute_setup(
     let verify_channel = match create_verify_channel(http, guild_id, everyone_role_id, verify_role.id).await {
         Ok(channel) => channel,
         Err(e) => {
-            warn!(error = ?e, guild_id = guild_id.get(), "Failed to create verification channel for guild");
+            warn!(error = ?e, %guild_id, "Failed to create verification channel for guild");
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string(),
                 rollback_state,
@@ -148,9 +142,9 @@ async fn execute_setup(
     });
 
     Ok(SetupVerificationResponse {
-        verification_role_id: verify_role.id.get(),
-        verification_channel_id: verify_channel.id.get(),
-        verification_message_id: verify_message.id.get(),
+        verification_role_id: verify_role.id,
+        verification_channel_id: verify_channel.id,
+        verification_message_id: verify_message.id,
     })
 }
 
@@ -284,7 +278,7 @@ async fn grant_role_to_existing_members(
                 }
             }
             Err(e) => {
-                warn!(error = ?e, guild_id = guild_id.get(), "Failed to fetch chunk of members for role granting");
+                warn!(error = ?e, %guild_id, "Failed to fetch chunk of members for role granting");
                 break;
             }
         }

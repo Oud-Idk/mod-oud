@@ -1,17 +1,18 @@
 use crate::core::config::message_layout::TogglableMessage;
 use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, serde_as, serde_conv};
+use serde_with::{serde_as, serde_conv, DisplayFromStr};
+use serenity::all::{ChannelId, MessageId, RoleId, UserId};
 use std::time::Duration;
 
 /// Payload describing a message logged inside a ticket channel.
 #[derive(Debug)]
 pub struct TicketLogPayload {
     /// ID of the ticket channel the message was sent in.
-    pub ticket_channel_id: i64,
+    pub ticket_channel_id: ChannelId,
     /// ID of the logged message.
-    pub message_id: i64,
+    pub message_id: MessageId,
     /// ID of the message's author.
-    pub author_id: i64,
+    pub author_id: UserId,
     /// Content of the message.
     pub content: String,
     /// Display name of the message's author.
@@ -36,18 +37,18 @@ serde_conv!(
 pub struct TicketConfig {
     /// Category that ticket channels are created in.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub category_id: Option<u64>,
+    pub category_id: Option<ChannelId>,
     /// Role allowed to manage tickets.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub ticket_role_id: Option<u64>,
+    pub ticket_role_id: Option<RoleId>,
     /// Whether the ticket system is enabled.
     pub enabled: bool,
     /// ID of the posted ticket-open message.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub posted_message_id: Option<u64>,
+    pub posted_message_id: Option<MessageId>,
     /// ID of the channel the ticket-open message is posted in.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<ChannelId>,
     /// Inactivity warning threshold.
     #[serde_as(as = "DurationMinutes")]
     pub warn_threshold: Duration,
@@ -55,12 +56,28 @@ pub struct TicketConfig {
     #[serde_as(as = "DurationMinutes")]
     pub delete_threshold: Duration,
     /// How often inactive tickets are bumped.
-    #[serde_as(as = "DurationMinutes")]
-    pub bump_every: Duration,
+    pub bump_every: i32,
     /// Message shown on the ticket-open panel.
     #[serde(default)]
     pub panel_message: TogglableMessage,
     /// Message shown when a ticket is opened.
     #[serde(default)]
     pub welcome_message: TogglableMessage,
+}
+
+impl Default for TicketConfig {
+    fn default() -> Self {
+        Self {
+            category_id: None,
+            ticket_role_id: None,
+            enabled: false,
+            posted_message_id: None,
+            channel_id: None,
+            warn_threshold: Duration::from_secs(30 * 60),
+            delete_threshold: Duration::from_secs(45 * 60),
+            bump_every: 20,
+            panel_message: TogglableMessage::default(),
+            welcome_message: TogglableMessage::default(),
+        }
+    }
 }

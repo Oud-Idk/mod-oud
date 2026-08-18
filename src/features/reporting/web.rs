@@ -54,28 +54,28 @@ pub async fn handle_dashboard_command(
 
     match &cmd.action {
         DashboardAction::ResolveReport { status } => {
-            resolve::handle_resolve_report(&state, &cmd, status, &guild_id, &redis_conn).await?;
+            resolve::handle_resolve_report(&state, &cmd, status, guild_id, &redis_conn).await?;
         }
         DashboardAction::DeleteMessage { channel_id, message_id } => {
-            delete::handle_delete_message(&state, &cmd, channel_id, message_id).await?;
+            delete::handle_delete_message(&state, &cmd, *channel_id, *message_id).await?;
         }
         DashboardAction::WarnUser => {
             warn::handle_warn(
                 &state,
                 &cmd,
                 moderator_id,
-                &guild_id,
-                &user_id,
+                guild_id,
+                user_id,
                 &redis_conn,
                 moderator_name,
                 &target_username
             ).await?;
         }
         DashboardAction::TimeoutUser => {
-            timeout::handle_timeout(&state, &cmd, moderator_id, &guild_id, &user_id, &redis_conn).await?;
+            timeout::handle_timeout(&state, &cmd, moderator_id, guild_id, user_id, &redis_conn).await?;
         }
         DashboardAction::BanUser => {
-            ban::handle_ban_user(&state, &cmd, moderator_id, &guild_id, &user_id, &redis_conn).await?;
+            ban::handle_ban_user(&state, &cmd, moderator_id, guild_id, user_id, &redis_conn).await?;
         }
     }
 

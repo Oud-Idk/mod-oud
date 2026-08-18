@@ -19,7 +19,7 @@ use crate::shared::username_cache::{UserUpdate, start_username_batch_worker};
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::SetsInterface;
 use moka::future::Cache;
-use serenity::all::{Context, Ready, ShardId, ShardInfo, ShardManager};
+use serenity::all::{Context, GuildId, Ready, ShardId, ShardInfo, ShardManager, ChannelId};
 use sqlx::{Pool, Postgres};
 use std::env;
 use std::future::Future;
@@ -44,7 +44,7 @@ pub struct SetupParams<'a> {
     pub subscriber_client: SubscriberClient,
 
     /// Shared Moka cache for guild settings.
-    pub guild_configs_cache: Cache<u64, GuildSettings>,
+    pub guild_configs_cache: Cache<GuildId, GuildSettings>,
 
     /// Serenity framework context.
     pub ctx: &'a Context,
@@ -89,7 +89,7 @@ pub struct SetupParams<'a> {
 #[must_use]
 pub fn setup<'a>(
     params: SetupParams<'a>,
-) -> Pin<Box<dyn Future<Output = Result<BotData, Error>> + Send + 'a>> {
+) -> Pin<Box<dyn Future<Output=Result<BotData, Error>> + Send + 'a>> {
     Box::pin(async move {
         let SetupParams {
             safe_browsing_api_key,
@@ -190,7 +190,7 @@ pub fn setup<'a>(
 }
 
 /// Hydrates the local active ticket channel cache from Redis set storage.
-async fn hydrate_active_tickets_cache(redis_client: &Client) -> Cache<u64, ()> {
+async fn hydrate_active_tickets_cache(redis_client: &Client) -> Cache<ChannelId, ()> {
     let active_tickets_cache = Cache::new(20_000);
 
     let active_tickets_list: Vec<String> = redis_client
@@ -200,7 +200,7 @@ async fn hydrate_active_tickets_cache(redis_client: &Client) -> Cache<u64, ()> {
 
     for channel_str in active_tickets_list {
         if let Ok(channel_id) = channel_str.parse::<u64>() {
-            active_tickets_cache.insert(channel_id, ()).await;
+            active_tickets_cache.insert(ChannelId::from(channel_id), ()).await;
         }
     }
     active_tickets_cache
@@ -218,13 +218,13 @@ pub struct JobParams<'a> {
     pub subscriber_client: &'a SubscriberClient,
 
     /// Shared Moka cache for guild settings.
-    pub guild_configs_cache: &'a Cache<u64, GuildSettings>,
+    pub guild_configs_cache: &'a Cache<GuildId, GuildSettings>,
 
     /// Serenity context.
     pub ctx: &'a Context,
 
     /// Cache for tracking active ticket channels.
-    pub active_tickets_cache: &'a Cache<u64, ()>,
+    pub active_tickets_cache: &'a Cache<ChannelId, ()>,
 
     /// Channel receiver for ticket log payloads.
     pub ticket_rx: UnboundedReceiver<TicketLogPayload>,

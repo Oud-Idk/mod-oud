@@ -38,7 +38,7 @@ pub async fn lock(
         "🔒 <#{}> has been locked down. \n**Reason:** {}",
         target_channel.id, reason_str
     ))
-    .await?;
+        .await?;
 
     log_action(
         &ctx,
@@ -47,7 +47,7 @@ pub async fn lock(
         ActionType::Lock,
         Some(reason_str),
     )
-    .await?;
+        .await?;
 
     info!(
         caller_id,
@@ -79,7 +79,7 @@ pub async fn unlock(
         target_channel.id,
         everyone_role_id,
     )
-    .await?;
+        .await?;
 
     ctx.say(format!("🔓 <#{}> has been unlocked.", target_channel.id))
         .await?;
@@ -117,7 +117,7 @@ pub async fn global_lock(
             "🛑 **Global lockdown complete.** Locked {} text channels. \n**Reason:** {}",
             report.succeeded, reason_str
         ))
-        .await?;
+            .await?;
 
         let detailed_reason = format!(
             "{} (Channels affected: {}, failed: {})",
@@ -132,7 +132,7 @@ pub async fn global_lock(
             ActionType::GlobalLock,
             Some(&detailed_reason),
         )
-        .await?;
+            .await?;
 
         info!(
             caller_id,
@@ -167,7 +167,7 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
             "🔓 **Global unlock complete.** Unlocked {} text channels.",
             report.succeeded
         ))
-        .await?;
+            .await?;
 
         let detailed_reason = format!(
             "Channels affected: {}, failed: {}",
@@ -181,7 +181,7 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
             ActionType::GlobalUnlock,
             Some(&detailed_reason),
         )
-        .await?;
+            .await?;
 
         info!(
             caller_id,
@@ -206,7 +206,7 @@ pub async fn log_action(
     reason: Option<&str>,
 ) -> Result<(), Error> {
     trace!(
-        guild_id = guild_id.get(),
+        %guild_id,
         target_id,
         action = ?action,
         "Dispatching moderation log to database and Discord integration"
@@ -220,6 +220,6 @@ pub async fn log_action(
         action,
         None,
     )
-    .await?;
+        .await?;
     Ok(())
 }

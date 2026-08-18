@@ -1,19 +1,19 @@
 use anyhow::{Context, Result};
-use serenity::all::Message;
+use serenity::all::{ChannelId, GuildId, Message, MessageId, UserId};
 
 /// Represents a row of data for an Automod event log to be inserted into the database.
 pub struct AutomodEntryRow<'a> {
     /// The ID of the Discord guild (server) where the event occurred.
-    pub guild_id: u64,
+    pub guild_id: GuildId,
 
     /// The ID of the user who triggered the Automod rule.
-    pub user_id: u64,
+    pub user_id: UserId,
 
     /// The ID of the Discord channel where the trigger occurred, if applicable.
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<ChannelId>,
 
     /// The ID of the message that triggered the rule, if the event was message-based.
-    pub message_id: Option<u64>,
+    pub message_id: Option<MessageId>,
 
     /// The name, type, or identifier of the Automod rule that was triggered.
     pub rule_name: &'a str,
@@ -31,45 +31,41 @@ pub struct AutomodEntryRow<'a> {
 /// Logs an automod action execution event to the database.
 ///
 /// # Errors
-/// Returns `Err` when DB fails to execute the query.
+///
+/// Returns an [`Err`] if the SQL query execution fails.
 pub async fn insert_automod_row(db: &sqlx::PgPool, entry: AutomodEntryRow<'_>) -> Result<()> {
-    let AutomodEntryRow {
-        guild_id,
-        user_id,
-        channel_id,
-        message_id,
-        rule_name,
-        trigger_content,
-        original_content,
-        actions_taken,
-    } = entry;
-
-    let actions_vec: Vec<String> = actions_taken
-        .iter()
-        .map(|&action| action.to_string())
-        .collect();
+    let actions_vec: Vec<String> = entry.actions_taken.iter().map(|&a| a.to_string()).collect();
 
     sqlx::query!(
         r#"
-        INSERT INTO automod_logs (guild_id,
-        user_id, channel_id, message_id, rule_type, trigger_content, original_content, actions_taken)
+        INSERT INTO automod_logs (
+            guild_id, user_id, channel_id, message_id,
+            rule_type, trigger_content, original_content, actions_taken
+        )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
-        guild_id.cast_signed(),
-        user_id.cast_signed(),
-        channel_id.map(u64::cast_signed),
-        message_id.map(u64::cast_signed),
-        rule_name,
-        trigger_content,
-        original_content,
+        entry.guild_id.get().cast_signed(),
+        entry.user_id.get().cast_signed(),
+        entry.channel_id.map(|id| id.get().cast_signed()),
+        entry.message_id.map(|id| id.get().cast_signed()),
+        entry.rule_name,
+        entry.trigger_content,
+        entry.original_content,
         &actions_vec,
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(())
 }
 
+/// Helper to construct and log an automod incident directly from a flagged [`Message`].
+///
+/// Skips logging if the message was sent outside of a guild context (e.g. in DMs).
+///
+/// # Errors
+///
+/// Returns an [`Err`] if database insertion fails.
 pub async fn log_automod_event(
     db: &sqlx::PgPool,
     message: &Message,
@@ -77,16 +73,15 @@ pub async fn log_automod_event(
     trigger_content: Option<&str>,
     actions_taken: &[&'static str],
 ) -> Result<()> {
-    let guild_id = message.guild_id.unwrap_or_default().get();
-    let user_id = message.author.id.get();
-    let channel_id = message.channel_id.get();
-    let message_id = message.id.get();
+    let Some(guild_id) = message.guild_id else {
+        return Ok(());
+    };
 
     let entry = AutomodEntryRow {
         guild_id,
-        user_id,
-        channel_id: Some(channel_id),
-        message_id: Some(message_id),
+        user_id: message.author.id,
+        channel_id: Some(message.channel_id),
+        message_id: Some(message.id),
         rule_name,
         trigger_content,
         original_content: Some(&message.content),

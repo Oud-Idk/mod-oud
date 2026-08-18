@@ -1,8 +1,9 @@
+use serenity::all::GuildId;
 use sqlx::PgPool;
 
 pub async fn bump_verification_to_max(
     pool: &PgPool,
-    guild_id: u64,
+    guild_id: GuildId,
 ) -> Result<u64, sqlx::Error> {
     let rows_affected = sqlx::query!(
         r#"
@@ -21,7 +22,7 @@ pub async fn bump_verification_to_max(
         WHERE guild_id = $1
           AND settings #> '{welcome,verification}' IS NOT NULL;
         "#,
-        guild_id.cast_signed(),
+        guild_id.get().cast_signed(),
         true,
         "HCAPTCHA"
     )
@@ -33,8 +34,8 @@ pub async fn bump_verification_to_max(
 }
 
 pub async fn restore_verification_settings(
-    pool: &sqlx::PgPool,
-    guild_id: u64,
+    pool: &PgPool,
+    guild_id: GuildId,
     use_oauth: Option<bool>,
     captcha_type: Option<&str>,
 ) -> Result<u64, sqlx::Error> {
@@ -55,7 +56,7 @@ pub async fn restore_verification_settings(
         WHERE guild_id = $1
           AND settings #> '{welcome,verification}' IS NOT NULL;
         "#,
-        guild_id.cast_signed(),
+        guild_id.get().cast_signed(),
         use_oauth,
         captcha_type
     )

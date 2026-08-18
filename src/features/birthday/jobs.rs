@@ -14,6 +14,7 @@ use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 use serenity::client::Context;
 use sqlx::PgPool;
 use std::time::Duration;
+use moka::future::Cache;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, trace, warn};
 
@@ -46,17 +47,15 @@ async fn build_celebrants(
     ctx: &Context,
     db: &PgPool,
     redis: &Client,
-    guild_id: u64,
+    guild_id: GuildId,
     username_tx: &mpsc::Sender<UserUpdate>,
     birthday_records: Vec<UserBirthdayRecord>,
 ) -> Vec<BirthdayMember> {
-    let target_guild_id = GuildId::new(guild_id);
-
     let futures = birthday_records.into_iter().map(|record| {
-        let user_id = UserId::new(record.user_id.cast_unsigned());
+        let user_id = record.user_id;
         async move {
             let display_name =
-                get_display_name(ctx, db, redis, username_tx, target_guild_id, user_id).await;
+                get_display_name(ctx, db, redis, username_tx, guild_id, user_id).await;
             BirthdayMember {
                 user_id,
                 display_name,
@@ -72,7 +71,7 @@ pub async fn run_birthday_announcements(
     db: &PgPool,
     redis: &Client,
     username_tx: &mpsc::Sender<UserUpdate>,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &Cache<GuildId, GuildSettings>,
     ctx: &Context,
 ) -> Result<(), Error> {
     let now = Utc::now();
@@ -85,7 +84,7 @@ pub async fn run_birthday_announcements(
             let settings = match get_settings(db, redis, guild_configs, guild_id).await {
                 Ok(s) => s,
                 Err(e) => {
-                    error!(guild_id, error = %e, "Failed to fetch settings for birthday job");
+                    error!(%guild_id, error = %e, "Failed to fetch settings for birthday job");
                     return;
                 }
             };
@@ -98,7 +97,7 @@ pub async fn run_birthday_announcements(
             // Parse timezone string into chrono_tz::Tz, falling back to UTC if invalid
             let tz: Tz = birthday_cfg.timezone.parse().unwrap_or_else(|_| {
                 warn!(
-                    guild_id,
+                    %guild_id,
                     tz = %birthday_cfg.timezone,
                     "Invalid timezone in config, falling back to UTC"
                 );
@@ -113,12 +112,10 @@ pub async fn run_birthday_announcements(
                 i16::try_from(local_now.day()).expect("There are at most 31 days in a month");
             let guild_year = local_now.year();
 
-            let Some(chan_id) = birthday_cfg.channel_id else {
+            let Some(channel_id) = birthday_cfg.channel_id else {
                 warn!("Channel ID is empty, skipping guild {}", guild_id);
                 return;
             };
-
-            let channel_id = ChannelId::new(chan_id);
 
             let birthday_records = match database::get_unannounced_birthdays(
                 db,
@@ -127,11 +124,11 @@ pub async fn run_birthday_announcements(
                 guild_year,
                 guild_id,
             )
-            .await
+                .await
             {
                 Ok(records) => records,
                 Err(e) => {
-                    error!(guild_id, error = %e, "Failed to get unannounced birthdays");
+                    error!(%guild_id, error = %e, "Failed to get unannounced birthdays");
                     return;
                 }
             };
@@ -149,17 +146,17 @@ pub async fn run_birthday_announcements(
                 birthday_cfg,
                 guild_id,
             )
-            .await
-            .inspect_err(|e| warn!(error = ?e, "Failed to send birthday messages!"))
-            .ok()
-            .map(|m| m.id);
+                .await
+                .inspect_err(|e| warn!(error = ?e, "Failed to send birthday messages!"))
+                .ok()
+                .map(|m| m.id);
 
             let payload = BirthdayAnnouncement {
                 guild_id,
                 channel_id,
                 sent_msg_id,
                 celebrants: &celebrants,
-                current_year: guild_year as i32,
+                current_year: guild_year,
             };
 
             announcements::process_celebrant_roles(db, ctx, birthday_cfg, payload).await;
@@ -180,16 +177,16 @@ pub async fn cleanup_expired_birthday_roles(
     }
 
     // Separate guild_ids and user_ids
-    let (guild_ids, user_ids): (Vec<i64>, Vec<i64>) = expired_roles
+    let (guild_ids, user_ids): (Vec<GuildId>, Vec<UserId>) = expired_roles
         .iter()
         .map(|r| (r.guild_id, r.user_id))
         .unzip();
 
     futures::stream::iter(expired_roles)
         .for_each_concurrent(10, |record| async move {
-            let guild_id = GuildId::new(record.guild_id.cast_unsigned());
-            let user_id = UserId::new(record.user_id.cast_unsigned());
-            let role_id = RoleId::new(record.role_id.cast_unsigned());
+            let guild_id = record.guild_id;
+            let user_id = record.user_id;
+            let role_id = record.role_id;
 
             let _ = ctx
                 .http
@@ -207,7 +204,7 @@ pub async fn cleanup_expired_birthday_roles(
 pub fn start_birthday_worker(
     pool: PgPool,
     redis_client: Client,
-    guild_configs: moka::future::Cache<u64, GuildSettings>,
+    guild_configs: Cache<GuildId, GuildSettings>,
     username_tx: mpsc::Sender<UserUpdate>,
     ctx: Context,
 ) {
@@ -233,7 +230,7 @@ pub fn start_birthday_worker(
                         &guild_configs,
                         &ctx,
                     )
-                    .await
+                        .await
                     {
                         error!(error = ?e, "Error running birthday announcements");
                     }

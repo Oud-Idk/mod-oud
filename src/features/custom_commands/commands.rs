@@ -1,8 +1,10 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
+use crate::features::custom_commands::database;
 use poise::CreateReply;
-use serenity::all::CreateEmbed;
+use serenity::all::{CreateEmbed, GuildId};
+use sqlx::PgPool;
 use tracing::error;
 
 /// List all custom commands available in this server
@@ -14,24 +16,13 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let guild_id = guild_id.get();
     let pool = &ctx.data().core.db;
 
-    let commands = match sqlx::query!(
-        r#"
-        SELECT name, description
-        FROM custom_commands
-        WHERE guild_id = $1 AND enabled = TRUE
-        ORDER BY name ASC
-        "#,
-        guild_id.cast_signed()
-    )
-    .fetch_all(pool)
-    .await
+    let commands = match database::get_custom_command(pool, guild_id).await
     {
         Ok(cmds) => cmds,
         Err(e) => {
-            error!(error = ?e, guild_id, "Failed to fetch custom commands");
+            error!(error = ?e, %guild_id, "Failed to fetch custom commands");
             ctx.say("Failed to fetch custom commands from database.")
                 .await?;
             return Ok(());
@@ -77,3 +68,4 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(CreateReply::default().embed(embed)).await?;
     Ok(())
 }
+

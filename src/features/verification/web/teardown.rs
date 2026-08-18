@@ -12,42 +12,36 @@ use tracing::warn;
 #[derive(Deserialize, Clone, Debug)]
 pub struct TeardownVerificationRequest {
     #[serde_as(as = "DisplayFromStr")]
-    verification_channel_id: u64,
+    pub verification_channel_id: ChannelId,
     #[serde_as(as = "DisplayFromStr")]
-    verification_role_id: u64,
+    pub verification_role_id: RoleId,
 }
 
 pub async fn handle_verification_teardown(
     State(state): State<Arc<WebState>>,
-    Path(guild_id_str): Path<String>,
+    Path(guild_id): Path<GuildId>,
     Json(payload): Json<TeardownVerificationRequest>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let http = &state.serenity_http;
 
-    let guild_id_u64 = guild_id_str
-        .parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string()))?;
-    let guild_id = GuildId::from(guild_id_u64);
-
-    let channel_id = ChannelId::from(payload.verification_channel_id);
-    let role_id = RoleId::from(payload.verification_role_id);
+    let channel_id = payload.verification_channel_id;
+    let role_id = payload.verification_role_id;
 
     let mut execution_errors = Vec::new();
 
     if let Err(e) = channel_id.delete(http).await
         && !is_not_found_error(&e) {
-            warn!(error = ?e, channel_id = channel_id.get(), "Failed to delete channel during teardown");
-            execution_errors.push("Failed to delete verification channel".to_string());
-        }
+        warn!(error = ?e, %channel_id, "Failed to delete channel during teardown");
+        execution_errors.push("Failed to delete verification channel".to_string());
+    }
 
     if let Err(e) = guild_id.delete_role(http, role_id).await
         && !is_not_found_error(&e) {
-            warn!(error = ?e, role_id = role_id.get(), "Failed to delete role during teardown");
-            execution_errors.push("Failed to delete verification role".to_string());
-        }
+        warn!(error = ?e, %role_id, "Failed to delete role during teardown");
+        execution_errors.push("Failed to delete verification role".to_string());
+    }
 
-    let everyone_role_id = RoleId::from(guild_id.get());
+    let everyone_role_id = RoleId::new(guild_id.get());
     match guild_id.roles(http).await {
         Ok(roles) => {
             if let Some(everyone_role) = roles.get(&everyone_role_id) {
@@ -84,7 +78,7 @@ pub async fn handle_verification_teardown(
 fn is_not_found_error(err: &serenity::Error) -> bool {
     if let serenity::Error::Http(http_err) = err
         && let Some(status) = http_err.status_code() {
-            return status == StatusCode::NOT_FOUND;
-        }
+        return status == StatusCode::NOT_FOUND;
+    }
     false
 }

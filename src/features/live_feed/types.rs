@@ -2,6 +2,7 @@ use crate::features::message_logging::{DeletedMessagePayload, ModifiedMessagePay
 use crate::features::reporting::ReportedMessagePayload;
 use axum::response::sse::Event;
 use serde::{Deserialize, Serialize};
+use serenity::all::GuildId;
 use tracing::warn;
 
 impl LogEvent {
@@ -51,7 +52,7 @@ impl LogEvent {
 
     /// Returns the guild ID associated with this event, if any.
     #[must_use]
-    pub const fn guild_id(&self) -> Option<i64> {
+    pub const fn guild_id(&self) -> Option<GuildId> {
         match self {
             Self::MessageDelete(payload) => Some(payload.guild_id),
             Self::MessageEdit(payload) => Some(payload.guild_id),

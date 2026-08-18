@@ -9,8 +9,8 @@ use tracing::{debug, error, instrument, trace};
 
 pub fn should_exclude_from_level_up(
     config: &LevelingConfig,
-    user_roles: &[u64],
-    channel_id: u64,
+    user_roles: &[RoleId],
+    channel_id: ChannelId,
 ) -> bool {
     match config.scope.mode {
         ScopeMode::Exempt => {
@@ -69,7 +69,7 @@ fn calculate_multiplier(multipliers: Vec<XpMultiplier>, channel_id: u64, role_id
     name = "get_multiplier",
     skip(redis, db, message),
     fields(
-        guild_id = %guild_id.get(),
+        %guild_id,
         channel_id = %message.channel_id.get(),
         author_id = %message.author.id.get()
     )
@@ -78,7 +78,7 @@ pub async fn get_multiplier(
     redis: &Client,
     multiplier_key: &str,
     db: &PgPool,
-    guild_id: &GuildId,
+    guild_id: GuildId,
     message: &Message,
 ) -> Result<f32> {
     trace!("Fetching multipliers");
@@ -102,7 +102,7 @@ pub async fn get_multiplier(
     name = "get_voice_multiplier",
     skip(redis, db, member_roles),
     fields(
-        guild_id = %guild_id.get(),
+        %guild_id,
         channel_id = %channel_id.get()
     )
 )]
@@ -110,7 +110,7 @@ pub async fn get_voice_multiplier(
     redis: &Client,
     multiplier_key: &str,
     db: &PgPool,
-    guild_id: &GuildId,
+    guild_id: GuildId,
     channel_id: ChannelId,
     member_roles: &[RoleId],
 ) -> Result<f32> {

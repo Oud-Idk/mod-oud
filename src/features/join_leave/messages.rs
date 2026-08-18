@@ -4,7 +4,7 @@ use crate::features::join_leave::placeholders::replace_welcome_goodbye_placehold
 use crate::features::join_leave::types::LeaveConfig;
 use crate::features::join_leave::types::WelcomeMessageSettings;
 use crate::shared::embed::build_custom_message;
-use serenity::all::{ChannelId, CreateEmbed, CreateMessage, Mentionable};
+use serenity::all::{ChannelId, ChannelType, Color, Context, CreateEmbed, CreateMessage, GuildChannel, GuildId, Member, Mentionable, Timestamp, User};
 use tracing::{debug, trace, warn};
 
 pub fn build_welcome_message(
@@ -37,29 +37,29 @@ pub fn build_welcome_message(
     }))
 }
 
-pub fn build_fallback_message(user: &serenity::all::User, member: &Option<serenity::all::Member>) -> CreateMessage {
+pub fn build_fallback_message(user: &serenity::all::User, member: &Option<Member>) -> CreateMessage {
     let roles_text = format_member_roles(member);
     let embed = CreateEmbed::new()
         .title("Member Left / Kicked")
         .description(format!("**{}** (`{}`) is no longer in the server.", user.name, user.id))
         .field("Roles before leaving", roles_text, false)
         .thumbnail(user.face())
-        .color(serenity::all::Color::from_rgb(255, 0, 0))
-        .timestamp(serenity::all::Timestamp::now());
+        .color(Color::from_rgb(255, 0, 0))
+        .timestamp(Timestamp::now());
 
     CreateMessage::new().embed(embed)
 }
 
 pub async fn build_goodbye_message(
-    ctx: &serenity::all::Context,
-    guild_id: serenity::all::GuildId,
-    user: &serenity::all::User,
-    member_data_if_available: &Option<serenity::all::Member>,
+    ctx: &Context,
+    guild_id: GuildId,
+    user: &User,
+    member_data_if_available: &Option<Member>,
     leave_cfg: &LeaveConfig,
 ) -> CreateMessage {
     let member = if let Some(m) = member_data_if_available { m } else {
         debug!(
-            guild_id = guild_id.get(),
+            %guild_id,
             user_id = user.id.get(),
             "No member metadata available in cache; constructing default fallback layout"
         );
@@ -67,7 +67,7 @@ pub async fn build_goodbye_message(
     };
 
     trace!(
-        guild_id = guild_id.get(),
+        %guild_id,
         user_id = user.id.get(),
         "Cached member details available; resolving context details for goodbye message"
     );
@@ -85,7 +85,7 @@ pub async fn build_goodbye_message(
             ).unwrap_or_else(|e| {
                 warn!(
                     error = ?e,
-                    guild_id = guild_id.get(),
+                    %guild_id,
                     user_id = user.id.get(),
                     "Failed to compile custom leave message template; using fallback layout"
                 );
@@ -98,7 +98,7 @@ pub async fn build_goodbye_message(
             warn!(
                 gctx_error = ?gctx_err.err(),
                 context_error = ?context_err.err(),
-                guild_id = guild_id.get(),
+                %guild_id,
                 user_id = user.id.get(),
                 "Failed to resolve rendering context for leave notification; falling back to default layout"
             );
@@ -107,7 +107,7 @@ pub async fn build_goodbye_message(
     }
 }
 
-pub fn format_member_roles(member_data: &Option<serenity::all::Member>) -> String {
+pub fn format_member_roles(member_data: &Option<Member>) -> String {
     let Some(member) = member_data else {
         return "Unknown (User was not in bot cache)".to_string();
     };
@@ -125,32 +125,31 @@ pub fn format_member_roles(member_data: &Option<serenity::all::Member>) -> Strin
 }
 
 pub async fn get_context_channel(
-    ctx: &serenity::all::Context,
-    member: &serenity::all::Member,
-    public_channel_id_u64: Option<u64>,
-) -> Result<serenity::all::GuildChannel, Error> {
-    let guild_id = member.guild_id.get();
-    trace!(guild_id, "Resolving text channel context for placeholder evaluation");
+    ctx: &Context,
+    member: &Member,
+    public_channel_id: Option<ChannelId>,
+) -> Result<GuildChannel, Error> {
+    let guild_id = member.guild_id;
+    trace!(%guild_id, "Resolving text channel context for placeholder evaluation");
 
-    if let Some(ch_u64) = public_channel_id_u64 {
-        let channel_id = ChannelId::new(ch_u64);
-        if let Ok(channel) = channel_id.to_channel(ctx).await
+    if let Some(ch_id) = public_channel_id {
+        if let Ok(channel) = ch_id.to_channel(ctx).await
             && let Some(guild_ch) = channel.guild() {
-                trace!(guild_id, channel_id = ch_u64, "Resolved configured target channel context");
-                return Ok(guild_ch);
-            }
+            trace!(%guild_id, channel_id = %ch_id, "Resolved configured target channel context");
+            return Ok(guild_ch);
+        }
     }
 
-    debug!(guild_id, "No valid public welcome channel provided; scanning for any standard text channel context");
+    debug!(%guild_id, "No valid public welcome channel provided; scanning for any standard text channel context");
     let channels = member.guild_id.channels(&ctx.http).await?;
     for (_, channel) in channels {
-        if channel.kind == serenity::all::ChannelType::Text {
-            trace!(guild_id, fallback_channel_id = channel.id.get(), "Fallback text channel context resolved");
+        if channel.kind == ChannelType::Text {
+            trace!(%guild_id, fallback_channel_id = channel.id.get(), "Fallback text channel context resolved");
             return Ok(channel);
         }
     }
 
-    warn!(guild_id, "Failed to resolve any valid text channel context in guild");
+    warn!(%guild_id, "Failed to resolve any valid text channel context in guild");
     Err(std::io::Error::other(
         "Could not resolve a suitable text channel context.",
     )

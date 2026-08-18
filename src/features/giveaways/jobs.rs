@@ -1,11 +1,41 @@
-use std::sync::Arc;
-use std::time::Duration;
-use rand::prelude::IndexedRandom;
-use serenity::all::{ChannelId, Http, MessageId, ReactionType, UserId};
-use sqlx::PgPool;
-use tracing::{error, info, trace};
 use crate::features::giveaways::database::{fetch_expired_giveaways, mark_giveaway_finished};
 use crate::features::giveaways::types::Giveaway;
+use rand::prelude::IndexedRandom;
+use serenity::all::{ChannelId, Http, MessageId, ReactionType, User, UserId};
+use sqlx::PgPool;
+use std::sync::Arc;
+use std::time::Duration;
+use tracing::{error, info, trace, warn};
+
+pub async fn get_all_reaction_users(
+    http: &Http,
+    channel_id: ChannelId,
+    message_id: MessageId,
+    reaction: &ReactionType,
+) -> Result<Vec<User>, serenity::Error> {
+    let mut all_users = Vec::new();
+    let mut last_user_id: Option<UserId> = None;
+
+    loop {
+        let batch = http
+            .get_reaction_users(channel_id, message_id, reaction, 100, last_user_id.map(UserId::get))
+            .await?;
+
+        if batch.is_empty() {
+            break;
+        }
+
+        let is_last_batch = batch.len() < 100;
+        last_user_id = batch.last().map(|u| u.id);
+        all_users.extend(batch);
+
+        if is_last_batch {
+            break;
+        }
+    }
+
+    Ok(all_users)
+}
 
 /// Spawns the background task loop that periodically checks for expired giveaways.
 pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>) {
@@ -24,7 +54,10 @@ pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>) {
 }
 
 /// Fetches and ends all pending giveaways that have reached their end time
-async fn process_expired_giveaways(pool: &PgPool, http: &Http) -> Result<(), Box<dyn std::error::Error>> {
+async fn process_expired_giveaways(
+    pool: &PgPool,
+    http: &Http,
+) -> Result<(), Box<dyn std::error::Error>> {
     let expired_giveaways = fetch_expired_giveaways(pool).await?;
 
     if expired_giveaways.is_empty() {
@@ -32,16 +65,25 @@ async fn process_expired_giveaways(pool: &PgPool, http: &Http) -> Result<(), Box
         return Ok(());
     }
 
-    info!("Found {} expired giveaway(s) to resolve.", expired_giveaways.len());
+    info!(
+        "Found {} expired giveaway(s) to resolve.",
+        expired_giveaways.len()
+    );
 
     for giveaway in expired_giveaways {
         if let Err(e) = mark_giveaway_finished(pool, giveaway.id).await {
-            error!(id = giveaway.id, "Failed to mark giveaway as finished in DB: {:?}", e);
+            error!(
+                id = giveaway.id,
+                "Failed to mark giveaway as finished in DB: {:?}", e
+            );
             continue;
         }
 
         if let Err(e) = end_giveaway(http, &giveaway).await {
-            error!(id = giveaway.id, "Failed to end giveaway on Discord: {:?}", e);
+            error!(
+                id = giveaway.id,
+                "Failed to end giveaway on Discord: {:?}", e
+            );
         }
     }
 
@@ -50,29 +92,30 @@ async fn process_expired_giveaways(pool: &PgPool, http: &Http) -> Result<(), Box
 
 /// Fetches reactions from Discord, picks random winners, and announces them
 async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn std::error::Error>> {
-    let channel_id = match giveaway.channel_id {
-        Some(cid) => ChannelId::new(cid as u64),
-        None => return Err("Giveaway has no channel_id assigned".into()),
-    };
+    let channel_id = giveaway
+        .channel_id
+        .map(|cid| ChannelId::new(cid.cast_unsigned()))
+        .ok_or("Giveaway has no channel_id assigned")?;
 
-    let message_id = match giveaway.message_id {
-        Some(mid) => MessageId::new(mid as u64),
-        None => return Err("Giveaway has no message_id assigned".into()),
-    };
+    let message_id = giveaway
+        .message_id
+        .map(|mid| MessageId::new(mid.cast_unsigned()))
+        .ok_or("Giveaway has no message_id assigned")?;
 
     let reaction = ReactionType::Unicode("🎉".to_string());
 
-    let users = http
-        .get_reaction_users(channel_id, message_id, &reaction, 100, None)
-        .await?;
+    let users = get_all_reaction_users(http, channel_id, message_id, &reaction).await?;
 
+    let host_id = giveaway.host_id.cast_unsigned();
     let eligible_users: Vec<UserId> = users
         .into_iter()
-        .filter(|user| !user.bot && user.id.get() != giveaway.host_id as u64)
+        .filter(|user| !user.bot && user.id.get() != host_id)
         .map(|user| user.id)
         .collect();
 
-    let winner_count = giveaway.winner_count as usize;
+    let winner_count = usize::try_from(giveaway.winner_count)
+        .inspect_err(|e| warn!(error = ?e, "Cannot convert winner_count to usize!"))
+        .unwrap_or(1);
 
     let winners: Vec<UserId> = eligible_users
         .sample(&mut rand::rng(), winner_count)

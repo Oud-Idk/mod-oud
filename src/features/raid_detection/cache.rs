@@ -4,10 +4,11 @@ use crate::features::raid_detection::keys;
 use crate::features::raid_detection::types::Stats;
 use chrono::{DateTime, Duration, Utc};
 use fred::clients::Client;
-use fred::interfaces::{HashesInterface, KeysInterface, SortedSetsInterface};
+use fred::interfaces::{FredResult, HashesInterface, KeysInterface, SetsInterface, SortedSetsInterface};
 use fred::prelude::Expiration;
+use serenity::all::{GuildId, UserId};
 
-pub async fn record_join_event(redis: &Client, window_size_seconds: i64, guild_id: u64, user_id: u64, now_ts: i64, hour_str: &str) -> Result<i64, Error> {
+pub async fn record_join_event(redis: &Client, window_size_seconds: i64, guild_id: GuildId, user_id: UserId, now_ts: i64, hour_str: &str) -> Result<i64, Error> {
     let joins_key = keys::recent_join_hash_key(guild_id);
     let stats_key = keys::hourly_stats_hash_key(guild_id);
     let member_key = keys::member_key(user_id, now_ts);
@@ -31,8 +32,8 @@ pub async fn record_join_event(redis: &Client, window_size_seconds: i64, guild_i
 pub async fn get_threshold(redis: &Client, stats_cache_key: &str) -> Result<Option<Stats>, Error> {
     if let Ok(Some(cached_json)) = redis.get::<Option<String>, _>(stats_cache_key).await
         && let Ok(stats) = serde_json::from_str::<Stats>(&cached_json) {
-            return Ok(Some(stats));
-        }
+        return Ok(Some(stats));
+    }
 
     Ok(None)
 }
@@ -68,4 +69,12 @@ pub async fn cache_calculated_stats(redis: &Client, now: DateTime<Utc>, stats_ca
 
     let _ = redis.hdel::<i64, _, _>(hash_key, old_field).await;
     Ok(())
+}
+
+pub async fn add_guild_to_raid(guild_id: GuildId, redis: &Client) -> FredResult<()> {
+    redis.sadd(keys::active_raids_key(), guild_id.get()).await
+}
+
+pub async fn remove_guild_from_raid(guild_id: GuildId, redis: &Client) -> FredResult<()> {
+    redis.srem(keys::active_raids_key(), guild_id.get()).await
 }

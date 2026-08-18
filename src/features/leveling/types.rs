@@ -1,6 +1,7 @@
 use crate::core::config::message_layout::MessageLayout;
 use serde::{Deserialize, Serialize};
 use serde_with::{DefaultOnError, DisplayFromStr, serde_as};
+use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -23,7 +24,7 @@ pub enum ScopeMode {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VcSession {
     pub join_time: i64,
-    pub channel_id: u64,
+    pub channel_id: ChannelId,
     pub accumulated_secs: i64,
     pub clock_started_at: Option<i64>,
 }
@@ -57,23 +58,35 @@ pub struct VoiceSettings {
 pub struct NotificationSettings {
     pub scope: NotificationScope,
     #[serde_as(as = "DefaultOnError<Option<DisplayFromStr>>")]
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<ChannelId>,
     pub message: MessageLayout,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserLevel {
-    pub guild_id: i64,
-    pub user_id: i64,
+    pub guild_id: GuildId,
+    pub user_id: UserId,
     pub cumulative_xp: i32,
     pub current_level: i32,
     pub current_xp: i32,
 }
 
+impl UserLevel {
+    pub fn from_raw(guild_id: i64, user_id: i64, cumulative_xp: i32, current_level: i32, current_xp: i32) -> Self {
+        Self {
+            guild_id: GuildId::new(guild_id as u64),
+            user_id: UserId::new(user_id as u64),
+            cumulative_xp,
+            current_level,
+            current_xp,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LevelReward {
     pub level_requirement: i32,
-    pub roles_to_add: Option<Vec<i64>>,
+    pub roles_to_add: Option<Vec<RoleId>>,
     pub remove_previous_roles: Option<bool>,
 }
 
@@ -92,11 +105,11 @@ pub struct LevelingScope {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[serde_as(as = "Vec<DisplayFromStr>")]
-    pub roles: Vec<u64>,
+    pub roles: Vec<RoleId>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[serde_as(as = "Vec<DisplayFromStr>")]
-    pub channels: Vec<u64>,
+    pub channels: Vec<ChannelId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

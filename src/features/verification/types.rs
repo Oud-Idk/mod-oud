@@ -1,6 +1,7 @@
 use crate::core::config::message_layout::MessageLayout;
 use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, serde_as};
+use serde_with::{serde_as, DisplayFromStr};
+use serenity::all::{ChannelId, MessageId, RoleId};
 use std::fmt;
 
 /// The captcha provider used for verification.
@@ -32,15 +33,15 @@ impl fmt::Display for CaptchaType {
 pub struct VerificationSettings {
     /// Whether verification is enabled.
     pub enabled: Option<bool>,
-    /// ID of the message users react to in order to verify.
+    /// ID of the message users interact with in order to verify.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub verification_message_id: Option<u64>,
+    pub verification_message_id: Option<MessageId>,
     /// ID of the channel the verification message is in.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub verification_channel_id: Option<u64>,
+    pub verification_channel_id: Option<ChannelId>,
     /// ID of the role granted upon successful verification.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub verification_role_id: Option<u64>,
+    pub verification_role_id: Option<RoleId>,
     /// Message layout used for verification embeds.
     pub message: MessageLayout,
     /// Whether to use OAuth-based verification.

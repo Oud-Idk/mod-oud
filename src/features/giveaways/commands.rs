@@ -1,3 +1,5 @@
+#![allow(clippy::unused_async)]
+use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::giveaways::database::{create_giveaway, update_giveaway_message_id};
 use crate::shared::messages::send_ephemeral;
@@ -5,7 +7,6 @@ use anyhow::Context as _;
 use chrono::Utc;
 use rand::seq::IndexedRandom;
 use serenity::all::{ChannelId, CreateEmbed, CreateMessage, ReactionType};
-use crate::constants::BRAND_COLOR;
 
 /// Parent command for giveaway operations
 #[poise::command(
@@ -30,24 +31,22 @@ pub async fn create(
     ctx.defer_ephemeral().await?;
 
     // Parse duration (using humantime crate)
-    let parsed_duration = if let Ok(d) = humantime::parse_duration(&duration) {
-        d
-    } else {
+    let Ok(parsed_duration) = humantime::parse_duration(&duration) else {
         send_ephemeral(
             &ctx,
             "Invalid duration format! Example formats: `30m`, `2h`, `1d`",
         )
-            .await?;
+        .await?;
         return Ok(());
     };
 
     let winner_count = winners.unwrap_or(1).max(1);
-    let target_channel = channel.unwrap_or(ctx.channel_id());
+    let target_channel = channel.unwrap_or_else(|| ctx.channel_id());
     let guild_id = ctx
         .guild_id()
         .with_context(|| "Must be run in a server")?
         .get();
-    let host_id = ctx.author().id.get() as i64;
+    let host_id = ctx.author().id;
 
     let end_time = Utc::now() + chrono::Duration::from_std(parsed_duration)?;
     let timestamp = end_time.timestamp();
@@ -57,12 +56,12 @@ pub async fn create(
         &ctx.data().core.db,
         guild_id,
         host_id,
-        target_channel.get() as i64,
+        target_channel,
         &prize,
         winner_count,
         end_time,
     )
-        .await?;
+    .await?;
 
     let embed = CreateEmbed::new()
         .title(format!("🎉 GIVEAWAY: {prize}"))
@@ -82,14 +81,14 @@ pub async fn create(
         &ctx.serenity_context().http,
         ReactionType::Unicode("🎉".to_string()),
     )
-        .await?;
+    .await?;
 
-    update_giveaway_message_id(&ctx.data().core.db, giveaway_id, msg.id.get() as i64).await?;
+    update_giveaway_message_id(&ctx.data().core.db, giveaway_id, msg.id).await?;
     send_ephemeral(
         &ctx,
         format!("Giveaway **#{giveaway_id}** created in <#{target_channel}>!"),
     )
-        .await?;
+    .await?;
 
     Ok(())
 }
@@ -98,7 +97,7 @@ pub async fn create(
 #[poise::command(slash_command)]
 pub async fn reroll(
     ctx: Context<'_>,
-    #[description = "The Message ID of the giveaway message"] message_id: i64,
+    #[description = "The Message ID of the giveaway message"] message_id: u64,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
@@ -110,9 +109,9 @@ pub async fn reroll(
         .http
         .get_reaction_users(
             channel_id,
-            serenity::all::MessageId::new(message_id as u64),
+            serenity::all::MessageId::new(message_id),
             &reaction,
-            100,
+            100, // reroll bullshit
             None,
         )
         .await?;

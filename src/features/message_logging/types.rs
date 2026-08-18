@@ -1,27 +1,29 @@
-use crate::shared::opt_string_i64;
-use crate::shared::string_i64;
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
+use serenity::all::{AuditLogEntry, ChannelId, GuildId, MessageId, RoleId, User, UserId};
+
 pub struct MessageDetails {
-    pub(crate) msg_id: i64,
-    pub(crate) author_id: i64,
-    pub(crate) author_name: String,
-    pub(crate) chan_id: i64,
-    pub(crate) content: String,
-    pub(crate) image_urls: Vec<String>,
+    pub msg_id: MessageId,
+    pub chan_id: ChannelId,
+    pub author_id: UserId,
+    pub author_name: String,
+    pub content: String,
+    pub image_urls: Vec<String>,
 }
 
 pub struct EditDetails {
-    pub(crate) msg_id: i64,
-    pub(crate) chan_id: i64,
-    pub(crate) author_id: i64,
-    pub(crate) author_name: String,
-    pub(crate) old_content: Option<String>,
-    pub(crate) new_content: Option<String>,
+    pub msg_id: MessageId,
+    pub chan_id: ChannelId,
+    pub author_id: UserId,
+    pub author_name: String,
+    pub old_content: Option<String>,
+    pub new_content: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DistributedCachedMessage {
-    pub author_id: i64,
+    pub author_id: UserId,
     pub author_name: String,
     pub content: String,
     pub image_urls: Vec<String>,
@@ -31,14 +33,18 @@ pub struct DistributedCachedMessage {
 /// and which events to log.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
+#[serde_as]
 #[serde(rename_all = "camelCase")]
 pub struct MessageLoggingConfig {
     /// Channels that are excluded from logging.
-    pub ignored_channels: Option<Vec<String>>,
+    #[serde_as(as = "Option<Vec<DisplayFromStr>>")]
+    pub ignored_channels: Option<Vec<ChannelId>>,
     /// Roles whose members are excluded from logging.
-    pub ignored_roles: Option<Vec<String>>,
+    #[serde_as(as = "Option<Vec<DisplayFromStr>>")]
+    pub ignored_roles: Option<Vec<RoleId>>,
     /// Users who are excluded from logging.
-    pub ignored_users: Option<Vec<String>>,
+    #[serde_as(as = "Option<Vec<DisplayFromStr>>")]
+    pub ignored_users: Option<Vec<UserId>>,
     /// Which events are enabled.
     pub events: Option<MessageEventsConfig>,
 }
@@ -55,52 +61,54 @@ pub struct MessageEventsConfig {
 }
 
 /// Payload sent to the dashboard when a message is deleted.
+#[serde_as]
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct DeletedMessagePayload {
     /// ID of the deleted message.
-    #[serde(with = "string_i64")]
-    pub id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub id: MessageId,
     /// ID of the guild the message was deleted in.
-    #[serde(with = "string_i64")]
-    pub guild_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub guild_id: GuildId,
     /// ID of the message's author.
-    #[serde(with = "string_i64")]
-    pub author_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub author_id: UserId,
     /// Username of the message's author.
     pub author_name: String,
     /// Content of the deleted message.
     pub content: String,
     /// ID of the channel the message was deleted in.
-    #[serde(with = "string_i64")]
-    pub channel_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: ChannelId,
     /// ISO timestamp of when the message was deleted.
     pub deleted_at: String,
     /// URL of an attachment, if the message had one.
     pub attachment_url: String,
     /// ID of the user who deleted the message, if known.
-    #[serde(with = "opt_string_i64")]
-    pub deleted_by_id: Option<i64>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub deleted_by_id: Option<UserId>,
     /// Name of the user who deleted the message, if known.
     pub deleted_by_name: Option<String>,
 }
 
 /// Payload sent to the dashboard when a message is edited.
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde_as]
 pub struct ModifiedMessagePayload {
     /// ID of the edited message.
-    #[serde(with = "string_i64")]
-    pub id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub id: MessageId,
     /// ID of the guild the message was edited in.
-    #[serde(with = "string_i64")]
-    pub guild_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub guild_id: GuildId,
     /// ID of the message's author.
-    #[serde(with = "string_i64")]
-    pub author_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub author_id: UserId,
     /// Username of the message's author.
     pub author_name: String,
     /// ID of the channel the message was edited in.
-    #[serde(with = "string_i64")]
-    pub channel_id: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: ChannelId,
     /// Content of the message before the edit, if known.
     pub old_content: Option<String>,
     /// Content of the message after the edit.
@@ -113,7 +121,7 @@ pub struct ModifiedMessagePayload {
 #[derive(Debug, Clone)]
 pub struct CachedAuditLogs {
     /// The audit log entries.
-    pub entries: Vec<serenity::all::AuditLogEntry>,
+    pub entries: Vec<AuditLogEntry>,
     /// Users referenced by the audit log entries.
-    pub users: std::collections::HashMap<serenity::all::UserId, serenity::all::User>,
+    pub users: HashMap<UserId, User>,
 }

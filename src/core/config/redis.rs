@@ -2,24 +2,23 @@ use crate::core::config::settings::GuildSettings;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface};
 use fred::prelude::Expiration;
+use serenity::all::GuildId;
 use tracing::{trace, warn};
 
 pub async fn get_settings_from_redis(
     redis: &Client,
     cache_key: &str,
-    guild_id: u64,
 ) -> Option<GuildSettings> {
     let cached_string: String = redis.get(cache_key).await.ok()?;
 
     match serde_json::from_str::<GuildSettings>(&cached_string) {
         Ok(settings) => {
-            trace!(guild_id, key = %cache_key, "Retrieved settings from Redis cache");
+            trace!(key = %cache_key, "Retrieved settings from Redis cache");
             Some(settings)
         }
         Err(e) => {
             warn!(
                 error = ?e,
-                guild_id,
                 key = %cache_key,
                 "Failed to parse settings from Redis; falling back to DB"
             );

@@ -37,16 +37,14 @@ pub async fn on_open_ticket(
     let user_interact = &component.user;
 
     debug!("Checking settings validation for ticket generation");
-    let settings = get_settings(db, redis, &data.core.guild_configs_cache, guild_id.get()).await?;
+    let settings = get_settings(db, redis, &data.core.guild_configs_cache, guild_id).await?;
     let tickets = settings.tickets.as_ref();
 
-    let Some(role_u64) = tickets.and_then(|t| t.ticket_role_id) else {
+    let Some(role_id) = tickets.and_then(|t| t.ticket_role_id) else {
         warn!("Ticket staff role missing from guild configuration");
         message::send_missing_config_error(ctx, component).await?;
         return Ok(());
     };
-
-    let role_id = RoleId::new(role_u64);
 
     if tickets.is_none_or(|t| !t.enabled) {
         debug!("Ticket system is disabled in this guild settings");
@@ -122,7 +120,7 @@ pub async fn on_open_ticket(
 
     data.caches
         .active_tickets
-        .insert(ticket_channel.id.get(), ())
+        .insert(ticket_channel.id, ())
         .await;
 
     debug!("Confirming channel link to user interaction");
@@ -174,14 +172,14 @@ async fn create_ticket_channel(
     guild_id: GuildId,
     username: &str,
     overwrites: Vec<PermissionOverwrite>,
-    category_id_str: Option<u64>,
+    category_id: Option<ChannelId>,
 ) -> Result<GuildChannel, Error> {
     let mut channel_builder = CreateChannel::new(format!("ticket-{username}"))
         .kind(ChannelType::Text)
         .permissions(overwrites);
 
-    if let Some(cat) = category_id_str {
-        channel_builder = channel_builder.category(ChannelId::new(cat));
+    if let Some(cat) = category_id {
+        channel_builder = channel_builder.category(cat);
     }
 
     debug!("Calling Discord API to create ticket channel");

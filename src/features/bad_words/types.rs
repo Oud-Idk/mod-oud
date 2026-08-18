@@ -3,6 +3,7 @@ use aho_corasick::AhoCorasick;
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use serenity::all::GuildId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -27,7 +28,7 @@ pub struct BadWordRuleset {
     /// Unique ID of the ruleset.
     pub id: uuid::Uuid,
     /// Guild the ruleset belongs to.
-    pub guild_id: i64,
+    pub guild_id: GuildId,
     /// Display name of the ruleset.
     pub name: String,
     /// Whether the ruleset is active.
@@ -61,7 +62,7 @@ pub struct CompiledRuleset {
     /// Unique ID of the ruleset.
     pub id: uuid::Uuid,
     /// Guild the ruleset belongs to.
-    pub guild_id: i64,
+    pub guild_id: GuildId,
     /// Display name of the ruleset.
     pub name: String,
     /// Whether the ruleset is active.

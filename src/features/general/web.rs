@@ -11,6 +11,7 @@ use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::sync::Arc;
+use serenity::all::GuildId;
 use tracing::{debug, info, warn};
 
 #[serde_as]
@@ -51,19 +52,14 @@ impl MessageGetter for SendCustomEmbedPayload {
 /// Generic handler to deliver custom embeds or messages directly to a channel.
 pub async fn handle_send_custom_embed(
     State(state): State<Arc<WebState>>,
-    Path(guild_id_str): Path<String>,
+    Path(guild_id): Path<GuildId>,
     Json(payload): Json<SendCustomEmbedPayload>,
 ) -> Result<(StatusCode, Json<SendCustomEmbedResponse>), (StatusCode, String)> {
-    debug!(guild_id = guild_id_str, "Received request to dispatch generic embed");
-
-    let guild_id_u64 = guild_id_str
-        .parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid Guild ID format".to_string()))?;
+    debug!(%guild_id, "Received request to dispatch generic embed");
 
     let target_channel = serenity::ChannelId::new(payload.channel_id);
 
-    let message_builder = shared::embed::create_embed_for_web(&payload, std::string::ToString::to_string)?;
+    let message_builder = shared::embed::create_embed_for_web(&payload, ToString::to_string)?;
 
     let message = target_channel
         .send_message(&state.serenity_http, message_builder)
@@ -72,7 +68,7 @@ pub async fn handle_send_custom_embed(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
 
     info!(
-        guild_id = guild_id_u64,
+        %guild_id,
         channel_id = payload.channel_id,
         message_id = %message.id,
         "Custom message successfully delivered"

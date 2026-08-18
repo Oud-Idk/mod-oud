@@ -9,14 +9,14 @@ use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
 use tracing::{error, info, instrument, warn};
 
-#[instrument(skip(state, redis), fields(report_id = cmd.report_id, guild_id = %guild_id, user_id = %user_id
+#[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, user_id = %user_id
 ))]
 pub async fn handle_timeout(
     state: &WebState,
     cmd: &DashboardCommand,
-    mod_id: Option<i64>,
-    guild_id: &GuildId,
-    user_id: &UserId,
+    mod_id: Option<UserId>,
+    guild_id: GuildId,
+    user_id: UserId,
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
     let duration_mins = cmd.duration_mins.ok_or_else(|| {
@@ -27,7 +27,7 @@ pub async fn handle_timeout(
     info!(duration_minutes = duration_mins, "Issuing timeout to user");
 
     let (user, moderator) = tokio::try_join!(
-        resolve_target_user(&state.serenity_http, *user_id),
+        resolve_target_user(&state.serenity_http, user_id),
         resolve_moderator_user(&state.serenity_http, mod_id)
     )?;
 
@@ -55,7 +55,7 @@ pub async fn handle_timeout(
         redis,
         &state.core.guild_configs_cache,
         &state.serenity_http,
-        *guild_id,
+        guild_id,
         user,
         moderator,
         reason_str,

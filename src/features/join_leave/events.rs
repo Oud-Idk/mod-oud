@@ -13,14 +13,13 @@ use tracing::{debug, info, trace, warn};
 /// Returns `Err` when leave event fails to be logged at `PostgreSQL`.
 pub async fn send_leave_message(
     ctx: &Context,
-    _guild_id: &GuildId,
+    guild_id: GuildId,
     user: &User,
     member_data_if_available: &Option<Member>,
     data: &BotData,
 ) -> Result<()> {
-    let guild_id = _guild_id.get();
-    let user_id = user.id.get();
-    info!(guild_id, user_id, user_name = %user.name, "Member left the guild");
+    let user_id = user.id;
+    info!(%guild_id, %user_id, user_name = %user.name, "Member left the guild");
 
     let settings = get_settings(
         &data.core.db,
@@ -28,39 +27,39 @@ pub async fn send_leave_message(
         &data.core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
 
     let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled) else {
         trace!(
-            guild_id,
-            user_id, "Leave notifications are disabled; logging departure directly to DB"
+            %guild_id,
+            %user_id, "Leave notifications are disabled; logging departure directly to DB"
         );
         return database::log_leave_to_db(user_id, guild_id, &data.core.db).await;
     };
 
-    let Some(channel_id) = leave_cfg.channel_id.map(|id| ChannelId::new(id)) else {
+    let Some(channel_id) = leave_cfg.channel_id else {
         warn!(
-            guild_id,
-            user_id, "Leave notifications are enabled, but target channel ID is missing or invalid"
+            %guild_id,
+            %user_id, "Leave notifications are enabled, but target channel ID is missing or invalid"
         );
         return database::log_leave_to_db(user_id, guild_id, &data.core.db).await;
     };
 
     let msg_payload =
-        messages::build_goodbye_message(ctx, *_guild_id, user, member_data_if_available, leave_cfg)
+        messages::build_goodbye_message(ctx, guild_id, user, member_data_if_available, leave_cfg)
             .await;
 
     debug!(
-        guild_id,
-        user_id,
+        %guild_id,
+        %user_id,
         target_channel = channel_id.get(),
         "Dispatching goodbye notification message"
     );
     if let Err(e) = channel_id.send_message(&ctx.http, msg_payload).await {
-        warn!(error = ?e, guild_id, user_id, target_channel = channel_id.get(), "Failed to send goodbye notification to channel");
+        warn!(error = ?e, %guild_id, %user_id, target_channel = channel_id.get(), "Failed to send goodbye notification to channel");
     }
 
-    trace!(guild_id, user_id, "Logging member leave record to database");
+    trace!(%guild_id, %user_id, "Logging member leave record to database");
     database::log_leave_to_db(user_id, guild_id, &data.core.db).await?;
     Ok(())
 }
@@ -97,9 +96,9 @@ async fn apply_join_roles(ctx: &Context, member: &Member, role_ids: &[String]) -
 }
 
 pub async fn handle_member_welcome(ctx: &Context, member: &Member, data: &BotData) -> Result<()> {
-    let guild_id = member.guild_id.get();
-    let user_id = member.user.id.get();
-    trace!(guild_id, user_id, "Executing welcome handler tasks");
+    let guild_id = member.guild_id;
+    let user_id = member.user.id;
+    trace!(%guild_id, %user_id, "Executing welcome handler tasks");
 
     let settings = get_settings(
         &data.core.db,
@@ -107,7 +106,7 @@ pub async fn handle_member_welcome(ctx: &Context, member: &Member, data: &BotDat
         &data.core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
     let Some(config) = settings.welcome else {
         return Ok(());
     };
@@ -115,13 +114,13 @@ pub async fn handle_member_welcome(ctx: &Context, member: &Member, data: &BotDat
     let warning_text = check_alt_status(&member.user);
     let gctx = get_guild_ctx(member.guild_id, ctx).await?;
 
-    let public_channel_id_u64 = config.public.as_ref().and_then(|p| p.channel_id);
-    let context_channel = messages::get_context_channel(ctx, member, public_channel_id_u64).await?;
+    let public_channel_id = config.public.as_ref().and_then(|p| p.channel_id);
+    let context_channel = messages::get_context_channel(ctx, member, public_channel_id).await?;
 
     if let Some(ref role_ids) = config.join_role_ids
         && let Err(e) = apply_join_roles(ctx, member, role_ids).await
     {
-        warn!(error = ?e, guild_id, user_id, "Failed to completely apply automatic join roles");
+        warn!(error = ?e, %guild_id, %user_id, "Failed to completely apply automatic join roles");
     }
 
     send::send_public_welcome(ctx, member, &config, &context_channel, &gctx, &warning_text).await?;
@@ -160,6 +159,6 @@ pub async fn handle_member_join(
     data: &BotData,
 ) -> Result<(), Error> {
     handle_member_welcome(ctx, member, data).await?;
-    log_join_to_db(member.user.id.get(), member.guild_id.get(), data).await?;
+    log_join_to_db(member.user.id, member.guild_id, data).await?;
     Ok(())
 }

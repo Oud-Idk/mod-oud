@@ -14,23 +14,22 @@ use crate::constants::BRAND_COLOR;
 pub async fn build_ticket_message_payload(
     http: &serenity::all::Http,
     guild_id: serenity::all::GuildId,
-    ticket_role_id: u64,
+    role_id: RoleId,
     format: Format,
     content: &str,
     embed_json: &DiscordEmbed,
 ) -> Result<CreateMessage, Error> {
-    let guild_id_u64 = guild_id.get();
     trace!(
-        guild_id = guild_id_u64,
-        ticket_role_id, "Building ticket message payload"
+        %guild_id,
+        %role_id,
+        "Building ticket message payload"
     );
 
-    let role_id = RoleId::new(ticket_role_id);
     let mut role_name_opt = None;
 
     trace!(
-        guild_id = guild_id_u64,
-        role_id = role_id.get(),
+        %guild_id,
+        %role_id,
         "Retrieving role details for placeholders"
     );
     if let Ok(roles) = guild_id.roles(http).await
@@ -40,7 +39,7 @@ pub async fn build_ticket_message_payload(
     }
 
     trace!(
-        guild_id = guild_id_u64,
+        %guild_id,
         "Fetching guild context for placeholder evaluation"
     );
     let gctx = get_guild_ctx(guild_id, http).await?;
@@ -52,14 +51,14 @@ pub async fn build_ticket_message_payload(
     let message_builder = match custom_msg_opt {
         Some(custom_msg) => {
             debug!(
-                guild_id = guild_id_u64,
+                %guild_id,
                 "Applying custom ticket panel layout from configuration"
             );
             custom_msg
         }
         None => {
             debug!(
-                guild_id = guild_id_u64,
+                %guild_id,
                 "No custom layout configured; falling back to default embed"
             );
             let description = format!(

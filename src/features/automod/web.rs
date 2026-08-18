@@ -4,9 +4,10 @@ use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, serde_as};
+use serde_with::{serde_as, DisplayFromStr};
 use serenity::all::{
-    CreateChannel, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId,
+    ChannelId, CreateChannel, GuildId, PermissionOverwrite, PermissionOverwriteType, Permissions,
+    RoleId,
 };
 use std::sync::Arc;
 use tracing::{debug, warn};
@@ -20,25 +21,14 @@ pub struct SetupHoneypotPayload {
 #[derive(Serialize)]
 pub struct SetupHoneypotResponse {
     #[serde_as(as = "DisplayFromStr")]
-    pub channel_id: u64,
+    pub channel_id: ChannelId,
 }
 
 pub async fn setup_honeypot_channel(
     State(state): State<Arc<WebState>>,
-    Path(guild_id_str): Path<String>,
+    Path(guild_id): Path<GuildId>,
     Json(payload): Json<SetupHoneypotPayload>,
 ) -> Result<(StatusCode, Json<SetupHoneypotResponse>), (StatusCode, String)> {
-    let guild_id_u64 = guild_id_str
-        .parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
-        .map_err(|_| {
-            (
-                StatusCode::BAD_REQUEST,
-                "Invalid Guild ID format".to_string(),
-            )
-        })?;
-
-    let guild_id = GuildId::from(guild_id_u64);
     let permission_overwrite = PermissionOverwrite {
         allow: Permissions::SEND_MESSAGES | Permissions::VIEW_CHANNEL,
         deny: Permissions::empty(),
@@ -51,7 +41,7 @@ pub async fn setup_honeypot_channel(
     let channel = guild_id
         .create_channel(&state.serenity_http, channel_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to create channel"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create channel"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -64,7 +54,7 @@ pub async fn setup_honeypot_channel(
     Ok((
         StatusCode::OK,
         Json(SetupHoneypotResponse {
-            channel_id: channel.id.get(),
+            channel_id: channel.id, // Direct assignment without `.get()`
         }),
     ))
 }

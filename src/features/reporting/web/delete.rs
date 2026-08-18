@@ -10,15 +10,12 @@ use tracing::{error, info, instrument, warn};
 pub async fn handle_delete_message(
     state: &WebState,
     cmd: &DashboardCommand,
-    channel_id: &u64,
-    message_id: &u64,
+    channel_id: ChannelId,
+    message_id: MessageId,
 ) -> Result<StatusCode, WebError> {
-    let ch_id = ChannelId::from(*channel_id);
-    let msg_id = MessageId::from(*message_id);
+    info!(%channel_id, %message_id, "Attempting message deletion");
 
-    info!(channel_id = %ch_id, message_id = %msg_id, "Attempting message deletion");
-
-    match state.serenity_http.delete_message(ch_id, msg_id, Some("Deleted via Moderation Dashboard")).await {
+    match state.serenity_http.delete_message(channel_id, message_id, Some("Deleted via Moderation Dashboard")).await {
         Ok(()) => {
             info!("Discord message deleted successfully");
         }

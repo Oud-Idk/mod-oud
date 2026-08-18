@@ -1,9 +1,11 @@
 #![allow(missing_docs, clippy::unused_async)]
-use crate::core::config::settings::get_settings;
+use crate::core::config::settings::{get_settings, save_settings};
 use crate::core::config::state::{Context, Error};
+use crate::features::tickets::database;
 use crate::features::tickets::panel::build_ticket_message_payload;
 use poise::{CreateReply, serenity_prelude as serenity};
-use serenity::all::{GuildChannel, Role};
+use serde_json::Value;
+use serenity::all::{GuildChannel, GuildId, Role};
 use tracing::{debug, info, warn};
 
 /// Setups the ticket system
@@ -22,12 +24,13 @@ pub async fn setup_tickets(
     channel: Option<GuildChannel>,
     #[description = "The role for viewing the tickets."] role: Option<Role>,
 ) -> Result<(), Error> {
-    let guild_id = ctx.guild_id().unwrap().get();
-    let caller_id = ctx.author().id.get();
+    let Some(guild_id) = ctx.guild_id() else {
+        return Ok(())
+    };
 
     info!(
-        caller_id,
-        guild_id, "Moderator invoked setup_tickets slash command"
+        caller_id = %ctx.author().id,
+        %guild_id, "Moderator invoked setup_tickets slash command"
     );
 
     let settings = get_settings(
@@ -36,29 +39,29 @@ pub async fn setup_tickets(
         &ctx.data().core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
 
     if let Some(ref ticket_cfg) = settings.tickets
         && ticket_cfg.posted_message_id == None
     {
         debug!(
-            guild_id,
+            %guild_id,
             "Ticket setup blocked: active ticket panel already exists"
         );
         ctx.send(
-                CreateReply::default()
-                    .content("A ticket panel is already active. Please delete the existing panel before setting up a new one.")
-                    .ephemeral(true),
-            )
-                .await?;
+            CreateReply::default()
+                .content("A ticket panel is already active. Please delete the existing panel before setting up a new one.")
+                .ephemeral(true),
+        )
+            .await?;
         return Ok(());
     }
     let Some(category_id) = category
-        .map(|c| c.id.get())
+        .map(|c| c.id)
         .or_else(|| settings.tickets.as_ref().and_then(|t| t.category_id))
     else {
         debug!(
-            guild_id,
+            %guild_id,
             "Ticket setup blocked: category_id not provided or configured"
         );
         ctx.send(
@@ -71,11 +74,11 @@ pub async fn setup_tickets(
     };
 
     let Some(ticket_role_id) = role
-        .map(|r| r.id.get())
+        .map(|r| r.id)
         .or_else(|| settings.tickets.as_ref().and_then(|t| t.ticket_role_id))
     else {
         debug!(
-            guild_id,
+            %guild_id,
             "Ticket setup blocked: support role not provided or configured"
         );
         ctx.send(
@@ -87,26 +90,25 @@ pub async fn setup_tickets(
         return Ok(());
     };
 
-    let target_channel_id: u64 = match &channel {
-        Some(c) => c.id.get(),
-        None => ctx.channel_id().get(),
+    let target_channel_id = match &channel {
+        Some(c) => c.id,
+        None => ctx.channel_id(),
     };
 
-    let serenity_guild_id = serenity::GuildId::new(guild_id as u64);
 
-    debug!(guild_id, "Compiling ticket panel layouts and assets");
+    debug!(%guild_id, "Compiling ticket panel layouts and assets");
     let message_builder = if let Some(ref ticket_cfg) = settings.tickets {
         build_ticket_message_payload(
             ctx.http(),
-            serenity_guild_id,
+            guild_id,
             ticket_role_id,
             ticket_cfg.panel_message.message.format,
             &ticket_cfg.panel_message.message.content,
             &ticket_cfg.panel_message.message.embed,
         )
-        .await?
+            .await?
     } else {
-        debug!(guild_id, "Ticket setup blocked: no message configured");
+        debug!(%guild_id, "Ticket setup blocked: no message configured");
         ctx.send(
             CreateReply::default()
                 .content(
@@ -114,13 +116,13 @@ pub async fn setup_tickets(
                 )
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
         return Ok(());
     };
 
     debug!(
-        guild_id,
-        target_channel_id, "Dispatching ticket panel message to Discord API"
+        %guild_id,
+        %target_channel_id, "Dispatching ticket panel message to Discord API"
     );
     // Send the message
     let sent_message = match channel {
@@ -132,57 +134,39 @@ pub async fn setup_tickets(
         }
     };
 
-    let message_id = sent_message.id.to_string();
+    let message_id = sent_message.id;
+    let mut new_settings = settings.clone();
 
-    let mut tickets_payload = match settings.tickets {
-        Some(cfg) => serde_json::to_value(cfg).unwrap_or_else(|_| serde_json::json!({})),
-        None => serde_json::json!({
-            "format": "embed",
-            "content": "",
-            "embed": "",
-        }),
-    };
+    let ticket_cfg = new_settings.tickets.get_or_insert_with(Default::default);
+    ticket_cfg.category_id = Some(category_id);
+    ticket_cfg.ticket_role_id = Some(ticket_role_id);
+    ticket_cfg.channel_id = Some(target_channel_id);
+    ticket_cfg.enabled = true;
+    ticket_cfg.posted_message_id = Some(message_id);
 
-    tickets_payload["category_id"] = serde_json::json!(category_id);
-    tickets_payload["ticket_role_id"] = serde_json::json!(ticket_role_id);
-    tickets_payload["channel_id"] = serde_json::json!(target_channel_id);
-    tickets_payload["enabled"] = serde_json::json!(true);
-    tickets_payload["posted_message_id"] = serde_json::json!(message_id);
-
-    debug!(guild_id, "Persisting ticket settings updates into database");
-    sqlx::query!(
-        r#"
-        INSERT INTO guild_configs (guild_id, settings)
-        VALUES ($1, $2)
-        ON CONFLICT (guild_id)
-        DO UPDATE SET settings = guild_configs.settings || EXCLUDED.settings
-        "#,
-        guild_id.cast_signed(),
-        serde_json::json!({
-            "tickets": tickets_payload
-        }),
-    )
-    .execute(&ctx.data().core.db)
-    .await
-    .map_err(|e| {
-        warn!(error = ?e, guild_id, "Failed to persist new ticket configuration to database");
-        e
-    })?;
+    save_settings(
+        &ctx.data().core.db,
+        &ctx.data().core.redis,
+        &ctx.data().core.guild_configs_cache,
+        guild_id,
+        &new_settings,
+    ).await?;
 
     ctx.send(
         CreateReply::default()
             .content("Ticket system has been set up successfully!")
             .ephemeral(true),
     )
-    .await?;
+        .await?;
 
     info!(
-        guild_id,
-        caller_id,
-        target_channel_id,
-        message_id,
+        %guild_id,
+        caller_id = %ctx.author().id,
+        %target_channel_id,
+        %message_id,
         "Ticket system setup process completed successfully"
     );
 
     Ok(())
 }
+

@@ -22,15 +22,16 @@ use serenity::all::{
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
+use moka::future::Cache;
 use tracing::{debug, info, instrument, warn};
 use crate::constants::BRAND_COLOR;
 
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_kick(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &Cache<GuildId, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     channel_id: ChannelId,
@@ -126,12 +127,12 @@ pub async fn issue_kick(
 }
 
 /// Bans a user from the guild, optionally sending a DM and scheduling an unban.
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id, duration_label
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id, duration_label
 ))]
 pub async fn issue_ban(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &moka::future::Cache<GuildId, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user: User,
@@ -220,12 +221,12 @@ pub async fn schedule_unban(
 }
 
 /// Times out (mutes) a user for the given duration, optionally sending a DM.
-#[instrument(skip(db, redis_conn, guild_configs, http, user), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+#[instrument(skip(db, redis_conn, guild_configs, http, user), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_mute(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &Cache<GuildId, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user: User,
@@ -284,12 +285,12 @@ pub async fn issue_mute(
     Ok(())
 }
 
-#[instrument(skip(db, redis_conn, guild_configs, http, user), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+#[instrument(skip(db, redis_conn, guild_configs, http, user), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_unmute(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &moka::future::Cache<GuildId, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user: User,
@@ -332,12 +333,12 @@ pub async fn issue_unmute(
 }
 
 /// Core logic for issuing a softban (ban + immediate unban to clear messages)
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user.id, moderator_id = %moderator.id
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id
 ))]
 pub async fn issue_softban(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &Cache<GuildId, GuildSettings>,
     http: &Arc<Http>,
     guild_id: GuildId,
     user: User,

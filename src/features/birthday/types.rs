@@ -1,7 +1,7 @@
 use crate::{core::config::message_layout::MessageLayout, features::birthday::format};
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
-use serenity::all::UserId;
+use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 
 /// Information for a single member celebrating a birthday today
 #[derive(Clone, Debug)]
@@ -26,19 +26,18 @@ impl BirthdayMember {
     }
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(Clone, Debug)]
 #[allow(clippy::struct_field_names)]
 pub struct ExpiredRole {
-    pub guild_id: i64,
-    pub user_id: i64,
-    pub role_id: i64,
+    pub guild_id: GuildId,
+    pub user_id: UserId,
+    pub role_id: RoleId,
 }
 
 fn default_timezone() -> String {
     "UTC".to_string()
 }
 
-// TODO fix Values
 /// Config for the birthday announcements feature.
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -48,7 +47,7 @@ pub struct BirthdayConfig {
     pub enabled: bool,
     /// Channel where announcements are posted.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<ChannelId>,
     /// Hour of day (UTC) at which announcements are posted.
     pub announcement_hour: i16,
     /// IANA timezone used for "today" calculations.
@@ -56,22 +55,22 @@ pub struct BirthdayConfig {
     pub timezone: String,
     /// Role granted to members on their birthday, if any.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub birthday_role_id: Option<u64>,
+    pub birthday_role_id: Option<RoleId>,
     /// Whether the birth year is required from members.
     pub require_year: bool,
     /// Announcement message template for celebrants.
     pub message: MessageLayout,
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(Clone, Debug)]
 pub struct UserBirthdayRecord {
-    pub user_id: i64,
+    pub user_id: UserId,
     pub birth_year: Option<i32>,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct FullUserBirthdayRecord {
-    pub user_id: i64,
+    pub user_id: UserId,
     pub birth_month: i16,
     pub birth_day: i16,
     pub birth_year: Option<i32>,

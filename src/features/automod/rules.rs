@@ -2,19 +2,22 @@ use crate::{
     features::automod::types::{HasBaseRule, RuleScope, ScopeMode},
     shared::permissions::HasRoles,
 };
-use serenity::{all::Message, model::guild::PartialMember};
+use serenity::{
+    all::Message,
+    model::{guild::PartialMember, id::ChannelId},
+};
 use tracing::trace;
 
 /// Checks whether a message should be exempt/enforoced based on a `RuleScope`.
 /// Channel and role checks apply here.
 pub fn should_skip_scope(message: &Message, scope: &RuleScope) -> bool {
-    let channel_id = message.channel_id.get();
+    let channel_id = message.channel_id;
 
     let has_matching_role = || {
         message
             .member
             .as_ref()
-            .is_some_and(|m| m.has_any_role_u64(&scope.roles))
+            .is_some_and(|m| m.has_any_role(&scope.roles))
     };
 
     match scope.mode {
@@ -63,21 +66,15 @@ pub fn check_rule<'a, T: HasBaseRule>(rule_opt: Option<&'a T>, message: &Message
 
 pub fn should_apply_filter(
     scope: &RuleScope,
-    channel_id: u64,
+    channel_id: ChannelId,
     member: Option<&PartialMember>,
 ) -> bool {
     let is_channel_matched = scope.channels.contains(&channel_id);
-    let is_role_matched = member.is_some_and(|m| m.has_any_role_u64(&scope.roles));
+    let is_role_matched = member.is_some_and(|m| m.has_any_role(&scope.roles));
     let is_matched = is_channel_matched || is_role_matched;
 
-    let result = match scope.mode {
+    match scope.mode {
         ScopeMode::Exempt => !is_matched,
         ScopeMode::Enforced => is_matched,
-    };
-
-    trace!(
-        is_matched,
-        result, channel_id, "Checked filter applicability for scope"
-    );
-    result
+    }
 }

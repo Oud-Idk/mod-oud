@@ -17,7 +17,7 @@ pub async fn delete_entire_category(
         .collect();
 
     info!(
-        guild_id = %guild_id,
+        %guild_id,
         category_id = %category_id,
         count = child_channels.len(),
         "Found child channels to delete"

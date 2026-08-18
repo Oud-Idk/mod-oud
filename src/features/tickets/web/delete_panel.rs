@@ -1,21 +1,21 @@
 use crate::core::config::state::WebState;
 use crate::shared::error;
-use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
+use axum::Json;
 use serde::Deserialize;
-use std::sync::Arc;
 use serde_with::{serde_as, DisplayFromStr};
+use serenity::all::{ChannelId, MessageId};
+use std::sync::Arc;
 use tracing::{debug, error, instrument};
-
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct DeleteTicketMessagePayload {
     #[serde_as(as = "DisplayFromStr")]
-    pub channel_id: u64,
+    pub channel_id: ChannelId,
     #[serde_as(as = "DisplayFromStr")]
-    pub message_id: u64,
+    pub message_id: MessageId,
 }
 
 #[instrument(skip(state))]
@@ -23,10 +23,9 @@ pub async fn handle_delete_ticket_message(
     State(state): State<Arc<WebState>>,
     Json(payload): Json<DeleteTicketMessagePayload>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let channel = serenity::all::ChannelId::new(payload.channel_id);
-    let message_id = serenity::all::MessageId::new(payload.message_id);
-
-    channel.delete_message(&state.serenity_http, message_id)
+    payload
+        .channel_id
+        .delete_message(&state.serenity_http, payload.message_id)
         .await
         .inspect(|()| debug!("Discord message deleted successfully"))
         .or_else(|e| {
@@ -39,9 +38,8 @@ pub async fn handle_delete_ticket_message(
         })
         .inspect_err(|e| error!(error = ?e, "Failed to delete message via Discord API"))
         .map(|()| StatusCode::NO_CONTENT)
-        .map_err(|_e| (
+        .map_err(|_| (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
         ))
 }
-

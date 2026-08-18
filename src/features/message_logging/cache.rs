@@ -4,7 +4,7 @@ use crate::features::message_logging::types::{DistributedCachedMessage, EditDeta
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface, PubsubInterface};
 use fred::prelude::Expiration;
-use serenity::all::Message;
+use serenity::all::{ChannelId, Message, MessageId};
 use tracing::{debug, error, instrument};
 
 /// Spawns a background task to cache a message in Redis when message logging is enabled.
@@ -18,7 +18,7 @@ pub async fn spawn_cache_message_in_redis(
         return Ok(());
     };
 
-    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id.get()).await?;
+    let config = get_settings(&data.core.db, &data.core.redis, &data.core.guild_configs_cache, guild_id).await?;
 
     if !config.is_message_logging_enabled() {
         return Ok(());
@@ -47,10 +47,10 @@ pub async fn spawn_cache_message_in_redis(
 )]
 pub async fn cache_message_in_redis(
     redis: &Client,
-    msg: &serenity::all::Message,
+    msg: &Message,
 ) -> Result<(), Error> {
     let cached = DistributedCachedMessage {
-        author_id: msg.author.id.get() as i64,
+        author_id: msg.author.id,
         author_name: msg.author.name.clone(),
         content: msg.content.clone(),
         image_urls: msg.attachments.iter().map(|a| a.url.clone()).collect(),
@@ -81,8 +81,8 @@ pub async fn cache_message_in_redis(
 )]
 pub async fn fetch_dist_cached_message(
     redis: &Client,
-    channel_id: serenity::all::ChannelId,
-    message_id: serenity::all::MessageId,
+    channel_id: ChannelId,
+    message_id: MessageId,
 ) -> Result<Option<MessageDetails>, Error> {
     let key = format!("msg:{}:{}", channel_id.get(), message_id.get());
 
@@ -100,10 +100,10 @@ pub async fn fetch_dist_cached_message(
         };
 
         Ok(Some(MessageDetails {
-            msg_id: message_id.get() as i64,
+            msg_id: message_id,
             author_id: cached.author_id,
             author_name: cached.author_name,
-            chan_id: channel_id.get() as i64,
+            chan_id: channel_id,
             content: cached.content,
             image_urls: cached.image_urls,
         }))
@@ -161,8 +161,8 @@ pub async fn fetch_dist_edit_details(
         }
 
         Ok(Some(EditDetails {
-            msg_id: event.id.get() as i64,
-            chan_id: event.channel_id.get() as i64,
+            msg_id: event.id,
+            chan_id: event.channel_id,
             author_id: cached.author_id,
             author_name: cached.author_name,
             old_content,

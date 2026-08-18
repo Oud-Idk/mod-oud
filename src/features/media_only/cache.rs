@@ -17,7 +17,7 @@ pub async fn store_media_only_channel_redis(
     redis: &Client,
     payload: &MediaOnlyChannel,
 ) -> Result<()> {
-    let key = keys::media_channel_key(ChannelId::from(payload.channel_id as u64));
+    let key = keys::media_channel_key(payload.channel_id);
     let payload_ser = serde_json::to_string(payload)?;
     redis
         .set(&key, payload_ser, Some(Expiration::EX(3600)), None, false)

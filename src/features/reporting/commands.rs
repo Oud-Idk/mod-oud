@@ -17,25 +17,26 @@ pub struct ReportModal {
 #[poise::command(context_menu_command = "Report This Message", guild_only)]
 pub async fn report_message(
     ctx: Context<'_>,
-    message: serenity::all::Message,
+    reported_message: serenity::all::Message,
 ) -> Result<(), Error> {
-    let app_ctx = if let Context::Application(x) = ctx {
-        x
-    } else {
+    let Some(guild_id) = ctx.guild_id() else {
+        return Ok(());
+    };
+
+    let reporter = ctx.author();
+
+    let Context::Application(app_ctx) = ctx else {
         warn!(
-            caller_id = ctx.author().id.get(),
+            reporter_id = %reporter.id,
             "report_message command triggered with a non-application context"
         );
         return Ok(());
     };
 
-    let caller_id = ctx.author().id.get();
-    let message_id = message.id.get();
-    let guild_id = ctx.guild_id().unwrap().get();
 
     info!(
-        caller_id,
-        message_id, guild_id, "Invoked report_message context menu command"
+        reporter_id = %reporter.id,
+        reported_message_id = %reported_message.id, %guild_id, "Invoked report_message context menu command"
     );
 
     let db = &ctx.data().core.db;
@@ -43,7 +44,7 @@ pub async fn report_message(
     let guild_configs = &ctx.data().core.guild_configs_cache;
 
     trace!(
-        guild_id,
+        %guild_id,
         "Fetching server settings for report configuration check"
     );
     let config = get_settings(db, &redis, guild_configs, guild_id).await?;
@@ -51,7 +52,7 @@ pub async fn report_message(
 
     if !report_enabled {
         debug!(
-            guild_id,
+            %guild_id,
             "Report command execution cancelled: report feature is disabled in this guild"
         );
         ctx.send(
@@ -59,40 +60,39 @@ pub async fn report_message(
                 .content("Reporting isn't enabled in this guild.")
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
-    trace!(caller_id, "Executing report modal prompt");
+    trace!(reporter_id = %reporter.id, "Executing report modal prompt");
     let modal_data = ReportModal::execute(app_ctx).await?;
 
     if let Some(modal) = modal_data {
         debug!(
-            caller_id,
-            message_id, "Report modal submitted; issuing report"
+            reporter_id = %reporter.id,
+            reported_message_id = %reported_message.id, "Report modal submitted; issuing report"
         );
         let result = actions::issue_report(
             db,
             &ctx.data().core.redis,
             &ctx.data().core.username_tx,
             guild_id,
-            message.channel_id.get() as i64,
-            &message,
-            ctx.author(),
+            &reported_message,
+            reporter,
             modal.reason,
         )
-        .await?;
+            .await?;
 
         let reply_content = if let Some(report_id) = result {
             info!(
-                caller_id,
-                message_id, report_id, "Message report successfully created and recorded"
+                reporter_id = %reporter.id,
+                reported_message_id = %reported_message.id, report_id, "Message report successfully created and recorded"
             );
             "Your report has been submitted to the moderation team."
         } else {
             debug!(
-                caller_id,
-                message_id,
+                reporter_id = %ctx.author().id,
+                reported_message_id = %reported_message.id,
                 "Duplicate report rejected: this message was already reported by this user"
             );
             "Someone has already reported this message."
@@ -103,9 +103,9 @@ pub async fn report_message(
                 .content(reply_content)
                 .ephemeral(true),
         )
-        .await?;
+            .await?;
     } else {
-        trace!(caller_id, "Report modal was cancelled or timed out");
+        trace!(reporter_id = %reporter.id, "Report modal was cancelled or timed out");
     }
 
     Ok(())

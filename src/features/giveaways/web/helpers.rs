@@ -1,10 +1,10 @@
+use crate::constants::BRAND_COLOR;
 use crate::core::config::guild_ctx::GuildCtx;
+use crate::core::config::message_layout::MessageLayout;
 use crate::features::giveaways::placeholders;
-use crate::shared::embed::{DiscordEmbed, Format};
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
 use serenity::all::{CreateEmbed, CreateMessage, EditMessage, Embed, User};
-use crate::constants::BRAND_COLOR;
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
@@ -17,33 +17,36 @@ pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)>
 
 /// Builds a custom layout or default Giveaway message builder
 pub fn build_giveaway_msg(
-    format: Format,
-    content: &str,
-    embed: &DiscordEmbed,
+    message: &MessageLayout,
     prize: &str,
     winner_count: i32,
     end_time: DateTime<Utc>,
-    host_user: User,
+    host_user: &User,
     gctx: &GuildCtx,
 ) -> Result<Option<CreateMessage>, (StatusCode, String)> {
     let end_time_str = end_time.timestamp().to_string();
 
-    let create_msg = crate::shared::embed::build_custom_message(format, content, embed, |text| {
-        placeholders::replace_giveaway_placeholders(
-            text,
-            prize,
-            winner_count,
-            &host_user,
-            gctx,
-            &end_time_str,
-        )
-    })
-        .map_err(|_e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal Server Error".to_string(),
+    let create_msg = crate::shared::embed::build_custom_message(
+        message.format,
+        &message.content,
+        &message.embed,
+        |text| {
+            placeholders::replace_giveaway_placeholders(
+                text,
+                prize,
+                winner_count,
+                host_user,
+                gctx,
+                &end_time_str,
             )
-        })?;
+        },
+    )
+    .map_err(|_e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal Server Error".to_string(),
+        )
+    })?;
 
     // Fallback if no custom format is specified or empty
     let final_msg = create_msg.unwrap_or_else(|| {

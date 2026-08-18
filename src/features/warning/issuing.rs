@@ -22,12 +22,12 @@ use std::sync::Arc;
 use tracing::{debug, info, instrument};
 
 /// Issues a warning to a user, sending a DM and logging the action.
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id, user_id = %user_id, moderator_id = %moderator_id
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user_id, moderator_id = %moderator_id
 ))]
 pub async fn issue_warning(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &moka::future::Cache<GuildId, GuildSettings>,
     username_buf: &tokio::sync::mpsc::Sender<UserUpdate>,
     http: &Arc<Http>,
     guild_id: GuildId,
@@ -95,12 +95,12 @@ pub async fn issue_warning(
 
 /// Updates the active status of a warning, handles the custom/default DMs.
 /// Returns `Some((target_user_id, reason))` if successful, or `None` if the warning wasn't found.
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id_raw, warning_id = id, set_active, moderator_id = %author.id
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id_raw, warning_id = id, set_active, moderator_id = %author.id
 ))]
 pub async fn issue_warning_status_change(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &moka::future::Cache<GuildId, GuildSettings>,
     http: &Arc<Http>,
     guild_id_raw: GuildId,
     id: i64,
@@ -143,7 +143,7 @@ pub async fn issue_warning_status_change(
         action_type,
         None,
     )
-    .await?;
+        .await?;
 
     let dm_settings_opt = if set_active {
         settings.moderation_dms.and_then(|m| m.unpardon_warn)
@@ -185,12 +185,12 @@ pub async fn issue_warning_status_change(
 
 /// Deletes a warning from the database, builds and sends the appropriate DM (custom or default).
 /// Returns `Some((target_user_id, reason))` if deleted, or `None` if the warning didn't exist.
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(guild_id = %guild_id_raw, warning_id = id, moderator_id = %author.id
+#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id_raw, warning_id = id, moderator_id = %author.id
 ))]
 pub async fn issue_delete_warning(
     db: &PgPool,
     redis_conn: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &moka::future::Cache<GuildId, GuildSettings>,
     http: &Arc<Http>,
     guild_id_raw: GuildId,
     id: i64,

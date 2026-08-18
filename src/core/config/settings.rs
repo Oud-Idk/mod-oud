@@ -16,6 +16,7 @@ use anyhow::{Context, Result};
 use fred::clients::Client;
 use fred::interfaces::{FredResult, PubsubInterface};
 use serde::{Deserialize, Serialize};
+use serenity::all::GuildId;
 use sqlx::PgPool;
 use tracing::{debug, error, trace, warn};
 
@@ -119,17 +120,17 @@ impl GuildSettings {
     }
 }
 
-fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: u64) -> GuildSettings {
+fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> GuildSettings {
     match serde_path_to_error::deserialize(raw_json) {
         Ok(s) => {
-            debug!(guild_id, "Found config from DB.");
+            debug!(%guild_id, "Found config from DB.");
             s
         }
         Err(err) => {
             error!(
                 error = %err.inner(),
                 field_path = %err.path(),
-                guild_id,
+                %guild_id,
                 raw_json = %raw_json,
                 "Failed to deserialize database JSON; falling back to default settings"
             );
@@ -145,8 +146,8 @@ fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: u64) -> GuildSet
 pub async fn get_settings(
     db: &PgPool,
     redis: &Client,
-    cache: &moka::future::Cache<u64, GuildSettings>,
-    guild_id: u64,
+    cache: &moka::future::Cache<GuildId, GuildSettings>,
+    guild_id: GuildId,
 ) -> Result<GuildSettings> {
     Box::pin(get_settings_inner(db, redis, cache, guild_id)).await
 }
@@ -158,25 +159,25 @@ pub async fn get_settings(
 pub async fn get_settings_inner(
     db: &PgPool,
     redis: &Client,
-    cache: &moka::future::Cache<u64, GuildSettings>,
-    guild_id: u64,
+    cache: &moka::future::Cache<GuildId, GuildSettings>,
+    guild_id: GuildId,
 ) -> Result<GuildSettings> {
     // Get from Moka
     if let Some(settings) = cache.get(&guild_id).await {
-        trace!(guild_id, "Retrieved settings from memory cache");
+        trace!(%guild_id, "Retrieved settings from memory cache");
         return Ok(settings);
     }
 
     // Get from Redis
     let cache_key = guild_config_key(guild_id);
     if let Some(settings) =
-        Box::pin(redis::get_settings_from_redis(redis, &cache_key, guild_id)).await
+        Box::pin(redis::get_settings_from_redis(redis, &cache_key)).await
     {
         cache.insert(guild_id, settings.clone()).await;
         return Ok(settings);
     }
 
-    debug!(guild_id, key = %cache_key, "Settings cache miss; querying DB");
+    debug!(%guild_id, key = %cache_key, "Settings cache miss; querying DB");
 
     // Get from DB
     let settings_db = database::get_settings_from_database(db, guild_id)
@@ -187,7 +188,7 @@ pub async fn get_settings_inner(
     let settings = settings_db.map_or_else(
         || {
             trace!(
-                guild_id,
+                %guild_id,
                 "No config found in database; using default settings"
             );
             GuildSettings::default()
@@ -199,7 +200,7 @@ pub async fn get_settings_inner(
     if let Err(e) = redis::set_setting_to_redis(redis, &settings, &cache_key).await {
         warn!(
             error = %e,
-            guild_id,
+            %guild_id,
             key = %cache_key,
             "Failed to write settings to Redis cache"
         );
@@ -219,8 +220,8 @@ pub async fn get_settings_inner(
 pub async fn save_settings(
     db: &PgPool,
     redis: &Client,
-    cache: &moka::future::Cache<u64, GuildSettings>,
-    guild_id: u64,
+    cache: &moka::future::Cache<GuildId, GuildSettings>,
+    guild_id: GuildId,
     settings: &GuildSettings,
 ) -> Result<()> {
     database::save_settings_to_db(db, guild_id, settings).await?;
@@ -229,7 +230,7 @@ pub async fn save_settings(
     if let Err(e) = redis::set_setting_to_redis(redis, settings, &cache_key).await {
         warn!(
             error = %e,
-            guild_id,
+            %guild_id,
             key = %cache_key,
             "Failed to write updated settings to Redis cache"
         );
@@ -241,7 +242,7 @@ pub async fn save_settings(
     if let Err(e) = res {
         warn!(
             error = %e,
-            guild_id,
+            %guild_id,
             "Failed to publish config invalidation event to Redis Pub/Sub"
         );
     }

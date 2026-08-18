@@ -1,19 +1,25 @@
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
+use crate::features::tickets::database;
+use crate::features::tickets::keys;
 use crate::shared::locking;
 use anyhow::Result;
 use chrono::Duration as ChronoDuration;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use fred::prelude::*;
 use futures_util::future::join_all;
+use moka::future::Cache;
 use poise::serenity_prelude as serenity;
+use serenity::Error as SerenityError;
+use serenity::all::{ChannelId, GuildId, HttpError};
+use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 struct WarnTarget {
-    channel_id: i64,
+    channel_id: ChannelId,
     remaining_minutes: i64,
 }
 
@@ -22,10 +28,10 @@ pub fn start_ticket_inactivity_worker(
     pool: sqlx::PgPool,
     http: Arc<serenity::Http>,
     redis_client: Client,
-    guild_config: moka::future::Cache<u64, GuildSettings>,
+    guild_config: Cache<GuildId, GuildSettings>,
 ) {
     tokio::spawn(async move {
-        let lock_key = "lock:ticket_inactivity_worker";
+        let lock_key = keys::ticket_inactivity_lock_key();
         let lock_value = format!("worker-{}", Utc::now().timestamp_millis());
 
         info!(worker_id = %lock_value, "Starting ticket inactivity worker task");
@@ -35,7 +41,6 @@ pub fn start_ticket_inactivity_worker(
 
             trace!("Attempting to acquire lock for ticket inactivity checks");
 
-            // Set a 3-second heartbeat. The watchdog keeps it alive for both tasks!
             match locking::acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
                     debug!("Acquired lock; running inactivity evaluations");
@@ -73,11 +78,11 @@ pub fn start_ticket_inactivity_worker(
 /// Helper to fetch configuration settings for a set of guild IDs in parallel.
 #[instrument(skip_all)]
 async fn fetch_guild_settings(
-    pool: &sqlx::PgPool,
+    pool: &PgPool,
     redis: &Client,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
-    guild_ids: HashSet<u64>,
-) -> HashMap<u64, GuildSettings> {
+    guild_configs: &Cache<GuildId, GuildSettings>,
+    guild_ids: HashSet<GuildId>,
+) -> HashMap<GuildId, GuildSettings> {
     let guilds_count = guild_ids.len();
     debug!(
         guilds_count,
@@ -99,7 +104,7 @@ async fn fetch_guild_settings(
         });
     }
 
-    let results: HashMap<u64, GuildSettings> =
+    let results: HashMap<GuildId, GuildSettings> =
         join_all(settings_futures).await.into_iter().collect();
 
     debug!(
@@ -112,25 +117,15 @@ async fn fetch_guild_settings(
 /// Helper function to warn inactive tickets
 #[instrument(skip_all)]
 async fn warn_inactive_tickets(
-    pool: &sqlx::PgPool,
+    pool: &PgPool,
     redis: &Client,
     http: &serenity::Http,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &Cache<GuildId, GuildSettings>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let now = Utc::now();
     let safety_threshold = now - ChronoDuration::minutes(1);
 
-    let candidates = sqlx::query!(
-        r#"
-        SELECT channel_id, guild_id, last_activity
-        FROM tickets
-        WHERE status = 'OPEN' AND warned = FALSE AND last_activity < $1
-        LIMIT 100
-        "#,
-        safety_threshold
-    )
-    .fetch_all(pool)
-    .await?;
+    let candidates = database::fetch_inactive_tickets(pool, safety_threshold).await?;
 
     if candidates.is_empty() {
         debug!("No candidates found for inactivity warning");
@@ -143,16 +138,16 @@ async fn warn_inactive_tickets(
         "Evaluating tickets for inactivity warning"
     );
 
-    let unique_guild_ids: HashSet<u64> = candidates
+    let unique_guild_ids: HashSet<GuildId> = candidates
         .iter()
-        .map(|c| c.guild_id.cast_unsigned())
+        .map(|c| c.guild_id)
         .collect();
     let settings_map = fetch_guild_settings(pool, redis, guild_configs, unique_guild_ids).await;
 
     let mut tickets_to_warn = Vec::new();
 
     for row in candidates {
-        let settings = settings_map.get(&row.guild_id.cast_unsigned());
+        let settings = settings_map.get(&row.guild_id);
         let ticket_config = settings.and_then(|s| s.tickets.as_ref());
 
         let warn_std = ticket_config
@@ -167,8 +162,7 @@ async fn warn_inactive_tickets(
         let delete_duration =
             ChronoDuration::from_std(delete_std).unwrap_or(ChronoDuration::minutes(45));
 
-        if let Some(last_activity) = row.last_activity
-            && last_activity < now - warn_duration
+        if let Some(last_activity) = row.last_activity && last_activity < now - warn_duration
         {
             let remaining_minutes = (delete_duration - warn_duration).num_minutes();
             tickets_to_warn.push(WarnTarget {
@@ -190,15 +184,10 @@ async fn warn_inactive_tickets(
     let warn_count = tickets_to_warn.len();
     info!(warn_count, "Warning inactive tickets");
 
-    let target_ids: Vec<i64> = tickets_to_warn.iter().map(|t| t.channel_id).collect();
+    let target_ids: Vec<ChannelId> = tickets_to_warn.iter().map(|t| t.channel_id).collect();
 
     if !target_ids.is_empty() {
-        sqlx::query!(
-            "UPDATE tickets SET warned = TRUE WHERE channel_id = ANY($1)",
-            &target_ids
-        )
-        .execute(pool)
-        .await?;
+        database::mark_ticket_as_warned(pool, &target_ids).await?;
         debug!(
             updated_count = target_ids.len(),
             "Updated tickets to warned status in database"
@@ -207,19 +196,18 @@ async fn warn_inactive_tickets(
 
     // Send warning messages
     for target in tickets_to_warn {
-        let channel_id = serenity::ChannelId::new(target.channel_id as u64);
         let message = format!(
             "This ticket has been inactive. It will close in {} minutes if there is no activity.",
             target.remaining_minutes
         );
 
-        match channel_id.say(http, &message).await {
+        match target.channel_id.say(http, &message).await {
             Ok(_) => {
-                debug!(channel_id = %channel_id, "Sent inactivity warning message to channel");
+                debug!(channel_id = %target.channel_id, "Sent inactivity warning message to channel");
             }
             Err(e) => {
                 warn!(
-                    channel_id = %channel_id,
+                    channel_id = %target.channel_id,
                     error = ?e,
                     "Failed to send inactivity warning message to channel"
                 );
@@ -229,10 +217,6 @@ async fn warn_inactive_tickets(
 
     Ok(())
 }
-
-use serenity::Error as SerenityError;
-/// Helper function to close completely abandoned tickets
-use serenity::all::HttpError;
 
 /// Helper to check if the error is Discord's "10003 Unknown Channel"
 const fn is_unknown_channel_error(err: &SerenityError) -> bool {
@@ -245,25 +229,15 @@ const fn is_unknown_channel_error(err: &SerenityError) -> bool {
 /// Helper function to close completely abandoned tickets
 #[instrument(skip_all)]
 async fn close_abandoned_tickets(
-    pool: &sqlx::PgPool,
+    pool: &PgPool,
     redis: &Client,
     http: &serenity::Http,
-    guild_configs: &moka::future::Cache<u64, GuildSettings>,
+    guild_configs: &Cache<GuildId, GuildSettings>,
 ) -> Result<()> {
     let now = Utc::now();
     let safety_threshold = now - ChronoDuration::minutes(1);
 
-    let candidates = sqlx::query!(
-        r#"
-        SELECT channel_id, guild_id, last_activity
-        FROM tickets
-        WHERE status = 'OPEN' AND warned = TRUE AND last_activity < $1
-        LIMIT 100
-        "#,
-        safety_threshold
-    )
-    .fetch_all(pool)
-    .await?;
+    let candidates = database::fetch_closing_candidates(pool, safety_threshold).await?;
 
     if candidates.is_empty() {
         debug!("No candidates found for abandoned closure");
@@ -273,16 +247,16 @@ async fn close_abandoned_tickets(
     let candidates_count = candidates.len();
     debug!(candidates_count, "Evaluating tickets for abandoned closure");
 
-    let unique_guild_ids: HashSet<u64> = candidates
+    let unique_guild_ids: HashSet<GuildId> = candidates
         .iter()
-        .map(|c| c.guild_id.cast_unsigned())
+        .map(|c| c.guild_id)
         .collect();
     let settings_map = fetch_guild_settings(pool, redis, guild_configs, unique_guild_ids).await;
 
     let mut tickets_to_close = Vec::new();
 
     for row in candidates {
-        let settings = settings_map.get(&row.guild_id.cast_unsigned());
+        let settings = settings_map.get(&row.guild_id);
         let delete_std = settings
             .and_then(|s| s.tickets.as_ref())
             .map(|t| t.delete_threshold)
@@ -307,12 +281,7 @@ async fn close_abandoned_tickets(
     info!(close_count, "Closing abandoned tickets");
 
     if !tickets_to_close.is_empty() {
-        sqlx::query!(
-            "UPDATE tickets SET status = 'CLOSED' WHERE channel_id = ANY($1)",
-            &tickets_to_close
-        )
-        .execute(pool)
-        .await?;
+        database::mark_ticket_as_closed(pool, &mut tickets_to_close).await?;
         debug!(
             updated_count = tickets_to_close.len(),
             "Set closed status in database for abandoned tickets"
@@ -320,22 +289,20 @@ async fn close_abandoned_tickets(
     }
 
     for channel_id in tickets_to_close {
-        let chan = serenity::ChannelId::new(channel_id as u64);
-
-        match chan.delete(http).await {
+        match channel_id.delete(http).await {
             Ok(_) => {
-                info!(channel_id = %chan, "Successfully deleted abandoned ticket channel");
+                info!(%channel_id, "Successfully deleted abandoned ticket channel");
             }
             Err(e) => {
                 // FIX 2: Gracefully handle manually deleted channels (Error 10003)
                 if is_unknown_channel_error(&e) {
                     debug!(
-                        channel_id = %chan,
+                        %channel_id,
                         "Ticket channel was already deleted from Discord manually"
                     );
                 } else {
                     warn!(
-                        channel_id = %chan,
+                        %channel_id,
                         error = ?e,
                         "Failed to delete inactive ticket channel on close"
                     );

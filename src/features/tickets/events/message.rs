@@ -2,6 +2,7 @@ use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::tickets;
 use crate::features::tickets::cache::{is_ticket_active, update_activity_redis};
+use crate::features::tickets::keys;
 use crate::features::tickets::types::TicketLogPayload;
 use fred::clients::Client;
 use serenity::all::{
@@ -26,7 +27,6 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
     }
 
     let channel_id = message.channel_id;
-    let channel_id_str = channel_id.get().to_string();
     let Some(guild_id) = message.guild_id else {
         return Ok(());
     };
@@ -35,67 +35,64 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get(),
+        guild_id,
     )
-    .await?;
+        .await?;
 
     let Some(ticket_config) = settings.tickets.as_ref().filter(|cfg| cfg.enabled) else {
         return Ok(());
     };
 
-    if !is_ticket_active(data, channel_id.get()) {
+    if !is_ticket_active(data, channel_id) {
         trace!("Message is not in an active ticket channel; skipping ticket logic");
         return Ok(());
     }
 
     debug!("Active ticket message intercepted. Evaluating staff roles.");
 
+    // Avoid cloning full member structs out of cache; borrow directly where possible
     let has_role = if let Some(role_id) = ticket_config.ticket_role_id {
-        let role_id = RoleId::from(role_id);
         if let Some(ref member) = message.member {
             member.roles.contains(&role_id)
-        } else if let Some(member) = ctx.cache.guild(guild_id).and_then(|g| g.members.get(&message.author.id).cloned()) {
-            member.roles.contains(&role_id)
+        } else if let Some(has_role) = ctx.cache.guild(guild_id).and_then(|g| {
+            g.members.get(&message.author.id).map(|m| m.roles.contains(&role_id))
+        }) {
+            has_role
         } else {
             trace!("Cache miss for member roles; executing HTTP request to verify");
             message.author.has_role(ctx, guild_id, role_id).await?
         }
     } else {
-        false // No staff role configured
+        false
     };
 
-    trace!(
-        has_role = has_role,
-        "Logging message payload to database queue"
-    );
+    trace!(has_role, "Logging message payload to database queue");
     log_message_to_db(
         &data.ticket_log_tx,
         channel_id,
         message,
-        message.author.name.clone(),
         has_role,
     );
 
-    let ticket_key = format!("ticket:{channel_id_str}");
-    let redis_conn = data.core.redis.clone();
-
-    let bump_every_mins = (ticket_config.bump_every.as_secs() / 60) as i32;
+    // Single format allocation instead of intermediate channel_id_str String
+    let ticket_key = keys::ticket_key(channel_id);
 
     trace!("Updating Redis ticket activity tracking");
+    // Directly pass the message count threshold (no Duration minutes division)
     let (should_rotate, last_button_id_str) =
-        update_activity_redis(&redis_conn, &ticket_key, bump_every_mins).await?;
+        update_activity_redis(&data.core.redis, &ticket_key, ticket_config.bump_every as i32).await?;
 
     if should_rotate {
         info!("Message threshold reached; rotating close button placement");
         rotate_close_button(
             ctx,
             data,
-            &redis_conn,
+            &data.core.redis,
             channel_id,
             &ticket_key,
             last_button_id_str,
         )
-        .await?;
+            .await?;
     }
 
     Ok(())
@@ -105,15 +102,14 @@ fn log_message_to_db(
     tx: &UnboundedSender<TicketLogPayload>,
     channel_id: ChannelId,
     message: &Message,
-    username: String,
     is_ticket_manager: bool,
 ) {
     let payload = TicketLogPayload {
-        ticket_channel_id: channel_id.get() as i64,
-        message_id: message.id.get() as i64,
-        author_id: message.author.id.get() as i64,
+        ticket_channel_id: channel_id,
+        message_id: message.id,
+        author_id: message.author.id,
         content: message.content.clone(),
-        sender_name: username,
+        sender_name: message.author.name.clone(),
         is_ticket_manager,
     };
 

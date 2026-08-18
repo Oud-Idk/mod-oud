@@ -154,10 +154,10 @@ pub async fn delete_invite(
 pub async fn check_if_enabled(
     redis: &Client,
     db: &PgPool,
-    cache: &Cache<u64, GuildSettings>,
+    cache: &Cache<GuildId, GuildSettings>,
     guild_id: GuildId,
 ) -> Result<bool, Error> {
-    Ok(get_settings(db, redis, cache, guild_id.get())
+    Ok(get_settings(db, redis, cache, guild_id)
         .await?
         .invite_tracker
         .and_then(|s| s.enabled)
@@ -219,7 +219,7 @@ pub async fn store_member_invite(
 
     let Some(code) = used_code else {
         debug!(
-            guild_id = guild_id.get(),
+            %guild_id,
             member_id = new_member.user.id.get(),
             "Could not determine which invite was used (vanity URL, oauth join, or bot invite?)"
         );
@@ -228,7 +228,7 @@ pub async fn store_member_invite(
 
     let inviter_id: Option<u64> = redis.hget(&inv_key, &code).await.unwrap_or(None);
     let Some(inviter_id) = inviter_id else {
-        debug!(guild_id = guild_id.get(), %code, "No cached inviter for this code");
+        debug!(%guild_id, %code, "No cached inviter for this code");
         return Ok(());
     };
 
@@ -239,7 +239,7 @@ pub async fn store_member_invite(
         inviter_id,
         &code,
     )
-    .await?;
+        .await?;
 
     let pipe = redis.pipeline();
     let _: () = pipe
@@ -256,6 +256,6 @@ pub async fn store_member_invite(
         .await?;
     let _: () = pipe.all().await?;
 
-    debug!(guild_id = guild_id.get(), member_id = new_member.user.id.get(), inviter_id, %code, "Attributed join to inviter");
+    debug!(%guild_id, member_id = %new_member.user.id, inviter_id, %code, "Attributed join to inviter");
     Ok(())
 }

@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
 use serenity::all::Action;
+use serenity::model::id::ChannelId;
+use serenity::model::id::RoleId;
 use std::borrow::Cow;
 use std::fmt;
 
@@ -208,12 +210,12 @@ pub struct RuleScope {
     /// The list of Discord role IDs targeted by this scope.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[serde_as(as = "Vec<DisplayFromStr>")]
-    pub roles: Vec<u64>,
+    pub roles: Vec<RoleId>,
 
     /// The list of Discord channel IDs targeted by this scope.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[serde_as(as = "Vec<DisplayFromStr>")]
-    pub channels: Vec<u64>,
+    pub channels: Vec<ChannelId>,
 }
 
 /// Configuration for detecting messages with excessive capital letters.
@@ -444,15 +446,21 @@ impl fmt::Display for LoggedAction {
 pub struct HoneypotConfig {
     /// Whether the honeypot channel listener is enabled.
     pub enabled: Option<bool>,
+
     /// The Discord channel ID designated as the honeypot trap.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub channel_id: Option<u64>,
-    /// Role IDs or names that are exempt from triggering the honeypot trap.
-    pub exempt_roles: Option<Vec<String>>,
+    pub channel_id: Option<ChannelId>,
+
+    /// Role IDs that are exempt from triggering the honeypot trap.
+    #[serde_as(as = "Option<Vec<DisplayFromStr>>")]
+    pub exempt_roles: Option<Vec<RoleId>>,
+
     /// Number of days of message history to delete upon triggering the honeypot.
     pub dmd: Option<u8>,
+
     /// Audit log reason attached to honeypot moderation actions.
     pub reason: Option<String>,
+
     /// Duration in seconds for any temporary punitive action applied.
     pub duration: Option<u64>,
 }

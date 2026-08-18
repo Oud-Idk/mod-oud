@@ -1,14 +1,12 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::state::WebState;
-use crate::features::giveaways;
-use crate::features::giveaways::web::helpers::{
-    build_giveaway_msg, parse_config_id,
-};
+use crate::features::giveaways::web::helpers::{build_giveaway_msg, parse_config_id};
+use crate::features::giveaways::{self, database};
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::Json;
 use serde::Serialize;
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, GuildId, ReactionType, UserId};
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -32,34 +30,42 @@ pub async fn handle_send_giveaway_message(
 
     let record = giveaways::database::fetch_giveaway(&state.core.db, config_id, guild_id).await?;
 
-    let Some(channel_id_i64) = record.channel_id else {
+    let Some(channel_id_u64) = record.channel_id.map(i64::cast_unsigned) else {
         return Err((
             StatusCode::BAD_REQUEST,
             "Cannot edit a giveaway message that hasn't been sent yet!".to_string(),
         ));
     };
 
-    let channel_id = ChannelId::new(channel_id_i64 as u64);
-    let host_user = UserId::from(record.host_id as u64)
+    let channel_id = ChannelId::new(channel_id_u64);
+    let host_user = UserId::from(record.host_id.cast_unsigned())
         .to_user(&state.serenity_http)
         .await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get user through HTTP"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".to_string(),
+            )
+        })?;
 
     let gctx = get_guild_ctx(GuildId::from(guild_id), &state.serenity_http)
         .await
         .inspect_err(|e| warn!(error = ?e, "Couldn't get guild ctx"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".to_string(),
+            )
+        })?;
 
     // Updated: Access format, content, and embed via nested `record.message`
     let custom_msg_opt = build_giveaway_msg(
-        record.message.format,
-        &record.message.content,
-        &record.message.embed,
+        &record.message,
         &record.prize,
         record.winner_count,
         record.end_time,
-        host_user,
+        &host_user,
         &gctx,
     )?;
 
@@ -68,7 +74,12 @@ pub async fn handle_send_giveaway_message(
         .send_message(&state.serenity_http, message_builder)
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed to send giveaway message to Discord"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".to_string(),
+            )
+        })?;
 
     // Auto-apply the 🎉 entry emoji
     let emoji = ReactionType::Unicode("🎉".to_string());
@@ -76,16 +87,26 @@ pub async fn handle_send_giveaway_message(
         warn!(error = ?err, "Failed applying giveaway reaction emoji");
     }
 
-    let message_id = message.id.get();
-    giveaways::database::update_giveaway_message_id(&state.core.db, config_id, message_id as i64)
+    database::update_giveaway_message_id(&state.core.db, config_id, message.id)
         .await
         .inspect_err(|e| warn!(error = ?e, "Failed updating message ID in DB"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".to_string(),
+            )
+        })?;
 
-    info!(guild_id = guild_id_str, message_id = message_id, "Giveaway dispatched");
+    info!(
+        guild_id = guild_id_str,
+        message_id = message.id.get(),
+        "Giveaway dispatched"
+    );
 
     Ok((
         StatusCode::OK,
-        Json(SendGiveawayResponse { message_id }),
+        Json(SendGiveawayResponse {
+            message_id: message.id.get(),
+        }),
     ))
 }

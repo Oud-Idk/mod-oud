@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
-use serenity::all::RoleId;
+use serenity::all::{ChannelId, GuildId, RoleId};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct MediaOnlyChannel {
-    pub channel_id: i64,
-    pub guild_id: i64,
+    pub channel_id: ChannelId,
+    pub guild_id: GuildId,
     pub enabled: bool,
 
     pub allow_images: bool,
@@ -19,7 +19,7 @@ pub struct MediaOnlyChannel {
     pub thread_name_template: Option<String>,
 
     pub delete_warning_after_secs: i16,
-    pub exempt_roles: Option<Vec<i64>>,
+    pub exempt_roles: Option<Vec<RoleId>>,
 }
 
 // Sensible defaults
@@ -27,8 +27,8 @@ impl Default for MediaOnlyChannel {
     fn default() -> Self {
         Self {
             enabled: false,
-            channel_id: 0,
-            guild_id: 0,
+            channel_id: ChannelId::default(),
+            guild_id: GuildId::default(),
             allow_images: true,
             allow_videos: true,
             allow_audio: false,
@@ -45,9 +45,6 @@ impl Default for MediaOnlyChannel {
 
 impl MediaOnlyChannel {
     pub fn exempt_role_ids(&self) -> Vec<RoleId> {
-        self.exempt_roles
-            .as_ref()
-            .map(|roles| roles.iter().map(|&id| id as u64).map(RoleId::new).collect())
-            .unwrap_or_default()
+        self.exempt_roles.clone().unwrap_or_default()
     }
 }

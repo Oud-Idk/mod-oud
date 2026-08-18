@@ -95,8 +95,8 @@ async fn insert_threshold_automod_log(
     debug("Inserting automod-log for threshold");
 
     let entry = AutomodEntryRow {
-        guild_id: member.guild_id.get(),
-        user_id: member.user.id.get(),
+        guild_id: member.guild_id,
+        user_id: member.user.id,
         channel_id: None,
         message_id: None,
         rule_name: &format!("Warn Threshold: {}", warn_count),

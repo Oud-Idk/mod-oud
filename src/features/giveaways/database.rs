@@ -2,6 +2,9 @@ use crate::core::config::message_layout::MessageLayout;
 use crate::features::giveaways::types::Giveaway;
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
+use serenity::model::id::ChannelId;
+use serenity::model::id::MessageId;
+use serenity::model::id::UserId;
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use sqlx::types::Json;
@@ -47,11 +50,11 @@ pub async fn fetch_giveaway(
 pub async fn update_giveaway_message_id(
     pool: &PgPool,
     config_id: i64,
-    message_id: i64,
+    message_id: MessageId,
 ) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         "UPDATE giveaways SET message_id = $1 WHERE id = $2",
-        message_id,
+        message_id.get().cast_signed(),
         config_id
     )
     .execute(pool)
@@ -111,8 +114,8 @@ pub async fn mark_giveaway_finished(pool: &PgPool, giveaway_id: i64) -> Result<(
 pub async fn create_giveaway(
     pool: &PgPool,
     guild_id: u64,
-    host_id: i64,
-    channel_id: i64,
+    host_id: UserId,
+    channel_id: ChannelId,
     prize: &str,
     winner_count: i32,
     end_time: DateTime<Utc>,
@@ -124,8 +127,8 @@ pub async fn create_giveaway(
         RETURNING id
         "#,
         guild_id.cast_signed(),
-        host_id,
-        channel_id,
+        host_id.get().cast_signed(),
+        channel_id.get().cast_signed(),
         prize,
         winner_count,
         end_time

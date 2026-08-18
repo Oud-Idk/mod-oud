@@ -2,6 +2,7 @@ use crate::core::config::message_layout::MessageLayout;
 use crate::features::verification::VerificationSettings;
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
+use serenity::all::ChannelId;
 
 /// Config for the leave message sent when a member leaves.
 #[serde_as]
@@ -13,7 +14,7 @@ pub struct LeaveConfig {
     pub enabled: bool,
     /// Channel the leave message is sent to.
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<ChannelId>,
     /// Message layout for the leave message.
     pub message: MessageLayout,
 }
@@ -25,7 +26,7 @@ pub struct LeaveConfig {
 pub struct WelcomeMessageSettings {
     pub enabled: Option<bool>,
     #[serde_as(as = "Option<DisplayFromStr>")]
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<ChannelId>,
     pub message: MessageLayout,
 }
 

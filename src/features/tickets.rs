@@ -1,6 +1,7 @@
 mod types;
 mod database;
 mod cache;
+mod keys;
 mod events;
 mod panel;
 mod placeholders;

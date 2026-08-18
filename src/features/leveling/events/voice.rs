@@ -53,7 +53,7 @@ pub async fn handle_voice_leveling(
 
     if old_eligible && let Some(old_ch) = old_channel {
         debug!(
-            guild_id = guild_id.get(),
+            %guild_id,
             user_id = user_id.get(),
             "Closing voice session"
         );
@@ -68,16 +68,16 @@ pub async fn handle_voice_leveling(
                     guild_id,
                     user_id,
                     member,
-                    ChannelId::new(session.channel_id),
+                    session.channel_id,
                     synthetic_join_time,
                     now,
                     data,
                     &leveling_config,
                 )
-                .await?;
+                    .await?;
             } else {
                 debug!(
-                    guild_id = guild_id.get(),
+                    %guild_id,
                     user_id = user_id.get(),
                     "Discarded brief voice session (<10s)"
                 );
@@ -100,7 +100,7 @@ pub async fn handle_voice_leveling(
         };
         let start_clock = count_after >= 2;
 
-        cache::open_session(redis, guild_id, user_id, new_ch.get(), now, start_clock).await?;
+        cache::open_session(redis, guild_id, user_id, new_ch, now, start_clock).await?;
 
         if count_before < 2 && count_after >= 2 {
             cache::resume_channel_clocks(redis, guild_id, new_ch, now).await?;
@@ -131,27 +131,26 @@ async fn award_vc_xp_for_session(
     let db = &data.core.db;
 
     let member = &resolve_member(ctx, guild_id, user_id, member_opt).await?;
-    let user_roles: Vec<u64> = member.roles.iter().map(|r| r.get()).collect();
 
-    if rules::should_exclude_from_level_up(leveling_config, &user_roles, channel_id.get()) {
+    if rules::should_exclude_from_level_up(leveling_config, &member.roles, channel_id) {
         trace!(
-            guild_id = guild_id.get(),
+            %guild_id,
             "Skipping voice XP: channel/user is excluded"
         );
         return Ok(());
     }
 
-    let stats_key = member_stats_key(&guild_id, user_id);
-    let multiplier_key = leveling::keys::multiplier_key(&guild_id);
+    let stats_key = member_stats_key(guild_id, user_id);
+    let multiplier_key = leveling::keys::multiplier_key(guild_id);
     let multiplier = rules::get_voice_multiplier(
         redis,
         &multiplier_key,
         db,
-        &guild_id,
+        guild_id,
         channel_id,
         &member.roles,
     )
-    .await?;
+        .await?;
 
     let elapsed_minutes = elapsed_seconds / 60;
     let total_added_xp =
@@ -159,14 +158,14 @@ async fn award_vc_xp_for_session(
 
     let Some((mut user_level, previous_level)) = apply_xp_and_process_levels(
         data,
-        &guild_id,
-        &user_id,
+        guild_id,
+        user_id,
         &stats_key,
         &member.user.name,
         leveling_config,
         total_added_xp,
     )
-    .await?
+        .await?
     else {
         return Ok(());
     };
@@ -180,11 +179,11 @@ async fn award_vc_xp_for_session(
             &member.user,
             &user_level,
             leveling_config,
-            &guild_id,
+            guild_id,
             channel_id,
             previous_level,
         )
-        .await?;
+            .await?;
     }
 
     persist_user_level(data, &stats_key, &mut user_level).await?;
@@ -227,8 +226,8 @@ async fn persist_user_level(
 
 async fn apply_xp_and_process_levels(
     data: &BotData,
-    guild_id: &GuildId,
-    user_id: &UserId,
+    guild_id: GuildId,
+    user_id: UserId,
     stats_key: &str,
     username: &str,
     leveling_config: &LevelingConfig,
@@ -247,7 +246,7 @@ async fn apply_xp_and_process_levels(
         stats_key,
         &mut user_level,
     )
-    .await?;
+        .await?;
     if should_be_clamped {
         return Ok(None);
     }
@@ -275,7 +274,7 @@ async fn handle_level_up(
     user: &User,
     user_level: &UserLevel,
     config: &LevelingConfig,
-    guild_id: &GuildId,
+    guild_id: GuildId,
     channel_id: ChannelId,
     previous_level: i32,
 ) -> Result<()> {
@@ -289,7 +288,7 @@ async fn handle_level_up(
             channel_id,
             previous_level,
         )
-        .await?;
+            .await?;
     }
 
     let _ = rewards::apply_level_rewards(
@@ -299,6 +298,6 @@ async fn handle_level_up(
         user.id,
         user_level.current_level,
     )
-    .await;
+        .await;
     Ok(())
 }

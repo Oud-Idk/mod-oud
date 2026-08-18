@@ -8,7 +8,7 @@ use crate::shared::embed::build_custom_message;
 use crate::shared::permissions::HasRoles;
 use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
-use serenity::all::{ChannelId, Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message};
+use serenity::all::{Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message};
 use std::time::Duration;
 use tracing::{info, instrument};
 
@@ -25,16 +25,16 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
-        guild_id.get(),
+        guild_id,
     )
-    .await?;
+        .await?;
 
     let Some(honeypot) = config.honeypot.as_ref() else {
         return Ok(false);
     };
 
     // Short circuit if this channel is not the honeypot channel
-    let is_honeypot_channel = honeypot.channel_id.map(ChannelId::new) == Some(message.channel_id);
+    let is_honeypot_channel = honeypot.channel_id == Some(message.channel_id);
     if !is_honeypot_channel {
         return Ok(false);
     }
@@ -42,7 +42,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
     // Check role exemptions
     if let Some(member) = &message.member
         && let Some(exempt_roles) = &honeypot.exempt_roles
-        && member.has_any_role_str(exempt_roles)
+        && member.has_any_role(exempt_roles)
     {
         return Ok(false);
     }
@@ -66,8 +66,8 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         Some(&message.content),
         &["BAN"],
     )
-    .await
-    .context("Failed to log honeypot automod action")?;
+        .await
+        .context("Failed to log honeypot automod action")?;
 
     if let Ok(dm_channel) = message.author.create_dm_channel(&ctx.http).await {
         let honeypot_dm_settings = config
@@ -110,6 +110,6 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
             .context("Failed to schedule temp unban for honeypot offender")?;
     }
 
-    info!(user_id = %message.author.id, guild_id = %guild_id, "Honeypot offender banished successfully");
+    info!(user_id = %message.author.id, %guild_id, "Honeypot offender banished successfully");
     Ok(true)
 }

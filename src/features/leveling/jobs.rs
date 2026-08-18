@@ -135,7 +135,7 @@ async fn process_flushing_key(
     Ok(())
 }
 
-#[instrument(skip(redis, db), fields(guild_id = %guild_id_str))]
+#[instrument(skip(redis, db), fields(%guild_id_str))]
 async fn flush_guild(
     guild_id_str: &str,
     redis: &Client,
@@ -187,7 +187,7 @@ async fn flush_pending_levels(
 
         async move {
             if let Err(e) = flush_guild(&guild_id_str, &redis_clone, db_pool).await {
-                error!(guild_id = %guild_id_str, error = ?e, "Failed to flush levels for guild");
+                error!(%guild_id_str, error = ?e, "Failed to flush levels for guild");
             }
         }
     });
