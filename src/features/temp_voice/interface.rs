@@ -1,9 +1,7 @@
 use crate::core::config::state::{BotData, Context as PoiseContext, Error};
 use crate::features::temp_voice::cache;
-use crate::features::temp_voice::keys::temp_vcs_key;
 use crate::shared::messages::send_ephemeral;
 use anyhow::Context as _;
-use fred::interfaces::HashesInterface;
 use serenity::all::{
     ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, Context,
     CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Interaction, Member,
@@ -118,10 +116,7 @@ pub async fn preflight_slash_check(
 
     // Verify ownership via Redis
     let redis = &ctx.data().core.redis;
-    let temp_vc_hash = temp_vcs_key(guild_id);
-    let owner_id_str: Option<String> = redis
-        .hget(&temp_vc_hash, channel_id.get().to_string())
-        .await?;
+    let owner_id_str = cache::get_temp_vc_owner(redis, guild_id, channel_id).await?;
 
     let is_owner = owner_id_str
         .as_ref()

@@ -32,8 +32,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
     let cmd_name = raw_cmd_name.to_ascii_lowercase();
 
     let Some(cmd) =
-        get_custom_command_by_name(&data.core.db, &data.core.redis, guild_id, &cmd_name)
-            .await?
+        get_custom_command_by_name(&data.core.db, &data.core.redis, guild_id, &cmd_name).await?
     else {
         debug!(raw_cmd_name, "Command not found though");
         return Ok(());

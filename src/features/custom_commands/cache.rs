@@ -39,3 +39,29 @@ pub async fn get_custom_command_from_redis(
     // Try parsing JSON; if bad JSON, treat as Miss so DB can refresh it
     serde_json::from_str::<CustomCommand>(&cached_str).ok()
 }
+
+/// Checks whether a custom command is on cooldown, setting the cooldown if it is not.
+/// Returns `Ok(true)` if the command is currently on cooldown.
+///
+/// # Errors
+/// Returns `Err` if Redis fails during the existence check or cooldown set.
+pub async fn check_and_set_command_cooldown(
+    redis: &Client,
+    key: &str,
+    cooldown_seconds: i64,
+) -> Result<bool, fred::error::Error> {
+    let is_on_cooldown: bool = redis.exists(key).await?;
+    if is_on_cooldown {
+        return Ok(true);
+    }
+    let _: () = redis
+        .set(
+            key,
+            "1",
+            Some(Expiration::EX(cooldown_seconds)),
+            None,
+            false,
+        )
+        .await?;
+    Ok(false)
+}

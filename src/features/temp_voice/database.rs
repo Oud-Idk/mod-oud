@@ -21,9 +21,7 @@ impl From<TempVoiceHubRow> for TempVoiceHub {
         Self {
             id: row.id,
             name: row.name,
-            category_id: row
-                .category_id
-                .map(|id| ChannelId::new(id.cast_unsigned())),
+            category_id: row.category_id.map(|id| ChannelId::new(id.cast_unsigned())),
             user_limit: row.user_limit,
             default_channel_name: row.default_channel_name,
         }

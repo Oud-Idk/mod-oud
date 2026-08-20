@@ -2,19 +2,17 @@ use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::invite_tracking::cache::{
-    collect_pairs, replace_guild_invites, store_invite_to_redis_hash,
+    collect_pairs, get_cached_inviter, get_invite_uses, remove_invite_from_redis,
+    replace_guild_invites, store_invite_attribution, store_invite_to_redis_hash,
+    update_cached_invite_uses,
 };
 use crate::features::invite_tracking::database::attribute_join;
-use crate::features::invite_tracking::keys;
 use crate::shared::store_username_relation;
 use anyhow::Context as _;
 use fred::clients::Client;
-use fred::interfaces::{HashesInterface, SetsInterface};
 use moka::future::Cache;
 use serenity::all::{Context, Guild, GuildId, InviteCreateEvent, InviteDeleteEvent, Member};
-use serenity::model::id::UserId;
 use sqlx::PgPool;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use tracing::{debug, warn};
 
@@ -91,30 +89,7 @@ pub async fn delete_invite(
         return Ok(());
     }
 
-    let cache_key = keys::invites_key(guild_id);
-    let inv_key = keys::inviters_key(guild_id);
-
-    // Fetch who owned this invite before deleting it
-    let inviter_id: Option<u64> = redis
-        .hget(&inv_key, invite_data.code.as_str())
-        .await
-        .unwrap_or(None);
-
-    let pipe = redis.pipeline();
-    let _: () = pipe.hdel(&cache_key, invite_data.code.as_str()).await?;
-    let _: () = pipe.hdel(&inv_key, invite_data.code.as_str()).await?;
-
-    // Remove code from the user's active set
-    if let Some(inviter_id) = inviter_id.map(UserId::from) {
-        let _: () = pipe
-            .srem(
-                &keys::user_invites_key(guild_id, inviter_id),
-                invite_data.code.as_str(),
-            )
-            .await?;
-    }
-
-    let _: () = pipe.all().await?;
+    remove_invite_from_redis(redis, guild_id, &invite_data.code).await?;
     Ok(())
 }
 
@@ -156,10 +131,7 @@ pub async fn store_member_invite(
         warn!("Failed to fetch invites for guild {}: {:?}", guild_id, err);
     })?;
 
-    let cache_key = keys::invites_key(guild_id);
-    let inv_key = keys::inviters_key(guild_id);
-
-    let old_uses: HashMap<String, u64> = redis.hgetall(&cache_key).await.unwrap_or_default();
+    let old_uses = get_invite_uses(redis, guild_id).await;
 
     // Find invite whose use count incremented
     let mut used_code = current_invites.iter().find_map(|inv| {
@@ -187,7 +159,7 @@ pub async fn store_member_invite(
     // Refresh uses cache with current state
     let cache_pairs = collect_pairs(&current_invites);
     if !cache_pairs.uses_items.is_empty() {
-        let _: () = redis.hset(&cache_key, cache_pairs.uses_items).await?;
+        update_cached_invite_uses(redis, guild_id, cache_pairs.uses_items).await?;
     }
 
     let Some(code) = used_code else {
@@ -199,8 +171,7 @@ pub async fn store_member_invite(
         return Ok(());
     };
 
-    let inviter_id: Option<u64> = redis.hget(&inv_key, &code).await.unwrap_or(None);
-    let Some(inviter_id) = inviter_id else {
+    let Some(inviter_id) = get_cached_inviter(redis, guild_id, &code).await else {
         debug!(%guild_id, %code, "No cached inviter for this code");
         return Ok(());
     };
@@ -214,20 +185,14 @@ pub async fn store_member_invite(
     )
     .await?;
 
-    let pipe = redis.pipeline();
-    let _: () = pipe
-        .hset(
-            &keys::invited_by_key(guild_id),
-            (new_member.user.id.get(), inviter_id),
-        )
-        .await?;
-    let _: () = pipe
-        .hset(
-            &keys::inviter_counts_key(guild_id),
-            (inviter_id.to_string(), new_count),
-        )
-        .await?;
-    let _: () = pipe.all().await?;
+    store_invite_attribution(
+        redis,
+        guild_id,
+        new_member.user.id.get(),
+        inviter_id,
+        new_count,
+    )
+    .await?;
 
     debug!(%guild_id, member_id = %new_member.user.id, inviter_id, %code, "Attributed join to inviter");
     Ok(())

@@ -1,8 +1,9 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_lock;
+use crate::features::raid_detection::cache;
 use crate::features::raid_detection::database;
-use crate::features::raid_detection::implementation::{DynamicRaidDetector, clear_raid_active};
+use crate::features::raid_detection::implementation::DynamicRaidDetector;
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::RaidAction;
@@ -135,7 +136,7 @@ async fn handle_raid_lifecycle(
             %guild_id,
             "Failed to save pre-raid state snapshot; rolling back active raid flag"
         );
-        let _ = clear_raid_active(&data.core.redis, guild_id).await;
+        let _ = cache::clear_raid_active(&data.core.redis, guild_id).await;
         return Err(e);
     }
 

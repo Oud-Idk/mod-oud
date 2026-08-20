@@ -10,7 +10,9 @@ use fred::interfaces::{
     FredResult, HashesInterface, KeysInterface, SetsInterface, SortedSetsInterface,
 };
 use fred::prelude::Expiration;
+use fred::types::SetOptions;
 use serenity::all::{GuildId, UserId};
+use tracing::info;
 
 #[allow(clippy::cast_precision_loss)]
 pub async fn record_join_event(
@@ -118,4 +120,87 @@ pub async fn add_guild_to_raid(guild_id: GuildId, redis: &Client) -> FredResult<
 
 pub async fn remove_guild_from_raid(guild_id: GuildId, redis: &Client) -> FredResult<()> {
     redis.srem(keys::active_raids_key(), guild_id.get()).await
+}
+
+pub async fn try_set_raid_active(
+    redis: &Client,
+    guild_id: GuildId,
+    ttl_seconds: i64,
+) -> Result<bool, Error> {
+    let active_key = keys::raid_active_key(guild_id);
+
+    let res: Option<String> = redis
+        .set(
+            active_key,
+            "1",
+            Some(Expiration::EX(ttl_seconds)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await?;
+
+    Ok(res.is_some())
+}
+
+pub async fn extend_raid_active(
+    redis: &Client,
+    guild_id: GuildId,
+    ttl_seconds: i64,
+) -> Result<(), Error> {
+    let active_key = keys::raid_active_key(guild_id);
+    let _: () = redis.expire(active_key, ttl_seconds, None).await?;
+    Ok(())
+}
+
+pub async fn clear_raid_active(redis: &Client, guild_id: GuildId) -> Result<(), Error> {
+    let active_key = keys::raid_active_key(guild_id);
+    let _: () = redis.del(active_key).await?;
+    info!(%guild_id, "Cleared raid active state");
+    Ok(())
+}
+
+pub async fn check_raid_active(redis: &Client, guild_id: GuildId) -> Result<bool, Error> {
+    let active_key = keys::raid_active_key(guild_id);
+    Ok(redis.exists(&active_key).await?)
+}
+
+pub async fn has_raid_snapshot(redis: &Client, guild_id: GuildId) -> Result<bool, Error> {
+    let snapshot_key = keys::raid_snapshot_key(guild_id);
+    Ok(redis.exists(&snapshot_key).await?)
+}
+
+pub async fn get_active_raids(redis: &Client) -> Result<Vec<GuildId>, Error> {
+    let tracked_guilds: Vec<GuildId> = redis
+        .smembers::<Vec<u64>, _>(keys::active_raids_key())
+        .await?
+        .into_iter()
+        .map(GuildId::new)
+        .collect();
+    Ok(tracked_guilds)
+}
+
+pub async fn save_preraid_snapshot(
+    redis: &Client,
+    guild_id: GuildId,
+    serialized: &str,
+) -> Result<bool, Error> {
+    let redis_key = keys::raid_snapshot_key(guild_id);
+    let res: Option<String> = redis
+        .set(
+            redis_key,
+            serialized,
+            Some(Expiration::EX(86400)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await?;
+    Ok(res.is_some())
+}
+
+pub async fn getdel_preraid_snapshot(
+    redis: &Client,
+    guild_id: GuildId,
+) -> Result<Option<String>, Error> {
+    let redis_key = keys::raid_snapshot_key(guild_id);
+    Ok(redis.getdel(&redis_key).await?)
 }

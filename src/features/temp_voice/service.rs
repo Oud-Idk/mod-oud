@@ -1,13 +1,10 @@
 use crate::core::config::state::{BotData, Error};
+use crate::features::temp_voice::cache;
 use crate::features::temp_voice::database::get_hub_info_by_category;
-use crate::features::temp_voice::keys;
-use crate::features::temp_voice::keys::{temp_vc_owners_key, temp_vcs_key};
 use crate::features::temp_voice::placeholders::replace_channel_placeholders;
 use crate::shared::voice_state::get_user_vc_in_guild;
 use anyhow::Context as _;
 use fred::clients::Client as RedisClient;
-use fred::interfaces::{HashesInterface, KeysInterface};
-use fred::prelude::Expiration;
 use serenity::all::{
     Channel, ChannelId, Context, EditChannel, EditMember, GuildId, Http, Member,
     PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId,
@@ -34,7 +31,7 @@ pub async fn rename_temp_vc(
             .with_context(|| "Channel has no category parent")?;
 
         let cache_key = format!("temp_voice_hub_by_category:{guild_id}:{category_id}");
-        let cached_json: Option<String> = redis.get(&cache_key).await?;
+        let cached_json = cache::get_hub_cache(redis, &cache_key).await?;
 
         let hub_info =
             get_hub_info_by_category(guild_id, redis, db, category_id, &cache_key, cached_json)
@@ -192,12 +189,8 @@ pub async fn delete_temp_vc(
     channel_id: ChannelId,
     user_id: UserId,
 ) -> Result<String, Error> {
-    let temp_vc_hash = temp_vcs_key(guild_id);
-    let temp_vc_field = channel_id.get().to_string();
-
-    let owner_id_str: Option<String> = redis.hget(&temp_vc_hash, &temp_vc_field).await?;
-
-    let is_owner = owner_id_str
+    let is_owner = cache::get_temp_vc_owner(redis, guild_id, channel_id)
+        .await?
         .as_ref()
         .is_some_and(|id| id == &user_id.get().to_string());
 
@@ -217,22 +210,7 @@ pub async fn delete_temp_vc(
         );
     }
 
-    let owner_hash = temp_vc_owners_key(guild_id);
-    let user_id_field = user_id.get().to_string();
-
-    let del_vc_fut = redis.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field);
-    let del_owner_fut = redis.hdel::<(), _, _>(&owner_hash, &user_id_field);
-
-    let (r1, r2) = tokio::join!(del_vc_fut, del_owner_fut);
-    if let Err(e) = r1 {
-        tracing::warn!("Failed to delete temp VC mapping from cache: {:?}", e);
-    }
-    if let Err(e) = r2 {
-        tracing::warn!(
-            "Failed to delete owner reverse index mapping from cache: {:?}",
-            e
-        );
-    }
+    cache::delete_temp_vc_entries(redis, guild_id, channel_id, user_id).await?;
 
     Ok("Your voice channel has been deleted.".to_string())
 }
@@ -264,26 +242,13 @@ pub async fn initiate_temp_vc_transfer(
         return Ok("The recipient must be in the voice channel!".to_string());
     }
 
-    let owner_hash = temp_vc_owners_key(guild_id);
-
-    let target_existing_vc: Option<String> = redis
-        .hget(&owner_hash, new_owner_id.get().to_string())
-        .await?;
+    let target_existing_vc = cache::get_user_owned_channel(redis, guild_id, new_owner_id).await?;
     if target_existing_vc.is_some() {
         tracing::debug!("Transfer rejected: Target user already owns a temporary voice channel");
         return Ok("That user already owns a temporary voice channel!".to_string());
     }
 
-    let pending_key = keys::pending_transfer_key(channel_id);
-    redis
-        .set::<(), _, _>(
-            &pending_key,
-            new_owner_id.get().to_string(),
-            Some(Expiration::EX(90)),
-            None,
-            false,
-        )
-        .await?;
+    cache::store_pending_transfer(redis, channel_id, new_owner_id).await?;
 
     tracing::debug!("Pending transfer state written to Redis with 90s TTL");
 

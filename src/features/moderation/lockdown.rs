@@ -1,10 +1,9 @@
 use crate::core::config::state::{BotData, Context};
+use crate::features::moderation::cache;
 use crate::features::moderation::keys;
 use crate::shared::locking::acquire_lock;
 use anyhow::Context as _;
 use anyhow::Result;
-use fred::interfaces::KeysInterface;
-use fred::types::SetOptions;
 use serde::{Deserialize, Serialize};
 use serenity::all::{
     ChannelId, ChannelType, Context as SerenityContext, GuildChannel, GuildId, PermissionOverwrite,
@@ -58,13 +57,9 @@ pub async fn save_pre_lockdown_state(
         channel_id = channel.id.get(),
         "Attempting write-once cache of pre-lockdown overwrite state"
     );
-    let wrote: Option<()> = data
-        .core
-        .redis
-        .set(key, json, None, Some(SetOptions::NX), false)
-        .await?;
+    let wrote = cache::set_pre_lockdown_state(&data.core.redis, key, json).await?;
 
-    if wrote.is_none() {
+    if !wrote {
         trace!(
             channel_id = channel.id.get(),
             "Pre-lockdown state already cached; leaving existing snapshot untouched"
@@ -86,7 +81,8 @@ pub async fn restore_pre_lockdown_state(
     everyone_role_id: RoleId,
 ) -> Result<()> {
     let key = keys::lockdown_redis_key(guild_id, channel_id);
-    let cached: Option<String> = data.core.redis.get(&key).await?;
+    let cached: Option<String> =
+        cache::get_pre_lockdown_state(&data.core.redis, key.clone()).await?;
 
     if let Some(json) = cached {
         let state: StoredOverwriteState = serde_json::from_str(&json)?;
@@ -113,7 +109,7 @@ pub async fn restore_pre_lockdown_state(
                     .await?;
             }
         }
-        let _: () = data.core.redis.del(key).await?;
+        cache::delete_pre_lockdown_state(&data.core.redis, key).await?;
     } else {
         trace!(
             channel_id = channel_id.get(),

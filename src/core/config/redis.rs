@@ -1,6 +1,6 @@
 use crate::core::config::settings::GuildSettings;
 use fred::clients::Client;
-use fred::interfaces::{FredResult, KeysInterface};
+use fred::interfaces::{FredResult, KeysInterface, PubsubInterface};
 use fred::prelude::Expiration;
 use tracing::{trace, warn};
 
@@ -48,4 +48,9 @@ pub async fn set_setting_to_redis(
             Ok(())
         }
     }
+}
+
+/// Publishes a config invalidation event to the `config_updates` Pub/Sub channel.
+pub async fn publish_config_invalidation(redis: &Client, payload: &str) -> FredResult<i64> {
+    redis.publish("config_updates", payload).await
 }

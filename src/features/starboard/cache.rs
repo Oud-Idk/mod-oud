@@ -3,7 +3,7 @@ use crate::shared::embed::DiscordEmbed;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use fred::clients::Client;
-use fred::interfaces::{KeysInterface, LuaInterface};
+use fred::interfaces::{FredResult, KeysInterface, LuaInterface};
 use fred::types::Expiration;
 use sqlx::PgPool;
 use sqlx::postgres::types::PgInterval;
@@ -151,4 +151,19 @@ pub async fn apply_starboard_op_if_exists(
         .await?;
 
     Ok(result)
+}
+
+/// Fetches the current cached star count for a starboard entry, if present.
+pub async fn get_starboard_count(redis: &Client, key: &str) -> Option<u64> {
+    redis.get::<Option<u64>, _>(key).await.unwrap_or(None)
+}
+
+/// Caches the emoji reaction count for a starboard entry with a 1-hour expiration.
+///
+/// # Errors
+/// Returns `Err` if Redis fails to set the key.
+pub async fn cache_emoji_count(redis: &Client, key: &str, count: u64) -> FredResult<()> {
+    redis
+        .set(key, count, Some(Expiration::EX(3600)), None, false)
+        .await
 }

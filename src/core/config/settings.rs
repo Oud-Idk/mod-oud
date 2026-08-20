@@ -14,7 +14,6 @@ use crate::features::tickets::TicketConfig;
 use crate::shared::ok_or_none;
 use anyhow::{Context, Result};
 use fred::clients::Client;
-use fred::interfaces::{FredResult, PubsubInterface};
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
 use sqlx::PgPool;
@@ -236,8 +235,7 @@ pub async fn save_settings(
 
     cache.insert(guild_id, settings.clone()).await;
     let payload = keys::invalidate_settings_key(guild_id);
-    let res: FredResult<i64> = redis.publish("config_updates", payload).await;
-    if let Err(e) = res {
+    if let Err(e) = redis::publish_config_invalidation(redis, &payload).await {
         warn!(
             error = %e,
             %guild_id,

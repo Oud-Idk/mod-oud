@@ -1,10 +1,10 @@
-use crate::core::config::state::{BotData};
+use crate::core::config::state::BotData;
 use crate::features::automod::actions::{RuleActionPayload, execute_rule_actions};
 use crate::features::automod::types::{AntiSpamRule, MessageFilteringConfig};
+use anyhow::Result;
 use serenity::all::{Context, Message};
 use serenity::model::id::{GuildId, UserId};
 use std::time::Duration;
-use anyhow::Result;
 
 async fn handle_spam(
     ctx: &Context,
@@ -68,7 +68,7 @@ pub async fn handle_spam_prevention(
             warning_cooldown,
             anti_spam,
         )
-            .await?;
+        .await?;
         return Ok(true);
     }
 

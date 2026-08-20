@@ -1,11 +1,9 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_unlock;
-use crate::features::raid_detection::keys;
-use crate::features::raid_detection::keys::active_raids_key;
+use crate::features::raid_detection::cache;
 use crate::features::raid_detection::snapshot::restore_preraid_state;
 use crate::features::raid_detection::types::RaidAction;
-use fred::interfaces::{KeysInterface, SetsInterface};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
@@ -13,12 +11,10 @@ use tracing::{error, info};
 
 pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
     tokio::spawn(async move {
-        let active_key = keys::raid_active_key(guild_id);
-
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
-            let is_active: bool = match data.core.redis.exists(&active_key).await {
+            let is_active: bool = match cache::check_raid_active(&data.core.redis, guild_id).await {
                 Ok(active) => active,
                 Err(e) => {
                     error!(error = ?e, "Failed to check raid status in Redis");
@@ -107,18 +103,12 @@ pub async fn handle_raid_end(
 /// # Errors
 /// Returns an error if the Redis read of tracked guilds fails.
 pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(), Error> {
-    let tracked_guilds: Vec<GuildId> = data
-        .core
-        .redis
-        .smembers::<Vec<u64>, _>(active_raids_key())
-        .await?
-        .into_iter()
-        .map(GuildId::new)
-        .collect();
+    let tracked_guilds = cache::get_active_raids(&data.core.redis).await?;
 
     for guild_id in tracked_guilds {
-        let active_key = keys::raid_active_key(guild_id);
-        let is_active: bool = data.core.redis.exists(&active_key).await.unwrap_or(false);
+        let is_active = cache::check_raid_active(&data.core.redis, guild_id)
+            .await
+            .unwrap_or(false);
 
         if is_active {
             info!("Re-attaching raid monitor for active raid in guild {guild_id}");

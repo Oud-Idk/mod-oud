@@ -1,14 +1,13 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_lock;
+use crate::features::raid_detection::cache;
 use crate::features::raid_detection::database;
-use crate::features::raid_detection::implementation::{DynamicRaidDetector, clear_raid_active};
-use crate::features::raid_detection::keys;
+use crate::features::raid_detection::implementation::DynamicRaidDetector;
 use crate::features::raid_detection::raid_end::handle_raid_end;
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::RaidAction;
-use fred::interfaces::KeysInterface;
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
@@ -52,7 +51,7 @@ pub async fn trigger_raid_manual(
             mod_username,
             "Failed to save pre-raid state snapshot during manual raid trigger; rolling back active state"
         );
-        let _ = clear_raid_active(&data.core.redis, guild_id).await;
+        let _ = cache::clear_raid_active(&data.core.redis, guild_id).await;
         return Err(e);
     }
 
@@ -131,11 +130,12 @@ pub async fn resolve_raid_manual(
 ) -> Result<bool, Error> {
     info!(%guild_id, "Manual raid resolution requested");
 
-    let active_key = keys::raid_active_key(guild_id);
-    let snapshot_key = keys::raid_snapshot_key(guild_id);
-
-    let is_active: bool = data.core.redis.exists(&active_key).await.unwrap_or(false);
-    let has_snapshot: bool = data.core.redis.exists(&snapshot_key).await.unwrap_or(false);
+    let is_active = cache::check_raid_active(&data.core.redis, guild_id)
+        .await
+        .unwrap_or(false);
+    let has_snapshot = cache::has_raid_snapshot(&data.core.redis, guild_id)
+        .await
+        .unwrap_or(false);
 
     if !is_active && !has_snapshot {
         warn!(
@@ -145,7 +145,7 @@ pub async fn resolve_raid_manual(
         return Ok(false);
     }
 
-    let _: () = data.core.redis.del(&active_key).await?;
+    cache::clear_raid_active(&data.core.redis, guild_id).await?;
 
     info!(%guild_id, "Cleared active raid flag; initiating raid cleanup");
     handle_raid_end(ctx, data, guild_id).await?;

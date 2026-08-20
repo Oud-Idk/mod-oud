@@ -6,7 +6,6 @@ use crate::features::leveling::keys::member_stats_key;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
 use anyhow::Result;
-use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
 use tracing::{debug, trace};
@@ -52,7 +51,7 @@ pub async fn handle_voice_leveling(
     let new_eligible = new_channel.is_some() && !new_deafened;
 
     if old_channel == new_channel && old_eligible == new_eligible {
-        let _: Result<(), _> = redis.expire(&session_key, 86400, None).await;
+        cache::refresh_session_ttl(redis, &session_key).await?;
         return Ok(());
     }
 

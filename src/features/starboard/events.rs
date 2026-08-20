@@ -1,12 +1,13 @@
 use crate::core::config::state::BotData;
 use crate::features::starboard::builder::{build_starboard_message, count_emoji_and_cache};
-use crate::features::starboard::cache::{apply_starboard_op_if_exists, get_starboards};
+use crate::features::starboard::cache::{
+    apply_starboard_op_if_exists, get_starboard_count, get_starboards,
+};
 use crate::features::starboard::database::StarboardPayload;
 use crate::features::starboard::types::{Starboard, StarboardOp};
 use crate::features::starboard::{builder, database, perms};
 use crate::shared::locking::acquire_lock;
 use anyhow::Result;
-use fred::prelude::*;
 use serenity::all::{
     Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction,
 };
@@ -211,10 +212,8 @@ async fn debounced_starboard_sync(
                 let mut loop_count = 0;
 
                 loop {
-                    let final_count: u64 = redis_clone
-                        .get(&cached_key_clone)
+                    let final_count: u64 = get_starboard_count(&redis_clone, &cached_key_clone)
                         .await
-                        .unwrap_or(None)
                         .unwrap_or(current_processed);
 
                     debug!(
@@ -239,10 +238,8 @@ async fn debounced_starboard_sync(
                     current_processed = final_count;
                     loop_count += 1;
 
-                    let latest_count: u64 = redis_clone
-                        .get(&cached_key_clone)
+                    let latest_count: u64 = get_starboard_count(&redis_clone, &cached_key_clone)
                         .await
-                        .unwrap_or(None)
                         .unwrap_or(final_count);
 
                     if latest_count == final_count || loop_count >= 5 {

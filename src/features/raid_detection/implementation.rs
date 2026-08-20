@@ -4,8 +4,6 @@ use crate::features::raid_detection::{cache, keys};
 use crate::shared::locking::acquire_lock;
 use chrono::{DateTime, Utc};
 use fred::clients::Client;
-use fred::interfaces::KeysInterface; // Needed for .set() method
-use fred::types::{Expiration, SetOptions};
 use serenity::all::{GuildId, UserId};
 use tracing::{debug, error, info, instrument, trace, warn};
 use uuid::Uuid;
@@ -44,20 +42,8 @@ impl DynamicRaidDetector {
         guild_id: GuildId,
         ttl_seconds: i64,
     ) -> Result<bool, Error> {
-        let active_key = keys::raid_active_key(guild_id);
+        let set_success = cache::try_set_raid_active(&self.redis, guild_id, ttl_seconds).await?;
 
-        let res: Option<String> = self
-            .redis
-            .set(
-                active_key,
-                "1",
-                Some(Expiration::EX(ttl_seconds)),
-                Some(SetOptions::NX),
-                false,
-            )
-            .await?;
-
-        let set_success = res.is_some();
         if set_success {
             info!(%guild_id, ttl_seconds, "Set raid active flag for guild");
         } else {
@@ -209,8 +195,7 @@ impl DynamicRaidDetector {
         guild_id: GuildId,
         ttl_seconds: i64,
     ) -> Result<(), Error> {
-        let active_key = keys::raid_active_key(guild_id);
-        let _: () = self.redis.expire(active_key, ttl_seconds, None).await?;
+        cache::extend_raid_active(&self.redis, guild_id, ttl_seconds).await?;
         debug!(%guild_id, ttl_seconds, "Extended raid active TTL");
         Ok(())
     }
@@ -254,12 +239,4 @@ fn calculate_threshold(
         mean_window,
         std_dev_window,
     }
-}
-
-#[instrument(skip(redis), fields(guild_id = %guild_id))]
-pub async fn clear_raid_active(redis: &Client, guild_id: GuildId) -> Result<(), Error> {
-    let active_key = keys::raid_active_key(guild_id);
-    let _: () = redis.del(active_key).await?;
-    info!(%guild_id, "Cleared raid active state");
-    Ok(())
 }

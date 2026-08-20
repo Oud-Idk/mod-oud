@@ -3,7 +3,6 @@ use crate::features::automod::FilterVerdict;
 use crate::features::bad_words::rules::should_be_skipped_ruleset;
 use crate::features::bad_words::types::{BadWordRuleset, CompiledRuleset};
 use crate::features::bad_words::{cache, database, keys};
-use fred::interfaces::KeysInterface;
 use futures::FutureExt as _;
 use serenity::all::Message;
 use serenity::model::id::GuildId;
@@ -110,8 +109,8 @@ pub async fn get_active_bad_word_rulesets(
             let cache_key = keys::bad_word_config_key(guild_id);
             let conn = &data.core.redis;
 
-            let raw_rulesets = match conn.get::<Option<String>, _>(&cache_key).await {
-                Ok(Some(cached_str)) => {
+            let raw_rulesets = match cache::get_cached_bad_words(conn, &cache_key).await {
+                Some(cached_str) => {
                     match serde_json::from_str::<Vec<BadWordRuleset>>(&cached_str) {
                         Ok(parsed) => {
                             debug!(%guild_id, "Redis L2 Cache hit for bad word rulesets");
@@ -120,7 +119,7 @@ pub async fn get_active_bad_word_rulesets(
                         Err(_) => fetch_and_cache_from_db(data, guild_id, &cache_key).await?,
                     }
                 }
-                _ => fetch_and_cache_from_db(data, guild_id, &cache_key).await?,
+                None => fetch_and_cache_from_db(data, guild_id, &cache_key).await?,
             };
 
             // Compile immediately upon loading into memory

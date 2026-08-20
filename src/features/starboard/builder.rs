@@ -1,4 +1,5 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
+use crate::features::starboard::cache::cache_emoji_count;
 use crate::features::starboard::types::Starboard;
 use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver, ResolverChain, render};
 use fred::prelude::*;
@@ -185,9 +186,7 @@ pub async fn count_emoji_and_cache(
         }
 
         trace!(key = %cached_key, count = count, "Updating Redis emoji cache");
-        let _: () = redis
-            .set(cached_key, count, Some(Expiration::EX(3600)), None, false)
-            .await?;
+        cache_emoji_count(redis, cached_key, count).await?;
         Ok(count)
     }
 }

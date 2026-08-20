@@ -1,9 +1,7 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
-use crate::features::raid_detection::{cache, database, keys};
+use crate::features::raid_detection::{cache, database};
 use crate::features::verification::CaptchaType;
-use fred::interfaces::KeysInterface;
-use fred::types::{Expiration, SetOptions};
 use serde::{Deserialize, Serialize};
 use serenity::all::Context;
 use serenity::all::{EditRole, GuildId, Permissions, RoleId};
@@ -54,24 +52,15 @@ pub async fn ensure_preraid_state_saved(
         snapshot.original_oauth_required = verification_settings.use_oauth;
     }
 
-    let redis_key = keys::raid_snapshot_key(guild_id);
     let serialized = serde_json::to_string(&snapshot)?;
 
     // Store in Redis with NX (Only set if not already present) and an expiration (24 hours)
     let conn = &data.core.redis;
-    let res: Option<String> = conn
-        .set(
-            redis_key,
-            serialized,
-            Some(Expiration::EX(86400)),
-            Some(SetOptions::NX),
-            false,
-        )
-        .await?;
+    let snapshot_saved = cache::save_preraid_snapshot(conn, guild_id, &serialized).await?;
 
     let _: () = cache::add_guild_to_raid(guild_id, conn).await?;
 
-    if res.is_some() {
+    if snapshot_saved {
         info!(
             %guild_id,
             everyone_permissions = everyone_perms,
@@ -95,9 +84,7 @@ pub async fn restore_preraid_state(
 ) -> Result<bool, Error> {
     info!(%guild_id, "Initiating pre-raid state restoration");
 
-    let redis_key = keys::raid_snapshot_key(guild_id);
-
-    let json_str: Option<String> = data.core.redis.getdel(&redis_key).await?;
+    let json_str = cache::getdel_preraid_snapshot(&data.core.redis, guild_id).await?;
     let Some(json_str) = json_str else {
         // Another worker or manual intervention already claimed and processed this snapshot!
         debug!(%guild_id, "Snapshot already claimed or non-existent; skipping duplicate restoration");

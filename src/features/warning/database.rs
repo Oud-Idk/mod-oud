@@ -1,9 +1,8 @@
 use crate::features::moderation::{ActionType, log_moderation_action};
+use crate::features::warning::cache;
 use crate::features::warning::types::{PartialWarning, WarnAction, WarnThreshold, WarningInfo};
 use anyhow::Result;
 use fred::clients::Client;
-use fred::interfaces::{FredResult, KeysInterface};
-use fred::prelude::Expiration;
 use serenity::all::{GuildId, RoleId, User, UserId};
 use sqlx::PgPool;
 
@@ -228,11 +227,7 @@ pub async fn fetch_warn_thresholds(
     guild_id: &GuildId,
 ) -> Result<Vec<WarnThreshold>> {
     let cache_key = format!("warn_thresholds:{}", guild_id.get());
-    let cached_data: Option<String> = redis.get(&cache_key).await.ok();
-
-    if let Some(json_string) = cached_data
-        && let Ok(thresholds) = serde_json::from_str::<Vec<WarnThreshold>>(&json_string)
-    {
+    if let Some(thresholds) = cache::get_cached_warn_thresholds(redis, &cache_key).await {
         return Ok(thresholds);
     }
 
@@ -246,17 +241,7 @@ pub async fn fetch_warn_thresholds(
         guild_id.get().cast_signed(),
     ).fetch_all(db).await?.into_iter().map(WarnThreshold::from).collect::<Vec<_>>();
 
-    if let Ok(json_string) = serde_json::to_string(&thresholds) {
-        let _: FredResult<()> = redis
-            .set(
-                &cache_key,
-                json_string,
-                Some(Expiration::EX(86400)),
-                None,
-                false,
-            )
-            .await;
-    }
+    cache::cache_warn_thresholds(redis, &cache_key, &thresholds).await;
 
     Ok(thresholds)
 }

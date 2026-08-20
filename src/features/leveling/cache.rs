@@ -5,12 +5,13 @@ use crate::features::leveling::{database, keys};
 use anyhow::Result;
 use fred::clients::Client;
 use fred::interfaces::{
-    FredResult, HashesInterface, KeysInterface, SetsInterface, TransactionInterface,
+    FredResult, HashesInterface, KeysInterface, LuaInterface, SetsInterface, TransactionInterface,
 };
 use fred::prelude::Expiration;
 use fred::types::SetOptions;
 use serenity::all::{ChannelId, GuildId, UserId};
 use sqlx::PgPool;
+use std::collections::HashMap;
 use tracing::{debug, instrument, trace, warn};
 
 #[instrument(skip(redis, db), fields(%guild_id))]
@@ -135,6 +136,16 @@ pub async fn save_user_level_cache(
             false,
         )
         .await
+}
+
+pub async fn get_cached_user_level(redis: &Client, stats_key: &str) -> Result<Option<UserLevel>> {
+    let cached_user: Option<String> = redis.get(stats_key).await?;
+
+    if let Some(json_data) = cached_user {
+        Ok(Some(serde_json::from_str::<UserLevel>(&json_data)?))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Adds a user to a channel's eligible-occupant set.
@@ -296,6 +307,12 @@ pub async fn consume_session(
     Ok(Some(s))
 }
 
+/// Refreshes the TTL of an active voice session so it stays alive while unchanged.
+pub async fn refresh_session_ttl(redis: &Client, session_key: &str) -> Result<()> {
+    let _: Result<(), _> = redis.expire(session_key, 86400, None).await;
+    Ok(())
+}
+
 /// Peeks at a user's session without consuming it.
 pub async fn get_session(redis: &Client, key: &str) -> Result<Option<VcSession>> {
     let cached: Option<String> = redis.get(key).await?;
@@ -308,4 +325,69 @@ async fn set_session(redis: &Client, key: &str, session: &VcSession) -> Result<(
         .set(key, &serialized, Some(Expiration::EX(86400)), None, false)
         .await?;
     Ok(())
+}
+
+/// Atomically renames `src` to `dst` if `src` exists, returning whether the rename happened.
+pub async fn claim_pending_levels(
+    redis: &Client,
+    src: &str,
+    dst: &str,
+) -> Result<bool, fred::error::Error> {
+    let claimed: i32 = redis
+        .eval(
+            r#"
+                if redis.call("EXISTS", KEYS[1]) == 1 then
+                    redis.call("RENAME", KEYS[1], KEYS[2])
+                    return 1
+                else
+                    return 0
+                end
+            "#,
+            vec![src, dst],
+            (),
+        )
+        .await?;
+
+    let success = claimed == 1;
+    debug!(claimed = success, "Claim key attempt result");
+    Ok(success)
+}
+
+/// Reads all pending level records stored under a flushing key.
+pub async fn get_flushing_records(
+    redis: &Client,
+    flushing_key: &str,
+) -> Result<HashMap<String, String>, fred::error::Error> {
+    redis.hgetall(flushing_key).await?
+}
+
+/// Removes a level flushing/pending key from Redis.
+pub async fn delete_levels_flush_key(
+    redis: &Client,
+    flushing_key: &str,
+) -> Result<(), fred::error::Error> {
+    let _: () = redis.del(flushing_key).await?;
+    Ok(())
+}
+
+/// Returns whether a stale flushing key still exists.
+pub async fn flushing_key_exists(
+    redis: &Client,
+    flushing_key: &str,
+) -> Result<bool, fred::error::Error> {
+    redis.exists(flushing_key).await?
+}
+
+/// Removes a guild from the dirty-guilds set.
+pub async fn remove_dirty_guild(
+    redis: &Client,
+    guild_id_str: &str,
+) -> Result<(), fred::error::Error> {
+    let _: () = redis.srem("levels:dirty_guilds", guild_id_str).await?;
+    Ok(())
+}
+
+/// Reads the set of guilds with pending level flushes.
+pub async fn get_dirty_guilds(redis: &Client) -> Result<Vec<String>, fred::error::Error> {
+    redis.smembers("levels:dirty_guilds").await?
 }

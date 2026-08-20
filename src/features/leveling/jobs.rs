@@ -1,9 +1,7 @@
 use crate::features::leveling::types::UserLevel;
-use crate::features::leveling::{database, keys};
+use crate::features::leveling::{cache, database, keys};
 use crate::shared::locking::acquire_lock;
 use fred::clients::Client;
-use fred::error::Error;
-use fred::interfaces::{HashesInterface, KeysInterface, LuaInterface, SetsInterface};
 use futures_util::StreamExt;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -48,28 +46,6 @@ pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
     });
 }
 
-#[instrument(skip(redis), fields(src = %src, dst = %dst))]
-async fn claim_if_exists(redis: &Client, src: &str, dst: &str) -> Result<bool, Error> {
-    let claimed: i32 = redis
-        .eval(
-            r#"
-                if redis.call("EXISTS", KEYS[1]) == 1 then
-                    redis.call("RENAME", KEYS[1], KEYS[2])
-                    return 1
-                else
-                    return 0
-                end
-            "#,
-            vec![src, dst],
-            (),
-        )
-        .await?;
-
-    let success = claimed == 1;
-    debug!(claimed = success, "Claim key attempt result");
-    Ok(success)
-}
-
 #[instrument(skip(redis, db), fields(flushing_key = %flushing_key))]
 async fn process_flushing_key(
     flushing_key: &str,
@@ -77,11 +53,11 @@ async fn process_flushing_key(
     db: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     debug!("Retrieving records for flushing key");
-    let records: HashMap<String, String> = redis.hgetall(flushing_key).await?;
+    let records: HashMap<String, String> = cache::get_flushing_records(redis, flushing_key).await?;
 
     if records.is_empty() {
         debug!("Flushing key was empty; removing key");
-        let _: () = redis.del(flushing_key).await?;
+        cache::delete_levels_flush_key(redis, flushing_key).await?;
         return Ok(());
     }
 
@@ -130,7 +106,7 @@ async fn process_flushing_key(
         debug!(records_to_upsert, "Database upsert complete");
     }
 
-    let _: () = redis.del(flushing_key).await?;
+    cache::delete_levels_flush_key(redis, flushing_key).await?;
     debug!("Successfully deleted flushing key from Redis");
 
     Ok(())
@@ -145,14 +121,14 @@ async fn flush_guild(
     let pending_key = keys::pending_levels_key(guild_id_str);
     let flushing_key = keys::flushing_levels_key(guild_id_str);
 
-    let stale_exists: bool = redis.exists(&flushing_key).await?;
+    let stale_exists: bool = cache::flushing_key_exists(redis, &flushing_key).await?;
 
     if stale_exists {
         warn!("Found stale flushing key; processing outstanding records");
         process_flushing_key(&flushing_key, redis, db).await?;
     }
 
-    let claimed = claim_if_exists(redis, &pending_key, &flushing_key).await?;
+    let claimed = cache::claim_pending_levels(redis, &pending_key, &flushing_key).await?;
 
     if claimed {
         debug!("Pending records claimed; processing batch");
@@ -161,7 +137,7 @@ async fn flush_guild(
         trace!("No pending records to claim");
     }
 
-    let _: () = redis.srem("levels:dirty_guilds", guild_id_str).await?;
+    cache::remove_dirty_guild(redis, guild_id_str).await?;
     debug!("Guild removed from dirty guilds list");
 
     Ok(())
@@ -172,7 +148,7 @@ async fn flush_pending_levels(
     db: &PgPool,
     redis: &Client,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let dirty_guilds: Vec<String> = redis.smembers("levels:dirty_guilds").await?;
+    let dirty_guilds: Vec<String> = cache::get_dirty_guilds(redis).await?;
 
     if dirty_guilds.is_empty() {
         debug!("No dirty guilds found to flush");

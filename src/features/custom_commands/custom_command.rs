@@ -1,12 +1,11 @@
 use crate::core::config::guild_ctx::GuildCtx;
 use crate::core::config::state::Error;
+use crate::features::custom_commands::cache;
 use crate::features::custom_commands::payload::{pick_payload, send_payload};
 use crate::features::custom_commands::placeholders;
 use crate::features::custom_commands::types::{CommandAction, CooldownType, CustomCommand};
 use crate::shared::permissions::HasRoles;
 use fred::clients::Client;
-use fred::interfaces::KeysInterface;
-use fred::types::Expiration;
 use serenity::all::{ChannelId, Context, GuildChannel, Message, RoleId};
 
 pub async fn handle_custom_command(
@@ -46,20 +45,16 @@ pub async fn handle_custom_command(
         };
 
         if !key.is_empty() {
-            let is_on_cooldown: bool = redis.exists(&key).await?;
+            let is_on_cooldown = cache::check_and_set_command_cooldown(
+                redis,
+                &key,
+                i64::from(command.cooldown_seconds),
+            )
+            .await?;
             if is_on_cooldown {
                 msg.reply(&ctx.http, "You are on cooldown!").await?;
                 return Ok(());
             }
-            let _: () = redis
-                .set(
-                    &key,
-                    "1",
-                    Some(Expiration::EX(i64::from(command.cooldown_seconds))),
-                    None,
-                    false,
-                )
-                .await?;
         }
     }
 

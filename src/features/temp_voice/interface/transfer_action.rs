@@ -1,13 +1,11 @@
 use crate::core::config::state::{BotData, Error};
+use crate::features::temp_voice::cache;
 use crate::features::temp_voice::interface::create_ephemeral_msg;
-use crate::features::temp_voice::keys;
-use crate::features::temp_voice::keys::{pending_transfer_key, temp_vc_owners_key};
 use fred::clients::Client;
-use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{
     ChannelId, ComponentInteraction, Context, CreateInteractionResponse,
-    CreateInteractionResponseMessage, PermissionOverwrite, PermissionOverwriteType, Permissions,
-    UserId,
+    CreateInteractionResponseMessage, GuildId, PermissionOverwrite, PermissionOverwriteType,
+    Permissions, UserId,
 };
 use tracing::{debug, error, info, instrument, warn};
 
@@ -40,21 +38,10 @@ pub async fn handle_accept_transfer(
     };
 
     let redis = &data.core.redis;
-    let pending_key = pending_transfer_key(channel_id);
-    let temp_vc_hash = keys::temp_vcs_key(guild_id);
-    let owner_hash = temp_vc_owners_key(guild_id);
 
     // Validate transfer prerequisites & permissions in Redis
-    let Some((current_owner, target_owner)) = validate_transfer_request(
-        ctx,
-        interaction,
-        redis,
-        channel_id,
-        &pending_key,
-        &temp_vc_hash,
-        &owner_hash,
-    )
-    .await?
+    let Some((current_owner, target_owner)) =
+        validate_transfer_request(ctx, interaction, redis, guild_id, channel_id).await?
     else {
         return Ok(());
     };
@@ -74,16 +61,8 @@ pub async fn handle_accept_transfer(
     }
 
     // Commit state change to Redis
-    commit_transfer_to_redis(
-        redis,
-        &temp_vc_hash,
-        &owner_hash,
-        &pending_key,
-        channel_id,
-        &current_owner,
-        &target_owner,
-    )
-    .await?;
+    cache::commit_transfer_to_redis(redis, guild_id, channel_id, &current_owner, &target_owner)
+        .await?;
 
     info!(
         "Successfully transferred channel {} from owner {} to {}",
@@ -117,12 +96,10 @@ async fn validate_transfer_request(
     ctx: &Context,
     interaction: &ComponentInteraction,
     redis: &Client,
+    guild_id: GuildId,
     channel_id: ChannelId,
-    pending_key: &str,
-    temp_vc_hash: &str,
-    owner_hash: &str,
 ) -> Result<Option<(String, String)>, Error> {
-    let target_owner_str: Option<String> = redis.get(pending_key).await?;
+    let target_owner_str = cache::get_pending_transfer_target(redis, channel_id).await?;
 
     let Some(target_owner) = target_owner_str else {
         debug!(
@@ -153,9 +130,7 @@ async fn validate_transfer_request(
         return Ok(None);
     }
 
-    let current_owner_str: Option<String> = redis
-        .hget(temp_vc_hash, channel_id.get().to_string())
-        .await?;
+    let current_owner_str = cache::get_temp_vc_owner(redis, guild_id, channel_id).await?;
 
     let Some(current_owner) = current_owner_str else {
         warn!(
@@ -165,7 +140,7 @@ async fn validate_transfer_request(
         return Ok(None);
     };
 
-    let acceptor_existing_vc: Option<String> = redis.hget(owner_hash, &target_owner).await?;
+    let acceptor_existing_vc = cache::get_owned_channel_id(redis, guild_id, &target_owner).await?;
     if let Some(existing_channel) = acceptor_existing_vc
         && existing_channel != channel_id.get().to_string()
     {
@@ -175,7 +150,7 @@ async fn validate_transfer_request(
             offered_channel = %channel_id.get(),
             "Acceptor now owns a different temp VC; refusing to complete transfer"
         );
-        let _: Result<(), _> = redis.del(pending_key).await;
+        let _ = cache::clear_pending_transfer(redis, channel_id).await;
         interaction
             .create_response(
                 &ctx.http,
@@ -242,39 +217,6 @@ async fn apply_transfer_permissions(
     Ok(true)
 }
 
-/// Executes the atomic pipeline to finalize the owner change in Redis.
-async fn commit_transfer_to_redis(
-    redis: &Client,
-    temp_vc_hash: &str,
-    owner_hash: &str,
-    pending_key: &str,
-    channel_id: ChannelId,
-    current_owner: &str,
-    target_owner: &str,
-) -> Result<(), Error> {
-    debug!("Executing Redis pipeline to finalize transfer");
-    let pipe = redis.pipeline();
-    pipe.hset::<(), _, _>(
-        temp_vc_hash,
-        vec![(channel_id.get().to_string(), target_owner.to_string())],
-    )
-    .await?;
-    pipe.hdel::<(), _, _>(owner_hash, current_owner).await?;
-    pipe.hset::<(), _, _>(
-        owner_hash,
-        vec![(target_owner.to_string(), channel_id.get().to_string())],
-    )
-    .await?;
-    pipe.del::<(), _>(pending_key).await?;
-
-    if let Err(e) = pipe.all::<Vec<i64>>().await {
-        error!("Failed to execute Redis pipeline: {:?}", e);
-        return Err(e.into());
-    }
-
-    Ok(())
-}
-
 #[instrument(skip(ctx, data), fields(decliner_id = %interaction.user.id.get()))]
 pub async fn handle_decline_transfer(
     ctx: &Context,
@@ -304,8 +246,7 @@ pub async fn handle_decline_transfer(
     };
 
     let redis = &data.core.redis;
-    let pending_key = pending_transfer_key(channel_id);
-    let target_owner_str: Option<String> = redis.get(&pending_key).await?;
+    let target_owner_str = cache::get_pending_transfer_target(redis, channel_id).await?;
 
     let Some(target_owner) = target_owner_str else {
         debug!(
@@ -340,7 +281,7 @@ pub async fn handle_decline_transfer(
         "Deleting pending transfer key from Redis for channel {}",
         channel_id.get()
     );
-    let _: Result<(), _> = redis.del(&pending_key).await;
+    let _ = cache::clear_pending_transfer(redis, channel_id).await;
 
     info!(
         "Transfer request for channel {} was declined by user {}",

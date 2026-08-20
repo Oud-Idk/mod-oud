@@ -1,12 +1,12 @@
 use crate::features::automod::keys;
+use anyhow::Result;
 use fred::clients::{Client, Transaction};
-use fred::interfaces::{FredResult, KeysInterface, SortedSetsInterface};
+use fred::interfaces::{FredResult, KeysInterface, SortedSetsInterface, TransactionInterface};
 use fred::prelude::{Expiration, SetOptions};
 use fred::types::ExpireOptions;
 use fred::types::sorted_sets::Ordering;
 use serenity::all::{Context, GuildId, Rule, RuleId};
 use std::time::Duration;
-use anyhow::Result;
 
 /// Caches an `AutoMod` rule name in Redis with a 24-hour expiration time.
 ///
@@ -110,4 +110,28 @@ pub async fn store_spam_record(
 
     let (_, _, count, _): (usize, usize, usize, usize) = redis_multi_tx.exec(true).await?;
     Ok(count)
+}
+
+/// Starts a new Redis `MULTI` transaction for recording spam events.
+pub fn begin_spam_transaction(redis: &Client) -> Transaction {
+    redis.multi()
+}
+
+/// Sets a Redis cooldown lock, returning `true` if the lock was newly acquired
+/// (i.e. the cooldown had elapsed) and `false` if the key already existed.
+///
+/// # Errors
+/// Returns `Err` if Redis fails to set the key.
+pub async fn set_warning_cooldown(redis: &Client, key: &str, cooldown_millis: i64) -> Result<bool> {
+    let set_result: Option<String> = redis
+        .set(
+            key,
+            "1",
+            Some(Expiration::PX(cooldown_millis)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await?;
+
+    Ok(set_result.is_some())
 }

@@ -1,7 +1,6 @@
 use crate::features::automod::{cache, keys};
 use anyhow::Result;
-use fred::prelude::*;
-use fred::types::{Expiration, SetOptions};
+use fred::clients::Client;
 use serenity::model::id::{GuildId, UserId};
 use std::time::Duration;
 use tracing::{debug, instrument, trace};
@@ -82,7 +81,7 @@ impl SpamTracker {
         trace!("Executing atomic spam validation transaction in Redis");
 
         // Start atomic MULTI transaction
-        let tx = self.redis_conn.multi();
+        let tx = cache::begin_spam_transaction(&self.redis_conn);
 
         // Execute sliding window cleanup + insert + count inside 1 transaction round-trip
         let count =
@@ -138,19 +137,9 @@ impl SpamTracker {
         //
         // If the key doesn't exist -> Redis sets it and returns Some("OK").
         // If the key exists -> Redis ignores it and returns None.
-        let set_result: Option<String> = self
-            .redis_conn
-            .set(
-                &key,
-                "1",
-                Some(Expiration::PX(cooldown)),
-                Some(SetOptions::NX),
-                false, // get = false (we don't need the old value)
-            )
-            .await?;
+        let cooldown_elapsed =
+            cache::set_warning_cooldown(&self.redis_conn, &key, cooldown).await?;
 
-        // If set_result is Some, we successfully created the key (cooldown had elapsed!)
-        let cooldown_elapsed = set_result.is_some();
         if cooldown_elapsed {
             debug!("Warning cooldown has elapsed; user can be notified again");
         } else {

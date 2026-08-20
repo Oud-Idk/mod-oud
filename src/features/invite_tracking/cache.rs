@@ -117,3 +117,78 @@ pub async fn get_user_invite_codes(
         .await
         .unwrap_or_default()
 }
+
+/// Removes a deleted invite code from the Redis cache.
+pub async fn remove_invite_from_redis(
+    redis: &Client,
+    guild_id: GuildId,
+    code: &str,
+) -> Result<(), anyhow::Error> {
+    let cache_key = keys::invites_key(guild_id);
+    let inv_key = keys::inviters_key(guild_id);
+
+    // Fetch who owned this invite before deleting it
+    let inviter_id: Option<u64> = redis.hget(&inv_key, code).await.unwrap_or(None);
+
+    let pipe = redis.pipeline();
+    let _: () = pipe.hdel(&cache_key, code).await?;
+    let _: () = pipe.hdel(&inv_key, code).await?;
+
+    // Remove code from the user's active set
+    if let Some(inviter_id) = inviter_id.map(UserId::from) {
+        let _: () = pipe
+            .srem(&keys::user_invites_key(guild_id, inviter_id), code)
+            .await?;
+    }
+
+    let _: () = pipe.all().await?;
+    Ok(())
+}
+
+/// Fetches the cached invite use counts for a guild, defaulting to an empty map on error.
+pub async fn get_invite_uses(redis: &Client, guild_id: GuildId) -> HashMap<String, u64> {
+    redis
+        .hgetall(&keys::invites_key(guild_id))
+        .await
+        .unwrap_or_default()
+}
+
+/// Updates the cached invite use counts for a guild.
+pub async fn update_cached_invite_uses(
+    redis: &Client,
+    guild_id: GuildId,
+    uses_items: Vec<(&str, u64)>,
+) -> Result<(), anyhow::Error> {
+    let _: () = redis.hset(&keys::invites_key(guild_id), uses_items).await?;
+    Ok(())
+}
+
+/// Fetches the cached inviter for an invite code, if any.
+pub async fn get_cached_inviter(redis: &Client, guild_id: GuildId, code: &str) -> Option<u64> {
+    redis
+        .hget(&keys::inviters_key(guild_id), code)
+        .await
+        .unwrap_or(None)
+}
+
+/// Stores the inviter attribution and updated invite count for a member join.
+pub async fn store_invite_attribution(
+    redis: &Client,
+    guild_id: GuildId,
+    member_id: u64,
+    inviter_id: u64,
+    new_count: u64,
+) -> Result<(), anyhow::Error> {
+    let pipe = redis.pipeline();
+    let _: () = pipe
+        .hset(&keys::invited_by_key(guild_id), (member_id, inviter_id))
+        .await?;
+    let _: () = pipe
+        .hset(
+            &keys::inviter_counts_key(guild_id),
+            (inviter_id.to_string(), new_count),
+        )
+        .await?;
+    let _: () = pipe.all().await?;
+    Ok(())
+}

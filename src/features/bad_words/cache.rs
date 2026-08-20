@@ -12,3 +12,10 @@ pub async fn cache_bad_word(cache_key: &str, conn: &Client, serialized: String) 
     )
     .await
 }
+
+/// Fetches the cached bad word rulesets for a guild from Redis, if present.
+pub async fn get_cached_bad_words(conn: &Client, cache_key: &str) -> Option<String> {
+    conn.get::<Option<String>, _>(cache_key)
+        .await
+        .unwrap_or(None)
+}

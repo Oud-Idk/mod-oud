@@ -4,7 +4,6 @@ use crate::features::leveling::cache;
 use crate::features::leveling::types::{LevelReward, LevelingConfig, UserLevel, XpMultiplier};
 use anyhow::Result;
 use fred::clients::Client;
-use fred::interfaces::KeysInterface;
 use serenity::all::{GuildId, RoleId, UserId};
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
@@ -138,10 +137,10 @@ pub async fn get_user_level(
     stats_key: &str,
     _username: &str,
 ) -> Result<UserLevel> {
-    let cached_user: Option<String> = redis.get(stats_key).await?;
+    let cached_user = cache::get_cached_user_level(redis, stats_key).await?;
 
-    if let Some(json_data) = cached_user {
-        Ok(serde_json::from_str::<UserLevel>(&json_data)?)
+    if let Some(user) = cached_user {
+        Ok(user)
     } else {
         let db_user = get_level(db, guild_id, author_id).await?;
 
