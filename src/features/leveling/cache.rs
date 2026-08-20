@@ -358,7 +358,7 @@ pub async fn get_flushing_records(
     redis: &Client,
     flushing_key: &str,
 ) -> Result<HashMap<String, String>, fred::error::Error> {
-    redis.hgetall(flushing_key).await?
+    redis.hgetall(flushing_key).await
 }
 
 /// Removes a level flushing/pending key from Redis.
