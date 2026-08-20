@@ -375,7 +375,7 @@ pub async fn flushing_key_exists(
     redis: &Client,
     flushing_key: &str,
 ) -> Result<bool, fred::error::Error> {
-    redis.exists(flushing_key).await?
+    redis.exists(flushing_key).await
 }
 
 /// Removes a guild from the dirty-guilds set.
@@ -389,5 +389,5 @@ pub async fn remove_dirty_guild(
 
 /// Reads the set of guilds with pending level flushes.
 pub async fn get_dirty_guilds(redis: &Client) -> Result<Vec<String>, fred::error::Error> {
-    redis.smembers("levels:dirty_guilds").await?
+    redis.smembers("levels:dirty_guilds").await
 }

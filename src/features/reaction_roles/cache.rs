@@ -13,13 +13,13 @@ pub async fn get_cached_role(redis: &Client, cache_key: &str) -> Option<Option<R
             if cached_val == "none" {
                 return Some(None);
             }
-            match cached_val.parse::<u64>() {
-                Ok(role_id_u64) => Some(Some(RoleId::new(role_id_u64))),
-                Err(_) => {
+            cached_val.parse::<u64>().map_or_else(
+                |_| {
                     error!("Invalid role ID format in Redis cache: {}", cached_val);
                     None
-                }
-            }
+                },
+                |role_id_u64| Some(Some(RoleId::new(role_id_u64))),
+            )
         }
         Ok(None) => {
             trace!("Cache miss when finding role. Querying from database.");
