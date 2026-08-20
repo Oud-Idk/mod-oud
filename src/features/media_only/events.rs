@@ -1,17 +1,21 @@
-use crate::core::config::state::BotData;
 use crate::features::media_only::cache::get_channel_media;
 use crate::features::media_only::types::MediaOnlyChannel;
 use crate::features::media_only::violation;
 use crate::shared::messages::remove_urls;
+use crate::{core::config::state::BotData, features::media_only::types::MediaType};
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, CreateThread, Message, PartialMember, RoleId};
 use tracing::trace;
 
-fn has_matching_role(member: &Box<PartialMember>, roles: &[RoleId]) -> bool {
+fn has_matching_role(member: &PartialMember, roles: &[RoleId]) -> bool {
     member.roles.iter().any(|role_id| roles.contains(role_id))
 }
 
 /// Enforces media-only rules on a message, handling violations and optional auto-threads.
+///
+/// # Errors
+/// Returns an error if the media-only config cannot be loaded or the violation
+/// handler fails.
 pub async fn handle_media_channel_message(
     ctx: &Context,
     message: &Message,
@@ -26,7 +30,7 @@ pub async fn handle_media_channel_message(
 
     let (text, urls) = remove_urls(&message.content);
 
-    if analyze_initial_text(message, &config, text, urls) {
+    if analyze_initial_text(message, &config, &text, &urls) {
         violation::handle_violation(ctx, message, &config).await?;
         return Ok(());
     }
@@ -104,39 +108,35 @@ async fn preflight_checks(
 }
 
 fn attachment_is_valid(config: &MediaOnlyChannel, mime: &str) -> bool {
-    if mime.starts_with("image/gif") {
-        config.allow_gif
-    } else if mime.starts_with("image/") {
-        config.allow_images
-    } else if mime.starts_with("video/") {
-        config.allow_videos
-    } else if mime.starts_with("audio/") {
-        config.allow_audio
-    } else {
-        false // Unknown/unsupported MIME type
-    }
+    MediaType::from_mime(mime).is_some_and(|media_type| config.allowed_media.contains(&media_type))
 }
 
 fn analyze_initial_text(
     message: &Message,
     config: &MediaOnlyChannel,
-    text: String,
-    urls: Vec<&str>,
+    text: &str,
+    urls: &[&str],
 ) -> bool {
-    if !text.is_empty() && !config.allow_embedded_text {
+    let allow_text = config.allowed_media.contains(&MediaType::EmbeddedText);
+    let allow_links = config.allowed_media.contains(&MediaType::Link);
+
+    // Text is present but text isn't allowed
+    if !text.is_empty() && !allow_text {
         trace!("Text is not allowed in this channel.");
         return true;
     }
 
-    if !urls.is_empty() && !config.allow_links {
+    // Links are present but links aren't allowed
+    if !urls.is_empty() && !allow_links {
         trace!("Links are not allowed in this channel.");
         return true;
     }
 
-    let has_links = !urls.is_empty() && config.allow_links;
+    // Must contain at least one valid media piece (an attachment OR an allowed link)
+    let has_allowed_links = !urls.is_empty() && allow_links;
     let has_attachments = !message.attachments.is_empty();
 
-    if !has_attachments && !has_links {
+    if !has_attachments && !has_allowed_links {
         trace!("Message contains no media or allowed links.");
         return true;
     }

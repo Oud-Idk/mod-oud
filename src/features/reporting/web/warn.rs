@@ -9,35 +9,41 @@ use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
 use tracing::{error, info, instrument};
 
-#[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, user_id = %user_id
-))]
+pub struct WarnContext<'a> {
+    pub mod_id: Option<UserId>,
+    pub guild_id: GuildId,
+    pub user_id: UserId,
+    pub redis: &'a Client,
+    pub moderator_username: &'a str,
+    pub target_username: &'a str,
+}
+
+#[instrument(
+    skip(state, ctx),
+    fields(report_id = cmd.report_id, guild_id = %ctx.guild_id, user_id = %ctx.user_id),
+)]
 pub async fn handle_warn(
     state: &WebState,
     cmd: &DashboardCommand,
-    mod_id: Option<UserId>,
-    guild_id: GuildId,
-    user_id: UserId,
-    redis: &Client,
-    moderator_username: &str,
-    target_username: &str,
+    ctx: WarnContext<'_>,
 ) -> Result<StatusCode, WebError> {
-    let moderator_id = user_lookup::resolve_moderator_id(&state.serenity_http, mod_id).await?;
+    let moderator_id = user_lookup::resolve_moderator_id(&state.serenity_http, ctx.mod_id).await?;
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
 
     info!(moderator_id = %moderator_id, "Issuing warning to user");
 
     issue_warning(
         &state.core.db,
-        redis,
+        ctx.redis,
         &state.core.guild_configs_cache,
         &state.core.username_tx,
         &state.serenity_http,
-        guild_id,
-        user_id,
+        ctx.guild_id,
+        ctx.user_id,
         moderator_id,
         reason_str,
-        moderator_username,
-        target_username,
+        ctx.moderator_username,
+        ctx.target_username,
     )
     .await
     .inspect_err(|e| error!(error = %e, "Failed to execute warning issuance"))

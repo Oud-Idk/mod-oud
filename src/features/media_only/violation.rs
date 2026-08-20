@@ -1,5 +1,7 @@
 use crate::features::media_only::types::MediaOnlyChannel;
+use anyhow::Context as _;
 use serenity::all::{Context, CreateMessage, Mentionable, Message};
+use std::fmt::Write;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
@@ -19,7 +21,9 @@ pub async fn handle_violation(
 
     send_dm_for_content(ctx, message, original_content).await;
 
-    let del_warning = config.delete_warning_after_secs as u64;
+    // if delete_warning_after_secs is somehow negative
+    let del_warning = u64::try_from(config.delete_warning_after_secs)
+        .context("Cannot cast i16 to u64. Is it negative?")?;
     send_warning(ctx, message, del_warning).await?;
 
     Ok(())
@@ -41,7 +45,10 @@ async fn send_dm_for_content(ctx: &Context, message: &Message, original_content:
     );
 
     if !original_content.is_empty() {
-        original_dm_content.push_str(&format!("Original content:\n```\n{truncated_content}\n```"));
+        let _ = writeln!(
+            original_dm_content,
+            "Original content:\n```\n{truncated_content}```"
+        );
     }
 
     let _ = message

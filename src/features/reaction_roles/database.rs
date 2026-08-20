@@ -7,7 +7,7 @@ use crate::features::reaction_roles::types::{
 use axum::http::StatusCode;
 use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
-use serenity::all::RoleId;
+use serenity::all::{ChannelId, GuildId, MessageId, RoleId};
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use sqlx::types::Json;
@@ -17,7 +17,7 @@ use tracing::{error, trace, warn};
 /// Retrieves the Role ID associated with a message and emoji, utilizing Redis caching.
 pub async fn get_reaction_role(
     data: &BotData,
-    message_id: i64,
+    message_id: MessageId,
     emoji: &str,
 ) -> Result<Option<RoleId>, Error> {
     let cache_key = format!("reaction_role:{message_id}:{emoji}");
@@ -43,14 +43,14 @@ pub async fn get_reaction_role(
         JOIN reaction_messages rm ON rr.reaction_message_id = rm.id
         WHERE rm.message_id = $1 AND rr.emoji = $2
         "#,
-        message_id,
+        message_id.get().cast_signed(),
         emoji
     )
     .fetch_optional(&data.core.db)
     .await?;
 
     if let Some(record) = row {
-        let role_id_u64 = record.role_id as u64;
+        let role_id_u64 = record.role_id.cast_unsigned();
         if let Err(e) = data
             .core
             .redis
@@ -77,33 +77,35 @@ pub async fn get_reaction_role(
 pub async fn fetch_reaction_message(
     pool: &PgPool,
     config_id: i64,
-    guild_id: &str,
+    guild_id: GuildId,
 ) -> Result<ReactionMessage, (StatusCode, String)> {
-    let guild_id: u64 = guild_id.parse().map_err(|e| {
-        warn!(error = ?e, guild_id, "Invalid guild_id format");
-        (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
-    })?;
-
-    sqlx::query_as!(
-        ReactionMessage,
+    let row = sqlx::query!(
         r#"
         SELECT id, message_id, channel_id, mode as "mode: InteractionMode", message as "message: Json<MessageLayout>"
         FROM reaction_messages
         WHERE id = $1 AND guild_id = $2
         "#,
         config_id,
-        guild_id.cast_signed(),
+        guild_id.get().cast_signed(),
     )
-        .fetch_optional(pool)
-        .await
-        .inspect_err(|e| warn!(error = ?e, "Failed to load reaction roles database record"))
-        .map_err(|_e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())
-        })?
-        .ok_or_else(|| {
-            warn!(id = config_id, "Reaction message not found.");
-            (StatusCode::NOT_FOUND, "Reaction configuration not found".to_string())
-        })
+    .fetch_optional(pool)
+    .await
+    .inspect_err(|e| warn!(error = ?e, "Failed to load reaction roles database record"))
+    .map_err(|_e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())
+    })?
+    .ok_or_else(|| {
+        warn!(id = config_id, "Reaction message not found.");
+        (StatusCode::NOT_FOUND, "Reaction configuration not found".to_string())
+    })?;
+
+    Ok(ReactionMessage {
+        id: row.id,
+        message_id: row.message_id.map(|id| MessageId::new(id.cast_unsigned())),
+        channel_id: ChannelId::from(row.channel_id.cast_unsigned()),
+        mode: row.mode,
+        message: row.message,
+    })
 }
 
 /// Fetches associated reaction roles configuration from the database
@@ -177,12 +179,12 @@ pub async fn delete_message_from_db(
 
 pub async fn add_message_to_db(
     state: &Arc<WebState>,
-    config_row: ReactionMessage,
-    message_id: i64,
+    config_row: &ReactionMessage,
+    message_id: MessageId,
 ) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         "UPDATE reaction_messages SET message_id = $1 WHERE id = $2",
-        message_id,
+        message_id.get().cast_signed(),
         config_row.id
     )
     .execute(&state.core.db)
@@ -218,7 +220,7 @@ pub async fn get_button_role(data: &BotData, custom_id: &str) -> Result<Option<R
     .await?;
 
     if let Some(record) = row {
-        let role_id_u64 = record.role_id as u64;
+        let role_id_u64 = record.role_id.cast_unsigned();
         if let Err(e) = data
             .core
             .redis

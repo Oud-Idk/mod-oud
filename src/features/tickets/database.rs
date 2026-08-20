@@ -3,14 +3,15 @@ use crate::features::tickets::TicketLogPayload;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serenity::all::{ChannelId, GuildId, UserId};
-use sqlx::{PgPool, Postgres, Row, Transaction};
+use serenity::model::id::MessageId;
+use sqlx::{PgPool, Postgres, Transaction};
 use std::result;
 use tracing::{instrument, trace};
 
-pub async fn mark_ticket_as_closed_db(data: &&BotData, channel_id: ChannelId) -> Result<()> {
+pub async fn mark_ticket_as_closed_db(data: &BotData, channel_id: ChannelId) -> Result<()> {
     sqlx::query!(
         "UPDATE tickets SET status = 'CLOSED', closed_at = NOW() WHERE channel_id = $1",
-        channel_id.get() as i64
+        channel_id.get().cast_signed()
     )
     .execute(&data.core.db)
     .await?;
@@ -18,9 +19,9 @@ pub async fn mark_ticket_as_closed_db(data: &&BotData, channel_id: ChannelId) ->
 }
 
 pub async fn update_close_button_db(
-    data: &&BotData,
+    data: &BotData,
     channel_id: ChannelId,
-    new_msg_id_i64: i64,
+    new_msg_id: MessageId,
 ) -> Result<()> {
     sqlx::query!(
         r#"
@@ -31,8 +32,8 @@ pub async fn update_close_button_db(
                 warned = FALSE
             WHERE channel_id = $2
             "#,
-        new_msg_id_i64,
-        channel_id.get() as i64
+        new_msg_id.get().cast_signed(),
+        channel_id.get().cast_signed()
     )
     .execute(&data.core.db)
     .await?;
@@ -46,7 +47,7 @@ pub async fn save_ticket_to_db(
     guild_id: GuildId,
     channel_id: ChannelId,
     user_id: UserId,
-    welcome_msg_id: serenity::all::MessageId,
+    welcome_msg_id: MessageId,
     username: &str,
 ) -> Result<(), Error> {
     trace!("Executing database write for ticket registration");
@@ -56,9 +57,9 @@ pub async fn save_ticket_to_db(
         VALUES ($1, $2, $3, $4)
         "#,
         guild_id.get().cast_signed(),
-        channel_id.get() as i64,
-        user_id.get() as i64,
-        welcome_msg_id.get() as i64,
+        channel_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        welcome_msg_id.get().cast_signed(),
     )
     .execute(&data.core.db)
     .await?;
@@ -91,8 +92,8 @@ pub async fn fetch_inactive_tickets(
     let candidates = rows
         .into_iter()
         .map(|row| InactiveTicket {
-            channel_id: ChannelId::new(row.channel_id as u64),
-            guild_id: GuildId::new(row.guild_id as u64),
+            channel_id: ChannelId::new(row.channel_id.cast_unsigned()),
+            guild_id: GuildId::new(row.guild_id.cast_unsigned()),
             last_activity: row.last_activity,
         })
         .collect();
@@ -109,7 +110,7 @@ pub async fn mark_ticket_as_warned(pool: &PgPool, target_ids: &[ChannelId]) -> R
 
     sqlx::query!(
         "UPDATE tickets SET warned = TRUE WHERE channel_id = ANY($1)",
-        &ids as &[i64]
+        &ids
     )
     .execute(pool)
     .await?;
@@ -136,8 +137,8 @@ pub async fn fetch_closing_candidates(
     let candidates = rows
         .into_iter()
         .map(|row| InactiveTicket {
-            channel_id: ChannelId::new(row.channel_id as u64),
-            guild_id: GuildId::new(row.guild_id as u64),
+            channel_id: ChannelId::new(row.channel_id.cast_unsigned()),
+            guild_id: GuildId::new(row.guild_id.cast_unsigned()),
             last_activity: row.last_activity,
         })
         .collect();
@@ -150,7 +151,10 @@ pub async fn mark_ticket_as_closed(pool: &PgPool, tickets_to_close: &[ChannelId]
         return Ok(());
     }
 
-    let ids: Vec<i64> = tickets_to_close.iter().map(|id| id.get() as i64).collect();
+    let ids: Vec<i64> = tickets_to_close
+        .iter()
+        .map(|id| id.get().cast_signed())
+        .collect();
 
     sqlx::query!(
         "UPDATE tickets SET status = 'CLOSED' WHERE channel_id = ANY($1)",
@@ -178,9 +182,9 @@ pub async fn flush_ticket_logs_to_db(
     let mut managers = Vec::with_capacity(records.len());
 
     for rec in records {
-        chan_ids.push(rec.ticket_channel_id.get() as i64);
-        msg_ids.push(rec.message_id.get() as i64);
-        auth_ids.push(rec.author_id.get() as i64);
+        chan_ids.push(rec.ticket_channel_id.get().cast_signed());
+        msg_ids.push(rec.message_id.get().cast_signed());
+        auth_ids.push(rec.author_id.get().cast_signed());
         contents.push(rec.content.clone());
         managers.push(rec.is_ticket_manager);
     }
@@ -198,7 +202,7 @@ pub async fn flush_ticket_logs_to_db(
     Ok(())
 }
 
-/// Bulk inserts ticket messages using PostgreSQL UNNEST.
+/// Bulk inserts ticket messages using `PostgreSQL` UNNEST.
 async fn bulk_insert_ticket_messages(
     tx: &mut Transaction<'_, Postgres>,
     chan_ids: &[i64],

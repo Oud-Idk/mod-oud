@@ -2,6 +2,7 @@ use crate::core::config::state::Error;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::prelude::Expiration;
+use serenity::model::id::UserId;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -9,9 +10,12 @@ use tokio::sync::mpsc;
 use tokio::time::interval;
 
 /// Stores or updates the username relation in both Postgres and Redis.
+///
+/// # Errors
+/// Returns an error if the username update cannot be queued to the batch worker.
 pub async fn store_username_relation(
     buf: &tokio::sync::mpsc::Sender<UserUpdate>,
-    id: u64,
+    id: UserId,
     name: &str,
 ) -> anyhow::Result<()> {
     let _ = buf
@@ -24,10 +28,13 @@ pub async fn store_username_relation(
 }
 
 /// Fetches a username, checking Redis first, then Postgres.
+///
+/// # Errors
+/// Returns an error if the Redis or Postgres lookup fails.
 pub async fn get_username(
     db: &PgPool,
     redis: &Client,
-    id: u64,
+    id: UserId,
 ) -> anyhow::Result<Option<String>, Error> {
     let redis_key = format!("username:{id}");
 
@@ -37,7 +44,7 @@ pub async fn get_username(
 
     let db_record = sqlx::query!(
         "SELECT username FROM discord_users WHERE user_id = $1",
-        id as i64
+        id.get().cast_signed()
     )
     .fetch_optional(db)
     .await?;
@@ -70,7 +77,7 @@ pub fn start_username_batch_worker(db: PgPool, rx: mpsc::Receiver<UserUpdate>) {
 /// 5 seconds, or earlier once 500 updates pile up.
 pub async fn run_username_batch_worker(db: PgPool, mut rx: mpsc::Receiver<UserUpdate>) {
     let mut ticker = interval(Duration::from_secs(5));
-    let mut pending_updates: HashMap<u64, String> = HashMap::new();
+    let mut pending_updates: HashMap<UserId, String> = HashMap::new();
 
     loop {
         tokio::select! {
@@ -92,9 +99,11 @@ pub async fn run_username_batch_worker(db: PgPool, mut rx: mpsc::Receiver<UserUp
     }
 }
 
-async fn flush_updates(db: &PgPool, updates: &mut HashMap<u64, String>) {
-    let (ids, names): (Vec<i64>, Vec<String>) =
-        updates.drain().map(|(id, name)| (id as i64, name)).unzip();
+async fn flush_updates(db: &PgPool, updates: &mut HashMap<UserId, String>) {
+    let (ids, names): (Vec<i64>, Vec<String>) = updates
+        .drain()
+        .map(|(id, name)| (id.get().cast_signed(), name))
+        .unzip();
 
     let result = sqlx::query!(
         "INSERT INTO discord_users (user_id, username, updated_at) \
@@ -115,7 +124,7 @@ async fn flush_updates(db: &PgPool, updates: &mut HashMap<u64, String>) {
 /// A pending username update for a Discord user.
 pub struct UserUpdate {
     /// ID of the Discord user.
-    pub id: u64,
+    pub id: UserId,
     /// New username.
     pub name: String,
 }

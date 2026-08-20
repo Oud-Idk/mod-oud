@@ -12,9 +12,8 @@ pub async fn trust(
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let (channel_id, _, member) = match preflight_slash_check(&ctx).await? {
-        Some(val) => val,
-        None => return Ok(()),
+    let Some((channel_id, _, member)) = preflight_slash_check(&ctx).await? else {
+        return Ok(());
     };
 
     let response_message = service::trust_users_in_vc(

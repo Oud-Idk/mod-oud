@@ -17,6 +17,7 @@ use tracing::{trace, warn};
 
 #[serde_as]
 #[derive(Serialize, Clone, Debug)]
+#[allow(clippy::struct_field_names)]
 pub struct SetupVerificationResponse {
     #[serde_as(as = "DisplayFromStr")]
     pub verification_message_id: MessageId,

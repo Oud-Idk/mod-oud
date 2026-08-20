@@ -95,11 +95,11 @@ pub async fn save_leveling_cache(
     redis: &Client,
     stats_key: &str,
     user_level: &UserLevel,
-    guild_id_str: &str,
-    user_field: &str,
+    guild_id: GuildId,
+    user_field: UserId,
 ) -> Result<()> {
     let serialized = serde_json::to_string(user_level)?;
-    let guild_pending_key = format!("levels:pending:{guild_id_str}");
+    let guild_pending_key = format!("levels:pending:{guild_id}");
 
     let trx = redis.multi();
 
@@ -113,9 +113,9 @@ pub async fn save_leveling_cache(
         )
         .await?;
     let _: () = trx
-        .hset(&guild_pending_key, (user_field, &serialized))
+        .hset(&guild_pending_key, (user_field.get(), &serialized))
         .await?;
-    let _: () = trx.sadd("levels:dirty_guilds", guild_id_str).await?;
+    let _: () = trx.sadd("levels:dirty_guilds", guild_id.get()).await?;
     let _: () = trx.exec(false).await?;
 
     Ok(())
@@ -299,10 +299,7 @@ pub async fn consume_session(
 /// Peeks at a user's session without consuming it.
 pub async fn get_session(redis: &Client, key: &str) -> Result<Option<VcSession>> {
     let cached: Option<String> = redis.get(key).await?;
-    Ok(match cached {
-        Some(s) => serde_json::from_str::<VcSession>(&s).ok(),
-        None => None,
-    })
+    Ok(cached.and_then(|s| serde_json::from_str::<VcSession>(&s).ok()))
 }
 
 async fn set_session(redis: &Client, key: &str, session: &VcSession) -> Result<()> {

@@ -46,7 +46,7 @@ pub async fn handle_dashboard_command(
                     status = %status,
                     error = %err_msg,
                     "Failed to fetch target report details from database"
-                )
+                );
             })?;
 
     let redis_conn = state.core.redis.clone();
@@ -72,12 +72,14 @@ pub async fn handle_dashboard_command(
             warn::handle_warn(
                 &state,
                 &cmd,
-                moderator_id,
-                guild_id,
-                user_id,
-                &redis_conn,
-                moderator_name,
-                &target_username,
+                warn::WarnContext {
+                    mod_id: moderator_id,
+                    guild_id,
+                    user_id,
+                    redis: &redis_conn,
+                    moderator_username: moderator_name,
+                    target_username: &target_username,
+                },
             )
             .await?;
         }

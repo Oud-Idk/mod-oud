@@ -3,6 +3,9 @@ use poise::serenity_prelude as serenity;
 use tracing::warn;
 
 /// Sends an ephemeral verification link to the user who interacted with the verify button.
+///
+/// # Errors
+/// Returns an error if the interaction response fails to send.
 pub async fn send_verification_link(
     ctx: &serenity::prelude::Context,
     data: &BotData,

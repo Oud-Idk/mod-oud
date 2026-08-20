@@ -9,6 +9,7 @@ use serenity::all::{
     CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Interaction, Member,
     ModalInteraction,
 };
+use serenity::model::id::UserId;
 
 mod block;
 mod delete;
@@ -30,17 +31,33 @@ macro_rules! impl_preflight_check {
             interaction: &$interaction_type,
             data: &BotData,
         ) -> Result<Option<(ChannelId, GuildId)>, Error> {
-            match cache::find_active_temp_vc(data, interaction.guild_id, interaction.user.id)
-                .await?
-            {
-                Ok((channel_id, guild_id)) => Ok(Some((channel_id, guild_id))),
-                Err(error_msg) => {
-                    interaction
-                        .create_response(&ctx.http, create_ephemeral_msg(error_msg))
-                        .await?;
-                    Ok(None)
-                }
-            }
+            // Ensure the interaction happened inside a server/guild
+            let Some(guild_id) = interaction.guild_id else {
+                interaction
+                    .create_response(
+                        &ctx.http,
+                        create_ephemeral_msg("This can only be used in a server."),
+                    )
+                    .await?;
+                return Ok(None);
+            };
+
+            // Check if the user owns an active temp VC
+            let Some(channel_id) =
+                cache::get_owned_temp_vc(data, guild_id, interaction.user.id).await?
+            else {
+                interaction
+                    .create_response(
+                        &ctx.http,
+                        create_ephemeral_msg(
+                            "You don't currently have an active temp voice channel.",
+                        ),
+                    )
+                    .await?;
+                return Ok(None);
+            };
+
+            Ok(Some((channel_id, guild_id)))
         }
     };
 }
@@ -77,9 +94,7 @@ pub fn get_new_name(interaction: &ModalInteraction) -> Option<String> {
 pub async fn preflight_slash_check(
     ctx: &PoiseContext<'_>,
 ) -> Result<Option<(ChannelId, GuildId, Member)>, Error> {
-    let guild_id = if let Some(g) = ctx.guild_id() {
-        g
-    } else {
+    let Some(guild_id) = ctx.guild_id() else {
         send_ephemeral(ctx, "This command can only be used in a server.").await?;
         return Ok(None);
     };
@@ -108,10 +123,9 @@ pub async fn preflight_slash_check(
         .hget(&temp_vc_hash, channel_id.get().to_string())
         .await?;
 
-    let is_owner = match owner_id_str {
-        Some(ref id) => id == &author_id.get().to_string(),
-        None => false,
-    };
+    let is_owner = owner_id_str
+        .as_ref()
+        .is_some_and(|id| id == &author_id.get().to_string());
 
     if !is_owner {
         send_ephemeral(
@@ -131,75 +145,108 @@ pub async fn preflight_slash_check(
     Ok(Some((channel_id, guild_id, member)))
 }
 
-/// Dispatches temporary voice channel component and modal interactions to their respective handlers.
+/// Main entry point
+///
+/// # Errors
+/// Returns [`Err`] if either DB, Discord, or Redis fails.
 pub async fn handle_interaction(
     ctx: &Context,
     interaction: &Interaction,
     data: &BotData,
 ) -> Result<(), Error> {
     match interaction {
-        Interaction::Component(component) => match component.data.custom_id.as_str() {
-            "temp_voice_rename" => rename::handle_rename_temp_vc(ctx, component, data).await?,
-            "temp_voice_limit" => limit::handle_set_limit_vc(ctx, component, data).await?,
-            "temp_voice_kick" => kick::handle_kick_temp_vc(ctx, component, data).await?,
-            "temp_voice_lock" => lock::handle_lock_temp_vc(ctx, component, data).await?,
-            "temp_voice_unlock" => unlock::handle_unlock_temp_vc(ctx, component, data).await?,
-            "temp_voice_trust" => trust::handle_trust_temp_vc(ctx, component, data).await?,
-            "temp_voice_untrust" => untrust::handle_untrust_temp_vc(ctx, component, data).await?,
-            "temp_voice_block" => block::handle_block_temp_vc(ctx, component, data).await?,
-            "temp_voice_unblock" => unblock::handle_unblock_temp_vc(ctx, component, data).await?,
-            "temp_voice_delete" => delete::handle_delete_temp_vc(ctx, component, data).await?,
-            "temp_voice_transfer" => {
-                transfer::handle_transfer_temp_vc(ctx, component, data).await?
-            }
-            "temp_voice_transfer_accept" => {
-                transfer_action::handle_accept_transfer(ctx, component, data).await?
-            }
-            "temp_voice_transfer_decline" => {
-                transfer_action::handle_decline_transfer(ctx, component, data).await?
-            }
+        Interaction::Component(component) => {
+            Box::pin(handle_component_interaction(ctx, component, data)).await
+        }
+        Interaction::Modal(modal) => Box::pin(handle_modal_interaction(ctx, modal, data)).await,
+        _ => Ok(()),
+    }
+}
 
-            "temp_voice_trust_select" => {
-                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                    trust::handle_trust_temp_vc_submit(ctx, component, data, values.clone())
-                        .await?;
-                }
-            }
+/// Dispatches component interactions (buttons and select menus)
+async fn handle_component_interaction(
+    ctx: &Context,
+    component: &ComponentInteraction,
+    data: &BotData,
+) -> Result<(), Error> {
+    match &component.data.kind {
+        ComponentInteractionDataKind::Button => {
+            handle_button_interaction(ctx, component, data).await
+        }
+        ComponentInteractionDataKind::UserSelect { values } => {
+            handle_select_interaction(ctx, component, data, values).await
+        }
+        _ => Ok(()),
+    }
+}
 
-            "temp_voice_transfer_select" => {
-                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                    transfer::handle_transfer_temp_vc_submit(ctx, component, data, values.clone())
-                        .await?;
-                }
-            }
-            "temp_voice_untrust_select" => {
-                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                    untrust::handle_untrust_temp_vc_submit(ctx, component, data, values.clone())
-                        .await?;
-                }
-            }
-            "temp_voice_block_select" => {
-                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                    block::handle_block_temp_vc_submit(ctx, component, data, values.clone())
-                        .await?;
-                }
-            }
-            "temp_voice_unblock_select" => {
-                if let ComponentInteractionDataKind::UserSelect { values } = &component.data.kind {
-                    unblock::handle_unblock_temp_vc_submit(ctx, component, data, values.clone())
-                        .await?;
-                }
-            }
-            _ => {}
-        },
-        Interaction::Modal(modal) => match modal.data.custom_id.as_str() {
-            "temp_voice_rename_modal" => {
-                rename::handle_rename_temp_vc_submit(ctx, modal, data).await?
-            }
-            "temp_voice_limit_modal" => limit::handle_set_limit_vc_submit(ctx, modal, data).await?,
-            "temp_voice_kick_modal" => kick::handle_kick_temp_vc_submit(ctx, modal, data).await?,
-            _ => {}
-        },
+/// Dispatches button clicks
+async fn handle_button_interaction(
+    ctx: &Context,
+    component: &ComponentInteraction,
+    data: &BotData,
+) -> Result<(), Error> {
+    match component.data.custom_id.as_str() {
+        "temp_voice_rename" => rename::handle_rename_temp_vc(ctx, component, data).await?,
+        "temp_voice_limit" => limit::handle_set_limit_vc(ctx, component, data).await?,
+        "temp_voice_kick" => kick::handle_kick_temp_vc(ctx, component, data).await?,
+        "temp_voice_lock" => lock::handle_lock_temp_vc(ctx, component, data).await?,
+        "temp_voice_unlock" => unlock::handle_unlock_temp_vc(ctx, component, data).await?,
+        "temp_voice_trust" => trust::handle_trust_temp_vc(ctx, component, data).await?,
+        "temp_voice_untrust" => untrust::handle_untrust_temp_vc(ctx, component, data).await?,
+        "temp_voice_block" => block::handle_block_temp_vc(ctx, component, data).await?,
+        "temp_voice_unblock" => unblock::handle_unblock_temp_vc(ctx, component, data).await?,
+        "temp_voice_delete" => delete::handle_delete_temp_vc(ctx, component, data).await?,
+        "temp_voice_transfer" => transfer::handle_transfer_temp_vc(ctx, component, data).await?,
+        "temp_voice_transfer_accept" => {
+            transfer_action::handle_accept_transfer(ctx, component, data).await?;
+        }
+        "temp_voice_transfer_decline" => {
+            transfer_action::handle_decline_transfer(ctx, component, data).await?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Dispatches `UserSelect` menu submissions
+async fn handle_select_interaction(
+    ctx: &Context,
+    component: &ComponentInteraction,
+    data: &BotData,
+    values: &[UserId],
+) -> Result<(), Error> {
+    match component.data.custom_id.as_str() {
+        "temp_voice_trust_select" => {
+            trust::handle_trust_temp_vc_submit(ctx, component, data, values.to_vec()).await?;
+        }
+        "temp_voice_transfer_select" => {
+            transfer::handle_transfer_temp_vc_submit(ctx, component, data, values.to_vec()).await?;
+        }
+        "temp_voice_untrust_select" => {
+            untrust::handle_untrust_temp_vc_submit(ctx, component, data, values.to_vec()).await?;
+        }
+        "temp_voice_block_select" => {
+            block::handle_block_temp_vc_submit(ctx, component, data, values.to_vec()).await?;
+        }
+        "temp_voice_unblock_select" => {
+            unblock::handle_unblock_temp_vc_submit(ctx, component, data, values.to_vec()).await?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Dispatches Modal submissions
+async fn handle_modal_interaction(
+    ctx: &Context,
+    modal: &ModalInteraction,
+    data: &BotData,
+) -> Result<(), Error> {
+    match modal.data.custom_id.as_str() {
+        "temp_voice_rename_modal" => rename::handle_rename_temp_vc_submit(ctx, modal, data).await?,
+        "temp_voice_limit_modal" => limit::handle_set_limit_vc_submit(ctx, modal, data).await?,
+        "temp_voice_kick_modal" => kick::handle_kick_temp_vc_submit(ctx, modal, data).await?,
         _ => {}
     }
     Ok(())

@@ -64,11 +64,14 @@ async fn get_spotify_api_token(client: &reqwest::Client) -> Option<String> {
 
     let token_res: TokenResponse = res.json().await.ok()?;
 
-    let mut cache = TOKEN_CACHE.write().await;
-    *cache = Some(CachedToken {
-        token: token_res.access_token.clone(),
-        expires_at: Instant::now() + Duration::from_secs(token_res.expires_in.saturating_sub(60)),
-    });
+    {
+        let mut cache = TOKEN_CACHE.write().await;
+        *cache = Some(CachedToken {
+            token: token_res.access_token.clone(),
+            expires_at: Instant::now()
+                + Duration::from_secs(token_res.expires_in.saturating_sub(60)),
+        });
+    }
 
     Some(token_res.access_token)
 }
@@ -81,9 +84,7 @@ pub async fn resolve_spotify_playlist(client: &reqwest::Client, url: &str) -> Op
 
     let playlist_id = url.split("/playlist/").nth(1)?.split('?').next()?;
 
-    let token = if let Some(t) = get_spotify_api_token(client).await {
-        t
-    } else {
+    let Some(token) = get_spotify_api_token(client).await else {
         warn!("Could not retrieve Spotify API token. Check SPOTIFY_CLIENT_ID / SECRET env vars.");
         return None;
     };
@@ -199,9 +200,7 @@ pub async fn resolve_spotify_track(client: &reqwest::Client, url: &str) -> Optio
         url.split("/track/").nth(1)?.split('?').next()?
     };
 
-    let token = if let Some(t) = get_spotify_api_token(client).await {
-        t
-    } else {
+    let Some(token) = get_spotify_api_token(client).await else {
         warn!("Could not retrieve Spotify API token for track resolution.");
         return None;
     };

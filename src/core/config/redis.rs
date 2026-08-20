@@ -2,7 +2,6 @@ use crate::core::config::settings::GuildSettings;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface};
 use fred::prelude::Expiration;
-use serenity::all::GuildId;
 use tracing::{trace, warn};
 
 pub async fn get_settings_from_redis(redis: &Client, cache_key: &str) -> Option<GuildSettings> {

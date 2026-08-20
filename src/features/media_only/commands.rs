@@ -5,10 +5,11 @@ use crate::features::media_only::cache::{
     delete_media_only_channel, get_channel_media, store_media_only_channel,
 };
 use crate::features::media_only::database::list_media_only_channels;
-use crate::features::media_only::types::MediaOnlyChannel;
+use crate::features::media_only::types::{MediaOnlyChannel, MediaType};
 use crate::shared::messages::send_ephemeral;
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use serenity::all::{Channel, CreateEmbed, Mentionable};
+use std::fmt::Write;
 
 /// Manage media-only channel enforcement for this server.
 #[poise::command(
@@ -29,10 +30,7 @@ pub async fn set(
     ctx.defer_ephemeral().await?;
     let data = ctx.data();
     let channel_id = channel.id();
-    let Some(guild_id) = ctx.guild_id() else {
-        send_ephemeral(&ctx, "This command must be run in a guild!").await?;
-        return Ok(());
-    };
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
 
     let mut config = get_channel_media(data, channel_id)
         .await?
@@ -128,21 +126,27 @@ pub async fn info(
                 .join(", ")
         });
 
+    let status = |allowed: bool| {
+        if allowed {
+            "✅ Allowed"
+        } else {
+            "❌ Disabled"
+        }
+    };
+    let has_media = |media: MediaType| status(cfg.allowed_media.contains(&media));
+
     let mut embed = CreateEmbed::new()
         .title(format!("Media-Only Info for {}", channel.mention()))
-        .field("Images Allowed", cfg.allow_images.to_string(), true)
-        .field("Videos Allowed", cfg.allow_videos.to_string(), true)
-        .field("Audios Allowed", cfg.allow_audio.to_string(), true)
-        .field("GIFs Allowed", cfg.allow_gif.to_string(), true)
-        .field(
-            "Allow Link Attachments (YouTube, etc.)",
-            cfg.allow_links.to_string(),
-            true,
-        )
-        .field("Auto Threading", cfg.auto_thread.to_string(), true)
+        .field("Images", has_media(MediaType::Image), true)
+        .field("Videos", has_media(MediaType::Video), true)
+        .field("Audios", has_media(MediaType::Audio), true)
+        .field("GIFs", has_media(MediaType::Gif), true)
+        .field("Links (YouTube, etc.)", has_media(MediaType::Link), true)
+        .field("Embedded Text", has_media(MediaType::EmbeddedText), true)
+        .field("Auto Threading", status(cfg.auto_thread), true)
         .field(
             "Thread Name Template",
-            cfg.thread_name_template.unwrap_or_default(),
+            cfg.thread_name_template.as_deref().unwrap_or("None"),
             true,
         )
         .field(
@@ -165,10 +169,7 @@ pub async fn info(
 #[poise::command(slash_command, guild_only)]
 pub async fn list(ctx: Context<'_>) -> Result<()> {
     ctx.defer_ephemeral().await?;
-    let Some(guild_id) = ctx.guild_id() else {
-        send_ephemeral(&ctx, "This command must be run in a guild!").await?;
-        return Ok(());
-    };
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
 
     let channels = list_media_only_channels(&ctx.data().core.db, guild_id).await?;
     if channels.is_empty() {
@@ -178,7 +179,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
 
     let mut list = "Media only channels in this guild:\n".to_string();
     for channel in channels {
-        list.push_str(&format!("- <#{}>\n", channel.channel_id));
+        let _ = writeln!(list, "- <#{}>", channel.channel_id);
     }
 
     send_ephemeral(&ctx, list).await?;

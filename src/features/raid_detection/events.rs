@@ -6,12 +6,18 @@ use crate::features::raid_detection::implementation::{DynamicRaidDetector, clear
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::RaidAction;
+use chrono::{DateTime, Utc};
 use serenity::all::{
-    ChannelId, Context, CreateMessage, EditGuildIncidentActions, EditMember, Member, Timestamp,
+    ChannelId, Context, CreateMessage, EditGuildIncidentActions, EditMember, GuildId, Member,
+    Timestamp,
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
 /// Detects raid anomalies on member join and applies configured mitigation actions.
+///
+/// # Errors
+/// Returns an error if guild settings cannot be loaded, join metrics fail to record,
+/// the pre-raid snapshot cannot be saved, or any mitigation action fails to execute.
 #[instrument(
     skip(ctx, data, new_member),
     fields(
@@ -26,7 +32,7 @@ pub async fn handle_raid_detection(
 ) -> Result<(), Error> {
     let guild_id = new_member.guild_id;
     let user_id = new_member.user.id;
-    let now = chrono::Utc::now();
+    let now = Utc::now();
 
     let Some(raid_config) = get_settings(
         &data.core.db,
@@ -72,88 +78,140 @@ pub async fn handle_raid_detection(
         "Raid anomaly detected! Executing mitigation actions"
     );
 
+    let alert_message = format!(
+        "# Raid detected! Statistics\n\
+        - Current joins in the past minute: {}\n\
+        - Average joins per minute: {}\n\
+        - Standard deviation per minute: {}\n\
+        - Calculated threshold: {}\n\
+        Triggered by user `{}`.",
+        result.current_joins_in_window,
+        result.avg_joins_per_min,
+        result.std_dev_per_min,
+        result.calculated_threshold,
+        new_member.user.name
+    );
+
+    //  Manage raid lifecycle (snapshots, monitor, guild-wide mitigations)
     let is_first_trigger = detector.try_set_raid_active(guild_id, 300).await?;
+    handle_raid_lifecycle(
+        ctx,
+        data,
+        &detector,
+        guild_id,
+        &raid_config.raid_actions,
+        is_first_trigger,
+        &alert_message,
+    )
+    .await?;
 
-    if is_first_trigger {
-        info!(%guild_id, "First raid trigger recorded; initializing server snapshot and monitors");
+    // Apply member-specific mitigations (timeouts, auto-bans)
+    apply_member_mitigations(ctx, new_member, &raid_config.raid_actions, now).await?;
 
-        if let Err(e) = ensure_preraid_state_saved(ctx, data, guild_id).await {
-            error!(
-                error = %e,
-                %guild_id,
-                "Failed to save pre-raid state snapshot; rolling back active raid flag"
-            );
-            // Rollback Redis active state so next join can retry
-            let _ = clear_raid_active(&data.core.redis, guild_id).await;
-            return Err(e);
-        }
+    Ok(())
+}
 
-        spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
-
-        for action in &raid_config.raid_actions {
-            match action {
-                RaidAction::LockdownServer => {
-                    info!(%guild_id, "Spawning global server lockdown background task");
-                    let ctx = ctx.clone();
-                    let data = (*data).clone();
-                    let guild_id = guild_id;
-                    tokio::spawn(async move {
-                        if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                            error!(error = ?e, %guild_id, "Failed to lock server in background task");
-                        }
-                    });
-                }
-                RaidAction::BumpVerification => {
-                    info!(%guild_id, "Bumping server verification requirement to hCaptcha");
-                    database::bump_verification_to_max(&data.core.db, guild_id).await?;
-                }
-                _ => {}
-            }
-        }
-    } else {
+/// Handles raid state initialization/extension and guild-wide mitigation triggers.
+async fn handle_raid_lifecycle(
+    ctx: &Context,
+    data: &BotData,
+    detector: &DynamicRaidDetector,
+    guild_id: GuildId,
+    actions: &[RaidAction],
+    is_first_trigger: bool,
+    alert_message: &str,
+) -> Result<(), Error> {
+    if !is_first_trigger {
         debug!(%guild_id, "Raid active state already present; extending TTL");
         detector.extend_raid_active(guild_id, 300).await?;
+        return Ok(());
     }
 
-    for action in &raid_config.raid_actions {
-        match action {
-            RaidAction::PauseInvites { hours } if is_first_trigger => {
-                info!(%guild_id, hours, "Pausing server invites");
-                let until = chrono::Utc::now() + chrono::Duration::hours(*hours);
-                let timestamp = Timestamp::from_unix_timestamp(until.timestamp())?;
+    info!(%guild_id, "First raid trigger recorded; initializing server snapshot and monitors");
 
+    if let Err(e) = ensure_preraid_state_saved(ctx, data, guild_id).await {
+        error!(
+            error = %e,
+            %guild_id,
+            "Failed to save pre-raid state snapshot; rolling back active raid flag"
+        );
+        let _ = clear_raid_active(&data.core.redis, guild_id).await;
+        return Err(e);
+    }
+
+    spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
+
+    apply_guild_mitigations(ctx, data, guild_id, actions, alert_message).await?;
+
+    Ok(())
+}
+
+/// Applies one-time guild-wide mitigation actions (Lockdown, Verification, Invites, Alerts).
+async fn apply_guild_mitigations(
+    ctx: &Context,
+    data: &BotData,
+    guild_id: GuildId,
+    actions: &[RaidAction],
+    alert_message: &str,
+) -> Result<(), Error> {
+    for action in actions {
+        match action {
+            RaidAction::LockdownServer => {
+                info!(%guild_id, "Spawning global server lockdown background task");
+                let ctx = ctx.clone();
+                let data = (*data).clone();
+                tokio::spawn(async move {
+                    if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
+                        error!(error = ?e, %guild_id, "Failed to lock server in background task");
+                    }
+                });
+            }
+            RaidAction::BumpVerification => {
+                info!(%guild_id, "Bumping server verification requirement to hCaptcha");
+                database::bump_verification_to_max(&data.core.db, guild_id).await?;
+            }
+            RaidAction::PauseInvites { hours } => {
+                info!(%guild_id, hours, "Pausing server invites");
+                let until = Utc::now() + chrono::Duration::hours(*hours);
+                let timestamp = Timestamp::from_unix_timestamp(until.timestamp())?;
                 let builder = EditGuildIncidentActions::new().invites_disabled_until(timestamp);
+
                 guild_id
                     .edit_guild_incident_actions(&ctx.http, guild_id, builder)
                     .await?;
             }
-            RaidAction::Alert { channel_id } if is_first_trigger => {
+            RaidAction::Alert { channel_id } => {
                 info!(%guild_id, channel_id, "Sending raid notification alert to channel");
                 let channel = ChannelId::new(*channel_id);
-                let message_content = format!(
-                    "# Raid detected! Statistics\n\
-                    - Current joins in the past minute: {}\n\
-                    - Average joins per minute: {}\n\
-                    - Standard deviation per minute: {}\n\
-                    - Calculated threshold: {}\n\
-                    Triggered by user `{}`.",
-                    result.current_joins_in_window,
-                    result.avg_joins_per_min,
-                    result.std_dev_per_min,
-                    result.calculated_threshold,
-                    new_member.user.name
-                );
-                let message = CreateMessage::new().content(message_content);
+                let message = CreateMessage::new().content(alert_message);
+
                 if let Err(e) = channel.send_message(&ctx.http, message).await {
                     error!(error = %e, channel_id, %guild_id, "Failed to send raid alert message");
                 }
             }
+            _ => {}
+        }
+    }
+    Ok(())
+}
 
+/// Applies per-member mitigation actions (Timeouts, Auto-bans).
+async fn apply_member_mitigations(
+    ctx: &Context,
+    member: &Member,
+    actions: &[RaidAction],
+    now: DateTime<Utc>,
+) -> Result<(), Error> {
+    let guild_id = member.guild_id;
+    let user_id = member.user.id;
+
+    for action in actions {
+        match action {
             RaidAction::AutoBanNewAccounts { max_age_hours } => {
-                let created_at = new_member.user.id.created_at();
-                let age = now.signed_duration_since(created_at.to_utc());
+                let created_at = user_id.created_at().to_utc();
+                let age = now.signed_duration_since(created_at);
 
-                if (age.num_hours() as u64) < *max_age_hours {
+                if age.num_hours() < i64::try_from(*max_age_hours).unwrap_or(i64::MAX) {
                     warn!(
                         %guild_id,
                         %user_id,
@@ -161,7 +219,7 @@ pub async fn handle_raid_detection(
                         max_age_hours,
                         "Auto-banning account created too recently during active raid"
                     );
-                    new_member
+                    member
                         .ban_with_reason(
                             ctx,
                             0,
@@ -177,17 +235,13 @@ pub async fn handle_raid_detection(
                     timeout_mins = mins,
                     "Applying communication timeout to new join during active raid"
                 );
-                let timeout_until =
-                    chrono::Utc::now() + chrono::Duration::minutes(i64::from(*mins));
+                let timeout_until = Utc::now() + chrono::Duration::minutes(i64::from(*mins));
                 let timestamp = Timestamp::from_unix_timestamp(timeout_until.timestamp())?;
                 let builder = EditMember::new().disable_communication_until_datetime(timestamp);
 
-                guild_id
-                    .edit_member(&ctx.http, new_member.user.id, builder)
-                    .await?;
+                guild_id.edit_member(&ctx.http, user_id, builder).await?;
             }
-
-            _ => {} // Ignore global actions on non-first triggers
+            _ => {}
         }
     }
 

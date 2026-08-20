@@ -5,6 +5,7 @@ use fred::clients::SubscriberClient;
 use fred::prelude::*;
 use fred::rustls;
 use mod_oud::core::config;
+use mod_oud::core::config::settings::GuildSettings;
 use mod_oud::core::config::state::{BotData, Error};
 use mod_oud::core::error::on_error;
 use mod_oud::core::setup::SetupParams;
@@ -12,13 +13,13 @@ use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::events;
 use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::music::MusicState;
-use mod_oud::features::music::web_command::WebCommandBus;
+use mod_oud::features::music::web_command::{WebCommand, WebCommandBus};
 use mod_oud::features::{
     automod, birthday, custom_commands, general, invite_tracking, leveling, media_only,
     member_counter, moderation, music, raid_detection, reporting, temp_voice, tickets, warning,
 };
 use mod_oud::shared::username_cache::UserUpdate;
-use mod_oud::web::server::start_web_server;
+use mod_oud::web::server::{WebServerDeps, start_web_server};
 use poise::serenity_prelude as serenity;
 use serenity::prelude::GatewayIntents;
 use songbird::SerenityInit;
@@ -42,6 +43,98 @@ fn main() -> Result<(), Error> {
 }
 
 async fn async_main() -> Result<(), Error> {
+    init_logging();
+
+    let env_config = load_env();
+    let pool = connect_database(&env_config.database_url, env_config.run_migrations).await?;
+    let (redis_client, subscriber_client) = connect_redis(&env_config.redis_url).await?;
+
+    let reqwest_client = reqwest::Client::new();
+
+    let http = Arc::new(serenity::Http::new(&env_config.token));
+
+    let guild_configs = moka::future::Cache::new(5000);
+    config::sync::sync_configs(&subscriber_client, &guild_configs);
+
+    let (username_tx, username_rx) = mpsc::channel::<UserUpdate>(5000);
+
+    let (web_command_tx, web_command_rx) = mpsc::unbounded_channel();
+    let web_command_bus = WebCommandBus::new(web_command_tx);
+    let (music_stats_tx, music_stats_rx) = mpsc::unbounded_channel();
+    music::start_music_stats_worker(pool.clone(), music_stats_rx);
+    let music_state = MusicState::new(music_stats_tx);
+
+    if env_config.run_web {
+        let (tx, _) = broadcast::channel::<LogEvent>(1024);
+
+        start_web_server(WebServerDeps {
+            db: pool.clone(),
+            http: Arc::clone(&http),
+            redis_client: redis_client.clone(),
+            subscriber_client: subscriber_client.clone(),
+            guild_configs: guild_configs.clone(),
+            tx,
+            reqwest_client: reqwest_client.clone(),
+            username_tx: username_tx.clone(),
+            web_commands: web_command_bus.clone(),
+            music_state: music_state.clone(),
+        })
+        .await?;
+    }
+
+    if env_config.run_bot {
+        start_bot(BotDeps {
+            token: env_config.token,
+            safe_browsing_api_key: env_config.safe_browsing_api_key,
+            pool,
+            redis_client,
+            subscriber_client,
+            guild_configs,
+            username_tx,
+            username_rx,
+            reqwest_client,
+            web_command_rx,
+            music_state,
+        })
+        .await?;
+    } else {
+        warn!(
+            "Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional."
+        );
+        tokio::signal::ctrl_c().await?;
+    }
+
+    Ok(())
+}
+
+/// Environment variables parsed at startup.
+struct EnvConfig {
+    token: String,
+    database_url: String,
+    redis_url: String,
+    safe_browsing_api_key: Option<String>,
+    run_bot: bool,
+    run_web: bool,
+    run_migrations: bool,
+}
+
+/// Dependencies required to start the Discord bot gateway client.
+struct BotDeps {
+    token: String,
+    safe_browsing_api_key: Option<String>,
+    pool: sqlx::PgPool,
+    redis_client: Client,
+    subscriber_client: SubscriberClient,
+    guild_configs: moka::future::Cache<serenity::all::GuildId, GuildSettings>,
+    username_tx: tokio::sync::mpsc::Sender<UserUpdate>,
+    username_rx: tokio::sync::mpsc::Receiver<UserUpdate>,
+    reqwest_client: reqwest::Client,
+    web_command_rx: tokio::sync::mpsc::UnboundedReceiver<WebCommand>,
+    music_state: MusicState,
+}
+
+/// Installs the rustls crypto provider, loads `.env`, and initializes tracing.
+fn init_logging() {
     let _ = rustls::crypto::ring::default_provider().install_default();
     dotenvy::dotenv().ok();
 
@@ -53,7 +146,10 @@ async fn async_main() -> Result<(), Error> {
         .with_file(true)
         .with_thread_names(true)
         .init();
+}
 
+/// Reads all environment configuration into an [`EnvConfig`].
+fn load_env() -> EnvConfig {
     let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
 
     let token = env::var("DISCORD_TOKEN")
@@ -96,7 +192,25 @@ async fn async_main() -> Result<(), Error> {
         debug!("Since RUN_WEB is false, not running REST API.");
     }
 
-    let connection_options = PgConnectOptions::from_str(&database_url)?
+    let run_migrations = env::var("RUN_MIGRATIONS")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse()
+        .unwrap_or(false);
+
+    EnvConfig {
+        token,
+        database_url,
+        redis_url,
+        safe_browsing_api_key,
+        run_bot,
+        run_web,
+        run_migrations,
+    }
+}
+
+/// Connects to `PostgreSQL` and optionally runs pending migrations.
+async fn connect_database(database_url: &str, run_migrations: bool) -> Result<sqlx::PgPool, Error> {
+    let connection_options = PgConnectOptions::from_str(database_url)?
         .log_statements(LevelFilter::Debug)
         .log_slow_statements(LevelFilter::Warn, Duration::from_millis(100));
 
@@ -114,18 +228,18 @@ async fn async_main() -> Result<(), Error> {
         pool.num_idle()
     );
 
-    let run_migrations = env::var("RUN_MIGRATIONS")
-        .unwrap_or_else(|_| "false".to_string())
-        .parse()
-        .unwrap_or(false);
-
     if run_migrations {
         info!("Running database migrations...");
         sqlx::migrate!().run(&pool).await?;
         info!("Database migrated successfully.");
     }
 
-    let redis_config = Config::from_url(&redis_url)?;
+    Ok(pool)
+}
+
+/// Connects to Redis, returning the regular and subscriber clients.
+async fn connect_redis(redis_url: &str) -> Result<(Client, SubscriberClient), Error> {
+    let redis_config = Config::from_url(redis_url)?;
     let redis_client = Builder::from_config(redis_config)
         .with_config(|config| {
             config.tracing.enabled = true;
@@ -142,7 +256,7 @@ async fn async_main() -> Result<(), Error> {
             .unwrap_or("default")
     );
 
-    let subscriber_config = Config::from_url(&redis_url)?;
+    let subscriber_config = Config::from_url(redis_url)?;
     let subscriber_client: SubscriberClient = Builder::from_config(subscriber_config)
         .with_config(|config| {
             config.tracing.enabled = true;
@@ -160,173 +274,143 @@ async fn async_main() -> Result<(), Error> {
             .unwrap_or("default")
     );
 
-    let reqwest_client = reqwest::Client::new();
+    Ok((redis_client, subscriber_client))
+}
 
-    let http = Arc::new(serenity::Http::new(&token));
+/// Builds and starts the Discord bot gateway client.
+async fn start_bot(deps: BotDeps) -> Result<(), Error> {
+    let intents = GatewayIntents::GUILDS
+        | GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::DIRECT_MESSAGES
+        | GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILD_MEMBERS
+        | GatewayIntents::GUILD_MESSAGE_REACTIONS
+        | GatewayIntents::GUILD_MODERATION
+        | GatewayIntents::GUILD_VOICE_STATES;
 
-    let guild_configs = moka::future::Cache::new(5000);
-    config::sync::sync_configs(&subscriber_client, &guild_configs);
+    let active_names: Vec<&str> = intents.iter_names().map(|(name, _flag)| name).collect();
 
-    let (username_tx, username_rx) = mpsc::channel::<UserUpdate>(5000);
+    info!("Selected intents: {:?}", active_names);
 
-    let (web_command_tx, web_command_rx) = mpsc::unbounded_channel();
-    let web_command_bus = WebCommandBus::new(web_command_tx);
-    let (music_stats_tx, music_stats_rx) = mpsc::unbounded_channel();
-    music::start_music_stats_worker(pool.clone(), music_stats_rx);
-    let music_state = MusicState::new(music_stats_tx);
+    let mut cache_settings = serenity::cache::Settings::default();
+    cache_settings.max_messages = 5;
+    cache_settings.cache_users = true;
+    cache_settings.cache_channels = true;
+    cache_settings.time_to_live = Duration::from_mins(30);
 
-    if run_web {
-        let (tx, _) = broadcast::channel::<LogEvent>(1024);
+    debug!(
+        max_messages = cache_settings.max_messages,
+        cache_users = cache_settings.cache_users,
+        cache_channels = cache_settings.cache_channels,
+        cache_guilds = cache_settings.cache_guilds,
+        ttl = cache_settings.time_to_live.as_secs(),
+        "Setting up cache",
+    );
 
-        start_web_server(
-            pool.clone(),
-            Arc::clone(&http),
-            redis_client.clone(),
-            subscriber_client.clone(),
-            guild_configs.clone(),
-            tx,
-            reqwest_client.clone(),
-            username_tx.clone(),
-            web_command_bus.clone(),
-            music_state.clone(),
-        )
-        .await?;
-    }
+    let commands_to_register = build_commands();
 
-    let guild_configs_for_setup = guild_configs.clone();
+    info!("Registered {} commands", commands_to_register.len());
 
-    if run_bot {
-        let intents = GatewayIntents::GUILDS
-            | GatewayIntents::GUILD_MESSAGES
-            | GatewayIntents::DIRECT_MESSAGES
-            | GatewayIntents::MESSAGE_CONTENT
-            | GatewayIntents::GUILD_MEMBERS
-            | GatewayIntents::GUILD_MESSAGE_REACTIONS
-            | GatewayIntents::GUILD_MODERATION
-            | GatewayIntents::GUILD_VOICE_STATES;
+    let guild_configs_for_setup = deps.guild_configs.clone();
 
-        let active_names: Vec<&str> = intents.iter_names().map(|(name, _flag)| name).collect();
-
-        info!("Selected intents: {:?}", active_names);
-
-        let mut cache_settings = serenity::cache::Settings::default();
-        cache_settings.max_messages = 5;
-        cache_settings.cache_users = false;
-        cache_settings.cache_channels = false;
-        cache_settings.time_to_live = Duration::from_secs(60 * 30);
-
-        debug!(
-            max_messages = cache_settings.max_messages,
-            cache_users = cache_settings.cache_users,
-            cache_channels = cache_settings.cache_channels,
-            cache_guilds = cache_settings.cache_guilds,
-            ttl = cache_settings.time_to_live.as_secs(),
-            "Setting up cache",
-        );
-
-        let commands_to_register = vec![
-            general::ping(),
-            moderation::purge(),
-            moderation::kick(),
-            moderation::ban(),
-            moderation::mute(),
-            moderation::unmute(),
-            moderation::softban(),
-            moderation::unban(),
-            moderation::delete_category(),
-            warning::warn(),
-            warning::warnings(),
-            reporting::report_message(),
-            leveling::level(),
-            moderation::lock(),
-            moderation::unlock(),
-            moderation::global_lock(),
-            moderation::global_unlock(),
-            tickets::setup_tickets(),
-            invite_tracking::invites(),
-            invite_tracking::inviter(),
-            invite_tracking::invites_leaderboard(),
-            custom_commands::custom_commands(),
-            raid_detection::raid(),
-            birthday::birthday(),
-            automod::honeypot(),
-            temp_voice::voice(),
-            member_counter::counters(),
-            media_only::media_only(),
-            music::music(),
-            register(),
-        ];
-
-        info!("Registered {} commands", commands_to_register.len());
-
-        let framework = poise::Framework::builder()
-            .options(poise::FrameworkOptions {
-                prefix_options: poise::PrefixFrameworkOptions {
-                    prefix: Some("!".into()),
-                    edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
-                        Duration::from_secs(3600),
-                    ))),
-                    ..Default::default()
-                },
-                commands: commands_to_register,
-                on_error: |error| Box::pin(on_error(error)),
-                event_handler: |ctx, event, framework, data| {
-                    Box::pin(events::dispatch::dispatch_events(
-                        ctx, event, framework, data,
-                    ))
-                },
+    let framework = poise::Framework::builder()
+        .options(poise::FrameworkOptions {
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("!".into()),
+                edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
+                    Duration::from_hours(1),
+                ))),
                 ..Default::default()
+            },
+            commands: commands_to_register,
+            on_error: |error| Box::pin(on_error(error)),
+            event_handler: |ctx, event, framework, data| {
+                Box::pin(events::dispatch::dispatch_events(
+                    ctx, event, framework, data,
+                ))
+            },
+            ..Default::default()
+        })
+        .setup(move |ctx, ready, _framework| {
+            setup(SetupParams {
+                safe_browsing_api_key: deps.safe_browsing_api_key,
+                pool: deps.pool,
+                redis_client: deps.redis_client.clone(),
+                subscriber_client: deps.subscriber_client.clone(),
+                guild_configs_cache: guild_configs_for_setup.clone(),
+                ctx,
+                username_tx: deps.username_tx.clone(),
+                username_rx: deps.username_rx,
+                reqwest_client: deps.reqwest_client.clone(),
+                web_command_rx: deps.web_command_rx,
+                music_state: deps.music_state,
+                ready,
             })
-            .setup(move |ctx, _ready, _framework| {
-                setup(SetupParams {
-                    safe_browsing_api_key,
-                    pool,
-                    redis_client: redis_client.clone(),
-                    subscriber_client: subscriber_client.clone(),
-                    guild_configs_cache: guild_configs_for_setup.clone(),
-                    ctx,
-                    username_tx: username_tx.clone(),
-                    username_rx,
-                    reqwest_client: reqwest_client.clone(),
-                    web_command_rx,
-                    music_state,
-                    ready: _ready,
-                })
-            })
-            .build();
+        })
+        .build();
 
-        let mut client = serenity::Client::builder(token, intents)
-            .framework(framework)
-            .cache_settings(cache_settings)
-            .register_songbird()
-            .await?;
+    let mut client = serenity::Client::builder(deps.token, intents)
+        .framework(framework)
+        .cache_settings(cache_settings)
+        .register_songbird()
+        .await?;
 
-        {
-            let mut data = client.data.write().await;
-            data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
-        }
-
-        let shard_index: u32 = env::var("SHARD_INDEX")
-            .unwrap_or_else(|_| "0".to_string())
-            .parse()
-            .expect("SHARD_INDEX must be a valid u32");
-
-        let total_shards: u32 = env::var("TOTAL_SHARDS")
-            .unwrap_or_else(|_| "1".to_string())
-            .parse()
-            .expect("TOTAL_SHARDS must be a valid u32");
-
-        info!("Starting Shard {} of {}...", shard_index + 1, total_shards);
-
-        client.start_shard(shard_index, total_shards).await?;
-    } else {
-        warn!(
-            "Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional."
-        );
-        tokio::signal::ctrl_c().await?;
+    {
+        let mut data = client.data.write().await;
+        data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
     }
+
+    let shard_index: u32 = env::var("SHARD_INDEX")
+        .unwrap_or_else(|_| "0".to_string())
+        .parse()
+        .expect("SHARD_INDEX must be a valid u32");
+
+    let total_shards: u32 = env::var("TOTAL_SHARDS")
+        .unwrap_or_else(|_| "1".to_string())
+        .parse()
+        .expect("TOTAL_SHARDS must be a valid u32");
+
+    info!("Starting Shard {} of {}...", shard_index + 1, total_shards);
+
+    client.start_shard(shard_index, total_shards).await?;
 
     Ok(())
+}
+
+/// Collects the application commands to register with the gateway.
+fn build_commands() -> Vec<poise::Command<BotData, Error>> {
+    vec![
+        general::ping(),
+        moderation::purge(),
+        moderation::kick(),
+        moderation::ban(),
+        moderation::mute(),
+        moderation::unmute(),
+        moderation::softban(),
+        moderation::unban(),
+        moderation::delete_category(),
+        warning::warn(),
+        warning::warnings(),
+        reporting::report_message(),
+        leveling::level(),
+        moderation::lock(),
+        moderation::unlock(),
+        moderation::global_lock(),
+        moderation::global_unlock(),
+        tickets::setup_tickets(),
+        invite_tracking::invites(),
+        invite_tracking::inviter(),
+        invite_tracking::invites_leaderboard(),
+        custom_commands::custom_commands(),
+        raid_detection::raid(),
+        birthday::birthday(),
+        automod::honeypot(),
+        temp_voice::voice(),
+        member_counter::counters(),
+        media_only::media_only(),
+        music::music(),
+        register(),
+    ]
 }
 
 #[poise::command(prefix_command, owners_only, hide_in_help)]

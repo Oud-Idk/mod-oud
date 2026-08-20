@@ -1,7 +1,7 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::Context;
-use crate::features::music::actor::GuildCommand;
+use crate::features::music::actor::{GuildCommand, PlayPayload, QueueAddPayload};
 use crate::features::music::player::format_duration;
 use crate::features::music::state::{PlayOutcome, QueueAddOutcome, StartedTrackInfo};
 use crate::shared::pagination::paginate;
@@ -9,6 +9,7 @@ use crate::shared::voice_state::get_user_vc_in_guild;
 use anyhow::{Context as _, Result};
 use poise::CreateReply;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, User};
+use std::fmt::Write;
 use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
@@ -142,12 +143,14 @@ pub async fn play(
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
     let outcome = p
-        .dispatch(|respond| GuildCommand::Play {
-            query,
-            vc_channel_id,
-            requested_by_name: ctx.author().name.clone(),
-            requested_by_id: ctx.author().id.get(),
-            respond,
+        .dispatch(|respond| {
+            GuildCommand::Play(Box::new(PlayPayload {
+                query,
+                vc_channel_id,
+                requested_by_name: ctx.author().name.clone(),
+                requested_by_id: ctx.author().id.get(),
+                respond,
+            }))
         })
         .await?;
 
@@ -309,13 +312,18 @@ pub async fn next(ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation
+)]
 fn make_progress_bar(position_sec: f64, duration_sec: Option<u64>) -> String {
     let Some(total) = duration_sec.filter(|&d| d > 0) else {
         return "🔴 Live Stream".to_string();
     };
 
     let progress = (position_sec / total as f64).clamp(0.0, 1.0);
-    let total_blocks = 14;
+    let total_blocks = 20;
     let filled_blocks = (progress * total_blocks as f64).round() as usize;
 
     let mut bar = String::from("`");
@@ -425,11 +433,13 @@ pub async fn add(
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
     let outcome = p
-        .dispatch(|respond| GuildCommand::QueueAdd {
-            query,
-            vc_channel_id,
-            requested_by: ctx.author().clone(),
-            respond,
+        .dispatch(|respond| {
+            GuildCommand::QueueAdd(Box::new(QueueAddPayload {
+                query,
+                vc_channel_id,
+                requested_by: ctx.author().clone(),
+                respond,
+            }))
         })
         .await?;
 
@@ -499,13 +509,16 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
                 _ => format!("**{title}**"),
             };
 
-            description.push_str(&format!("**Now Playing:**\n{title_fmt} | `{duration}`\n\n"));
+            let _ = writeln!(
+                description,
+                "**Now Playing:**\n{title_fmt} | `{duration}`\n"
+            );
         }
 
         if snapshot.queue.is_empty() {
             description.push_str("**Up Next:**\nNo tracks in queue.");
         } else {
-            description.push_str(&format!("**Up Next (Page {page}/{total_pages}):**\n"));
+            let _ = writeln!(description, "**Up Next (Page {page}/{total_pages}):**");
             for (i, track) in snapshot.queue[start_idx..end_idx].iter().enumerate() {
                 let track_num = start_idx + i + 1;
                 let title = track.metadata.title.as_deref().unwrap_or("Untitled");
@@ -520,10 +533,11 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
                     None => String::new(),
                 };
 
-                description.push_str(&format!(
-                    "{}. {}{} (Requested by **{}**)\n",
+                let _ = writeln!(
+                    description,
+                    "{}. {}{} (Requested by **{}**)",
                     track_num, title_fmt, duration_fmt, track.requested_by
-                ));
+                );
             }
         }
 
@@ -662,7 +676,7 @@ pub async fn history_list(ctx: Context<'_>) -> Result<()> {
                 None => String::new(),
             };
 
-            description.push_str(&format!("{track_num}. {title_fmt}{duration_fmt}\n"));
+            let _ = writeln!(description, "{track_num}. {title_fmt}{duration_fmt}");
         }
 
         CreateEmbed::new()

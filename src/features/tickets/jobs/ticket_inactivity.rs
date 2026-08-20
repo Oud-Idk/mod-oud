@@ -5,7 +5,7 @@ use crate::features::tickets::keys;
 use crate::shared::locking;
 use anyhow::Result;
 use chrono::Duration as ChronoDuration;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use fred::prelude::*;
 use futures_util::future::join_all;
 use moka::future::Cache;
@@ -147,12 +147,9 @@ async fn warn_inactive_tickets(
         let settings = settings_map.get(&row.guild_id);
         let ticket_config = settings.and_then(|s| s.tickets.as_ref());
 
-        let warn_std = ticket_config
-            .map(|t| t.warn_threshold)
-            .unwrap_or_else(|| Duration::from_mins(30));
-        let delete_std = ticket_config
-            .map(|t| t.delete_threshold)
-            .unwrap_or_else(|| Duration::from_mins(45));
+        let warn_std = ticket_config.map_or_else(|| Duration::from_mins(30), |t| t.warn_threshold);
+        let delete_std =
+            ticket_config.map_or_else(|| Duration::from_mins(45), |t| t.delete_threshold);
 
         let warn_duration =
             ChronoDuration::from_std(warn_std).unwrap_or(ChronoDuration::minutes(30));
@@ -254,8 +251,7 @@ async fn close_abandoned_tickets(
         let settings = settings_map.get(&row.guild_id);
         let delete_std = settings
             .and_then(|s| s.tickets.as_ref())
-            .map(|t| t.delete_threshold)
-            .unwrap_or_else(|| Duration::from_mins(45));
+            .map_or_else(|| Duration::from_mins(45), |t| t.delete_threshold);
 
         let delete_duration =
             ChronoDuration::from_std(delete_std).unwrap_or(ChronoDuration::minutes(45));
@@ -276,7 +272,7 @@ async fn close_abandoned_tickets(
     info!(close_count, "Closing abandoned tickets");
 
     if !tickets_to_close.is_empty() {
-        database::mark_ticket_as_closed(pool, &mut tickets_to_close).await?;
+        database::mark_ticket_as_closed(pool, &tickets_to_close).await?;
         debug!(
             updated_count = tickets_to_close.len(),
             "Set closed status in database for abandoned tickets"

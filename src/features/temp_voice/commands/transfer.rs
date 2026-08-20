@@ -12,9 +12,8 @@ pub async fn transfer(
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let (channel_id, guild_id, member) = match preflight_slash_check(&ctx).await? {
-        Some(val) => val,
-        None => return Ok(()),
+    let Some((channel_id, guild_id, member)) = preflight_slash_check(&ctx).await? else {
+        return Ok(());
     };
 
     let response_message = service::initiate_temp_vc_transfer(

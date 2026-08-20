@@ -61,7 +61,9 @@ pub fn record_track_start(
         .clone()
         .unwrap_or_else(|| "Unknown".to_string());
     let track_url = metadata.source_url.clone();
-    let duration_ms = metadata.duration.map(|d| d.as_millis() as i64);
+    let duration_ms = metadata
+        .duration
+        .map(|d| i64::try_from(d.as_millis()).expect("The year is 292,000,000 AD"));
 
     let _ = tx.send(StatsEvent::Start {
         guild_id: guild_id.get(),
@@ -216,7 +218,7 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                             "Attempted to release music stats prune lock, but we no longer owned it"
                         ),
                         Err(e) => {
-                            error!(error = ?e, "Failed to release music stats prune lock due to a Redis error")
+                            error!(error = ?e, "Failed to release music stats prune lock due to a Redis error");
                         }
                     }
                 }

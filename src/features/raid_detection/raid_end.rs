@@ -103,6 +103,9 @@ pub async fn handle_raid_end(
 }
 
 /// Re-attaches raid monitors or reverts stale raid state for tracked guilds at startup.
+///
+/// # Errors
+/// Returns an error if the Redis read of tracked guilds fails.
 pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(), Error> {
     let tracked_guilds: Vec<GuildId> = data
         .core

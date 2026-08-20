@@ -1,13 +1,13 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::WebState;
-use crate::features::reporting::database::update_reported_message;
+use crate::features::reporting::database::{fetch_reporter_id, update_reported_message};
 use crate::features::reporting::types::ReportStatus;
 use crate::features::reporting::types::{DashboardCommand, ReportUpdate};
 use crate::features::reporting::web::error::WebError;
 use crate::shared::embed::build_custom_message;
 use axum::http::StatusCode;
 use fred::clients::Client;
-use serenity::all::{GuildId, UserId};
+use serenity::all::GuildId;
 use tracing::{error, info, instrument, warn};
 
 #[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, status = ?status
@@ -36,17 +36,7 @@ pub async fn handle_resolve_report(
         return Ok(StatusCode::BAD_REQUEST);
     };
 
-    let reporter_id: i64 = sqlx::query_scalar!(
-        "SELECT reporter_id FROM reported_messages WHERE id = $1",
-        cmd.report_id
-    )
-    .fetch_one(&state.core.db)
-    .await
-    .inspect_err(|e| error!(error = ?e, "Failed to retrieve reporter ID from database"))
-    .map_err(|_e| WebError::Internal)?;
-
-    let reporter_id_u64: u64 = reporter_id as u64;
-    let reporter_id = UserId::new(reporter_id_u64);
+    let reporter_id = fetch_reporter_id(&state.core.db, cmd.report_id).await?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::Status(*status))
         .await

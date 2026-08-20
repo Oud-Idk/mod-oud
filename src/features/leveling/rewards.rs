@@ -22,7 +22,7 @@ pub async fn apply_level_rewards(
     db: &PgPool,
     guild_id: GuildId,
     user_id: UserId,
-    new_level: i32,
+    new_level: i64,
 ) -> Result<(), Error> {
     debug!("Fetching level rewards from database");
     let rewards = fetch_level_rewards(db, guild_id).await?;

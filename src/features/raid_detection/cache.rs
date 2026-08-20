@@ -12,6 +12,7 @@ use fred::interfaces::{
 use fred::prelude::Expiration;
 use serenity::all::{GuildId, UserId};
 
+#[allow(clippy::cast_precision_loss)]
 pub async fn record_join_event(
     redis: &Client,
     window_size_seconds: i64,
@@ -66,6 +67,7 @@ pub async fn get_threshold(redis: &Client, stats_cache_key: &str) -> Result<Opti
     Ok(None)
 }
 
+#[allow(clippy::cast_precision_loss)]
 pub async fn get_history_from_cache(
     redis: &Client,
     now: DateTime<Utc>,

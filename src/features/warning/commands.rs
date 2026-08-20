@@ -25,7 +25,7 @@ pub async fn warn(
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let Some(meta) = pre_flight_check(&ctx, member.user.id, "warn").await? else {
+    let Some(meta) = pre_flight_check(ctx, member.user.id, "warn").await? else {
         return Ok(());
     };
 
@@ -59,10 +59,6 @@ pub async fn warn(
     Ok(())
 }
 
-// ==========================================
-// 2. TOP-LEVEL MANAGEMENT GROUP (`/warnings`)
-// ==========================================
-
 /// Parent command for viewing and managing warnings.
 #[poise::command(
     slash_command,
@@ -81,10 +77,10 @@ pub async fn history(
     #[description = "The member to check"] member: Member,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let target_id = member.user.id.get();
+    let target_id = member.user.id;
 
     let meta = GuildMetadata::extract(&ctx)?;
-    let records = fetch_warnings(&ctx.data().core.db, meta.id.get(), target_id as i64).await?;
+    let records = fetch_warnings(&ctx.data().core.db, meta.id, target_id).await?;
 
     if records.is_empty() {
         send_ephemeral(
@@ -109,14 +105,14 @@ pub async fn search(
     #[description = "Text to search for in warning reasons"] query: String,
     #[description = "Filter results to a specific user"] user: Option<User>,
 ) -> Result<(), Error> {
-    let target_user_id = user.as_ref().map(|u| u.id.get());
+    let target_user_id = user.as_ref().map(|u| u.id);
     let meta = GuildMetadata::extract(&ctx)?;
 
     let search_pattern = format!("%{query}%");
     let records = search_warnings_by_pattern(
         &ctx.data().core.db,
-        meta.id.get(),
-        target_user_id.map(|id| id as i64),
+        meta.id,
+        target_user_id,
         &search_pattern,
     )
     .await?;
@@ -157,10 +153,10 @@ pub async fn view(
             } else {
                 "Pardoned"
             };
-            let time_str = match warn.created_at {
-                Some(dt) => format!("<t:{0}:f> (<t:{0}:R>)", dt.timestamp()),
-                None => "*Unknown date*".to_string(),
-            };
+            let time_str = warn.created_at.map_or_else(
+                || "*Unknown date*".to_string(),
+                |dt| format!("<t:{0}:f> (<t:{0}:R>)", dt.timestamp()),
+            );
             let reason = warn.reason.as_deref().unwrap_or("*No reason provided*");
 
             let embed = poise::serenity_prelude::CreateEmbed::new()

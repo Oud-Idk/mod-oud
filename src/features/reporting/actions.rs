@@ -6,7 +6,7 @@ use crate::shared::username_cache::UserUpdate;
 use anyhow::Result;
 use fred::clients::Client;
 use futures_util::TryFutureExt;
-use serenity::all::{ChannelId, GuildId, Message, User};
+use serenity::all::{GuildId, Message, User};
 use tracing::{debug, trace, warn};
 
 pub fn extract_image_urls(message: &Message) -> Vec<String> {
@@ -55,12 +55,7 @@ pub async fn issue_report(
     );
 
     let reported_author = &reported_message.author;
-    store_username_relation(
-        username_buf,
-        reported_author.id.get(),
-        &reported_author.name,
-    )
-    .await?;
+    store_username_relation(username_buf, reported_author.id, &reported_author.name).await?;
 
     let content = reported_message.content.clone();
     let attachment_url = extract_image_urls(reported_message).join(",");
@@ -103,10 +98,10 @@ pub async fn issue_report(
         content,
         attachment_url: Some(attachment_url),
         status,
-        message_deleted: false,
-        user_warned: false,
-        user_timed_out: false,
-        user_banned: false,
+        message_deleted: false.into(),
+        user_warned: false.into(),
+        user_timed_out: false.into(),
+        user_banned: false.into(),
         reporter_id: reporter.id,
     };
 

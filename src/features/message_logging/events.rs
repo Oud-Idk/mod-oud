@@ -67,14 +67,14 @@ async fn determine_deleter(
         let target_matches = entry
             .target_id
             .is_some_and(|id| id.get() == author_id.get()); // GenericId for some reason
-        let mut channel_matches = false;
-
-        if let Some(options) = &entry.options
-            && let Some(entry_channel_id) = options.channel_id
+        let channel_matches = if let Some(options) = &entry.options // Has audit log actions
+            && let Some(entry_channel_id) = options.channel_id // Audt log option has channel ID
             && entry_channel_id == channel_id
         {
-            channel_matches = true;
-        }
+            true
+        } else {
+            false
+        };
 
         if target_matches && channel_matches {
             if let Some(user) = audit_data.users.get(&entry.user_id) {
@@ -94,6 +94,10 @@ async fn determine_deleter(
 }
 
 /// Logs a deleted message, resolving the deleter via audit logs and publishing the event.
+///
+/// # Errors
+/// Returns an error if the guild settings cannot be loaded, the cached message
+/// cannot be fetched, or the delete event fails to publish.
 #[instrument(
     skip(ctx, data),
     fields(
@@ -149,7 +153,7 @@ pub async fn message_log_delete(
         msg.author_id,
         msg.chan_id,
         guild_id,
-        &ctx,
+        ctx,
     )
     .await
     {
@@ -218,6 +222,10 @@ pub async fn message_log_delete(
 }
 
 /// Logs an edited message's content change and publishes the update event.
+///
+/// # Errors
+/// Returns an error if the guild settings cannot be loaded or the edit event
+/// fails to publish.
 #[instrument(
     skip(ctx, old_if_available, new, event, data),
     fields(

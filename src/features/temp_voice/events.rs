@@ -8,9 +8,30 @@ use fred::interfaces::{HashesInterface, KeysInterface};
 use serenity::all::{
     ChannelId, ChannelType, Context, CreateChannel, GuildChannel, GuildId, Member, VoiceState,
 };
+use serenity::model::id::UserId;
 use tracing::{debug, trace, warn};
 
+/// Redis keys used to track a temp VC's ownership and membership.
+struct TempVcRegistry {
+    owner_hash: String,
+    owner_field: String,
+    temp_vc_hash: String,
+}
+
+impl TempVcRegistry {
+    fn new(guild_id: GuildId, user_id: UserId) -> Self {
+        Self {
+            owner_hash: temp_vc_owners_key(guild_id),
+            owner_field: user_id.get().to_string(),
+            temp_vc_hash: temp_vcs_key(guild_id),
+        }
+    }
+}
+
 /// Records user voice channel join/leave state for temporary voice tracking.
+///
+/// # Errors
+/// Returns an error if the Redis voice state write fails.
 pub async fn handle_log_user_join(data: &BotData, new: &VoiceState) -> Result<(), Error> {
     let Some(guild_id) = new.guild_id else {
         return Ok(());
@@ -46,9 +67,7 @@ pub async fn handle_join_hub_temp_vc(
         return Ok(());
     };
 
-    let target_channel_id = if let Some(channel_id) = new.channel_id {
-        channel_id
-    } else {
+    let Some(target_channel_id) = new.channel_id else {
         debug!("Unable to get voice channel ID for some reason");
         return Ok(());
     };
@@ -63,7 +82,7 @@ pub async fn handle_join_hub_temp_vc(
     let cache_key = format!("temp_voice_hub:{guild_id}:{target_channel_id}");
     let cached_json: Option<String> = redis.get(&cache_key).await?;
 
-    let maybe_hub = temp_voice::database::get_hub_info(
+    let Some(hub_info) = temp_voice::database::get_hub_info(
         guild_id,
         redis,
         db,
@@ -71,20 +90,42 @@ pub async fn handle_join_hub_temp_vc(
         &cache_key,
         cached_json,
     )
-    .await?;
-
-    let hub_info = if let Some(info) = maybe_hub {
-        info
-    } else {
+    .await?
+    else {
         debug!("User not in voice hub. Skipping.");
         return Ok(());
     };
 
-    let owner_hash = temp_vc_owners_key(guild_id);
-    let owner_field = user_id.get().to_string();
-    let temp_vc_hash = temp_vcs_key(guild_id);
+    let registry = TempVcRegistry::new(guild_id, user_id);
 
-    let existing_channel: Option<String> = redis.hget(&owner_hash, &owner_field).await?;
+    // 1. Try to route to an existing VC if one exists
+    let handled = try_handle_existing_vc(ctx, data, guild_id, user_id, &registry).await?;
+
+    if handled {
+        return Ok(());
+    }
+
+    // Create, register, and move member to the new temp VC
+    create_and_setup_temp_vc(ctx, data, guild_id, member, user_id, &hub_info, &registry).await?;
+
+    Ok(())
+}
+
+/// Checks if the user already has a temp VC and handles moving them or cleaning stale Redis entries.
+/// Returns `Ok(true)` if the user was moved to an existing VC.
+async fn try_handle_existing_vc(
+    ctx: &Context,
+    data: &BotData,
+    guild_id: GuildId,
+    user_id: UserId,
+    registry: &TempVcRegistry,
+) -> Result<bool, Error> {
+    let _ = user_id;
+    let redis = &data.core.redis;
+    let existing_channel: Option<String> = redis
+        .hget(&registry.owner_hash, &registry.owner_field)
+        .await?;
+
     if let Some(existing_channel_str) = existing_channel
         && let Ok(existing_channel_id) = existing_channel_str.parse::<u64>()
     {
@@ -113,24 +154,40 @@ pub async fn handle_join_hub_temp_vc(
                 );
                 return Err(e.into());
             }
-            return Ok(());
-        } else {
-            warn!(
-                user_id = user_id.get(),
-                channel_id = existing_channel_id.get(),
-                "Owner hash pointed at a channel that no longer exists; clearing stale entry."
-            );
-            let pipe = redis.pipeline();
-            pipe.hdel::<(), _, _>(&owner_hash, &owner_field).await?;
-            pipe.hdel::<(), _, _>(&temp_vc_hash, &existing_channel_str)
-                .await?;
-            if let Err(e) = pipe.all::<Vec<i64>>().await {
-                warn!("Failed to clear stale owner hash entry: {:?}", e);
-            }
+            return Ok(true);
+        }
+
+        warn!(
+            user_id = user_id.get(),
+            channel_id = existing_channel_id.get(),
+            "Owner hash pointed at a channel that no longer exists; clearing stale entry."
+        );
+        let pipe = redis.pipeline();
+        pipe.hdel::<(), _, _>(&registry.owner_hash, &registry.owner_field)
+            .await?;
+        pipe.hdel::<(), _, _>(&registry.temp_vc_hash, &existing_channel_str)
+            .await?;
+        if let Err(e) = pipe.all::<Vec<i64>>().await {
+            warn!("Failed to clear stale owner hash entry: {:?}", e);
         }
     }
 
-    let new_channel = create_temp_vc(ctx, &guild_id, member, &hub_info).await?;
+    Ok(false)
+}
+
+/// Creates a new temp VC, registers it in Redis, and moves the member with rollback on failure.
+async fn create_and_setup_temp_vc(
+    ctx: &Context,
+    data: &BotData,
+    guild_id: GuildId,
+    member: &Member,
+    user_id: UserId,
+    hub_info: &TempVoiceHub,
+    registry: &TempVcRegistry,
+) -> Result<(), Error> {
+    let redis = &data.core.redis;
+
+    let new_channel = create_temp_vc(ctx, &guild_id, member, hub_info).await?;
     debug!(
         new_channel_id = new_channel.id.get(),
         "Created temp voice channel."
@@ -140,13 +197,13 @@ pub async fn handle_join_hub_temp_vc(
 
     let pipe = redis.pipeline();
     pipe.hset::<(), _, _>(
-        &temp_vc_hash,
+        &registry.temp_vc_hash,
         vec![(temp_vc_field.clone(), user_id.get().to_string())],
     )
     .await?;
     pipe.hset::<(), _, _>(
-        &owner_hash,
-        vec![(owner_field.clone(), new_channel.id.get().to_string())],
+        &registry.owner_hash,
+        vec![(&registry.owner_field, new_channel.id.get().to_string())],
     )
     .await?;
     if let Err(e) = pipe.all::<Vec<i64>>().await {
@@ -154,31 +211,7 @@ pub async fn handle_join_hub_temp_vc(
     }
 
     if let Err(e) = guild_id.move_member(&ctx, user_id, new_channel.id).await {
-        // If the member is magically faster than my network (which is very much possible with my
-        // 300ms ass latency), clean up the new channel.
-        if let Err(cleanup_err) = new_channel.id.delete(&ctx.http).await {
-            warn!(
-                new_channel_id = new_channel.id.get(),
-                error = %cleanup_err,
-                "Failed to clean up orphaned temp voice channel",
-            );
-        }
-
-        // rollback pipe
-        let cleanup_pipe = redis.pipeline();
-        cleanup_pipe
-            .hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field)
-            .await?;
-        cleanup_pipe
-            .hdel::<(), _, _>(&owner_hash, &owner_field)
-            .await?;
-        if let Err(cleanup_err) = cleanup_pipe.all::<Vec<i64>>().await {
-            warn!(
-                new_channel_id = new_channel.id.get(),
-                error = %cleanup_err,
-                "Failed to roll back redis entries for orphaned temp voice channel",
-            );
-        }
+        rollback_temp_vc(ctx, data, new_channel.id, registry, &temp_vc_field).await?;
 
         warn!(
             user_id = user_id.get(),
@@ -194,6 +227,45 @@ pub async fn handle_join_hub_temp_vc(
         new_channel_id = new_channel.id.get(),
         "Moved member into voice channel."
     );
+
+    Ok(())
+}
+
+/// Cleans up the newly created channel and rolls back its Redis cache entries on error.
+async fn rollback_temp_vc(
+    ctx: &Context,
+    data: &BotData,
+    new_channel_id: ChannelId,
+    registry: &TempVcRegistry,
+    temp_vc_field: &str,
+) -> Result<(), Error> {
+    let redis = &data.core.redis;
+
+    // If the member is magically faster than my network (which is very much possible with my
+    // 300ms ass latency), clean up the new channel.
+    if let Err(cleanup_err) = new_channel_id.delete(&ctx.http).await {
+        warn!(
+            new_channel_id = new_channel_id.get(),
+            error = %cleanup_err,
+            "Failed to clean up orphaned temp voice channel",
+        );
+    }
+
+    // rollback pipe
+    let cleanup_pipe = redis.pipeline();
+    cleanup_pipe
+        .hdel::<(), _, _>(&registry.temp_vc_hash, temp_vc_field)
+        .await?;
+    cleanup_pipe
+        .hdel::<(), _, _>(&registry.owner_hash, &registry.owner_field)
+        .await?;
+    if let Err(cleanup_err) = cleanup_pipe.all::<Vec<i64>>().await {
+        warn!(
+            new_channel_id = new_channel_id.get(),
+            error = %cleanup_err,
+            "Failed to roll back redis entries for orphaned temp voice channel",
+        );
+    }
 
     Ok(())
 }
@@ -285,10 +357,9 @@ pub async fn create_temp_vc(
     member: &Member,
     hub_info: &TempVoiceHub,
 ) -> Result<GuildChannel, anyhow::Error> {
-    let Some(cat_id) = hub_info.category_id.map(|id| id as u64) else {
+    let Some(category_id) = hub_info.category_id else {
         anyhow::bail!("Category ID is not specified");
     };
-    let category_id = ChannelId::new(cat_id);
     let channel_name = placeholders::replace_channel_placeholders(
         hub_info.default_channel_name.as_str(),
         guild_id,
@@ -304,7 +375,7 @@ pub async fn create_temp_vc(
     if let Some(limit) = hub_info.user_limit
         && limit > 0
     {
-        channel_builder = channel_builder.user_limit(limit as u32);
+        channel_builder = channel_builder.user_limit(u32::try_from(limit).unwrap_or(0));
     }
 
     let new_channel = guild_id.create_channel(&ctx, channel_builder).await?;
@@ -316,6 +387,10 @@ pub async fn create_temp_vc(
 }
 
 /// Routes voice state changes to temporary voice channel join and leave handling.
+///
+/// # Errors
+/// Returns an error if a temp voice channel cannot be created, cleaned up, or
+/// its Redis state updated.
 pub async fn handle_voice_event(
     ctx: &Context,
     old: Option<&VoiceState>,

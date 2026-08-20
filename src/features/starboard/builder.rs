@@ -6,7 +6,7 @@ use serenity::all::{
     Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId,
     Reaction, ReactionType, UserId,
 };
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, instrument, trace};
 
 pub struct StarboardCtx<'a> {
     pub starboard: Option<&'a Starboard>,
@@ -18,12 +18,8 @@ impl PlaceholderResolver for StarboardCtx<'_> {
         if key.starts_with("starboard") {
             let sb = self.starboard?;
             return Some(match key {
-                "starboard.emojis" => sb.emojis.as_ref().map(|e| e.join(", ")).unwrap_or_default(),
-                "starboard.first_emoji" => sb
-                    .emojis
-                    .as_ref()
-                    .and_then(|v| v.first().cloned())
-                    .unwrap_or_default(),
+                "starboard.emojis" => sb.emojis.join(", "),
+                "starboard.first_emoji" => sb.emojis.first().cloned().unwrap_or_default(),
                 _ => return None,
             });
         }
@@ -119,14 +115,8 @@ pub async fn build_starboard_message(
     let origin_message = reaction.message(ctx).await?;
     let gctx = get_guild_ctx(guild_id, ctx).await?;
 
-    let Some(embed_template) = &starboard.embed_template else {
-        warn!("Missing embed template for starboard config");
-        return Ok(None);
-    };
-    let Some(text_template) = &starboard.plaintext_template else {
-        warn!("Missing text template for starboard config");
-        return Ok(None);
-    };
+    let embed_template = &starboard.embed_template;
+    let text_template = &starboard.plaintext_template;
 
     let discord_ctx = DiscordCtx {
         gctx: Some(&gctx),
@@ -163,44 +153,41 @@ pub async fn count_emoji_and_cache(
     redis: &Client,
     cached_key: &str,
 ) -> FredResult<u64> {
-    match value {
-        Some(count) => {
-            trace!(
-                count = count,
-                "Count provided by Redis script, utilizing cache value"
-            );
-            Ok(count)
-        }
-        None => {
-            debug!("Count not provided by Redis; recalculating manually from message reactions");
-            let mut count = msg
-                .reactions
-                .iter()
-                .find(|r| is_emoji_match(&r.reaction_type, &removed_reaction.emoji))
-                .map_or(0, |r| r.count);
+    if let Some(count) = value {
+        trace!(
+            count = count,
+            "Count provided by Redis script, utilizing cache value"
+        );
+        Ok(count)
+    } else {
+        debug!("Count not provided by Redis; recalculating manually from message reactions");
+        let mut count = msg
+            .reactions
+            .iter()
+            .find(|r| is_emoji_match(&r.reaction_type, &removed_reaction.emoji))
+            .map_or(0, |r| r.count);
 
-            if starboard.prevent_self_star.unwrap_or(false) {
-                trace!("Self-star prevention active; checking reaction authors");
-                let has_author_reacted = has_user_reacted(
-                    ctx,
-                    removed_reaction.channel_id,
-                    removed_reaction.message_id,
-                    &removed_reaction.emoji,
-                    msg.author.id,
-                )
-                .await
-                .unwrap_or(false);
-                if has_author_reacted && count > 0 {
-                    debug!("Self-star detected; decrementing official reaction count");
-                    count -= 1;
-                }
+        if starboard.prevent_self_star {
+            trace!("Self-star prevention active; checking reaction authors");
+            let has_author_reacted = has_user_reacted(
+                ctx,
+                removed_reaction.channel_id,
+                removed_reaction.message_id,
+                &removed_reaction.emoji,
+                msg.author.id,
+            )
+            .await
+            .unwrap_or(false);
+            if has_author_reacted && count > 0 {
+                debug!("Self-star detected; decrementing official reaction count");
+                count -= 1;
             }
-
-            trace!(key = %cached_key, count = count, "Updating Redis emoji cache");
-            let _: () = redis
-                .set(cached_key, count, Some(Expiration::EX(3600)), None, false)
-                .await?;
-            Ok(count)
         }
+
+        trace!(key = %cached_key, count = count, "Updating Redis emoji cache");
+        let _: () = redis
+            .set(cached_key, count, Some(Expiration::EX(3600)), None, false)
+            .await?;
+        Ok(count)
     }
 }

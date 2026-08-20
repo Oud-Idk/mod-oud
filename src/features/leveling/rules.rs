@@ -44,15 +44,15 @@ pub fn should_exclude_from_level_up(
 
 fn calculate_multiplier(
     multipliers: Vec<XpMultiplier>,
-    channel_id: u64,
-    role_ids: Vec<u64>,
+    channel_id: ChannelId,
+    role_ids: &[RoleId],
 ) -> f32 {
     let mut applied_multiplier = 1.0f32;
-    let role_ids_i64: Vec<i64> = role_ids.iter().map(|r| *r as i64).collect();
+    let role_ids_i64: Vec<i64> = role_ids.iter().map(|r| (*r).get().cast_signed()).collect();
 
     for mult in multipliers {
         match mult.target_type.as_str() {
-            "channel" if mult.target_id == channel_id as i64 => {
+            "channel" if mult.target_id == channel_id.get().cast_signed() => {
                 trace!(
                     target_id = %mult.target_id,
                     multiplier = mult.multiplier,
@@ -97,11 +97,11 @@ pub async fn get_multiplier(
             error!(error = %err, "Failed to retrieve XP multipliers from cache/database");
         })?;
 
-    let channel_id = message.channel_id.get();
+    let channel_id = message.channel_id;
     let roles = message
         .member
         .as_ref()
-        .map(|m| m.roles.iter().map(|r| r.get()).collect())
+        .map(|m| m.roles.as_slice())
         .unwrap_or_default();
 
     let multiplier = calculate_multiplier(multipliers, channel_id, roles);
@@ -132,9 +132,7 @@ pub async fn get_voice_multiplier(
             error!(error = %err, "Failed to retrieve voice XP multipliers from cache/database");
         })?;
 
-    let roles = member_roles.iter().map(|r| r.get()).collect();
-
-    let multiplier = calculate_multiplier(multipliers, channel_id.get(), roles);
+    let multiplier = calculate_multiplier(multipliers, channel_id, member_roles);
     debug!(multiplier, "Successfully determined voice multiplier");
     Ok(multiplier)
 }

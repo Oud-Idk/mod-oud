@@ -175,7 +175,7 @@ async fn on_message_delete(
     guild_id: Option<&serenity::GuildId>,
 ) -> Result<(), anyhow::Error> {
     Box::pin(async move {
-        starboard::handle_cleanup_if_starboard(ctx, &data.core.db, deleted_message_id).await?;
+        starboard::handle_cleanup_if_starboard(ctx, &data.core.db, *deleted_message_id).await?;
         message_logging::message_log_delete(ctx, *channel_id, *deleted_message_id, guild_id, data)
             .await
     })
@@ -222,7 +222,7 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
         FullEvent::Message { new_message } => {
             store_username_relation(
                 &data.core.username_tx,
-                new_message.author.id.get(),
+                new_message.author.id,
                 &new_message.author.name,
             )
             .await?;
@@ -233,7 +233,7 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
         } => {
             store_username_relation(
                 &data.core.username_tx,
-                message.author.id.get(),
+                message.author.id,
                 &message.author.name,
             )
             .await?;
@@ -241,30 +241,22 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
         FullEvent::GuildMemberAddition { new_member } => {
             store_username_relation(
                 &data.core.username_tx,
-                new_member.user.id.get(),
+                new_member.user.id,
                 &new_member.user.name,
             )
             .await?;
         }
         FullEvent::GuildMemberRemoval { user, .. } => {
-            store_username_relation(&data.core.username_tx, user.id.get(), &user.name).await?;
+            store_username_relation(&data.core.username_tx, user.id, &user.name).await?;
         }
         FullEvent::VoiceStateUpdate { old, new, .. } => {
             if let Some(member) = &new.member {
-                store_username_relation(
-                    &data.core.username_tx,
-                    member.user.id.get(),
-                    &member.user.name,
-                )
-                .await?;
+                store_username_relation(&data.core.username_tx, member.user.id, &member.user.name)
+                    .await?;
             }
             if let Some(member) = old.as_ref().and_then(|old| old.member.as_ref()) {
-                store_username_relation(
-                    &data.core.username_tx,
-                    member.user.id.get(),
-                    &member.user.name,
-                )
-                .await?;
+                store_username_relation(&data.core.username_tx, member.user.id, &member.user.name)
+                    .await?;
             }
         }
         FullEvent::InteractionCreate { interaction } => {
@@ -276,13 +268,12 @@ async fn extract_and_store_username(data: &BotData, event: &FullEvent) -> Result
                 _ => None,
             };
             if let Some(user) = user {
-                store_username_relation(&data.core.username_tx, user.id.get(), &user.name).await?;
+                store_username_relation(&data.core.username_tx, user.id, &user.name).await?;
             }
         }
         FullEvent::InviteCreate { data: invite_data } => {
             if let Some(inviter) = &invite_data.inviter {
-                store_username_relation(&data.core.username_tx, inviter.id.get(), &inviter.name)
-                    .await?;
+                store_username_relation(&data.core.username_tx, inviter.id, &inviter.name).await?;
             }
         }
         _ => {}

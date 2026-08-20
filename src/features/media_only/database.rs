@@ -1,4 +1,6 @@
-use crate::features::media_only::types::MediaOnlyChannel;
+use std::collections::HashSet;
+
+use crate::features::media_only::types::{MediaOnlyChannel, MediaType};
 use anyhow::{Context, Result};
 use serenity::all::{ChannelId, GuildId, RoleId};
 use sqlx::PgPool;
@@ -27,16 +29,32 @@ struct MediaOnlyChannelRow {
 
 impl From<MediaOnlyChannelRow> for MediaOnlyChannel {
     fn from(row: MediaOnlyChannelRow) -> Self {
+        let mut allowed_media = HashSet::new();
+
+        if row.allow_images {
+            allowed_media.insert(MediaType::Image);
+        }
+        if row.allow_videos {
+            allowed_media.insert(MediaType::Video);
+        }
+        if row.allow_audio {
+            allowed_media.insert(MediaType::Audio);
+        }
+        if row.allow_gif {
+            allowed_media.insert(MediaType::Gif);
+        }
+        if row.allow_links {
+            allowed_media.insert(MediaType::Link);
+        }
+        if row.allow_embedded_text {
+            allowed_media.insert(MediaType::EmbeddedText);
+        }
+
         Self {
             channel_id: ChannelId::new(row.channel_id.cast_unsigned()),
             guild_id: GuildId::new(row.guild_id.cast_unsigned()),
             enabled: row.enabled,
-            allow_images: row.allow_images,
-            allow_videos: row.allow_videos,
-            allow_audio: row.allow_audio,
-            allow_gif: row.allow_gif,
-            allow_links: row.allow_links,
-            allow_embedded_text: row.allow_embedded_text,
+            allowed_media,
             auto_thread: row.auto_thread,
             thread_name_template: row.thread_name_template,
             delete_warning_after_secs: row.delete_warning_after_secs,
@@ -102,11 +120,13 @@ pub async fn store_media_only_in_db(db: &PgPool, payload: &MediaOnlyChannel) -> 
     sqlx::query!(
         r#"
         INSERT INTO media_only_channels (
-            channel_id, enabled, allow_images, allow_videos, allow_audio,
-            allow_gif, allow_links, auto_thread, thread_name_template,
-            delete_warning_after_secs, exempt_roles, guild_id
+            channel_id, guild_id, enabled,
+            allow_images, allow_videos, allow_audio, allow_gif,
+            allow_links, allow_embedded_text,
+            auto_thread, thread_name_template,
+            delete_warning_after_secs, exempt_roles
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         ON CONFLICT (channel_id) DO UPDATE SET
             enabled = EXCLUDED.enabled,
             allow_images = EXCLUDED.allow_images,
@@ -114,23 +134,25 @@ pub async fn store_media_only_in_db(db: &PgPool, payload: &MediaOnlyChannel) -> 
             allow_audio = EXCLUDED.allow_audio,
             allow_gif = EXCLUDED.allow_gif,
             allow_links = EXCLUDED.allow_links,
+            allow_embedded_text = EXCLUDED.allow_embedded_text,
             auto_thread = EXCLUDED.auto_thread,
             thread_name_template = EXCLUDED.thread_name_template,
             delete_warning_after_secs = EXCLUDED.delete_warning_after_secs,
             exempt_roles = EXCLUDED.exempt_roles
         "#,
         payload.channel_id.get().cast_signed(),
+        payload.guild_id.get().cast_signed(),
         payload.enabled,
-        payload.allow_images,
-        payload.allow_videos,
-        payload.allow_audio,
-        payload.allow_gif,
-        payload.allow_links,
+        payload.allowed_media.contains(&MediaType::Image),
+        payload.allowed_media.contains(&MediaType::Video),
+        payload.allowed_media.contains(&MediaType::Audio),
+        payload.allowed_media.contains(&MediaType::Gif),
+        payload.allowed_media.contains(&MediaType::Link),
+        payload.allowed_media.contains(&MediaType::EmbeddedText),
         payload.auto_thread,
         payload.thread_name_template,
         payload.delete_warning_after_secs,
         exempt_roles.as_deref(),
-        payload.guild_id.get().cast_signed(),
     )
     .execute(db)
     .await

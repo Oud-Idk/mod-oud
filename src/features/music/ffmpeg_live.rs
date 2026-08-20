@@ -68,7 +68,7 @@ impl FfmpegLiveInput {
 
 impl FfmpegLiveInput {
     async fn create_ffmpeg_stream(
-        &mut self,
+        &self,
     ) -> Result<AudioStream<Box<dyn MediaSource>>, AudioStreamError> {
         let url = resolve_stream_url(&self.query)
             .await

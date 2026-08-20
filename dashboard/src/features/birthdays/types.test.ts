@@ -10,7 +10,7 @@ describe("Birthday Types & Schemas", () => {
         expect(parsed.birthdayRoleId).toBeNull();
         expect(parsed.announcementHour).toBe(9);
         expect(parsed.timezone).toBe("UTC");
-        expect(parsed.messageWithYear.content).toContain("Happy birthday 🎉!");
+        expect(parsed.message.content).toContain("Happy birthday 🎉!");
     });
 
     describe("announcementHour boundary checks", () => {

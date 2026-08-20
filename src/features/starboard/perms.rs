@@ -1,6 +1,7 @@
 use crate::features::starboard::types::{RestrictionType, Starboard};
+use crate::shared::permissions::HasRoles;
 use chrono::Utc;
-use serenity::all::{ChannelId, Member, Message, Reaction, RoleId, UserId};
+use serenity::all::{Member, Message, Reaction, UserId};
 
 pub fn is_event_allowed(
     starboard: &Starboard,
@@ -13,11 +14,11 @@ pub fn is_event_allowed(
         return false;
     }
 
-    if starboard.prevent_self_star.unwrap_or(false) && user_id == message.author.id {
+    if starboard.prevent_self_star && user_id == message.author.id {
         return false;
     }
 
-    if !starboard.allow_bot_messages.unwrap_or(true) && message.author.bot {
+    if !starboard.allow_bot_messages && message.author.bot {
         return false;
     }
 
@@ -29,45 +30,25 @@ pub fn is_event_allowed(
 }
 
 fn is_role_allowed(starboard: &Starboard, member: &Member) -> bool {
-    let restriction_type = starboard
-        .role_restriction_type
-        .unwrap_or(RestrictionType::None);
+    let restriction_type = starboard.role_restriction_type;
     if restriction_type == RestrictionType::None {
         return true;
     }
-
-    let Some(restricted_roles) = &starboard.restricted_roles else {
-        return matches!(restriction_type, RestrictionType::AllExcept);
-    };
-
-    let roles = restricted_roles
-        .iter()
-        .map(|id| RoleId::from(*id as u64))
-        .collect::<Vec<RoleId>>();
+    let restricted_roles = &starboard.restricted_roles;
 
     match restriction_type {
-        RestrictionType::AllExcept => !member_has_any_role(member, &roles),
-        RestrictionType::OnlyThese => member_has_any_role(member, &roles),
+        RestrictionType::AllExcept => !member.has_any_role(restricted_roles),
+        RestrictionType::OnlyThese => member.has_any_role(restricted_roles),
         RestrictionType::None => true,
     }
 }
 
 fn is_channel_allowed(starboard: &Starboard, reaction: &Reaction) -> bool {
-    let restriction_type = starboard
-        .channel_restriction_type
-        .unwrap_or(RestrictionType::None);
+    let restriction_type = starboard.channel_restriction_type;
     if restriction_type == RestrictionType::None {
         return true;
     }
-
-    let Some(restricted_channels_u64) = &starboard.restricted_channels else {
-        return matches!(restriction_type, RestrictionType::AllExcept);
-    };
-
-    let restricted_channels = restricted_channels_u64
-        .iter()
-        .map(|id| ChannelId::from(*id as u64))
-        .collect::<Vec<ChannelId>>();
+    let restricted_channels = &starboard.restricted_channels;
 
     match restriction_type {
         RestrictionType::AllExcept => !restricted_channels.contains(&reaction.channel_id),
@@ -98,13 +79,6 @@ fn is_message_age_allowed(starboard: &Starboard, message_timestamp: i64) -> bool
 }
 
 #[inline]
-fn calculate_duration_ms(days: i32, months: i32, microseconds: i64) -> i64 {
+const fn calculate_duration_ms(days: i32, months: i32, microseconds: i64) -> i64 {
     (days as i64 * 86_400_000) + (months as i64 * 2_592_000_000) + (microseconds / 1000)
-}
-
-fn member_has_any_role(member: &Member, target_role_ids: &[RoleId]) -> bool {
-    member
-        .roles
-        .iter()
-        .any(|role_id| target_role_ids.contains(role_id))
 }

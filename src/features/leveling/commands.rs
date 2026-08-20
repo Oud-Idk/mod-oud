@@ -40,10 +40,8 @@ pub async fn view(
     ctx: Context<'_>,
     #[description = "The user whose level you want to view"] user: Option<User>,
 ) -> Result<()> {
-    let guild_id = ctx
-        .guild_id()
-        .with_context(|| "This command can only be used inside a server.")?;
-    let target_user = user.as_ref().unwrap_or(ctx.author());
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
+    let target_user = user.as_ref().unwrap_or_else(|| ctx.author());
 
     let caller_id = ctx.author().id;
     let target_id = target_user.id;
@@ -92,26 +90,25 @@ pub async fn view(
 
     let xp_needed = calculate_xp_needed(user_level.current_level);
 
-    let progress_percentage = if xp_needed > 0 {
-        (user_level.current_xp as f32 / xp_needed as f32).clamp(0.0, 1.0)
+    let (progress_bar, percent_text) = if xp_needed > 0 {
+        // Scaled to tenths of a percent (0 to 1000)
+        let permille = (user_level.current_xp.saturating_mul(1000) / xp_needed).clamp(0, 1000);
+        // Rounded to nearest block (+50 adds 0.5 rounding)
+        let filled = usize::try_from((permille + 50) / 100).unwrap_or(0).min(10);
+        let bar = format!("{}{}", "🟩".repeat(filled), "⬛".repeat(10 - filled));
+        let text = format!("{}.{}%", permille / 10, permille % 10);
+        (bar, text)
     } else {
-        0.0
+        ("⬛".repeat(10), "0.0%".to_string())
     };
-    let filled_blocks = (progress_percentage * 10.0).round() as usize;
-    let empty_blocks = 10 - filled_blocks;
-    let progress_bar = format!(
-        "{}{}",
-        "🟩".repeat(filled_blocks),
-        "⬛".repeat(empty_blocks)
-    );
 
     let rank = database::get_user_rank(db, guild_id, target_id)
         .await?
-        .map_or("Not Available".to_string(), |r| r.to_string());
+        .map_or_else(|| "Not Available".to_string(), |r| r.to_string());
 
-    // FORMATTING APPLIED HERE FOR EMBED
-    let formatted_xp = format_compact(user_level.current_xp as u64);
-    let formatted_xp_needed = format_compact(xp_needed as u64);
+    // FORMATTING APPLIED HERE FOR EMBED (unsigned_abs() converts i64 -> u64 with 0 casts)
+    let formatted_xp = format_compact(user_level.current_xp.unsigned_abs());
+    let formatted_xp_needed = format_compact(xp_needed.unsigned_abs());
 
     let embed = CreateEmbed::new()
         .author(
@@ -130,7 +127,7 @@ pub async fn view(
         )
         .field(
             "Progress",
-            format!("{}\n`{:.1}%`", progress_bar, progress_percentage * 100.0),
+            format!("{progress_bar}\n`{percent_text}`"),
             false,
         )
         .field("Rank", format!("🏅 **Rank #{rank}**"), false)
@@ -151,6 +148,7 @@ fn fallback<'a>(val: &'a str, default: &'a str) -> &'a str {
 }
 
 /// Helper to format large numbers to human-readable strings (e.g., 1500 -> 1.5k)
+#[allow(clippy::cast_precision_loss)]
 fn format_compact(num: u64) -> String {
     match NumberPrefix::decimal(num as f64) {
         NumberPrefix::Standalone(n) => n.to_string(),
@@ -169,10 +167,8 @@ pub async fn card(
     ctx: Context<'_>,
     #[description = "The user whose level card you want to view"] user: Option<User>,
 ) -> Result<()> {
-    let guild_id = ctx
-        .guild_id()
-        .with_context(|| "This command can only be used inside a server.")?;
-    let target_user = user.as_ref().unwrap_or(ctx.author());
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
+    let target_user = user.as_ref().unwrap_or_else(|| ctx.author());
     let svg_template = include_str!("assets/level_template.svg");
 
     let redis = &ctx.data().core.redis;
@@ -202,68 +198,43 @@ pub async fn card(
 
     let rank = database::get_user_rank(db, guild_id, target_user.id)
         .await?
-        .map_or(0, |r| r as u64);
+        .map_or(0, i64::unsigned_abs);
 
-    let level: u64 = user_level.current_level as u64;
-    let xp: u64 = user_level.current_xp as u64;
-    let max_xp: u64 = xp_needed as u64;
+    let level = user_level.current_level.unsigned_abs();
+    let xp = user_level.current_xp.unsigned_abs();
+    let max_xp = xp_needed.unsigned_abs();
 
-    let max_bar_width = 200.0;
-    let fill_width = if max_xp > 0 {
-        ((xp as f64 / max_xp as f64) * max_bar_width).clamp(7.0, 200.0) // 7.0 is the radius
-    } else {
-        7.0
-    };
+    // Pure integer math for the progress bar (zero float casts!)
+    let fill_tenths = (xp.saturating_mul(2000) + max_xp / 2)
+        .checked_div(max_xp)
+        .map_or(70, |w| w.clamp(70, 2000));
+
+    let fill_width_str = format!("{}.{}", fill_tenths / 10, fill_tenths % 10);
 
     let Some(card) = &settings.leveling.map(|l| l.image_card) else {
         send_ephemeral(&ctx, "Image card settings not found!").await?;
         return Ok(());
     };
 
-    let bg_color = fallback(&card.background_color, "#000000");
-    let bar_fg = fallback(&card.bar_foreground_color, "#5865F2");
-    let bar_bg = fallback(&card.bar_background_color, "#dedede");
-    let line_sep = fallback(&card.line_separator_color, "#5865F2");
-    let username_color = fallback(&card.username_color, "#5865F2");
-    let stats_color = fallback(&card.statistics_color, "#5865F2");
-    let accent_color = fallback(&card.accent_color, "#5865F2");
+    let bg_color = fallback(&card.background, "#000000");
+    let bar_foreground = fallback(&card.bar_foreground, "#5865F2");
+    let bar_background = fallback(&card.bar_background, "#dedede");
+    let line_sep = fallback(&card.line_separator, "#5865F2");
+    let username_color = fallback(&card.username, "#5865F2");
+    let stats_color = fallback(&card.statistics, "#5865F2");
+    let accent_color = fallback(&card.accent, "#5865F2");
 
     let avatar_url = target_user.face();
 
-    let profile_picture = match reqwest::get(&avatar_url).await {
-        Ok(resp) if resp.status().is_success() => {
-            if let Ok(bytes) = resp.bytes().await {
-                match image::load_from_memory(&bytes) {
-                    Ok(img) => {
-                        let mut png_bytes = Vec::new();
-                        if img
-                            .write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png)
-                            .is_ok()
-                        {
-                            let b64 = STANDARD.encode(&png_bytes);
-                            format!("data:image/png;base64,{b64}")
-                        } else {
-                            avatar_url
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to decode avatar from memory: {e}");
-                        avatar_url
-                    }
-                }
-            } else {
-                avatar_url
-            }
-        }
-        _ => avatar_url,
-    };
+    let profile_picture = fetch_avatar_as_base64(&avatar_url)
+        .await
+        .unwrap_or(avatar_url);
 
     let display_name = target_user
         .global_name
         .as_deref()
         .unwrap_or(&target_user.name);
 
-    // 👇 FORMATTING APPLIED HERE FOR SVG CARD
     let formatted_xp = format_compact(xp);
     let formatted_max_xp = format_compact(max_xp);
 
@@ -271,8 +242,8 @@ pub async fn card(
         .replace("fill=\"#000000\"", &format!("fill=\"{bg_color}\""))
         .replace("{{BACKGROUND_COLOR}}", bg_color)
         .replace("{{USERNAME}}", display_name)
-        .replace("{{BAR.FOREGROUND}}", bar_fg)
-        .replace("{{BAR.BACKGROUND}}", bar_bg)
+        .replace("{{BAR.FOREGROUND}}", bar_foreground)
+        .replace("{{BAR.BACKGROUND}}", bar_background)
         .replace("{{SEPARATOR}}", line_sep)
         .replace("{{PROFILE_PICTURE}}", &profile_picture)
         .replace("{{USERNAME_COLOR}}", username_color)
@@ -282,7 +253,7 @@ pub async fn card(
         .replace("{{XP.PROGRESS}}", &formatted_xp) // Used variable here
         .replace("{{XP.MAX}}", &formatted_max_xp) // Used variable here
         .replace("{{RANK}}", &rank.to_string())
-        .replace("{{FILL_WIDTH}}", &format!("{fill_width:.1}"));
+        .replace("{{FILL_WIDTH}}", &fill_width_str);
 
     let png_bytes = rasterize_svg(&manipulated_svg, 2.0)?;
 
@@ -291,6 +262,18 @@ pub async fn card(
         .await?;
 
     Ok(())
+}
+
+async fn fetch_avatar_as_base64(url: &str) -> Option<String> {
+    let bytes = reqwest::get(url).await.ok()?.bytes().await.ok()?;
+    let img = image::load_from_memory(&bytes).ok()?;
+
+    let mut png_bytes = Vec::new();
+    img.write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png)
+        .ok()?;
+
+    let b64 = STANDARD.encode(&png_bytes);
+    Some(format!("data:image/png;base64,{b64}"))
 }
 
 /// Add levels to a user (admin only).
@@ -303,11 +286,9 @@ pub async fn card(
 pub async fn add(
     ctx: Context<'_>,
     #[description = "The user to add levels to"] user: User,
-    #[description = "Number of levels to add"] amount: i32,
+    #[description = "Number of levels to add"] amount: i64,
 ) -> Result<()> {
-    let guild_id = ctx
-        .guild_id()
-        .with_context(|| "This command can only be used inside a server.")?;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
 
     if amount <= 0 {
         send_ephemeral(&ctx, "Amount must be greater than 0.").await?;
@@ -335,9 +316,9 @@ pub async fn add(
 
     if let Some(leveling_config) = &settings.leveling
         && leveling_config.level_cap > 0
-        && user_level.current_level >= leveling_config.level_cap as i32
+        && user_level.current_level >= leveling_config.level_cap
     {
-        user_level.current_level = leveling_config.level_cap as i32;
+        user_level.current_level = leveling_config.level_cap;
         user_level.current_xp = 0; // Only reset XP if they hit max level!
     }
 
@@ -370,11 +351,9 @@ pub async fn add(
 pub async fn remove(
     ctx: Context<'_>,
     #[description = "The user to remove levels from"] user: User,
-    #[description = "Number of levels to remove"] amount: i32,
+    #[description = "Number of levels to remove"] amount: i64,
 ) -> Result<()> {
-    let guild_id = ctx
-        .guild_id()
-        .with_context(|| "This command can only be used inside a server.")?;
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
 
     if amount <= 0 {
         send_ephemeral(&ctx, "Amount must be greater than 0.").await?;
@@ -437,15 +416,15 @@ fn get_options() -> &'static Options<'static> {
 }
 
 /// Helper function to convert SVG string to PNG bytes using resvg
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn rasterize_svg(svg_str: &str, scale: f32) -> Result<Vec<u8>> {
     let tree =
         Tree::from_str(svg_str, get_options()).with_context(|| "Failed to parse SVG template")?;
 
-    let size = tree.size().to_int_size();
+    let size = tree.size();
 
-    // Calculate new scaled width and height
-    let width = (size.width() as f32 * scale).round() as u32;
-    let height = (size.height() as f32 * scale).round() as u32;
+    let width = (size.width() * scale).round() as u32;
+    let height = (size.height() * scale).round() as u32;
 
     let mut pixmap =
         Pixmap::new(width, height).with_context(|| "Failed to allocate memory for PNG image")?;

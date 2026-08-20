@@ -6,6 +6,9 @@ pub mod string_i64 {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     /// Serializes an `i64` as a string.
+    ///
+    /// # Errors
+    /// Returns an error if the serializer fails to write the string.
     pub fn serialize<S>(val: &i64, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -14,6 +17,10 @@ pub mod string_i64 {
     }
 
     /// Parses a string back into an `i64`.
+    ///
+    /// # Errors
+    /// Returns an error if the input is not a string or the string cannot be
+    /// parsed as an `i64`.
     pub fn deserialize<'de, D>(d: D) -> Result<i64, D::Error>
     where
         D: Deserializer<'de>,
@@ -29,6 +36,9 @@ pub mod opt_string_i64 {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     /// Serializes an `Option<i64>` as an optional string.
+    ///
+    /// # Errors
+    /// Returns an error if the serializer fails to write the value.
     pub fn serialize<S>(val: &Option<i64>, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -37,6 +47,10 @@ pub mod opt_string_i64 {
     }
 
     /// Parses an optional string into an `Option<i64>`.
+    ///
+    /// # Errors
+    /// Returns an error if the input is not a string or the string cannot be
+    /// parsed as an `i64`.
     pub fn deserialize<'de, D>(d: D) -> Result<Option<i64>, D::Error>
     where
         D: Deserializer<'de>,
@@ -48,6 +62,9 @@ pub mod opt_string_i64 {
 }
 
 /// Deserializes a value, mapping any failure to `None` instead of an error.
+///
+/// # Errors
+/// Returns an error if the input deserializes to an invalid [`serde_json::Value`].
 pub fn ok_or_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -55,8 +72,5 @@ where
 {
     let v = serde_json::Value::deserialize(deserializer)?;
 
-    match T::deserialize(v) {
-        Ok(val) => Ok(Some(val)),
-        Err(_) => Ok(None),
-    }
+    T::deserialize(v).map_or_else(|_| Ok(None), |val| Ok(Some(val)))
 }

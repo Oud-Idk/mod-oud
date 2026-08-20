@@ -1,7 +1,6 @@
 use serde::Deserialize;
+use std::fmt::Write;
 use tracing::{debug, warn};
-
-// --- YouTube API JSON Response Structs ---
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -88,9 +87,7 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
 
     let playlist_id = extract_playlist_id(url)?;
 
-    let api_key = if let Ok(key) = std::env::var("YOUTUBE_API_KEY") {
-        key
-    } else {
+    let Ok(api_key) = std::env::var("YOUTUBE_API_KEY") else {
         warn!("YOUTUBE_API_KEY environment variable is not set.");
         return None;
     };
@@ -107,7 +104,7 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
         );
 
         if let Some(token) = &page_token {
-            api_url.push_str(&format!("&pageToken={token}"));
+            let _ = write!(api_url, "&pageToken={token}");
         }
 
         let res = match client.get(&api_url).send().await {
@@ -179,9 +176,7 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
 pub async fn resolve_youtube_video(client: &reqwest::Client, url: &str) -> Option<String> {
     let video_id = extract_video_id(url)?;
 
-    let api_key = if let Ok(key) = std::env::var("YOUTUBE_API_KEY") {
-        key
-    } else {
+    let Ok(api_key) = std::env::var("YOUTUBE_API_KEY") else {
         warn!("YOUTUBE_API_KEY environment variable is not set.");
         return None;
     };

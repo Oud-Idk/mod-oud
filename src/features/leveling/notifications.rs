@@ -4,7 +4,7 @@ use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::types::{LevelingConfig, NotificationScope};
 use crate::shared::embed::build_custom_message;
 use anyhow::Result;
-use serenity::all::{ChannelId, Context, CreateMessage, GuildId, Message, User};
+use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User};
 use tracing::{debug, trace, warn};
 
 pub async fn send_according_to_config(
@@ -26,38 +26,42 @@ pub async fn send_according_to_config(
         }
         NotificationScope::SpecifiedChannel => {
             if let Some(channel_id) = config.notify.channel_id {
-                ChannelId::from(channel_id)
-                    .send_message(ctx.http.clone(), msg)
-                    .await?;
+                channel_id.send_message(ctx.http.clone(), msg).await?;
             }
         }
         NotificationScope::Dm => {
             let _ = author.dm(&ctx.http, msg).await;
         }
-        _ => {}
+        NotificationScope::None => {}
     }
     Ok(())
 }
 
+pub struct LevelUpEvent {
+    pub guild_id: GuildId,
+    pub channel_id: ChannelId,
+    pub author: User,
+    pub user_level: UserLevel,
+    pub previous_level: i64,
+}
+
 pub async fn send_message(
     ctx: &Context,
-    message: &Message,
-    user_level: &UserLevel,
+    event: &LevelUpEvent,
     config: &LevelingConfig,
-    guild_id: &GuildId,
-    previous_level: i32,
 ) -> Result<()> {
-    let user_id = user_level.user_id;
+    let guild_id = event.guild_id;
+    let user_id = event.user_level.user_id;
+    let current_level = event.user_level.current_level;
 
     trace!(
         %guild_id,
         user_id = %user_id,
-        current_level = user_level.current_level,
+        current_level,
         "Initiating level up notification sequence"
     );
 
-    let gctx = get_guild_ctx(*guild_id, ctx.http.as_ref()).await?;
-    let author = &message.author;
+    let gctx = get_guild_ctx(guild_id, ctx.http.as_ref()).await?;
 
     let custom_message_opt = build_custom_message(
         config.notify.message.format,
@@ -67,9 +71,9 @@ pub async fn send_message(
             replace_level_notify_placeholder(
                 text,
                 &gctx,
-                author,
-                user_level.current_level,
-                previous_level,
+                &event.author,
+                current_level,
+                event.previous_level,
             )
         },
     )
@@ -90,13 +94,12 @@ pub async fn send_message(
             "Using fallback level-up announcement string"
         );
         let content = format!(
-            "Congratulations, <@{}>. You have leveled up to **level {}**",
-            user_level.user_id, user_level.current_level
+            "Congratulations, <@{user_id}>. You have leveled up to **level {current_level}**",
         );
         CreateMessage::new().content(content)
     });
 
-    send_according_to_config(ctx, message.channel_id, config, author, msg).await?;
+    send_according_to_config(ctx, event.channel_id, config, &event.author, msg).await?;
 
     Ok(())
 }
@@ -108,7 +111,7 @@ pub async fn send_voice_level_up_message(
     config: &LevelingConfig,
     guild_id: GuildId,
     voice_channel_id: ChannelId,
-    previous_level: i32,
+    previous_level: i64,
 ) -> Result<()> {
     trace!(
         %guild_id,

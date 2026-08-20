@@ -59,9 +59,8 @@ pub async fn update_guild_counters(
     let mut counter_results = Vec::new();
 
     for counter in &config.counters {
-        let channel_id = match counter.channel_id {
-            Some(id) => id,
-            _ => continue, // Skip empty/invalid channel IDs
+        let Some(channel_id) = counter.channel_id else {
+            continue;
         };
 
         let count = match counter.counter_type {
@@ -75,6 +74,7 @@ pub async fn update_guild_counters(
             }
         };
 
+        #[allow(clippy::literal_string_with_formatting_args)]
         let target_name = counter.name_template.replace("{count}", &count.to_string());
         let mut name_changed = false;
 
@@ -117,7 +117,6 @@ pub async fn update_guild_counters(
             }
         }
 
-        // Add this channel's update report to our list!
         counter_results.push(CounterResult {
             channel_id,
             new_name: target_name,
@@ -125,7 +124,6 @@ pub async fn update_guild_counters(
         });
     }
 
-    // Wrap it all up in a pretty package and return! 🎁
     Ok(GuildCounts {
         total_members,
         humans_count,

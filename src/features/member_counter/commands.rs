@@ -1,8 +1,10 @@
 #![allow(missing_docs, clippy::unused_async)]
+use anyhow::Context as _;
+
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::member_counter::counters::update_guild_counters;
-use crate::shared::messages::send_ephemeral;
+use std::fmt::Write;
 
 /// Manage member counter channels for this server.
 #[poise::command(
@@ -21,10 +23,7 @@ pub async fn counters(_ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command, guild_only)]
 pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let Some(guild_id) = ctx.guild_id() else {
-        send_ephemeral(&ctx, "You're not in a guild!").await?;
-        return Ok(());
-    };
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
     let data = ctx.data();
 
     let settings = get_settings(
@@ -47,44 +46,37 @@ pub async fn sync(ctx: Context<'_>) -> Result<(), Error> {
     let http = ctx.serenity_context().http.clone();
     let cache = ctx.serenity_context().cache.clone();
 
-    match update_guild_counters(&http, &cache, guild_id, counter_config).await {
-        Ok(counts) => {
-            let mut response = format!(
-                "✅ **Member counters synchronized!**\n\n\
-                📊 **Server Overview:**\n\
-                • 👥 **Total Members:** {}\n\
-                • 🧑 **Humans:** {}\n\
-                • 🤖 **Bots:** {}\n\
-                • 🟢 **Online:** {}\n\n\
-                🏷️ **Channels Evaluated:**\n",
-                counts.total_members, counts.humans_count, counts.bots_count, counts.online_count
-            );
+    let counts = update_guild_counters(&http, &cache, guild_id, counter_config).await?;
+    let mut response = format!(
+        " **Member counters synchronized.**\n\n\
+        **Server Overview:**\n\
+        * **Total Members:** {}\n\
+        * **Humans:** {}\n\
+        * **Bots:** {}\n\
+        * **Online:** {}\n\n\
+        **Channels Evaluated:**\n",
+        counts.total_members, counts.humans_count, counts.bots_count, counts.online_count
+    );
 
-            if counts.counters.is_empty() {
-                response.push_str("*(No active counter channels found)*");
+    if counts.counters.is_empty() {
+        response.push_str("*(No active counter channels found)*");
+    } else {
+        for counter in counts.counters {
+            let status_tag = if counter.name_changed {
+                "Updated"
             } else {
-                for counter in counts.counters {
-                    let status_tag = if counter.name_changed {
-                        "✨ Updated"
-                    } else {
-                        "👌 Up to date"
-                    };
+                "Up to date"
+            };
 
-                    response.push_str(&format!(
-                        "• <#{}> ➔ `{}` ({})\n",
-                        counter.channel_id, counter.new_name, status_tag
-                    ));
-                }
-            }
-
-            ctx.say(response).await?;
-        }
-        Err(e) => {
-            tracing::error!(error = ?e, %guild_id, "Failed to force sync counters via command");
-            ctx.say("❌ Failed to update member counters due to an internal error.")
-                .await?;
+            let _ = writeln!(
+                response,
+                "• <#{}> ➔ `{}` ({})",
+                counter.channel_id, counter.new_name, status_tag
+            );
         }
     }
+
+    ctx.say(response).await?;
 
     Ok(())
 }

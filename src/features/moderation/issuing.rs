@@ -26,8 +26,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info, instrument, warn};
 
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id
-))]
+#[instrument(
+    skip(db, redis_conn, guild_configs, http),
+    fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id)
+)]
+#[allow(clippy::too_many_arguments)]
 pub async fn issue_kick(
     db: &PgPool,
     redis_conn: &Client,
@@ -127,8 +130,15 @@ pub async fn issue_kick(
 }
 
 /// Bans a user from the guild, optionally sending a DM and scheduling an unban.
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id, duration_label
-))]
+///
+/// # Errors
+/// Returns an error if the ban DM cannot be sent, the Discord API ban call fails,
+/// the audit log insert fails, or the scheduled unban cannot be persisted.
+#[instrument(
+    skip(db, redis_conn, guild_configs, http),
+    fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id, duration_label),
+)]
+#[allow(clippy::too_many_arguments)]
 pub async fn issue_ban(
     db: &PgPool,
     redis_conn: &Client,
@@ -140,14 +150,15 @@ pub async fn issue_ban(
     reason: &str,
     dmd_time: u8,
     duration: Option<Duration>,
-    _duration_label: &str,
 ) -> Result<()> {
     debug!("Retrieving moderation context for ban");
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
-    let duration_label =
-        duration.map_or("Permanent".to_string(), |d| format_duration(d).to_string());
+    let duration_label = duration.map_or_else(
+        || "Permanent".to_string(),
+        |d| format_duration(d).to_string(),
+    );
 
     send_mod_dm!(
         http,
@@ -176,13 +187,12 @@ pub async fn issue_ban(
         .ban_with_reason(http, user.id, dmd_time, reason)
         .await?;
 
-    let mut dur: Option<TimeDelta> = None;
-
-    if let Some(duration) = duration {
+    let dur: Option<TimeDelta> = if let Some(duration) = duration {
         debug!("Ban is scheduled; registering unban timeout in database");
-
-        dur = Some(schedule_unban(db, guild_id, &user, duration).await?);
-    }
+        Some(schedule_unban(db, guild_id, &user, duration).await?)
+    } else {
+        None
+    };
 
     log_moderation_action(
         db,
@@ -200,6 +210,10 @@ pub async fn issue_ban(
 }
 
 /// Schedules an automatic unban for the given user after `dur` has elapsed.
+///
+/// # Errors
+/// Returns an error if the duration cannot be converted or the unban record
+/// cannot be persisted.
 pub async fn schedule_unban(
     db: &PgPool,
     guild_id: GuildId,
@@ -212,7 +226,7 @@ pub async fn schedule_unban(
     sqlx::query!(
         "INSERT INTO temp_bans (guild_id, user_id, unban_at) VALUES ($1, $2, $3)",
         guild_id.get().cast_signed(),
-        user.id.get() as i64,
+        user.id.get().cast_signed(),
         unban_at
     )
     .execute(db)
@@ -221,8 +235,15 @@ pub async fn schedule_unban(
 }
 
 /// Times out (mutes) a user for the given duration, optionally sending a DM.
-#[instrument(skip(db, redis_conn, guild_configs, http, user), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id
-))]
+///
+/// # Errors
+/// Returns an error if the mute DM cannot be sent, the Discord API timeout call
+/// fails, or the audit log insert fails.
+#[instrument(
+    skip(db, redis_conn, guild_configs, http, user),
+    fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id),
+)]
+#[allow(clippy::too_many_arguments)]
 pub async fn issue_mute(
     db: &PgPool,
     redis_conn: &Client,
@@ -333,8 +354,11 @@ pub async fn issue_unmute(
 }
 
 /// Core logic for issuing a softban (ban + immediate unban to clear messages)
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id
-))]
+#[instrument(
+    skip(db, redis_conn, guild_configs, http),
+    fields(%guild_id, user_id = %user.id, moderator_id = %moderator.id),
+)]
+#[allow(clippy::too_many_arguments)]
 pub async fn issue_softban(
     db: &PgPool,
     redis_conn: &Client,

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, PickFirst, serde_as};
+use serde_with::serde_as;
+use serenity::model::id::{ChannelId, GuildId, UserId};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
 
@@ -19,6 +20,10 @@ impl WebCommandBus {
 
     /// Publishes a command to the music actor, returning an error string if the
     /// actor has shut down.
+    ///
+    /// # Errors
+    /// Returns an error string if the music actor has shut down and the channel
+    /// is closed.
     pub fn send(&self, command: WebCommand) -> Result<(), String> {
         self.tx
             .send(command)
@@ -31,23 +36,28 @@ impl WebCommandBus {
 /// client can get an acknowledgement.
 pub struct WebCommand {
     /// ID of the guild whose music actor should handle the command.
-    pub guild_id: u64,
+    pub guild_id: GuildId,
     /// The action to perform.
     pub action: MusicAction,
-    /// Optional search query / URL / seek position.
-    pub query: Option<String>,
-    /// ID of the dashboard user who requested the action.
-    pub requested_by_id: Option<u64>,
     /// Channel used to send the result back to the web client.
     pub reply: oneshot::Sender<Result<serde_json::Value, String>>,
 }
 
 /// The action the dashboard wants the guild's music actor to perform.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(
+    tag = "action",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase"
+)]
 pub enum MusicAction {
     /// Start playing a track or the current queue.
-    Play,
+    Play {
+        /// The query from the web (`YouTube` search / Spotify URL / `YouTube` URL).
+        query: String,
+        /// Requested by user ID.
+        requested_by_id: Option<UserId>,
+    },
     /// Pause playback.
     Pause,
     /// Resume playback.
@@ -63,17 +73,21 @@ pub enum MusicAction {
     /// Shuffle the queue.
     Shuffle,
     /// Clear the queue.
-    #[serde(rename = "clearQueue")]
     ClearQueue,
     /// Report the currently playing track.
-    #[serde(rename = "nowPlaying")]
     NowPlaying,
     /// Seek to a position in the current track.
-    Seek,
+    Seek {
+        /// The human readable time input.
+        input: String,
+    },
     /// Move the bot to a given voice channel.
-    #[serde(rename = "goToChannel")]
-    GoToChannel,
+    GoToChannel {
+        /// The channel the bot should go to.
+        channel_id: ChannelId,
+    },
 }
+
 /// Wire-level message received from the dashboard.
 #[serde_as]
 #[derive(Clone, Debug, Deserialize)]
@@ -85,14 +99,8 @@ pub enum ClientMessage {
         #[serde(rename = "requestId")]
         request_id: Option<String>,
         /// The action to perform.
+        #[serde(flatten)]
         action: MusicAction,
-        /// Optional search query / URL / seek position.
-        #[serde(default)]
-        query: Option<String>,
-        /// ID of the dashboard user who requested the action.
-        #[serde(rename = "requestedById", default)]
-        #[serde_as(as = "Option<PickFirst<(DisplayFromStr, _)>>")]
-        requested_by_id: Option<u64>,
     },
 }
 
@@ -123,21 +131,23 @@ mod tests {
     #[test]
     fn deserializes_play_message() {
         let message: ClientMessage = serde_json::from_str(
-            r#"{"type":"music","requestId":"abc","action":"play","query":"Never Gonna Give You Up","requestedById":"123"}"#,
-        )
+                r#"{"type":"music","requestId":"abc","action":"play","query":"Never Gonna Give You Up","requestedById":"123"}"#,
+            )
             .expect("should deserialize");
 
         match message {
-            ClientMessage::Music {
-                request_id,
-                action,
-                query,
-                requested_by_id,
-            } => {
+            ClientMessage::Music { request_id, action } => {
                 assert_eq!(request_id.as_deref(), Some("abc"));
-                assert_eq!(action, MusicAction::Play);
-                assert_eq!(query.as_deref(), Some("Never Gonna Give You Up"));
-                assert_eq!(requested_by_id, Some(123));
+                match action {
+                    MusicAction::Play {
+                        query,
+                        requested_by_id,
+                    } => {
+                        assert_eq!(query, "Never Gonna Give You Up");
+                        assert_eq!(requested_by_id, Some(UserId::from(123)));
+                    }
+                    _ => panic!("Expected MusicAction::Play variant"),
+                }
             }
         }
     }
@@ -148,10 +158,16 @@ mod tests {
             r#"{"type":"music","action":"play","query":"x","requestedById":123}"#,
         )
         .expect("should deserialize");
+
         match message {
             ClientMessage::Music {
-                requested_by_id, ..
-            } => assert_eq!(requested_by_id, Some(123)),
+                action:
+                    MusicAction::Play {
+                        requested_by_id, ..
+                    },
+                ..
+            } => assert_eq!(requested_by_id, Some(UserId::from(123))),
+            _ => panic!("Expected MusicAction::Play variant"),
         }
     }
 
@@ -160,53 +176,41 @@ mod tests {
         let message: ClientMessage =
             serde_json::from_str(r#"{"type":"music","action":"play","query":"x"}"#)
                 .expect("should deserialize");
+
         match message {
             ClientMessage::Music {
-                requested_by_id, ..
+                action:
+                    MusicAction::Play {
+                        requested_by_id, ..
+                    },
+                ..
             } => assert_eq!(requested_by_id, None),
+            _ => panic!("Expected MusicAction::Play variant"),
         }
     }
 
     #[test]
     fn deserializes_unit_actions() {
-        for (name, payload, expected) in [
-            (
-                "pause",
-                r#"{"type":"music","action":"pause"}"#,
-                MusicAction::Pause,
-            ),
-            (
-                "resume",
-                r#"{"type":"music","requestId":"x","action":"resume"}"#,
-                MusicAction::Resume,
-            ),
-            (
-                "skip",
-                r#"{"type":"music","action":"skip"}"#,
-                MusicAction::Skip,
-            ),
-            (
-                "stop",
-                r#"{"type":"music","action":"stop"}"#,
-                MusicAction::Stop,
-            ),
-            (
-                "shuffle",
-                r#"{"type":"music","action":"shuffle"}"#,
-                MusicAction::Shuffle,
-            ),
-            (
-                "clearQueue",
-                r#"{"type":"music","action":"clearQueue"}"#,
-                MusicAction::ClearQueue,
-            ),
-        ] {
-            let message: ClientMessage = serde_json::from_str(payload)
+        let actions = [
+            ("pause", MusicAction::Pause),
+            ("resume", MusicAction::Resume),
+            ("stop", MusicAction::Stop),
+            ("skip", MusicAction::Skip),
+            ("prev", MusicAction::Prev),
+            ("restart", MusicAction::Restart),
+            ("shuffle", MusicAction::Shuffle),
+            ("clear-queue", MusicAction::ClearQueue),
+            ("now-playing", MusicAction::NowPlaying),
+        ];
+
+        for (name, expected) in actions {
+            // If testing via ClientMessage:
+            let json = format!(r#"{{"type":"music","action":"{name}"}}"#);
+            let msg: ClientMessage = serde_json::from_str(&json)
                 .unwrap_or_else(|e| panic!("failed to deserialize {name}: {e}"));
-            match message {
-                ClientMessage::Music { action, .. } => {
-                    assert_eq!(action, expected, "{name} mismatch")
-                }
+
+            match msg {
+                ClientMessage::Music { action, .. } => assert_eq!(action, expected),
             }
         }
     }

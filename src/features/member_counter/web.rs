@@ -8,7 +8,7 @@ use axum::routing::post;
 use axum::{Json, Router};
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
-use serenity::all::{ChannelId, GuildId};
+use serenity::all::GuildId;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
@@ -39,19 +39,36 @@ pub async fn handle_setup_member_counter(
 
     debug!(%guild_id, "Received request to setup member counter channels");
 
-    let mut updated_counters = payload.counters;
+    let mut counters = payload.counters;
 
-    let needs_creation = updated_counters.iter().any(|c| c.channel_id.is_none());
-
-    if !needs_creation {
+    // Fast-path: Return early if no channels need to be created
+    if !counters.iter().any(|c| c.channel_id.is_none()) {
         return Ok((
             StatusCode::OK,
-            Json(SetupMemberCounterResponse {
-                counters: updated_counters,
-            }),
+            Json(SetupMemberCounterResponse { counters }),
         ));
     }
 
+    let category_id = get_or_create_counter_category(&state, guild_id).await?;
+    create_missing_counter_channels(&state, guild_id, category_id, &mut counters).await?;
+
+    info!(
+        %guild_id,
+        category_id = %category_id.get(),
+        "Member counter category and channels setup successfully completed"
+    );
+
+    Ok((
+        StatusCode::OK,
+        Json(SetupMemberCounterResponse { counters }),
+    ))
+}
+
+/// Resolves an existing category or creates a new one and saves it to settings.
+async fn get_or_create_counter_category(
+    state: &Arc<WebState>,
+    guild_id: GuildId,
+) -> Result<serenity::ChannelId, (StatusCode, String)> {
     let mut guild_settings = get_settings(
         &state.core.db,
         &state.core.redis,
@@ -67,8 +84,7 @@ pub async fn handle_setup_member_counter(
         )
     })?;
 
-    let mut verified_category_id = None;
-
+    // Check if the saved category ID is still valid in Discord
     if let Some(saved_id) = guild_settings
         .member_counter
         .as_ref()
@@ -78,7 +94,8 @@ pub async fn handle_setup_member_counter(
             Ok(serenity::Channel::Guild(channel))
                 if channel.kind == serenity::ChannelType::Category =>
             {
-                verified_category_id = Some(saved_id);
+                debug!(category_id = saved_id.get(), "Reusing existing category");
+                return Ok(saved_id);
             }
             Ok(_) => {
                 warn!(%guild_id, channel_id = %saved_id, "Saved category ID is not a category, recreating...");
@@ -89,39 +106,16 @@ pub async fn handle_setup_member_counter(
         }
     }
 
-    let category_id = if let Some(valid_id) = verified_category_id {
-        valid_id
-    } else {
-        let category_builder =
-            serenity::CreateChannel::new("📊 Server Stats").kind(serenity::ChannelType::Category);
+    // Category is missing or invalid -> Create a new one
+    info!(%guild_id, "Creating 'Server Stats' category for member counters");
 
-        info!(%guild_id, "Creating 'Server Stats' category for member counters");
+    let category_builder =
+        serenity::CreateChannel::new("Server Stats").kind(serenity::ChannelType::Category);
 
-        let category = guild_id
-            .create_channel(&state.serenity_http, category_builder)
-            .await
-            .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create category"))
-            .map_err(|_| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal server error".to_string(),
-                )
-            })?;
-
-        guild_settings
-            .member_counter
-            .get_or_insert_with(Default::default)
-            .category_id = Some(category.id);
-
-        save_settings(
-            &state.core.db,
-            &state.core.redis,
-            &state.core.guild_configs_cache,
-            guild_id,
-            &guild_settings,
-        )
+    let category = guild_id
+        .create_channel(&state.serenity_http, category_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to save settings"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create category"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -129,15 +123,38 @@ pub async fn handle_setup_member_counter(
             )
         })?;
 
-        category.id
-    };
+    guild_settings
+        .member_counter
+        .get_or_insert_with(Default::default)
+        .category_id = Some(category.id);
 
-    debug!(
-        category_id = category_id.get(),
-        "Got category for member tracking"
-    );
+    save_settings(
+        &state.core.db,
+        &state.core.redis,
+        &state.core.guild_configs_cache,
+        guild_id,
+        &guild_settings,
+    )
+    .await
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to save settings"))
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error".to_string(),
+        )
+    })?;
 
-    for counter in &mut updated_counters {
+    Ok(category.id)
+}
+
+/// Creates Discord voice channels for any counters missing a `channel_id`.
+async fn create_missing_counter_channels(
+    state: &Arc<WebState>,
+    guild_id: GuildId,
+    category_id: serenity::ChannelId,
+    counters: &mut [CounterChannel],
+) -> Result<(), (StatusCode, String)> {
+    for counter in counters.iter_mut() {
         if counter.channel_id.is_none() {
             let channel_name = counter.name_template.replace("{count}", "0");
 
@@ -167,18 +184,7 @@ pub async fn handle_setup_member_counter(
         }
     }
 
-    info!(
-        %guild_id,
-        category_id = %category_id.get(),
-        "Member counter category and channels setup successfully completed"
-    );
-
-    Ok((
-        StatusCode::OK,
-        Json(SetupMemberCounterResponse {
-            counters: updated_counters,
-        }),
-    ))
+    Ok(())
 }
 
 /// Registers the member counter web route for setting up counter channels.

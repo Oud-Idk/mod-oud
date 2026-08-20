@@ -8,9 +8,8 @@ use crate::shared::messages::send_ephemeral;
 pub async fn lock(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let (channel_id, guild_id, _) = match preflight_slash_check(&ctx).await? {
-        Some(val) => val,
-        None => return Ok(()),
+    let Some((channel_id, guild_id, _)) = preflight_slash_check(&ctx).await? else {
+        return Ok(());
     };
 
     let response_message =

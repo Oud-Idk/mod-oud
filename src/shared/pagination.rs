@@ -140,6 +140,10 @@ fn get_stream_collector(ctx: &Context<'_>) -> impl Stream<Item = ComponentIntera
 }
 
 /// Orchestrates the pagination process for an embed.
+///
+/// # Errors
+/// Returns an error if the initial reply or any subsequent interaction response
+/// fails to send.
 pub async fn paginate<F>(ctx: Context<'_>, total_pages: usize, make_embed: F) -> Result<(), Error>
 where
     F: Fn(usize) -> serenity::all::CreateEmbed + Send + Sync,

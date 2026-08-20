@@ -26,6 +26,7 @@ pub struct SendTempVoiceInterfaceResponse {
     pub message_id: u64,
 }
 
+#[allow(clippy::similar_names)]
 pub async fn handle_send_temp_voice_interface(
     State(state): State<Arc<WebState>>,
     Path(guild_id_str): Path<String>,

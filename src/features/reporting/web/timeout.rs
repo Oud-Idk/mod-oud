@@ -45,9 +45,11 @@ pub async fn handle_timeout(
         WebError::BadRequest("Duration calculation overflowed".to_string())
     })?;
 
-    let timestamp = poise::serenity_prelude::Timestamp::from_unix_timestamp(future_secs as i64)
-        .inspect_err(|e| error!(error = %e, "Failed to construct valid serenity Timestamp"))
-        .map_err(|_e| WebError::Internal)?;
+    let timestamp = poise::serenity_prelude::Timestamp::from_unix_timestamp(
+        i64::try_from(future_secs).unwrap_or(i64::MAX),
+    )
+    .inspect_err(|e| error!(error = %e, "Failed to construct valid serenity Timestamp"))
+    .map_err(|_e| WebError::Internal)?;
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
 

@@ -67,12 +67,12 @@ fn get_rustrict_categories(analysis: &Type) -> Vec<&str> {
 }
 
 /// Cleans raw text of URLs and specific Discord formatting elements.
-pub fn clean_message_content(content: &str) -> String {
+pub fn clean_message_content(content: &str) -> Cow<'_, str> {
     let (cleaned_urls, _) = messages::remove_urls(content);
 
     // Avoid allocating a duplicate string if no regex replacement was needed
     match DISCORD_EMOJI_MENTION_REGEX.replace_all(&cleaned_urls, "") {
-        std::borrow::Cow::Owned(s) => s,
+        std::borrow::Cow::Owned(s) => Cow::Owned(s),
         std::borrow::Cow::Borrowed(_) => cleaned_urls,
     }
 }

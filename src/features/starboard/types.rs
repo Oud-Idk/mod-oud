@@ -1,7 +1,7 @@
 use crate::shared::embed::DiscordEmbed;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
+use serenity::model::id::{ChannelId, GuildId, MessageId, RoleId};
 use sqlx::postgres::types::PgInterval;
 use sqlx::types::Json;
 
@@ -22,36 +22,38 @@ pub enum RestrictionType {
 
 pub struct SimpleStarboard {
     pub keep_deleted_messages: Option<bool>,
-    pub starboard_message_id: Option<i64>,
-    pub starboard_channel_id: i64,
+    pub starboard_message_id: Option<MessageId>,
+    pub starboard_channel_id: ChannelId,
 }
 
-#[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Starboard {
     pub id: i64,
-    pub guild_id: i64,
-    pub starboard_channel_id: i64,
-    pub emojis: Option<Vec<String>>,
-    pub reaction_threshold: Option<i32>,
+    pub guild_id: GuildId,
+
+    #[allow(clippy::struct_field_names)]
+    pub starboard_channel_id: ChannelId,
+    pub emojis: Vec<String>,
+    pub reaction_threshold: i32,
+
     #[serde(with = "option_pg_interval_serde")]
     pub min_message_age: Option<PgInterval>,
     #[serde(with = "option_pg_interval_serde")]
     pub max_message_age: Option<PgInterval>,
-    pub prevent_self_star: Option<bool>,
-    pub allow_bot_messages: Option<bool>,
-    pub keep_deleted_messages: Option<bool>,
-    pub role_restriction_type: Option<RestrictionType>,
-    pub restricted_roles: Option<Vec<i64>>,
-    pub channel_restriction_type: Option<RestrictionType>,
-    pub restricted_channels: Option<Vec<i64>>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
-    pub embed_template: Option<Json<DiscordEmbed>>,
-    pub plaintext_template: Option<String>,
-}
 
+    pub prevent_self_star: bool,
+    pub allow_bot_messages: bool,
+    pub keep_deleted_messages: bool,
+    pub role_restriction_type: RestrictionType,
+    pub restricted_roles: Vec<RoleId>,
+    pub channel_restriction_type: RestrictionType,
+    pub restricted_channels: Vec<ChannelId>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub embed_template: Json<DiscordEmbed>,
+    pub plaintext_template: String,
+}
 mod option_pg_interval_serde {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use sqlx::postgres::types::PgInterval;
@@ -63,6 +65,7 @@ mod option_pg_interval_serde {
         microseconds: i64,
     }
 
+    #[allow(clippy::ref_option)]
     pub fn serialize<S>(value: &Option<PgInterval>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

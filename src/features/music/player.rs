@@ -186,8 +186,9 @@ pub fn install_new_track(
 
 /// Formats a `Duration` into a human-readable string like `03:45` or `01:15:30`.
 pub fn format_duration(duration: Option<Duration>) -> String {
-    match duration {
-        Some(d) => {
+    duration.map_or_else(
+        || "Unknown".to_string(),
+        |d| {
             let total_secs = d.as_secs();
             let hours = total_secs / 3600;
             let mins = (total_secs % 3600) / 60;
@@ -198,9 +199,8 @@ pub fn format_duration(duration: Option<Duration>) -> String {
             } else {
                 format!("{mins:02}:{secs:02}")
             }
-        }
-        None => "Unknown".to_string(),
-    }
+        },
+    )
 }
 
 /// Returns `true` when a track is a live/infinite stream (no finite duration),

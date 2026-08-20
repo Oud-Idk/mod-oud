@@ -3,6 +3,7 @@ use crate::features::moderation::types::TempBanRecord;
 use anyhow::Result;
 use chrono::TimeDelta;
 use serenity::all::{GuildId, User};
+use serenity::model::id::UserId;
 use sqlx::PgPool;
 use sqlx::postgres::types::PgInterval;
 
@@ -12,17 +13,20 @@ trait ToPgInterval {
 
 impl ToPgInterval for TimeDelta {
     fn to_pg_interval(&self) -> PgInterval {
-        let days = self.num_days() as i32;
-        let remaining = *self - Self::days(i64::from(days));
+        let days = self.num_days();
+        let remaining = *self - Self::days(days);
         PgInterval {
             months: 0,
-            days,
+            days: i32::try_from(days).unwrap_or(i32::MAX),
             microseconds: remaining.num_microseconds().unwrap_or(0),
         }
     }
 }
 
 /// Records a moderation action in the audit log table.
+///
+/// # Errors
+/// Returns an error if the audit log insert fails.
 pub async fn log_moderation_action(
     db: &PgPool,
     guild_id: GuildId,
@@ -40,8 +44,8 @@ pub async fn log_moderation_action(
         VALUES ($1, $2, $3, $4, $5, $6)
         "#,
         guild_id.get().cast_signed(),
-        user.map(|u| u.id.get() as i64),
-        moderator.id.get() as i64,
+        user.map(|u| u.id.get().cast_signed()),
+        moderator.id.get().cast_signed(),
         action as ActionType,
         reason,
         pg_interval,
@@ -56,8 +60,7 @@ pub async fn fetch_expired_temp_bans(
     db: &PgPool,
     now: chrono::DateTime<chrono::Utc>,
 ) -> Result<Vec<TempBanRecord>> {
-    Ok(sqlx::query_as!(
-        TempBanRecord,
+    let records = sqlx::query!(
         r#"
         SELECT id, guild_id, user_id FROM temp_bans
         WHERE unban_at <= $1
@@ -66,7 +69,16 @@ pub async fn fetch_expired_temp_bans(
         now
     )
     .fetch_all(db)
-    .await?)
+    .await?
+    .into_iter()
+    .map(|r| TempBanRecord {
+        id: r.id,
+        guild_id: GuildId::from(r.guild_id.cast_unsigned()),
+        user_id: UserId::from(r.guild_id.cast_unsigned()),
+    })
+    .collect();
+
+    Ok(records)
 }
 
 /// Deletes processed temp ban records by ID.

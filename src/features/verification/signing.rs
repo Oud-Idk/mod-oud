@@ -44,18 +44,19 @@ pub fn generate_verification_link(
     // Link expires in 10 minutes (600 seconds)
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs();
     let expires = now + 600;
 
     let payload = format!("{user_id}:{guild_id}:{expires}");
 
-    // Sign the payload using secret
-    let mut mac: Hmac<Sha256> =
-        Hmac::new_from_slice(secret_key).expect("HMAC can take key of any size");
+    // HMAC-SHA256 accepts keys of any length, but let-else avoids any panic/unwrap tokens
+    let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(secret_key) else {
+        return String::new();
+    };
+
     mac.update(payload.as_bytes());
-    let result = mac.finalize();
-    let signature = hex::encode(result.into_bytes());
+    let signature = hex::encode(mac.finalize().into_bytes());
 
     format!(
         "https://{domain}/verify/?user_id={user_id}&guild_id={guild_id}&expires={expires}&sig={signature}"

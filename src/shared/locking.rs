@@ -15,6 +15,9 @@ pub struct LockGuard {
 
 impl LockGuard {
     /// Explicitly release the lock. This stops the watchdog immediately and deletes the key in Redis.
+    ///
+    /// # Errors
+    /// Returns an error if the Lua deletion script cannot be evaluated against Redis.
     #[instrument(skip(self), fields(key = %self.key, value = %self.value))]
     pub async fn release(mut self) -> Result<bool, Error> {
         // Stop the watchdog background task first
@@ -51,9 +54,11 @@ impl Drop for LockGuard {
     }
 }
 
-/// Acquires a distributed Redis lock with an atomic `SET NX EX` and spawns a
-/// background watchdog that extends the TTL every `heartbeat_interval_secs`.
+/// Acquires a distributed Redis lock. Extends the TTL every `heartbeat_interval_secs`.
 /// Returns `None` if the lock is already held by someone else.
+///
+/// # Errors
+/// Returns an error if the initial lock acquisition fails against Redis.
 #[instrument(skip(client), fields(key = %key, value = %value))]
 pub async fn acquire_lock(
     client: &Client,
@@ -69,7 +74,7 @@ pub async fn acquire_lock(
         .set(
             key,
             value,
-            Some(Expiration::EX(ttl_secs as i64)),
+            Some(Expiration::EX(i64::try_from(ttl_secs).unwrap_or(i64::MAX))),
             Some(SetOptions::NX),
             false,
         )

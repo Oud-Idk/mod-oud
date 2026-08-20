@@ -27,16 +27,17 @@ pub async fn invite(
         vc_id.get()
     );
 
-    let msg = if let Some(message) = message {
-        format!(
-            "{} has invited you to join {}\n{}!",
-            author.mention(),
-            url,
-            message
-        )
-    } else {
-        format!("{} has invited you to join {}!", author.mention(), url)
-    };
+    let msg = message.map_or_else(
+        || format!("{} has invited you to join {}!", author.mention(), url),
+        |message| {
+            format!(
+                "{} has invited you to join {}\n{}!",
+                author.mention(),
+                url,
+                message
+            )
+        },
+    );
 
     let embed = CreateEmbed::new()
         .title("New Invitation!")

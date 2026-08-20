@@ -66,7 +66,7 @@ export async function upsertStarboardConfig(
         values = [
             config.id,
             guildId,
-            config.starboard_channel_id ?? null,
+            config.starboard_channel_id,
             config.emojis,
             config.reaction_threshold,
             config.min_message_age ?? null,
@@ -108,7 +108,7 @@ export async function upsertStarboardConfig(
 
         values = [
             guildId,
-            config.starboard_channel_id ?? null,
+            config.starboard_channel_id,
             config.emojis,
             config.reaction_threshold,
             config.min_message_age ?? null,

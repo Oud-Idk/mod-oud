@@ -21,7 +21,7 @@ pub async fn get_level(
         FROM levels
         WHERE user_id = $1 AND guild_id = $2
         "#,
-        user_id.get() as i64,
+        user_id.get().cast_signed(),
         guild_id.get().cast_signed(),
     )
     .fetch_optional(db)
@@ -49,7 +49,7 @@ pub async fn insert_level(
         VALUES ($1, $2)
         RETURNING guild_id, user_id, cumulative_xp, current_level, current_xp
         "#,
-        user_id.get() as i64,
+        user_id.get().cast_signed(),
         guild_id.get().cast_signed(),
     )
     .fetch_one(db)
@@ -117,9 +117,12 @@ pub async fn fetch_level_rewards(
         .into_iter()
         .map(|row| LevelReward {
             level_requirement: row.level_requirement,
-            roles_to_add: row
-                .roles_to_add
-                .map(|roles| roles.into_iter().map(|id| RoleId::new(id as u64)).collect()),
+            roles_to_add: row.roles_to_add.map(|roles| {
+                roles
+                    .into_iter()
+                    .map(|id| RoleId::new(id.cast_unsigned()))
+                    .collect()
+            }),
             remove_previous_roles: row.remove_previous_roles,
         })
         .collect();
@@ -189,12 +192,12 @@ pub async fn upsert_level(
     db: &PgPool,
     guild_ids: &[GuildId],
     user_ids: &[UserId],
-    cumulative_xps: &[i32],
-    current_levels: &[i32],
-    current_xps: &[i32],
+    cumulative_xps: &[i64],
+    current_levels: &[i64],
+    current_xps: &[i64],
 ) -> Result<(), sqlx::Error> {
-    let raw_guild_ids: Vec<i64> = guild_ids.iter().map(|&id| id.get() as i64).collect();
-    let raw_user_ids: Vec<i64> = user_ids.iter().map(|&id| id.get() as i64).collect();
+    let raw_guild_ids: Vec<i64> = guild_ids.iter().map(|&id| id.get().cast_signed()).collect();
+    let raw_user_ids: Vec<i64> = user_ids.iter().map(|&id| id.get().cast_signed()).collect();
 
     sqlx::query!(
         r#"
@@ -202,9 +205,9 @@ pub async fn upsert_level(
         SELECT * FROM UNNEST(
             $1::bigint[],
             $2::bigint[],
-            $3::integer[],
-            $4::integer[],
-            $5::integer[]
+            $3::bigint[],
+            $4::bigint[],
+            $5::bigint[]
         )
         ON CONFLICT (guild_id, user_id) DO UPDATE SET
             cumulative_xp = EXCLUDED.cumulative_xp,
@@ -240,7 +243,7 @@ pub async fn get_user_rank(
           )
         "#,
         guild_id.get().cast_signed(),
-        user_id.get() as i64
+        user_id.get().cast_signed(),
     )
     .fetch_optional(db)
     .await?;

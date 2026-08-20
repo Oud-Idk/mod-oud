@@ -1,5 +1,5 @@
 use crate::core::config::state::{BotData, Error};
-use crate::features::tickets;
+use crate::features::tickets::{cache, database};
 use serenity::all::{
     ChannelId, ComponentInteraction, Context, CreateInteractionResponse,
     CreateInteractionResponseMessage, CreateMessage,
@@ -8,6 +8,10 @@ use std::time::Duration;
 use tracing::{debug, info, instrument, trace, warn};
 
 /// Handles the close-ticket button interaction by purging ticket records and deleting the channel after a countdown.
+///
+/// # Errors
+/// Returns an error if the interaction response, ticket cleanup, or channel
+/// deletion fails.
 #[instrument(skip(ctx, data, component), fields(channel_id = %component.channel_id, user_id = %component.user.id
 ))]
 pub async fn on_close_ticket(
@@ -53,12 +57,12 @@ async fn cleanup_ticket_records(data: &BotData, channel_id: ChannelId) -> Result
     let channel_id_str = channel_id.get().to_string();
     debug!("Starting database and cache cleanup for ticket channel");
 
-    tickets::database::mark_ticket_as_closed_db(&data, channel_id).await?;
+    database::mark_ticket_as_closed_db(data, channel_id).await?;
     debug!("Database status updated to CLOSED");
 
     let redis = &data.core.redis;
 
-    tickets::cache::mark_ticket_as_closed_redis(channel_id, &channel_id_str, redis).await?;
+    cache::mark_ticket_as_closed_redis(channel_id, &channel_id_str, redis).await?;
 
     debug!("Evicting ticket from local active cache");
     data.caches.active_tickets.remove(&channel_id).await;

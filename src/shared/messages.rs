@@ -1,16 +1,19 @@
 use crate::core::config::state::{Context, Error};
 use linkify::{LinkFinder, LinkKind};
-use std::sync::LazyLock;
+use std::{borrow::Cow, sync::LazyLock};
 
 /// Shared link finder instance for URL detection.
 pub static LINK_FINDER: LazyLock<LinkFinder> = LazyLock::new(LinkFinder::new);
 
 /// Removes all URLs from `input`, returning the cleaned text and the removed URLs.
-pub fn remove_urls(input: &str) -> (String, Vec<&str>) {
-    let mut links_iter = LINK_FINDER.links(input).peekable();
+pub fn remove_urls(input: &str) -> (Cow<'_, str>, Vec<&str>) {
+    let mut links_iter = LINK_FINDER
+        .links(input)
+        .filter(|l| l.kind() == &LinkKind::Url)
+        .peekable();
 
     if links_iter.peek().is_none() {
-        return (input.to_string(), Vec::new());
+        return (Cow::Borrowed(input), Vec::new());
     }
 
     let mut cleaned = String::with_capacity(input.len());
@@ -25,10 +28,13 @@ pub fn remove_urls(input: &str) -> (String, Vec<&str>) {
         }
     }
     cleaned.push_str(&input[last_pos..]);
-    (cleaned, urls)
+    (Cow::Owned(cleaned), urls)
 }
 
 /// Sends `message` as an ephemeral reply visible only to the invoking user.
+///
+/// # Errors
+/// Returns an error if the reply fails to send.
 pub async fn send_ephemeral(ctx: &Context<'_>, message: impl Into<String>) -> Result<(), Error> {
     ctx.send(
         poise::CreateReply::default()

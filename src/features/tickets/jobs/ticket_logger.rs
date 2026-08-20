@@ -1,6 +1,6 @@
 use crate::features::tickets::database;
 use crate::features::tickets::types::TicketLogPayload;
-use sqlx::{PgConnection, PgPool, Postgres, Transaction};
+use sqlx::PgPool;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, error, info, instrument, trace};

@@ -1,5 +1,5 @@
 use crate::core::config::state::WebState;
-use crate::features::reaction_roles;
+use crate::features::reaction_roles::database;
 use crate::features::reaction_roles::database::{fetch_active_reactions, fetch_reaction_message};
 use crate::features::reaction_roles::types::InteractionMode;
 use crate::features::reaction_roles::web::helpers::{
@@ -10,6 +10,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::Serialize;
 use serde_with::{DisplayFromStr, serde_as};
+use serenity::model::id::{GuildId, MessageId};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -17,30 +18,22 @@ use tracing::{debug, info, warn};
 #[derive(Serialize)]
 pub struct SendReactionMessageResponse {
     #[serde_as(as = "DisplayFromStr")]
-    pub message_id: u64,
+    pub message_id: MessageId,
 }
 
 pub async fn handle_send_reaction_role_message(
     State(state): State<Arc<WebState>>,
-    Path((guild_id_str, config_id_str)): Path<(String, String)>,
+    Path((guild_id, config_id_str)): Path<(GuildId, String)>,
 ) -> Result<(StatusCode, Json<SendReactionMessageResponse>), (StatusCode, String)> {
     debug!(
-        guild_id = guild_id_str,
+        %guild_id,
         config_id = config_id_str,
         "Dispatching reaction roles message"
     );
 
     let config_id = parse_config_id(&config_id_str)?;
-    let config_row = fetch_reaction_message(&state.core.db, config_id, &guild_id_str).await?;
-
-    let Some(channel_id_u64) = config_row.channel_id.map(|id| id as u64) else {
-        debug!("Channel ID is not specified, skipping.");
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Channel ID is not specified".to_string(),
-        ));
-    };
-    let channel = serenity::all::ChannelId::new(channel_id_u64);
+    let config_row = fetch_reaction_message(&state.core.db, config_id, guild_id).await?;
+    let channel_id = config_row.channel_id;
 
     let custom_msg_opt = build_custom_msg(
         config_row.message.format,
@@ -64,7 +57,7 @@ pub async fn handle_send_reaction_role_message(
         InteractionMode::Reaction => {}
     }
 
-    let message = channel
+    let message = channel_id
         .send_message(&state.serenity_http, message_builder)
         .await
         .map_err(|e| {
@@ -86,13 +79,12 @@ pub async fn handle_send_reaction_role_message(
         }
     }
 
-    let message_id = message.id.get();
-    let _ =
-        reaction_roles::database::add_message_to_db(&state, config_row, message_id as i64).await;
+    let message_id = message.id;
+    let _ = database::add_message_to_db(&state, &config_row, message_id).await;
 
     info!(
-        guild_id = guild_id_str,
-        message_id = message_id,
+        %guild_id,
+        %message_id,
         "Reaction role layout successfully processed"
     );
 

@@ -4,8 +4,8 @@ use serenity::all::User;
 
 /// Custom resolver for leveling-specific keys like `{level}` or `{level.old}`
 pub struct LevelingResolver {
-    pub current_level: i32,
-    pub previous_level: i32,
+    pub current_level: i64,
+    pub previous_level: i64,
 }
 
 impl PlaceholderResolver for LevelingResolver {
@@ -22,8 +22,8 @@ pub fn replace_level_notify_placeholder(
     text: &str,
     gctx: &GuildCtx,
     user: &User,
-    current_level: i32,
-    previous_level: i32,
+    current_level: i64,
+    previous_level: i64,
 ) -> String {
     let discord_ctx = DiscordCtx {
         gctx: Some(gctx),

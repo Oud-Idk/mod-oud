@@ -49,36 +49,34 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
         let inside_yesterdays_window =
             was_yesterday_active && (start > end) && (current_time < end);
 
-        if let Some(interval) = rule.interval_seconds {
-            if inside_todays_window || inside_yesterdays_window {
-                let next_interval = target_date + Duration::seconds(interval);
-                let next_time = next_interval.time();
-                let days_diff = (next_interval.date_naive() - target_date.date_naive()).num_days();
+        if let Some(interval) = rule.interval_seconds
+            && (inside_todays_window || inside_yesterdays_window)
+        {
+            let next_interval = target_date + Duration::seconds(interval);
+            let next_time = next_interval.time();
+            let days_diff = (next_interval.date_naive() - target_date.date_naive()).num_days();
 
-                let still_in_today = inside_todays_window
-                    && is_time_in_range(next_time, start, end)
-                    && (days_diff == 0 || (start > end && days_diff == 1));
+            let still_in_today = inside_todays_window
+                && is_time_in_range(next_time, start, end)
+                && (days_diff == 0 || (start > end && days_diff == 1));
 
-                let still_in_yesterday =
-                    inside_yesterdays_window && next_time < end && days_diff == 0;
+            let still_in_yesterday = inside_yesterdays_window && next_time < end && days_diff == 0;
 
-                if still_in_today || still_in_yesterday {
-                    return next_interval.with_timezone(&Utc);
-                }
+            if still_in_today || still_in_yesterday {
+                return next_interval.with_timezone(&Utc);
             }
         }
 
-        if is_active_day && current_time <= start {
-            if let Some(candidate) = target_date
-                .with_hour(start.hour())
-                .and_then(|d| d.with_minute(start.minute()))
-                .and_then(|d| d.with_second(start.second()))
-                .and_then(|d| d.with_nanosecond(0))
-            {
-                if candidate > local_now {
-                    return candidate.with_timezone(&Utc);
-                }
-            }
+        if let Some(candidate) = target_date
+            .with_hour(start.hour())
+            .and_then(|d| d.with_minute(start.minute()))
+            .and_then(|d| d.with_second(start.second()))
+            .and_then(|d| d.with_nanosecond(0))
+            && is_active_day
+            && current_time <= start
+            && candidate > local_now
+        {
+            return candidate.with_timezone(&Utc);
         }
 
         // Move to the next day at midnight (00:00:00.000)

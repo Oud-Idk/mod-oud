@@ -7,6 +7,29 @@ use serenity::all::{ChannelId, GuildId};
 use sqlx::PgPool;
 use tracing::warn;
 
+#[derive(sqlx::FromRow)]
+struct TempVoiceHubRow {
+    id: uuid::Uuid,
+    name: String,
+    category_id: Option<i64>,
+    user_limit: Option<i32>,
+    default_channel_name: String,
+}
+
+impl From<TempVoiceHubRow> for TempVoiceHub {
+    fn from(row: TempVoiceHubRow) -> Self {
+        Self {
+            id: row.id,
+            name: row.name,
+            category_id: row
+                .category_id
+                .map(|id| ChannelId::new(id.cast_unsigned())),
+            user_limit: row.user_limit,
+            default_channel_name: row.default_channel_name,
+        }
+    }
+}
+
 pub async fn get_hub_and_cache(
     guild_id: GuildId,
     redis: &Client,
@@ -22,7 +45,7 @@ pub async fn get_hub_and_cache(
             .set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false)
             .await
         {
-            warn!("Error when writing cache to redis! {}", e)
+            warn!("Error when writing cache to redis! {}", e);
         }
     }
     Ok(hub)
@@ -35,17 +58,18 @@ pub async fn get_hub_from_db(
     target_channel_id: ChannelId,
 ) -> Result<Option<TempVoiceHub>, Error> {
     let hub = sqlx::query_as!(
-        TempVoiceHub,
+        TempVoiceHubRow,
         r#"
         SELECT id, name, category_id, user_limit, default_channel_name
         FROM temp_voice_hubs
         WHERE guild_id = $1 AND hub_channel_id = $2
         "#,
         guild_id.get().cast_signed(),
-        target_channel_id.get() as i64,
+        target_channel_id.get().cast_signed(),
     )
     .fetch_optional(db)
-    .await?;
+    .await?
+    .map(TempVoiceHub::from);
     Ok(hub)
 }
 
@@ -79,17 +103,18 @@ pub async fn get_hub_from_db_by_category(
     category_id: ChannelId,
 ) -> Result<Option<TempVoiceHub>, Error> {
     let hub = sqlx::query_as!(
-        TempVoiceHub,
+        TempVoiceHubRow,
         r#"
         SELECT id, name, category_id, user_limit, default_channel_name
         FROM temp_voice_hubs
         WHERE guild_id = $1 AND category_id = $2
         "#,
         guild_id.get().cast_signed(),
-        category_id.get() as i64,
+        category_id.get().cast_signed(),
     )
     .fetch_optional(db)
-    .await?;
+    .await?
+    .map(TempVoiceHub::from);
     Ok(hub)
 }
 
@@ -108,7 +133,7 @@ pub async fn get_hub_and_cache_by_category(
             .set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false)
             .await
         {
-            warn!("Error when writing cache to redis! {}", e)
+            warn!("Error when writing cache to redis! {}", e);
         }
     }
     Ok(hub)

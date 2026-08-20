@@ -23,25 +23,25 @@ pub async fn handle_delete_ticket_message(
     State(state): State<Arc<WebState>>,
     Json(payload): Json<DeleteTicketMessagePayload>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    payload
+    match payload
         .channel_id
         .delete_message(&state.serenity_http, payload.message_id)
         .await
-        .inspect(|()| debug!("Discord message deleted successfully"))
-        .or_else(|e| {
-            if error::is_unknown_message_error(&e) {
-                debug!(error = ?e, "Discord message already deleted or unknown; returning success");
-                Ok(())
-            } else {
-                Err(e)
-            }
-        })
-        .inspect_err(|e| error!(error = ?e, "Failed to delete message via Discord API"))
-        .map(|()| StatusCode::NO_CONTENT)
-        .map_err(|_| {
-            (
+    {
+        Ok(()) => {
+            debug!("Discord message deleted successfully");
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Err(e) if error::is_unknown_message_error(&e) => {
+            debug!(error = ?e, "Discord message already deleted or unknown; returning success");
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Err(e) => {
+            error!(error = ?e, "Failed to delete message via Discord API");
+            Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error.".to_string(),
-            )
-        })
+            ))
+        }
+    }
 }

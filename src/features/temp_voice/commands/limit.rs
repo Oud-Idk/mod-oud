@@ -11,9 +11,8 @@ pub async fn limit(
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let (channel_id, _, _) = match preflight_slash_check(&ctx).await? {
-        Some(val) => val,
-        None => return Ok(()),
+    let Some((channel_id, _, _)) = preflight_slash_check(&ctx).await? else {
+        return Ok(());
     };
 
     let raw_input = new_limit.as_deref().unwrap_or("");

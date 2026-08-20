@@ -42,6 +42,9 @@ impl LogEvent {
     }
 
     /// Converts the event into a server-sent event for the dashboard's SSE stream.
+    ///
+    /// # Errors
+    /// Returns an error if the event payload fails to serialize to JSON.
     pub fn to_sse_event(&self) -> Result<Event, axum::Error> {
         match self {
             Self::MessageDelete(payload) => {

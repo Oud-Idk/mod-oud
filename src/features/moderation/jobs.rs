@@ -40,10 +40,10 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                     match guard.release().await {
                         Ok(true) => trace!("Released lock successfully"),
                         Ok(false) => {
-                            warn!("Attempted to release temp ban lock, but ownership was lost")
+                            warn!("Attempted to release temp ban lock, but ownership was lost");
                         }
                         Err(e) => {
-                            error!(error = ?e, "Failed to release temp ban lock due to Redis error")
+                            error!(error = ?e, "Failed to release temp ban lock due to Redis error");
                         }
                     }
                 }
@@ -79,8 +79,8 @@ async fn process_expired_temp_bans(
         let http_ref = http;
 
         async move {
-            let guild_id = serenity::GuildId::new(record.guild_id.cast_unsigned());
-            let user_id = serenity::UserId::new(record.user_id as u64);
+            let guild_id = record.guild_id;
+            let user_id = record.user_id;
 
             match guild_id.unban(http_ref, user_id).await {
                 Ok(()) => {

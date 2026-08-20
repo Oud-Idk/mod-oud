@@ -38,7 +38,7 @@ impl HasRoles for Member {
     fn has_any_role_i64(&self, target_role_ids: &[i64]) -> bool {
         self.roles
             .iter()
-            .any(|role_id| target_role_ids.contains(&(role_id.get() as i64)))
+            .any(|role_id| target_role_ids.contains(&(role_id.get().cast_signed())))
     }
 }
 
@@ -65,6 +65,6 @@ impl HasRoles for PartialMember {
     fn has_any_role_i64(&self, target_role_ids: &[i64]) -> bool {
         self.roles
             .iter()
-            .any(|role_id| target_role_ids.contains(&(role_id.get() as i64)))
+            .any(|role_id| target_role_ids.contains(&(role_id.get().cast_signed())))
     }
 }

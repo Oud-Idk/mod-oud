@@ -13,6 +13,29 @@ pub enum ReportUpdate {
     UserBanned,
 }
 
+/// A boolean flag that serializes to/from a plain JSON boolean.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ReportFlag(bool);
+
+impl ReportFlag {
+    pub const fn is_set(self) -> bool {
+        self.0
+    }
+}
+
+impl From<bool> for ReportFlag {
+    fn from(value: bool) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ReportFlag> for bool {
+    fn from(flag: ReportFlag) -> Self {
+        flag.0
+    }
+}
+
 #[serde_as]
 #[derive(Deserialize, Debug)]
 #[serde(tag = "action", rename_all = "SCREAMING_SNAKE_CASE")]
@@ -97,11 +120,11 @@ pub struct ReportedMessagePayload {
     /// Current status of the report.
     pub status: ReportStatus,
     /// Whether the reported message was deleted.
-    pub message_deleted: bool,
+    pub message_deleted: ReportFlag,
     /// Whether the author was warned.
-    pub user_warned: bool,
+    pub user_warned: ReportFlag,
     /// Whether the author was timed out.
-    pub user_timed_out: bool,
+    pub user_timed_out: ReportFlag,
     /// Whether the author was banned.
-    pub user_banned: bool,
+    pub user_banned: ReportFlag,
 }

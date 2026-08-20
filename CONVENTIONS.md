@@ -219,6 +219,7 @@ that logic is misplaced—it belongs inside the feature's own `check_for_filter`
 * **Reaching into Guts**: Calling another feature's internal submodules directly. Always call exported functions from
   its root file (e.g., crate::features::foo::bar).
 * **Bullshit File Names:** No file named `utils.rs` or `misc.rs`.
+* **No SQLx methods that is checked at runtime. Use the macros, lazy ass.**
 
 All guild_id args should be u64, then convert to i64 at the SQLx statement using `.cast_signed()`.
 And the other way around (SQLx guild ID comes out as i64), use `.cast_unsigned()`.

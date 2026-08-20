@@ -44,7 +44,7 @@ pub fn replace_ticket_welcome_placeholders(
     text: &str,
     gctx: &GuildCtx,
     member: Option<&Member>,
-    role_id: &RoleId,
+    role_id: RoleId,
     role_name: Option<&str>,
     channel: Option<&GuildChannel>,
 ) -> String {
@@ -55,10 +55,7 @@ pub fn replace_ticket_welcome_placeholders(
         ..Default::default()
     };
 
-    let ticket_resolver = TicketResolver {
-        role_id: *role_id,
-        role_name,
-    };
+    let ticket_resolver = TicketResolver { role_id, role_name };
 
     let chain = ResolverChain(vec![&ticket_resolver, &discord_ctx]);
 

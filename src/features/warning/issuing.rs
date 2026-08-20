@@ -22,8 +22,15 @@ use std::sync::Arc;
 use tracing::{debug, info, instrument};
 
 /// Issues a warning to a user, sending a DM and logging the action.
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id, user_id = %user_id, moderator_id = %moderator_id
-))]
+///
+/// # Errors
+/// Returns an error if the warning record cannot be inserted, the DM cannot be
+/// sent, or the moderation action cannot be logged.
+#[instrument(
+    skip(db, redis_conn, guild_configs, http),
+    fields(%guild_id, user_id = %user_id, moderator_id = %moderator_id),
+)]
+#[allow(clippy::too_many_arguments)]
 pub async fn issue_warning(
     db: &PgPool,
     redis_conn: &Client,
@@ -38,8 +45,8 @@ pub async fn issue_warning(
     target_username: &str,
 ) -> Result<i64, Error> {
     debug!("Inserting warning record into database");
-    store_username_relation(username_buf, user_id.get(), target_username).await?;
-    store_username_relation(username_buf, moderator_id.get(), moderator_username).await?;
+    store_username_relation(username_buf, user_id, target_username).await?;
+    store_username_relation(username_buf, moderator_id, moderator_username).await?;
 
     let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason).await?;
 
@@ -72,7 +79,7 @@ pub async fn issue_warning(
                 .footer(CreateEmbedFooter::new(MODERATION_FOOTER));
 
             if let Some(url) = &gctx.icon_url {
-                embed = embed.thumbnail(url)
+                embed = embed.thumbnail(url);
             }
 
             embed
@@ -95,8 +102,11 @@ pub async fn issue_warning(
 
 /// Updates the active status of a warning, handles the custom/default DMs.
 /// Returns `Some((target_user_id, reason))` if successful, or `None` if the warning wasn't found.
-#[instrument(skip(db, redis_conn, guild_configs, http), fields(%guild_id_raw, warning_id = id, set_active, moderator_id = %author.id
-))]
+#[instrument(
+    skip(db, redis_conn, guild_configs, http),
+    fields(%guild_id_raw, warning_id = id, set_active, moderator_id = %author.id)
+)]
+#[allow(clippy::too_many_arguments)]
 pub async fn issue_warning_status_change(
     db: &PgPool,
     redis_conn: &Client,
@@ -116,8 +126,8 @@ pub async fn issue_warning_status_change(
         return Ok(None);
     };
 
-    let target_user_id = row.user_id.cast_unsigned();
-    let user_id = UserId::new(target_user_id);
+    let target_user_id = row.user_id.get();
+    let user_id = row.user_id;
     let reason = row
         .reason
         .unwrap_or_else(|| "No reason specified.".to_string());
@@ -204,8 +214,8 @@ pub async fn issue_delete_warning(
         return Ok(None);
     };
 
-    let target_user_id = row.user_id as u64;
-    let user_id = UserId::new(target_user_id);
+    let target_user_id = row.user_id.get();
+    let user_id = row.user_id;
     let reason = row
         .reason
         .unwrap_or_else(|| "No reason specified.".to_string());

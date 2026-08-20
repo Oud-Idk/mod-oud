@@ -27,7 +27,7 @@ pub async fn kick(
     );
 
     ctx.defer_ephemeral().await?;
-    let Some(meta) = pre_flight_check(&ctx, user.id, "kick").await? else {
+    let Some(meta) = pre_flight_check(ctx, user.id, "kick").await? else {
         debug!(target_id, "Kick pre-flight permissions check failed");
         return Ok(());
     };
@@ -44,13 +44,13 @@ pub async fn kick(
         ctx.author().clone(),
         reason_str,
     )
-        .await?;
+    .await?;
 
     send_ephemeral(
         &ctx,
         format!("{} is kicked for reason: \"{}\"", user.name, reason_str),
     )
-        .await?;
+    .await?;
 
     info!(target_id, "User successfully kicked");
     Ok(())
@@ -77,14 +77,13 @@ pub async fn ban(
     );
 
     ctx.defer_ephemeral().await?;
-    let Some(meta) = pre_flight_check(&ctx, user.id, "ban").await? else {
+    let Some(meta) = pre_flight_check(ctx, user.id, "ban").await? else {
         debug!(target_id, "Ban pre-flight permissions check failed");
         return Ok(());
     };
 
     let reason_str = reason.as_deref().unwrap_or("No reason provided");
     let dmd_time = dmd.unwrap_or(3);
-    let duration_label = duration.as_deref().unwrap_or("Permanent");
     let redis_conn = &ctx.data().core.redis;
 
     // Parse the duration string into an Option<std::time::Duration>
@@ -114,9 +113,8 @@ pub async fn ban(
         reason_str,
         dmd_time,
         parsed_duration,
-        duration_label,
     )
-        .await?;
+    .await?;
 
     let conf_msg = format!(
         "**Successfully banned {}** {} (Reason: `{}`).",
@@ -128,11 +126,7 @@ pub async fn ban(
     );
     send_ephemeral(&ctx, conf_msg).await?;
 
-    info!(
-        target_id,
-        duration = duration_label,
-        "User successfully banned"
-    );
+    info!(target_id, "User successfully banned");
     Ok(())
 }
 
@@ -211,7 +205,7 @@ pub async fn mute(
     );
 
     ctx.defer_ephemeral().await?;
-    let Some(meta) = pre_flight_check(&ctx, member.user.id, "mute").await? else {
+    let Some(meta) = pre_flight_check(ctx, member.user.id, "mute").await? else {
         debug!(target_id, "Mute pre-flight permissions check failed");
         return Ok(());
     };
@@ -232,13 +226,16 @@ pub async fn mute(
             &ctx,
             "Discord timeouts cannot exceed 28 days or fall short of 60 seconds.",
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
-    let future_unix = (SystemTime::now() + dur)
-        .duration_since(UNIX_EPOCH)?
-        .as_secs() as i64;
+    let future_unix = i64::try_from(
+        (SystemTime::now() + dur)
+            .duration_since(UNIX_EPOCH)?
+            .as_secs(),
+    )
+    .unwrap_or(i64::MAX);
     let timestamp = serenity::all::Timestamp::from_unix_timestamp(future_unix)?;
 
     issue_mute(
@@ -253,7 +250,7 @@ pub async fn mute(
         &dur,
         timestamp,
     )
-        .await?;
+    .await?;
 
     send_ephemeral(
         &ctx,
@@ -262,7 +259,7 @@ pub async fn mute(
             member.user.name, duration, reason_str
         ),
     )
-        .await?;
+    .await?;
 
     info!(target_id, duration = %duration, "User successfully muted");
     Ok(())
@@ -285,7 +282,7 @@ pub async fn unmute(
     );
 
     ctx.defer_ephemeral().await?;
-    let Some(meta) = pre_flight_check(&ctx, member.user.id, "unmute").await? else {
+    let Some(meta) = pre_flight_check(ctx, member.user.id, "unmute").await? else {
         debug!(target_id, "Unmute pre-flight permissions check failed");
         return Ok(());
     };
@@ -299,7 +296,7 @@ pub async fn unmute(
                 member.user.name
             ),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
@@ -314,13 +311,13 @@ pub async fn unmute(
         member.user.clone(),
         ctx.author().clone(),
     )
-        .await?;
+    .await?;
 
     send_ephemeral(
         &ctx,
         format!("**Successfully unmuted {}**.", member.user.name),
     )
-        .await?;
+    .await?;
 
     info!(target_id, "User successfully unmuted");
     Ok(())
@@ -344,7 +341,7 @@ pub async fn softban(
     );
 
     ctx.defer_ephemeral().await?;
-    let Some(meta) = pre_flight_check(&ctx, member.user.id, "softban").await? else {
+    let Some(meta) = pre_flight_check(ctx, member.user.id, "softban").await? else {
         debug!(target_id, "Softban pre-flight permissions check failed");
         return Ok(());
     };
@@ -363,13 +360,13 @@ pub async fn softban(
         reason_str,
         dmd,
     )
-        .await?;
+    .await?;
 
     send_ephemeral(
         &ctx,
         format!("**Successfully soft-banned {}**", member.user.name),
     )
-        .await?;
+    .await?;
 
     info!(target_id, "User successfully soft-banned");
     Ok(())
@@ -404,14 +401,14 @@ pub async fn unban(
                 ActionType::Unban,
                 None,
             )
-                .await?;
+            .await?;
 
             ctx.say(format!(
                 "Successfully unbanned **{}** (ID: `{}`).",
                 user.tag(),
                 user.id
             ))
-                .await?;
+            .await?;
 
             info!(target_id, "User successfully unbanned");
         }
@@ -424,7 +421,7 @@ pub async fn unban(
     Ok(())
 }
 
-pub fn get_to_be_deleted_message_ids(messages: &Vec<Message>) -> Vec<MessageId> {
+pub fn get_to_be_deleted_message_ids(messages: &[Message]) -> Vec<MessageId> {
     let now = serenity::model::Timestamp::now();
 
     messages

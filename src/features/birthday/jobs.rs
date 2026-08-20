@@ -26,7 +26,7 @@ async fn get_display_name(
     guild_id: GuildId,
     user_id: UserId,
 ) -> String {
-    if let Ok(Some(cached_name)) = get_username(db, redis, user_id.get()).await {
+    if let Ok(Some(cached_name)) = get_username(db, redis, user_id).await {
         return cached_name;
     }
 
@@ -38,7 +38,7 @@ async fn get_display_name(
         },
     };
 
-    let _ = store_username_relation(sender, user_id.get(), &fetched_name).await;
+    let _ = store_username_relation(sender, user_id, &fetched_name).await;
 
     fetched_name
 }

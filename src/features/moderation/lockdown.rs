@@ -42,17 +42,16 @@ pub async fn save_pre_lockdown_state(
     let key = keys::lockdown_redis_key(guild_id, channel.id);
     let target_kind = PermissionOverwriteType::Role(everyone_role_id);
 
-    let state = match channel
+    let state = channel
         .permission_overwrites
         .iter()
         .find(|o| o.kind == target_kind)
-    {
-        Some(existing) => StoredOverwriteState::Existing {
-            allow: existing.allow.bits(),
-            deny: existing.deny.bits(),
-        },
-        None => StoredOverwriteState::NoOverwrite,
-    };
+        .map_or(StoredOverwriteState::NoOverwrite, |existing| {
+            StoredOverwriteState::Existing {
+                allow: existing.allow.bits(),
+                deny: existing.deny.bits(),
+            }
+        });
 
     let json = serde_json::to_string(&state)?;
     trace!(
@@ -137,12 +136,15 @@ pub struct GlobalLockdownReport {
 }
 
 /// Locks down every text channel in the guild, caching each channel's pre-lockdown
-/// `@everyone` overwrite in Redis first so it can be restored later. Safe to call
-/// from any code path that has a `Context` and a `GuildId` — not just the slash command.
+/// `@everyone` overwrite in Redis first.
 ///
 /// Returns `Ok(None)` if a global lock or unlock sweep is already running for this
 /// guild — the caller should treat that as "did nothing, one is already in flight"
 /// rather than as an error.
+///
+/// # Errors
+/// Returns an error if the Redis lock cannot be acquired, the per-channel
+/// overwrites cannot be cached, or a Discord API channel edit fails.
 pub async fn apply_global_lock(
     ctx: &SerenityContext,
     data: &BotData,
@@ -151,16 +153,14 @@ pub async fn apply_global_lock(
     let lock_key = global_sweep_lock_key(guild_id);
     let lock_token = generate_sweep_token();
 
-    let guard = if let Some(guard) = acquire_lock(
+    let Some(guard) = acquire_lock(
         &data.core.redis,
         &lock_key,
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
     .await?
-    {
-        guard
-    } else {
+    else {
         debug!(
             %guild_id,
             "Global lock sweep already in progress for this guild; skipping"
@@ -216,12 +216,15 @@ pub async fn apply_global_lock(
 }
 
 /// Unlocks every text channel in the guild, restoring each one's cached pre-lockdown
-/// `@everyone` overwrite (or deleting it entirely if none was cached). Safe to call
-/// from any code path that has a `Context` and a `GuildId` — not just the slash command.
+/// `@everyone` overwrite (or deleting it entirely if none was cached).
 ///
 /// Returns `Ok(None)` if a global lock or unlock sweep is already running for this
 /// guild — the caller should treat that as "did nothing, one is already in flight"
 /// rather than as an error.
+///
+/// # Errors
+/// Returns an error if the Redis lock cannot be acquired or a Discord API
+/// channel edit fails.
 pub async fn apply_global_unlock(
     ctx: &SerenityContext,
     data: &BotData,
@@ -230,16 +233,14 @@ pub async fn apply_global_unlock(
     let lock_key = global_sweep_lock_key(guild_id);
     let lock_token = generate_sweep_token();
 
-    let guard = if let Some(guard) = acquire_lock(
+    let Some(guard) = acquire_lock(
         &data.core.redis,
         &lock_key,
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
     .await?
-    {
-        guard
-    } else {
+    else {
         debug!(
             %guild_id,
             "Global lock sweep already in progress for this guild; skipping"

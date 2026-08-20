@@ -15,6 +15,7 @@ pub struct CreateTempHubPayload {
 
 #[serde_as]
 #[derive(Serialize)]
+#[allow(clippy::struct_field_names)]
 pub struct CreateTempHubResponse {
     #[serde_as(as = "DisplayFromStr")]
     pub category_id: u64,

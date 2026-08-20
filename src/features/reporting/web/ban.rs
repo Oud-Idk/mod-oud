@@ -31,13 +31,6 @@ pub async fn handle_ban_user(
         .duration_mins
         .map(|mins| std::time::Duration::from_secs(mins * 60));
 
-    let duration_label = match cmd.duration_mins {
-        Some(mins) if mins >= 1440 => format!("Temporary ({} days)", mins / 1440),
-        Some(mins) if mins >= 60 => format!("Temporary ({} hours)", mins / 60),
-        Some(mins) => format!("Temporary ({mins} minutes)"),
-        None => "Permanent".to_string(),
-    };
-
     issue_ban(
         &state.core.db,
         redis,
@@ -49,7 +42,6 @@ pub async fn handle_ban_user(
         reason_str,
         7,
         duration,
-        &duration_label,
     )
     .await
     .inspect_err(|e| error!(error = %e, "Failed to complete ban operation"))

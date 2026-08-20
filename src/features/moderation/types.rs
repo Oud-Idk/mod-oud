@@ -1,3 +1,5 @@
+use serenity::model::id::{GuildId, UserId};
+
 /// The kind of moderation action performed on a user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "varchar", rename_all = "SCREAMING_SNAKE_CASE")] // Adjust based on your DB setup
@@ -37,9 +39,9 @@ pub struct TempBanRecord {
     /// ID of the temp ban record.
     pub id: i64,
     /// Guild the ban belongs to.
-    pub guild_id: i64,
+    pub guild_id: GuildId,
     /// User who is temporarily banned.
-    pub user_id: i64,
+    pub user_id: UserId,
 }
 
 /// Footer appended to moderation embeds.

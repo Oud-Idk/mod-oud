@@ -10,7 +10,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::Serialize;
 use serde_with::{DisplayFromStr, serde_as};
-use serenity::all::{ChannelId, MessageId};
+use serenity::all::{GuildId, MessageId};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -18,39 +18,29 @@ use tracing::{debug, info, warn};
 #[derive(Serialize)]
 pub struct EditReactionMessageResponse {
     #[serde_as(as = "DisplayFromStr")]
-    pub message_id: u64,
+    pub message_id: MessageId,
 }
 
 pub async fn handle_edit_reaction_role_message(
     State(state): State<Arc<WebState>>,
-    Path((guild_id_str, config_id_str)): Path<(String, String)>,
+    Path((guild_id, config_id_str)): Path<(GuildId, String)>,
 ) -> Result<(StatusCode, Json<EditReactionMessageResponse>), (StatusCode, String)> {
     debug!(
-        guild_id = guild_id_str,
+        %guild_id,
         config_id = config_id_str,
         "Editing existing reaction roles message"
     );
 
     let config_id = parse_config_id(&config_id_str)?;
-    let config_row = fetch_reaction_message(&state.core.db, config_id, &guild_id_str).await?;
+    let config_row = fetch_reaction_message(&state.core.db, config_id, guild_id).await?;
 
-    let Some(channel_id_u64) = config_row.channel_id.map(|id| id as u64) else {
-        debug!("Channel ID is not specified, skipping.");
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Channel ID is not specified".to_string(),
-        ));
-    };
-    let channel_id = ChannelId::new(channel_id_u64);
-
-    let message_id_i64 = config_row.message_id.ok_or_else(|| {
+    let channel_id = config_row.channel_id;
+    let message_id = config_row.message_id.ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
             "Cannot edit a message that hasn't been sent yet!".to_string(),
         )
     })?;
-    let message_id_u64 = message_id_i64 as u64;
-    let message_id = MessageId::new(message_id_u64);
 
     let custom_msg_opt = build_custom_msg(
         config_row.message.format,
@@ -93,15 +83,13 @@ pub async fn handle_edit_reaction_role_message(
     }
 
     info!(
-        guild_id = guild_id_str,
-        message_id = message_id_i64,
+        %guild_id,
+        %message_id,
         "Reaction role layout successfully edited"
     );
 
     Ok((
         StatusCode::OK,
-        Json(EditReactionMessageResponse {
-            message_id: message_id_u64,
-        }),
+        Json(EditReactionMessageResponse { message_id }),
     ))
 }

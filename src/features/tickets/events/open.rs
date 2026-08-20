@@ -15,9 +15,15 @@ use serenity::all::{
     CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildChannel,
     GuildId, Message, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId, UserId,
 };
+use serenity::builder::CreateEmbed;
+use serenity::model::guild::Member;
 use tracing::{debug, info, instrument, trace, warn};
 
 /// Handles the open-ticket button interaction by creating a private ticket channel and initializing its state.
+///
+/// # Errors
+/// Returns an error if the ticket config cannot be loaded, the ticket channel
+/// creation fails, or the ticket state cannot be persisted.
 #[instrument(skip(ctx, data, component), fields(guild_id = ?component.guild_id, user_id = %component.user.id
 ))]
 pub async fn on_open_ticket(
@@ -98,7 +104,7 @@ pub async fn on_open_ticket(
         member,
         &gctx,
         settings.tickets.as_deref(),
-        &role_id,
+        role_id,
         resolved_role_name.as_deref(),
     )
     .await?;
@@ -191,13 +197,13 @@ async fn create_ticket_channel(
 async fn send_welcome_message(
     ctx: &Context,
     channel: &GuildChannel,
-    member: &serenity::all::Member,
+    member: &Member,
     gctx: &GuildCtx,
     ticket_cfg: Option<&TicketConfig>,
-    role_id: &RoleId,
+    role_id: RoleId,
     role_name: Option<&str>,
 ) -> Result<Message, Error> {
-    let default_embed = serenity::all::CreateEmbed::default()
+    let default_embed = CreateEmbed::default()
         .title("Ticket Opened")
         .description(format!(
             "Hello <@{}>, welcome to your ticket. Please describe your issue. Support will be with you shortly.",

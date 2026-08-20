@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use crate::core::config::state::{BotData, Error};
 use crate::features::tickets::keys;
 use fred::clients::Client;
@@ -5,6 +7,7 @@ use fred::interfaces::{
     FredResult, HashesInterface, KeysInterface, LuaInterface, PubsubInterface, SetsInterface,
 };
 use serenity::all::{ChannelId, GuildChannel};
+use serenity::model::id::MessageId;
 use tracing::debug;
 
 pub fn is_ticket_active(data: &BotData, channel_id: ChannelId) -> bool {
@@ -36,10 +39,10 @@ pub async fn mark_ticket_as_closed_redis(
 pub async fn update_close_button_redis(
     redis: &Client,
     ticket_key: &str,
-    new_msg_id_i64: i64,
+    new_msg_id: MessageId,
 ) -> Result<(), anyhow::Error> {
     let _: () = redis
-        .hset(ticket_key, ("last_button_message_id", new_msg_id_i64))
+        .hset(ticket_key, ("last_button_message_id", new_msg_id.get()))
         .await?;
     Ok(())
 }
@@ -58,10 +61,13 @@ pub async fn update_activity_redis(
     ticket_key: &str,
     bump_every: i32,
 ) -> Result<(bool, Option<String>), Error> {
-    let now_ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now_ts = i64::try_from(
+        SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    )
+    .expect("Well boys, 292.2 billion years.");
 
     let script = r#"
         local count = tonumber(redis.call("HINCRBY", KEYS[1], "message_count", 1))

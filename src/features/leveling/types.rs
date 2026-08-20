@@ -32,8 +32,8 @@ pub struct VcSession {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Range {
-    pub min: i32,
-    pub max: i32,
+    pub min: i64,
+    pub max: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -66,22 +66,22 @@ pub struct NotificationSettings {
 pub struct UserLevel {
     pub guild_id: GuildId,
     pub user_id: UserId,
-    pub cumulative_xp: i32,
-    pub current_level: i32,
-    pub current_xp: i32,
+    pub cumulative_xp: i64,
+    pub current_level: i64,
+    pub current_xp: i64,
 }
 
 impl UserLevel {
-    pub fn from_raw(
+    pub const fn from_raw(
         guild_id: i64,
         user_id: i64,
-        cumulative_xp: i32,
-        current_level: i32,
-        current_xp: i32,
+        cumulative_xp: i64,
+        current_level: i64,
+        current_xp: i64,
     ) -> Self {
         Self {
-            guild_id: GuildId::new(guild_id as u64),
-            user_id: UserId::new(user_id as u64),
+            guild_id: GuildId::new(guild_id.cast_unsigned()),
+            user_id: UserId::new(user_id.cast_unsigned()),
             cumulative_xp,
             current_level,
             current_xp,
@@ -91,7 +91,7 @@ impl UserLevel {
 
 #[derive(Debug, Clone)]
 pub struct LevelReward {
-    pub level_requirement: i32,
+    pub level_requirement: i64,
     pub roles_to_add: Option<Vec<RoleId>>,
     pub remove_previous_roles: Option<bool>,
 }
@@ -120,15 +120,15 @@ pub struct LevelingScope {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct ImageCardSettings {
-    pub text_color: String,
-    pub bar_foreground_color: String,
-    pub bar_background_color: String,
-    pub accent_color: String,
-    pub line_separator_color: String,
-    pub username_color: String,
-    pub statistics_color: String,
-    pub background_color: String,
+pub struct ImageCardColors {
+    pub text: String,
+    pub bar_foreground: String,
+    pub bar_background: String,
+    pub accent: String,
+    pub line_separator: String,
+    pub username: String,
+    pub statistics: String,
+    pub background: String,
 }
 
 /// Top-level config for the leveling feature.
@@ -142,11 +142,11 @@ pub struct LevelingConfig {
     /// Channels/roles that are exempt or enforced.
     pub scope: LevelingScope,
     /// Styling for the rank card image.
-    pub image_card: ImageCardSettings,
+    pub image_card: ImageCardColors,
     /// How level-up notifications are delivered.
     pub notify: NotificationSettings,
     /// Maximum level a member can reach.
-    pub level_cap: u64,
+    pub level_cap: i64,
     /// Whether XP is kept when a member leaves and rejoins.
     pub keep_level_on_leave: bool,
 }

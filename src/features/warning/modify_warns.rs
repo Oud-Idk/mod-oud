@@ -31,37 +31,35 @@ pub async fn set_warning_active_status(
 
     let action_past_tense = if set_active { "unpardoned" } else { "pardoned" };
 
-    match result {
-        Some((target_user_id, _reason)) => {
-            send_ephemeral(
-                &ctx,
-                format!(
-                    "Successfully {action_past_tense} warning **#{id}** for <@{target_user_id}>."
-                ),
-            )
-            .await?;
+    if let Some((target_user_id, _reason)) = result {
+        send_ephemeral(
+            &ctx,
+            format!("Successfully {action_past_tense} warning **#{id}** for <@{target_user_id}>."),
+        )
+        .await?;
 
-            info!(
-                warning_id = id,
-                target_user_id,
-                set_active,
-                action = action_past_tense,
-                "Warning active status successfully modified in the database"
-            );
-        }
-        None => {
-            let status_description = if set_active { "inactive" } else { "active" };
-            debug!(
-                warning_id = id,
-                set_active,
-                "Failed to change warning status: warning not found or already in target state"
-            );
+        info!(
+            warning_id = id,
+            target_user_id,
+            set_active,
+            action = action_past_tense,
+            "Warning active status successfully modified in the database"
+        );
+    } else {
+        let status_description = if set_active { "inactive" } else { "active" };
+        debug!(
+            warning_id = id,
+            set_active,
+            "Failed to change warning status: warning not found or already in target state"
+        );
 
-            send_ephemeral(
-                &ctx,
-                format!("Could not find an {status_description} warning with ID **#{id}** in this server."),
-            ).await?;
-        }
+        send_ephemeral(
+            &ctx,
+            format!(
+                "Could not find an {status_description} warning with ID **#{id}** in this server."
+            ),
+        )
+        .await?;
     }
 
     Ok(())

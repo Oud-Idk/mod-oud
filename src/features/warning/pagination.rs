@@ -10,10 +10,10 @@ fn make_page(warn: &WarningInfo) -> String {
     } else {
         "Pardoned"
     };
-    let time_str = match warn.created_at {
-        Some(ts) => format!("<t:{ts}:f> (<t:{ts}:R>)"),
-        None => "*Unknown date*".to_string(),
-    };
+    let time_str = warn.created_at.map_or_else(
+        || "*Unknown date*".to_string(),
+        |ts| format!("<t:{ts}:f> (<t:{ts}:R>)"),
+    );
     let reason = warn.reason.as_deref().unwrap_or("*No reason provided*");
 
     format!(

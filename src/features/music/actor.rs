@@ -112,33 +112,32 @@ fn parse_seek_input(input: &str) -> Option<SeekMode> {
     }
 }
 
+pub struct PlayPayload {
+    pub query: String,
+    pub vc_channel_id: ChannelId,
+    pub requested_by_name: String,
+    pub requested_by_id: u64,
+    pub respond: oneshot::Sender<Result<PlayOutcome>>,
+}
+
+pub struct QueueAddPayload {
+    pub query: String,
+    pub vc_channel_id: ChannelId,
+    pub requested_by: User,
+    pub respond: oneshot::Sender<Result<QueueAddOutcome>>,
+}
+
 pub enum GuildCommand {
-    Play {
-        query: String,
-        vc_channel_id: ChannelId,
-        requested_by_name: String,
-        requested_by_id: u64,
-        respond: oneshot::Sender<Result<PlayOutcome>>,
-    },
-    WebPlay {
-        query: String,
-        vc_channel_id: ChannelId,
-        requested_by_name: String,
-        requested_by_id: u64,
-        respond: oneshot::Sender<Result<PlayOutcome>>,
-    },
+    Play(Box<PlayPayload>),
+    WebPlay(Box<PlayPayload>),
+    QueueAdd(Box<QueueAddPayload>),
+
     Skip {
         respond: oneshot::Sender<Result<Option<String>>>,
     },
     Prev {
         vc_channel_id: ChannelId,
         respond: oneshot::Sender<Result<StartedTrackInfo>>,
-    },
-    QueueAdd {
-        query: String,
-        vc_channel_id: ChannelId,
-        requested_by: User,
-        respond: oneshot::Sender<Result<QueueAddOutcome>>,
     },
     QueueList {
         respond: oneshot::Sender<Result<QueueSnapshot>>,
@@ -413,8 +412,11 @@ impl GuildActor {
                 .strip_prefix("ytsearch:")
                 .unwrap_or(&search_term)
                 .to_string();
-            let mut placeholder_meta = AuxMetadata::default();
-            placeholder_meta.title = Some(display_title);
+
+            let placeholder_meta = AuxMetadata {
+                title: Some(display_title),
+                ..AuxMetadata::default()
+            };
 
             self.state.queue.push_back(QueuedTrack {
                 query: search_term,
@@ -427,7 +429,7 @@ impl GuildActor {
 
     async fn handle_restart(&mut self) -> Result<StartedTrackInfo> {
         if let Some(handle) = self.state.current.clone() {
-            self.finish_play_stats(&handle).await;
+            self.finish_play_stats(&handle);
 
             if let Ok(Ok(_)) = timeout(
                 Duration::from_millis(500),
@@ -500,7 +502,7 @@ impl GuildActor {
             .front()
             .and_then(|t| t.metadata.title.clone());
 
-        self.finish_play_stats(&handle).await;
+        self.finish_play_stats(&handle);
         let _ = handle.stop();
 
         if let Some(finished) = self.state.current_track.take() {
@@ -557,13 +559,13 @@ impl GuildActor {
         }
     }
 
-    async fn handle_queue_clear(&mut self) -> usize {
+    fn handle_queue_clear(&mut self) -> usize {
         let len = self.state.queue.len();
         self.state.queue.clear();
         len
     }
 
-    async fn handle_queue_remove(&mut self, position: usize) -> Result<QueuedTrack> {
+    fn handle_queue_remove(&mut self, position: usize) -> Result<QueuedTrack> {
         if position == 0 {
             bail!("Position must be 1 or greater.");
         }
@@ -689,7 +691,7 @@ impl GuildActor {
         self.state.queue.clear();
 
         if let Some(handle) = self.state.current.clone() {
-            self.finish_play_stats(&handle).await;
+            self.finish_play_stats(&handle);
         }
 
         if let Some(finished) = self.state.current_track.take() {
@@ -824,7 +826,7 @@ impl GuildActor {
         self.retry_count = 0;
 
         if let Some(handle) = self.state.current.clone() {
-            self.finish_play_stats(&handle).await;
+            self.finish_play_stats(&handle);
         }
 
         if let Some(finished) = self.state.current_track.take() {
@@ -870,13 +872,12 @@ impl GuildActor {
         // Give the stream endpoint a moment to settle before reconnecting.
         tokio::time::sleep(Duration::from_secs(1)).await;
 
-        let call = match self.manager.get(self.guild_id) {
-            Some(call) => call,
-            None => return false,
+        let Some(call) = self.manager.get(self.guild_id) else {
+            return false;
         };
 
         if let Some(handle) = self.state.current.take() {
-            self.finish_play_stats(&handle).await;
+            self.finish_play_stats(&handle);
             let _ = handle.stop();
         }
 
@@ -989,25 +990,14 @@ impl GuildActor {
 
     async fn process_command(&mut self, cmd: GuildCommand) {
         match cmd {
-            GuildCommand::Play {
-                query,
-                vc_channel_id,
-                requested_by_name,
-                requested_by_id,
-                respond,
-            } => {
-                let _ = respond.send(
-                    self.handle_play(query, vc_channel_id, requested_by_name, requested_by_id)
-                        .await,
-                );
-            }
-            GuildCommand::WebPlay {
-                query,
-                vc_channel_id,
-                requested_by_name,
-                requested_by_id,
-                respond,
-            } => {
+            GuildCommand::Play(payload) | GuildCommand::WebPlay(payload) => {
+                let PlayPayload {
+                    query,
+                    vc_channel_id,
+                    requested_by_name,
+                    requested_by_id,
+                    respond,
+                } = *payload;
                 let _ = respond.send(
                     self.handle_play(query, vc_channel_id, requested_by_name, requested_by_id)
                         .await,
@@ -1022,12 +1012,13 @@ impl GuildActor {
             } => {
                 let _ = respond.send(self.handle_prev(vc_channel_id).await);
             }
-            GuildCommand::QueueAdd {
-                query,
-                vc_channel_id,
-                requested_by,
-                respond,
-            } => {
+            GuildCommand::QueueAdd(payload) => {
+                let QueueAddPayload {
+                    query,
+                    vc_channel_id,
+                    requested_by,
+                    respond,
+                } = *payload;
                 let _ = respond.send(
                     self.handle_queue_add(query, vc_channel_id, requested_by)
                         .await,
@@ -1037,10 +1028,10 @@ impl GuildActor {
                 let _ = respond.send(Ok(self.handle_queue_list()));
             }
             GuildCommand::QueueClear { respond } => {
-                let _ = respond.send(Ok(self.handle_queue_clear().await));
+                let _ = respond.send(Ok(self.handle_queue_clear()));
             }
             GuildCommand::QueueRemove { position, respond } => {
-                let _ = respond.send(self.handle_queue_remove(position).await);
+                let _ = respond.send(self.handle_queue_remove(position));
             }
             GuildCommand::QueueShuffle { respond } => {
                 let _ = respond.send(Ok(self.handle_queue_shuffle()));
@@ -1132,7 +1123,7 @@ impl GuildActor {
 
         // Finish stats and stop old track BEFORE installing the new track state
         if let Some(old_handle) = self.state.current.take() {
-            self.finish_play_stats(&old_handle).await;
+            self.finish_play_stats(&old_handle);
             let _ = old_handle.stop();
         }
 
@@ -1179,7 +1170,7 @@ impl GuildActor {
 
     /// Non-blocking: enqueues the "ended" event for the current play, backfilled
     /// against the matching `handle_uuid` by the stats worker.
-    async fn finish_play_stats(&mut self, handle: &TrackHandle) {
+    fn finish_play_stats(&mut self, handle: &TrackHandle) {
         let fallback_duration = self.state.current_meta.as_ref().and_then(|m| m.duration);
 
         // Calculate actual active wall-clock listened time for this segment
@@ -1194,10 +1185,10 @@ impl GuildActor {
             Duration::ZERO
         };
 
-        let mut listened_ms = active_listened.as_millis() as i64;
+        let mut listened_ms = i64::try_from(active_listened.as_millis()).unwrap_or(i64::MAX);
 
         if let Some(total_dur) = fallback_duration {
-            let max_ms = total_dur.as_millis() as i64;
+            let max_ms = i64::try_from(total_dur.as_millis()).unwrap_or(i64::MAX);
             if listened_ms > max_ms {
                 listened_ms = max_ms;
             }

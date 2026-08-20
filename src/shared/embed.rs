@@ -125,6 +125,10 @@ impl DiscordEmbed {
     }
 
     /// Builds a serenity `CreateEmbed` using a custom placeholder replacement function.
+    ///
+    /// # Errors
+    /// Returns an error if the embed has no title, description, or fields that
+    /// would render any visible content.
     pub fn to_embed<F>(&self, mut replace: F) -> Result<CreateEmbed, anyhow::Error>
     where
         F: FnMut(&str) -> String,
@@ -207,6 +211,9 @@ pub trait MessageGetter {
 
 /// Builds a `CreateMessage` from a format, content, and embed template, applying
 /// `replace_fn` to every placeholder. Returns `None` if nothing would be rendered.
+///
+/// # Errors
+/// Returns an error if the embed template fails to compile (e.g. it is empty).
 pub fn build_custom_message<F>(
     format: Format,
     content: &str,
@@ -241,6 +248,9 @@ where
 
 /// Builds a message from any [`MessageGetter`] payload, applying `replace_fn` to
 /// placeholders. Returns `None` if the payload renders to nothing.
+///
+/// # Errors
+/// Returns an error if the embed template fails to compile.
 pub fn create_basic_embed<T, F>(payload: &T, replace_fn: F) -> Result<Option<CreateMessage>, Error>
 where
     T: MessageGetter,
@@ -256,6 +266,10 @@ where
 
 /// Like [`create_basic_embed`] but returns an HTTP-friendly error for the
 /// dashboard when the payload would render to an empty message or fails to compile.
+///
+/// # Errors
+/// Returns a `400 BAD_REQUEST` if the payload renders to an empty message or the
+/// embed template fails to compile.
 pub fn create_embed_for_web<T, F>(
     payload: &T,
     replace_fn: F,

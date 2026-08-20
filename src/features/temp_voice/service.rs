@@ -197,10 +197,9 @@ pub async fn delete_temp_vc(
 
     let owner_id_str: Option<String> = redis.hget(&temp_vc_hash, &temp_vc_field).await?;
 
-    let is_owner = match owner_id_str {
-        Some(ref id) => id == &user_id.get().to_string(),
-        None => false,
-    };
+    let is_owner = owner_id_str
+        .as_ref()
+        .is_some_and(|id| id == &user_id.get().to_string());
 
     if !is_owner {
         return Ok("You don't own this channel! Only the channel owner can delete it.".to_string());
@@ -253,7 +252,10 @@ pub async fn initiate_temp_vc_transfer(
         return Ok("You can't transfer to yourself!".to_string());
     }
 
-    if get_user_vc_in_guild(data, guild_id, new_owner_id).await? == None {
+    if get_user_vc_in_guild(data, guild_id, new_owner_id)
+        .await?
+        .is_none()
+    {
         tracing::debug!(
             "Target user {} is not present in channel {}",
             new_owner_id.get(),

@@ -36,28 +36,49 @@ pub async fn should_exclude_from_logging(
     }
 
     // Check if user has any ignored roles
+    // Check if user has any ignored roles
     if let Some(ref ignored_roles) = config.ignored_roles
         && !ignored_roles.is_empty()
     {
-        let member_result = guild_id.member(ctx, author_id).await;
+        // Look up member from the cached Guild
+        let cached_has_role = ctx.cache.guild(guild_id).and_then(|guild| {
+            guild
+                .members
+                .get(&author_id)
+                .map(|m| m.has_any_role(ignored_roles))
+        });
 
-        match member_result {
-            Ok(member) => {
-                if member.has_any_role(ignored_roles) {
-                    debug!(
-                        %author_id,
-                        "Message excluded: user has ignored role"
-                    );
-                    return true;
-                }
+        match cached_has_role {
+            Some(true) => {
+                debug!(%author_id, "Message excluded: user has ignored role (from cache)");
+                return true;
             }
-            Err(err) => {
-                warn!(
-                    error = ?err,
+            Some(false) => {
+                // ignore
+            }
+            None => {
+                trace!(
                     %author_id,
                     %guild_id,
-                    "Failed to fetch guild member metadata for exclusion checks"
+                    "Member not in cache, falling back to HTTP request"
                 );
+
+                match ctx.http.get_member(guild_id, author_id).await {
+                    Ok(member) => {
+                        if member.has_any_role(ignored_roles) {
+                            debug!(%author_id, "Message excluded: user has ignored role (from HTTP)");
+                            return true;
+                        }
+                    }
+                    Err(err) => {
+                        warn!(
+                            error = ?err,
+                            %author_id,
+                            %guild_id,
+                            "Failed to fetch guild member metadata via HTTP for exclusion checks"
+                        );
+                    }
+                }
             }
         }
     }
@@ -82,10 +103,8 @@ pub fn fetch_cached_message(
         "Fetching message from cache"
     );
 
-    let message = if let Some(msg) = cache.message(channel_id, message_id) {
-        msg
-    } else {
-        trace!(
+    let Some(message) = cache.message(channel_id, message_id) else {
+        debug!(
             chan_id = channel_id.get(),
             msg_id = message_id.get(),
             "Message not found in cache"
@@ -94,7 +113,7 @@ pub fn fetch_cached_message(
     };
 
     if message.author.bot {
-        debug!(
+        trace!(
             msg_id = message.id.get(),
             author_id = message.author.id.get(),
             "Cached message skipped: author is a bot"
@@ -126,24 +145,23 @@ pub fn fetch_cached_message(
 
 /// Evaluates if an attachment is an image based on its suffix or content type header.
 fn is_image_attachment(attachment: &serenity::all::Attachment) -> bool {
-    let result = attachment
+    if attachment
         .content_type
-        .as_ref()
+        .as_deref()
         .is_some_and(|ct| ct.starts_with("image/"))
-        || attachment.filename.ends_with(".png")
-        || attachment.filename.ends_with(".jpg")
-        || attachment.filename.ends_with(".jpeg")
-        || attachment.filename.ends_with(".webp")
-        || attachment.filename.ends_with(".gif");
+    {
+        return true;
+    }
 
-    trace!(
-        attachment_id = attachment.id.get(),
-        filename = attachment.filename,
-        is_image = result,
-        "Evaluated attachment image status"
-    );
-
-    result
+    std::path::Path::new(&attachment.filename)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            matches!(
+                ext.to_ascii_lowercase().as_str(),
+                "png" | "jpg" | "jpeg" | "webp" | "gif"
+            )
+        })
 }
 
 /// Resolves message text values and user identifiers while handling fallbacks.
@@ -172,50 +190,33 @@ pub fn extract_edit_details(
     }
 
     // Fallback to old message details if event author metadata is incomplete
-    let author_id = if let Some(id) = event
+    let author = event
         .author
         .as_ref()
-        .map(|u| u.id)
-        .or_else(|| old_if_available.map(|m| m.author.id))
-    {
-        id
-    } else {
-        warn!(%msg_id, "Unable to resolve author ID for edit event");
+        .map(|u| (u.id, &u.name))
+        .or_else(|| old_if_available.map(|m| (m.author.id, &m.author.name)));
+
+    let Some((author_id, author_name)) = author else {
+        warn!(%msg_id, "Unable to resolve author for edit event");
         return None;
     };
+    let author_name = author_name.clone();
 
-    let author_name = if let Some(name) = event
-        .author
-        .as_ref()
-        .map(|u| u.name.clone())
-        .or_else(|| old_if_available.map(|m| m.author.name.clone()))
-    {
-        name
-    } else {
-        warn!(%msg_id, "Unable to resolve author username for edit event");
-        return None;
-    };
-
-    let _avatar_url = event
-        .author
-        .as_ref()
-        .and_then(serenity::all::User::avatar_url)
-        .or_else(|| old_if_available.and_then(|m| m.author.avatar_url()));
-
-    let old_content = old_if_available.map(|m| m.content.clone());
-    let new_content = event
+    let old_text = old_if_available.map(|m| m.content.as_str());
+    let new_text = event
         .content
-        .clone()
-        .or_else(|| new.map(|m| m.content.clone()));
+        .as_deref()
+        .or_else(|| new.map(|m| m.content.as_str()));
 
-    // Skip log dispatch if the text payload hasn't changed (e.g. embed edits, link expanding)
-    if old_content == new_content {
-        debug!(
-            %msg_id,
-            "Edit ignored: content was unmodified (possibly embed or link metadata change)"
-        );
+    // Cheap reference comparison! Zero allocations!
+    if old_text == new_text {
+        debug!(%msg_id, "Edit ignored: content was unmodified");
         return None;
     }
+
+    // Only clone once we know we actually need them
+    let old_content = old_text.map(ToOwned::to_owned);
+    let new_content = new_text.map(ToOwned::to_owned);
 
     trace!(%msg_id, %author_id, "Successfully resolved edit details");
 

@@ -1,6 +1,7 @@
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::features::member_counter::counters::update_guild_counters;
+use crate::features::member_counter::database::any_guild_ids_with_member_counters;
 use fred::clients::Client;
 use moka::future::Cache;
 use serenity::all::{GuildId, Http};
@@ -54,20 +55,7 @@ async fn process_all_member_counters(
     last_updated: &mut HashMap<GuildId, Instant>,
 ) -> anyhow::Result<()> {
     // Query database for all guild IDs that have member counter enabled
-    let guild_ids: Vec<GuildId> = sqlx::query_scalar::<_, i64>(
-        r"
-        SELECT guild_id
-        FROM guild_configs
-        WHERE (settings->'member_counter'->>'enabled')::boolean = true
-        ",
-    )
-    .fetch_all(db)
-    .await
-    .map(|rows| rows.into_iter().map(|id| GuildId::new(id as u64)).collect())
-    .unwrap_or_else(|e| {
-        warn!(error = ?e, "Failed to query active member counter guilds from DB");
-        Vec::new()
-    });
+    let guild_ids = any_guild_ids_with_member_counters(db).await;
 
     if guild_ids.is_empty() {
         trace!("No active member counters to process");

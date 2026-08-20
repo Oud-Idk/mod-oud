@@ -69,6 +69,7 @@ impl DynamicRaidDetector {
 
     /// Records a member join and checks if it triggers a raid alert.
     #[instrument(skip(self, now), fields(guild_id = %guild_id, user_id = %user_id))]
+    #[allow(clippy::cast_precision_loss)]
     pub async fn record_join(
         &self,
         guild_id: GuildId,
@@ -143,21 +144,18 @@ impl DynamicRaidDetector {
         let lock_key = keys::lock_key(&stats_cache_key);
         let lock_value = Uuid::new_v4().to_string();
 
-        let lock_guard =
-            if let Some(guard) = acquire_lock(&self.redis, &lock_key, &lock_value, 2).await? {
-                guard
-            } else {
-                warn!(
-                    %guild_id,
-                    min_safe_limit = self.min_safe_limit,
-                    "Could not acquire lock to recompute threshold; falling back to min_safe_limit"
-                );
-                return Ok(Stats {
-                    threshold: self.min_safe_limit,
-                    mean_window: 0.0,
-                    std_dev_window: 0.0,
-                });
-            };
+        let Some(lock_guard) = acquire_lock(&self.redis, &lock_key, &lock_value, 2).await? else {
+            warn!(
+                %guild_id,
+                min_safe_limit = self.min_safe_limit,
+                "Could not acquire lock to recompute threshold; falling back to min_safe_limit"
+            );
+            return Ok(Stats {
+                threshold: self.min_safe_limit,
+                mean_window: 0.0,
+                std_dev_window: 0.0,
+            });
+        };
 
         let stats_res = self.recompute_stats(guild_id, now, &stats_cache_key).await;
 
@@ -218,6 +216,7 @@ impl DynamicRaidDetector {
     }
 }
 
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 #[instrument(skip(history), fields(history_len = history.len()))]
 fn calculate_threshold(
     z_score_multiplier: f64,

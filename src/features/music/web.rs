@@ -1,5 +1,5 @@
 use crate::core::config::state::WebState;
-use crate::features::music::actor::GuildCommand;
+use crate::features::music::actor::{GuildCommand, PlayPayload};
 use crate::features::music::state::MusicState;
 use crate::features::music::web_command::{ClientMessage, MusicAction, ServerMessage, WebCommand};
 use axum::Router;
@@ -7,6 +7,7 @@ use axum::extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
 use axum::response::Response;
 use axum::routing::get;
+use futures::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use poise::serenity_prelude as serenity;
 use serde::Deserialize;
@@ -26,8 +27,8 @@ pub struct WsQuery {
 }
 
 /// Drains web control commands and forwards them to the target guild's music
-/// actor, replying on the per-command channel. Runs in the bot process so it has
-/// direct access to the music actors, songbird manager and Discord HTTP client.
+/// actor. Runs in the bot process so it has direct access to the music actors,
+/// songbird manager and Discord HTTP client.
 pub fn start_music_web_control_worker(
     mut rx: UnboundedReceiver<WebCommand>,
     music_state: MusicState,
@@ -37,16 +38,13 @@ pub fn start_music_web_control_worker(
 ) {
     tokio::spawn(async move {
         while let Some(command) = rx.recv().await {
-            let guild_id = serenity::GuildId::new(command.guild_id);
             let outcome = handle_music_command(
                 &music_state,
                 &manager,
                 &reqwest_client,
                 &http,
-                guild_id,
+                command.guild_id,
                 command.action,
-                command.query.as_deref(),
-                command.requested_by_id,
             )
             .await;
             let _ = command.reply.send(outcome);
@@ -62,8 +60,6 @@ async fn handle_music_command(
     http: &Arc<serenity::Http>,
     guild_id: serenity::GuildId,
     action: MusicAction,
-    query: Option<&str>,
-    requested_by_id: Option<u64>,
 ) -> Result<serde_json::Value, String> {
     let actor_tx = music_state
         .get_or_spawn_actor(guild_id, Arc::clone(manager), reqwest_client.clone())
@@ -98,52 +94,42 @@ async fn handle_music_command(
         MusicAction::NowPlaying => {
             send_simple(&actor_tx, |respond| GuildCommand::NowPlaying { respond }).await
         }
-        MusicAction::GoToChannel => {
-            let channel_id_str =
-                query.ok_or_else(|| "A voice channel ID is required.".to_string())?;
-            let channel_id: u64 = channel_id_str
-                .parse()
-                .map_err(|_| "Invalid voice channel ID.".to_string())?;
+        MusicAction::GoToChannel { channel_id } => {
             send_simple(&actor_tx, |respond| GuildCommand::GoToChannel {
-                vc_channel_id: serenity::ChannelId::new(channel_id),
+                vc_channel_id: channel_id,
                 respond,
             })
             .await
         }
-        MusicAction::Seek => {
-            let input = query
-                .ok_or_else(|| "A seek target (e.g. '1:30' or '90') is required.".to_string())?;
-            send_simple(&actor_tx, |respond| GuildCommand::Seek {
-                input: input.to_string(),
-                respond,
-            })
-            .await
+        MusicAction::Seek { input } => {
+            send_simple(&actor_tx, |respond| GuildCommand::Seek { input, respond }).await
         }
-        MusicAction::Play => {
-            let query =
-                query.ok_or_else(|| "A track name or URL is required to play.".to_string())?;
+        MusicAction::Play {
+            query,
+            requested_by_id,
+        } => {
             let vc_channel_id = resolve_voice_channel(http, guild_id).await?;
 
             let (requested_by_name, requested_by_id) = match requested_by_id {
-                Some(id) => {
+                Some(user_id) => {
                     let name = http
-                        .get_user(serenity::UserId::new(id))
+                        .get_user(user_id)
                         .await
                         .map_or_else(|_| "Web".to_string(), |user| user.name);
-                    (name, id)
+                    (name, user_id.get())
                 }
                 None => ("Web".to_string(), 0),
             };
 
             let (respond_tx, respond_rx) = oneshot::channel();
             actor_tx
-                .send(GuildCommand::WebPlay {
-                    query: query.to_string(),
+                .send(GuildCommand::WebPlay(Box::new(PlayPayload {
+                    query,
                     vc_channel_id,
                     requested_by_name,
                     requested_by_id,
                     respond: respond_tx,
-                })
+                })))
                 .await
                 .map_err(|e| format!("Failed to send play command: {e}"))?;
 
@@ -154,7 +140,11 @@ async fn handle_music_command(
 
             let data = match outcome {
                 crate::features::music::state::PlayOutcome::Single(info) => {
-                    serde_json::json!({ "status": "playing", "title": info.title, "thumbnail": info.thumbnail })
+                    serde_json::json!({
+                        "status": "playing",
+                        "title": info.title,
+                        "thumbnail": info.thumbnail
+                    })
                 }
                 crate::features::music::state::PlayOutcome::Playlist { first_track, count } => {
                     serde_json::json!({
@@ -216,102 +206,76 @@ pub async fn ws_handler(
         guild_id = params.guild_id,
         "New WebSocket control connection"
     );
-    Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, params.guild_id)))
+    Ok(ws.on_upgrade(move |socket| {
+        handle_socket(socket, state, serenity::GuildId::from(params.guild_id))
+    }))
 }
 
-async fn handle_socket(socket: WebSocket, state: Arc<WebState>, guild_id: u64) {
+async fn handle_socket(socket: WebSocket, state: Arc<WebState>, guild_id: serenity::GuildId) {
     let (mut sender, mut receiver) = socket.split();
-
-    let (msg_tx, mut msg_rx) = tokio::sync::mpsc::channel::<Message>(32);
-
-    let writer = tokio::spawn(async move {
-        while let Some(message) = msg_rx.recv().await {
-            if sender.send(message).await.is_err() {
-                break;
-            }
-        }
-    });
-
-    // Subscribes to backend music events and pushes updates to this WS client
     let mut events_rx = state.music_state.events_tx.subscribe();
-    let event_writer = {
-        let msg_tx = msg_tx.clone();
-        tokio::spawn(async move {
-            while let Ok((event_guild_id, now_playing)) = events_rx.recv().await {
-                debug!(
-                    event_guild_id,
-                    ws_guild_id = guild_id,
-                    "Received music event broadcast"
-                );
-                if event_guild_id == guild_id {
-                    let payload = serde_json::json!({
-                        "type": "event",
-                        "event": "nowPlaying",
-                        "data": now_playing,
-                    });
-                    if let Ok(json) = serde_json::to_string(&payload)
-                        && msg_tx
-                            .send(Message::Text(Utf8Bytes::from(json)))
-                            .await
-                            .is_err()
-                    {
+    let mut ping_interval = tokio::time::interval(Duration::from_secs(20));
+
+    loop {
+        tokio::select! {
+            // Incoming WebSocket message from client
+            client_msg = receiver.next() => {
+                match client_msg {
+                    Some(Ok(Message::Text(text))) => {
+                        // Pass sender or handle directly
+                        handle_text_message(&state, &mut sender, guild_id, text.as_str()).await;
+                    }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    _ => {}
+                }
+            }
+
+            // Heartbeat ping
+            _ = ping_interval.tick() => {
+                if sender.send(Message::Ping(axum::body::Bytes::from_static(b"ping"))).await.is_err() {
+                    break;
+                }
+            }
+
+            // Backend broadcast events
+            event_result = events_rx.recv() => {
+                match event_result {
+                    Ok((event_guild_id, now_playing)) => {
+                        if serenity::GuildId::from(event_guild_id) == guild_id {
+                            let payload = serde_json::json!({
+                                "type": "event",
+                                "event": "nowPlaying",
+                                "data": now_playing,
+                            });
+                            if let Ok(json) = serde_json::to_string(&payload)
+                                && sender.send(Message::Text(Utf8Bytes::from(json)))
+                                    .await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        warn!("Dropped {n} events due to slow socket");
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                         break;
                     }
                 }
             }
-        })
-    };
-
-    let keepalive = {
-        let msg_tx = msg_tx.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(20));
-            loop {
-                interval.tick().await;
-                if msg_tx
-                    .send(Message::Ping(axum::body::Bytes::from_static(b"ping")))
-                    .await
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        })
-    };
-
-    while let Some(Ok(message)) = receiver.next().await {
-        match message {
-            Message::Text(text) => {
-                handle_text_message(&state, &msg_tx, guild_id, text.as_str()).await;
-            }
-            Message::Close(_) => break,
-            _ => {}
         }
     }
-
-    drop(msg_tx);
-    keepalive.abort();
-    event_writer.abort();
-    if let Err(e) = writer.await {
-        warn!("Writer task joined with error: {e}");
-    };
 }
 
 async fn handle_text_message(
     state: &WebState,
-    sender: &Sender<Message>,
-    guild_id: u64,
+    sender: &mut SplitSink<WebSocket, Message>,
+    guild_id: serenity::GuildId,
     text: &str,
 ) {
     let message: Result<ClientMessage, _> = serde_json::from_str(text);
 
-    let (request_id, action, query, requested_by_id) = match message {
-        Ok(ClientMessage::Music {
-            request_id,
-            action,
-            query,
-            requested_by_id,
-        }) => (request_id, action, query, requested_by_id),
+    let (request_id, action) = match message {
+        Ok(ClientMessage::Music { request_id, action }) => (request_id, action),
         Err(e) => {
             warn!(error = %e, "Failed to parse WebSocket control message");
             let ack = ServerMessage::Ack {
@@ -333,8 +297,6 @@ async fn handle_text_message(
     let command = WebCommand {
         guild_id,
         action,
-        query,
-        requested_by_id,
         reply: reply_tx,
     };
 

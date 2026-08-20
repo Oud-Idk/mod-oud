@@ -1,7 +1,7 @@
 use crate::core::config::state::Error;
 use crate::features::automod::{AutomodEntryRow, insert_automod_row};
 use crate::features::warning::types::{WarnAction, WarnThreshold};
-use serenity::all::{Http, Member, RoleId, Timestamp};
+use serenity::all::{Http, Member, Timestamp};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::debug;
@@ -50,10 +50,8 @@ pub async fn apply_threshold_actions(
                 WarnAction::RoleAdd => {
                     if let Some(ref roles) = threshold.roles_to_add {
                         for role_id in roles {
-                            debug!(role_id, "Adding role from threshold");
-                            member
-                                .add_role(http, RoleId::new((*role_id).cast_unsigned()))
-                                .await?;
+                            debug!(%role_id, "Adding role from threshold");
+                            member.add_role(http, *role_id).await?;
                         }
                     }
                     actions.push("ROLE_ADD");
@@ -61,10 +59,8 @@ pub async fn apply_threshold_actions(
                 WarnAction::RoleRemove => {
                     if let Some(ref roles) = threshold.roles_to_remove {
                         for role_id in roles {
-                            debug!(role_id, "Removing role from threshold");
-                            member
-                                .remove_role(http, RoleId::new(*role_id as u64))
-                                .await?;
+                            debug!(%role_id, "Removing role from threshold");
+                            member.remove_role(http, *role_id).await?;
                         }
                     }
                     actions.push("ROLE_REMOVE");
@@ -88,7 +84,7 @@ pub async fn apply_threshold_actions(
 
 async fn insert_threshold_automod_log(
     db: &PgPool,
-    member: &mut Member,
+    member: &Member,
     warn_count: i32,
     actions_taken: &[&str],
 ) -> Result<(), Error> {
@@ -99,7 +95,7 @@ async fn insert_threshold_automod_log(
         user_id: member.user.id,
         channel_id: None,
         message_id: None,
-        rule_name: &format!("Warn Threshold: {}", warn_count),
+        rule_name: &format!("Warn Threshold: {warn_count}"),
         trigger_content: None,
         original_content: None,
         actions_taken,

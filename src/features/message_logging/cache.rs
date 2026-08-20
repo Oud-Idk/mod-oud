@@ -10,6 +10,9 @@ use serenity::all::{ChannelId, Message, MessageId};
 use tracing::{debug, error, instrument};
 
 /// Spawns a background task to cache a message in Redis when message logging is enabled.
+///
+/// # Errors
+/// Returns an error if the guild settings cannot be loaded or the Redis write fails.
 pub async fn spawn_cache_message_in_redis(data: &BotData, msg: &Message) -> Result<(), Error> {
     if msg.author.bot {
         return Ok(());

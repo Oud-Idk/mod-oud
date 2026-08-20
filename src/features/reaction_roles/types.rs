@@ -1,4 +1,5 @@
 use crate::core::config::message_layout::MessageLayout;
+use serenity::all::{ChannelId, MessageId};
 use sqlx::types::Json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Deserialize, serde::Serialize)]
@@ -22,11 +23,11 @@ pub struct ReactionRole {
     pub emoji: String,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct ReactionMessage {
     pub id: i64,
-    pub message_id: Option<i64>,
-    pub channel_id: Option<i64>,
+    pub message_id: Option<MessageId>,
+    pub channel_id: ChannelId,
     pub mode: InteractionMode,
     pub message: Json<MessageLayout>,
 }

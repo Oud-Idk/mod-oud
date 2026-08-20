@@ -16,6 +16,10 @@ pub struct GuildMetadata {
 
 impl GuildMetadata {
     /// Safely extracts guild ID, guild name, and author ID from the context.
+    ///
+    /// # Errors
+    /// Returns an error if the command was not invoked inside a guild or the
+    /// guild information could not be retrieved.
     pub fn extract(ctx: &Context<'_>) -> Result<Self> {
         let guild_id = ctx
             .guild_id()

@@ -8,6 +8,9 @@ use serenity::all::{
 use tracing::{info, warn};
 
 /// Assigns the configured role when a user reacts to a reaction role message.
+///
+/// # Errors
+/// Returns an error if the reaction role lookup fails.
 pub async fn handle_reaction_role_add(
     ctx: &Context,
     reaction: &Reaction,
@@ -24,9 +27,7 @@ pub async fn handle_reaction_role_add(
     }
 
     let emoji_str = reaction.emoji.to_string();
-    if let Some(role_id) =
-        get_reaction_role(data, reaction.message_id.get() as i64, &emoji_str).await?
-    {
+    if let Some(role_id) = get_reaction_role(data, reaction.message_id, &emoji_str).await? {
         if let Err(err) = ctx
             .http
             .add_member_role(guild_id, user_id, role_id, Some("Reaction Role Add"))
@@ -44,6 +45,9 @@ pub async fn handle_reaction_role_add(
 }
 
 /// Removes the configured role when a user removes their reaction from a reaction role message.
+///
+/// # Errors
+/// Returns an error if the reaction role lookup fails.
 pub async fn handle_reaction_role_remove(
     ctx: &Context,
     reaction: &Reaction,
@@ -60,9 +64,7 @@ pub async fn handle_reaction_role_remove(
     }
 
     let emoji_str = reaction.emoji.to_string();
-    if let Some(role_id) =
-        get_reaction_role(data, reaction.message_id.get() as i64, &emoji_str).await?
-    {
+    if let Some(role_id) = get_reaction_role(data, reaction.message_id, &emoji_str).await? {
         if let Err(err) = ctx
             .http
             .remove_member_role(guild_id, user_id, role_id, Some("Reaction Role Remove"))
@@ -80,6 +82,9 @@ pub async fn handle_reaction_role_remove(
 }
 
 /// Toggles the configured role for a user when they click a reaction role button.
+///
+/// # Errors
+/// Returns an error if the button role lookup fails.
 pub async fn handle_button_interaction(
     ctx: &Context,
     component: &ComponentInteraction,

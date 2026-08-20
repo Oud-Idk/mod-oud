@@ -1,3 +1,4 @@
+use super::super::notifications::LevelUpEvent;
 use super::super::{cache, calculation, database, notifications, rewards, rules};
 use crate::core::config::state::BotData;
 use crate::features::leveling;
@@ -7,10 +8,14 @@ use crate::features::leveling::types::{LevelingConfig, NotificationScope};
 use anyhow::Result;
 use fred::interfaces::KeysInterface;
 use poise::serenity_prelude as serenity;
-use serenity::all::{ChannelId, Context, GuildId, Member, User, UserId, VoiceState};
+use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
 use tracing::{debug, trace};
 
 /// Tracks voice sessions and awards voice XP when a user leaves an eligible channel.
+///
+/// # Errors
+/// Returns an error if the leveling config cannot be loaded or the Redis/Postgres
+/// state updates fail.
 pub async fn handle_voice_leveling(
     ctx: &Context,
     old: Option<&VoiceState>,
@@ -63,18 +68,15 @@ pub async fn handle_voice_leveling(
 
             if eligible_secs >= 10 {
                 let synthetic_join_time = now - eligible_secs;
-                award_vc_xp_for_session(
-                    ctx,
+                let award_ctx = VoiceAwardContext {
                     guild_id,
                     user_id,
                     member,
-                    session.channel_id,
-                    synthetic_join_time,
-                    now,
-                    data,
-                    &leveling_config,
-                )
-                .await?;
+                    channel_id: session.channel_id,
+                    join_time: synthetic_join_time,
+                    leave_time: now,
+                };
+                award_vc_xp_for_session(ctx, award_ctx, data, &leveling_config).await?;
             } else {
                 debug!(
                     %guild_id,
@@ -110,17 +112,31 @@ pub async fn handle_voice_leveling(
     Ok(())
 }
 
-async fn award_vc_xp_for_session(
-    ctx: &Context,
+/// The voice session context needed to award XP when a user leaves an eligible channel.
+struct VoiceAwardContext<'a> {
     guild_id: GuildId,
     user_id: UserId,
-    member_opt: Option<&Member>,
+    member: Option<&'a Member>,
     channel_id: ChannelId,
     join_time: i64,
     leave_time: i64,
+}
+
+async fn award_vc_xp_for_session(
+    ctx: &Context,
+    award: VoiceAwardContext<'_>,
     data: &BotData,
     leveling_config: &LevelingConfig,
 ) -> Result<()> {
+    let VoiceAwardContext {
+        guild_id,
+        user_id,
+        member,
+        channel_id,
+        join_time,
+        leave_time,
+    } = award;
+
     let elapsed_seconds = leave_time - join_time;
 
     if session_too_short(elapsed_seconds) {
@@ -130,7 +146,7 @@ async fn award_vc_xp_for_session(
     let redis = &data.core.redis;
     let db = &data.core.db;
 
-    let member = &resolve_member(ctx, guild_id, user_id, member_opt).await?;
+    let member = &resolve_member(ctx, guild_id, user_id, member).await?;
 
     if rules::should_exclude_from_level_up(leveling_config, &member.roles, channel_id) {
         trace!(
@@ -156,7 +172,7 @@ async fn award_vc_xp_for_session(
     let total_added_xp =
         calculation::calculate_session_xp(elapsed_minutes, leveling_config, multiplier);
 
-    let Some((mut user_level, previous_level)) = apply_xp_and_process_levels(
+    let Some((user_level, previous_level)) = apply_xp_and_process_levels(
         data,
         guild_id,
         user_id,
@@ -173,20 +189,17 @@ async fn award_vc_xp_for_session(
     let leveled_up = user_level.current_level != previous_level;
 
     if leveled_up {
-        handle_level_up(
-            ctx,
-            data,
-            &member.user,
-            &user_level,
-            leveling_config,
+        let event = LevelUpEvent {
             guild_id,
             channel_id,
+            author: member.user.clone(),
+            user_level: user_level.clone(),
             previous_level,
-        )
-        .await?;
+        };
+        handle_level_up(ctx, data, leveling_config, &event).await?;
     }
 
-    persist_user_level(data, &stats_key, &mut user_level).await?;
+    persist_user_level(data, &stats_key, &user_level).await?;
     Ok(())
 }
 
@@ -213,11 +226,7 @@ async fn resolve_member(
     Ok(guild_id.member(&ctx.http, user_id).await?)
 }
 
-async fn persist_user_level(
-    data: &BotData,
-    stats_key: &str,
-    user_level: &mut UserLevel,
-) -> Result<()> {
+async fn persist_user_level(data: &BotData, stats_key: &str, user_level: &UserLevel) -> Result<()> {
     database::update_level(&data.core.db, user_level).await?;
     let serialized = serde_json::to_string(user_level)?;
     let _: () = cache::save_user_level_cache(&data.core.redis, stats_key, serialized).await?;
@@ -231,8 +240,8 @@ async fn apply_xp_and_process_levels(
     stats_key: &str,
     username: &str,
     leveling_config: &LevelingConfig,
-    total_added_xp: i32,
-) -> Result<Option<(UserLevel, i32)>> {
+    total_added_xp: i64,
+) -> Result<Option<(UserLevel, i64)>> {
     let redis = &data.core.redis;
 
     let mut user_level =
@@ -247,6 +256,7 @@ async fn apply_xp_and_process_levels(
         &mut user_level,
     )
     .await?;
+
     if should_be_clamped {
         return Ok(None);
     }
@@ -254,11 +264,10 @@ async fn apply_xp_and_process_levels(
     let previous_level = user_level.current_level;
     user_level.current_xp += total_added_xp;
 
-    calculation::process_level_ups(&mut user_level, leveling_config.level_cap as i32);
+    calculation::process_level_ups(&mut user_level, leveling_config.level_cap);
 
-    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap as i32
-    {
-        user_level.current_level = leveling_config.level_cap as i32;
+    if leveling_config.level_cap > 0 && user_level.current_level >= leveling_config.level_cap {
+        user_level.current_level = leveling_config.level_cap;
         user_level.current_xp = 0;
     }
 
@@ -271,22 +280,18 @@ async fn apply_xp_and_process_levels(
 async fn handle_level_up(
     ctx: &Context,
     data: &BotData,
-    user: &User,
-    user_level: &UserLevel,
     config: &LevelingConfig,
-    guild_id: GuildId,
-    channel_id: ChannelId,
-    previous_level: i32,
+    event: &LevelUpEvent,
 ) -> Result<()> {
     if !matches!(config.notify.scope, NotificationScope::None) {
         notifications::send_voice_level_up_message(
             ctx,
-            user,
-            user_level,
+            &event.author,
+            &event.user_level,
             config,
-            guild_id,
-            channel_id,
-            previous_level,
+            event.guild_id,
+            event.channel_id,
+            event.previous_level,
         )
         .await?;
     }
@@ -294,9 +299,9 @@ async fn handle_level_up(
     let _ = rewards::apply_level_rewards(
         ctx,
         &data.core.db,
-        guild_id,
-        user.id,
-        user_level.current_level,
+        event.guild_id,
+        event.user_level.user_id,
+        event.user_level.current_level,
     )
     .await;
     Ok(())

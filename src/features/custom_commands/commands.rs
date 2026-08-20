@@ -2,6 +2,7 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::custom_commands::database;
+use anyhow::Context as _;
 use poise::CreateReply;
 use serenity::all::CreateEmbed;
 use tracing::error;
@@ -9,14 +10,8 @@ use tracing::error;
 /// List all custom commands available in this server
 #[poise::command(slash_command, guild_only)]
 pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
-    let Some(guild_id) = ctx.guild_id() else {
-        ctx.say("This command can only be used inside a server.")
-            .await?;
-        return Ok(());
-    };
-
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
     let pool = &ctx.data().core.db;
-
     let commands = match database::get_custom_command(pool, guild_id).await {
         Ok(cmds) => cmds,
         Err(e) => {

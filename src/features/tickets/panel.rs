@@ -48,31 +48,28 @@ pub async fn build_ticket_message_payload(
         replace_ticket_panel_placeholders(text, &gctx, role_id, role_name_opt.as_deref())
     })?;
 
-    let message_builder = match custom_msg_opt {
-        Some(custom_msg) => {
-            debug!(
-                %guild_id,
-                "Applying custom ticket panel layout from configuration"
-            );
-            custom_msg
-        }
-        None => {
-            debug!(
-                %guild_id,
-                "No custom layout configured; falling back to default embed"
-            );
-            let description = format!(
-                "Click the button below to open a support ticket. Our staff with role <@{role_id}> will assist you shortly."
-            );
+    let message_builder = custom_msg_opt.map_or_else(|| {
+        debug!(
+            %guild_id,
+            "No custom layout configured; falling back to default embed"
+        );
+        let description = format!(
+            "Click the button below to open a support ticket. Our staff with role <@{role_id}> will assist you shortly."
+        );
 
-            let default_embed = CreateEmbed::default()
-                .title("Support Tickets")
-                .description(description)
-                .color(BRAND_COLOR);
+        let default_embed = CreateEmbed::default()
+            .title("Support Tickets")
+            .description(description)
+            .color(BRAND_COLOR);
 
-            CreateMessage::default().embed(default_embed)
-        }
-    };
+        CreateMessage::default().embed(default_embed)
+    }, |custom_msg| {
+        debug!(
+            %guild_id,
+            "Applying custom ticket panel layout from configuration"
+        );
+        custom_msg
+    });
 
     let components = vec![CreateActionRow::Buttons(vec![
         CreateButton::new("open_ticket")

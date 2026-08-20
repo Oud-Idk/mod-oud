@@ -111,11 +111,9 @@ pub async fn edit_reactions(
             let emoji_type = existing_reaction.reaction_type;
 
             let is_still_active = reactions.iter().any(|r| {
-                if let Ok(active_emoji) = r.emoji.parse::<serenity::all::ReactionType>() {
-                    active_emoji == emoji_type
-                } else {
-                    false
-                }
+                r.emoji
+                    .parse::<serenity::all::ReactionType>()
+                    .is_ok_and(|active_emoji| active_emoji == emoji_type)
             });
 
             if !is_still_active

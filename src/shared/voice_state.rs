@@ -9,6 +9,9 @@ pub fn guild_vc_key(guild_id: GuildId) -> String {
 }
 
 /// Stores a user's voice channel in Redis when they join a voice channel.
+///
+/// # Errors
+/// Returns an error if the Redis write fails.
 pub async fn store_user_vc_on_join(
     data: &BotData,
     guild_id: GuildId,
@@ -25,6 +28,9 @@ pub async fn store_user_vc_on_join(
 }
 
 /// Removes a user's voice channel entry from Redis when they leave.
+///
+/// # Errors
+/// Returns an error if the Redis delete fails.
 pub async fn delete_user_vc_on_leave(
     data: &BotData,
     guild_id: GuildId,
@@ -38,6 +44,9 @@ pub async fn delete_user_vc_on_leave(
 }
 
 /// Returns the voice channel a user is currently in, if cached in Redis.
+///
+/// # Errors
+/// Returns an error if the Redis read fails.
 pub async fn get_user_vc_in_guild(
     data: &BotData,
     guild_id: GuildId,
@@ -52,6 +61,9 @@ pub async fn get_user_vc_in_guild(
 
 /// Rebuilds the Redis voice channel mapping for a guild from its current
 /// voice states.
+///
+/// # Errors
+/// Returns an error if the Redis write fails.
 pub async fn sync_guild_voice_state(guild: &Guild, data: &BotData) -> Result<(), Error> {
     let redis = &data.core.redis;
 

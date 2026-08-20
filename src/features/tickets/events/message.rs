@@ -7,12 +7,16 @@ use crate::features::tickets::types::TicketLogPayload;
 use fred::clients::Client;
 use serenity::all::{
     ChannelId, ComponentInteraction, Context, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateMessage, Message, MessageId, RoleId,
+    CreateInteractionResponseMessage, CreateMessage, Message, MessageId,
 };
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, info, instrument, trace};
 
 /// Intercepts messages in active ticket channels, logging them to the database and rotating the close button when activity thresholds are reached.
+///
+/// # Errors
+/// Returns an error if the guild settings cannot be loaded, the ticket message
+/// cannot be logged, or the close button fails to update.
 #[instrument(
     skip(ctx, data, message),
     fields(
@@ -76,12 +80,8 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
 
     trace!("Updating Redis ticket activity tracking");
     // Directly pass the message count threshold (no Duration minutes division)
-    let (should_rotate, last_button_id_str) = update_activity_redis(
-        &data.core.redis,
-        &ticket_key,
-        ticket_config.bump_every as i32,
-    )
-    .await?;
+    let (should_rotate, last_button_id_str) =
+        update_activity_redis(&data.core.redis, &ticket_key, ticket_config.bump_every).await?;
 
     if should_rotate {
         info!("Message threshold reached; rotating close button placement");
@@ -153,14 +153,12 @@ async fn rotate_close_button(
         )
         .await?;
 
-    let new_msg_id_i64 = new_msg.id.get() as i64;
-
     debug!("Updating message database and Redis states with new close button position");
-    let db_update = tickets::database::update_close_button_db(&data, channel_id, new_msg_id_i64);
-    let redis_update = tickets::cache::update_close_button_redis(redis, ticket_key, new_msg_id_i64);
+    let db_update = tickets::database::update_close_button_db(data, channel_id, new_msg.id);
+    let redis_update = tickets::cache::update_close_button_redis(redis, ticket_key, new_msg.id);
 
     tokio::try_join!(db_update, redis_update)?;
-    info!(new_msg_id = %new_msg_id_i64, "Close button placement rotated successfully");
+    info!(new_msg_id = %new_msg.id, "Close button placement rotated successfully");
 
     Ok(())
 }
