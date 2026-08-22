@@ -9,6 +9,7 @@ use crate::features::music::state::{
 };
 use crate::features::music::stats::{StatsTx, record_track_end, record_track_start};
 use crate::features::music::youtube::{resolve_youtube_playlist, resolve_youtube_video};
+use crate::shared::spotify_auth::SpotifyAuthCache;
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use core::time::Duration;
@@ -54,23 +55,30 @@ pub struct GuildActor {
     pub command_tx: mpsc::Sender<GuildCommand>,
     pub state: GuildPlayer,
     pub retry_count: usize,
-    pub last_seek_at: Option<std::time::Instant>,
+    pub last_seek_at: Option<Instant>,
     pub last_seek_target_sec: f64,
     pub seek_in_flight: bool,
-    pub last_live_reconnect_at: Option<std::time::Instant>,
+    pub last_live_reconnect_at: Option<Instant>,
+    pub youtube_api_key: String,
+    pub spotify_auth: Arc<SpotifyAuthCache>,
 }
 
 /// Resolves single queries (Spotify URLs, `YouTube` video URLs, or plain text searches).
-async fn build_query_url(client: &reqwest::Client, query: &str) -> String {
+async fn build_query_url(
+    client: &reqwest::Client,
+    spotify_auth: &SpotifyAuthCache,
+    query: &str,
+    youtube_api_key: &str,
+) -> String {
     debug!(query = %query, "Resolving query URL");
 
     // Try resolving Spotify track into ytsearch string
-    if let Some(spotify_query) = resolve_spotify_track(client, query).await {
+    if let Some(spotify_query) = resolve_spotify_track(client, spotify_auth, query).await {
         return spotify_query;
     }
 
     // Try resolving YouTube video/shorts/youtu.be link into a clean watch URL
-    if let Some(youtube_query) = resolve_youtube_video(client, query).await {
+    if let Some(youtube_query) = resolve_youtube_video(client, query, youtube_api_key).await {
         return youtube_query;
     }
 
@@ -85,12 +93,17 @@ async fn build_query_url(client: &reqwest::Client, query: &str) -> String {
 }
 
 /// Helper method to try resolving either Spotify or `YouTube` playlists into track search terms/URLs.
-async fn resolve_any_playlist(client: &reqwest::Client, query: &str) -> Option<Vec<String>> {
-    if let Some(spotify_tracks) = resolve_spotify_playlist(client, query).await {
+async fn resolve_any_playlist(
+    client: &reqwest::Client,
+    spotify_auth: &SpotifyAuthCache,
+    query: &str,
+    youtube_api_key: &str,
+) -> Option<Vec<String>> {
+    if let Some(spotify_tracks) = resolve_spotify_playlist(client, spotify_auth, query).await {
         return Some(spotify_tracks);
     }
 
-    if let Some(youtube_tracks) = resolve_youtube_playlist(client, query).await {
+    if let Some(youtube_tracks) = resolve_youtube_playlist(client, query, youtube_api_key).await {
         return Some(youtube_tracks);
     }
 
@@ -120,87 +133,174 @@ pub struct PlayPayload {
     pub respond: oneshot::Sender<Result<PlayOutcome>>,
 }
 
+/// Payload containing all necessary parameters to enqueue or start playback of a track/playlist.
 pub struct QueueAddPayload {
+    /// The search query, direct URL (Spotify, `YouTube`, HTTP stream), or search term to resolve.
     pub query: String,
+    /// The voice channel ID that the bot should connect to if it is not currently in a voice channel.
     pub vc_channel_id: ChannelId,
+    /// The Discord user who initiated the request.
     pub requested_by: User,
+    /// Oneshot channel sender used to return the outcome ([`QueueAddOutcome`]) back to the caller.
     pub respond: oneshot::Sender<Result<QueueAddOutcome>>,
 }
 
+/// Commands accepted by the guild's dedicated [`GuildActor`] message loop.
+///
+/// Each command communicates asynchronously with the actor and reports results
+/// back via an enclosed [`oneshot::Sender`].
 pub enum GuildCommand {
+    /// Force-starts playback of a track or playlist, stopping whatever is currently playing.
     Play(Box<PlayPayload>),
+
+    /// Force-starts playback initiated from the external web dashboard interface.
     WebPlay(Box<PlayPayload>),
+
+    /// Smart-enqueues a track or playlist (plays immediately if idle, appends to the queue if active).
     QueueAdd(Box<QueueAddPayload>),
 
+    /// Skips the currently playing track and advances to the next track in the queue.
     Skip {
+        /// Channel to return the title of the next track (if any), or an error.
         respond: oneshot::Sender<Result<Option<String>>>,
     },
+
+    /// Pops the last played track from history and plays it immediately.
     Prev {
+        /// Voice channel to connect to if disconnected.
         vc_channel_id: ChannelId,
+        /// Channel to return metadata about the restarted previous track.
         respond: oneshot::Sender<Result<StartedTrackInfo>>,
     },
+
+    /// Retrieves an immutable snapshot of the current track and upcoming queue.
     QueueList {
+        /// Channel to return the current [`QueueSnapshot`].
         respond: oneshot::Sender<Result<QueueSnapshot>>,
     },
+
+    /// Clears all pending tracks from the queue without stopping the current track.
     QueueClear {
+        /// Channel to return the number of tracks that were removed.
         respond: oneshot::Sender<Result<usize>>,
     },
+
+    /// Removes a specific track from the queue by its 1-based position.
     QueueRemove {
+        /// 1-based index of the track to remove from the queue.
         position: usize,
+        /// Channel to return the removed [`QueuedTrack`].
         respond: oneshot::Sender<Result<QueuedTrack>>,
     },
+
+    /// Randomly shuffles the order of all tracks currently in the queue.
     QueueShuffle {
+        /// Channel to return the number of shuffled tracks.
         respond: oneshot::Sender<Result<usize>>,
     },
+
+    /// Jumps directly to a specific track in the queue (1-based index), skipping preceding tracks to history.
     QueueJump {
+        /// 1-based index of the track in the queue to jump to.
         position: usize,
+        /// Channel to return metadata about the newly started track.
         respond: oneshot::Sender<Result<StartedTrackInfo>>,
     },
+
+    /// Retrieves the list of recently played tracks in reverse chronological order.
     HistoryList {
+        /// Channel to return the history list.
         respond: oneshot::Sender<Result<Vec<QueuedTrack>>>,
     },
+
+    /// Replays a specific track from the history list by its 1-based index.
     HistoryJump {
+        /// 1-based index of the track in the history list (1 being the most recent).
         position: usize,
+        /// Channel to return metadata about the newly started track.
         respond: oneshot::Sender<Result<StartedTrackInfo>>,
     },
+
+    /// Retrieves live playback info for the currently playing track (position, pause state, live status).
     NowPlaying {
+        /// Channel to return the optional [`NowPlayingResponse`].
         respond: oneshot::Sender<Result<Option<NowPlayingResponse>>>,
     },
+
+    /// Internal event emitted when a track stream ends or disconnects in Songbird.
     TrackEnded {
+        /// The unique identifier of the track handle that ended.
         uuid: Uuid,
     },
+
+    /// Restarts the currently playing track from timestamp `0:00`.
     Restart {
+        /// Channel to return metadata about the restarted track.
         respond: oneshot::Sender<Result<StartedTrackInfo>>,
     },
+
+    /// Stops playback, clears the entire queue, leaves the voice channel, and cleans up resources.
     Stop {
+        /// Channel to return completion confirmation.
         respond: oneshot::Sender<Result<()>>,
     },
+
+    /// Pauses the audio stream of the currently playing track.
     Pause {
+        /// Channel to return completion confirmation.
         respond: oneshot::Sender<Result<()>>,
     },
+
+    /// Resumes playback of a paused audio stream.
     Resume {
+        /// Channel to return completion confirmation.
         respond: oneshot::Sender<Result<()>>,
     },
+
+    /// Seeks to an absolute timestamp (e.g. `1:30`) or a relative offset (e.g. `+30`, `-15`) within the current track.
     Seek {
+        /// String representation of the seek offset or target timestamp.
         input: String,
+        /// Channel to return the final calculated [`Duration`] position in the track.
         respond: oneshot::Sender<Result<Duration>>,
     },
+
+    /// Moves the bot to a different voice channel in the guild without interrupting playback.
     GoToChannel {
+        /// The target voice channel ID to move to.
         vc_channel_id: ChannelId,
+        /// Channel to return completion confirmation.
         respond: oneshot::Sender<Result<()>>,
     },
+}
+
+/// External services and configuration a [`GuildActor`] needs per guild.
+pub struct GuildActorDeps {
+    pub guild_id: GuildId,
+    pub manager: Arc<Songbird>,
+    pub reqwest_client: reqwest::Client,
+    pub stats_tx: StatsTx,
+    pub events_tx: broadcast::Sender<(u64, Option<NowPlayingResponse>)>,
+    pub youtube_api_key: String,
+    pub spotify_auth: Arc<SpotifyAuthCache>,
 }
 
 impl GuildActor {
     pub fn new(
-        guild_id: GuildId,
-        manager: Arc<Songbird>,
-        reqwest_client: reqwest::Client,
-        stats_tx: StatsTx,
-        events_tx: broadcast::Sender<(u64, Option<NowPlayingResponse>)>,
+        deps: GuildActorDeps,
         command_tx: mpsc::Sender<GuildCommand>,
         command_rx: mpsc::Receiver<GuildCommand>,
     ) -> Self {
+        let GuildActorDeps {
+            guild_id,
+            manager,
+            reqwest_client,
+            stats_tx,
+            events_tx,
+            youtube_api_key,
+            spotify_auth,
+        } = deps;
+
         Self {
             guild_id,
             manager,
@@ -209,6 +309,8 @@ impl GuildActor {
             events_tx,
             command_tx,
             command_rx,
+            youtube_api_key,
+            spotify_auth,
             state: GuildPlayer::default(),
             retry_count: 0,
             last_seek_at: None,
@@ -224,14 +326,20 @@ impl GuildActor {
         reqwest_client: reqwest::Client,
         stats_tx: StatsTx,
         events_tx: broadcast::Sender<(u64, Option<NowPlayingResponse>)>,
+        youtube_api_key: String,
+        spotify_auth: Arc<SpotifyAuthCache>,
     ) -> mpsc::Sender<GuildCommand> {
         let (tx, rx) = mpsc::channel(32);
         let actor = Self::new(
-            guild_id,
-            manager,
-            reqwest_client,
-            stats_tx,
-            events_tx,
+            GuildActorDeps {
+                guild_id,
+                manager,
+                reqwest_client,
+                stats_tx,
+                events_tx,
+                youtube_api_key,
+                spotify_auth,
+            },
             tx.clone(),
             rx,
         );
@@ -261,7 +369,14 @@ impl GuildActor {
         self.retry_count = 0;
         let requester: Arc<str> = Arc::from(requested_by_name.as_str());
 
-        if let Some(search_terms) = resolve_any_playlist(&self.reqwest_client, &query).await {
+        if let Some(search_terms) = resolve_any_playlist(
+            &self.reqwest_client,
+            &self.spotify_auth,
+            &query,
+            &self.youtube_api_key,
+        )
+            .await
+        {
             let total_tracks = search_terms.len();
             if total_tracks == 0 {
                 bail!("Playlist appears to be empty!");
@@ -290,7 +405,13 @@ impl GuildActor {
             });
         }
 
-        let query_url = build_query_url(&self.reqwest_client, &query).await;
+        let query_url = build_query_url(
+            &self.reqwest_client,
+            &self.spotify_auth,
+            &query,
+            &self.youtube_api_key,
+        )
+            .await;
 
         let first_track = self
             .start_playback(
@@ -315,7 +436,14 @@ impl GuildActor {
         let requester: Arc<str> = Arc::from(requested_by.name.as_str());
         let requested_by_id = requested_by.id.get();
 
-        if let Some(search_terms) = resolve_any_playlist(&self.reqwest_client, &query).await {
+        if let Some(search_terms) = resolve_any_playlist(
+            &self.reqwest_client,
+            &self.spotify_auth,
+            &query,
+            &self.youtube_api_key,
+        )
+            .await
+        {
             let total_tracks = search_terms.len();
             if total_tracks == 0 {
                 bail!("Playlist appears to be empty!");
@@ -351,7 +479,7 @@ impl GuildActor {
                     Some(first_queued.metadata),
                     OldTrackDisposition::History,
                 )
-                .await?;
+                    .await?;
             } else {
                 // If something is already playing, push song #1 to queue
                 self.state.queue.push_back(first_queued);
@@ -365,7 +493,13 @@ impl GuildActor {
             });
         }
 
-        let query_url = build_query_url(&self.reqwest_client, &query).await;
+        let query_url = build_query_url(
+            &self.reqwest_client,
+            &self.spotify_auth,
+            &query,
+            &self.youtube_api_key,
+        )
+            .await;
         let metadata = fetch_metadata(self.services(), &query_url).await?;
 
         let title = metadata.title.as_deref().unwrap_or("untitled").to_string();
@@ -435,7 +569,7 @@ impl GuildActor {
                 Duration::from_millis(500),
                 handle.seek_async(Duration::ZERO),
             )
-            .await
+                .await
             {
                 let _ = handle.play();
 
@@ -486,7 +620,7 @@ impl GuildActor {
             Some(current_track.metadata),
             OldTrackDisposition::History,
         )
-        .await
+            .await
     }
 
     async fn handle_skip(&mut self) -> Result<Option<String>> {
@@ -618,7 +752,7 @@ impl GuildActor {
             Some(target.metadata),
             OldTrackDisposition::History,
         )
-        .await?;
+            .await?;
 
         Ok(StartedTrackInfo { title, thumbnail })
     }
@@ -655,7 +789,7 @@ impl GuildActor {
             Some(target.metadata),
             OldTrackDisposition::History,
         )
-        .await?;
+            .await?;
 
         Ok(StartedTrackInfo { title, thumbnail })
     }
@@ -798,8 +932,13 @@ impl GuildActor {
             let resume_at = Duration::from_secs_f64(estimated_end_pos_sec.max(0.0));
 
             if let Some(current_track) = self.state.current_track.clone() {
-                let fresh_query_url =
-                    build_query_url(&self.reqwest_client, &current_track.query).await;
+                let fresh_query_url = build_query_url(
+                    &self.reqwest_client,
+                    &self.spotify_auth,
+                    &current_track.query,
+                    &self.youtube_api_key,
+                )
+                    .await;
 
                 let info = self
                     .start_playback(
@@ -881,7 +1020,13 @@ impl GuildActor {
             let _ = handle.stop();
         }
 
-        let fresh_query_url = build_query_url(&self.reqwest_client, &current_track.query).await;
+        let fresh_query_url = build_query_url(
+            &self.reqwest_client,
+            &self.spotify_auth,
+            &current_track.query,
+            &self.youtube_api_key,
+        )
+            .await;
 
         match prepare_and_play(
             self.services(),
@@ -891,10 +1036,10 @@ impl GuildActor {
             current_track.requested_by_id,
             Some(current_track.metadata),
         )
-        .await
+            .await
         {
             Ok(started) => {
-                self.last_live_reconnect_at = Some(std::time::Instant::now());
+                self.last_live_reconnect_at = Some(Instant::now());
                 self.state.current = Some(started.handle);
                 self.state.current_meta = Some(started.metadata);
                 self.last_seek_target_sec = 0.0;
@@ -942,7 +1087,7 @@ impl GuildActor {
             "Invalid input! Use timestamps like `1:30` or offsets like `+30`, `-15`, `+1:30`.",
         )?;
 
-        self.last_seek_at = Some(std::time::Instant::now());
+        self.last_seek_at = Some(Instant::now());
 
         let estimated_wall_clock = self.state.current_started_at.map_or(0.0, |st| {
             st.elapsed()
@@ -1135,7 +1280,7 @@ impl GuildActor {
             requested_by_id,
             cached_meta,
         )
-        .await?;
+            .await?;
 
         let handle_uuid = started.handle.uuid();
         let title = started

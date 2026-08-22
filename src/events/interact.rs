@@ -1,4 +1,4 @@
-use crate::features::{reaction_roles, tickets};
+use crate::features::{reaction_roles, search, tickets};
 use crate::features::{temp_voice, verification};
 
 use crate::core::config::state::BotData;
@@ -32,6 +32,13 @@ pub async fn on_interact(
 
             if custom_id.starts_with("btn_") {
                 reaction_roles::handle_button_interaction(ctx, component, data).await?;
+                return Ok(());
+            }
+
+            if (custom_id.starts_with("search_spotify_play:")
+                || custom_id.starts_with("search_youtube_play:"))
+                && search::handle_search_play(ctx, component, data).await?
+            {
                 return Ok(());
             }
 

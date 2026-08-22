@@ -6,7 +6,7 @@ use crate::features::giveaways::start_giveaway_worker;
 use crate::features::leveling::start_level_flush_worker;
 use crate::features::member_counter::start_member_counter_job;
 use crate::features::moderation::start_temp_ban_worker;
-use crate::features::music::web_command::WebCommand;
+use crate::features::music::WebCommand;
 use crate::features::music::{
     MusicState, start_music_stats_prune_worker, start_music_web_control_worker,
 };
@@ -32,7 +32,7 @@ use tracing::{debug, error, info};
 /// Parameters and dependencies required to initialize core bot state and background tasks.
 pub struct SetupParams<'a> {
     /// Optional Google Safe Browsing API key for URL safety checks.
-    pub safe_browsing_api_key: Option<String>,
+    pub google_cloud_api_key: String,
 
     /// `PostgreSQL` database connection pool.
     pub pool: Pool<Postgres>,
@@ -89,10 +89,10 @@ pub struct SetupParams<'a> {
 #[must_use]
 pub fn setup<'a>(
     params: SetupParams<'a>,
-) -> Pin<Box<dyn Future<Output = Result<BotData, Error>> + Send + 'a>> {
+) -> Pin<Box<dyn Future<Output=Result<BotData, Error>> + Send + 'a>> {
     Box::pin(async move {
         let SetupParams {
-            safe_browsing_api_key,
+            google_cloud_api_key,
             pool,
             redis_client,
             subscriber_client,
@@ -130,7 +130,7 @@ pub fn setup<'a>(
         });
 
         let spam_tracker = SpamTracker::new(redis_client.clone());
-        let client = safe_browsing_api_key.map(SafeBrowsingClient::new);
+        let client = SafeBrowsingClient::new(google_cloud_api_key);
         let audit_log_cache = Cache::new(10000);
 
         let shard_index: u32 = env::var("SHARD_INDEX")
@@ -153,7 +153,7 @@ pub fn setup<'a>(
             );
         }
 
-        let bad_words_cache = moka::future::Cache::new(10_000);
+        let bad_words_cache = Cache::new(10_000);
 
         let data = BotData {
             core: CoreServices {
@@ -163,6 +163,7 @@ pub fn setup<'a>(
                 guild_configs_cache,
                 username_tx,
                 config: AppConfig::from_env(),
+                spotify_auth: music_state.spotify_auth.clone(),
             },
             security: BotSecurity {
                 spam_tracker,

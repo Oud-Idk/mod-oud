@@ -149,10 +149,7 @@ pub async fn resolve_safe_browsing<'a>(
     external_links: &'a ExternalLinksRule,
     urls: &[String],
 ) -> FilterVerdict<'a> {
-    let Some(client) = &data.security.safe_browsing else {
-        trace!("Safe Browsing client is not configured; passing evaluation");
-        return FilterVerdict::Pass;
-    };
+    let client = &data.security.safe_browsing;
 
     let url_refs: Vec<&str> = urls.iter().map(String::as_str).collect();
 
@@ -163,8 +160,8 @@ pub async fn resolve_safe_browsing<'a>(
     match client.check_urls(&url_refs).await {
         Ok(threats_int) if !threats_int.is_empty() => {
             let threats_str = threats_int
-                .iter()
-                .map(|threat_type| format!("{}", ThreatType::from(*threat_type))) // From i32
+                .into_iter()
+                .map(|threat_type| format!("{}", ThreatType::from(threat_type))) // From i32
                 .collect::<Vec<String>>() // Collect as String as ThreatType implements Display
                 .join(", ");
 

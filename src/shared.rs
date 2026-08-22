@@ -18,6 +18,8 @@ pub mod permissions;
 pub mod placeholders;
 /// Internal serde helpers.
 mod serde_helpers;
+/// `Spotify` Client Credentials token cache (global auth state).
+pub mod spotify_auth;
 /// Username caching and batching.
 pub mod username_cache;
 /// Voice state caching.

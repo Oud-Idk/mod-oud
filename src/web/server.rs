@@ -5,7 +5,7 @@ use crate::core::config::state::{AppConfig, CoreServices};
 use crate::features::live_feed;
 use crate::features::live_feed::LogEvent;
 use crate::features::music::MusicState;
-use crate::features::music::web_command::WebCommandBus;
+use crate::features::music::WebCommandBus;
 use crate::shared::username_cache::UserUpdate;
 use crate::web::router::get_router;
 use axum::http::{HeaderValue, Method};
@@ -71,6 +71,7 @@ pub async fn start_web_server(deps: WebServerDeps) -> Result<(), Error> {
             guild_configs_cache: deps.guild_configs,
             username_tx: deps.username_tx,
             config: AppConfig::from_env(),
+            spotify_auth: deps.music_state.spotify_auth.clone(),
         },
         serenity_http: deps.http,
         message_event_tx: deps.tx,

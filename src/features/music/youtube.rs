@@ -80,17 +80,16 @@ fn extract_video_id(url: &str) -> Option<&str> {
 }
 
 /// Fetches ALL video URLs from a `YouTube` Playlist by paginating 50 items at a time!
-pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Option<Vec<String>> {
+pub async fn resolve_youtube_playlist(
+    client: &reqwest::Client,
+    url: &str,
+    api_key: &str,
+) -> Option<Vec<String>> {
     if !url.contains("youtube") {
         return None;
     }
 
     let playlist_id = extract_playlist_id(url)?;
-
-    let Ok(api_key) = std::env::var("YOUTUBE_API_KEY") else {
-        warn!("YOUTUBE_API_KEY environment variable is not set.");
-        return None;
-    };
 
     let mut video_urls = Vec::new();
     let mut page_token: Option<String> = None;
@@ -173,13 +172,12 @@ pub async fn resolve_youtube_playlist(client: &reqwest::Client, url: &str) -> Op
 }
 
 /// Resolves a single `YouTube` URL or ID into a canonical `YouTube` watch URL.
-pub async fn resolve_youtube_video(client: &reqwest::Client, url: &str) -> Option<String> {
+pub async fn resolve_youtube_video(
+    client: &reqwest::Client,
+    url: &str,
+    api_key: &str,
+) -> Option<String> {
     let video_id = extract_video_id(url)?;
-
-    let Ok(api_key) = std::env::var("YOUTUBE_API_KEY") else {
-        warn!("YOUTUBE_API_KEY environment variable is not set.");
-        return None;
-    };
 
     let api_url = format!(
         "https://www.googleapis.com/youtube/v3/videos?part=snippet&id={video_id}&key={api_key}"

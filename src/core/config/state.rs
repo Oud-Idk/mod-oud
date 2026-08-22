@@ -3,9 +3,9 @@ use crate::features::automod::{SafeBrowsingClient, SpamTracker};
 use crate::features::bad_words::CompiledRuleset;
 use crate::features::live_feed::LogEvent;
 use crate::features::message_logging::CachedAuditLogs;
-use crate::features::music::MusicState;
-use crate::features::music::web_command::WebCommandBus;
+use crate::features::music::{MusicState, WebCommandBus};
 use crate::features::tickets::TicketLogPayload;
+use crate::shared::spotify_auth::SpotifyAuthCache;
 use crate::shared::username_cache::UserUpdate;
 use serenity::all::{ChannelId, GuildId, ShardInfo};
 use std::sync::Arc;
@@ -38,6 +38,12 @@ pub struct CoreServices {
 
     /// Application environment configuration parameters.
     pub config: AppConfig,
+
+    /// Global cache for the `Spotify` Client Credentials token.
+    ///
+    /// Shared via `Arc` so any feature (music, future `Spotify` integrations,
+    /// etc.) can reuse the same auth state without a separate static.
+    pub spotify_auth: Arc<SpotifyAuthCache>,
 }
 
 /// Global environment configuration parameters loaded at startup.
@@ -55,12 +61,34 @@ pub struct AppConfig {
     /// Optional hCaptcha public site key.
     pub hc_site_key: Option<String>,
 
+    /// Optional Giphy API key
+    pub giphy_api_key: Option<String>,
+
+    /// Optional Klipy API key
+    pub klipy_api_key: Option<String>,
+
+    /// Google Cloud API key
+    pub google_cloud_api_key: String,
+
+    /// Optional Genius API key
+    pub genius_api_key: Option<String>,
+
+    /// Optional TMDB API key
+    pub tmdb_api_key: Option<String>,
+
+    /// Optional RAWG API key
+    pub rawg_api_key: Option<String>,
+
     /// Web server domain name (defaults to `"localhost:3000"`).
     pub domain: String,
 }
 
 impl AppConfig {
     /// Loads configuration parameters from process environment variables.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `GOOGLE_CLOUD_API_KEY` environment variable is not set.
     #[must_use]
     pub fn from_env() -> Self {
         Self {
@@ -68,7 +96,14 @@ impl AppConfig {
             cf_secret_key: std::env::var("TURNSTILE_SECRET").ok(),
             hc_secret_key: std::env::var("HCAPTCHA_SECRET").ok(),
             hc_site_key: std::env::var("HCAPTCHA_SITE_KEY").ok(),
+            giphy_api_key: std::env::var("GIPHY_API_KEY").ok(),
+            klipy_api_key: std::env::var("KLIPY_API_KEY").ok(),
             domain: std::env::var("DOMAIN").unwrap_or_else(|_| "localhost:3000".to_string()),
+            google_cloud_api_key: std::env::var("GOOGLE_CLOUD_API_KEY")
+                .expect("Environment variable GOOGLE_CLOUD_API_KEY not set."),
+            genius_api_key: std::env::var("GENIUS_API_KEY").ok(),
+            tmdb_api_key: std::env::var("TMDB_API_KEY").ok(),
+            rawg_api_key: std::env::var("RAWG_API_KEY").ok(),
         }
     }
 }
@@ -93,7 +128,7 @@ pub struct BotSecurity {
     pub spam_tracker: SpamTracker,
 
     /// Optional Google Safe Browsing client for checking malicious URLs.
-    pub safe_browsing: Option<SafeBrowsingClient>,
+    pub safe_browsing: SafeBrowsingClient,
 }
 
 /// Shared application state for the web dashboard server API.

@@ -9,7 +9,8 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
     match error {
         poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {error:?}"),
         poise::FrameworkError::Command { error, ctx, .. } => {
-            error!("Error in command `{}`: {:?}", ctx.command().name, error);
+            error!("Error in command `{}`: {error}", ctx.command().name);
+
             let _ = ctx
                 .send(
                     poise::CreateReply::default()
@@ -20,7 +21,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
         }
         error => {
             if let Err(e) = poise::builtins::on_error(error).await {
-                error!("Error while handling error: {}", e);
+                error!("Error while handling error: {e}");
             }
         }
     }

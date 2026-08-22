@@ -167,7 +167,7 @@ mod tests {
                     },
                 ..
             } => assert_eq!(requested_by_id, Some(UserId::from(123))),
-            _ => panic!("Expected MusicAction::Play variant"),
+            ClientMessage::Music { .. } => panic!("Expected MusicAction::Play variant"),
         }
     }
 
@@ -185,7 +185,7 @@ mod tests {
                     },
                 ..
             } => assert_eq!(requested_by_id, None),
-            _ => panic!("Expected MusicAction::Play variant"),
+            ClientMessage::Music { .. } => panic!("Expected MusicAction::Play variant"),
         }
     }
 

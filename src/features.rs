@@ -39,6 +39,8 @@ pub mod reaction_roles;
 pub mod reminder;
 /// Reporting system.
 pub mod reporting;
+/// Anime search system.
+pub mod search;
 /// Starboard for message highlights.
 pub mod starboard;
 /// Temporary voice channels.

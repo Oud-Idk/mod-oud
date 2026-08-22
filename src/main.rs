@@ -13,11 +13,13 @@ use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::events;
 use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::music::MusicState;
-use mod_oud::features::music::web_command::{WebCommand, WebCommandBus};
+use mod_oud::features::music::{WebCommand, WebCommandBus};
 use mod_oud::features::{
     automod, birthday, custom_commands, general, invite_tracking, leveling, media_only,
-    member_counter, moderation, music, raid_detection, reporting, temp_voice, tickets, warning,
+    member_counter, moderation, music, raid_detection, reporting, search, temp_voice, tickets,
+    warning,
 };
+use mod_oud::shared::spotify_auth::SpotifyAuthCache;
 use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::{WebServerDeps, start_web_server};
 use poise::serenity_prelude as serenity;
@@ -62,7 +64,12 @@ async fn async_main() -> Result<(), Error> {
     let web_command_bus = WebCommandBus::new(web_command_tx);
     let (music_stats_tx, music_stats_rx) = mpsc::unbounded_channel();
     music::start_music_stats_worker(pool.clone(), music_stats_rx);
-    let music_state = MusicState::new(music_stats_tx);
+    let spotify_auth = Arc::new(SpotifyAuthCache::new());
+    let music_state = MusicState::new(
+        music_stats_tx,
+        env_config.google_cloud_api_key.clone(),
+        spotify_auth.clone(),
+    );
 
     if env_config.run_web {
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
@@ -79,13 +86,13 @@ async fn async_main() -> Result<(), Error> {
             web_commands: web_command_bus.clone(),
             music_state: music_state.clone(),
         })
-        .await?;
+            .await?;
     }
 
     if env_config.run_bot {
         start_bot(BotDeps {
             token: env_config.token,
-            safe_browsing_api_key: env_config.safe_browsing_api_key,
+            google_cloud_api_key: env_config.google_cloud_api_key,
             pool,
             redis_client,
             subscriber_client,
@@ -96,7 +103,7 @@ async fn async_main() -> Result<(), Error> {
             web_command_rx,
             music_state,
         })
-        .await?;
+            .await?;
     } else {
         warn!(
             "Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional."
@@ -112,7 +119,7 @@ struct EnvConfig {
     token: String,
     database_url: String,
     redis_url: String,
-    safe_browsing_api_key: Option<String>,
+    google_cloud_api_key: String,
     run_bot: bool,
     run_web: bool,
     run_migrations: bool,
@@ -121,15 +128,15 @@ struct EnvConfig {
 /// Dependencies required to start the Discord bot gateway client.
 struct BotDeps {
     token: String,
-    safe_browsing_api_key: Option<String>,
+    google_cloud_api_key: String,
     pool: sqlx::PgPool,
     redis_client: Client,
     subscriber_client: SubscriberClient,
     guild_configs: moka::future::Cache<serenity::all::GuildId, GuildSettings>,
-    username_tx: tokio::sync::mpsc::Sender<UserUpdate>,
-    username_rx: tokio::sync::mpsc::Receiver<UserUpdate>,
+    username_tx: mpsc::Sender<UserUpdate>,
+    username_rx: mpsc::Receiver<UserUpdate>,
     reqwest_client: reqwest::Client,
-    web_command_rx: tokio::sync::mpsc::UnboundedReceiver<WebCommand>,
+    web_command_rx: mpsc::UnboundedReceiver<WebCommand>,
     music_state: MusicState,
 }
 
@@ -150,8 +157,6 @@ fn init_logging() {
 
 /// Reads all environment configuration into an [`EnvConfig`].
 fn load_env() -> EnvConfig {
-    let safe_browsing_api_key: Option<String> = env::var("SAFE_BROWSING_KEY").ok();
-
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment table, `DISCORD_TOKEN`");
     trace!("Discord token loaded successfully.");
@@ -164,11 +169,9 @@ fn load_env() -> EnvConfig {
         env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
     trace!("Redis URL loaded successfully.");
 
-    if safe_browsing_api_key.is_some() {
-        trace!("Safe Browsing API key loaded successfully.");
-    } else {
-        warn!("Safe Browsing API key not found. URL checking will be disabled.");
-    }
+    let google_cloud_api_key = env::var("GOOGLE_CLOUD_API_KEY")
+        .expect("Expected a Google Cloud API key in the environment table, `GOOGLE_CLOUD_API_KEY`");
+    trace!("Google Cloud API Key loaded successfully.");
 
     let run_bot: bool = env::var("RUN_BOT")
         .unwrap_or_else(|_| "true".to_string())
@@ -201,7 +204,7 @@ fn load_env() -> EnvConfig {
         token,
         database_url,
         redis_url,
-        safe_browsing_api_key,
+        google_cloud_api_key,
         run_bot,
         run_web,
         run_migrations,
@@ -333,7 +336,7 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
         })
         .setup(move |ctx, ready, _framework| {
             setup(SetupParams {
-                safe_browsing_api_key: deps.safe_browsing_api_key,
+                google_cloud_api_key: deps.google_cloud_api_key,
                 pool: deps.pool,
                 redis_client: deps.redis_client.clone(),
                 subscriber_client: deps.subscriber_client.clone(),
@@ -409,6 +412,7 @@ fn build_commands() -> Vec<poise::Command<BotData, Error>> {
         member_counter::counters(),
         media_only::media_only(),
         music::music(),
+        search::search(),
         register(),
     ]
 }

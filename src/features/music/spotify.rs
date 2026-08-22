@@ -1,14 +1,6 @@
+use crate::shared::spotify_auth::SpotifyAuthCache;
 use serde::Deserialize;
-use std::time::Duration;
-use tokio::sync::RwLock;
-use tokio::time::Instant;
 use tracing::{debug, warn};
-
-#[derive(Deserialize)]
-struct TokenResponse {
-    access_token: String,
-    expires_in: u64,
-}
 
 #[derive(Deserialize)]
 struct PlaylistTracksResponse {
@@ -32,59 +24,19 @@ struct SpotifyArtist {
     name: Option<String>,
 }
 
-struct CachedToken {
-    token: String,
-    expires_at: Instant,
-}
-
-// Store this in your app state or GuildActor/PlaybackServices
-static TOKEN_CACHE: RwLock<Option<CachedToken>> = RwLock::const_new(None);
-
-/// Fetches a temporary access token using Spotify Client Credentials
-async fn get_spotify_api_token(client: &reqwest::Client) -> Option<String> {
-    {
-        let cache = TOKEN_CACHE.read().await;
-        if let Some(cached) = cache.as_ref()
-            && cached.expires_at > Instant::now() + Duration::from_mins(1)
-        {
-            return Some(cached.token.clone());
-        }
-    }
-
-    let client_id = std::env::var("SPOTIFY_CLIENT_ID").ok()?;
-    let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET").ok()?;
-
-    let res = client
-        .post("https://accounts.spotify.com/api/token")
-        .basic_auth(&client_id, Some(&client_secret))
-        .form(&[("grant_type", "client_credentials")])
-        .send()
-        .await
-        .ok()?;
-
-    let token_res: TokenResponse = res.json().await.ok()?;
-
-    {
-        let mut cache = TOKEN_CACHE.write().await;
-        *cache = Some(CachedToken {
-            token: token_res.access_token.clone(),
-            expires_at: Instant::now()
-                + Duration::from_secs(token_res.expires_in.saturating_sub(60)),
-        });
-    }
-
-    Some(token_res.access_token)
-}
-
 /// Fetches ALL tracks from a Spotify Playlist by paginating 100 tracks at a time!
-pub async fn resolve_spotify_playlist(client: &reqwest::Client, url: &str) -> Option<Vec<String>> {
+pub async fn resolve_spotify_playlist(
+    client: &reqwest::Client,
+    spotify_auth: &SpotifyAuthCache,
+    url: &str,
+) -> Option<Vec<String>> {
     if !url.contains("open.spotify.com/playlist/") && !url.contains("spotify:playlist:") {
         return None;
     }
 
     let playlist_id = url.split("/playlist/").nth(1)?.split('?').next()?;
 
-    let Some(token) = get_spotify_api_token(client).await else {
+    let Some(token) = spotify_auth.get_token(client).await else {
         warn!("Could not retrieve Spotify API token. Check SPOTIFY_CLIENT_ID / SECRET env vars.");
         return None;
     };
@@ -188,7 +140,11 @@ struct TrackResponse {
 }
 
 /// Resolves a single Spotify track URL or URI into a `YouTube` search term via Spotify Web API.
-pub async fn resolve_spotify_track(client: &reqwest::Client, url: &str) -> Option<String> {
+pub async fn resolve_spotify_track(
+    client: &reqwest::Client,
+    spotify_auth: &SpotifyAuthCache,
+    url: &str,
+) -> Option<String> {
     if !url.contains("open.spotify.com/track/") && !url.contains("spotify:track:") {
         return None;
     }
@@ -200,7 +156,7 @@ pub async fn resolve_spotify_track(client: &reqwest::Client, url: &str) -> Optio
         url.split("/track/").nth(1)?.split('?').next()?
     };
 
-    let Some(token) = get_spotify_api_token(client).await else {
+    let Some(token) = spotify_auth.get_token(client).await else {
         warn!("Could not retrieve Spotify API token for track resolution.");
         return None;
     };

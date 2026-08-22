@@ -1,6 +1,7 @@
 use crate::features::music::actor::GuildActor;
 use crate::features::music::actor::GuildCommand;
 use crate::features::music::stats::StatsTx;
+use crate::shared::spotify_auth::SpotifyAuthCache;
 use serde;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -11,7 +12,9 @@ use songbird::tracks::TrackHandle;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::broadcast;
 use tokio::sync::{Mutex, mpsc};
+use tokio::time::Instant;
 
 #[derive(Debug, Serialize)]
 pub struct StartedTrackInfo {
@@ -19,15 +22,27 @@ pub struct StartedTrackInfo {
     pub thumbnail: Option<String>,
 }
 
+/// The outcome of an enqueue operation processed by [`GuildCommand::QueueAdd`].
+///
+/// Differentiates between whether the track started playing immediately (because
+/// the bot was idle), was appended to an existing queue, or resulted in a full
+/// playlist being enqueued.
 pub enum QueueAddOutcome {
+    /// The bot was idle, so the track was loaded and started playing immediately.
     Played(StartedTrackInfo),
+
+    /// Music was already playing, so the single track was appended to the back of the queue.
     Queued(StartedTrackInfo),
+
+    /// A playlist was resolved and enqueued (with the first track either started or queued,
+    /// and the remaining tracks populated in the queue).
     PlaylistQueued {
+        /// Total number of tracks found and queued from the playlist.
         count: usize,
+        /// Metadata of the first track in the playlist.
         first_track: StartedTrackInfo,
     },
 }
-
 pub enum PlayOutcome {
     Single(StartedTrackInfo),
     Playlist {
@@ -85,13 +100,13 @@ impl GuildPlayer {
         self.push_history_batch(std::iter::once(track));
     }
 
-    pub fn push_history_batch(&mut self, tracks: impl IntoIterator<Item = QueuedTrack>) {
+    pub fn push_history_batch(&mut self, tracks: impl IntoIterator<Item=QueuedTrack>) {
         Self::push_history_to(&mut self.history, tracks);
     }
 
     pub fn push_history_to(
         history: &mut Vec<QueuedTrack>,
-        tracks: impl IntoIterator<Item = QueuedTrack>,
+        tracks: impl IntoIterator<Item=QueuedTrack>,
     ) {
         history.extend(tracks);
         if history.len() > HISTORY_LIMIT {
@@ -100,9 +115,6 @@ impl GuildPlayer {
         }
     }
 }
-
-use tokio::sync::broadcast;
-use tokio::time::Instant;
 
 /// Global music state shared with the web server: per-guild actors, stats, and
 /// the events channel used to push now-playing updates.
@@ -114,17 +126,27 @@ pub struct MusicState {
     pub stats_tx: StatsTx,
     /// Broadcast channel for now-playing updates.
     pub events_tx: broadcast::Sender<(u64, Option<NowPlayingResponse>)>,
+    /// The `YouTube` API key
+    pub youtube_api_key: String,
+    /// Shared `Spotify` auth cache (global state).
+    pub spotify_auth: Arc<SpotifyAuthCache>,
 }
 
 impl MusicState {
     /// Creates an empty music state with a fresh events channel.
     #[must_use]
-    pub fn new(stats_tx: StatsTx) -> Self {
+    pub fn new(
+        stats_tx: StatsTx,
+        youtube_api_key: String,
+        spotify_auth: Arc<SpotifyAuthCache>,
+    ) -> Self {
         let (events_tx, _) = broadcast::channel(256);
         Self {
             actors: Arc::default(),
             stats_tx,
             events_tx,
+            youtube_api_key,
+            spotify_auth,
         }
     }
 
@@ -149,7 +171,9 @@ impl MusicState {
             manager,
             reqwest_client,
             self.stats_tx.clone(),
-            self.events_tx.clone(), // Pass events channel to the actor
+            self.events_tx.clone(),
+            self.youtube_api_key.clone(),
+            self.spotify_auth.clone(),
         );
         map.insert(guild_id, tx.clone());
         tx
