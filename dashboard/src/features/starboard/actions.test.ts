@@ -77,7 +77,12 @@ describe("Starboard Server Actions", () => {
         it("should reject with a friendly Zod message when the destination channel is missing", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
-            const invalidInput = { ...validInput, starboard_channel_id: null };
+            // Deliberately malformed input: the runtime Zod schema must reject
+            // it even though the static input type forbids `null` here.
+            const invalidInput = {
+                ...validInput,
+                starboard_channel_id: null,
+            } as unknown as Parameters<typeof saveStarboardConfigAction>[1];
 
             await expect(saveStarboardConfigAction("guild_123", invalidInput)).rejects.toThrow(
                 "Please select a destination channel for the starboard."

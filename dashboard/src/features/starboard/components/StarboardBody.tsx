@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 
 import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfigEditor } from "./StarboardConfigEditor";
-import type { StarboardConfig, StarboardConfigInput } from "../types";
+import type { StarboardConfig, StarboardConfigDraft, StarboardConfigInput } from "../types";
 import { starboardConfigInputSchema } from "../types";
 import { toast } from "sonner";
 
@@ -43,11 +43,14 @@ export function StarboardBody({
         isDirty,
         handleSave: originalHandleSave,
         handleCancel,
-    } = useConfigForm<StarboardConfigInput | null>({
+    } = useConfigForm<StarboardConfigDraft | null>({
         initialConfig: activeConfig,
         onSave: async (updatedConfig) => {
             if (updatedConfig) {
-                const savedId = await onSave(updatedConfig);
+                // The draft may hold a transiently-null channel; the server
+                // action's Zod schema rejects it with the friendly message
+                // surfaced by handleSave's error toast.
+                const savedId = await onSave(updatedConfig as StarboardConfigInput);
                 router.push(`/dashboard/${guildId}/starboard?id=${savedId}`);
             }
         },

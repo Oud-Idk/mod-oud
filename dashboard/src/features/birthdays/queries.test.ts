@@ -58,8 +58,7 @@ describe("Birthdays Query Module", () => {
                 timezone: "UTC",
                 birthdayRoleId: null,
                 requireYear: false,
-                messageWithYear: DEFAULT_BIRTHDAY_MESSAGE,
-                messageWithoutYear: DEFAULT_BIRTHDAY_MESSAGE,
+                message: DEFAULT_BIRTHDAY_MESSAGE,
             };
 
             const result = await saveBirthdayConfig("guild_123", validConfig);
@@ -80,8 +79,7 @@ describe("Birthdays Query Module", () => {
                 timezone: "UTC",
                 birthdayRoleId: null,
                 requireYear: false,
-                messageWithYear: DEFAULT_BIRTHDAY_MESSAGE,
-                messageWithoutYear: DEFAULT_BIRTHDAY_MESSAGE,
+                message: DEFAULT_BIRTHDAY_MESSAGE,
             };
             vi.mocked(saveGuildConfigField).mockRejectedValue(new Error("connection lost"));
 

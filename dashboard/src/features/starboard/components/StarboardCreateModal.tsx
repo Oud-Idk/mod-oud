@@ -34,7 +34,7 @@ export function StarboardCreateModal({
 
     const handleCreateSubmit = (e: React.SubmitEvent): void => {
         e.preventDefault();
-        if (modalChannelId !== null) {
+        if (modalChannelId === null) {
             toast.error("Please select a destination channel.");
             return;
         }

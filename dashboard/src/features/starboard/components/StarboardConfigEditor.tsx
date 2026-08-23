@@ -20,15 +20,15 @@ import { toast } from "sonner";
 
 import { getAvailableChannelOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { STARBOARD_CONFIG } from "@/features/starboard/builderConfigs";
-import { starboardConfigInputSchema, type StarboardConfigInput } from "../types";
+import { starboardConfigInputSchema, type StarboardConfigDraft } from "../types";
 
 interface StarboardConfigProps {
-    config: StarboardConfigInput;
+    config: StarboardConfigDraft;
     channelMap: Record<string, string>;
     roleMap?: Record<string, string>;
     isPending: boolean;
     onDelete: (id: string) => Promise<void>;
-    onChange: (updated: StarboardConfigInput) => void;
+    onChange: (updated: StarboardConfigDraft) => void;
     setIsEmpty: (isEmpty: SetStateAction<boolean>) => void;
     isEmpty: boolean;
     guildId: string;

@@ -72,4 +72,12 @@ export const starboardConfigSchema = z.object({
 
 export type StarboardConfigInput = z.input<typeof starboardConfigInputSchema>;
 export type SaveableStarboardConfig = z.infer<typeof starboardConfigInputSchema>;
+
+/// Form-draft shape for the editor: `starboard_channel_id` may be transiently
+/// null while editing. Saving stays gated by `starboardConfigInputSchema`,
+/// whose "Please select a destination channel" message surfaces via the
+/// editor banner and error toast.
+export type StarboardConfigDraft = Omit<StarboardConfigInput, "starboard_channel_id"> & {
+    starboard_channel_id: string | null;
+};
 export type StarboardConfig = z.infer<typeof starboardConfigSchema>;
