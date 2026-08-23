@@ -46,13 +46,22 @@ export function StarboardBody({
     } = useConfigForm<StarboardConfigDraft | null>({
         initialConfig: activeConfig,
         onSave: async (updatedConfig) => {
-            if (updatedConfig) {
-                // The draft may hold a transiently-null channel; the server
-                // action's Zod schema rejects it with the friendly message
-                // surfaced by handleSave's error toast.
-                const savedId = await onSave(updatedConfig as StarboardConfigInput);
-                router.push(`/dashboard/${guildId}/starboard?id=${savedId}`);
+            if (!updatedConfig) {
+                return;
             }
+
+            // Re-validate the draft before crossing into typed-input land:
+            // handleSave normally gates this already, but this callback is the
+            // hook's public contract and must not trust its caller.
+            const parsed = starboardConfigInputSchema.safeParse(updatedConfig);
+            if (!parsed.success) {
+                throw new Error(
+                    parsed.error.issues[0]?.message ?? "Invalid starboard configuration"
+                );
+            }
+
+            const savedId = await onSave(parsed.data);
+            router.push(`/dashboard/${guildId}/starboard?id=${savedId}`);
         },
     });
 
