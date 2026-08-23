@@ -2,8 +2,9 @@ use crate::core::config::state::Context;
 use crate::features::search::youtube;
 use anyhow::{Context as _, Result};
 use poise::CreateReply;
-use rand::seq::IndexedRandom;
 use serenity::all::{ButtonStyle, CreateActionRow, CreateButton};
+
+use crate::features::search::choose_or_first;
 
 /// Searches for videos on `YouTube`.
 #[poise::command(slash_command)]
@@ -23,11 +24,8 @@ pub async fn youtube(
 
     let response = client.search_videos(&query, max_results).await?;
 
-    let chosen_video = if is_random && !response.items.is_empty() {
-        response.items.choose(&mut rand::rng()).cloned()
-    } else {
-        response.items.into_iter().next()
-    };
+    let chosen_video =
+        choose_or_first(response.items, is_random);
 
     let video =
         chosen_video.with_context(|| format!("No YouTube videos found for '{query}'"))?;

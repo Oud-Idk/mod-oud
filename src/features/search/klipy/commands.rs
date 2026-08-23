@@ -3,9 +3,8 @@ use crate::features::search::klipy;
 use crate::features::search::klipy::models::KlipyMediaType;
 use anyhow::{Context as _, Result};
 use poise::{ChoiceParameter, CreateReply};
-use rand::seq::IndexedRandom;
-use serenity::all::CreateEmbed;
-use crate::constants::BRAND_COLOR;
+
+use crate::features::search::choose_or_first;
 
 /// Search Klipy for GIFs, Memes, Stickers, or Clips.
 #[poise::command(slash_command)]
@@ -38,33 +37,13 @@ pub async fn klipy(
 
     let response = client.search(selected_type, &query, per_page).await?;
 
-    let chosen_item = if is_random && !response.data.data.is_empty() {
-        response.data.data.choose(&mut rand::rng()).cloned()
-    } else {
-        response.data.data.into_iter().next()
-    };
+    let chosen_item = choose_or_first(response.data.data, is_random);
 
     let item = chosen_item
         .with_context(|| format!("No {} found for '{}'", selected_type.name(), query))?;
 
-    let image_url = item
-        .get_media_url()
+    let embed = klipy::message::create_klipy_message(&item, &query, selected_type)
         .with_context(|| "Failed to extract media URL from Klipy response.")?;
-
-    let title = item
-        .title
-        .as_deref()
-        .filter(|t| !t.trim().is_empty())
-        .unwrap_or(&query);
-
-    let mut embed = CreateEmbed::new()
-        .title(format!("[{}] {}", selected_type.name(), title))
-        .image(image_url)
-        .color(BRAND_COLOR);
-
-    if let Some(url) = item.get_web_url() {
-        embed = embed.url(url);
-    }
 
     let reply = CreateReply::default().embed(embed);
     ctx.send(reply).await?;

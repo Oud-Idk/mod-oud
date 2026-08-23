@@ -2,7 +2,8 @@ use crate::core::config::state::Context;
 use crate::features::search::urban;
 use anyhow::Context as _;
 use poise::CreateReply;
-use rand::seq::IndexedRandom;
+
+use crate::features::search::choose_or_first;
 
 /// Searches Urban Dictionary for a word or phrase definition.
 #[poise::command(slash_command)]
@@ -18,12 +19,8 @@ pub async fn urban(
     let response = client.define(&query).await?;
     let is_random = random.unwrap_or(false);
 
-    // Pick a random definition from the search results list, or take the top one
-    let chosen_def = if is_random && !response.list.is_empty() {
-        response.list.choose(&mut rand::rng()).cloned()
-    } else {
-        response.list.into_iter().next()
-    };
+    let chosen_def =
+        choose_or_first(response.list, is_random);
 
     let def = chosen_def.with_context(|| format!("No definition found for '{query}'"))?;
 

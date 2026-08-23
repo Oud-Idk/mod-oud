@@ -71,7 +71,7 @@ pub struct SetupParams<'a> {
 /// Initializes core bot state, hydrates local caches, and starts background worker tasks upon gateway login.
 ///
 /// # Arguments
-/// * `safe_browsing_api_key` - Optional Google Safe Browsing API key for URL safety checks.
+/// * `google_cloud_api_key` - Optional Google Safe Browsing API key for URL safety checks.
 /// * `pool` - `PostgreSQL` database connection pool.
 /// * `redis_client` - Primary Redis client connection.
 /// * `subscriber_client` - Redis Pub/Sub subscriber client.

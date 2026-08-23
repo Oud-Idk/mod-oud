@@ -3,8 +3,8 @@ use crate::features::search::giphy;
 use anyhow::Context as _;
 use anyhow::Result;
 use poise::CreateReply;
-use rand::seq::IndexedRandom;
-use serenity::all::CreateEmbed;
+
+use crate::features::search::choose_or_first;
 
 /// Searches for animated GIFs via GIPHY or rolls a random one.
 #[poise::command(slash_command)]
@@ -28,32 +28,15 @@ pub async fn giphy(
     let client = giphy::client::GiphyClient::new(reqwest_client, api_key);
 
     let is_random = random.unwrap_or(false);
-    // If random, fetch 25 candidates to pick from; otherwise just fetch 1
     let limit = if is_random { 25 } else { 1 };
 
     let response = client.search_gif(&query, Some(limit)).await?;
 
-    // Pick random from the list or take the first one
-    let chosen_gif = if is_random {
-        let mut rng = rand::rng();
-        response.data.choose(&mut rng).cloned()
-    } else {
-        response.data.into_iter().next()
-    };
+    let chosen_gif = choose_or_first(response.data, is_random);
 
     let gif = chosen_gif.with_context(|| format!("No GIF found for '{query}'"))?;
 
-    let title = gif
-        .title
-        .as_deref()
-        .filter(|t| !t.trim().is_empty())
-        .unwrap_or(&query);
-
-    let embed = CreateEmbed::new()
-        .title(title)
-        .url(&gif.url)
-        .image(&gif.images.original.url);
-
+    let embed = giphy::message::create_giphy_message(&gif, &query);
     let reply = CreateReply::default().embed(embed);
     ctx.send(reply).await?;
 

@@ -1,14 +1,10 @@
 use super::models::UrbanDefinition;
 use crate::constants::BRAND_COLOR;
+use crate::features::search::truncate;
 use serenity::all::{CreateEmbed, CreateEmbedFooter};
 
 pub fn create_urban_message(entry: &UrbanDefinition) -> CreateEmbed {
-    // Discord max description is 4096 chars
-    let definition = if entry.definition.len() > 2048 {
-        format!("{}...", &entry.definition[..2045])
-    } else {
-        entry.definition.clone()
-    };
+    let definition = truncate(&entry.definition, 2048);
 
     let mut embed = CreateEmbed::new()
         .color(BRAND_COLOR)
@@ -16,13 +12,8 @@ pub fn create_urban_message(entry: &UrbanDefinition) -> CreateEmbed {
         .url(&entry.permalink)
         .description(definition);
 
-    // Discord max field value is 1024 chars
     if !entry.example.trim().is_empty() {
-        let example = if entry.example.len() > 1024 {
-            format!("{}...", &entry.example[..1021])
-        } else {
-            entry.example.clone()
-        };
+        let example = truncate(&entry.example, 1024);
         embed = embed.field("Example", example, false);
     }
 

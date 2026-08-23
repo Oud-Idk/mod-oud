@@ -201,6 +201,7 @@ impl GeniusClient {
 
         final_output
     }
+
     async fn search_song(&self, query: &str) -> Result<Option<Song>, reqwest::Error> {
         let response = self.search_songs(query).await?;
 
@@ -232,11 +233,18 @@ impl GeniusClient {
     }
 
     pub async fn search_lyrics_for_discord(&self, query: &str) -> Result<Option<String>, reqwest::Error> {
-        let Some(song) = self.search_raw_song_by_query(query).await? else {
+        let Some(raw) = self.search_raw_song_by_query(query).await? else {
             return Ok(None);
         };
-        let details = Self::extract_details(&song);
-        Ok(Some(Self::format_for_discord(&details)))
+
+        let result = tokio::task::spawn_blocking(move || {
+            let details = Self::extract_details(&raw);
+            Self::format_for_discord(&details)
+        })
+        .await
+        .expect("lyrics scrape task panicked");
+
+        Ok(Some(result))
     }
 }
 

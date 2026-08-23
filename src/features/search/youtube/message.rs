@@ -1,5 +1,6 @@
 use super::models::YouTubeSearchResult;
 use crate::constants::BRAND_COLOR;
+use crate::features::search::truncate;
 use serenity::all::{CreateEmbed, CreateEmbedFooter};
 
 pub fn create_youtube_message(video: &YouTubeSearchResult) -> CreateEmbed {
@@ -12,11 +13,7 @@ pub fn create_youtube_message(video: &YouTubeSearchResult) -> CreateEmbed {
         .url(&video_url);
 
     if !video.snippet.description.trim().is_empty() {
-        let desc = if video.snippet.description.len() > 300 {
-            format!("{}...", &video.snippet.description[..297])
-        } else {
-            video.snippet.description.clone()
-        };
+        let desc = truncate(&video.snippet.description, 300);
         embed = embed.description(desc);
     }
 
@@ -24,7 +21,6 @@ pub fn create_youtube_message(video: &YouTubeSearchResult) -> CreateEmbed {
         embed = embed.image(thumb);
     }
 
-    // Format publish date if available (e.g. 2024-02-15)
     let published = video
         .snippet
         .published_at

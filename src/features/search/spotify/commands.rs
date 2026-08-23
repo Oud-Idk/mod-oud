@@ -2,8 +2,9 @@ use crate::core::config::state::Context;
 use crate::features::search::spotify;
 use anyhow::{Context as _, Result};
 use poise::CreateReply;
-use rand::seq::IndexedRandom;
 use serenity::all::{ButtonStyle, CreateActionRow, CreateButton};
+
+use crate::features::search::choose_or_first;
 
 /// Searches for tracks on Spotify.
 #[poise::command(slash_command)]
@@ -26,11 +27,8 @@ pub async fn spotify(
 
     let tracks = response.tracks.map(|t| t.items).unwrap_or_default();
 
-    let chosen_track = if is_random && !tracks.is_empty() {
-        tracks.choose(&mut rand::rng()).cloned()
-    } else {
-        tracks.into_iter().next()
-    };
+    let chosen_track =
+        choose_or_first(tracks, is_random);
 
     let track =
         chosen_track.with_context(|| format!("No Spotify tracks found for '{query}'"))?;
