@@ -46,9 +46,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set lowercased image prefix
-        run: echo "IMAGE_PREFIX=ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
-
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -57,13 +54,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Docker Meta (Backend)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-backend
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}-backend:latest
-            ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,scope=backend,mode=max
 
@@ -73,9 +78,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set lowercased image prefix
-        run: echo "IMAGE_PREFIX=ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
-
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -83,6 +85,15 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker Meta (Dashboard)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-dashboard
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
 
       - uses: docker/build-push-action@v6
         with:
@@ -92,16 +103,13 @@ jobs:
             NEXT_PUBLIC_BACKEND_URL=${{ vars.PUBLIC_BACKEND_URL || 'http://localhost:8080' }}
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
             NEXT_PUBLIC_HCAPTCHA_SITE_KEY=${{ vars.NEXT_PUBLIC_HCAPTCHA_SITE_KEY }}
-          tags: |
-            ${{ env.IMAGE_PREFIX }}-dashboard:latest
-            ${{ env.IMAGE_PREFIX }}-dashboard:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=dashboard
           cache-to: type=gha,scope=dashboard,mode=max
 
   deploy:
-    needs: [build-backend, build-dashboard]
-    # Skips cleanly until you opt in: set repo variable DEPLOY_ENABLED=true
-    # once the VPS secrets (VPS_HOST / VPS_USER / VPS_SSH_KEY) are configured.
+    needs: [ build-backend, build-dashboard ]
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
