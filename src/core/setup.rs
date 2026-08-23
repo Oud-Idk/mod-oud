@@ -6,9 +6,9 @@ use crate::features::giveaways::start_giveaway_worker;
 use crate::features::leveling::start_level_flush_worker;
 use crate::features::member_counter::start_member_counter_job;
 use crate::features::moderation::start_temp_ban_worker;
-use crate::features::music::WebCommand;
 use crate::features::music::{
-    MusicState, start_music_stats_prune_worker, start_music_web_control_worker,
+    MusicState, MusicWebControlParams, start_music_stats_prune_worker,
+    start_music_web_control_worker,
 };
 use crate::features::raid_detection::reconcile_active_raids;
 use crate::features::reminder::start_reminder_worker;
@@ -58,9 +58,6 @@ pub struct SetupParams<'a> {
     /// Shared HTTP client.
     pub reqwest_client: reqwest::Client,
 
-    /// Receiver channel for web dashboard commands.
-    pub web_command_rx: UnboundedReceiver<WebCommand>,
-
     /// Music playback state manager.
     pub music_state: MusicState,
 
@@ -80,7 +77,6 @@ pub struct SetupParams<'a> {
 /// * `username_tx` - Channel sender for queueing username updates.
 /// * `username_rx` - Channel receiver for processing username updates.
 /// * `reqwest_client` - Shared HTTP client.
-/// * `web_command_rx` - Receiver channel for web dashboard commands.
 /// * `music_state` - Music playback state manager.
 /// * `ready` - Serenity gateway `Ready` event payload.
 ///
@@ -101,7 +97,6 @@ pub fn setup<'a>(
             username_tx,
             username_rx,
             reqwest_client,
-            web_command_rx,
             music_state,
             ready,
         } = params;
@@ -145,11 +140,16 @@ pub fn setup<'a>(
 
         if let Some(songbird) = songbird::get(ctx).await {
             start_music_web_control_worker(
-                web_command_rx,
-                music_state.clone(),
-                songbird,
-                reqwest_client.clone(),
-                ctx.http.clone(),
+                subscriber_client.clone(),
+                MusicWebControlParams {
+                    redis_client: redis_client.clone(),
+                    music_state: music_state.clone(),
+                    manager: songbird,
+                    reqwest_client: reqwest_client.clone(),
+                    http: ctx.http.clone(),
+                    shard_index,
+                    total_shards,
+                },
             );
         }
 
@@ -278,7 +278,7 @@ pub fn start_jobs(params: JobParams) {
         guild_configs_cache.clone(),
     );
 
-    start_giveaway_worker(db.clone(), ctx.http.clone());
+    start_giveaway_worker(db.clone(), ctx.http.clone(), redis_client.clone());
 
     start_birthday_worker(
         db.clone(),

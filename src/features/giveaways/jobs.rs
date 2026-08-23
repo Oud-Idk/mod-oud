@@ -1,5 +1,7 @@
 use crate::features::giveaways::database::{fetch_expired_giveaways, mark_giveaway_finished};
 use crate::features::giveaways::types::Giveaway;
+use crate::shared::locking::acquire_lock;
+use fred::clients::Client;
 use rand::prelude::IndexedRandom;
 use serenity::all::{ChannelId, Http, MessageId, ReactionType, User, UserId};
 use sqlx::PgPool;
@@ -44,16 +46,39 @@ pub async fn get_all_reaction_users(
 }
 
 /// Spawns the background task loop that periodically checks for expired giveaways.
-pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>) {
+pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client) {
     tokio::spawn(async move {
         info!("Giveaway background worker started!");
+
+        let lock_key = "lock:giveaway_worker";
+        let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
         let mut interval = tokio::time::interval(Duration::from_secs(10));
 
         loop {
             interval.tick().await;
 
-            if let Err(e) = process_expired_giveaways(&pool, &http).await {
-                error!("Error processing expired giveaways: {:?}", e);
+            match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
+                Ok(Some(guard)) => {
+                    if let Err(e) = process_expired_giveaways(&pool, &http).await {
+                        error!(error = ?e, "Error processing expired giveaways");
+                    }
+
+                    match guard.release().await {
+                        Ok(true) => trace!("Released giveaway lock successfully"),
+                        Ok(false) => {
+                            warn!("Attempted to release giveaway lock, but ownership was lost");
+                        }
+                        Err(e) => {
+                            error!(error = ?e, "Failed to release giveaway lock due to Redis error");
+                        }
+                    }
+                }
+                Ok(None) => {
+                    trace!("Lock busy; skipping iteration");
+                }
+                Err(e) => {
+                    error!(error = ?e, "Failed to coordinate Redis lock for giveaways");
+                }
             }
         }
     });

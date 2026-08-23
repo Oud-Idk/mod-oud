@@ -13,7 +13,7 @@ use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::events;
 use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::music::MusicState;
-use mod_oud::features::music::{WebCommand, WebCommandBus};
+use mod_oud::features::music::WebCommandBus;
 use mod_oud::features::{
     automod, birthday, custom_commands, general, invite_tracking, leveling, media_only,
     member_counter, moderation, music, raid_detection, reporting, search, temp_voice, tickets,
@@ -60,8 +60,6 @@ async fn async_main() -> Result<(), Error> {
 
     let (username_tx, username_rx) = mpsc::channel::<UserUpdate>(5000);
 
-    let (web_command_tx, web_command_rx) = mpsc::unbounded_channel();
-    let web_command_bus = WebCommandBus::new(web_command_tx);
     let (music_stats_tx, music_stats_rx) = mpsc::unbounded_channel();
     music::start_music_stats_worker(pool.clone(), music_stats_rx);
     let spotify_auth = Arc::new(SpotifyAuthCache::new());
@@ -69,10 +67,16 @@ async fn async_main() -> Result<(), Error> {
         music_stats_tx,
         env_config.google_cloud_api_key.clone(),
         spotify_auth.clone(),
+        redis_client.clone(),
     );
+
+    // Forwards Redis now-playing events into the local broadcast channel so
+    // dashboard WebSockets receive updates regardless of where the actor runs.
+    music::start_music_event_bridge(subscriber_client.clone(), music_state.events_tx.clone());
 
     if env_config.run_web {
         let (tx, _) = broadcast::channel::<LogEvent>(1024);
+        let web_command_bus = WebCommandBus::new(redis_client.clone(), subscriber_client.clone());
 
         start_web_server(WebServerDeps {
             db: pool.clone(),
@@ -83,7 +87,7 @@ async fn async_main() -> Result<(), Error> {
             tx,
             reqwest_client: reqwest_client.clone(),
             username_tx: username_tx.clone(),
-            web_commands: web_command_bus.clone(),
+            web_commands: web_command_bus,
             music_state: music_state.clone(),
         })
             .await?;
@@ -100,7 +104,6 @@ async fn async_main() -> Result<(), Error> {
             username_tx,
             username_rx,
             reqwest_client,
-            web_command_rx,
             music_state,
         })
             .await?;
@@ -136,7 +139,6 @@ struct BotDeps {
     username_tx: mpsc::Sender<UserUpdate>,
     username_rx: mpsc::Receiver<UserUpdate>,
     reqwest_client: reqwest::Client,
-    web_command_rx: mpsc::UnboundedReceiver<WebCommand>,
     music_state: MusicState,
 }
 
@@ -345,7 +347,6 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
                 username_tx: deps.username_tx.clone(),
                 username_rx: deps.username_rx,
                 reqwest_client: deps.reqwest_client.clone(),
-                web_command_rx: deps.web_command_rx,
                 music_state: deps.music_state,
                 ready,
             })

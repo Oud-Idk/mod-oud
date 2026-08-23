@@ -1,11 +1,12 @@
+use crate::features::music::keys;
 use crate::features::music::player::{
     OldTrackDisposition, PlaybackServices, SeekMode, fetch_metadata, install_new_track,
     is_live_stream, parse_timestamp, prepare_and_play,
 };
 use crate::features::music::spotify::{resolve_spotify_playlist, resolve_spotify_track};
 use crate::features::music::state::{
-    GuildPlayer, NowPlayingResponse, PlayOutcome, QueueAddOutcome, QueueSnapshot, QueuedTrack,
-    StartedTrackInfo,
+    GuildPlayer, NowPlayingEvent, NowPlayingResponse, PlayOutcome, QueueAddOutcome, QueueSnapshot,
+    QueuedTrack, StartedTrackInfo,
 };
 use crate::features::music::stats::{StatsTx, record_track_end, record_track_start};
 use crate::features::music::youtube::{resolve_youtube_playlist, resolve_youtube_video};
@@ -13,6 +14,8 @@ use crate::shared::spotify_auth::SpotifyAuthCache;
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use core::time::Duration;
+use fred::clients::Client;
+use fred::interfaces::PubsubInterface;
 use rand::seq::SliceRandom;
 use serenity::all::{ChannelId, GuildId, User};
 use songbird::CoreEvent;
@@ -22,7 +25,7 @@ use songbird::input::AuxMetadata;
 use songbird::tracks::TrackHandle;
 use std::sync::Arc;
 use std::vec::IntoIter;
-use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::{Instant, timeout};
 use tracing::{debug, warn};
 use uuid::Uuid;
@@ -50,7 +53,7 @@ pub struct GuildActor {
     pub manager: Arc<Songbird>,
     pub reqwest_client: reqwest::Client,
     pub stats_tx: StatsTx,
-    pub events_tx: broadcast::Sender<(u64, Option<NowPlayingResponse>)>,
+    pub redis: Client,
     pub command_rx: mpsc::Receiver<GuildCommand>,
     pub command_tx: mpsc::Sender<GuildCommand>,
     pub state: GuildPlayer,
@@ -280,7 +283,7 @@ pub struct GuildActorDeps {
     pub manager: Arc<Songbird>,
     pub reqwest_client: reqwest::Client,
     pub stats_tx: StatsTx,
-    pub events_tx: broadcast::Sender<(u64, Option<NowPlayingResponse>)>,
+    pub redis: Client,
     pub youtube_api_key: String,
     pub spotify_auth: Arc<SpotifyAuthCache>,
 }
@@ -296,7 +299,7 @@ impl GuildActor {
             manager,
             reqwest_client,
             stats_tx,
-            events_tx,
+            redis,
             youtube_api_key,
             spotify_auth,
         } = deps;
@@ -306,7 +309,7 @@ impl GuildActor {
             manager,
             reqwest_client,
             stats_tx,
-            events_tx,
+            redis,
             command_tx,
             command_rx,
             youtube_api_key,
@@ -325,7 +328,7 @@ impl GuildActor {
         manager: Arc<Songbird>,
         reqwest_client: reqwest::Client,
         stats_tx: StatsTx,
-        events_tx: broadcast::Sender<(u64, Option<NowPlayingResponse>)>,
+        redis: Client,
         youtube_api_key: String,
         spotify_auth: Arc<SpotifyAuthCache>,
     ) -> mpsc::Sender<GuildCommand> {
@@ -336,7 +339,7 @@ impl GuildActor {
                 manager,
                 reqwest_client,
                 stats_tx,
-                events_tx,
+                redis,
                 youtube_api_key,
                 spotify_auth,
             },
@@ -375,7 +378,7 @@ impl GuildActor {
             &query,
             &self.youtube_api_key,
         )
-            .await
+        .await
         {
             let total_tracks = search_terms.len();
             if total_tracks == 0 {
@@ -411,7 +414,7 @@ impl GuildActor {
             &query,
             &self.youtube_api_key,
         )
-            .await;
+        .await;
 
         let first_track = self
             .start_playback(
@@ -442,7 +445,7 @@ impl GuildActor {
             &query,
             &self.youtube_api_key,
         )
-            .await
+        .await
         {
             let total_tracks = search_terms.len();
             if total_tracks == 0 {
@@ -479,7 +482,7 @@ impl GuildActor {
                     Some(first_queued.metadata),
                     OldTrackDisposition::History,
                 )
-                    .await?;
+                .await?;
             } else {
                 // If something is already playing, push song #1 to queue
                 self.state.queue.push_back(first_queued);
@@ -499,7 +502,7 @@ impl GuildActor {
             &query,
             &self.youtube_api_key,
         )
-            .await;
+        .await;
         let metadata = fetch_metadata(self.services(), &query_url).await?;
 
         let title = metadata.title.as_deref().unwrap_or("untitled").to_string();
@@ -569,7 +572,7 @@ impl GuildActor {
                 Duration::from_millis(500),
                 handle.seek_async(Duration::ZERO),
             )
-                .await
+            .await
             {
                 let _ = handle.play();
 
@@ -620,7 +623,7 @@ impl GuildActor {
             Some(current_track.metadata),
             OldTrackDisposition::History,
         )
-            .await
+        .await
     }
 
     async fn handle_skip(&mut self) -> Result<Option<String>> {
@@ -752,7 +755,7 @@ impl GuildActor {
             Some(target.metadata),
             OldTrackDisposition::History,
         )
-            .await?;
+        .await?;
 
         Ok(StartedTrackInfo { title, thumbnail })
     }
@@ -789,7 +792,7 @@ impl GuildActor {
             Some(target.metadata),
             OldTrackDisposition::History,
         )
-            .await?;
+        .await?;
 
         Ok(StartedTrackInfo { title, thumbnail })
     }
@@ -938,7 +941,7 @@ impl GuildActor {
                     &current_track.query,
                     &self.youtube_api_key,
                 )
-                    .await;
+                .await;
 
                 let info = self
                     .start_playback(
@@ -1026,7 +1029,7 @@ impl GuildActor {
             &current_track.query,
             &self.youtube_api_key,
         )
-            .await;
+        .await;
 
         match prepare_and_play(
             self.services(),
@@ -1036,7 +1039,7 @@ impl GuildActor {
             current_track.requested_by_id,
             Some(current_track.metadata),
         )
-            .await
+        .await
         {
             Ok(started) => {
                 self.last_live_reconnect_at = Some(Instant::now());
@@ -1220,7 +1223,7 @@ impl GuildActor {
 
     pub async fn broadcast_state(&self) {
         let now_playing = self.handle_now_playing().await;
-        let _ = self.events_tx.send((self.guild_id.get(), now_playing));
+        self.publish_now_playing(now_playing).await;
     }
 
     /// Broadcasts track state while overriding `position_sec` with the exact seek target,
@@ -1230,7 +1233,29 @@ impl GuildActor {
         if let Some(ref mut np) = now_playing {
             np.position_sec = override_pos_sec;
         }
-        let _ = self.events_tx.send((self.guild_id.get(), now_playing));
+        self.publish_now_playing(now_playing).await;
+    }
+
+    /// Serializes the current playback state and publishes it to the shared
+    /// Redis events channel so every web instance can forward it to clients.
+    async fn publish_now_playing(&self, now_playing: Option<NowPlayingResponse>) {
+        let event = NowPlayingEvent {
+            guild_id: self.guild_id.get(),
+            now_playing: serde_json::to_value(now_playing).ok(),
+        };
+
+        let payload = match serde_json::to_string(&event) {
+            Ok(payload) => payload,
+            Err(e) => {
+                warn!(guild_id = %self.guild_id, error = %e, "Failed to serialize now-playing event");
+                return;
+            }
+        };
+
+        let published: Result<i64, _> = self.redis.publish(keys::events_channel(), payload).await;
+        if let Err(e) = published {
+            debug!(guild_id = %self.guild_id, error = ?e, "Failed to publish now-playing event");
+        }
     }
 
     pub async fn run(mut self) {
@@ -1280,7 +1305,7 @@ impl GuildActor {
             requested_by_id,
             cached_meta,
         )
-            .await?;
+        .await?;
 
         let handle_uuid = started.handle.uuid();
         let title = started

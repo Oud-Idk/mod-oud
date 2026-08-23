@@ -2,6 +2,7 @@ mod commands;
 mod counters;
 mod database;
 mod jobs;
+mod keys;
 mod types;
 mod web;
 

@@ -1,12 +1,17 @@
 use crate::core::config::state::WebState;
 use crate::features::music::actor::{GuildCommand, PlayPayload};
+use crate::features::music::keys;
 use crate::features::music::state::MusicState;
-use crate::features::music::web_command::{ClientMessage, MusicAction, ServerMessage, WebCommand};
+use crate::features::music::web_command::{
+    ClientMessage, MusicAction, RemoteMusicCommand, RemoteMusicResult, ServerMessage,
+};
 use axum::Router;
 use axum::extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
 use axum::response::Response;
 use axum::routing::get;
+use fred::clients::{Client, SubscriberClient};
+use fred::interfaces::{EventInterface, PubsubInterface};
 use futures::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use poise::serenity_prelude as serenity;
@@ -15,7 +20,7 @@ use serde_with::{DisplayFromStr, serde_as};
 use songbird::Songbird;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc::{Sender, UnboundedReceiver};
+use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tracing::{debug, error, instrument, warn};
 
@@ -26,30 +31,124 @@ pub struct WsQuery {
     pub guild_id: u64,
 }
 
-/// Drains web control commands and forwards them to the target guild's music
-/// actor. Runs in the bot process so it has direct access to the music actors,
-/// songbird manager and Discord HTTP client.
+/// Dependencies for the Redis-backed music web control worker.
+pub struct MusicWebControlParams {
+    /// Redis client used to publish command results.
+    pub redis_client: Client,
+    /// Shared state manager holding the guild music actors.
+    pub music_state: MusicState,
+    /// Songbird voice manager.
+    pub manager: Arc<Songbird>,
+    /// Shared HTTP client for external requests.
+    pub reqwest_client: reqwest::Client,
+    /// Serenity HTTP client for Discord API calls.
+    pub http: Arc<serenity::Http>,
+    /// This process's shard index (`SHARD_INDEX`).
+    pub shard_index: u32,
+    /// Total number of shards in the bot's sharding plan (`TOTAL_SHARDS`).
+    pub total_shards: u32,
+}
+
+/// Listens on the shared Redis commands channel and executes dashboard music
+/// commands against this instance's music actors.
+///
+/// Every bot instance receives every command; only the instance whose shard
+/// owns the target guild answers. Runs in the bot process so it has direct
+/// access to the music actors, songbird manager and Discord HTTP client.
 pub fn start_music_web_control_worker(
-    mut rx: UnboundedReceiver<WebCommand>,
-    music_state: MusicState,
-    manager: Arc<Songbird>,
-    reqwest_client: reqwest::Client,
-    http: Arc<serenity::Http>,
+    subscriber_client: SubscriberClient,
+    params: MusicWebControlParams,
 ) {
-    tokio::spawn(async move {
-        while let Some(command) = rx.recv().await {
+    let params = Arc::new(params);
+
+    subscriber_client.on_message(move |msg| {
+        let params = Arc::clone(&params);
+
+        async move {
+            if msg.channel != keys::commands_channel() {
+                return Ok(());
+            }
+
+            let payload = match msg.value.convert::<String>() {
+                Ok(val) => val,
+                Err(e) => {
+                    warn!(error = ?e, "Failed to convert music web command payload");
+                    return Ok(());
+                }
+            };
+
+            let command: RemoteMusicCommand = match serde_json::from_str(&payload) {
+                Ok(command) => command,
+                Err(e) => {
+                    warn!(error = %e, payload = %payload, "Failed to parse music web command");
+                    return Ok(());
+                }
+            };
+
+            let guild_id = serenity::GuildId::new(command.guild_id);
+            if !owns_guild(guild_id, params.shard_index, params.total_shards) {
+                debug!(%guild_id, "Music command for a guild on another shard; ignoring");
+                return Ok(());
+            }
+
+            debug!(%guild_id, request_id = %command.request_id, "Executing dashboard music command");
+
             let outcome = handle_music_command(
-                &music_state,
-                &manager,
-                &reqwest_client,
-                &http,
-                command.guild_id,
+                &params.music_state,
+                &params.manager,
+                &params.reqwest_client,
+                &params.http,
+                guild_id,
                 command.action,
             )
             .await;
-            let _ = command.reply.send(outcome);
+
+            let result = match outcome {
+                Ok(data) => RemoteMusicResult::success(command.request_id.clone(), data),
+                Err(e) => RemoteMusicResult::failure(command.request_id.clone(), e),
+            };
+
+            let reply = match serde_json::to_string(&result) {
+                Ok(reply) => reply,
+                Err(e) => {
+                    error!(error = %e, "Failed to serialize music command result");
+                    return Ok(());
+                }
+            };
+
+            let published: Result<i64, _> = params
+                .redis_client
+                .publish(command.reply_to.as_str(), reply)
+                .await;
+            if let Err(e) = published {
+                warn!(
+                    request_id = %result.request_id,
+                    error = ?e,
+                    "Failed to publish music command result"
+                );
+            }
+
+            Ok(())
         }
     });
+
+    tokio::spawn(async move {
+        match subscriber_client.subscribe(keys::commands_channel()).await {
+            Ok(()) => debug!("Subscribed to music web commands channel"),
+            Err(e) => error!(error = ?e, "Failed to subscribe to music web commands"),
+        }
+    });
+}
+
+/// Returns true when Discord routes `guild_id`'s gateway events to this
+/// process's shard. Discord assigns a guild to shard
+/// `(guild_id >> 22) % total_shards`, so ownership is deterministic and needs
+/// no shared registry.
+fn owns_guild(guild_id: serenity::GuildId, shard_index: u32, total_shards: u32) -> bool {
+    if total_shards == 0 {
+        return false;
+    }
+    ((guild_id.get() >> 22) % u64::from(total_shards)) == u64::from(shard_index)
 }
 
 #[instrument(skip(music_state, manager, reqwest_client, http))]
@@ -293,54 +392,19 @@ async fn handle_text_message(
         }
     };
 
-    let (reply_tx, reply_rx) = oneshot::channel();
-    let command = WebCommand {
-        guild_id,
-        action,
-        reply: reply_tx,
-    };
+    let outcome = state.web_commands.send(guild_id, action).await;
 
-    if let Err(e) = state.web_commands.send(command) {
-        error!(error = %e, "Failed to enqueue WebSocket control command");
-        let ack = ServerMessage::Ack {
-            request_id,
-            ok: false,
-            error: Some(e),
-            data: None,
-        };
-        let _ = sender
-            .send(Message::Text(Utf8Bytes::from(
-                serde_json::to_string(&ack).unwrap_or_default(),
-            )))
-            .await;
-        return;
-    }
-
-    let reply = tokio::time::timeout(Duration::from_secs(30), reply_rx).await;
-
-    let ack = match reply {
-        Ok(Ok(Ok(data))) => ServerMessage::Ack {
+    let ack = match outcome {
+        Ok(data) => ServerMessage::Ack {
             request_id,
             ok: true,
             error: None,
             data: Some(data),
         },
-        Ok(Ok(Err(e))) => ServerMessage::Ack {
+        Err(e) => ServerMessage::Ack {
             request_id,
             ok: false,
             error: Some(e),
-            data: None,
-        },
-        Ok(Err(_)) => ServerMessage::Ack {
-            request_id,
-            ok: false,
-            error: Some("Music actor closed the command channel".into()),
-            data: None,
-        },
-        Err(_) => ServerMessage::Ack {
-            request_id,
-            ok: false,
-            error: Some("Command timed out".into()),
             data: None,
         },
     };
@@ -354,4 +418,29 @@ async fn handle_text_message(
 /// Registers the music web route for the WebSocket control connection.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new().route("/ws/control", get(ws_handler))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guild_routes_to_its_own_shard() {
+        // Single shard: everything is ours.
+        assert!(owns_guild(serenity::GuildId::new(1), 0, 1));
+        assert!(owns_guild(serenity::GuildId::new(u64::MAX), 0, 1));
+
+        // Two shards: guild's top bits decide the owner.
+        let shard_one_guild: u64 = (1 << 22) + 12_345;
+        let shard_two_guild: u64 = 2 << 22;
+        assert!(owns_guild(serenity::GuildId::new(shard_one_guild), 1, 2));
+        assert!(!owns_guild(serenity::GuildId::new(shard_one_guild), 0, 2));
+        assert!(owns_guild(serenity::GuildId::new(shard_two_guild), 0, 2));
+        assert!(!owns_guild(serenity::GuildId::new(shard_two_guild), 1, 2));
+    }
+
+    #[test]
+    fn zero_total_shards_never_owns() {
+        assert!(!owns_guild(serenity::GuildId::new(1), 0, 0));
+    }
 }
