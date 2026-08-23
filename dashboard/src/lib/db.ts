@@ -4,11 +4,10 @@ declare global {
     var pgPool: Pool | undefined;
 }
 
-const connectionString = process.env.DATABASE_URL;
-
-if (connectionString === undefined) {
-    throw new Error("Please define the DATABASE_URL environment variable inside .env.local");
-}
+// Fall back to a dummy URL during build-time page analysis
+const connectionString =
+    process.env.DATABASE_URL ||
+    "postgresql://postgres:postgres@localhost:5432/placeholder";
 
 const db = globalThis.pgPool ?? new Pool({ connectionString });
 

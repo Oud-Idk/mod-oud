@@ -1,3 +1,4 @@
+use anyhow::Result;
 use serenity::all::{ChannelId, GuildId, Http};
 use tracing::{debug, info, warn};
 
@@ -5,7 +6,7 @@ pub async fn delete_entire_category(
     http: impl AsRef<Http>,
     guild_id: GuildId,
     category_id: ChannelId,
-) -> Result<usize, serenity::Error> {
+) -> Result<usize> {
     let http_ref = http.as_ref();
 
     let channels = guild_id.channels(http_ref).await?;

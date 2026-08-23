@@ -216,7 +216,7 @@ async fn create_verify_channel(
     guild_id: GuildId,
     everyone_role_id: RoleId,
     verified_role_id: RoleId,
-) -> serenity::Result<GuildChannel> {
+) -> Result<GuildChannel, Error> {
     let everyone_overwrite = PermissionOverwrite {
         allow: Permissions::VIEW_CHANNEL | Permissions::READ_MESSAGE_HISTORY,
         deny: Permissions::SEND_MESSAGES | Permissions::ADD_REACTIONS,
@@ -234,10 +234,10 @@ async fn create_verify_channel(
         .topic("Please verify here to get access to the server!")
         .permissions(vec![everyone_overwrite, verified_overwrite]);
 
-    guild_id.create_channel(http, channel_builder).await
+    Ok(guild_id.create_channel(http, channel_builder).await?)
 }
 
-async fn create_verify_role(http: &Arc<Http>, guild_id: GuildId) -> serenity::Result<Role> {
+async fn create_verify_role(http: &Arc<Http>, guild_id: GuildId) -> Result<Role, Error> {
     let default_permissions =
         Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::READ_MESSAGE_HISTORY;
 
@@ -246,7 +246,7 @@ async fn create_verify_role(http: &Arc<Http>, guild_id: GuildId) -> serenity::Re
         .permissions(default_permissions)
         .hoist(false)
         .mentionable(false);
-    guild_id.create_role(http, role_builder).await
+    Ok(guild_id.create_role(http, role_builder).await?)
 }
 
 async fn remove_perms_from_everyone(

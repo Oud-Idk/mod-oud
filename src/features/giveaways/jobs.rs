@@ -14,7 +14,7 @@ pub async fn get_all_reaction_users(
     channel_id: ChannelId,
     message_id: MessageId,
     reaction: &ReactionType,
-) -> Result<Vec<User>, serenity::Error> {
+) -> anyhow::Result<Vec<User>> {
     let mut all_users = Vec::new();
     let mut last_user_id: Option<UserId> = None;
 
