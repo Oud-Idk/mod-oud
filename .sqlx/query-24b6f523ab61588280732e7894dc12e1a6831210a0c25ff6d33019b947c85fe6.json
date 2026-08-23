@@ -1,0 +1,134 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, guild_id, host_id, channel_id, message_id, prize, winner_count,\n               end_time, is_finished,\n               message_layout AS \"message!: Json<MessageLayout>\"\n        FROM giveaways\n        WHERE end_time <= NOW() AND is_finished = FALSE AND message_id IS NOT NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "host_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "host_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "message_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "prize",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "prize"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "winner_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "winner_count"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "end_time",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "end_time"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "is_finished",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "is_finished"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "message!: Json<MessageLayout>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "message_layout"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "24b6f523ab61588280732e7894dc12e1a6831210a0c25ff6d33019b947c85fe6"
+}

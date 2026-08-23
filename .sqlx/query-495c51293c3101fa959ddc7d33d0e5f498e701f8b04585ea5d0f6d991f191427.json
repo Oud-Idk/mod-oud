@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM starred_messages WHERE original_message_id = $1 AND starboard_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "495c51293c3101fa959ddc7d33d0e5f498e701f8b04585ea5d0f6d991f191427"
+}

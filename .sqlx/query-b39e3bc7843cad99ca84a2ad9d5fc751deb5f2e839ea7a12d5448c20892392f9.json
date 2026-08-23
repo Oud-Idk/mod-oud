@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE reported_messages SET user_banned = TRUE WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b39e3bc7843cad99ca84a2ad9d5fc751deb5f2e839ea7a12d5448c20892392f9"
+}

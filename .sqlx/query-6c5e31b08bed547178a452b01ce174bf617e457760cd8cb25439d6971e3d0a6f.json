@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT count\n        FROM inviter_counts\n        WHERE guild_id = $1 AND inviter_id = $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "inviter_counts",
+            "name": "count"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6c5e31b08bed547178a452b01ce174bf617e457760cd8cb25439d6971e3d0a6f"
+}

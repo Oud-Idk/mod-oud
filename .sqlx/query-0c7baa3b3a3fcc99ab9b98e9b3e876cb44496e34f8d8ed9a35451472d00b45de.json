@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE giveaways SET message_id = NULL WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0c7baa3b3a3fcc99ab9b98e9b3e876cb44496e34f8d8ed9a35451472d00b45de"
+}

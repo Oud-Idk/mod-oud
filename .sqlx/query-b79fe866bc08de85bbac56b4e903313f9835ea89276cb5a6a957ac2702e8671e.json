@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT guild_id\n        FROM guild_configs\n        WHERE (settings->'birthday'->>'enabled')::boolean = TRUE\n          AND (settings->'birthday'->>'announcement_hour')::int = $1\n          AND settings->'birthday'->>'channel_id' IS NOT NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guild_configs",
+            "name": "guild_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b79fe866bc08de85bbac56b4e903313f9835ea89276cb5a6a957ac2702e8671e"
+}

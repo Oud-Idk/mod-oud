@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT guild_id, user_id, role_id\n        FROM active_birthday_roles\n        WHERE expires_at <= CURRENT_TIMESTAMP\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "active_birthday_roles",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "active_birthday_roles",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "role_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "active_birthday_roles",
+            "name": "role_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "62146b97342d945d444bdae3e7b3b050bb67643038bad3d526cb02898583dd90"
+}

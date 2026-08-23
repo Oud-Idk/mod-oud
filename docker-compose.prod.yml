@@ -1,0 +1,160 @@
+# Production stack for a VPS fronted by a Cloudflare Tunnel (cloudflared).
+#
+# Traffic model:
+#   users ──TLS──▶ Cloudflare Edge ──tunnel──▶ cloudflared ──▶ dashboard/web containers
+#
+# No inbound ports are opened on the VPS; db/redis have no published ports at all.
+#
+# One-time setup:
+#   1. Create a remotely-managed tunnel in Cloudflare Zero Trust and put its
+#      token in .env as TUNNEL_TOKEN.
+#   2. In the tunnel's public hostnames, route:
+#        dash.<your-domain>  →  http://dashboard:3000
+#        api.<your-domain>   →  http://web:8080
+#   3. In .env set:
+#        DOMAIN=https://dash.<your-domain>            # links posted by the bot
+#        CORS_ORIGINS=https://dash.<your-domain>      # browser origins for the API
+#        NEXT_PUBLIC_BACKEND_URL=https://api.<your-domain>   # baked into the dashboard build
+#   4. Add the OAuth redirect URI in Discord's developer portal:
+#        https://dash.<your-domain>/api/auth/callback/discord
+#
+# Deploy: docker compose -f docker-compose.prod.yml up -d --build
+
+# Keep container logs from filling the VPS disk.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:18.4
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-discordbot}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8.8-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - redis-data:/data
+    environment:
+      - REDIS_ARGS=--requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env} --appendonly yes
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '${REDIS_PASSWORD}' ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  bot-shard-0:
+    build: .
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      SHARD_INDEX: 0
+      TOTAL_SHARDS: ${TOTAL_SHARDS:?Set TOTAL_SHARDS in .env}
+      RUN_BOT: "true"
+      RUN_WEB: "false"
+      RUN_MIGRATIONS: "true"
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+
+  bot-shard-1:
+    build: .
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      SHARD_INDEX: 1
+      TOTAL_SHARDS: ${TOTAL_SHARDS:?Set TOTAL_SHARDS in .env}
+      RUN_BOT: "true"
+      RUN_WEB: "false"
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+
+  web:
+    build: .
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    ports:
+      # Loopback-only: reachable for local curl checks; cloudflared uses the
+      # internal network, not this binding.
+      - "127.0.0.1:8080:8080"
+    environment:
+      SHARD_INDEX: "0"
+      TOTAL_SHARDS: ${TOTAL_SHARDS:?Set TOTAL_SHARDS in .env}
+      RUN_BOT: "false"
+      RUN_WEB: "true"
+      PORT: 8080
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        # Baked into the client bundle at build time.
+        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:?Set NEXT_PUBLIC_BACKEND_URL in .env}
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+      - ./dashboard/.env.local
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      BACKEND_INTERNAL_URL: http://web:8080
+      # Required for NextAuth behind a reverse proxy / tunnel.
+      AUTH_TRUST_HOST: "true"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - web
+      - dashboard
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:?Set TUNNEL_TOKEN in .env}
+
+volumes:
+  postgres_data:
+  redis-data:

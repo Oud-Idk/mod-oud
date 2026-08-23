@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE tickets t\n        SET message_count = t.message_count + sub.cnt\n        FROM (\n            SELECT ticket_channel_id, COUNT(*) as cnt\n            FROM UNNEST($1::bigint[]) AS ticket_channel_id\n            GROUP BY ticket_channel_id\n        ) sub\n        WHERE t.channel_id = sub.ticket_channel_id;\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c81641de16e39a47df58c31016fc5f4be29aae9c00d02e74bc882a58d5231920"
+}

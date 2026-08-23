@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO media_only_channels (\n            channel_id, guild_id, enabled,\n            allow_images, allow_videos, allow_audio, allow_gif,\n            allow_links, allow_embedded_text,\n            auto_thread, thread_name_template,\n            delete_warning_after_secs, exempt_roles\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\n        ON CONFLICT (channel_id) DO UPDATE SET\n            enabled = EXCLUDED.enabled,\n            allow_images = EXCLUDED.allow_images,\n            allow_videos = EXCLUDED.allow_videos,\n            allow_audio = EXCLUDED.allow_audio,\n            allow_gif = EXCLUDED.allow_gif,\n            allow_links = EXCLUDED.allow_links,\n            allow_embedded_text = EXCLUDED.allow_embedded_text,\n            auto_thread = EXCLUDED.auto_thread,\n            thread_name_template = EXCLUDED.thread_name_template,\n            delete_warning_after_secs = EXCLUDED.delete_warning_after_secs,\n            exempt_roles = EXCLUDED.exempt_roles\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Text",
+        "Int2",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0f85c1724a00313ad97e1cc98d862044d007335fe09d0c0f63483bdb70c9025e"
+}

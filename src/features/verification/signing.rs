@@ -59,6 +59,6 @@ pub fn generate_verification_link(
     let signature = hex::encode(mac.finalize().into_bytes());
 
     format!(
-        "https://{domain}/verify/?user_id={user_id}&guild_id={guild_id}&expires={expires}&sig={signature}"
+        "{domain}/verify/?user_id={user_id}&guild_id={guild_id}&expires={expires}&sig={signature}"
     )
 }

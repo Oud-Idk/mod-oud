@@ -1,0 +1,135 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            channel_id,\n            message AS \"message: Json<MessageLayout>\",\n            r_type AS \"r_type: ReminderType\",\n            days_of_week,\n            time_start,\n            time_end,\n            interval_seconds,\n            timezone\n        FROM reminders\n        WHERE next_trigger_at <= $1 AND is_active = true\n        ORDER BY next_trigger_at ASC\n        LIMIT $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "message: Json<MessageLayout>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "message"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "r_type: ReminderType",
+        "type_info": {
+          "Custom": {
+            "name": "reminder_type",
+            "kind": {
+              "Enum": [
+                "SINGLE",
+                "RECURRING"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "r_type"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "days_of_week",
+        "type_info": "Int4Array",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "days_of_week"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "time_start",
+        "type_info": "Time",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "time_start"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "time_end",
+        "type_info": "Time",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "time_end"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "interval_seconds",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "interval_seconds"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "timezone",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "timezone"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "2b6cbc0073f81d231d0971c0ed291a7cda53b10d8dcae77cf935d9a3358c95ea"
+}

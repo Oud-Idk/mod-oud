@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO birthday_logs (guild_id, user_id, year_sent, channel_id, message_id)\n        VALUES ($1, $2, $3, $4, $5)\n        ON CONFLICT (guild_id, user_id, year_sent) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b85b19268fcba283253de2b5b4508ea6bac04101002841c22af1b10ba58041d0"
+}

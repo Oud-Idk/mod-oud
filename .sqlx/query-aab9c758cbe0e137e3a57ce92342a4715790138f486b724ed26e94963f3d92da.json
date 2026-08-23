@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE music_play_events\n        SET listened_ms = COALESCE(listened_ms, COALESCE(duration_ms, 0))\n        WHERE listened_ms IS NULL\n          AND played_at < NOW() - ($1::text)::interval\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "aab9c758cbe0e137e3a57ce92342a4715790138f486b724ed26e94963f3d92da"
+}

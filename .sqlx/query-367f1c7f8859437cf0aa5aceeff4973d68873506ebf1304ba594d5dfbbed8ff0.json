@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT level_requirement, roles_to_add, remove_previous_roles\n        FROM level_rewards\n        WHERE guild_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "level_requirement",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "level_rewards",
+            "name": "level_requirement"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "roles_to_add",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "level_rewards",
+            "name": "roles_to_add"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "remove_previous_roles",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "level_rewards",
+            "name": "remove_previous_roles"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "367f1c7f8859437cf0aa5aceeff4973d68873506ebf1304ba594d5dfbbed8ff0"
+}

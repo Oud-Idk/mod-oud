@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE reported_messages SET user_timed_out = TRUE WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a16af862b7006a0ea81a1b9c2a5986d94e298513bac9c16d91a3d3ce0f464c9c"
+}

@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT inviter_id, invite_code, created_at\n        FROM invited_members\n        WHERE guild_id = $1 AND member_id = $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "inviter_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "invited_members",
+            "name": "inviter_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "invite_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "invited_members",
+            "name": "invite_code"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "invited_members",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6010856dcb90b5d9c67306418d91e6542274e2d8240621726ae904d8862a4e20"
+}

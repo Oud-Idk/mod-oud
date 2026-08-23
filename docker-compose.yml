@@ -3,11 +3,11 @@ services:
     image: postgres:18.4
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 55f5853f9dbb7e181d098ac4e49430d7
-      POSTGRES_DB: discordbot
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-discordbot}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
 
@@ -15,11 +15,11 @@ services:
     image: redis:8.8-alpine
     restart: always
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     volumes:
       - redis-data:/data
     environment:
-      - REDIS_ARGS=--requirepass 55f5853f9dbb7e181d098ac4e49430d7 --appendonly yes
+      - REDIS_ARGS=--requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env} --appendonly yes
 
 volumes:
   postgres_data:

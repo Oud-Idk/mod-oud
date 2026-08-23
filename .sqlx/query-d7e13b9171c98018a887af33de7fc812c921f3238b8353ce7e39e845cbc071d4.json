@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO levels (guild_id, user_id, cumulative_xp, current_level, current_xp)\n        SELECT * FROM UNNEST(\n            $1::bigint[],\n            $2::bigint[],\n            $3::bigint[],\n            $4::bigint[],\n            $5::bigint[]\n        )\n        ON CONFLICT (guild_id, user_id) DO UPDATE SET\n            cumulative_xp = EXCLUDED.cumulative_xp,\n            current_level = EXCLUDED.current_level,\n            current_xp = EXCLUDED.current_xp;\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "Int8Array",
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d7e13b9171c98018a887af33de7fc812c921f3238b8353ce7e39e845cbc071d4"
+}

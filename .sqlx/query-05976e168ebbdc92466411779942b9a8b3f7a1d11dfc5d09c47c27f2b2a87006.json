@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE reaction_messages SET message_id = NULL WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "05976e168ebbdc92466411779942b9a8b3f7a1d11dfc5d09c47c27f2b2a87006"
+}

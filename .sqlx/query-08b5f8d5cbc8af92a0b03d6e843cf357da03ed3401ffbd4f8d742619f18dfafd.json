@@ -1,0 +1,254 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            guild_id,\n            starboard_channel_id,\n            emojis,\n            reaction_threshold,\n            min_message_age as \"min_message_age: PgInterval\",\n            max_message_age as \"max_message_age: PgInterval\",\n            prevent_self_star,\n            allow_bot_messages,\n            keep_deleted_messages,\n            role_restriction_type as \"role_restriction_type: RestrictionType\",\n            restricted_roles,\n            channel_restriction_type as \"channel_restriction_type: RestrictionType\",\n            restricted_channels,\n            created_at,\n            updated_at,\n            embed_template as \"embed_template: Json<DiscordEmbed>\",\n            plaintext_template\n        FROM starboards\n        WHERE guild_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "starboard_channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "starboard_channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "emojis",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "emojis"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "reaction_threshold",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "reaction_threshold"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "min_message_age: PgInterval",
+        "type_info": "Interval",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "min_message_age"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "max_message_age: PgInterval",
+        "type_info": "Interval",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "max_message_age"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "prevent_self_star",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "prevent_self_star"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "allow_bot_messages",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "allow_bot_messages"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "keep_deleted_messages",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "keep_deleted_messages"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "role_restriction_type: RestrictionType",
+        "type_info": {
+          "Custom": {
+            "name": "restriction_type",
+            "kind": {
+              "Enum": [
+                "NONE",
+                "ALL_EXCEPT",
+                "ONLY_THESE"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "role_restriction_type"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "restricted_roles",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "restricted_roles"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "channel_restriction_type: RestrictionType",
+        "type_info": {
+          "Custom": {
+            "name": "restriction_type",
+            "kind": {
+              "Enum": [
+                "NONE",
+                "ALL_EXCEPT",
+                "ONLY_THESE"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "channel_restriction_type"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "restricted_channels",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "restricted_channels"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "embed_template: Json<DiscordEmbed>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "embed_template"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "plaintext_template",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "starboards",
+            "name": "plaintext_template"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "08b5f8d5cbc8af92a0b03d6e843cf357da03ed3401ffbd4f8d742619f18dfafd"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO discord_users (user_id, username, updated_at) SELECT * FROM UNNEST($1::bigint[], $2::text[]), NOW() ON CONFLICT (user_id) DO UPDATE SET username = EXCLUDED.username, updated_at = NOW()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6540d00119607672a9d041a00d6a58db241108d3a56cb9ba008829ebda9df21f"
+}

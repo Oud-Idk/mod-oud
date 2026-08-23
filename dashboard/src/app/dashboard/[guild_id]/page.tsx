@@ -2,6 +2,7 @@ import { CircleArrowUp, Gavel, Ticket, TicketX, Users } from "lucide-react";
 import { BotNotSetup } from "@/features/overview/components/BotNotSetup";
 import Image from "next/image";
 import { Card } from "@/features/overview/components/Card";
+import { config } from "@/config";
 
 import { getGuildDetails, getGuildStats } from "@/features/overview/queries";
 import { JSX } from "react";
@@ -14,7 +15,7 @@ interface PageProps {
 
 async function getBotProcessStatus(): Promise<boolean> {
     try {
-        const response = await fetch(`${process.env.BOT_API ?? ""}/health`, {
+        const response = await fetch(`${config.backendInternalUrl}/health`, {
             signal: AbortSignal.timeout(1000)
         });
         return response.ok;

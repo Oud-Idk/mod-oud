@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT channel_id, guild_id, last_activity\n        FROM tickets\n        WHERE status = 'OPEN' AND warned = TRUE AND last_activity < $1\n        LIMIT 100\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tickets",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tickets",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "last_activity",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tickets",
+            "name": "last_activity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "383d4376958712686e93c2f0ce2a19a1874a5cd17740d2c7d1161272e4f9e1b1"
+}

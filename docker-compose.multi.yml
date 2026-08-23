@@ -1,0 +1,132 @@
+# Multi-shard test stack: 2 bot shards + a separate web-only dashboard process.
+#
+# This is the production-shaped topology our horizontal-scalability work targets:
+#   - shard ownership decides which bot answers dashboard music commands
+#   - distributed locks / claims coordinate jobs across bot-shard-0 and bot-shard-1
+#   - the web instance reaches music actors purely over Redis
+#
+# Usage:
+#   docker compose -f docker-compose.multi.yml up --build
+#
+# Dashboard: http://localhost:8080 (web service)
+#
+# Notes:
+#   - All services share the gitignored .env; DATABASE_URL/REDIS_URL are
+#     overridden here to point at the in-network db/redis hosts.
+#   - Only bot-shard-0 runs migrations.
+#   - If bot-shard-1 hits Discord's identify rate limit on first boot
+#     (~5s between identifies across processes), restart it once.
+
+services:
+  db:
+    image: postgres:18.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-discordbot}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8.8-alpine
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes" ]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a '${REDIS_PASSWORD}' ping | grep -q PONG" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  bot-shard-0:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      SHARD_INDEX: 0
+      TOTAL_SHARDS: 2
+      RUN_BOT: "true"
+      RUN_WEB: "false"
+      RUN_MIGRATIONS: "true"
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+
+  bot-shard-1:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      SHARD_INDEX: 1
+      TOTAL_SHARDS: 2
+      RUN_BOT: "true"
+      RUN_WEB: "false"
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    ports:
+      - "8080:8080"
+    environment:
+      SHARD_INDEX: "0"
+      TOTAL_SHARDS: 2
+      RUN_BOT: "false"
+      RUN_WEB: "true"
+      PORT: 8080
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        # Baked into the client bundle; must be reachable from the user's browser.
+        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:8080}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+      - ./dashboard/.env.local
+    ports:
+      - "3000:3000"
+    environment:
+      # Server-side runtime config: DB/Redis clients and the Next.js auth stack.
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      BACKEND_INTERNAL_URL: http://web:8080
+
+volumes:
+  postgres_data:
+  redis-data:

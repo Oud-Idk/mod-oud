@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO invited_members (guild_id, member_id, inviter_id, invite_code)\n        VALUES ($1, $2, $3, $4)\n        ON CONFLICT (guild_id, member_id) DO UPDATE\n            SET inviter_id  = EXCLUDED.inviter_id,\n                invite_code = EXCLUDED.invite_code,\n                created_at  = now()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2446a3b3bce8d5060e039cb2f754a91760778e82991659eae743d5b054a072c6"
+}

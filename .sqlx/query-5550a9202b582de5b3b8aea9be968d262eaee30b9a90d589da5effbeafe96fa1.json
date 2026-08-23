@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO automod_logs (\n            guild_id, user_id, channel_id, message_id,\n            rule_type, trigger_content, original_content, actions_taken\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Text",
+        "Text",
+        "VarcharArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5550a9202b582de5b3b8aea9be968d262eaee30b9a90d589da5effbeafe96fa1"
+}

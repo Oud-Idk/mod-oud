@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT role_id\n        FROM button_roles\n        WHERE custom_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "button_roles",
+            "name": "role_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d87c0758a1ae5305f5dbcf7d00ea024df358fd4d0b55b9d0ccc0534a1b28e1b3"
+}

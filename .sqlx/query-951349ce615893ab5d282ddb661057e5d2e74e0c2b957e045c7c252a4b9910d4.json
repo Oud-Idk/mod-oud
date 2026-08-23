@@ -1,0 +1,184 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, guild_id, name, description, enabled, delete_trigger,\n               cooldown_type as \"cooldown_type: CooldownType\", cooldown_seconds,\n               allowed_roles, ignored_roles, allowed_channels, ignored_channels,\n               actions as \"actions: Json<Vec<CommandAction>>\"\n        FROM custom_commands\n        WHERE guild_id = $1 AND LOWER(name) = $2 AND enabled = TRUE\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "delete_trigger",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "delete_trigger"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "cooldown_type: CooldownType",
+        "type_info": {
+          "Custom": {
+            "name": "command_cooldown_type",
+            "kind": {
+              "Enum": [
+                "NONE",
+                "USER",
+                "SERVER"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "cooldown_type"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "cooldown_seconds",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "cooldown_seconds"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "allowed_roles",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "allowed_roles"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "ignored_roles",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "ignored_roles"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "allowed_channels",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "allowed_channels"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "ignored_channels",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "ignored_channels"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "actions: Json<Vec<CommandAction>>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "actions"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "951349ce615893ab5d282ddb661057e5d2e74e0c2b957e045c7c252a4b9910d4"
+}

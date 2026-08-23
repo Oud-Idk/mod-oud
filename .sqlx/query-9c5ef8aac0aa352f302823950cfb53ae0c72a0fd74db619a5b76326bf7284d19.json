@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT user_id, birth_month, birth_day, birth_year\n        FROM user_birthdays\n        WHERE user_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "user_birthdays",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "birth_month",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "user_birthdays",
+            "name": "birth_month"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "birth_day",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "user_birthdays",
+            "name": "birth_day"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "birth_year",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "user_birthdays",
+            "name": "birth_year"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "9c5ef8aac0aa352f302823950cfb53ae0c72a0fd74db619a5b76326bf7284d19"
+}

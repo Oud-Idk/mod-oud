@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT starboard_message_id FROM starred_messages WHERE original_message_id = $1 AND starboard_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "starboard_message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "starred_messages",
+            "name": "starboard_message_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "5b3d13debddc8a3d634828db98e42f1d7affff3261594853c2f186d503d6b6f3"
+}

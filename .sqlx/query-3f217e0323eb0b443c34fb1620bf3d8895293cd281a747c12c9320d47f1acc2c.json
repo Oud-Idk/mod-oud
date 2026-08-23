@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT username FROM discord_users WHERE user_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "username",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "discord_users",
+            "name": "username"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3f217e0323eb0b443c34fb1620bf3d8895293cd281a747c12c9320d47f1acc2c"
+}

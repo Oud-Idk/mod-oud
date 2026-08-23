@@ -58,8 +58,24 @@ pub async fn start_web_server(deps: WebServerDeps) -> Result<(), Error> {
         error!(error = ?e, "Failed to start live feed subscriber");
     }
 
+    // Comma-separated list of browser origins allowed to call this API
+    // (e.g. `CORS_ORIGINS=https://dash.example.com,http://localhost:3000`).
+    let cors_origins = std::env::var("CORS_ORIGINS")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+    let origins = cors_origins
+        .split(',')
+        .map(|origin| {
+            origin
+                .trim()
+                .trim_end_matches('/')
+                .parse::<HeaderValue>()
+                .map_err(Error::from)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
     let cors = CorsLayer::new()
-        .allow_origin("http://localhost:3000".parse::<HeaderValue>()?)
+        .allow_origin(tower_http::cors::AllowOrigin::list(origins))
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 

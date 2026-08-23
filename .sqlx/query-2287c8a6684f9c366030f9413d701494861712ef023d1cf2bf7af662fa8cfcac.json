@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO starred_messages (\n            original_message_id, starboard_message_id, starboard_id,\n            guild_id, channel_id, author_id, star_count\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2287c8a6684f9c366030f9413d701494861712ef023d1cf2bf7af662fa8cfcac"
+}

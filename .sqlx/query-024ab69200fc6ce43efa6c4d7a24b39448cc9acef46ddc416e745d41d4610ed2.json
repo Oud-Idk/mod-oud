@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE tickets SET warned = TRUE WHERE channel_id = ANY($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "024ab69200fc6ce43efa6c4d7a24b39448cc9acef46ddc416e745d41d4610ed2"
+}

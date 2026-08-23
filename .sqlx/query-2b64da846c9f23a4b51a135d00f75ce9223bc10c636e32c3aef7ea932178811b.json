@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE reported_messages SET status = $1::text::report_status WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2b64da846c9f23a4b51a135d00f75ce9223bc10c636e32c3aef7ea932178811b"
+}

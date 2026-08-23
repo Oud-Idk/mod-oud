@@ -79,7 +79,9 @@ pub struct AppConfig {
     /// Optional RAWG API key
     pub rawg_api_key: Option<String>,
 
-    /// Web server domain name (defaults to `"localhost:3000"`).
+    /// Dashboard origin used to build absolute links (e.g. verification URLs),
+    /// including the scheme: `http://localhost:3000` locally,
+    /// `https://dashboard.example.com` in production.
     pub domain: String,
 }
 
@@ -98,7 +100,10 @@ impl AppConfig {
             hc_site_key: std::env::var("HCAPTCHA_SITE_KEY").ok(),
             giphy_api_key: std::env::var("GIPHY_API_KEY").ok(),
             klipy_api_key: std::env::var("KLIPY_API_KEY").ok(),
-            domain: std::env::var("DOMAIN").unwrap_or_else(|_| "localhost:3000".to_string()),
+            domain: std::env::var("DOMAIN")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string())
+                .trim_end_matches('/')
+                .to_string(),
             google_cloud_api_key: std::env::var("GOOGLE_CLOUD_API_KEY")
                 .expect("Environment variable GOOGLE_CLOUD_API_KEY not set."),
             genius_api_key: std::env::var("GENIUS_API_KEY").ok(),

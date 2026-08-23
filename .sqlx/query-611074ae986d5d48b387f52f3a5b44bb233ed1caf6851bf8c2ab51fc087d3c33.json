@@ -1,0 +1,121 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, guild_id, warn_count, action_type as \"action_type: Vec<WarnAction>\", roles_to_add, roles_to_remove, duration\n            FROM warn_thresholds\n            WHERE guild_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "warn_thresholds",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "warn_thresholds",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "warn_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "warn_thresholds",
+            "name": "warn_count"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "action_type: Vec<WarnAction>",
+        "type_info": {
+          "Custom": {
+            "name": "moderation_action[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "moderation_action",
+                  "kind": {
+                    "Enum": [
+                      "TIMEOUT",
+                      "KICK",
+                      "BAN",
+                      "ROLE_REMOVE",
+                      "ROLE_ADD",
+                      "ROLE_REMOVE_ALL"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "warn_thresholds",
+            "name": "action_type"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "roles_to_add",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "warn_thresholds",
+            "name": "roles_to_add"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "roles_to_remove",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "warn_thresholds",
+            "name": "roles_to_remove"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "duration",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "warn_thresholds",
+            "name": "duration"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "611074ae986d5d48b387f52f3a5b44bb233ed1caf6851bf8c2ab51fc087d3c33"
+}

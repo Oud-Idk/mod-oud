@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT guild_id\n        FROM guild_configs\n        WHERE (settings->'member_counter'->>'enabled')::boolean = true\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guild_configs",
+            "name": "guild_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7f8d791664caa5bedff932a4061cb51e92c61bc9b098857847c66f7d8d4c167b"
+}

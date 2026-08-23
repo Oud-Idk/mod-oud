@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM media_only_channels WHERE channel_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "57f986928a4a71adc05c7382a6a47d454b839d62a0c58aec5cc54fe35a788a3b"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT reporter_id FROM reported_messages WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reporter_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "reported_messages",
+            "name": "reporter_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f72c065cfdecca094892732b181eac5af7a18df8eb97f913d51df21c6274ac0d"
+}

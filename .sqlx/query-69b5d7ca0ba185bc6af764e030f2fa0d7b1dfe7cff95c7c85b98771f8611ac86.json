@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE reported_messages SET message_deleted = TRUE WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "69b5d7ca0ba185bc6af764e030f2fa0d7b1dfe7cff95c7c85b98771f8611ac86"
+}

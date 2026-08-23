@@ -90,7 +90,7 @@ const noop = (_err?: unknown): void => {
 };
 
 function wsUrl(guildId: string): string {
-    const base = config.backendInternalUrl.replace(/^http/, "ws");
+    const base = config.publicBackendUrl.replace(/^http/, "ws");
     return `${base}/api/ws/control?guild_id=${encodeURIComponent(guildId)}`;
 }
 

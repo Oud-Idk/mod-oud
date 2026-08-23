@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE giveaways SET is_finished = TRUE WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4c4832e7285d251f46c5f9899bf248a6aa2c9c1b6b6f2f5c251cac4b445fb4f2"
+}

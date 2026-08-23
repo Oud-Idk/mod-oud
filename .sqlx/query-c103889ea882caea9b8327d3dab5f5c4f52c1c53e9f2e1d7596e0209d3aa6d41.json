@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE starred_messages SET star_count = $1 WHERE original_message_id = $2 AND starboard_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c103889ea882caea9b8327d3dab5f5c4f52c1c53e9f2e1d7596e0209d3aa6d41"
+}

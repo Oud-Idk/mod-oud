@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM active_birthday_roles\n        WHERE (guild_id, user_id) IN (\n            SELECT * FROM UNNEST($1::bigint[], $2::bigint[])\n        )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "47640a4ca14a186c68bf74561c87a3dd2a36404339e0fe9861711ae50bd572c1"
+}

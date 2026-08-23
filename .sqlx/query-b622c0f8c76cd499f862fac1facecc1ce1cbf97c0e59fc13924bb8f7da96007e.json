@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT custom_id, label, style as \"style: ButtonStyle\", emoji\n        FROM button_roles\n        WHERE reaction_message_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "custom_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "button_roles",
+            "name": "custom_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "button_roles",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "style: ButtonStyle",
+        "type_info": {
+          "Custom": {
+            "name": "button_style",
+            "kind": {
+              "Enum": [
+                "PRIMARY",
+                "SECONDARY",
+                "SUCCESS",
+                "DANGER"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "button_roles",
+            "name": "style"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "emoji",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "button_roles",
+            "name": "emoji"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "b622c0f8c76cd499f862fac1facecc1ce1cbf97c0e59fc13924bb8f7da96007e"
+}

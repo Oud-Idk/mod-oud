@@ -1,0 +1,172 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM media_only_channels WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "allow_images",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "allow_images"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "allow_videos",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "allow_videos"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "allow_audio",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "allow_audio"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "allow_gif",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "allow_gif"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "allow_links",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "allow_links"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "allow_embedded_text",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "allow_embedded_text"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "auto_thread",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "auto_thread"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "thread_name_template",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "thread_name_template"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "delete_warning_after_secs",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "delete_warning_after_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "exempt_roles",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "media_only_channels",
+            "name": "exempt_roles"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "33dd18ed1aba04abadbc2e25211629fd833b0e9e9849a8bea091c58d45323f8b"
+}

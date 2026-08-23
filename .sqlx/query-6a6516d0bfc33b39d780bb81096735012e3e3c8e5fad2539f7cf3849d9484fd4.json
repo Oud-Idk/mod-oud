@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO levels (user_id, guild_id)\n        VALUES ($1, $2)\n        RETURNING guild_id, user_id, cumulative_xp, current_level, current_xp\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "levels",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "levels",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "cumulative_xp",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "levels",
+            "name": "cumulative_xp"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "current_level",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "levels",
+            "name": "current_level"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "current_xp",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "levels",
+            "name": "current_xp"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6a6516d0bfc33b39d780bb81096735012e3e3c8e5fad2539f7cf3849d9484fd4"
+}

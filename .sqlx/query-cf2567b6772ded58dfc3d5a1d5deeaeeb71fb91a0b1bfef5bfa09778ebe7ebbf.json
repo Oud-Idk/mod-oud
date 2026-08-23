@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM temp_bans WHERE id = ANY($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cf2567b6772ded58dfc3d5a1d5deeaeeb71fb91a0b1bfef5bfa09778ebe7ebbf"
+}

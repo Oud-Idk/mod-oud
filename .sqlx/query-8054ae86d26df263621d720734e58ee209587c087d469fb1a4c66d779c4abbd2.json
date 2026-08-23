@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id, guild_id, name, enabled,\n            patterns as \"patterns: Json<Vec<Pattern>>\",\n            actions as \"actions: Json<Vec<RuleAction>>\",\n            timeout_duration_seconds,\n            scope as \"scope: Json<RuleScope>\"\n        FROM bad_word_rulesets\n        WHERE guild_id = $1 AND enabled = true\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "bad_word_rulesets",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "bad_word_rulesets",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "bad_word_rulesets",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "bad_word_rulesets",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "patterns: Json<Vec<Pattern>>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "bad_word_rulesets",
+            "name": "patterns"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "actions: Json<Vec<RuleAction>>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "bad_word_rulesets",
+            "name": "actions"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "timeout_duration_seconds",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "bad_word_rulesets",
+            "name": "timeout_duration_seconds"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "scope: Json<RuleScope>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "bad_word_rulesets",
+            "name": "scope"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "8054ae86d26df263621d720734e58ee209587c087d469fb1a4c66d779c4abbd2"
+}

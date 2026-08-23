@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO ticket_messages (ticket_channel_id, message_id, author_id, content, is_ticket_manager)\n        SELECT * FROM UNNEST($1::bigint[], $2::bigint[], $3::bigint[], $4::text[], $5::boolean[])\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "Int8Array",
+        "TextArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0bc4a4720dd28fc70fa0a09b193def773b3d873a9d0751974621d81f9ae08dba"
+}

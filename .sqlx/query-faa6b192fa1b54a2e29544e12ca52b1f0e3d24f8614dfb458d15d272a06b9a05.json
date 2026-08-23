@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO music_play_events\n                    (guild_id, user_id, track_url, title, artist, duration_ms, handle_uuid)\n                VALUES ($1, $2, $3, $4, $5, $6, $7)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "faa6b192fa1b54a2e29544e12ca52b1f0e3d24f8614dfb458d15d272a06b9a05"
+}
