@@ -1,6 +1,14 @@
 # syntax=docker/dockerfile:1
-FROM rust:1.98-slim AS builder
+FROM rust:1.98-slim AS chef
 WORKDIR /usr/src/app
+
+RUN cargo install cargo-chef --locked
+
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
 
 ENV SQLX_OFFLINE=true
 
@@ -13,24 +21,29 @@ RUN apt-get update && apt-get install -y \
     cmake \
     && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo chef cook --release --recipe-path recipe.json
 
-# Build for release with BuildKit cache mounts
+COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/usr/src/app/target \
     cargo build --release \
     && cp target/release/mod-oud /usr/local/bin/mod-oud
 
-# Stage 2: Create the runtime image
 FROM debian:trixie-slim AS runtime
 WORKDIR /usr/local/bin
 
-# Install runtime dependencies (ffmpeg, opus audio, ca-certs for Discord websocket)
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     ffmpeg \
     libopus0 \
+    python3 \
+    curl \
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/bin/mod-oud .

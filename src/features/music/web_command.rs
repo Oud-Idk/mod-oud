@@ -32,7 +32,7 @@ const COMMAND_TIMEOUT_SECS: u64 = 30;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(
     tag = "action",
-    rename_all = "kebab-case",
+    rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
 pub enum MusicAction {
@@ -287,7 +287,7 @@ impl WebCommandBus {
 
 /// Wire-level message received from the dashboard.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "type", rename_all = "kebab-case")]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientMessage {
     /// A music control command.
     Music {
@@ -302,7 +302,7 @@ pub enum ClientMessage {
 
 /// Wire-level acknowledgement sent back to the dashboard.
 #[derive(Clone, Debug, Serialize)]
-#[serde(tag = "type", rename_all = "kebab-case")]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerMessage {
     /// An acknowledgement of a music command.
     Ack {
@@ -327,8 +327,8 @@ mod tests {
     #[test]
     fn deserializes_play_message() {
         let message: ClientMessage = serde_json::from_str(
-                r#"{"type":"music","requestId":"abc","action":"play","query":"Never Gonna Give You Up","requestedById":"123"}"#,
-            )
+            r#"{"type":"music","requestId":"abc","action":"play","query":"Never Gonna Give You Up","requestedById":"123"}"#,
+        )
             .expect("should deserialize");
 
         match message {
@@ -353,14 +353,14 @@ mod tests {
         let message: ClientMessage = serde_json::from_str(
             r#"{"type":"music","action":"play","query":"x","requestedById":123}"#,
         )
-        .expect("should deserialize");
+            .expect("should deserialize");
 
         match message {
             ClientMessage::Music {
                 action:
-                    MusicAction::Play {
-                        requested_by_id, ..
-                    },
+                MusicAction::Play {
+                    requested_by_id, ..
+                },
                 ..
             } => {
                 assert_eq!(requested_by_id, Some(UserId::from(123)));
@@ -378,9 +378,9 @@ mod tests {
         match message {
             ClientMessage::Music {
                 action:
-                    MusicAction::Play {
-                        requested_by_id, ..
-                    },
+                MusicAction::Play {
+                    requested_by_id, ..
+                },
                 ..
             } => {
                 assert_eq!(requested_by_id, None);
@@ -399,8 +399,8 @@ mod tests {
             ("prev", MusicAction::Prev),
             ("restart", MusicAction::Restart),
             ("shuffle", MusicAction::Shuffle),
-            ("clear-queue", MusicAction::ClearQueue),
-            ("now-playing", MusicAction::NowPlaying),
+            ("clearQueue", MusicAction::ClearQueue),
+            ("nowPlaying", MusicAction::NowPlaying),
         ];
 
         for (name, expected) in actions {

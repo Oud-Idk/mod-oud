@@ -117,7 +117,11 @@ function parseDuration(raw: unknown): number {
     return 0;
 }
 
-export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: MusicControlPanelProps): JSX.Element | null {
+export function MusicControlPanel({
+    guildId,
+    requestedById,
+    voiceChannelMap
+}: MusicControlPanelProps): JSX.Element | null {
     const [mounted, setMounted] = useState(false);
     const [status, setStatus] = useState<ConnectionStatus>("connecting");
     const [query, setQuery] = useState<string>("");
@@ -489,7 +493,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                 timestamp: performance.now(),
             };
 
-            void sendCommand("seek", { query: String(Math.floor(clamped)) })
+            void sendCommand("seek", { input: String(Math.floor(clamped)) })
                 .then(() => {
                     playheadAnchorRef.current = {
                         basePos: clamped,
@@ -510,34 +514,36 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
 
     const handleGoToChannel = useCallback((): void => {
         if (targetChannel === null || targetChannel.length === 0) return;
-        void sendCommand("goToChannel", { query: targetChannel }).catch(noop);
+        void sendCommand("goToChannel", { channelId: targetChannel }).catch(noop);
     }, [targetChannel, sendCommand]);
 
     if (!mounted) {
         return (
-            <section className="flex flex-col gap-4 p-4 rounded-xl bg-card text-card-foreground shadow-sm opacity-60">
+            <section
+                className="flex flex-col gap-4 p-4 rounded-xl bg-card text-card-foreground shadow-sm opacity-60">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-warning" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-warning"/>
                         <h4 className="text-lg font-semibold">Live Control</h4>
                         <span className="text-xs text-muted-foreground">(Loading...)</span>
                     </div>
-                    <div className="h-8 w-20 bg-muted rounded-md animate-pulse" />
+                    <div className="h-8 w-20 bg-muted rounded-md animate-pulse"/>
                 </div>
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                    <div
+                        className="flex items-center justify-between text-xs text-muted-foreground font-mono">
                         <span>0:00</span>
                         <span>--:--</span>
                     </div>
-                    <div className="w-full h-1.5 bg-muted rounded-lg animate-pulse" />
+                    <div className="w-full h-1.5 bg-muted rounded-lg animate-pulse"/>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="h-10 flex-1 bg-muted rounded-md animate-pulse" />
-                    <div className="h-10 w-16 bg-muted rounded-md shrink-0 animate-pulse" />
+                    <div className="h-10 flex-1 bg-muted rounded-md animate-pulse"/>
+                    <div className="h-10 w-16 bg-muted rounded-md shrink-0 animate-pulse"/>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {Array.from({ length: 8 }).map((_, i) => (
-                        <div key={i} className="h-10 w-28 bg-muted rounded-md animate-pulse" />
+                        <div key={i} className="h-10 w-28 bg-muted rounded-md animate-pulse"/>
                     ))}
                 </div>
             </section>
@@ -577,7 +583,8 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
 
             {/* Now Playing Banner */}
             {nowPlaying !== null && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+                <div
+                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
                     {nowPlaying.thumbnail !== undefined && nowPlaying.thumbnail.length > 0 ? (
                         <Image
                             src={nowPlaying.thumbnail}
@@ -588,7 +595,9 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                             className="w-12 h-12 rounded object-cover shrink-0"
                         />
                     ) : (
-                        <div className="w-12 h-12 rounded bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
+                        <div
+                            className="w-12 h-12 rounded bg-muted flex items-center justify-center shrink-0"
+                            aria-hidden="true">
                             🎵
                         </div>
                     )}
@@ -606,7 +615,8 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                             )}
                         </div>
                         {nowPlaying.requestedBy !== undefined && nowPlaying.requestedBy.length > 0 && (
-                            <p className="text-xs text-muted-foreground">Requested by {nowPlaying.requestedBy}</p>
+                            <p className="text-xs text-muted-foreground">Requested
+                                by {nowPlaying.requestedBy}</p>
                         )}
                     </div>
                 </div>
@@ -615,14 +625,16 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
             {/* Real-time Seek Slider */}
             {isLiveStream ? (
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                    <div
+                        className="flex items-center justify-between text-xs text-muted-foreground font-mono">
                         <span className="text-danger">🔴 Live Stream</span>
                         <span>∞</span>
                     </div>
                 </div>
             ) : (
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                    <div
+                        className="flex items-center justify-between text-xs text-muted-foreground font-mono">
                         <span>{formatTime(position)}</span>
                         <span>{duration > 0 ? formatTime(duration) : "--:--"}</span>
                     </div>
@@ -633,7 +645,9 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                         max={duration > 0 ? duration : 100}
                         value={position}
                         disabled={!isConnected || !hasTrack}
-                        onPointerDown={() => { setIsSeeking(true) }}
+                        onPointerDown={() => {
+                            setIsSeeking(true)
+                        }}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                             setPosition(Number(e.target.value));
                         }}
@@ -677,7 +691,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     onClick={handlePrevious}
                     disabled={!isConnected || isBusy || !hasTrack}
                 >
-                    <SkipBackIcon />
+                    <SkipBackIcon/>
                 </Button>
 
                 {isPaused ? (
@@ -687,7 +701,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                         onClick={handleResume}
                         disabled={!isConnected || isBusy || !hasTrack}
                     >
-                        <PlayIcon />
+                        <PlayIcon/>
                     </Button>
                 ) : (
                     <Button
@@ -696,7 +710,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                         onClick={handlePause}
                         disabled={!isConnected || isBusy || !hasTrack}
                     >
-                        <PauseIcon />
+                        <PauseIcon/>
                     </Button>
                 )}
 
@@ -710,7 +724,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     }}
                     disabled={!isConnected || isBusy || !hasTrack}
                 >
-                    <SkipForwardIcon />
+                    <SkipForwardIcon/>
                 </Button>
 
                 <Button
@@ -724,7 +738,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     }}
                     disabled={!isConnected || isBusy || !hasTrack}
                 >
-                    <SquareIcon />
+                    <SquareIcon/>
                 </Button>
 
                 <Button
@@ -735,7 +749,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     }}
                     disabled={!isConnected || isBusy}
                 >
-                    <ShuffleIcon />
+                    <ShuffleIcon/>
                 </Button>
 
                 {/* 2. Restart track button is disabled on Live Streams */}
@@ -745,7 +759,7 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     onClick={handleRestart}
                     disabled={!isConnected || isBusy || !hasTrack || isLiveStream}
                 >
-                    <RotateCcwIcon />
+                    <RotateCcwIcon/>
                 </Button>
 
                 <Button
@@ -777,14 +791,15 @@ export function MusicControlPanel({ guildId, requestedById, voiceChannelMap }: M
                     disabled={!isConnected || isBusy || targetChannel === null || targetChannel.length === 0}
                     className="shrink-0"
                 >
-                    <MoveHorizontalIcon className="mr-2" />
+                    <MoveHorizontalIcon className="mr-2"/>
                     Go to Channel
                 </Button>
             </div>
 
             {/* Dynamic Alert Feedback */}
             {feedback !== null && (
-                <p role="status" aria-live="polite" className={`text-sm ${feedback.ok ? "text-success" : "text-danger"}`}>
+                <p role="status" aria-live="polite"
+                   className={`text-sm ${feedback.ok ? "text-success" : "text-danger"}`}>
                     {feedback.text}
                 </p>
             )}
