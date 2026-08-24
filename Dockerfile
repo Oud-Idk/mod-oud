@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cp target/release/mod-oud /usr/local/bin/mod-oud
 
 # Stage 2: Create the runtime image
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 WORKDIR /usr/local/bin
 
 # Install runtime dependencies (ffmpeg, opus audio, ca-certs for Discord websocket)
