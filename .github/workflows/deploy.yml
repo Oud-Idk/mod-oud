@@ -100,7 +100,7 @@ jobs:
           context: ./dashboard
           push: true
           build-args: |
-            NEXT_PUBLIC_BACKEND_URL=${{ vars.PUBLIC_BACKEND_URL || 'http://localhost:8080' }}
+            NEXT_PUBLIC_BACKEND_URL=${{ vars.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080' }}
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
             NEXT_PUBLIC_HCAPTCHA_SITE_KEY=${{ vars.NEXT_PUBLIC_HCAPTCHA_SITE_KEY }}
           tags: ${{ steps.meta.outputs.tags }}
