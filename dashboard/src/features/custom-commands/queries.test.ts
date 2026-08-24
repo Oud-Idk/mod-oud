@@ -2,12 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getCustomCommands, saveCustomCommand, deleteCustomCommand } from "./queries";
 import { db } from "@/lib/db";
 
-vi.mock("@/lib/db", () => ({
-    db: {
-        query: vi.fn(),
-    },
-}));
-
 const mockQuery = vi.hoisted(() =>
     vi.fn<(sql: string, params?: unknown[]) => Promise<{
         rows?: unknown[];
@@ -93,8 +87,36 @@ describe("Custom Commands Query Module", () => {
 
         it("should map and coerce multiple rows correctly", async () => {
             const rows = [
-                { id: 1, guild_id: "g1", name: "a", description: "", enabled: true, delete_trigger: false, cooldown_type: "NONE", cooldown_seconds: 0, allowed_roles: [], ignored_roles: [], allowed_channels: [], ignored_channels: [], actions: [] },
-                { id: "2", guild_id: "g1", name: "b", description: "", enabled: false, delete_trigger: true, cooldown_type: "USER", cooldown_seconds: 5, allowed_roles: [], ignored_roles: [], allowed_channels: [], ignored_channels: [], actions: [] },
+                {
+                    id: 1,
+                    guild_id: "g1",
+                    name: "a",
+                    description: "",
+                    enabled: true,
+                    delete_trigger: false,
+                    cooldown_type: "NONE",
+                    cooldown_seconds: 0,
+                    allowed_roles: [],
+                    ignored_roles: [],
+                    allowed_channels: [],
+                    ignored_channels: [],
+                    actions: []
+                },
+                {
+                    id: "2",
+                    guild_id: "g1",
+                    name: "b",
+                    description: "",
+                    enabled: false,
+                    delete_trigger: true,
+                    cooldown_type: "USER",
+                    cooldown_seconds: 5,
+                    allowed_roles: [],
+                    ignored_roles: [],
+                    allowed_channels: [],
+                    ignored_channels: [],
+                    actions: []
+                },
             ];
             mockQuery.mockResolvedValue({ rows, rowCount: 2 });
 
