@@ -1,26 +1,6 @@
 # Production stack for a VPS fronted by a Cloudflare Tunnel (cloudflared).
-#
-# Traffic model:
-#   users ──TLS──▶ Cloudflare Edge ──tunnel──▶ cloudflared ──▶ dashboard/web containers
-#
 # No inbound ports are opened on the VPS; db/redis have no published ports at all.
-#
-# One-time setup:
-#   1. Create a remotely-managed tunnel in Cloudflare Zero Trust and put its
-#      token in .env as TUNNEL_TOKEN.
-#   2. In the tunnel's public hostnames, route:
-#        dash.<your-domain>  →  http://dashboard:3000
-#        api.<your-domain>   →  http://web:8080
-#   3. In .env set:
-#        DOMAIN=https://dash.<your-domain>            # links posted by the bot
-#        CORS_ORIGINS=https://dash.<your-domain>      # browser origins for the API
-#        NEXT_PUBLIC_BACKEND_URL=https://api.<your-domain>   # baked into the dashboard build
-#   4. Add the OAuth redirect URI in Discord's developer portal:
-#        https://dash.<your-domain>/api/auth/callback/discord
-#
-# Deploy: docker compose -f docker-compose.prod.yml up -d --build
 
-# Keep container logs from filling the VPS disk.
 x-default-logging: &default-logging
   driver: json-file
   options:
@@ -39,21 +19,20 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
       interval: 5s
       timeout: 3s
       retries: 10
 
   redis:
     image: redis:8.8-alpine
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes" ]
     restart: unless-stopped
     logging: *default-logging
     volumes:
       - redis-data:/data
-    environment:
-      - REDIS_ARGS=--requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env} --appendonly yes
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a '${REDIS_PASSWORD}' ping | grep -q PONG"]
+      test: [ "CMD-SHELL", "redis-cli -a '${REDIS_PASSWORD}' ping | grep -q PONG" ]
       interval: 5s
       timeout: 3s
       retries: 10
