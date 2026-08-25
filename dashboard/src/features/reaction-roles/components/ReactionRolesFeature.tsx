@@ -27,7 +27,8 @@ export async function ReactionRolesFeature({
 
     const activeConfig =
         reactionRoles.find((role) => String(role.id) === String(activeId)) ??
-        reactionRoles[0];
+        reactionRoles.at(0) ??
+        null;
 
     const onSave = saveReactionMessageAction.bind(null, guildId);
     const onDelete = deleteReactionMessageAction.bind(null, guildId);

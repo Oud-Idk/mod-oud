@@ -34,7 +34,8 @@ export async function GiveawayFeature({ guildId, activeId }: GiveawayFeatureProp
 
     const activeConfig =
         giveaways.find((g) => String(g.id) === String(activeId)) ??
-        giveaways[0];
+        giveaways.at(0) ??
+        null;
 
     const onSave = saveGiveawayAction.bind(null, guildId);
     const onDelete = deleteGiveawayAction.bind(null, guildId);

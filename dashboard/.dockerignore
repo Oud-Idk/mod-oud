@@ -1,16 +1,15 @@
-# Dependencies
 node_modules/
-
-# Next.js build output
 .next/
 out/
 build/
+.npm/
 
-# Local env files (compose injects runtime env)
-.env
-.env*.local
+.env*
+!.env.example
 
-# Tests, coverage, IDE noise
 reports/
 tsconfig.tsbuildinfo
 .git/
+.DS_Store
+*.log
+npm-debug.log*

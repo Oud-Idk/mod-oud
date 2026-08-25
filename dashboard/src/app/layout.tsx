@@ -17,28 +17,28 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const viewport: Viewport = {
-    themeColor: "#6c5ce7",
+    themeColor: "#0C1936",
     colorScheme: "dark light",
 };
 
 const siteConfig = {
     name: "Mod Oud",
-    tagline: "Blazingly fast moderation bot for Discord guilds.",
+    tagline: "Blazingly Fast Discord Moderation.",
     description:
-        "Automate moderation, manage server audio, and keep your Discord community safe with ultra-low latency.",
-    url: "https://modoud.yourdomain.com", // Replace with your production URL
-    ogImage: "/og.png", // Recommended: 1200x630 image in /public
+        "Automate moderation, play music, have fun, and keep your Discord community safe quickly.",
+    url: "https://discord.solartuff.co.id",
+    ogImage: "/og.png",
 };
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteConfig.url),
     title: {
         template: "%s | Mod Oud",
-        default: "Mod Oud — Blazingly Fast Discord Moderation",
+        default: "Mod Oud, Blazingly Fast Discord Moderation",
     },
     description: siteConfig.description,
     applicationName: siteConfig.name,
-    authors: [{ name: "Mod Oud Team" }],
+    authors: [{ name: "Oud" }],
     generator: "Next.js",
     keywords: [
         "Discord bot",
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
         "High performance bot",
         "Mod Oud",
     ],
-    creator: "Mod Oud Team",
+    creator: "Oud",
     publisher: "Mod Oud",
 
     // OpenGraph (Discord, Telegram, Facebook, LinkedIn)
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
         type: "website",
         locale: "en_US",
         url: siteConfig.url,
-        title: "Mod Oud — Blazingly Fast Discord Moderation",
+        title: "Mod Oud, Blazingly Fast Discord Moderation",
         description: siteConfig.description,
         siteName: siteConfig.name,
         images: [
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
                 url: siteConfig.ogImage,
                 width: 1200,
                 height: 630,
-                alt: "Mod Oud - High performance Discord moderation",
+                alt: "Mod Oud, Blazingly Fast Discord Moderation",
             },
         ],
     },
@@ -72,7 +72,7 @@ export const metadata: Metadata = {
     // Twitter / X Card
     twitter: {
         card: "summary_large_image",
-        title: "Mod Oud — Blazingly Fast Discord Moderation",
+        title: "Mod Oud, Blazingly Fast Discord Moderation",
         description: siteConfig.description,
         images: [siteConfig.ogImage],
         creator: "@modoud", // Optional: your handle

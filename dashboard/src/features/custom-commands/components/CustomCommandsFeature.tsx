@@ -29,7 +29,9 @@ export async function CustomCommandsFeature({
     ]);
 
     const activeConfig =
-        commands.find((c) => String(c.id) === String(activeId)) ?? commands[0];
+        commands.find((c) => String(c.id) === String(activeId)) ??
+        commands.at(0) ??
+        null;
 
     const onSave = saveCustomCommandAction.bind(null, guildId);
     const onDelete = deleteCustomCommandAction.bind(null, guildId);

@@ -1,21 +1,31 @@
-# Ignore the local Rust target directory (the main culprit)
-target/
+**/target/
 
-# Ignore local secret files
-.env
+.env*
+!.env.example
 
-# Ignore version control and IDE files
 .git/
 .github/
+.gitignore
+.dockerignore
+
 .idea/
 .vscode/
+**/.DS_Store
+Thumbs.db
 
-# Ignore any local build artifacts or archives
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+**/.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
 *.tar.gz
 *.zip
+*.dump
+*.log
 
-node_modules/
-.next/
-out/
-build/
-.npm/
+docker-compose*.yml

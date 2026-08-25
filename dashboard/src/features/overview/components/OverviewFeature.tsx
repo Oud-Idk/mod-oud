@@ -58,8 +58,7 @@ export async function OverviewFeature(): Promise<JSX.Element> {
                                 </h2>
                             </div>
                             <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-                                Sign in with Discord to manage auto-moderation, raid detection, and
-                                engagement tools across your servers.
+                                Automate moderation, play music, have fun, and keep your Discord community safe quickly.
                             </p>
 
                             <form
