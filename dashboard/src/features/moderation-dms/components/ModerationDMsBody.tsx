@@ -126,19 +126,35 @@ export function ModerationDMsBody({
             <Tabs tabs={MODERATION_DM_TABS} activeTab={activeTab} onChange={setActiveTab} />
 
             <MessageConfigEditor
-                config={config[activeKey].message}
-                onChange={(updated) => { 
+                config={{
+                    enabled: config[activeKey].enabled,
+                    content: config[activeKey].message.content,
+                    embed: config[activeKey].message.embed,
+                    format: config[activeKey].message.format,
+                }}
+                onChange={(updated) => {
                     setConfig((prev) => ({
                         ...prev,
-                        [activeKey]: updated,
-                    })); }
-                }
-                onEmbedChange={(embed) => { 
+                        [activeKey]: {
+                            ...prev[activeKey],
+                            enabled: updated.enabled ?? false,
+                            message: {
+                                format: updated.format,
+                                content: updated.content ?? "",
+                                embed: updated.embed ?? {},
+                            },
+                        },
+                    }));
+                }}
+                onEmbedChange={(embed) => {
                     setConfig((prev) => ({
                         ...prev,
-                        [activeKey]: { ...prev[activeKey], embed },
-                    })); }
-                }
+                        [activeKey]: {
+                            ...prev[activeKey],
+                            message: { ...prev[activeKey].message, embed },
+                        },
+                    }));
+                }}
                 disabled={isPending}
                 toggleLabel={`Apply Custom Direct Messages for ${activeTab.charAt(0).toUpperCase() + activeTab.replace(/_/g, " ").slice(1).toLowerCase()}s`}
                 embedTemplateConfig={MODERATION_DM_CONFIGS[activeTab]}

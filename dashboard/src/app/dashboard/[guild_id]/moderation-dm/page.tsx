@@ -1,5 +1,5 @@
-import { LogsFeature } from "@/features/logs";
 import { JSX} from "react";
+import { ModerationDMsFeature } from "@/features/moderation-dms";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -7,5 +7,5 @@ interface PageProps {
 
 export default async function LogPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
-    return <LogsFeature guildId={guild_id} />;
+    return <ModerationDMsFeature guildId={guild_id}/>;
 }

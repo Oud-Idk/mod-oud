@@ -22,14 +22,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY . .
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    cargo build --release \
+RUN cargo build --release \
     && cp target/release/mod-oud /usr/local/bin/mod-oud
 
 FROM debian:trixie-slim AS runtime
