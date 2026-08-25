@@ -11,9 +11,9 @@
 *.swp
 
 # Environment variables (where you might store your bot token)
-.env.prod
-.env*.local
 .env
+.env*.local
+.env.prod
 
 # OS generated files
 .DS_Store

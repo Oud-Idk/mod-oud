@@ -2,7 +2,7 @@
 target/
 
 # Ignore local secret files
-.env.prod
+.env
 
 # Ignore version control and IDE files
 .git/
