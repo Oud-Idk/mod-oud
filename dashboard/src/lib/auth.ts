@@ -35,7 +35,7 @@ const discordTokenResponseSchema = z.object({
     expires_in: z.number(),
 });
 
-type InFlightEntry = {
+interface InFlightEntry {
     promise: Promise<{
         accessToken: string;
         refreshToken: string;
@@ -54,7 +54,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     const refreshToken = token.refreshToken;
     const userId = token.discordId ?? token.sub ?? "unknown";
 
-    if (!refreshToken) {
+    if (refreshToken === undefined) {
         console.warn("[Auth] No refresh token found. Forcing re-authentication.");
         return { ...token, error: "RefreshAccessTokenError" };
     }
@@ -169,7 +169,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
     },
     events: {
-        async signIn() {
+        signIn() {
             try {
                 revalidateTag("bot-guilds", "max");
             } catch (err) {

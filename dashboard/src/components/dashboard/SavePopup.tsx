@@ -10,7 +10,7 @@ interface SavePopupProps {
 
 export function SavePopup({ handleCancel, handleSave, isSaving }: SavePopupProps): JSX.Element {
     return <div
-        className="fixed bottom-4 right-4 left-4 md:left-auto md:w-110 border border-border rounded-lg shadow-xl p-2 px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        className="fixed bottom-4 right-4 left-4 md:left-auto md:w-110 border border-border rounded-lg shadow-xl p-2 px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between bg-surface">
         <div>
             <p>
                 Unsaved changes
