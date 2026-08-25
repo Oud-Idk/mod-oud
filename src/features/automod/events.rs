@@ -54,7 +54,7 @@ pub async fn check_for_filter(
         &data.core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
 
     tracing::Span::current().record("guild_id", guild_id.get());
 
@@ -75,40 +75,32 @@ pub async fn check_for_filter(
         return Ok(false);
     }
 
-    let Some(filtering) = &config.message_filtering else {
-        trace!("Message filtering config not found; skipping filters");
-        return Ok(false);
-    };
-
-    if filtering.global_settings.is_none() {
-        trace!("Global scope not found; skipping configuration-dependent filters");
-        return Ok(false);
-    }
-
     let bad_word_rulesets = get_active_bad_word_rulesets(data, guild_id).await?;
     let mut verdict = filter_bad_words(message, &bad_word_rulesets);
 
     if verdict.is_pass() {
-        trace!("Evaluating filters for message");
+        if let Some(filtering) = config.message_filtering.as_ref() {
+            let was_spam =
+                handle_spam_prevention(ctx, message, data, filtering, guild_id, author_id).await?;
 
-        let was_spam =
-            handle_spam_prevention(ctx, message, data, filtering, guild_id, author_id).await?;
+            if was_spam {
+                debug!("Message blocked by spam prevention system");
+                return Ok(true);
+            }
 
-        if was_spam {
-            debug!("Message blocked by spam prevention system");
-            return Ok(true);
+            verdict = verdict
+                .or_else(|| offensive_messages::filter_offensive_messages(message, filtering))
+                .or_else(|| server_invites::filter_server_invites(message, filtering))
+                .or_else(|| external_urls::filter_external_urls(message, filtering))
+                .or_else(|| excessive_caps::filter_excessive_caps(message, filtering))
+                .or_else(|| excessive_emojis::filter_excessive_emojis(message, filtering))
+                .or_else(|| excessive_spoilers::filter_excessive_spoilers(message, filtering))
+                .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
+                .or_else(|| zalgo::filter_zalgo(message, filtering))
+                .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
+        } else {
+            trace!("Message filtering config not found; skipping built-in static filters");
         }
-
-        verdict = verdict
-            .or_else(|| offensive_messages::filter_offensive_messages(message, filtering))
-            .or_else(|| server_invites::filter_server_invites(message, filtering))
-            .or_else(|| external_urls::filter_external_urls(message, filtering))
-            .or_else(|| excessive_caps::filter_excessive_caps(message, filtering))
-            .or_else(|| excessive_emojis::filter_excessive_emojis(message, filtering))
-            .or_else(|| excessive_spoilers::filter_excessive_spoilers(message, filtering))
-            .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
-            .or_else(|| zalgo::filter_zalgo(message, filtering))
-            .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
     }
 
     if let FilterVerdict::RequiresSafeBrowsingCheck {
