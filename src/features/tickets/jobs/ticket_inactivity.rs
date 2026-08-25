@@ -43,7 +43,7 @@ pub fn start_ticket_inactivity_worker(
 
             match locking::acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
-                    debug!("Acquired lock; running inactivity evaluations");
+                    trace!("Acquired lock; running inactivity evaluations");
 
                     if let Err(e) =
                         warn_inactive_tickets(&pool, &redis_client, &http, &guild_config).await
@@ -61,7 +61,7 @@ pub fn start_ticket_inactivity_worker(
                     if let Err(e) = guard.release().await {
                         warn!(error = ?e, "Failed to release inactivity lock");
                     } else {
-                        debug!("Released inactivity lock successfully");
+                        trace!("Released inactivity lock successfully");
                     }
                 }
                 Ok(None) => {
@@ -128,7 +128,7 @@ async fn warn_inactive_tickets(
     let candidates = database::fetch_inactive_tickets(pool, safety_threshold).await?;
 
     if candidates.is_empty() {
-        debug!("No candidates found for inactivity warning");
+        trace!("No candidates found for inactivity warning");
         return Ok(());
     }
 
@@ -235,7 +235,7 @@ async fn close_abandoned_tickets(
     let candidates = database::fetch_closing_candidates(pool, safety_threshold).await?;
 
     if candidates.is_empty() {
-        debug!("No candidates found for abandoned closure");
+        trace!("No candidates found for abandoned closure");
         return Ok(());
     }
 

@@ -101,7 +101,7 @@ async fn process_flushing_key(
             &current_levels,
             &current_xps,
         )
-        .await?;
+            .await?;
 
         debug!(records_to_upsert, "Database upsert complete");
     }
@@ -151,7 +151,7 @@ async fn flush_pending_levels(
     let dirty_guilds: Vec<String> = cache::get_dirty_guilds(redis).await?;
 
     if dirty_guilds.is_empty() {
-        debug!("No dirty guilds found to flush");
+        trace!("No dirty guilds found to flush");
         return Ok(());
     }
 

@@ -71,7 +71,7 @@ async fn process_expired_reminders(
     let expired_reminders = fetch_due_reminders(db_pool, now, BATCH_SIZE).await?;
 
     if expired_reminders.is_empty() {
-        debug!("No expired reminders to process");
+        trace!("No expired reminders to process");
         return Ok(());
     }
 

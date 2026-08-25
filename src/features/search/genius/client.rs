@@ -1,5 +1,6 @@
 use std::sync::LazyLock;
 use scraper::{ElementRef, Html, Node, Selector};
+use tracing::error;
 use crate::features::search::genius::models::{DomChild, GeniusSongLookupResult, GeniusSongSearchResponse, Hit, Song};
 
 #[derive(Clone)]
@@ -27,12 +28,30 @@ static LYRICS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
     Selector::parse(r#"div[data-lyrics-container="true"]"#).unwrap()
 });
 
+async fn decode_genius_json<T: serde::de::DeserializeOwned>(response: reqwest::Response) -> Result<T, anyhow::Error> {
+    let url = response.url().clone();
+    let text = response.text().await?;
+
+    match serde_json::from_str::<T>(&text) {
+        Ok(parsed) => Ok(parsed),
+        Err(err) => {
+            error!(
+                "JSON Deserialization FAILED for [{url}]!\n\
+                 Serde Error: {err}\n\
+                 Raw Body (First 1000 chars):\n{}",
+                &text.chars().take(1000).collect::<String>()
+            );
+            Err(anyhow::anyhow!("Serde decode error at {url}: {err}"))
+        }
+    }
+}
+
 impl GeniusClient {
     pub fn new(api_key: impl Into<String>, http: reqwest::Client) -> Self {
         Self { api_key: api_key.into(), http, base_url: "https://api.genius.com", base_frontend_url: "https://genius.com" }
     }
 
-    async fn search_songs(&self, query: &str) -> Result<GeniusSongSearchResponse, reqwest::Error> {
+    async fn search_songs(&self, query: &str) -> anyhow::Result<GeniusSongSearchResponse> {
         let response = self
             .http
             .get(format!("{}/search", self.base_url))
@@ -40,11 +59,10 @@ impl GeniusClient {
             .query(&[("q", query)])
             .send()
             .await?
-            .error_for_status()?
-            .json::<GeniusSongSearchResponse>()
-            .await?;
+            .error_for_status()?;
 
-        Ok(response)
+        let data = decode_genius_json::<GeniusSongSearchResponse>(response).await?;
+        Ok(data)
     }
 
     async fn search_song_by_api_path(&self, api_path: &str) -> Result<GeniusSongLookupResult, reqwest::Error> {
@@ -132,21 +150,20 @@ impl GeniusClient {
     fn format_lyrics(lyrics: &str) -> String {
         let mut formatted = String::with_capacity(lyrics.len() + 128);
 
-        let mut lines = lyrics.lines();
+        for line in lyrics.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
 
-        if let Some(first_line) = lines.next() {
-            if first_line.starts_with('[') && first_line.ends_with(']') {
+            if !formatted.is_empty() {
+                formatted.push('\n');
+            }
+
+            if trimmed.starts_with('[') && trimmed.ends_with(']') {
                 formatted.push_str("### ");
             }
-            formatted.push_str(first_line);
-
-            for line in lines {
-                formatted.push('\n');
-                if line.starts_with('[') && line.ends_with(']') {
-                    formatted.push_str("### ");
-                }
-                formatted.push_str(line);
-            }
+            formatted.push_str(trimmed);
         }
 
         formatted
@@ -155,27 +172,48 @@ impl GeniusClient {
     fn parse_description_dom(node: &DomChild) -> String {
         match node {
             DomChild::Text(text) => text.clone(),
-            DomChild::Node(dom_node) => dom_node
-                .children
-                .iter()
-                .map(Self::parse_description_dom)
-                .collect(),
+            DomChild::Node(dom_node) => {
+                let mut inner: String = dom_node
+                    .children
+                    .iter()
+                    .map(Self::parse_description_dom)
+                    .collect();
+
+                if dom_node.tag == "p" && !inner.is_empty() {
+                    inner.push('\n');
+                }
+
+                inner
+            }
+            DomChild::Other(val) => {
+                val.as_str().map_or_else(
+                    || if val.is_number() {
+                        val.to_string()
+                    } else {
+                        String::new()
+                    }, ToString::to_string
+                )
+            }
         }
     }
 
     fn extract_description(song: &Song) -> Option<String> {
         let description_dom = &song.description.dom;
-        let text = description_dom
+        let raw_text = description_dom
             .children
             .iter()
             .map(Self::parse_description_dom)
-            .collect::<String>()
-            .trim()
-            .to_string();
+            .collect::<String>();
 
-        (!text.is_empty() && text != "?").then_some(text)
+        let cleaned = raw_text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        (!cleaned.is_empty() && cleaned != "?").then_some(cleaned)
     }
-
 
     fn format_for_discord(simple_song_detail: &SimpleSongDetail) -> String {
         let title_len = simple_song_detail.title.len();
@@ -185,12 +223,12 @@ impl GeniusClient {
         let mut final_output = String::with_capacity(capacity);
 
         final_output.push_str("# ");
-        final_output.push_str(simple_song_detail.title);
+        final_output.push_str(simple_song_detail.title.trim());
         final_output.push('\n');
 
         if let Some(desc) = simple_song_detail.description.as_deref() {
             final_output.push_str("## Description\n");
-            final_output.push_str(desc);
+            final_output.push_str(desc.trim());
             final_output.push('\n');
         }
 
@@ -202,7 +240,7 @@ impl GeniusClient {
         final_output
     }
 
-    async fn search_song(&self, query: &str) -> Result<Option<Song>, reqwest::Error> {
+    async fn search_song(&self, query: &str) -> anyhow::Result<Option<Song>> {
         let response = self.search_songs(query).await?;
 
         let Some(first_result) = response.response.hits.first() else {
@@ -213,7 +251,7 @@ impl GeniusClient {
         Ok(Some(song_result.response.song))
     }
 
-    async fn search_raw_song_by_query(&self, query: &str) -> Result<Option<RawFetched>, reqwest::Error> {
+    async fn search_raw_song_by_query(&self, query: &str) -> anyhow::Result<Option<RawFetched>> {
         let Some(song) = self.search_song(query).await? else {
             return Ok(None)
         };
@@ -232,7 +270,7 @@ impl GeniusClient {
         SimpleSongDetail { title, description, lyrics }
     }
 
-    pub async fn search_lyrics_for_discord(&self, query: &str) -> Result<Option<String>, reqwest::Error> {
+    pub async fn search_lyrics_for_discord(&self, query: &str) -> anyhow::Result<Option<String>> {
         let Some(raw) = self.search_raw_song_by_query(query).await? else {
             return Ok(None);
         };
@@ -241,10 +279,9 @@ impl GeniusClient {
             let details = Self::extract_details(&raw);
             Self::format_for_discord(&details)
         })
-        .await
-        .expect("lyrics scrape task panicked");
+            .await
+            .expect("lyrics scrape task panicked");
 
         Ok(Some(result))
     }
 }
-

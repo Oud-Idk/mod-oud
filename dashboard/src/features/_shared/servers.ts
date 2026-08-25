@@ -93,7 +93,7 @@ const getBotGuildsCached = unstable_cache(
         return discordGuildsArraySchema.parse(rawData);
     },
     ["discord_bot_guilds"],
-    { revalidate: 600, tags: ["bot-guilds"] }
+    { revalidate: 100, tags: ["bot-guilds"] }
 );
 
 /**

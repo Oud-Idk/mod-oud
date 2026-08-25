@@ -1,4 +1,4 @@
-use anyhow::{Context as _, Result};
+use anyhow::Result;
 use serenity::all::GuildId;
 use songbird::input::{AuxMetadata, Compose, Input, YoutubeDl};
 use songbird::tracks::TrackHandle;
@@ -82,7 +82,7 @@ pub async fn fetch_metadata(services: PlaybackServices<'_>, query: &str) -> Resu
         }
         Err(e) => {
             error!(guild_id = %services.guild_id, error = ?e, "Error fetching track metadata");
-            Err(e).context("Error fetching track metadata")
+            Err(e.into())
         }
     }
 }
@@ -161,7 +161,7 @@ pub async fn prepare_and_play(
         requested_by,
         requested_by_id,
     )
-    .await)
+        .await)
 }
 
 /// Swaps the active track directly inside the `GuildPlayer` state owned by the actor,

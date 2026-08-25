@@ -68,7 +68,7 @@ async fn process_expired_temp_bans(
     let expired_bans = database::fetch_expired_temp_bans(db_pool, now).await?;
 
     if expired_bans.is_empty() {
-        debug!("No expired temp bans to process");
+        trace!("No expired temp bans to process");
         return Ok(());
     }
 

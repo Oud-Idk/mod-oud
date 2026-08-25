@@ -2,6 +2,7 @@ import NextAuth, { type Session, type Account, type Profile } from "next-auth";
 import Discord from "next-auth/providers/discord";
 import { type JWT } from "next-auth/jwt";
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 
 declare module "next-auth" {
     interface User {
@@ -28,22 +29,22 @@ declare module "next-auth/jwt" {
     }
 }
 
-declare global {
-    var inFlightRefresh: {
-        promise: Promise<{
-            accessToken: string;
-            refreshToken: string;
-            accessTokenExpires: number;
-        }>;
-        timestamp: number;
-    } | undefined;
-}
-
 const discordTokenResponseSchema = z.object({
     access_token: z.string(),
     refresh_token: z.string().optional(),
     expires_in: z.number(),
 });
+
+type InFlightEntry = {
+    promise: Promise<{
+        accessToken: string;
+        refreshToken: string;
+        accessTokenExpires: number;
+    }>;
+    timestamp: number;
+};
+
+const inFlightMap = new Map<string, InFlightEntry>();
 
 /**
  * Rotates the access token using Discord's OAuth endpoints.
@@ -51,46 +52,30 @@ const discordTokenResponseSchema = z.object({
  */
 async function refreshAccessToken(token: JWT): Promise<JWT> {
     const refreshToken = token.refreshToken;
+    const userId = token.discordId ?? token.sub ?? "unknown";
 
-    if (refreshToken === undefined || refreshToken === "") {
-        console.warn("[Auth] No refresh token found in current session. Forcing re-authentication.");
-        return {
-            ...token,
-            error: "RefreshAccessTokenError",
-        };
+    if (!refreshToken) {
+        console.warn("[Auth] No refresh token found. Forcing re-authentication.");
+        return { ...token, error: "RefreshAccessTokenError" };
     }
 
     const now = Date.now();
+    const existing = inFlightMap.get(userId);
 
-    if (globalThis.inFlightRefresh !== undefined && (now - globalThis.inFlightRefresh.timestamp < 10000)) {
-        console.log("[Auth] Parallel token refresh detected. Joining in-flight request...");
+    if (existing && now - existing.timestamp < 10000) {
+        console.log(`[Auth] Parallel token refresh detected for ${userId}. Joining request...`);
         try {
-            const result = await globalThis.inFlightRefresh.promise;
-            return {
-                ...token,
-                accessToken: result.accessToken,
-                refreshToken: result.refreshToken,
-                accessTokenExpires: result.accessTokenExpires,
-            };
+            const result = await existing.promise;
+            return { ...token, ...result };
         } catch {
-            return {
-                ...token,
-                error: "RefreshAccessTokenError",
-            };
+            return { ...token, error: "RefreshAccessTokenError" };
         }
     }
 
-    // Explicit return type on inline async IIFE
-    const refreshPromise = (async (): Promise<{
-        accessToken: string;
-        refreshToken: string;
-        accessTokenExpires: number;
-    }> => {
+    const refreshPromise = (async () => {
         const url = "https://discord.com/api/oauth2/token";
         const response = await fetch(url, {
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
             method: "POST",
             body: new URLSearchParams({
                 client_id: process.env.AUTH_DISCORD_ID ?? "",
@@ -120,26 +105,17 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
         };
     })();
 
-    globalThis.inFlightRefresh = {
-        promise: refreshPromise,
-        timestamp: now,
-    };
+    inFlightMap.set(userId, { promise: refreshPromise, timestamp: now });
 
     try {
         const result = await refreshPromise;
-        console.log("[Auth] Successfully rotated Discord access token (Leader)");
-        return {
-            ...token,
-            ...result,
-        };
-    } catch (error: unknown) {
-        console.error("[Auth] Error attempting to rotate Discord access token:", error);
-        return {
-            ...token,
-            error: "RefreshAccessTokenError",
-        };
+        console.log(`[Auth] Successfully rotated Discord access token for ${userId}`);
+        return { ...token, ...result };
+    } catch (error) {
+        console.error(`[Auth] Error rotating Discord token for ${userId}:`, error);
+        return { ...token, error: "RefreshAccessTokenError" };
     } finally {
-        globalThis.inFlightRefresh = undefined;
+        inFlightMap.delete(userId);
     }
 }
 
@@ -191,6 +167,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             session.error = token.error;
             return session;
         }
+    },
+    events: {
+        async signIn() {
+            try {
+                revalidateTag("bot-guilds", "max");
+            } catch (err) {
+                console.error("Failed to revalidate bot-guilds tag:", err);
+            }
+        },
     },
 });
 

@@ -43,7 +43,7 @@ bitcoin = "0.33.0-beta"
 bs58 = "0.5.1"
 base64 = "0.23.0"
 serde_path_to_error = "0.1.20"
-resvg = "0.47.0"
+resvg = "0.48.1"
 image = { version = "0.25.10", features = ["webp", "png", "jpeg"] }
 unit-prefix = "0.5.2"
 chrono-tz = "0.10.4"

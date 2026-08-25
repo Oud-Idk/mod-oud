@@ -16,7 +16,7 @@ use serenity::client::Context;
 use sqlx::PgPool;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{error, info, trace, warn};
 
 async fn get_display_name(
     ctx: &Context,
@@ -124,7 +124,7 @@ pub async fn run_birthday_announcements(
                 guild_year,
                 guild_id,
             )
-            .await
+                .await
             {
                 Ok(records) => records,
                 Err(e) => {
@@ -146,10 +146,10 @@ pub async fn run_birthday_announcements(
                 birthday_cfg,
                 guild_id,
             )
-            .await
-            .inspect_err(|e| warn!(error = ?e, "Failed to send birthday messages!"))
-            .ok()
-            .map(|m| m.id);
+                .await
+                .inspect_err(|e| warn!(error = ?e, "Failed to send birthday messages!"))
+                .ok()
+                .map(|m| m.id);
 
             let payload = BirthdayAnnouncement {
                 guild_id,
@@ -230,7 +230,7 @@ pub fn start_birthday_worker(
                         &guild_configs,
                         &ctx,
                     )
-                    .await
+                        .await
                     {
                         error!(error = ?e, "Error running birthday announcements");
                     }
@@ -242,7 +242,7 @@ pub fn start_birthday_worker(
                     if let Err(e) = guard.release().await {
                         warn!(error = ?e, "Failed to release birthday worker lock");
                     } else {
-                        debug!("Released birthday worker lock successfully");
+                        trace!("Released birthday worker lock successfully");
                     }
                 }
                 Ok(None) => {

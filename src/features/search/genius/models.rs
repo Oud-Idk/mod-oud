@@ -2,10 +2,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-// ==========================================
-// Top-Level Response Wrappers
-// ==========================================
-
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeniusResponse<T> {
     pub meta: Meta,
@@ -34,9 +30,6 @@ pub struct SongResponse {
     pub song: Song,
 }
 
-// ==========================================
-// Search Hit & Summary Song
-// ==========================================
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Hit {
@@ -86,9 +79,6 @@ pub struct SongSummary {
     pub primary_artists: Vec<Artist>,
 }
 
-// ==========================================
-// Full Song Details
-// ==========================================
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Song {
@@ -154,10 +144,6 @@ pub struct Song {
     pub lyrics_marked_staff_approved_by: Option<User>,
 }
 
-// ==========================================
-// Artist & User
-// ==========================================
-
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Artist {
     pub id: i64,
@@ -208,38 +194,31 @@ pub struct BoundingBox {
     pub height: i64,
 }
 
-// ==========================================
-// Genius Rich Text / DOM Tree
-// ==========================================
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DescriptionContainer {
     pub dom: DomNode,
 }
-
-/// Recursive DOM element for Genius description/annotation trees.
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DomNode {
+    #[serde(default)]
     pub tag: String,
     #[serde(default)]
-    pub attributes: HashMap<String, String>,
+    pub attributes: HashMap<String, Value>,
     #[serde(default)]
     pub data: HashMap<String, Value>,
     #[serde(default)]
     pub children: Vec<DomChild>,
 }
 
-/// Nodes can contain plain text or nested DOM nodes.
+/// Nodes can contain plain text, nested DOM nodes, or rogue values.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DomChild {
     Text(String),
     Node(DomNode),
+    Other(Value),
 }
-
-// ==========================================
-// Annotations & Referents
-// ==========================================
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DescriptionAnnotation {

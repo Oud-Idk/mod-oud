@@ -57,7 +57,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: .env
+    env_file: .env.prod
     environment:
       SHARD_INDEX: 0
       TOTAL_SHARDS: 2
@@ -75,7 +75,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: .env
+    env_file: .env.prod
     environment:
       SHARD_INDEX: 1
       TOTAL_SHARDS: 2
@@ -92,7 +92,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: .env
+    env_file: .env.prod
     ports:
       - "8080:8080"
     environment:
@@ -117,7 +117,7 @@ services:
       redis:
         condition: service_healthy
     env_file:
-      - .env
+      - .env.prod
       - ./dashboard/.env.local
     ports:
       - "3000:3000"
