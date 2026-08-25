@@ -17,7 +17,8 @@ export function ServerButton({
 
     if (permissions === undefined || authDiscordId === undefined) {
         return (
-            <div className="p-3 text-xs text-danger bg-danger-subtle border border-danger-border rounded-xl">
+            <div
+                className="p-3 text-xs text-danger bg-danger-subtle border border-danger-border rounded-xl">
                 Config(s) not found. Please contact bot hoster.
             </div>
         );
@@ -39,7 +40,8 @@ export function ServerButton({
         >
             <div className="flex items-center gap-3.5 min-w-0">
                 {iconUrl !== null ? (
-                    <div className="relative shrink-0 w-10 h-10 rounded-full overflow-hidden ring-1 ring-border-subtle group-hover:ring-brand/40 transition-all">
+                    <div
+                        className="relative shrink-0 w-10 h-10 rounded-full overflow-hidden ring-1 ring-border-subtle group-hover:ring-brand/40 transition-all">
                         <Image
                             src={iconUrl}
                             alt={guild.name}
@@ -49,13 +51,15 @@ export function ServerButton({
                         />
                     </div>
                 ) : (
-                    <div className="shrink-0 w-10 h-10 rounded-full bg-brand-subtle text-brand border border-brand/20 flex items-center justify-center font-bold text-sm select-none">
+                    <div
+                        className="shrink-0 w-10 h-10 rounded-full bg-surface text-brand border border-brand/20 flex items-center justify-center font-bold text-sm select-none">
                         {guild.name.charAt(0).toUpperCase()}
                     </div>
                 )}
 
                 <div className="flex flex-col min-w-0">
-                    <span className="font-semibold text-sm text-foreground truncate transition-colors">
+                    <span
+                        className="font-semibold text-sm text-foreground truncate transition-colors">
                         {guild.name}
                     </span>
                     <span className="text-xs text-muted-foreground">
@@ -66,8 +70,9 @@ export function ServerButton({
 
             <div className="shrink-0 ml-3">
                 {!isInvite &&
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
-                        <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
+                    <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
+                        <ChevronRight className="w-4 h-4" strokeWidth={2.5}/>
                     </div>
                 }
             </div>

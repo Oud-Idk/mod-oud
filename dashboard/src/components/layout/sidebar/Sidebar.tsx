@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SidebarLinks } from "@/components/layout/sidebar/SidebarLinks";
 import { DiscordGuild } from "@/features/_shared/guild";
 import Image from "next/image";
+import Logo from "@/components/ui/Logo";
 
 export async function Sidebar(): Promise<JSX.Element> {
     const session = await auth();
@@ -27,7 +28,10 @@ export async function Sidebar(): Promise<JSX.Element> {
             <div
                 className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 shrink-0"
             >
-                <Link href="/" className="font-bold focus-ring">Mod Oud</Link>
+                <div className="flex flex-row items-center gap-2">
+                    <Logo className="h-8 w-8"/>
+                    <Link href="/" className="font-bold focus-ring">Mod Oud</Link>
+                </div>
                 <div className="hidden md:block">
                     <ThemeToggle/>
                 </div>
@@ -51,7 +55,7 @@ export async function Sidebar(): Promise<JSX.Element> {
             >
                 <div className="flex items-center gap-2 overflow-hidden">
                     <div className="relative">
-                        {(typeof session?.user.image === "string" ) ? (
+                        {(typeof session?.user.image === "string") ? (
                             <Image
                                 src={session.user.image}
                                 alt={(typeof session.user.name === "string" ? session.user.name : "Avatar")}

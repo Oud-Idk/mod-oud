@@ -1,9 +1,10 @@
 "use client";
 
 import React, { JSX, useEffect, useState } from "react";
-import { Menu, X, ShieldCheck } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import Logo from "@/components/ui/Logo";
 
 export function MobileNav({ children }: { children: React.ReactNode }): JSX.Element {
     const [isOpen, setIsOpen] = useState(false);
@@ -17,23 +18,24 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
     return (
         <div className="md:hidden">
             {/* 1. The Mobile Top Header bar (Always visible on mobile) */}
-            <header className="h-14 border-b border-border-subtle flex items-center justify-between px-4 bg-surface text-foreground w-full sticky top-0 z-30">
+            <header
+                className="h-14 border-b border-border-subtle flex items-center justify-between px-4 bg-surface text-foreground w-full sticky top-0 z-30">
                 <div className="flex items-center gap-2">
-                    <div className="p-1 rounded-md bg-brand-subtle text-brand border border-brand/20">
-                        <ShieldCheck className="w-4 h-4" strokeWidth={2.5} />
-                    </div>
+                    <Logo className="w-8 h-8"/>
                     <span className="font-bold text-sm tracking-tight">Mod Oud</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <ThemeToggle />
+                    <ThemeToggle/>
                     <button
                         type="button"
-                        onClick={() => { setIsOpen(true); }}
+                        onClick={() => {
+                            setIsOpen(true);
+                        }}
                         className="p-2 text-muted-foreground hover:text-foreground hover:bg-surface-active rounded-lg transition-colors focus-ring"
                         aria-label="Open sidebar"
                     >
-                        <Menu className="w-5 h-5" />
+                        <Menu className="w-5 h-5"/>
                     </button>
                 </div>
             </header>
@@ -42,7 +44,9 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
             {isOpen && (
                 <div
                     className="fixed inset-0 z-40 bg-overlay backdrop-blur-xs transition-opacity duration-200"
-                    onClick={() => { setIsOpen(false); }}
+                    onClick={() => {
+                        setIsOpen(false);
+                    }}
                     aria-hidden="true"
                 />
             )}
@@ -54,11 +58,13 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
             >
                 <button
                     type="button"
-                    onClick={() => { setIsOpen(false); }}
-                    className="absolute top-2 right-3 z-50 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-active transition-colors focus-ring"
+                    onClick={() => {
+                        setIsOpen(false);
+                    }}
+                    className="absolute top-3 right-3 z-50 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-active transition-colors focus-ring"
                     aria-label="Close sidebar"
                 >
-                    <X className="w-4 h-4" />
+                    <X className="w-4 h-4"/>
                 </button>
                 {children}
             </div>

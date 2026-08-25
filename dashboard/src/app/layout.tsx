@@ -19,9 +19,9 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
     title: {
         template: "%s | Mod Oud",
-        default: "Mod Oud — Discord Bot Dashboard",
+        default: "Mod Oud",
     },
-    description: "Blazingly fast, modern moderation & engagement management for Discord communities.",
+    description: "Blazingly fast moderation bot for Discord guilds.",
 };
 
 export default function RootLayout({
@@ -35,7 +35,8 @@ export default function RootLayout({
             suppressHydrationWarning
             className={`${inter.variable} ${jetbrainsMono.variable}`}
         >
-        <body className="bg-surface text-foreground min-h-dvh flex flex-col font-sans antialiased selection:bg-brand-subtle selection:text-brand">
+        <body
+            className="bg-surface text-foreground min-h-dvh flex flex-col font-sans antialiased selection:bg-brand-subtle selection:text-brand">
         <ThemeProvider
             attribute="class"
             defaultTheme="system"
