@@ -86,7 +86,7 @@ export async function saveBadWordRuleset(
     const cacheKey = `config:guild:${guildId}:bad_words`;
     try {
         await redis.del(cacheKey);
-        await redis.publish("config_updates", `invalidate:${guildId}`);
+        await redis.publish("config_updates", `invalidate:${guildId}:bad_words`);
     } catch (redisError) {
         console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
     }

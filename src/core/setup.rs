@@ -1,6 +1,7 @@
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::state::{AppConfig, BotCaches, BotData, BotSecurity, CoreServices, Error};
 use crate::features::automod::{SafeBrowsingClient, SpamTracker};
+use crate::features::bad_words::CompiledRuleset;
 use crate::features::birthday::start_birthday_worker;
 use crate::features::giveaways::start_giveaway_worker;
 use crate::features::leveling::start_level_flush_worker;
@@ -46,6 +47,9 @@ pub struct SetupParams<'a> {
     /// Shared Moka cache for guild settings.
     pub guild_configs_cache: Cache<GuildId, GuildSettings>,
 
+    /// Shared Moka cache for compiled bad word rulesets.
+    pub bad_words_cache: Cache<GuildId, Arc<Vec<CompiledRuleset>>>,
+
     /// Serenity framework context.
     pub ctx: &'a Context,
 
@@ -73,6 +77,7 @@ pub struct SetupParams<'a> {
 /// * `redis_client` - Primary Redis client connection.
 /// * `subscriber_client` - Redis Pub/Sub subscriber client.
 /// * `guild_configs_cache` - Shared Moka cache for guild settings.
+/// * `bad_words_cache` - Shared Moka cache for compiled bad word rulesets.
 /// * `ctx` - Serenity framework context.
 /// * `username_tx` - Channel sender for queueing username updates.
 /// * `username_rx` - Channel receiver for processing username updates.
@@ -85,7 +90,7 @@ pub struct SetupParams<'a> {
 #[must_use]
 pub fn setup<'a>(
     params: SetupParams<'a>,
-) -> Pin<Box<dyn Future<Output=Result<BotData, Error>> + Send + 'a>> {
+) -> Pin<Box<dyn Future<Output = Result<BotData, Error>> + Send + 'a>> {
     Box::pin(async move {
         let SetupParams {
             google_cloud_api_key,
@@ -93,6 +98,7 @@ pub fn setup<'a>(
             redis_client,
             subscriber_client,
             guild_configs_cache,
+            bad_words_cache,
             ctx,
             username_tx,
             username_rx,
@@ -152,8 +158,6 @@ pub fn setup<'a>(
                 },
             );
         }
-
-        let bad_words_cache = Cache::new(10_000);
 
         let data = BotData {
             core: CoreServices {

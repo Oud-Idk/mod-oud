@@ -11,6 +11,7 @@ use mod_oud::core::error::on_error;
 use mod_oud::core::setup::SetupParams;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::events;
+use mod_oud::features::bad_words::CompiledRuleset;
 use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::music::MusicState;
 use mod_oud::features::music::WebCommandBus;
@@ -56,7 +57,8 @@ async fn async_main() -> Result<(), Error> {
     let http = Arc::new(serenity::Http::new(&env_config.token));
 
     let guild_configs = moka::future::Cache::new(5000);
-    config::sync::sync_configs(&subscriber_client, &guild_configs);
+    let bad_words_cache = moka::future::Cache::new(10_000);
+    config::sync::sync_configs(&subscriber_client, &guild_configs, &bad_words_cache);
 
     let (username_tx, username_rx) = mpsc::channel::<UserUpdate>(5000);
 
@@ -90,7 +92,7 @@ async fn async_main() -> Result<(), Error> {
             web_commands: web_command_bus,
             music_state: music_state.clone(),
         })
-            .await?;
+        .await?;
     }
 
     if env_config.run_bot {
@@ -101,12 +103,13 @@ async fn async_main() -> Result<(), Error> {
             redis_client,
             subscriber_client,
             guild_configs,
+            bad_words_cache,
             username_tx,
             username_rx,
             reqwest_client,
             music_state,
         })
-            .await?;
+        .await?;
     } else {
         warn!(
             "Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional."
@@ -136,6 +139,7 @@ struct BotDeps {
     redis_client: Client,
     subscriber_client: SubscriberClient,
     guild_configs: moka::future::Cache<serenity::all::GuildId, GuildSettings>,
+    bad_words_cache: moka::future::Cache<serenity::all::GuildId, Arc<Vec<CompiledRuleset>>>,
     username_tx: mpsc::Sender<UserUpdate>,
     username_rx: mpsc::Receiver<UserUpdate>,
     reqwest_client: reqwest::Client,
@@ -317,6 +321,7 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
     info!("Registered {} commands", commands_to_register.len());
 
     let guild_configs_for_setup = deps.guild_configs.clone();
+    let bad_words_cache_for_setup = deps.bad_words_cache.clone();
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -343,6 +348,7 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
                 redis_client: deps.redis_client.clone(),
                 subscriber_client: deps.subscriber_client.clone(),
                 guild_configs_cache: guild_configs_for_setup.clone(),
+                bad_words_cache: bad_words_cache_for_setup.clone(),
                 ctx,
                 username_tx: deps.username_tx.clone(),
                 username_rx: deps.username_rx,

@@ -168,7 +168,7 @@ describe("Message Filtering Query Module", () => {
             expect(params[1]).toBe("guild_123");
             expect(params[2]).toBe("No swears");
             expect(mockRedisDel).toHaveBeenCalledWith("config:guild:guild_123:bad_words");
-            expect(mockRedisPublish).toHaveBeenCalledWith("config_updates", "invalidate:guild_123");
+            expect(mockRedisPublish).toHaveBeenCalledWith("config_updates", "invalidate:guild_123:bad_words");
             expect(saved.name).toBe("No swears");
         });
 
