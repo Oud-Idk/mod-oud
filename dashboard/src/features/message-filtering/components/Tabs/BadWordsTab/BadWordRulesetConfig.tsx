@@ -188,7 +188,7 @@ export function BadWordRulesetConfig({
                             <div className="w-full sm:w-44 shrink-0">
                                 <Dropdown
                                     options={[
-                                        { value: "EXACT", label: "Exact match" },
+                                        { value: "EXACT", label: "Exact word or phrase" },
                                         { value: "SUBSTRING", label: "Substring" },
                                         { value: "REGEX", label: "Regex" },
                                     ]}
