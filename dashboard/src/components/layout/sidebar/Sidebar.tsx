@@ -23,7 +23,7 @@ export async function Sidebar(): Promise<JSX.Element> {
 
     return (
         <aside
-            className="w-64 h-screen border-r border-border bg-surface flex flex-col"
+            className="w-64 h-dvh border-r border-border bg-surface flex flex-col"
         >
             <div
                 className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 shrink-0"

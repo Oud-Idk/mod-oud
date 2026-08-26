@@ -13,7 +13,7 @@ export default async function RootGroupLayout({
     const session = await auth();
 
     return (
-        <div className="h-screen flex flex-col overflow-hidden bg-background">
+        <div className="h-dvh flex flex-col overflow-hidden bg-background">
             <header
                 className="shrink-0 z-20 backdrop-blur-md bg-surface/80 border-b border-border-subtle">
                 <div

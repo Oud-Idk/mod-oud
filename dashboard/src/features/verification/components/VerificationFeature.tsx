@@ -26,7 +26,7 @@ export async function VerificationFeature({ searchParams }: VerifyFeatureProps):
 
     if (settings.verification.useOauth && session?.accessToken === undefined) {
         return (
-            <main className="flex min-h-screen flex-col items-center justify-center p-4">
+            <main className="flex min-h-dvh flex-col items-center justify-center p-4">
                 <div className="border border-border bg-surface">
                     <Emphasis className="text-xl font-bold">Discord Login Required</Emphasis>
                     <p className="my-4 text-sm">
@@ -47,7 +47,7 @@ export async function VerificationFeature({ searchParams }: VerifyFeatureProps):
     }
 
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-4">
+        <main className="flex min-h-dvh flex-col items-center justify-center p-4">
             <VerifyForm
                 userId={userId}
                 guildId={guildId}
