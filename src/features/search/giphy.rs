@@ -1,4 +1,4 @@
 pub mod client;
 pub mod commands;
-pub mod models;
 pub mod message;
+pub mod models;

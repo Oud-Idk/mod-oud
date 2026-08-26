@@ -96,6 +96,8 @@ impl KlipyItem {
 
     /// Link back to Klipy post
     pub fn get_web_url(&self) -> Option<String> {
-        self.slug.as_ref().map(|s| format!("https://klipy.com/gif/{s}"))
+        self.slug
+            .as_ref()
+            .map(|s| format!("https://klipy.com/gif/{s}"))
     }
 }

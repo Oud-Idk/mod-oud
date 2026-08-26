@@ -1,6 +1,6 @@
-use anyhow::Context as _;
 use crate::core::config::state::Context;
 use crate::features::search::genius::client::GeniusClient;
+use anyhow::Context as _;
 
 fn chunk_message(text: &str, max_len: usize) -> Vec<String> {
     let mut blocks: Vec<String> = Vec::new();
@@ -39,8 +39,7 @@ fn chunk_message(text: &str, max_len: usize) -> Vec<String> {
         }
 
         let extra_space = usize::from(!current_chunk.is_empty());
-        if current_chunk.len() + extra_space + block.len() > max_len
-            && !current_chunk.is_empty() {
+        if current_chunk.len() + extra_space + block.len() > max_len && !current_chunk.is_empty() {
             chunks.push(current_chunk.trim_end().to_string());
             current_chunk.clear();
         }
@@ -77,7 +76,8 @@ pub async fn genius(
         )?;
     let client = GeniusClient::new(api_key, reqwest_client);
     let Some(output) = client.search_lyrics_for_discord(&query).await? else {
-        ctx.say(format!("Lyrics not found for query `{query}`.")).await?;
+        ctx.say(format!("Lyrics not found for query `{query}`."))
+            .await?;
         return Ok(());
     };
 
@@ -88,7 +88,8 @@ pub async fn genius(
     }
 
     for chunk in chunks.iter().skip(1) {
-        ctx.send(poise::CreateReply::default().content(chunk)).await?;
+        ctx.send(poise::CreateReply::default().content(chunk))
+            .await?;
     }
 
     Ok(())

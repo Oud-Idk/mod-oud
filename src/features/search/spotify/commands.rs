@@ -27,11 +27,9 @@ pub async fn spotify(
 
     let tracks = response.tracks.map(|t| t.items).unwrap_or_default();
 
-    let chosen_track =
-        choose_or_first(tracks, is_random);
+    let chosen_track = choose_or_first(tracks, is_random);
 
-    let track =
-        chosen_track.with_context(|| format!("No Spotify tracks found for '{query}'"))?;
+    let track = chosen_track.with_context(|| format!("No Spotify tracks found for '{query}'"))?;
 
     let embed = spotify::message::create_spotify_message(&track);
     let play_button = CreateButton::new(format!("search_spotify_play:{}", track.id))

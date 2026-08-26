@@ -18,10 +18,7 @@ impl OpenMeteoClient {
     }
 
     /// Geocode city name to get coordinates
-    pub async fn search_location(
-        &self,
-        query: &str,
-    ) -> Result<GeocodingResponse, reqwest::Error> {
+    pub async fn search_location(&self, query: &str) -> Result<GeocodingResponse, reqwest::Error> {
         let response = self
             .http
             .get(self.geo_url)

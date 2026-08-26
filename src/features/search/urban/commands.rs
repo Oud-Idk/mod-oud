@@ -19,8 +19,7 @@ pub async fn urban(
     let response = client.define(&query).await?;
     let is_random = random.unwrap_or(false);
 
-    let chosen_def =
-        choose_or_first(response.list, is_random);
+    let chosen_def = choose_or_first(response.list, is_random);
 
     let def = chosen_def.with_context(|| format!("No definition found for '{query}'"))?;
 

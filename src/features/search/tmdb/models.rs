@@ -166,7 +166,7 @@ impl TmdbDetail {
             Self::Movie(m) => m.tagline.as_deref(),
             Self::Tv(t) => t.tagline.as_deref(),
         }
-            .filter(|t| !t.trim().is_empty())
+        .filter(|t| !t.trim().is_empty())
     }
 
     pub fn overview(&self) -> Option<&str> {
@@ -188,9 +188,7 @@ impl TmdbDetail {
         match self {
             Self::Movie(m) => m.release_date.clone(),
             Self::Tv(t) => match (&t.first_air_date, &t.last_air_date) {
-                (Some(start), Some(end)) if start != end => {
-                    Some(format!("{start} – {end}"))
-                }
+                (Some(start), Some(end)) if start != end => Some(format!("{start} – {end}")),
                 (Some(start), _) => Some(start.clone()),
                 _ => None,
             },
@@ -215,7 +213,11 @@ impl TmdbDetail {
         if genres.is_empty() {
             "Unknown".to_string()
         } else {
-            genres.iter().map(|g| g.name.as_str()).collect::<Vec<_>>().join(", ")
+            genres
+                .iter()
+                .map(|g| g.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         }
     }
 
@@ -234,7 +236,11 @@ impl TmdbDetail {
     }
 
     pub fn web_url(media_type: TmdbMediaType, id: u64) -> String {
-        format!("{TMDB_WEB_BASE_URL}/{}/{}", media_type.as_endpoint_path(), id)
+        format!(
+            "{TMDB_WEB_BASE_URL}/{}/{}",
+            media_type.as_endpoint_path(),
+            id
+        )
     }
 
     pub fn top_cast(&self, limit: usize) -> Option<String> {
@@ -261,13 +267,23 @@ impl TmdbDetail {
                     .filter(|c| c.job.eq_ignore_ascii_case("Director"))
                     .map(|c| c.name.as_str())
                     .collect();
-                if directors.is_empty() { None } else { Some(directors.join(", ")) }
+                if directors.is_empty() {
+                    None
+                } else {
+                    Some(directors.join(", "))
+                }
             }
             Self::Tv(t) => {
                 if t.created_by.is_empty() {
                     None
                 } else {
-                    Some(t.created_by.iter().map(|c| c.name.as_str()).collect::<Vec<_>>().join(", "))
+                    Some(
+                        t.created_by
+                            .iter()
+                            .map(|c| c.name.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )
                 }
             }
         }
@@ -282,8 +298,14 @@ impl TmdbDetail {
 
         let trailer = videos
             .iter()
-            .find(|v| v.site == "YouTube" && v.video_type == "Trailer" && v.official.unwrap_or(false))
-            .or_else(|| videos.iter().find(|v| v.site == "YouTube" && v.video_type == "Trailer"))?;
+            .find(|v| {
+                v.site == "YouTube" && v.video_type == "Trailer" && v.official.unwrap_or(false)
+            })
+            .or_else(|| {
+                videos
+                    .iter()
+                    .find(|v| v.site == "YouTube" && v.video_type == "Trailer")
+            })?;
 
         Some(format!("https://www.youtube.com/watch?v={}", trailer.key))
     }

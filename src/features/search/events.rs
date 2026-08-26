@@ -82,7 +82,10 @@ pub async fn handle_search_play(
         respond: tx,
     };
 
-    if let Err(e) = actor_tx.send(GuildCommand::QueueAdd(Box::new(payload))).await {
+    if let Err(e) = actor_tx
+        .send(GuildCommand::QueueAdd(Box::new(payload)))
+        .await
+    {
         edit_reply(ctx, component, &format!("Failed to queue track: {e}")).await;
         return Ok(true);
     }
@@ -142,14 +145,12 @@ async fn edit_reply(ctx: &Context, component: &ComponentInteraction, content: &s
 }
 
 /// Reports a successful queue/play outcome as an embed.
-async fn report_outcome(
-    ctx: &Context,
-    component: &ComponentInteraction,
-    outcome: QueueAddOutcome,
-) {
+async fn report_outcome(ctx: &Context, component: &ComponentInteraction, outcome: QueueAddOutcome) {
     let (title, thumbnail) = match outcome {
         QueueAddOutcome::Played(info) => (format!("Playing {}", info.title), info.thumbnail),
-        QueueAddOutcome::Queued(info) => (format!("Added to queue: {}", info.title), info.thumbnail),
+        QueueAddOutcome::Queued(info) => {
+            (format!("Added to queue: {}", info.title), info.thumbnail)
+        }
         QueueAddOutcome::PlaylistQueued { first_track, count } => (
             format!(
                 "Queued {} tracks (starting with {})",

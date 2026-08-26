@@ -21,8 +21,9 @@ pub async fn weather(
     #[min = 1]
     #[max = 7]
     days: Option<u8>,
-    #[description = "Unit system for temperature, wind, and precipitation"]
-    units: Option<UnitSystem>,
+    #[description = "Unit system for temperature, wind, and precipitation"] units: Option<
+        UnitSystem,
+    >,
 ) -> anyhow::Result<()> {
     ctx.defer().await?;
 
@@ -39,7 +40,12 @@ pub async fn weather(
     let imperial = units == Some(UnitSystem::Imperial);
 
     let weather_response = client
-        .get_weather(location.latitude, location.longitude, forecast_days, imperial)
+        .get_weather(
+            location.latitude,
+            location.longitude,
+            forecast_days,
+            imperial,
+        )
         .await?;
 
     let embed = open_meteo::message::create_weather_message(location, &weather_response);

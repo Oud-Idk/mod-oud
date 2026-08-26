@@ -37,7 +37,9 @@ fn build_kitsu_embed(params: KitsuEmbedParams) -> CreateEmbed {
         .field("⭐ Average Rating", params.score_str, true)
         .field("🏆 Rank", params.rank_str, false);
 
-    if let Some(sec_label) = params.secondary_count_label && let Some(sec_val) = params.secondary_count {
+    if let Some(sec_label) = params.secondary_count_label
+        && let Some(sec_val) = params.secondary_count
+    {
         embed = embed.field(sec_label, sec_val, true);
     }
 

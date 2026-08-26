@@ -1,4 +1,6 @@
-use crate::features::search::tmdb::models::{TmdbMediaType, TmdbMovieDetail, TmdbSearchResponse, TmdbTvDetail};
+use crate::features::search::tmdb::models::{
+    TmdbMediaType, TmdbMovieDetail, TmdbSearchResponse, TmdbTvDetail,
+};
 
 #[derive(Clone)]
 pub struct TmdbClient {
@@ -22,11 +24,7 @@ impl TmdbClient {
         media_type: TmdbMediaType,
         query: &str,
     ) -> Result<TmdbSearchResponse, reqwest::Error> {
-        let endpoint = format!(
-            "{}/search/{}",
-            self.base_url,
-            media_type.as_endpoint_path()
-        );
+        let endpoint = format!("{}/search/{}", self.base_url, media_type.as_endpoint_path());
         self.http
             .get(endpoint)
             .bearer_auth(&self.api_key)

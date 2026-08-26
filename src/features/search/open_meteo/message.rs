@@ -8,10 +8,7 @@ use crate::features::search::open_meteo::models::{
     CurrentUnits, CurrentWeather, GeoLocation, WeatherResponse,
 };
 
-pub fn create_weather_message(
-    location: &GeoLocation,
-    weather: &WeatherResponse,
-) -> CreateEmbed {
+pub fn create_weather_message(location: &GeoLocation, weather: &WeatherResponse) -> CreateEmbed {
     let current = &weather.current;
 
     let is_day = current.is_day == 1;
@@ -59,7 +56,10 @@ fn current_condition_fields(weather: &WeatherResponse) -> Vec<(&'static str, Str
         .first()
         .copied()
         .flatten()
-        .map_or_else(|| "N/A".to_string(), |uv| format!("{uv:.1} ({})", uv_severity(uv)));
+        .map_or_else(
+            || "N/A".to_string(),
+            |uv| format!("{uv:.1} ({})", uv_severity(uv)),
+        );
 
     vec![
         (
@@ -68,11 +68,17 @@ fn current_condition_fields(weather: &WeatherResponse) -> Vec<(&'static str, Str
         ),
         (
             "🤔 Feels Like",
-            format!("{:.1}{}", current.apparent_temperature, units.apparent_temperature),
+            format!(
+                "{:.1}{}",
+                current.apparent_temperature, units.apparent_temperature
+            ),
         ),
         (
             "💧 Humidity",
-            format!("{}{}", current.relative_humidity_2m, units.relative_humidity_2m),
+            format!(
+                "{}{}",
+                current.relative_humidity_2m, units.relative_humidity_2m
+            ),
         ),
         ("💨 Wind", wind_field(current, units)),
         (
@@ -108,7 +114,8 @@ fn wind_field(current: &CurrentWeather, units: &CurrentUnits) -> String {
 fn location_title(location: &GeoLocation) -> String {
     let mut title = location.name.clone();
     if let Some(admin) = &location.admin1
-        && admin != &location.name {
+        && admin != &location.name
+    {
         let _ = write!(title, ", {admin}");
     }
     if let Some(country) = &location.country {
@@ -138,8 +145,7 @@ fn forecast_section(weather: &WeatherResponse) -> String {
         let _ = writeln!(
             out,
             "**{day_label}:** {icon} {:.0}/{:.0}{temp_unit} · 🌧️ {precip_chance}%",
-            daily.temperature_2m_max[i],
-            daily.temperature_2m_min[i],
+            daily.temperature_2m_max[i], daily.temperature_2m_min[i],
         );
     }
 
@@ -177,7 +183,11 @@ fn uv_severity(uv: f64) -> &'static str {
 const fn interpret_weather_code(code: u8, is_day: bool) -> (&'static str, &'static str) {
     match code {
         0 => {
-            if is_day { ("Clear sky", "☀️") } else { ("Clear sky", "🌙") }
+            if is_day {
+                ("Clear sky", "☀️")
+            } else {
+                ("Clear sky", "🌙")
+            }
         }
         1 => ("Mainly clear", "🌤️"),
         2 => ("Partly cloudy", "⛅"),

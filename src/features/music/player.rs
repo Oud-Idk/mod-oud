@@ -161,7 +161,7 @@ pub async fn prepare_and_play(
         requested_by,
         requested_by_id,
     )
-        .await)
+    .await)
 }
 
 /// Swaps the active track directly inside the `GuildPlayer` state owned by the actor,

@@ -1,7 +1,9 @@
-use std::sync::LazyLock;
+use crate::features::search::genius::models::{
+    DomChild, GeniusSongLookupResult, GeniusSongSearchResponse, Hit, Song,
+};
 use scraper::{ElementRef, Html, Node, Selector};
+use std::sync::LazyLock;
 use tracing::error;
-use crate::features::search::genius::models::{DomChild, GeniusSongLookupResult, GeniusSongSearchResponse, Hit, Song};
 
 #[derive(Clone)]
 struct RawFetched {
@@ -24,11 +26,12 @@ pub struct GeniusClient {
     base_frontend_url: &'static str,
 }
 
-static LYRICS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
-    Selector::parse(r#"div[data-lyrics-container="true"]"#).unwrap()
-});
+static LYRICS_SELECTOR: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse(r#"div[data-lyrics-container="true"]"#).unwrap());
 
-async fn decode_genius_json<T: serde::de::DeserializeOwned>(response: reqwest::Response) -> Result<T, anyhow::Error> {
+async fn decode_genius_json<T: serde::de::DeserializeOwned>(
+    response: reqwest::Response,
+) -> Result<T, anyhow::Error> {
     let url = response.url().clone();
     let text = response.text().await?;
 
@@ -48,7 +51,12 @@ async fn decode_genius_json<T: serde::de::DeserializeOwned>(response: reqwest::R
 
 impl GeniusClient {
     pub fn new(api_key: impl Into<String>, http: reqwest::Client) -> Self {
-        Self { api_key: api_key.into(), http, base_url: "https://api.genius.com", base_frontend_url: "https://genius.com" }
+        Self {
+            api_key: api_key.into(),
+            http,
+            base_url: "https://api.genius.com",
+            base_frontend_url: "https://genius.com",
+        }
     }
 
     async fn search_songs(&self, query: &str) -> anyhow::Result<GeniusSongSearchResponse> {
@@ -65,7 +73,10 @@ impl GeniusClient {
         Ok(data)
     }
 
-    async fn search_song_by_api_path(&self, api_path: &str) -> Result<GeniusSongLookupResult, reqwest::Error> {
+    async fn search_song_by_api_path(
+        &self,
+        api_path: &str,
+    ) -> Result<GeniusSongLookupResult, reqwest::Error> {
         let response = self
             .http
             .get(format!("{}{api_path}", self.base_url))
@@ -79,7 +90,10 @@ impl GeniusClient {
         Ok(response)
     }
 
-    async fn search_song_by_result(&self, hit: &Hit) -> Result<GeniusSongLookupResult, reqwest::Error> {
+    async fn search_song_by_result(
+        &self,
+        hit: &Hit,
+    ) -> Result<GeniusSongLookupResult, reqwest::Error> {
         let response = self
             .search_song_by_api_path(hit.result.api_path.as_str())
             .await?;
@@ -185,15 +199,16 @@ impl GeniusClient {
 
                 inner
             }
-            DomChild::Other(val) => {
-                val.as_str().map_or_else(
-                    || if val.is_number() {
+            DomChild::Other(val) => val.as_str().map_or_else(
+                || {
+                    if val.is_number() {
                         val.to_string()
                     } else {
                         String::new()
-                    }, ToString::to_string
-                )
-            }
+                    }
+                },
+                ToString::to_string,
+            ),
         }
     }
 
@@ -217,7 +232,10 @@ impl GeniusClient {
 
     fn format_for_discord(simple_song_detail: &SimpleSongDetail) -> String {
         let title_len = simple_song_detail.title.len();
-        let desc_len = simple_song_detail.description.as_deref().map_or(0, str::len);
+        let desc_len = simple_song_detail
+            .description
+            .as_deref()
+            .map_or(0, str::len);
 
         let capacity = title_len + desc_len + simple_song_detail.lyrics.len() + 128;
         let mut final_output = String::with_capacity(capacity);
@@ -253,21 +271,22 @@ impl GeniusClient {
 
     async fn search_raw_song_by_query(&self, query: &str) -> anyhow::Result<Option<RawFetched>> {
         let Some(song) = self.search_song(query).await? else {
-            return Ok(None)
+            return Ok(None);
         };
         let raw_html = self.lookup_main_site_for_lyrics(&song).await?;
 
-        Ok(Some(RawFetched {
-            song,
-            raw_html,
-        }))
+        Ok(Some(RawFetched { song, raw_html }))
     }
 
     fn extract_details(raw_fetched: &RawFetched) -> SimpleSongDetail<'_> {
         let title = raw_fetched.song.title.as_str();
         let description = Self::extract_description(&raw_fetched.song);
         let lyrics = Self::scrape_lyrics(&raw_fetched.raw_html);
-        SimpleSongDetail { title, description, lyrics }
+        SimpleSongDetail {
+            title,
+            description,
+            lyrics,
+        }
     }
 
     pub async fn search_lyrics_for_discord(&self, query: &str) -> anyhow::Result<Option<String>> {
@@ -279,8 +298,8 @@ impl GeniusClient {
             let details = Self::extract_details(&raw);
             Self::format_for_discord(&details)
         })
-            .await
-            .expect("lyrics scrape task panicked");
+        .await
+        .expect("lyrics scrape task panicked");
 
         Ok(Some(result))
     }

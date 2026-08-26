@@ -353,14 +353,14 @@ mod tests {
         let message: ClientMessage = serde_json::from_str(
             r#"{"type":"music","action":"play","query":"x","requestedById":123}"#,
         )
-            .expect("should deserialize");
+        .expect("should deserialize");
 
         match message {
             ClientMessage::Music {
                 action:
-                MusicAction::Play {
-                    requested_by_id, ..
-                },
+                    MusicAction::Play {
+                        requested_by_id, ..
+                    },
                 ..
             } => {
                 assert_eq!(requested_by_id, Some(UserId::from(123)));
@@ -378,9 +378,9 @@ mod tests {
         match message {
             ClientMessage::Music {
                 action:
-                MusicAction::Play {
-                    requested_by_id, ..
-                },
+                    MusicAction::Play {
+                        requested_by_id, ..
+                    },
                 ..
             } => {
                 assert_eq!(requested_by_id, None);

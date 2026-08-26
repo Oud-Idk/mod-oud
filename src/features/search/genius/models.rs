@@ -30,7 +30,6 @@ pub struct SongResponse {
     pub song: Song,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Hit {
     #[serde(default)]
@@ -78,7 +77,6 @@ pub struct SongSummary {
     #[serde(default)]
     pub primary_artists: Vec<Artist>,
 }
-
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Song {
@@ -193,7 +191,6 @@ pub struct BoundingBox {
     pub width: i64,
     pub height: i64,
 }
-
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DescriptionContainer {

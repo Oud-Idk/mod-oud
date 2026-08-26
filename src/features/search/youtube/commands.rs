@@ -24,11 +24,9 @@ pub async fn youtube(
 
     let response = client.search_videos(&query, max_results).await?;
 
-    let chosen_video =
-        choose_or_first(response.items, is_random);
+    let chosen_video = choose_or_first(response.items, is_random);
 
-    let video =
-        chosen_video.with_context(|| format!("No YouTube videos found for '{query}'"))?;
+    let video = chosen_video.with_context(|| format!("No YouTube videos found for '{query}'"))?;
 
     let embed = youtube::message::create_youtube_message(&video);
     let video_id = video

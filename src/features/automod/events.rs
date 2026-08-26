@@ -54,7 +54,7 @@ pub async fn check_for_filter(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     tracing::Span::current().record("guild_id", guild_id.get());
 

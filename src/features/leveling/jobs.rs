@@ -101,7 +101,7 @@ async fn process_flushing_key(
             &current_levels,
             &current_xps,
         )
-            .await?;
+        .await?;
 
         debug!(records_to_upsert, "Database upsert complete");
     }

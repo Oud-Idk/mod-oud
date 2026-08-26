@@ -33,7 +33,11 @@ pub fn create_pokemon_message(pkm: &Pokemon) -> CreateEmbed {
         .abilities
         .iter()
         .map(|a| {
-            let name = format!("{}{}", a.ability.name[..1].to_uppercase(), &a.ability.name[1..]);
+            let name = format!(
+                "{}{}",
+                a.ability.name[..1].to_uppercase(),
+                &a.ability.name[1..]
+            );
             if a.is_hidden {
                 format!("{name} *(Hidden)*")
             } else {

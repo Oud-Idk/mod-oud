@@ -77,6 +77,10 @@ pub struct CompiledRuleset {
     /// Lowercased exact words for O(1) hashset lookup
     pub exact_words: HashSet<String>,
 
+    /// Multi-word exact patterns as lowercased token sequences,
+    /// paired with their original values for trigger reporting
+    pub exact_phrases: Vec<(Vec<String>, String)>,
+
     /// Single-pass Aho-Corasick automaton for all substring patterns
     /// Stores the automaton and the original pattern values by index
     pub substring_matcher: Option<(AhoCorasick, Vec<String>)>,
@@ -101,13 +105,30 @@ impl CompiledRuleset {
 impl From<BadWordRuleset> for CompiledRuleset {
     fn from(raw: BadWordRuleset) -> Self {
         let mut exact_words = HashSet::new();
+        let mut exact_phrases = Vec::new();
         let mut sub_patterns = Vec::new();
         let mut regexes = Vec::new();
 
         for p in raw.patterns {
             match p.strategy {
                 MatchStrategy::Exact => {
-                    exact_words.insert(p.value.to_lowercase());
+                    let tokens: Vec<String> = p
+                        .value
+                        .to_lowercase()
+                        .split(|c: char| !c.is_alphanumeric())
+                        .filter(|t| !t.is_empty())
+                        .map(ToString::to_string)
+                        .collect();
+
+                    match tokens.as_slice() {
+                        [] => {}
+                        [word] => {
+                            exact_words.insert(word.clone());
+                        }
+                        _ => {
+                            exact_phrases.push((tokens, p.value));
+                        }
+                    }
                 }
                 MatchStrategy::Substring => {
                     sub_patterns.push(p.value);
@@ -140,8 +161,64 @@ impl From<BadWordRuleset> for CompiledRuleset {
             timeout_duration_seconds: raw.timeout_duration_seconds,
             scope: raw.scope,
             exact_words,
+            exact_phrases,
             substring_matcher,
             regexes,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ruleset_with(patterns: Vec<Pattern>) -> BadWordRuleset {
+        BadWordRuleset {
+            id: uuid::Uuid::nil(),
+            guild_id: GuildId::new(1),
+            name: "test".to_string(),
+            enabled: true,
+            patterns,
+            actions: Vec::new(),
+            timeout_duration_seconds: None,
+            scope: RuleScope::default(),
+        }
+    }
+
+    fn exact(value: &str) -> Pattern {
+        Pattern {
+            strategy: MatchStrategy::Exact,
+            value: value.to_string(),
+        }
+    }
+
+    #[test]
+    fn single_word_exact_goes_to_hashset() {
+        let compiled: CompiledRuleset = ruleset_with(vec![exact("BadWord")]).into();
+
+        assert!(compiled.exact_words.contains("badword"));
+        assert!(compiled.exact_phrases.is_empty());
+    }
+
+    #[test]
+    fn multi_word_exact_becomes_phrase() {
+        let compiled: CompiledRuleset = ruleset_with(vec![exact("Guaranteed, RETURNS!")]).into();
+
+        assert!(compiled.exact_words.is_empty());
+        assert_eq!(
+            compiled.exact_phrases,
+            vec![(
+                vec!["guaranteed".to_string(), "returns".to_string()],
+                "Guaranteed, RETURNS!".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn punctuation_only_exact_is_dropped() {
+        let compiled: CompiledRuleset = ruleset_with(vec![exact("!!!"), exact("   ")]).into();
+
+        assert!(compiled.exact_words.is_empty());
+        assert!(compiled.exact_phrases.is_empty());
     }
 }

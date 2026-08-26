@@ -60,8 +60,8 @@ pub async fn start_web_server(deps: WebServerDeps) -> Result<(), Error> {
 
     // Comma-separated list of browser origins allowed to call this API
     // (e.g. `CORS_ORIGINS=https://dash.example.com,http://localhost:3000`).
-    let cors_origins = std::env::var("CORS_ORIGINS")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let cors_origins =
+        std::env::var("CORS_ORIGINS").unwrap_or_else(|_| "http://localhost:3000".to_string());
 
     let origins = cors_origins
         .split(',')

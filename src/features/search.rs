@@ -1,17 +1,17 @@
 mod commands;
 mod events;
+mod genius;
 mod giphy;
 mod kitsu;
 mod klipy;
+mod open_meteo;
 mod pick;
+mod pokeapi;
+mod rawg;
 mod spotify;
+mod tmdb;
 mod urban;
 mod youtube;
-mod genius;
-mod tmdb;
-mod rawg;
-mod pokeapi;
-mod open_meteo;
 
 pub use commands::search;
 pub use events::handle_search_play;

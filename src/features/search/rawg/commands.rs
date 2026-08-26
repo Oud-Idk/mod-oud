@@ -19,9 +19,9 @@ pub async fn rawg(
         .config
         .rawg_api_key
         .as_deref()
-        .with_context(|| {
-            "RAWG API key is not set up. Please contact the hoster of the bot to set it up."
-        })?;
+        .with_context(
+            || "RAWG API key is not set up. Please contact the hoster of the bot to set it up.",
+        )?;
 
     let client = rawg::client::RawgClient::new(reqwest_client, api_key);
 
@@ -34,7 +34,9 @@ pub async fn rawg(
         .iter()
         .filter(|g| {
             let name_lower = g.name.to_lowercase();
-            q_lower.split_whitespace().all(|word| name_lower.contains(word))
+            q_lower
+                .split_whitespace()
+                .all(|word| name_lower.contains(word))
         })
         .max_by_key(|game| game.added.unwrap_or(0))
         .cloned()
