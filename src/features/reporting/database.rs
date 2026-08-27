@@ -81,7 +81,7 @@ pub async fn get_reported_message_by_id(
 pub async fn fetch_target_report(
     pool: &PgPool,
     report_id: i64,
-) -> Result<(GuildId, UserId), (StatusCode, String)> {
+) -> Result<(GuildId, UserId, String), (StatusCode, String)> {
     let report = sqlx::query!(
         "SELECT guild_id, author_id FROM reported_messages WHERE id = $1",
         report_id
@@ -100,7 +100,7 @@ pub async fn fetch_target_report(
     let guild_id = GuildId::new(report.guild_id.cast_unsigned());
     let user_id = UserId::new(report.author_id.cast_unsigned());
 
-    Ok((guild_id, user_id))
+    Ok((guild_id, user_id, "sample username".to_string())) // TODO do something about `sample username` lol
 }
 
 pub async fn fetch_reporter_id(

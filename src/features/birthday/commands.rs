@@ -249,7 +249,7 @@ async fn force_remove(
         return Ok(());
     }
 
-    database::remove_birthday(&ctx.data().core.db, user.id).await?;
+    database::remove_birthday(&ctx.data().core.db, ctx.author().id).await?;
     send_ephemeral(&ctx, format!("Removed birthday for **{}**.", user.name)).await?;
 
     Ok(())

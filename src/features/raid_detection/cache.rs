@@ -217,9 +217,7 @@ pub async fn increment_hourly_accumulator(
     let dirty_key = keys::dirty_raid_guilds_key();
 
     let _: () = redis.hincrby(&accum_key, hour_str, 1).await?;
-    let _: () = redis
-        .expire(&accum_key, HASH_TTL_DAYS * 86400, None)
-        .await?;
+    let _: () = redis.expire(&accum_key, HASH_TTL_DAYS * 86400, None).await?;
     let _: i64 = redis.sadd(dirty_key, guild_id.get()).await?;
 
     Ok(())
@@ -245,7 +243,10 @@ pub async fn claim_accumulator(
     Ok(parsed)
 }
 
-pub async fn remove_dirty_raid_guild(redis: &Client, guild_id: GuildId) -> Result<(), Error> {
+pub async fn remove_dirty_raid_guild(
+    redis: &Client,
+    guild_id: GuildId,
+) -> Result<(), Error> {
     let dirty_key = keys::dirty_raid_guilds_key();
     let _: () = redis.srem(dirty_key, guild_id.get()).await?;
     Ok(())

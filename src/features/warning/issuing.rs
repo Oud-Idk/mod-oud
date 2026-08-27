@@ -42,12 +42,10 @@ pub async fn issue_warning(
     moderator_id: UserId,
     reason: &str,
     moderator_username: &str,
-    target_username: Option<&str>,
+    target_username: &str,
 ) -> Result<i64, Error> {
     debug!("Inserting warning record into database");
-    if let Some(target_username) = target_username {
-        store_username_relation(username_buf, user_id, target_username).await?;
-    }
+    store_username_relation(username_buf, user_id, target_username).await?;
     store_username_relation(username_buf, moderator_id, moderator_username).await?;
 
     let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason).await?;
