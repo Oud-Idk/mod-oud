@@ -38,7 +38,7 @@ pub async fn handle_dashboard_command(
     State(state): State<Arc<WebState>>,
     Json(cmd): Json<DashboardCommand>,
 ) -> Result<StatusCode, WebError> {
-    let (guild_id, user_id, target_username) =
+    let (guild_id, user_id) =
         reporting::database::fetch_target_report(&state.core.db, cmd.report_id)
             .await
             .inspect_err(|(status, err_msg)| {
@@ -78,7 +78,7 @@ pub async fn handle_dashboard_command(
                     user_id,
                     redis: &redis_conn,
                     moderator_username: moderator_name,
-                    target_username: &target_username,
+                    target_username: None,
                 },
             )
             .await?;

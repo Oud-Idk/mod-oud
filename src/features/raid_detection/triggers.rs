@@ -163,13 +163,8 @@ pub async fn resolve_raid_manual(
     cache::clear_raid_active(&data.core.redis, guild_id).await?;
 
     // Log the resolve event
-    if let Err(e) = database::log_raid_event(
-        &data.core.db,
-        guild_id,
-        RaidEventType::Resolved,
-        None,
-    )
-    .await
+    if let Err(e) =
+        database::log_raid_event(&data.core.db, guild_id, RaidEventType::Resolved, None).await
     {
         error!(error = ?e, %guild_id, "Failed to log raid resolve event");
     }

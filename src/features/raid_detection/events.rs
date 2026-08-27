@@ -59,7 +59,8 @@ pub async fn handle_raid_detection(
 
     // Accumulate hourly stats for periodic Postgres flush
     let hour_str = now.format("%Y%m%d%H").to_string();
-    if let Err(e) = cache::increment_hourly_accumulator(&data.core.redis, guild_id, &hour_str).await {
+    if let Err(e) = cache::increment_hourly_accumulator(&data.core.redis, guild_id, &hour_str).await
+    {
         warn!(error = ?e, %guild_id, "Failed to increment hourly stats accumulator");
     }
 

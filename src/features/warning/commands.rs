@@ -42,7 +42,7 @@ pub async fn warn(
         meta.author_id,
         &reason_str,
         &ctx.author().name,
-        &member.user.name,
+        Some(&member.user.name),
     )
     .await?;
 

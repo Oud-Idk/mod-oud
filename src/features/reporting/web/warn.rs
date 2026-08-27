@@ -15,7 +15,7 @@ pub struct WarnContext<'a> {
     pub user_id: UserId,
     pub redis: &'a Client,
     pub moderator_username: &'a str,
-    pub target_username: &'a str,
+    pub target_username: Option<&'a str>,
 }
 
 #[instrument(

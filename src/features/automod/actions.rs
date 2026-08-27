@@ -173,7 +173,7 @@ async fn apply_warning(
         moderator_id,
         &reason_str,
         &moderator_username,
-        &target_username,
+        Some(&target_username),
     )
     .await
     {
