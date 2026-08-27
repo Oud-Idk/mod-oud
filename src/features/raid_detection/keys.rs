@@ -33,3 +33,11 @@ pub fn raid_active_key(guild_id: GuildId) -> String {
 pub const fn active_raids_key() -> &'static str {
     "active_raids"
 }
+
+pub fn hourly_accumulator_key(guild_id: GuildId) -> String {
+    format!("raid:hourly_accum:{guild_id}")
+}
+
+pub const fn dirty_raid_guilds_key() -> &'static str {
+    "raid:dirty_guilds"
+}

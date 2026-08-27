@@ -12,6 +12,7 @@ use fred::interfaces::{
 use fred::prelude::Expiration;
 use fred::types::SetOptions;
 use serenity::all::{GuildId, UserId};
+use std::collections::HashMap;
 use tracing::info;
 
 #[allow(clippy::cast_precision_loss)]
@@ -203,4 +204,61 @@ pub async fn getdel_preraid_snapshot(
 ) -> Result<Option<String>, Error> {
     let redis_key = keys::raid_snapshot_key(guild_id);
     Ok(redis.getdel(&redis_key).await?)
+}
+
+// ── Hourly stats accumulator ─────────────────────────────────────────
+
+pub async fn increment_hourly_accumulator(
+    redis: &Client,
+    guild_id: GuildId,
+    hour_str: &str,
+) -> Result<(), Error> {
+    let accum_key = keys::hourly_accumulator_key(guild_id);
+    let dirty_key = keys::dirty_raid_guilds_key();
+
+    let _: () = redis.hincrby(&accum_key, hour_str, 1).await?;
+    let _: () = redis.expire(&accum_key, HASH_TTL_DAYS * 86400, None).await?;
+    let _: i64 = redis.sadd(dirty_key, guild_id.get()).await?;
+
+    Ok(())
+}
+
+pub async fn claim_accumulator(
+    redis: &Client,
+    guild_id: GuildId,
+) -> Result<HashMap<String, i64>, Error> {
+    let accum_key = keys::hourly_accumulator_key(guild_id);
+
+    let records: HashMap<String, String> = redis.hgetall(&accum_key).await?;
+
+    let parsed: HashMap<String, i64> = records
+        .into_iter()
+        .filter_map(|(k, v)| v.parse::<i64>().ok().map(|n| (k, n)))
+        .collect();
+
+    if !parsed.is_empty() {
+        let _: () = redis.del(&accum_key).await?;
+    }
+
+    Ok(parsed)
+}
+
+pub async fn remove_dirty_raid_guild(
+    redis: &Client,
+    guild_id: GuildId,
+) -> Result<(), Error> {
+    let dirty_key = keys::dirty_raid_guilds_key();
+    let _: () = redis.srem(dirty_key, guild_id.get()).await?;
+    Ok(())
+}
+
+pub async fn get_dirty_raid_guilds(redis: &Client) -> Result<Vec<GuildId>, Error> {
+    let dirty_key = keys::dirty_raid_guilds_key();
+    let guilds: Vec<GuildId> = redis
+        .smembers::<Vec<u64>, _>(dirty_key)
+        .await?
+        .into_iter()
+        .map(GuildId::new)
+        .collect();
+    Ok(guilds)
 }

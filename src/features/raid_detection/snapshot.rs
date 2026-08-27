@@ -7,7 +7,7 @@ use serenity::all::Context;
 use serenity::all::{EditRole, GuildId, Permissions, RoleId};
 use tracing::{debug, error, info, instrument};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreRaidState {
     pub raid_start_time: chrono::DateTime<chrono::Utc>,
     pub original_verification_type: Option<CaptchaType>,
@@ -59,6 +59,11 @@ pub async fn ensure_preraid_state_saved(
     let snapshot_saved = cache::save_preraid_snapshot(conn, guild_id, &serialized).await?;
 
     let _: () = cache::add_guild_to_raid(guild_id, conn).await?;
+
+    // Persist to Postgres for crash recovery (upsert — safe if already present)
+    if let Err(e) = database::save_active_raid_state(&data.core.db, guild_id, &snapshot).await {
+        error!(error = ?e, %guild_id, "Failed to persist active raid state to database");
+    }
 
     if snapshot_saved {
         info!(
@@ -128,6 +133,11 @@ pub async fn restore_preraid_state(
 
     // Remove from active raids set
     let _: () = cache::remove_guild_from_raid(guild_id, &data.core.redis).await?;
+
+    // Delete persisted state from Postgres
+    if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
+        error!(error = ?e, %guild_id, "Failed to delete active raid state from database");
+    }
 
     info!(%guild_id, "Successfully claimed and restored pre-raid state");
 

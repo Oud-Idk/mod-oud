@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO raid_event_logs (guild_id, event_type, details)\n        VALUES ($1, $2, $3)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        {
+          "Custom": {
+            "name": "raid_event_type",
+            "kind": {
+              "Enum": [
+                "TRIGGERED",
+                "RESOLVED",
+                "ACTION_APPLIED"
+              ]
+            }
+          }
+        },
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5d63c39e61eca5504856a8c503fbac8618359f65bbd636f8e747de39c3e7e3fd"
+}

@@ -6,7 +6,7 @@ use crate::features::raid_detection::database;
 use crate::features::raid_detection::implementation::DynamicRaidDetector;
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
-use crate::features::raid_detection::types::RaidAction;
+use crate::features::raid_detection::types::{RaidAction, RaidEventType};
 use chrono::{DateTime, Utc};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, EditMember, GuildId, Member,
@@ -56,6 +56,12 @@ pub async fn handle_raid_detection(
     );
 
     let result = detector.record_join(guild_id, user_id, now).await?;
+
+    // Accumulate hourly stats for periodic Postgres flush
+    let hour_str = now.format("%Y%m%d%H").to_string();
+    if let Err(e) = cache::increment_hourly_accumulator(&data.core.redis, guild_id, &hour_str).await {
+        warn!(error = ?e, %guild_id, "Failed to increment hourly stats accumulator");
+    }
 
     if !result.is_anomaly {
         trace!(
@@ -138,6 +144,20 @@ async fn handle_raid_lifecycle(
         );
         let _ = cache::clear_raid_active(&data.core.redis, guild_id).await;
         return Err(e);
+    }
+
+    // Log the raid trigger event
+    if let Err(e) = database::log_raid_event(
+        &data.core.db,
+        guild_id,
+        RaidEventType::Triggered,
+        Some(serde_json::json!({
+            "message": alert_message,
+        })),
+    )
+    .await
+    {
+        error!(error = ?e, %guild_id, "Failed to log raid trigger event");
     }
 
     spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);

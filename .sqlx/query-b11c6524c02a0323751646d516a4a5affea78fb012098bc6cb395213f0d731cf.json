@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT hour_key, join_count\n        FROM raid_hourly_stats\n        WHERE guild_id = $1\n          AND hour_key >= to_char(NOW() - ($2 || ' hours')::interval, 'YYYYMMDDHH')\n        ORDER BY hour_key DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "hour_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "raid_hourly_stats",
+            "name": "hour_key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "join_count",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "raid_hourly_stats",
+            "name": "join_count"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b11c6524c02a0323751646d516a4a5affea78fb012098bc6cb395213f0d731cf"
+}

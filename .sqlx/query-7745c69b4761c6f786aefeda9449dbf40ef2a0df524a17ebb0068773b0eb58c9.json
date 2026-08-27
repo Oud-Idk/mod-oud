@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO raid_active_state (guild_id, raid_start_time, pre_raid_snapshot)\n        VALUES ($1, $2, $3)\n        ON CONFLICT (guild_id) DO UPDATE SET\n            raid_start_time = EXCLUDED.raid_start_time,\n            pre_raid_snapshot = EXCLUDED.pre_raid_snapshot\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7745c69b4761c6f786aefeda9449dbf40ef2a0df524a17ebb0068773b0eb58c9"
+}

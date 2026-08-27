@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM raid_active_state\n        WHERE guild_id = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0fe5601e952603cdbb10cbdf2337d05a13fc8501a1e567ebe8fbcac7a77610f4"
+}

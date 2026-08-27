@@ -188,8 +188,7 @@ To understand this, you have to understand gambling.
 
 ## What does gambling have to do with crushes?
 
-That's a great question, and they have a connection. People gamble and lose their life savings. Why? Because of
-**intermittent reinforcement** (Skinner, 1948). It's basically sometimes getting a reward when a condition is met, like getting only a bit of money when you play a machine.
+That's a great question, and they have a connection. People gamble and lose their life savings. Why? Because of **intermittent reinforcement** (Skinner, 1948). It's basically sometimes getting a reward when a condition is met, like getting only a bit of money when you play a machine.
 
 There's a study done by B.F. Skinner. He placed a pigeon in a cage with a button that dispenses treats. When it always dispenses treats, they only press it enough. When the button does nothing, they realize it quickly, and they move on.
 
@@ -332,8 +331,7 @@ Think of it as the numerical difference between reality and your expectations. T
 
 - 10 (receiving a compliment through text) - (-10) (expecting a mocking remark) = 20 (Give me a moment as I process this one)
 
-Your brain basically releases dopamine based on the
-_difference_ in expectation. It's basically our brain's way to make us pay attention to anomalies. (Schultz, Dayan, & Montague, 1997)
+Your brain basically releases dopamine based on the _difference_ in expectation. It's basically our brain's way to make us pay attention to anomalies. (Schultz, Dayan, & Montague, 1997)
 
 ## The Love of Learning
 
@@ -387,8 +385,7 @@ Recent meta-analyses show that rejection instead consistently activates the Defa
 
 So, you think that jealousy is a social construct. The truth is it comes deeply from biology.
 
-You see, jealousy is usually defined as a
-_state_ caused by a perceived threat to a relationship and motivates behavior aimed at preventing and/or fighting the threat (Daly et al., 1982).
+You see, jealousy is usually defined as a _state_ caused by a perceived threat to a relationship and motivates behavior aimed at preventing and/or fighting the threat (Daly et al., 1982).
 
 As documented by Daly, males in species with internal fertilization experience paternity uncertainty because they aren't the ones carrying the baby.
 
@@ -407,13 +404,11 @@ It is important to remember that they are not mutually exclusive, as one can abs
 
 ## Why in the World Do We Get Jealous Even Though It Isn't Official?
 
-Well, in your mind, it is. Tennov lists "acute longing for reciprocation" as a building block of limerence. The smitten person is
-_always_ observing, constantly analyzing their crush's actions for signs of any reciprocation. A rival can threaten this hope, so they feel jealous.
+Well, in your mind, it is. Tennov lists "acute longing for reciprocation" as a building block of limerence. The smitten person is _always_ observing, constantly analyzing their crush's actions for signs of any reciprocation. A rival can threaten this hope, so they feel jealous.
 
 What I described in jealousy section for human males is sexual jealousy, and it differs from limerent jealousy, which focuses on whether the person returns the feelings. Do not confuse these two, though limerent jealousy usually precedes sexual jealousy, and they can happen at the same time.
 
-Tennov notes that jealousy is
-**NOT** a measure of limerence. You can be limerent without jealousy (a crush with no rival) or jealous without limerence.
+Tennov notes that jealousy is **NOT** a measure of limerence. You can be limerent without jealousy (a crush with no rival) or jealous without limerence.
 
 ## Reconciliation: Daly et al.'s Evolutionary Viewpoint Differs from Yarab et al.'s Statistics.
 
@@ -431,8 +426,7 @@ First, you have to know that imitation is basically like an instinct. We can see
 
 Plus, we have mirror neurons, which are neurons that fire when we do something and see someone else do that thing. Our brains are programmed from the start to react to other people's actions that matches our own. This is essential to empathy and language, but it also makes people want to imitate others too.
 
-Garrels points out that imitation is more goal-oriented. Babies don't simply copy movements. They copy the meaning and intentions behind it. Turns out, when two people imitate each other's desire for something, they become rivals. This is
-_Acquisitive Mimesis_ (Garrels, 2005). And this is how you get jealousy.
+Garrels points out that imitation is more goal-oriented. Babies don't simply copy movements. They copy the meaning and intentions behind it. Turns out, when two people imitate each other's desire for something, they become rivals. This is _Acquisitive Mimesis_ (Garrels, 2005). And this is how you get jealousy.
 
 # Love Triangles
 
@@ -667,8 +661,7 @@ This can have real life consequences too! Sexual harassment can happen in this s
 
 There are some characteristics that make a good flirt (Apostolou & Christoforou, 2020).
 
-1. The most universal one is
-   **non-verbal behaviors**. It's also where men and women diverge the most. Women rate it noticeably higher than men, more than any other trait in the study. These behaviors include:
+1. The most universal one is **non-verbal behaviors**. It's also where men and women diverge the most. Women rate it noticeably higher than men, more than any other trait in the study. These behaviors include:
    - How one looks at another
    - Intense gaze (must be followed with)
    - Nice smile
@@ -758,8 +751,7 @@ You want to look for body language. Specifically, subconscious signs of proximit
 1. Proximity. If you are in a room of 50 people and there's always one that just seems to be around you once, it's a coincidence, twice is a fluke, but thrice and more is a pattern.
 
 2. Mirroring. Remember the [mirror neurons](#why-do-we-want-things-other-people-want)? Well, they will
-   **subconsciously do what you
-   do**. At that section, I wrote that the role of the mirror neurons are to enhance social connection and empathy. Usually, at least. When you lean back, they lean back. When you drink water, they drink too. They are unconsciously trying to tell you, "I feel safe with you. I want to be like you." In hindsight, that's super sweet!
+   **subconsciously do what you do**. At that section, I wrote that the role of the mirror neurons are to enhance social connection and empathy. Usually, at least. When you lean back, they lean back. When you drink water, they drink too. They are unconsciously trying to tell you, "I feel safe with you. I want to be like you." In hindsight, that's super sweet!
    - A study placed participants on an online date (Li et al., 2024). When the researchers artificially increased their partner's smile, the participant thought, "Hey, this person likes me a lot!"
    - When both are smiling at the same time, romantic attraction was the highest.
    - Interestingly, when both people had decreased smiles, it was still rated higher than when one is smiling and the other is not. Wrong energy kills the vibe and makes things awkward!
@@ -770,8 +762,7 @@ You want to look for body language. Specifically, subconscious signs of proximit
    - No, it's not just Disney logic. Kret (2018) did a study where people were asked to draw pupils on a happy face and an angry face. The happy face has larger pupils than the angry face.
    - They dilate from mental effort (Kahneman & Beatty, 1966). You see, the pupils dilate when you are in a high stress situation, as you need a lot of visual information, like letting more light in (Mathôt, 2018).
    - And also because they want to appear innocent and baby-like.
-   - Don't take this as the
-     _only_ evidence. Make sure you are not in a dark room, or they aren't on meds.
+   - Don't take this as the _only_ evidence. Make sure you are not in a dark room, or they aren't on meds.
 
 5. A smile and other facial expressions can be faked as we have massive control over them, but **the legs are rather hard to fake**. Ekman & Friesen (1969) showed that because humans barely pay attention to what our feet are doing and assume that nobody is looking at them, our feet won't lie.
    - Mehrabian (1968) found that body and leg orientation (and how much you lean forward) is a great indicator of said person's interest, whereas angling your legs away is a great indicator of intense dislike.
@@ -944,8 +935,7 @@ Gottman (1994) noted that only four characteristics (The Four Horsemen of the Ap
   - "It's not my fault the house is dirty—I did <u>my</u> chores!"
   - It's an attempt to dodge responsibility. Maybe you are too lazy or too superior to be responsible or wrong. And also ego.
 - **Stonewalling**: The listener just stops listening.
-  - **DPA (Diffuse Physiological
-    Arousal)** causes this. When our heart rate is above 100 bpm during a seated conversation, we cannot process any more information. Our IQ drops and ooga-booga brain takes over.
+  - **DPA (Diffuse Physiological Arousal)** causes this. When our heart rate is above 100 bpm during a seated conversation, we cannot process any more information. Our IQ drops and ooga-booga brain takes over.
   - Nods. Looks away. Or acts like a stone wall.
   - It's usually a survival mechanism, but it usually conveys a lack of actually engaging. It makes the other partner feel ignored, because they probably are, shutting down any chance of resolving the actual issue.
 
@@ -990,8 +980,7 @@ It's a way of bringing up something without starting a full-blown fight. I'll gi
      - "Your chewing is **disgusting** and **uncomfortable** and driving me **insane**."
    - **DO**
      - "I've been feeling a **little lonely** lately, and a hang-out together is **lovely**!"
-     - "I'm **super sensitive** to noise right now. Could you try to chew **a bit more
-       quietly**?"
+     - "I'm **super sensitive** to noise right now. Could you try to chew **a bit more quietly**?"
 5. **No Linking Words / Relative Pronouns**. It's another way to sneak in "you."
    - **DO NOT**
      - "I feel **that** you are being selfish."
@@ -1073,8 +1062,7 @@ On TikTok, the ick is more commonly discussed by women (78%) than men (22%).
 In those videos, the most common women's icks are the following:
 
 - **Gender incongruence** (as in overly feminine. E.g., "when he laid his head on my shoulder"): 40%
-- **Publicly
-  embarrassing** (E.g., "using an app to search for a song while he was in a nightclub"): 38%
+- **Publicly embarrassing** (E.g., "using an app to search for a song while he was in a nightclub"): 38%
 - **Annoying speech** (E.g., “Saying 'wow, without me?' whenever I would do anything”): 24%
 
 While the most commonly discussed icks by men are the following:
@@ -1128,8 +1116,7 @@ Think of love as a **balanced diet** (Impett, Park, & Muise, 2024). I know, it m
 
 - You need **all** of them. You can't rely solely on carbs (quality time), your (emotional) body needs protein (words of affirmation), healthy fats (acts of service), and vitamins (physical touch).
 - A marathon runner needs more carbs before a big race. Likewise, if your partner is going through something tough, they might need extra 'supplements' of _physical affection_ to get through their struggle.
-- If your partner is feeling insecure, they might need _supplemental
-  iron_ (extra appreciation and validation) to feel safe in a relationship.
+- If your partner is feeling insecure, they might need _supplemental iron_ (extra appreciation and validation) to feel safe in a relationship.
 
 Remember, there are no miracle fat loss supplements[^1] or cheat codes for love. Real romance is about responsiveness. Paying attention to what gesture your partner needs and giving it to them.
 
@@ -1193,8 +1180,7 @@ It feels like a dream, right? Right until
 ## You Meet Up
 
 And that's exactly when your imagination shatters like a poorly coded JavaScript applet with no regard for type safety and, for that matter, any rational logic. If your attachment is not grounded
-_at
-all_, it's not even JavaScript anymore; it's more a script kiddie trying Visual Basic for the first time.
+_at all_, it's not even JavaScript anymore; it's more a script kiddie trying Visual Basic for the first time.
 
 You’d assume that after a very long time of pining for each other across countries, moving to the same city or living together would sound like a dream, right?
 
@@ -1206,9 +1192,7 @@ But, you might think, "Huh? How does it work? How can meeting together (from tex
 
 Seeing people's behavior in real life nukes your [Halo Effect Times 100](#halo-effect-times-100). It deletes your fantasy like a programmer looking at past code and declares that it should be deleted into the abyss.
 
-When researchers asked couples who used to be in an LDR about their experience, **40% reported
-discovering new, previously unknown
-facts** about their partner after moving close together from an LDR (Stafford et al., 2006; Stafford & Merolla, 2007). Oh, good news, it's positive right? Nope, it's about **four times more likely to be negative than positive**.
+When researchers asked couples who used to be in an LDR about their experience, **40% reported discovering new, previously unknown facts** about their partner after moving close together from an LDR (Stafford et al., 2006; Stafford & Merolla, 2007). Oh, good news, it's positive right? Nope, it's about **four times more likely to be negative than positive**.
 
 You might find out that they might be a stranger who bickers about who is going to do the dishes, doesn't look as good-looking as they appear from an Instagram filter, and has actual annoying habits that they hid during any voice calls.
 

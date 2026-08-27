@@ -4,6 +4,7 @@ mod constants;
 mod database;
 mod events;
 mod implementation;
+mod jobs;
 mod keys;
 mod raid_end;
 mod snapshot;
@@ -12,5 +13,6 @@ mod types;
 
 pub use commands::raid;
 pub use events::handle_raid_detection;
+pub use jobs::start_raid_stats_flush_worker;
 pub use raid_end::reconcile_active_raids;
 pub use types::RaidDetectionConfig;

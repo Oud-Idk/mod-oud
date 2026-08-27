@@ -1,6 +1,15 @@
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
 
+#[derive(Debug, Clone, sqlx::Type, Serialize, Deserialize)]
+#[sqlx(type_name = "raid_event_type", rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RaidEventType {
+    Triggered,
+    Resolved,
+    ActionApplied,
+}
+
 /// Config for the raid detection feature.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

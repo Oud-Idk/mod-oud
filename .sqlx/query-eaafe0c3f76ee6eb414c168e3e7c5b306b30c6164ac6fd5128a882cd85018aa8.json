@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO raid_hourly_stats (guild_id, hour_key, join_count)\n        SELECT * FROM UNNEST(\n            $1::bigint[],\n            $2::text[],\n            $3::bigint[]\n        )\n        ON CONFLICT (guild_id, hour_key) DO UPDATE SET\n            join_count = raid_hourly_stats.join_count + EXCLUDED.join_count\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "eaafe0c3f76ee6eb414c168e3e7c5b306b30c6164ac6fd5128a882cd85018aa8"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT pre_raid_snapshot\n        FROM raid_active_state\n        WHERE guild_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pre_raid_snapshot",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "raid_active_state",
+            "name": "pre_raid_snapshot"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "128beed52ffec183258a72c19c490fef0c4b9e6927e41a16059f8e3f74b9a7a4"
+}

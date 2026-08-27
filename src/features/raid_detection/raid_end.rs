@@ -2,12 +2,13 @@ use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_unlock;
 use crate::features::raid_detection::cache;
+use crate::features::raid_detection::database;
 use crate::features::raid_detection::snapshot::restore_preraid_state;
-use crate::features::raid_detection::types::RaidAction;
+use crate::features::raid_detection::types::{RaidAction, RaidEventType};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
     tokio::spawn(async move {
@@ -47,6 +48,23 @@ pub async fn handle_raid_end(
 
     if !restored {
         return Ok(());
+    }
+
+    // Delete persisted active raid state from Postgres
+    if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
+        error!(error = ?e, %guild_id, "Failed to delete active raid state from database");
+    }
+
+    // Log the resolve event
+    if let Err(e) = database::log_raid_event(
+        &data.core.db,
+        guild_id,
+        RaidEventType::Resolved,
+        None,
+    )
+    .await
+    {
+        error!(error = ?e, %guild_id, "Failed to log raid resolve event");
     }
 
     let Some(raid_config) = get_settings(
@@ -100,26 +118,82 @@ pub async fn handle_raid_end(
 
 /// Re-attaches raid monitors or reverts stale raid state for tracked guilds at startup.
 ///
+/// Checks Redis first; if Redis is empty (e.g. after a Redis restart), falls back
+/// to the Postgres `raid_active_state` table to recover active raids.
+///
 /// # Errors
-/// Returns an error if the Redis read of tracked guilds fails.
+/// Returns an error if the Redis or database read fails.
 pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(), Error> {
+    // First, try to reconcile from Redis (fast path)
     let tracked_guilds = cache::get_active_raids(&data.core.redis).await?;
 
-    for guild_id in tracked_guilds {
-        let is_active = cache::check_raid_active(&data.core.redis, guild_id)
+    for guild_id in &tracked_guilds {
+        let is_active = cache::check_raid_active(&data.core.redis, *guild_id)
             .await
             .unwrap_or(false);
 
         if is_active {
             info!("Re-attaching raid monitor for active raid in guild {guild_id}");
-            spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
+            spawn_raid_end_monitor(ctx.clone(), (*data).clone(), *guild_id);
         } else {
             info!("Found stale raid tracking for guild {guild_id}. Reverting state...");
-            if let Err(e) = handle_raid_end(ctx, data, guild_id).await {
+            if let Err(e) = handle_raid_end(ctx, data, *guild_id).await {
                 error!(
                     error = ?e,
                     "Failed to restore state during startup reconciliation for guild {guild_id}"
                 );
+            }
+        }
+    }
+
+    // If Redis had no tracked guilds, check Postgres for active raids that survived a Redis flush
+    if tracked_guilds.is_empty() {
+        let db_guilds = database::get_all_active_raid_guilds(&data.core.db).await?;
+
+        if !db_guilds.is_empty() {
+            info!(
+                count = db_guilds.len(),
+                "Redis empty; recovering active raids from database"
+            );
+        }
+
+        for guild_id in db_guilds {
+            // Check if this guild's raid is still "active" by re-saving to Redis and attaching monitor
+            info!(
+                %guild_id,
+                "Recovering active raid from database; re-attaching monitor"
+            );
+
+            // Re-populate Redis active raids set and snapshot
+            if let Ok(Some(snapshot)) = database::load_active_raid_state(&data.core.db, guild_id).await {
+                let snapshot_json = match serde_json::to_string(&snapshot) {
+                    Ok(j) => j,
+                    Err(e) => {
+                        error!(error = ?e, %guild_id, "Failed to serialize snapshot for Redis recovery");
+                        continue;
+                    }
+                };
+
+                let _ = cache::save_preraid_snapshot(&data.core.redis, guild_id, &snapshot_json).await;
+                let _ = cache::add_guild_to_raid(guild_id, &data.core.redis).await;
+
+                // Try to set raid active; if it fails (e.g. another instance already has it), skip
+                match cache::try_set_raid_active(&data.core.redis, guild_id, 300).await {
+                    Ok(true) => {
+                        spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
+                    }
+                    Ok(false) => {
+                        info!(%guild_id, "Raid already tracked by another instance; skipping");
+                    }
+                    Err(e) => {
+                        error!(error = ?e, %guild_id, "Failed to set raid active during recovery");
+                    }
+                }
+            } else {
+                warn!(%guild_id, "Active raid in database but no snapshot found; cleaning up");
+                if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
+                    error!(error = ?e, %guild_id, "Failed to clean up orphaned raid state");
+                }
             }
         }
     }

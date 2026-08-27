@@ -11,7 +11,7 @@ use crate::features::music::{
     MusicState, MusicWebControlParams, start_music_stats_prune_worker,
     start_music_web_control_worker,
 };
-use crate::features::raid_detection::reconcile_active_raids;
+use crate::features::raid_detection::{reconcile_active_raids, start_raid_stats_flush_worker};
 use crate::features::reminder::start_reminder_worker;
 use crate::features::tickets::{
     TicketLogPayload, start_ticket_inactivity_worker, start_ticket_logger, sync_tickets,
@@ -295,6 +295,8 @@ pub fn start_jobs(params: JobParams) {
     start_username_batch_worker(db.clone(), username_rx);
 
     start_music_stats_prune_worker(db.clone(), redis_client.clone());
+
+    start_raid_stats_flush_worker(db.clone(), redis_client.clone());
 }
 
 /// Serenity [`TypeMapKey`](serenity::prelude::TypeMapKey) container for storing the shared [`ShardManager`].

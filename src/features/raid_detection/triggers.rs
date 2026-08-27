@@ -7,7 +7,7 @@ use crate::features::raid_detection::implementation::DynamicRaidDetector;
 use crate::features::raid_detection::raid_end::handle_raid_end;
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
-use crate::features::raid_detection::types::RaidAction;
+use crate::features::raid_detection::types::{RaidAction, RaidEventType};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
@@ -53,6 +53,21 @@ pub async fn trigger_raid_manual(
         );
         let _ = cache::clear_raid_active(&data.core.redis, guild_id).await;
         return Err(e);
+    }
+
+    // Log the manual trigger event
+    if let Err(e) = database::log_raid_event(
+        &data.core.db,
+        guild_id,
+        RaidEventType::Triggered,
+        Some(serde_json::json!({
+            "moderator": mod_username,
+            "manual": true,
+        })),
+    )
+    .await
+    {
+        error!(error = ?e, %guild_id, "Failed to log manual raid trigger event");
     }
 
     spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
@@ -146,6 +161,18 @@ pub async fn resolve_raid_manual(
     }
 
     cache::clear_raid_active(&data.core.redis, guild_id).await?;
+
+    // Log the resolve event
+    if let Err(e) = database::log_raid_event(
+        &data.core.db,
+        guild_id,
+        RaidEventType::Resolved,
+        None,
+    )
+    .await
+    {
+        error!(error = ?e, %guild_id, "Failed to log raid resolve event");
+    }
 
     info!(%guild_id, "Cleared active raid flag; initiating raid cleanup");
     handle_raid_end(ctx, data, guild_id).await?;
