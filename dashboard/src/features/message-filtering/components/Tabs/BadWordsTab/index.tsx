@@ -8,7 +8,7 @@ import { BadWordRulesetConfig } from "./BadWordRulesetConfig";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { BadWordRuleset, saveBadWordRulesetInputSchema } from "@/features/message-filtering/types";
 import { cn } from "@/lib/cn";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { toast } from "sonner";
 
 type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {

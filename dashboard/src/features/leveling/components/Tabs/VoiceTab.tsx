@@ -1,5 +1,5 @@
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { RangeSlider } from "@/components/ui/RangeSlider";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { RangeSlider } from "@/components/ui/inputs/RangeSlider";
 import { LevelingConfig } from "@/features/leveling/types";
 import { InputLabel } from "@/components/layout/InputLabel";
 import Footer from "@/components/layout/Footer";

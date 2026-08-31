@@ -2,7 +2,7 @@ import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { DiscordEmbed } from "@/features/_shared/embed";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
 import { JSX, ReactNode, SetStateAction, useEffect } from "react";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { ChannelSelector } from "@/features/_shared/message-creator/components/ChannelSelector";
 import { MessageModeSelector } from "@/features/_shared/message-creator/components/MessageModeSelector";
 import { PlaintextEditor } from "@/features/_shared/message-creator/components/PlaintextEditor";

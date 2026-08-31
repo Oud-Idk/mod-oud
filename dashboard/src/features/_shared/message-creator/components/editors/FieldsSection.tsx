@@ -1,10 +1,10 @@
 import { InputLabel } from "@/components/layout/InputLabel";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { Section } from "./Section";
 import { EmbedState } from "@/features/_shared/message-creator/types";
 import { EmbedField } from "@/features/_shared/embed";
 import { MoveUp, MoveDown, Trash2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { JSX } from "react";
 
 interface FieldsSectionProps {

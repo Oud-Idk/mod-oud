@@ -2,9 +2,9 @@
 
 import React, { JSX, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { LongTextInput } from "@/components/ui/LongTextInput";
-import { NumberInput } from "@/components/ui/NumberInput";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { LongTextInput } from "@/components/ui/inputs/LongTextInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { TimeUnit } from "@/features/report/types";
 import { toast } from "sonner";
 

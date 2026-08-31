@@ -1,7 +1,7 @@
 import { ChangeEvent, JSX } from "react";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { TextInput } from "@/components/ui/TextInput";
-import { LongTextInput } from "@/components/ui/LongTextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
+import { LongTextInput } from "@/components/ui/inputs/LongTextInput";
 import { Section } from "./Section";
 import { EmbedState } from "@/features/_shared/message-creator/types";
 

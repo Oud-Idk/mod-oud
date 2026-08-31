@@ -2,7 +2,7 @@
 
 import React, { JSX, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { LongTextInput } from "@/components/ui/LongTextInput";
+import { LongTextInput } from "@/components/ui/inputs/LongTextInput";
 import { toast } from "sonner";
 
 interface WarnModalProps {

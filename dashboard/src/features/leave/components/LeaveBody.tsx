@@ -8,7 +8,6 @@ import { DiscordEmbed } from "@/features/_shared/embed";
 import { LEAVE_CONFIG } from "@/features/leave/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import { DiscordChannel } from "@/features/_shared/channels.types";
-import { toast } from "sonner";
 
 interface LeaveBodyProps {
     leaveConfig: LeaveConfig;
@@ -31,21 +30,13 @@ export function LeaveBody({
         isPending,
         isDirty,
         resetKey,
-        handleSave: originalHandleSave,
+        handleSave,
         handleCancel,
     } = useConfigForm({
         initialConfig: normalizedLeaveConfig,
         onSave,
+        schema: saveLeaveConfigSchema,
     });
-
-    const handleSave = useCallback((): void => {
-        const result = saveLeaveConfigSchema.safeParse(config);
-        if (!result.success) {
-            toast.error(result.error.issues[0].message);
-            return;
-        }
-        originalHandleSave();
-    }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<LeaveConfig>) => {
         setConfig((prev) => ({ ...prev, ...updated }));

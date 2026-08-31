@@ -3,7 +3,7 @@ import { PlaceholderList } from "@/features/_shared/message-creator/components/P
 import { Pad } from "@/components/layout/Pad";
 
 import { BuilderConfig } from "@/features/_shared/builderConfig";
-import { LongTextInput } from "@/components/ui/LongTextInput";
+import { LongTextInput } from "@/components/ui/inputs/LongTextInput";
 
 interface PlaintextEditorProps {
     value: string;

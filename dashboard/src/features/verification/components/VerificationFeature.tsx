@@ -2,7 +2,7 @@ import { auth, signIn } from "@/lib/auth";
 import { getWelcomeConfig } from "@/features/welcome/queries";
 import VerifyForm from "./VerifyForm";
 import Emphasis from "@/components/layout/Emphasis";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { JSX } from "react";
 
 interface VerifyFeatureProps {

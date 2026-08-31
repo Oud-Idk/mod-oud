@@ -3,19 +3,19 @@ import Link from "next/link";
 import Turnstile from "react-turnstile";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { DiscordRole } from "@/features/welcome/components/WelcomeBody";
 import { WelcomeConfig } from "@/features/welcome/types";
 import { setupVerificationAction, teardownVerificationAction } from "@/features/welcome/actions";
 import { WELCOME_CONFIG } from "@/features/welcome/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { toast } from "sonner";
 
 interface VerificationTabProps {

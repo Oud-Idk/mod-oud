@@ -1,5 +1,5 @@
 import { JSX, useState } from "react";
-import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
+import { Dropdown, DropdownOption } from "@/components/ui/inputs/Dropdown";
 import Link from "next/link";
 import { MessageFilteringConfig, FlagThreshold } from "@/features/message-filtering/types";
 

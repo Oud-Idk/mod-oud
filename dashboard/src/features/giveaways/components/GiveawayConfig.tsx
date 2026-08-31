@@ -2,13 +2,13 @@
 
 import React, { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { TextInput } from "@/components/ui/TextInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { Giveaway } from "@/features/giveaways/types";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { GIVEAWAY_TEMPLATE_CONFIG } from "@/features/giveaways/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 

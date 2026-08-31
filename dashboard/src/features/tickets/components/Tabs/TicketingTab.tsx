@@ -1,7 +1,7 @@
 // features/tickets/components/Tabs/TicketingTab.tsx
 
 import { Dispatch, JSX, SetStateAction, useCallback, useMemo } from "react";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { TicketConfig } from "@/features/tickets/types";
 import { TICKETS_PANEL_CONFIG } from "@/features/tickets/builderConfigs";
 import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
@@ -9,7 +9,7 @@ import { MessageConfigEditor } from "@/features/_shared/message-creator/componen
 import { DiscordChannel } from "@/features/_shared/channels.types";
 import { InputLabel } from "@/components/layout/InputLabel";
 import Emphasis from "@/components/layout/Emphasis";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { getAvailableCategoryOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { isDeepEqual } from "@/features/_shared/embed";
 

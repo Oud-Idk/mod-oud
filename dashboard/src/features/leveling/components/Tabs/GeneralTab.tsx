@@ -1,7 +1,7 @@
-import { NumberInput } from "@/components/ui/NumberInput";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import ScopeSettings from "@/features/message-filtering/components/General/ScopeSettings";
-import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
+import { Dropdown, DropdownOption } from "@/components/ui/inputs/Dropdown";
 import { JSX } from "react";
 import { LevelingConfig, NotificationScope } from "@/features/leveling/types";
 import { LEVEL_NOTIFY_CONFIG } from "@/features/leveling/builderConfigs";

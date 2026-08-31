@@ -2,8 +2,8 @@
 
 import React, { JSX, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { TextInput } from "@/components/ui/TextInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { Modal } from "@/components/ui/Modal";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { toast } from "sonner";

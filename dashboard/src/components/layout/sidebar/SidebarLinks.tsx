@@ -7,7 +7,7 @@ import {
     AlertTriangle,
     BellIcon,
     Cake,
-    ChevronDown,
+    ChevronDown, CircleDollarSign,
     Clapperboard,
     DoorOpen,
     FileText,
@@ -91,6 +91,7 @@ export function SidebarLinks(): JSX.Element | null {
                 { name: "Leveling", href: `/dashboard/${guildId}/leveling`, icon: TrendingUp },
                 { name: "Reaction Roles", href: `/dashboard/${guildId}/reaction-roles`, icon: FaceSmileIcon },
                 { name: "Starboard", href: `/dashboard/${guildId}/starboard`, icon: Star },
+                { name: "Economy", href: `/dashboard/${guildId}/economy`, icon: CircleDollarSign },
             ],
         },
         {

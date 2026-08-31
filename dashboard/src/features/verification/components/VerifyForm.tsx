@@ -7,7 +7,7 @@ import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { Session } from "next-auth";
 import Image from "next/image";
 import { CaptchaType } from "@/features/welcome/types";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 interface VerifyFormProps {
     userId: string;

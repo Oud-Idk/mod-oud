@@ -1,7 +1,7 @@
 import React, { ReactNode } from "react";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { NumberInput } from "@/components/ui/NumberInput";
-import { TextInput } from "@/components/ui/TextInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { getAvailableCategoryOptions, getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import type { TempVoiceHub } from "../../types";
 

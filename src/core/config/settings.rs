@@ -3,6 +3,7 @@ use crate::core::config::message_layout::TogglableMessage;
 use crate::core::config::{database, keys, redis};
 use crate::features::automod::{HoneypotConfig, MessageFilteringConfig};
 use crate::features::birthday::BirthdayConfig;
+use crate::features::economy::EconomyConfig;
 use crate::features::invite_tracking::InviteTrackerConfig;
 use crate::features::join_leave::{LeaveConfig, WelcomeConfig};
 use crate::features::leveling::LevelingConfig;
@@ -61,6 +62,9 @@ pub struct GuildSettings {
 
     /// Configuration for automated anti-raid and mass-join protection.
     pub raid_detection: Option<Box<RaidDetectionConfig>>,
+
+    /// Configuration for the virtual economy system (cash, bank, work).
+    pub economy: Option<Box<EconomyConfig>>,
 }
 
 /// Direct message (DM) settings for various moderation actions.

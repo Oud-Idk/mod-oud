@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 import { ReminderCreateModal } from "./ReminderCreateModal";
 import { ReminderConfig } from "./ReminderConfig";

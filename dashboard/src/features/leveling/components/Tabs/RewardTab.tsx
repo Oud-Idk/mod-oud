@@ -3,10 +3,10 @@
 import React, { useState, useMemo, useEffect, JSX } from "react";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { LevelReward, saveLevelRewardInputSchema } from "@/features/leveling/types";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { Button } from "@/components/ui/Button";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { Button } from "@/components/ui/inputs/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import Footer from "@/components/layout/Footer";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";

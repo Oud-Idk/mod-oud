@@ -2,8 +2,8 @@
 
 import React, { JSX, SetStateAction, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
 import { StarboardMessage } from "@/features/starboard/components/StarboardMessage";
 import { PlaceholderList } from "@/features/_shared/message-creator/components/PlaceholderList";
@@ -11,9 +11,9 @@ import { PlaintextEditor } from "@/features/_shared/message-creator/components/P
 import { Tabs, TabItem } from "@/components/layout/Tabs";
 import EmbedBuilder, { convertToEmbedState } from "@/features/_shared/message-creator/components/EmbedBuilder";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { Button } from "@/components/ui/Button";
-import { TextInput } from "@/components/ui/TextInput";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { Button } from "@/components/ui/inputs/Button";
+import { TextInput } from "@/components/ui/inputs/TextInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";
 import { toast } from "sonner";

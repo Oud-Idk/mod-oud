@@ -2,10 +2,10 @@
 
 import React, { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TextInput } from "@/components/ui/TextInput";
-import { NumberInput } from "@/components/ui/NumberInput";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { TextInput } from "@/components/ui/inputs/TextInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 
 import type { CommandAction, CustomCommand } from "../types";
 import { CUSTOM_COMMAND_TEMPLATE_CONFIG } from "@/features/custom-commands/builderConfigs";
@@ -13,7 +13,7 @@ import { GenericMessageConfig } from "@/features/_shared/message-creator/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import Emphasis from "@/components/layout/Emphasis";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { MessageLayout } from "@/features/_shared/embed";
 

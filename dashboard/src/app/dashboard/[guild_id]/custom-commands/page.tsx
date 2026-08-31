@@ -1,5 +1,5 @@
 import { CustomCommandsFeature } from "@/features/custom-commands";
-import { JSX} from "react";
+import { JSX } from "react";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;

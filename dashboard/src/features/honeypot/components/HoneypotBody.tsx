@@ -1,17 +1,17 @@
 "use client";
 
 import React, { JSX, useState } from "react";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { Button } from "@/components/ui/Button";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { Button } from "@/components/ui/inputs/Button";
 import Footer from "@/components/layout/Footer";
 import { setupHoneypotAction } from "@/features/honeypot/actions";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { getAvailableRoleOptions, getAvailableChannelOptions } from "@/features/_shared/dropdown";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import parse from "parse-duration";
 import { HoneypotConfig, honeypotConfigSchema } from "@/features/honeypot/types";
 import { toast } from "sonner";
@@ -40,22 +40,13 @@ export function HoneypotBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave: originalHandleSave,
+        handleSave,
         handleCancel,
     } = useConfigForm({
         initialConfig: honeypotConfig,
         onSave,
+        schema: honeypotConfigSchema,
     });
-
-    const handleSave = (): void => {
-        const result = honeypotConfigSchema.safeParse(config);
-        if (!result.success) {
-            toast.error(result.error.issues[0].message);
-            return;
-        }
-
-        originalHandleSave();
-    };
 
     const channelOptions = getAvailableChannelOptions(textChannelMap);
     const roleOptions = getAvailableRoleOptions(roleMap);

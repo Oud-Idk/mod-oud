@@ -1,10 +1,10 @@
 "use client";
 
 import { JSX } from "react";
-import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
+import { Dropdown, DropdownOption } from "@/components/ui/inputs/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { RuleAction } from "@/features/message-filtering/types";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 
 interface ActionsSettingsProps {
     actions: RuleAction[];

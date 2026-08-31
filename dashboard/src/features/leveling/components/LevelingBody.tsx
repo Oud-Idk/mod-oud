@@ -20,7 +20,6 @@ import {
     SaveLevelRewardInput,
     saveLevelingConfigSchema
 } from "@/features/leveling/types";
-import { toast } from "sonner";
 
 import { DiscordChannel } from "@/features/_shared/channels.types";
 
@@ -77,21 +76,13 @@ export function LevelingBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave: originalHandleSave,
+        handleSave,
         handleCancel,
     } = useConfigForm({
         initialConfig: normalizedLevelingConfig,
         onSave,
+        schema: saveLevelingConfigSchema,
     });
-
-    const handleSave = useCallback((): void => {
-        const result = saveLevelingConfigSchema.safeParse(config);
-        if (!result.success) {
-            toast.error(result.error.issues[0].message);
-            return;
-        }
-        originalHandleSave();
-    }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<LevelingConfig>) => {
         setConfig((prev) => ({ ...prev, ...updated }));

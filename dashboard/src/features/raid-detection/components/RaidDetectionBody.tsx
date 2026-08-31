@@ -3,9 +3,9 @@
 import React, { ReactNode, useMemo, useCallback } from "react";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { AlertTriangle, ShieldAlert, Sparkles } from "lucide-react";
 import { toast } from "sonner";

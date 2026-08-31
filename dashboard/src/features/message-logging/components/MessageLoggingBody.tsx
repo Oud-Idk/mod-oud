@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useMemo, useState, useCallback, JSX } from "react";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { DeletedMessageLogViewer } from "@/features/message-logging/components/DeleteMessageLogViewer";
 import { EditedMessageLogViewer } from "@/features/message-logging/components/EditMessageLogViewer";
 import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { InputLabel } from "@/components/layout/InputLabel";

@@ -13,7 +13,7 @@ import { saveReactionMessageInputSchema } from "../types";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
 import { DEFAULT_MESSAGE_LAYOUT } from "@/features/_shared/embed";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 interface ReactionRolesBodyProps {
     guildId: string;

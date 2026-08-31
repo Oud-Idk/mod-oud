@@ -56,13 +56,8 @@ pub async fn handle_raid_end(
     }
 
     // Log the resolve event
-    if let Err(e) = database::log_raid_event(
-        &data.core.db,
-        guild_id,
-        RaidEventType::Resolved,
-        None,
-    )
-    .await
+    if let Err(e) =
+        database::log_raid_event(&data.core.db, guild_id, RaidEventType::Resolved, None).await
     {
         error!(error = ?e, %guild_id, "Failed to log raid resolve event");
     }
@@ -165,7 +160,9 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
             );
 
             // Re-populate Redis active raids set and snapshot
-            if let Ok(Some(snapshot)) = database::load_active_raid_state(&data.core.db, guild_id).await {
+            if let Ok(Some(snapshot)) =
+                database::load_active_raid_state(&data.core.db, guild_id).await
+            {
                 let snapshot_json = match serde_json::to_string(&snapshot) {
                     Ok(j) => j,
                     Err(e) => {
@@ -174,7 +171,8 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                     }
                 };
 
-                let _ = cache::save_preraid_snapshot(&data.core.redis, guild_id, &snapshot_json).await;
+                let _ =
+                    cache::save_preraid_snapshot(&data.core.redis, guild_id, &snapshot_json).await;
                 let _ = cache::add_guild_to_raid(guild_id, &data.core.redis).await;
 
                 // Try to set raid active; if it fails (e.g. another instance already has it), skip

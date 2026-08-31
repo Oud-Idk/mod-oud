@@ -2,12 +2,12 @@
 
 import React, { JSX, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { toast } from "sonner";
 
 import { BadWordRuleset } from "@/features/message-filtering/types";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 type SaveableBadWordRuleset = Omit<BadWordRuleset, "created_at" | "updated_at" | "guild_id" | "id"> & {
     id?: string;

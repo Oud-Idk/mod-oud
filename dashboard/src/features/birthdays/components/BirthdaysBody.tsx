@@ -3,8 +3,8 @@
 import React, { useState, useMemo, useTransition, JSX } from "react";
 import { toast } from "sonner";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { BirthdayConfig, SaveBirthdayConfigSchema } from "@/features/birthdays/types";
 import { BIRTHDAY_TEMPLATE_CONFIG } from "@/features/birthdays/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";

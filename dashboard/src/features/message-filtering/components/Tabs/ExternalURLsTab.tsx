@@ -1,7 +1,7 @@
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { Radio, RadioGroup } from "@headlessui/react";
 import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import React, { JSX, useState } from "react";
 import { isFQDN } from "validator";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";

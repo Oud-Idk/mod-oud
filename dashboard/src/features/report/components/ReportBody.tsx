@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useCallback, JSX } from "react";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useSSEInfiniteScroll } from "@/lib/hooks/useSSEInfiniteScroll";
 import { useReportActions } from "../hooks";
@@ -19,9 +19,8 @@ import { reportConfigSchema } from "../types";
 import type { ViewTicketStatus } from "@/features/tickets/types";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { toast } from "sonner";
 import Image from "next/image";
 
 interface ReportBodyProps {
@@ -54,21 +53,13 @@ export function ReportBody({
         isPending,
         isDirty,
         resetKey,
-        handleSave: originalHandleSave,
+        handleSave,
         handleCancel,
     } = useConfigForm<ReportConfig>({
         initialConfig: reportConfig,
         onSave,
+        schema: reportConfigSchema,
     });
-
-    const handleSave = useCallback(() => {
-        const result = reportConfigSchema.safeParse(config);
-        if (!result.success) {
-            toast.error(result.error.issues[0].message);
-            return;
-        }
-        originalHandleSave();
-    }, [config, originalHandleSave]);
 
     const handleChange = useCallback((updated: Partial<ReportConfig>) => {
         setConfig((prev) => ({ ...prev, ...updated }));

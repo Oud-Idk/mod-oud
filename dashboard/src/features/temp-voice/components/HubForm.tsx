@@ -4,7 +4,7 @@ import React, { useMemo, useState, useTransition, useCallback, JSX } from "react
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { deleteTempVoiceHubAction, saveTempVoiceHubAction } from "../actions";
 import { saveTempVoiceHubInputSchema, type TempVoiceHub } from "../types";
 import { InterfaceMessageTab } from "./FormTabs/InterfaceMessageTab";

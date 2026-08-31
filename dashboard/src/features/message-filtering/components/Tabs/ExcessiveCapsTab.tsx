@@ -1,5 +1,5 @@
-import { PercentSlider } from "@/components/ui/PercentSlider";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { PercentSlider } from "@/components/ui/inputs/PercentSlider";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";

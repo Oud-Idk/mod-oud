@@ -48,6 +48,10 @@ pub async fn handle_raid_detection(
         return Ok(());
     };
 
+    let is_already_active = cache::check_raid_active(&data.core.redis, guild_id)
+        .await
+        .unwrap_or(false);
+
     let detector = DynamicRaidDetector::new(
         data.core.redis.clone(),
         raid_config.window_size_seconds,
@@ -57,63 +61,80 @@ pub async fn handle_raid_detection(
 
     let result = detector.record_join(guild_id, user_id, now).await?;
 
-    // Accumulate hourly stats for periodic Postgres flush
     let hour_str = now.format("%Y%m%d%H").to_string();
-    if let Err(e) = cache::increment_hourly_accumulator(&data.core.redis, guild_id, &hour_str).await {
+    if let Err(e) = cache::increment_hourly_accumulator(&data.core.redis, guild_id, &hour_str).await
+    {
         warn!(error = ?e, %guild_id, "Failed to increment hourly stats accumulator");
     }
 
-    if !result.is_anomaly {
-        trace!(
+    // Spike detected (Starts raid OR spikes during ongoing raid)
+    if result.is_anomaly {
+        info!(
             %guild_id,
             %user_id,
-            window_seconds = raid_config.window_size_seconds,
             current_joins = result.current_joins_in_window,
             threshold = result.calculated_threshold,
-            "Member join recorded within safety limits"
+            avg_joins_per_min = result.avg_joins_per_min,
+            std_dev_per_min = result.std_dev_per_min,
+            "Raid anomaly detected! Executing mitigation actions"
         );
+
+        let alert_message = format!(
+            "# Raid detected! Statistics\n\
+            - Current joins in the past minute: {}\n\
+            - Average joins per minute: {}\n\
+            - Standard deviation per minute: {}\n\
+            - Calculated threshold: {}\n\
+            Triggered by user `{}`.",
+            result.current_joins_in_window,
+            result.avg_joins_per_min,
+            result.std_dev_per_min,
+            result.calculated_threshold,
+            new_member.user.name
+        );
+
+        // Manage raid lifecycle (snapshots, monitor, guild-wide mitigations)
+        let is_first_trigger = detector.try_set_raid_active(guild_id, 300).await?;
+        handle_raid_lifecycle(
+            ctx,
+            data,
+            &detector,
+            guild_id,
+            &raid_config.raid_actions,
+            is_first_trigger,
+            &alert_message,
+        )
+        .await?;
+
+        // Apply member-specific mitigations (timeouts, auto-bans)
+        apply_member_mitigations(ctx, new_member, &raid_config.raid_actions, now).await?;
         return Ok(());
     }
 
-    info!(
+    // Raid is active, even if this single join isn't a spike
+    if is_already_active {
+        debug!(
+            %guild_id,
+            %user_id,
+            "Join occurred during active raid session. Applying member mitigations."
+        );
+
+        // Keep the raid cooldown timer alive
+        let _ = detector.extend_raid_active(guild_id, 300).await;
+
+        // Apply member-specific mitigations to this joiner as well!
+        apply_member_mitigations(ctx, new_member, &raid_config.raid_actions, now).await?;
+        return Ok(());
+    }
+
+    trace!(
         %guild_id,
         %user_id,
+        window_seconds = raid_config.window_size_seconds,
         current_joins = result.current_joins_in_window,
         threshold = result.calculated_threshold,
-        avg_joins_per_min = result.avg_joins_per_min,
-        std_dev_per_min = result.std_dev_per_min,
-        "Raid anomaly detected! Executing mitigation actions"
+        "Member join recorded within safety limits"
     );
-
-    let alert_message = format!(
-        "# Raid detected! Statistics\n\
-        - Current joins in the past minute: {}\n\
-        - Average joins per minute: {}\n\
-        - Standard deviation per minute: {}\n\
-        - Calculated threshold: {}\n\
-        Triggered by user `{}`.",
-        result.current_joins_in_window,
-        result.avg_joins_per_min,
-        result.std_dev_per_min,
-        result.calculated_threshold,
-        new_member.user.name
-    );
-
-    //  Manage raid lifecycle (snapshots, monitor, guild-wide mitigations)
-    let is_first_trigger = detector.try_set_raid_active(guild_id, 300).await?;
-    handle_raid_lifecycle(
-        ctx,
-        data,
-        &detector,
-        guild_id,
-        &raid_config.raid_actions,
-        is_first_trigger,
-        &alert_message,
-    )
-    .await?;
-
-    // Apply member-specific mitigations (timeouts, auto-bans)
-    apply_member_mitigations(ctx, new_member, &raid_config.raid_actions, now).await?;
 
     Ok(())
 }

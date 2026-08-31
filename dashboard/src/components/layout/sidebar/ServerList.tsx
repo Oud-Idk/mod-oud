@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { JSX, useMemo } from "react";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { DiscordGuild } from "@/features/_shared/guild";
 
 interface ServerListProps {

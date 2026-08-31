@@ -7,7 +7,7 @@ import { SavePopup } from "@/components/dashboard/SavePopup";
 import { CustomCommandConfig } from "@/features/custom-commands/components/CustomCommandConfig";
 import { CustomCommandCreateModal } from "@/features/custom-commands/components/CustomCommandCreateModal";
 import { CustomCommand, SaveCustomCommandData, SaveCustomCommandSchema } from "@/features/custom-commands/types";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";

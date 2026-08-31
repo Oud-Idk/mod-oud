@@ -9,6 +9,8 @@ pub mod bad_words;
 pub mod birthday;
 /// Custom commands.
 pub mod custom_commands;
+/// Virtual economy (cash, bank, work).
+pub mod economy;
 /// General utility commands.
 pub mod general;
 /// Giveaways.

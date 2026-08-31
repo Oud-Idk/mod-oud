@@ -1,0 +1,233 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, guild_id, name, description, price, category_id,\n               emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,\n               is_listed, unlimited_stock, stock_remaining,\n               requirements AS \"requirements: serde_json::Value\",\n               actions AS \"actions: serde_json::Value\",\n               expires_at, created_at\n        FROM economy_items\n        WHERE guild_id = $1 AND LOWER(name) = LOWER($2)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "price",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "price"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "category_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "emoji_unicode",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "emoji_unicode"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "emoji_id",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "emoji_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "is_inventory",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "is_inventory"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "is_usable",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "is_usable"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "is_sellable",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "is_sellable"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "is_listed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "is_listed"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "unlimited_stock",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "unlimited_stock"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "stock_remaining",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "stock_remaining"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "requirements: serde_json::Value",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "requirements"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "actions: serde_json::Value",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "actions"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "4c0a24aa2e90dcf613aceb749d429b2b460c55f5d83f2e87aadec01fb074868c"
+}

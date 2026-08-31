@@ -10,7 +10,7 @@ import { GiveawayCreateModal } from "@/features/giveaways/components/GiveawayCre
 import { isDeepEqual } from "@/features/_shared/embed";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 interface GiveawaysBodyProps {
     giveaways: Giveaway[];

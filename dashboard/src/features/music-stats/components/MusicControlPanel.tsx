@@ -3,9 +3,9 @@
 import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { z } from "zod";
-import { Button } from "@/components/ui/Button";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { TextInput } from "@/components/ui/TextInput";
+import { Button } from "@/components/ui/inputs/Button";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { config } from "@/config";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import {

@@ -1,30 +1,7 @@
 use crate::features::raid_detection::snapshot::PreRaidState;
 use crate::features::raid_detection::types::RaidEventType;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
 use sqlx::PgPool;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersistedRaidState {
-    pub guild_id: i64,
-    pub raid_start_time: DateTime<Utc>,
-    pub snapshot: PreRaidState,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RaidEventDetail {
-    pub action: String,
-    pub details: Option<serde_json::Value>,
-}
-
-#[derive(Debug, sqlx::FromRow)]
-pub struct HourlyStatRow {
-    pub hour_key: String,
-    pub join_count: i64,
-}
-
-// ── Verification bump/restore (existing) ─────────────────────────────
 
 pub async fn bump_verification_to_max(
     pool: &PgPool,
@@ -175,8 +152,6 @@ pub async fn get_all_active_raid_guilds(pool: &PgPool) -> Result<Vec<GuildId>, s
         .collect())
 }
 
-// ── Hourly stats ─────────────────────────────────────────────────────
-
 pub async fn upsert_hourly_stats(
     pool: &PgPool,
     guild_ids: &[GuildId],
@@ -205,50 +180,6 @@ pub async fn upsert_hourly_stats(
 
     Ok(())
 }
-
-pub async fn load_hourly_stats_history(
-    pool: &PgPool,
-    guild_id: GuildId,
-    hours: i64,
-) -> Result<Vec<HourlyStatRow>, sqlx::Error> {
-    let rows = sqlx::query!(
-        r#"
-        SELECT hour_key, join_count
-        FROM raid_hourly_stats
-        WHERE guild_id = $1
-          AND hour_key >= to_char(NOW() - ($2 || ' hours')::interval, 'YYYYMMDDHH')
-        ORDER BY hour_key DESC
-        "#,
-        guild_id.get().cast_signed(),
-        hours.to_string(),
-    )
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows
-        .into_iter()
-        .map(|r| HourlyStatRow {
-            hour_key: r.hour_key,
-            join_count: r.join_count,
-        })
-        .collect())
-}
-
-pub async fn prune_old_hourly_stats(pool: &PgPool, days: i64) -> Result<u64, sqlx::Error> {
-    let result = sqlx::query!(
-        r#"
-        DELETE FROM raid_hourly_stats
-        WHERE hour_key < to_char(NOW() - ($1 || ' days')::interval, 'YYYYMMDDHH')
-        "#,
-        days.to_string(),
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(result.rows_affected())
-}
-
-// ── Event logs ───────────────────────────────────────────────────────
 
 pub async fn log_raid_event(
     pool: &PgPool,

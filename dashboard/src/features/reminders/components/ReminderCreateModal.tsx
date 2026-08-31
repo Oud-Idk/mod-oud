@@ -2,10 +2,10 @@
 
 import React, { JSX, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { LongTextInput } from "@/components/ui/LongTextInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { LongTextInput } from "@/components/ui/inputs/LongTextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { toast } from "sonner";
 import type { ReminderRow, ReminderType, SaveableReminderInput } from "../types";

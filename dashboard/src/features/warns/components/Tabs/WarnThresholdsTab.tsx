@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { InputLabel } from "@/components/layout/InputLabel";
 import Footer from "@/components/layout/Footer";
-import { Button } from "@/components/ui/Button";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { Button } from "@/components/ui/inputs/Button";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { toast } from "sonner";
 

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM economy_inventory\n        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity <= 0\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "05365f9ec3bd1080f31853ddb650223e811c2a9e8f45c3da5122a077d350276f"
+}

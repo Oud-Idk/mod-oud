@@ -1,18 +1,17 @@
 "use client";
 
-import React, { useState, useCallback, JSX } from "react";
+import React, { useState, JSX } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { cn } from "@/lib/cn";
 
 import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfigEditor } from "./StarboardConfigEditor";
 import type { StarboardConfig, StarboardConfigDraft, StarboardConfigInput } from "../types";
 import { starboardConfigInputSchema } from "../types";
-import { toast } from "sonner";
 
 interface StarboardBodyProps {
     guildId: string;
@@ -41,7 +40,7 @@ export function StarboardBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave: originalHandleSave,
+        handleSave,
         handleCancel,
     } = useConfigForm<StarboardConfigDraft | null>({
         initialConfig: activeConfig,
@@ -63,17 +62,8 @@ export function StarboardBody({
             const savedId = await onSave(parsed.data);
             router.push(`/dashboard/${guildId}/starboard?id=${savedId}`);
         },
+        schema: starboardConfigInputSchema,
     });
-
-    const handleSave = useCallback(() => {
-        if (!config) return;
-        const result = starboardConfigInputSchema.safeParse(config);
-        if (!result.success) {
-            toast.error(result.error.issues[0].message);
-            return;
-        }
-        originalHandleSave();
-    }, [config, originalHandleSave]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 

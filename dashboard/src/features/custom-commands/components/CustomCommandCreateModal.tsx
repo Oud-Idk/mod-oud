@@ -1,11 +1,11 @@
 "use client";
 
 import React, { JSX, useState } from "react";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { Modal } from "@/components/ui/Modal";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 interface CustomCommandCreateModalProps {
     isOpen: boolean;

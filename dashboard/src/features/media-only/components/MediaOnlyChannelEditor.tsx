@@ -2,10 +2,10 @@
 
 import React, { JSX } from "react";
 import { Hash, ImageIcon, Link2, Trash2, Video } from "lucide-react";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { TextInput } from "@/components/ui/TextInput";
-import { NumberInput } from "@/components/ui/NumberInput";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { TextInput } from "@/components/ui/inputs/TextInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 import Footer from "@/components/layout/Footer";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";

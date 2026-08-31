@@ -3,11 +3,11 @@
 import React, { ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { TextInput } from "@/components/ui/TextInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import type { Giveaway } from "../types";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { toast } from "sonner";
 
 interface GiveawayCreateModalProps {

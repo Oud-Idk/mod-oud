@@ -106,7 +106,6 @@ pub async fn view(
         .await?
         .map_or_else(|| "Not Available".to_string(), |r| r.to_string());
 
-    // FORMATTING APPLIED HERE FOR EMBED (unsigned_abs() converts i64 -> u64 with 0 casts)
     let formatted_xp = format_compact(user_level.current_xp.unsigned_abs());
     let formatted_xp_needed = format_compact(xp_needed.unsigned_abs());
 
@@ -122,7 +121,7 @@ pub async fn view(
         )
         .field(
             "Experience",
-            format!("✨ **{formatted_xp}/{formatted_xp_needed}** XP"),
+            format!("**{formatted_xp}/{formatted_xp_needed}** XP"),
             true,
         )
         .field(
@@ -130,7 +129,7 @@ pub async fn view(
             format!("{progress_bar}\n`{percent_text}`"),
             false,
         )
-        .field("Rank", format!("🏅 **Rank #{rank}**"), false)
+        .field("Rank", format!("**Rank #{rank}**"), false)
         .color(BRAND_COLOR);
 
     trace!(

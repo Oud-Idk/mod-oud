@@ -2,7 +2,7 @@
 
 import { JSX, useEffect, useMemo, useState } from "react";
 import { ImageCardSettings, LevelingConfig } from "@/features/leveling/types";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 
 export interface ImageCardTabProps {

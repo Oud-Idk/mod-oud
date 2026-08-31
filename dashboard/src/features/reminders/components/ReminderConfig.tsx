@@ -1,18 +1,18 @@
 "use client";
 
 import React, { JSX, useMemo } from "react";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { Button } from "@/components/ui/Button";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { Button } from "@/components/ui/inputs/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { LongTextInput } from "@/components/ui/LongTextInput";
+import { LongTextInput } from "@/components/ui/inputs/LongTextInput";
 import Footer from "@/components/layout/Footer";
-import { NumberInput } from "@/components/ui/NumberInput";
-import { TimeInput } from "@/components/ui/TimeInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
+import { TimeInput } from "@/components/ui/inputs/TimeInput";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { saveableReminderSchema, type ReminderFormat, type ReminderRow, type ReminderType } from "../types";
 import { toast } from "sonner";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 
 interface ReminderConfigProps {
     config: ReminderRow;

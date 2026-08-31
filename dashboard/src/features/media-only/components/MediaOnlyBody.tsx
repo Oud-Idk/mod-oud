@@ -47,7 +47,7 @@ export function MediaOnlyBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave: originalHandleSave,
+        handleSave,
         handleCancel,
     } = useConfigForm<MediaOnlyChannel[]>({
         initialConfig: channels,
@@ -83,7 +83,7 @@ export function MediaOnlyBody({
         setActiveChannelId(null);
     };
 
-    const handleSave = (): void => {
+    const handleSaveChannel = (): void => {
         for (const channel of config) {
             const result = mediaOnlyChannelSchema.safeParse(channel);
             if (!result.success) {
@@ -91,7 +91,7 @@ export function MediaOnlyBody({
                 return;
             }
         }
-        originalHandleSave();
+        handleSave();
     };
 
     return (
@@ -105,7 +105,7 @@ export function MediaOnlyBody({
                 hasActiveConfig={!!activeChannel}
                 isDirty={isDirty}
                 isPending={isPending}
-                handleSave={handleSave}
+                handleSave={handleSaveChannel}
                 handleCancel={handleCancel}
                 renderItem={(channel) => {
                     const isCurrent = activeChannelId === channel.channelId;

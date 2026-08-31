@@ -1,6 +1,6 @@
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { RangeSlider } from "@/components/ui/RangeSlider";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { RangeSlider } from "@/components/ui/inputs/RangeSlider";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { LevelingConfig } from "@/features/leveling/types";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { JSX } from "react";

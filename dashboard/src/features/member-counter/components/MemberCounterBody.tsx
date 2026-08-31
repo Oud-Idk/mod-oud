@@ -3,16 +3,16 @@
 import React, { ForwardRefExoticComponent, JSX, SVGProps, useMemo, useState } from "react";
 import { Bot, Hash, Loader2, Plus, ShieldAlert, Sparkles, Trash2, UserCheck, Users, Wand2 } from "lucide-react";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { Dropdown, DropdownOption } from "@/components/ui/Dropdown";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { Button } from "@/components/ui/Button";
+import { Dropdown, DropdownOption } from "@/components/ui/inputs/Dropdown";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { Button } from "@/components/ui/inputs/Button";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { CounterChannel, CounterType, MemberCounterConfig, memberCounterConfigSchema } from "@/features/member-counter/types";
 import { setupMemberCounterChannelsAction } from "@/features/member-counter/actions";
 import { InputLabel } from "@/components/layout/InputLabel";
 import Footer from "@/components/layout/Footer";
 import Emphasis from "@/components/layout/Emphasis";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { toast } from "sonner";
 
 interface MemberCounterBodyProps {

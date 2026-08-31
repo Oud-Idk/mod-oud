@@ -16,7 +16,7 @@ use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::music::MusicState;
 use mod_oud::features::music::WebCommandBus;
 use mod_oud::features::{
-    automod, birthday, custom_commands, general, invite_tracking, leveling, media_only,
+    automod, birthday, custom_commands, economy, general, invite_tracking, leveling, media_only,
     member_counter, moderation, music, raid_detection, reporting, search, temp_voice, tickets,
     warning,
 };
@@ -420,6 +420,7 @@ fn build_commands() -> Vec<poise::Command<BotData, Error>> {
         media_only::media_only(),
         music::music(),
         search::search(),
+        economy::economy(),
         register(),
     ]
 }

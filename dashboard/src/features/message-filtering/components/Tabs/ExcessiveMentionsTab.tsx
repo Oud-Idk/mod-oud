@@ -1,4 +1,4 @@
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
 import { createFilterUpdater } from "@/features/message-filtering/filterUpdater";

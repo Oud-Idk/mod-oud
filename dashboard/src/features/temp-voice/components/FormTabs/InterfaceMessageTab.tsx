@@ -1,12 +1,12 @@
 import React, { JSX, useMemo, useState } from "react";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { TempVoiceHub } from "@/features/temp-voice/types";
 import { sendInterfaceMessageAction } from "@/features/temp-voice/actions";
 import { TEMP_VOICE_CHANNEL_BUILDER_CONFIG } from "@/features/temp-voice/builderConfigs";
 import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBuilder";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 interface InterfaceMessageTabProps {
     channelMap: Record<string, string>;

@@ -2,9 +2,9 @@
 
 import React, { JSX, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { TextInput } from "@/components/ui/TextInput";
-import { Button } from "@/components/ui/Button";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { TextInput } from "@/components/ui/inputs/TextInput";
+import { Button } from "@/components/ui/inputs/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { REACTION_ROLES_CONFIG } from "@/features/reaction-roles/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";

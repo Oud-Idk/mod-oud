@@ -2,7 +2,7 @@
 
 import { JSX } from "react";
 import { Radio, RadioGroup } from "@headlessui/react";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { ScopeActionMode } from "@/features/message-filtering/types";
 import { cn } from "@/lib/cn";
 import { getAvailableChannelOptions, getAvailableRoleOptions } from "@/features/_shared/dropdown";

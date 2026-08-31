@@ -2,8 +2,8 @@
 
 import React, { JSX, useMemo, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Button } from "@/components/ui/inputs/Button";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
 import { toast } from "sonner";

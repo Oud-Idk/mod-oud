@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader"; // Generic UI
-import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels"; // Infrastructure helper
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels";
 import { deleteCustomCommandAction, saveCustomCommandAction } from "../actions";
 import { CustomCommandsBody } from "@/features/custom-commands/components/CustomCommandsBody";
 import { getCustomCommands } from "@/features/custom-commands/queries";

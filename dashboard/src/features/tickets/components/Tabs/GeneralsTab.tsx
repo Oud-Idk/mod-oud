@@ -1,4 +1,4 @@
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { TicketConfig } from "@/features/tickets/types";
 import Footer from "@/components/layout/Footer";
 import { JSX } from "react";

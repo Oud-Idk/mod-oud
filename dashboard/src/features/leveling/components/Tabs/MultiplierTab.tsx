@@ -1,12 +1,12 @@
 "use client";
 
 import { JSX, useOptimistic, useState, useTransition } from "react";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { SaveXpMultiplierInput, TargetType, XpMultiplier, saveXpMultiplierInputSchema } from "@/features/leveling/types";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";
 import { toast } from "sonner";

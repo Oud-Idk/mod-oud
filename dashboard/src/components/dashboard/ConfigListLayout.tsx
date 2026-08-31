@@ -2,7 +2,7 @@
 
 import React, { JSX, ReactNode } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import Emphasis from "@/components/layout/Emphasis";
 
 interface ConfigListLayoutProps<T> {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
@@ -37,21 +37,13 @@ export function InviteTrackingBody({
         setConfig,
         isPending,
         isDirty,
-        handleSave: originalHandleSave,
+        handleSave,
         handleCancel,
     } = useConfigForm({
         initialConfig,
         onSave,
+        schema: inviteTrackerConfigSchema,
     });
-
-    const handleSave = useCallback((): void => {
-        const validation = inviteTrackerConfigSchema.safeParse(config);
-        if (!validation.success) {
-            toast.error(validation.error.issues[0].message);
-            return;
-        }
-        originalHandleSave();
-    }, [config, originalHandleSave]);
 
     const handleToggle = useCallback((checked: boolean): void => {
         setConfig((prev) => ({ ...prev, enabled: checked }));

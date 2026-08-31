@@ -2,7 +2,7 @@
 
 import { JSX, useEffect, useState, useTransition } from "react";
 import { getTicketHistoryAction, getTicketsListAction } from "@/features/tickets/actions";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { Ticket, TicketHistory, ViewTicketStatus } from "@/features/tickets/types";
 import { cn } from "@/lib/cn";
 

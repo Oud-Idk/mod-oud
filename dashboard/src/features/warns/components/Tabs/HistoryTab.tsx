@@ -3,9 +3,9 @@
 import React, { ChangeEvent, JSX, useState } from "react";
 import Footer from "@/components/layout/Footer";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { Modal } from "@/components/ui/Modal";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import { searchWarnsAction } from "../../actions";
 import type { Warn } from "../../types";
 

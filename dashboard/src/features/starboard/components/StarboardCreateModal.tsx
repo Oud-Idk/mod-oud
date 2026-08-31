@@ -2,10 +2,10 @@
 
 import React, { JSX, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Dropdown } from "@/components/ui/Dropdown";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
+import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { Modal } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { StarboardConfigInput } from "@/features/starboard/types";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { JSX } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 export function ThemeToggle(): JSX.Element {
     const { setTheme, resolvedTheme } = useTheme();

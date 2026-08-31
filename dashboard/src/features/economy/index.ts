@@ -1,0 +1,1 @@
+export { EconomyFeature } from "./components/EconomyFeature";

@@ -1,16 +1,16 @@
 "use client";
 
 import React, { JSX, useState, useEffect, useMemo } from "react";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import ScopeSettings from "@/features/message-filtering/components/General/ScopeSettings";
-import { TextInput } from "@/components/ui/TextInput";
+import { TextInput } from "@/components/ui/inputs/TextInput";
 import ActionsSettings from "@/features/message-filtering/components/General/ActionsSettings";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import { BadWordRuleset, StrategyType } from "@/features/message-filtering/types";
-import { LongTextInput } from "@/components/ui/LongTextInput";
+import { LongTextInput } from "@/components/ui/inputs/LongTextInput";
 
 interface BadWordRulesetConfigProps {
     config: BadWordRuleset;

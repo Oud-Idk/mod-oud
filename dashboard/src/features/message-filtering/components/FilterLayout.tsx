@@ -1,4 +1,4 @@
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import ActionsSettings from "@/features/message-filtering/components/General/ActionsSettings";
 import ScopeSettings from "@/features/message-filtering/components/General/ScopeSettings";
 import { JSX, ReactNode } from "react";

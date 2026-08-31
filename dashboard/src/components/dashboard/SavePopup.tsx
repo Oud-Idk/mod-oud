@@ -1,5 +1,5 @@
 import { JSX } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 import Footer from "@/components/layout/Footer";
 
 interface SavePopupProps {

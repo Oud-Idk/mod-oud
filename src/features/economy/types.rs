@@ -1,0 +1,349 @@
+use crate::core::config::message_layout::MessageLayout;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
+use serenity::all::{EmojiId, GuildId, RoleId, UserId};
+use sqlx::FromRow;
+use std::collections::HashMap;
+use uuid::Uuid;
+
+/// Per-guild economy configuration stored in `GuildSettings`.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct EconomyConfig {
+    /// Whether the economy system is enabled for this guild.
+    pub enabled: bool,
+    /// Display name for the currency (e.g. "coins", "dollars").
+    pub currency_name: String,
+    /// Cooldown in seconds between `/work` uses.
+    pub work_cooldown_secs: i64,
+    /// Minimum coins earned per `/work` invocation.
+    pub work_min_reward: i64,
+    /// Maximum coins earned per `/work` invocation.
+    pub work_max_reward: i64,
+}
+
+/// A user's economy balance within a guild.
+#[derive(Debug, Clone)]
+pub struct Balance {
+    pub guild_id: GuildId,
+    pub user_id: UserId,
+    pub cash: i64,
+    pub bank: i64,
+}
+
+impl Balance {
+    /// Total coins across wallet and bank.
+    #[must_use]
+    pub const fn total(&self) -> i64 {
+        self.cash + self.bank
+    }
+
+    /// Constructs a `Balance` from raw signed database values.
+    #[must_use]
+    pub const fn from_raw(guild_id: i64, user_id: i64, cash: i64, bank: i64) -> Self {
+        Self {
+            guild_id: GuildId::new(guild_id.cast_unsigned()),
+            user_id: UserId::new(user_id.cast_unsigned()),
+            cash,
+            bank,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Item requirement & action types - discriminated union style
+// ---------------------------------------------------------------------------
+
+/// How many of the listed targets must match.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MatchType {
+    /// User must have ALL listed roles/items.
+    #[default]
+    Every,
+    /// User must have at least ONE of the listed roles/items.
+    AtLeastOne,
+    /// User must have NONE of the listed roles/items.
+    None,
+}
+
+/// When a requirement or action fires (bitmask: `1` = BUY, `2` = USE, `3` = BOTH).
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct TriggerFlags(pub u8);
+
+impl TriggerFlags {
+    pub const BUY: Self = Self(0b01);
+    pub const USE: Self = Self(0b10);
+    pub const BOTH: Self = Self(0b11);
+
+    #[must_use]
+    pub const fn new(flags: u8) -> Self {
+        Self(flags)
+    }
+
+    #[must_use]
+    pub const fn triggers_on_buy(self) -> bool {
+        self.0 & Self::BUY.0 != 0
+    }
+
+    #[must_use]
+    pub const fn triggers_on_use(self) -> bool {
+        self.0 & Self::USE.0 != 0
+    }
+}
+
+impl Default for TriggerFlags {
+    fn default() -> Self {
+        Self::BUY
+    }
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(
+    tag = "type",
+    rename_all = "SCREAMING_SNAKE_CASE",
+    rename_all_fields = "camelCase"
+)]
+pub enum ItemRequirement {
+    Role {
+        #[serde(default)]
+        match_type: MatchType,
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        #[serde_as(as = "Vec<DisplayFromStr>")]
+        role_ids: Vec<RoleId>,
+    },
+    TotalBalance {
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        balance: i64,
+    },
+    Item {
+        #[serde(default)]
+        match_type: MatchType,
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        quantities: HashMap<Uuid, u32>,
+    },
+}
+
+impl ItemRequirement {
+    #[must_use]
+    pub const fn trigger_flags(&self) -> TriggerFlags {
+        match self {
+            Self::Role { trigger_flags, .. }
+            | Self::TotalBalance { trigger_flags, .. }
+            | Self::Item { trigger_flags, .. } => *trigger_flags,
+        }
+    }
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(
+    tag = "type",
+    rename_all = "SCREAMING_SNAKE_CASE",
+    rename_all_fields = "camelCase"
+)]
+pub enum ItemAction {
+    Respond {
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        message: Option<MessageLayout>,
+    },
+    AddRoles {
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        #[serde_as(as = "Vec<DisplayFromStr>")]
+        role_ids: Vec<RoleId>,
+    },
+    RemoveRoles {
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        #[serde_as(as = "Vec<DisplayFromStr>")]
+        role_ids: Vec<RoleId>,
+    },
+    AddBalance {
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        balance: i64,
+    },
+    RemoveBalance {
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        balance: i64,
+    },
+    AddItems {
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        quantities: HashMap<Uuid, u32>,
+        #[serde(default)]
+        #[serde_as(as = "Vec<DisplayFromStr>")]
+        item_ids: Vec<Uuid>,
+    },
+    RemoveItems {
+        #[serde(default)]
+        trigger_flags: TriggerFlags,
+        #[serde(default)]
+        quantities: HashMap<Uuid, u32>,
+        #[serde(default)]
+        #[serde_as(as = "Vec<DisplayFromStr>")]
+        item_ids: Vec<Uuid>,
+    },
+}
+
+impl ItemAction {
+    #[must_use]
+    pub const fn trigger_flags(&self) -> TriggerFlags {
+        match self {
+            Self::Respond { trigger_flags, .. }
+            | Self::AddRoles { trigger_flags, .. }
+            | Self::RemoveRoles { trigger_flags, .. }
+            | Self::AddBalance { trigger_flags, .. }
+            | Self::RemoveBalance { trigger_flags, .. }
+            | Self::AddItems { trigger_flags, .. }
+            | Self::RemoveItems { trigger_flags, .. } => *trigger_flags,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Database Models
+// ---------------------------------------------------------------------------
+
+/// A store item in the economy system.
+#[derive(Debug, Clone, FromRow)]
+pub struct Item {
+    pub id: Uuid,
+    pub guild_id: i64,
+    pub name: String,
+    pub description: String,
+    pub price: i64,
+    pub category_id: Option<Uuid>,
+    pub emoji_unicode: Option<String>,
+    pub emoji_id: Option<String>,
+    pub is_inventory: bool,
+    pub is_usable: bool,
+    pub is_sellable: bool,
+    pub is_listed: bool,
+    pub unlimited_stock: bool,
+    pub stock_remaining: i32,
+    pub requirements: serde_json::Value,
+    pub actions: serde_json::Value,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+}
+
+impl Item {
+    /// Returns the typed `GuildId`.
+    #[must_use]
+    pub const fn guild_id(&self) -> GuildId {
+        GuildId::new(self.guild_id.cast_unsigned())
+    }
+
+    /// Returns the typed `EmojiId` if a custom emoji was configured.
+    #[must_use]
+    pub fn emoji_id(&self) -> Option<EmojiId> {
+        self.emoji_id
+            .as_deref()
+            .and_then(|id| id.parse::<u64>().ok())
+            .map(EmojiId::new)
+    }
+
+    pub fn parsed_requirements(&self) -> Vec<ItemRequirement> {
+        serde_json::from_value(self.requirements.clone()).unwrap_or_else(|err| {
+            tracing::warn!("Failed to parse requirements for item {}: {err}", self.id);
+            Vec::new()
+        })
+    }
+
+    pub fn parsed_actions(&self) -> Vec<ItemAction> {
+        serde_json::from_value(self.actions.clone()).unwrap_or_else(|err| {
+            tracing::warn!("Failed to parse actions for item {}: {err}", self.id);
+            Vec::new()
+        })
+    }
+
+    #[must_use]
+    pub fn icon_str(&self) -> Option<String> {
+        self.emoji_unicode
+            .clone()
+            .or_else(|| self.emoji_id.as_ref().map(|id| format!("<:item:{id}>")))
+    }
+
+    /// Returns a valid Discord CDN URL if this item has a custom emoji (for embed thumbnails)
+    #[must_use]
+    pub fn thumbnail_url(&self) -> Option<String> {
+        if let Some(ref id) = self.emoji_id {
+            Some(format!("https://cdn.discordapp.com/emojis/{id}.png"))
+        } else if let Some(ref unicode) = self.emoji_unicode {
+            if unicode.starts_with("http://") || unicode.starts_with("https://") {
+                Some(unicode.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+/// A row in the `economy_inventory` table.
+#[derive(Debug, Clone, FromRow)]
+pub struct InventoryRow {
+    pub guild_id: i64,
+    pub user_id: i64,
+    pub item_id: Uuid,
+    pub quantity: i32,
+}
+
+impl InventoryRow {
+    #[must_use]
+    pub const fn guild_id(&self) -> GuildId {
+        GuildId::new(self.guild_id.cast_unsigned())
+    }
+
+    #[must_use]
+    pub const fn user_id(&self) -> UserId {
+        UserId::new(self.user_id.cast_unsigned())
+    }
+}
+
+/// A category for organizing store items.
+#[derive(Debug, Clone, FromRow)]
+pub struct ItemCategory {
+    pub id: Uuid,
+    pub guild_id: i64,
+    pub name: String,
+    pub description: String,
+    pub position: i32,
+    pub emoji_unicode: Option<String>,
+    pub emoji_id: Option<String>,
+}
+
+impl ItemCategory {
+    #[must_use]
+    pub const fn guild_id(&self) -> GuildId {
+        GuildId::new(self.guild_id.cast_unsigned())
+    }
+
+    #[must_use]
+    pub fn emoji_id(&self) -> Option<EmojiId> {
+        self.emoji_id
+            .as_deref()
+            .and_then(|id| id.parse::<u64>().ok())
+            .map(EmojiId::new)
+    }
+}

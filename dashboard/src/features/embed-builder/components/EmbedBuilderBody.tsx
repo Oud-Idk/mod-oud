@@ -1,7 +1,7 @@
 "use client";
 
 import React, { JSX, useMemo, useState } from "react";
-import { Dropdown } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { sendEmbedAction } from "@/features/embed-builder/actions";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { BuilderConfig } from "@/features/_shared/builderConfig";
@@ -9,7 +9,7 @@ import EmbedBuilder from "@/features/_shared/message-creator/components/EmbedBui
 import { DiscordEmbed } from "@/features/_shared/embed";
 import { toast } from "sonner";
 import { SendEmbedPayloadSchema } from "@/features/embed-builder/types";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/inputs/Button";
 
 interface EmbedBuilderBodyProps {
     channelMap: Record<string, string>;
