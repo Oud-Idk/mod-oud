@@ -11,7 +11,7 @@ pub async fn inventory(
     ctx: Context<'_>,
     #[description = "The user whose inventory you want to view"] user: Option<User>,
 ) -> Result<(), Error> {
-    let Some(_config) = commands::get_config(&ctx).await? else {
+    let Some(config) = commands::get_config(&ctx).await? else {
         send_ephemeral(&ctx, "Economy isn't enabled in this server.").await?;
         return Ok(());
     };
@@ -19,6 +19,11 @@ pub async fn inventory(
     let guild_id = ctx.guild_id().unwrap();
     let target = user.as_ref().unwrap_or_else(|| ctx.author());
     let db = &ctx.data().core.db;
+
+    // Seed starting balance for self-view as first interaction
+    if target.id == ctx.author().id {
+        database::ensure_balance(db, guild_id, target.id, config.starting_balance).await?;
+    }
 
     let entries = database::get_inventory_with_items(db, guild_id, target.id).await?;
 

@@ -32,7 +32,11 @@ pub async fn balance(
     let target = user.as_ref().unwrap_or_else(|| ctx.author());
     let db = &ctx.data().core.db;
 
-    let balance = database::get_balance(db, guild_id, target.id).await?;
+    let balance = if target.id == ctx.author().id {
+        database::ensure_balance(db, guild_id, target.id, config.starting_balance).await?
+    } else {
+        database::get_balance(db, guild_id, target.id).await?
+    };
 
     let embed = CreateEmbed::new()
         .title(format!("{}'s Balance", target.display_name()))
@@ -97,6 +101,9 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     }
 
+    // Seed starting balance before rewarding, so new users get starting + reward
+    database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
+
     let reward = rand::random_range(config.work_min_reward..=config.work_max_reward);
 
     let balance = database::add_cash(db, guild_id, user_id, reward).await?;
@@ -141,7 +148,7 @@ pub async fn deposit(
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
-    let current = database::get_balance(db, guild_id, user_id).await?;
+    let current = database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
     let deposit_amount = amount.unwrap_or(current.cash);
 
     if deposit_amount <= 0 {
@@ -188,7 +195,7 @@ pub async fn withdraw(
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
-    let current = database::get_balance(db, guild_id, user_id).await?;
+    let current = database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
     let withdraw_amount = amount.unwrap_or(current.bank);
 
     if withdraw_amount <= 0 {
@@ -254,6 +261,10 @@ pub async fn transfer(
 
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
+
+    // Seed both participants with starting balance if they have no row yet
+    database::ensure_balance(db, guild_id, from_user, config.starting_balance).await?;
+    database::ensure_balance(db, guild_id, to_user, config.starting_balance).await?;
 
     let result = database::transfer_cash(db, guild_id, from_user, to_user, amount).await?;
 

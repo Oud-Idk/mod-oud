@@ -21,7 +21,7 @@ pub async fn use_item(
 
     ctx.defer().await?;
 
-    let Some(_config) = commands::get_config(&ctx).await? else {
+    let Some(config) = commands::get_config(&ctx).await? else {
         send_ephemeral(&ctx, "Economy isn't enabled in this server.").await?;
         return Ok(());
     };
@@ -29,6 +29,8 @@ pub async fn use_item(
     let guild_id = ctx.guild_id().unwrap();
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
+
+    database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
 
     let Some(item) = validation::resolve_item(db, guild_id, &item_input).await? else {
         send_ephemeral(&ctx, "Item not found.").await?;

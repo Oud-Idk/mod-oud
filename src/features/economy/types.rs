@@ -28,6 +28,9 @@ pub struct EconomyConfig {
     /// Plaintext template for the `/work` success message. Supports `{reward}` and `{currency}` placeholders.
     #[serde(default = "default_work_message")]
     pub work_message: String,
+    /// Initial wallet balance granted to new users on first interaction.
+    #[serde(default)]
+    pub starting_balance: i64,
 }
 
 impl Default for EconomyConfig {
@@ -39,6 +42,7 @@ impl Default for EconomyConfig {
             work_min_reward: 0,
             work_max_reward: 0,
             work_message: default_work_message(),
+            starting_balance: 0,
         }
     }
 }

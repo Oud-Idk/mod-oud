@@ -37,6 +37,9 @@ pub async fn buy(
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
+    // Seed starting balance before any balance checks
+    database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
+
     let Some(item) = validation::resolve_item(db, guild_id, &item_input).await? else {
         send_ephemeral(&ctx, "Item not found.").await?;
         return Ok(());

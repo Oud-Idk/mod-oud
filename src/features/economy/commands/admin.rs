@@ -36,6 +36,7 @@ pub async fn give(
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
 
+    database::ensure_balance(db, guild_id, user.id, config.starting_balance).await?;
     let balance = database::add_cash(db, guild_id, user.id, amount).await?;
 
     let embed = CreateEmbed::new()
@@ -82,6 +83,7 @@ pub async fn take(
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
 
+    database::ensure_balance(db, guild_id, user.id, config.starting_balance).await?;
     let Some(balance) = database::deduct_cash(db, guild_id, user.id, amount).await? else {
         let current = database::get_balance(db, guild_id, user.id).await?;
         send_ephemeral(

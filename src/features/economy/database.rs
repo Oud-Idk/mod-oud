@@ -6,7 +6,7 @@ pub mod shop;
 pub mod work_messages;
 
 pub use balances::{
-    add_cash, deduct_cash, get_balance, get_leaderboard, get_leaderboard_paginated, set_cash,
+    add_cash, deduct_cash, ensure_balance, get_balance, get_leaderboard, get_leaderboard_paginated, set_cash,
     transfer_bank_to_cash, transfer_cash, transfer_cash_to_bank, upsert_balance,
 };
 pub use categories::{create_category, get_category, list_categories};

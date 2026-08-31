@@ -36,7 +36,9 @@ export function EconomyGeneralSettingsTab({
         <div className="space-y-4 max-w-md pt-2">
             <ToggleSwitch
                 checked={config.enabled}
-                onChange={(enabled) => { setConfig((prev) => ({ ...prev, enabled })); }}
+                onChange={(enabled) => {
+                    setConfig((prev) => ({ ...prev, enabled }));
+                }}
                 text="Enable Economy"
             />
 
@@ -47,7 +49,9 @@ export function EconomyGeneralSettingsTab({
                             <InputLabel>Currency Name</InputLabel>
                             <TextInput
                                 value={config.currencyName}
-                                onChange={(e) => { setConfig((prev) => ({ ...prev, currencyName: e.target.value }))} }
+                                onChange={(e) => {
+                                    setConfig((prev) => ({ ...prev, currencyName: e.target.value }))
+                                }}
                                 className="w-full"
                             />
                         </div>
@@ -55,7 +59,9 @@ export function EconomyGeneralSettingsTab({
                             <InputLabel>Work Cooldown</InputLabel>
                             <DurationInput
                                 value={config.workCooldownSecs}
-                                onChange={(cooldown) => { setConfig((prev) => ({ ...prev, workCooldownSecs: cooldown })); }}
+                                onChange={(cooldown) => {
+                                    setConfig((prev) => ({ ...prev, workCooldownSecs: cooldown }));
+                                }}
                                 className="w-full justify-center"
                             />
                         </div>
@@ -66,7 +72,9 @@ export function EconomyGeneralSettingsTab({
                             <InputLabel>Minimum Work Reward</InputLabel>
                             <NumberInput
                                 value={config.workMinReward}
-                                onChange={(min) => { setConfig((prev) => ({ ...prev, workMinReward: min ?? 1000 })); }}
+                                onChange={(min) => {
+                                    setConfig((prev) => ({ ...prev, workMinReward: min ?? 1000 }));
+                                }}
                                 className="w-full"
                             />
                         </div>
@@ -74,16 +82,32 @@ export function EconomyGeneralSettingsTab({
                             <InputLabel>Maximum Work Reward</InputLabel>
                             <NumberInput
                                 value={config.workMaxReward}
-                                onChange={(max) => { setConfig((prev) => ({ ...prev, workMaxReward: max ?? 5000 })); }}
+                                onChange={(max) => {
+                                    setConfig((prev) => ({ ...prev, workMaxReward: max ?? 5000 }));
+                                }}
                                 className="w-full"
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <InputLabel>Starting Balance</InputLabel>
+                        <NumberInput
+                            value={config.startingBalance}
+                            onChange={(val) => {
+                                setConfig((prev) => ({ ...prev, startingBalance: val ?? 0 }));
+                            }}
+                            className="w-full"
+                        />
+                        <p className="text-xs mt-1">Initial wallet amount for new users on first
+                            interaction.</p>
                     </div>
                 </>
             )}
 
             {isDirty && (
-                <SavePopup handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending} />
+                <SavePopup handleCancel={handleCancel} handleSave={handleSave}
+                           isSaving={isPending}/>
             )}
         </div>
     );

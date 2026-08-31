@@ -30,6 +30,39 @@ pub async fn get_balance(
     }
 }
 
+/// Ensure a balance row exists, seeding with `starting_balance` if missing.
+/// Returns the current balance (existing or newly seeded).
+pub async fn ensure_balance(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+    starting_balance: i64,
+) -> Result<Balance, sqlx::Error> {
+    if starting_balance <= 0 {
+        return get_balance(db, guild_id, user_id).await;
+    }
+
+    let row = sqlx::query!(
+        r#"
+        INSERT INTO economy_balances (guild_id, user_id, cash, bank)
+        VALUES ($1, $2, $3, 0)
+        ON CONFLICT (guild_id, user_id) DO NOTHING
+        RETURNING guild_id, user_id, cash, bank
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        starting_balance,
+    )
+    .fetch_optional(db)
+    .await?;
+
+    if let Some(r) = row {
+        Ok(Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank))
+    } else {
+        get_balance(db, guild_id, user_id).await
+    }
+}
+
 pub async fn upsert_balance(
     db: &PgPool,
     guild_id: GuildId,
