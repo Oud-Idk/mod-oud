@@ -15,6 +15,7 @@ export const economyConfigSchema = z
         workCooldownSecs: z.number().int().nonnegative().default(3600),
         workMinReward: z.number().int().nonnegative().default(1000),
         workMaxReward: z.number().int().nonnegative().default(5000),
+        workMessage: z.string().default("You earned **{reward} {currency}**!"),
     })
     .refine((data) => data.workMinReward <= data.workMaxReward, {
         message: "Minimum work reward must be less than or equal to maximum work reward.",
@@ -84,6 +85,14 @@ export const itemActionSchema = z.discriminatedUnion("type", [
     }),
 ]);
 
+export const economyCategorySchema = z.object({
+    id: z.uuid().optional(),
+    name: z.string().min(1, "Name is required").max(100),
+    description: z.string().default(""),
+    position: z.number().int().nonnegative().default(0),
+    emoji: z.string().optional(),
+});
+
 export const economyItemSchema = z.object({
     id: z.uuid().optional(),
     name: z.string().min(1, "Name is required").max(100),
@@ -103,9 +112,30 @@ export const economyItemSchema = z.object({
     actions: z.array(itemActionSchema).default([]),
 });
 
+export const economyWorkMessageSchema = z.object({
+    id: z.uuid().optional(),
+    content: z.string().min(1, "Message is required").max(1000),
+});
+
+export const economyLeaderboardEntrySchema = z.object({
+    userId: z.string(),
+    cash: z.number().int(),
+    bank: z.number().int(),
+    total: z.number().int(),
+});
+
+export const getLeaderboardInputSchema = z.object({
+    guildId: z.string().min(1),
+    limit: z.number().int().min(1).max(100).default(20),
+    offset: z.number().int().min(0).default(0),
+});
+
 export type EconomyConfig = z.infer<typeof economyConfigSchema>;
 export type EconomyConfigInput = z.input<typeof economyConfigSchema>;
 export type MatchType = z.infer<typeof matchTypeSchema>;
 export type ItemRequirement = z.infer<typeof itemRequirementSchema>;
 export type ItemAction = z.infer<typeof itemActionSchema>;
 export type EconomyItem = z.infer<typeof economyItemSchema>;
+export type EconomyCategory = z.infer<typeof economyCategorySchema>;
+export type EconomyWorkMessage = z.infer<typeof economyWorkMessageSchema>;
+export type EconomyLeaderboardEntry = z.infer<typeof economyLeaderboardEntrySchema>;

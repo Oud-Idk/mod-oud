@@ -5,6 +5,7 @@ use crate::features::economy::{commands, database};
 use crate::shared::messages::send_ephemeral;
 use crate::shared::pagination;
 use serenity::all::{CreateEmbed, CreateEmbedFooter};
+use std::collections::HashMap;
 
 /// View all items in the store
 #[poise::command(slash_command, guild_only)]
@@ -25,6 +26,12 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     }
 
+    let categories = database::list_categories(db, guild_id).await.unwrap_or_default();
+    let category_map: HashMap<_, _> = categories
+        .into_iter()
+        .filter_map(|c| Some((c.id, c.name)))
+        .collect();
+
     let per_page = 10;
     let chunks: Vec<_> = items.chunks(per_page).collect();
     let total_pages = chunks.len();
@@ -36,9 +43,14 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
         for item in chunk {
             let icon = item.icon_str().unwrap_or_default();
             let stock = inventory::format_stock(item);
+            let category_label = item
+                .category_id
+                .and_then(|cid| category_map.get(&cid))
+                .map(|name| format!(" - *{name}*"))
+                .unwrap_or_default();
             description.push_str(&format!(
-                "{} **{}** — {} {} — {}\n",
-                icon, item.name, item.price, currency, stock
+                "{} **{}**: {} {} | {}{}\n",
+                icon, item.name, item.price, currency, stock, category_label
             ));
         }
         CreateEmbed::new()
@@ -51,7 +63,7 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
                 total_pages
             )))
     })
-    .await?;
+        .await?;
 
     Ok(())
 }

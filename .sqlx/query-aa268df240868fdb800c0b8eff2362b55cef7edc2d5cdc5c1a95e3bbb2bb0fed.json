@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM economy_work_messages\n        WHERE guild_id = $1 AND id = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "aa268df240868fdb800c0b8eff2362b55cef7edc2d5cdc5c1a95e3bbb2bb0fed"
+}

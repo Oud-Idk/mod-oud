@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT cash FROM economy_balances WHERE guild_id = $1 AND user_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "cash",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "economy_balances",
+            "name": "cash"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "eda95242f08a31c132ab9b0da3cb50167c244340b30565fa046edb345151f7d2"
+}

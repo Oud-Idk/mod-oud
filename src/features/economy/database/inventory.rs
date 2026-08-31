@@ -1,0 +1,191 @@
+use crate::features::economy::types::{InventoryRow, Item};
+use serenity::all::{GuildId, UserId};
+use sqlx::PgPool;
+use uuid::Uuid;
+
+/// Fetch all inventory rows for a user in a guild.
+pub async fn get_inventory(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<Vec<InventoryRow>, sqlx::Error> {
+    sqlx::query_as!(
+        InventoryRow,
+        r#"
+        SELECT guild_id, user_id, item_id, quantity
+        FROM economy_inventory
+        WHERE guild_id = $1 AND user_id = $2
+        ORDER BY item_id
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+    )
+    .fetch_all(db)
+    .await
+}
+
+/// Fetch a single inventory row for a specific item.
+pub async fn get_inventory_item(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+) -> Result<Option<InventoryRow>, sqlx::Error> {
+    sqlx::query_as!(
+        InventoryRow,
+        r#"
+        SELECT guild_id, user_id, item_id, quantity
+        FROM economy_inventory
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+    )
+    .fetch_optional(db)
+    .await
+}
+
+/// Add an item to a user's inventory (upserts, incrementing quantity).
+pub async fn add_inventory_item(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<InventoryRow, sqlx::Error> {
+    sqlx::query_as!(
+        InventoryRow,
+        r#"
+        INSERT INTO economy_inventory (guild_id, user_id, item_id, quantity)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (guild_id, user_id, item_id) DO UPDATE SET
+            quantity = economy_inventory.quantity + EXCLUDED.quantity
+        RETURNING guild_id, user_id, item_id, quantity
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+        quantity,
+    )
+    .fetch_one(db)
+    .await
+}
+
+/// Remove an item from a user's inventory. Deletes the row if quantity reaches 0.
+pub async fn remove_inventory_item(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<(), sqlx::Error> {
+    if quantity <= 0 {
+        return Ok(());
+    }
+
+    sqlx::query!(
+        r#"
+        WITH deleted AS (
+            DELETE FROM economy_inventory
+            WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity = $4
+            RETURNING 1
+        )
+        UPDATE economy_inventory
+        SET quantity = quantity - $4
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity > $4
+          AND NOT EXISTS (SELECT 1 FROM deleted)
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+        quantity,
+    )
+    .execute(db)
+    .await?;
+
+    Ok(())
+}
+
+/// Check if a user has at least `quantity` of an item.
+pub async fn has_item(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<bool, sqlx::Error> {
+    if quantity <= 0 {
+        return Ok(true);
+    }
+
+    let row = sqlx::query_scalar!(
+        r#"
+        SELECT quantity FROM economy_inventory
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+    )
+    .fetch_optional(db)
+    .await?;
+
+    Ok(row.is_some_and(|q| q >= quantity))
+}
+
+/// Fetch a user's entire inventory joined with item data in a single query.
+pub async fn get_inventory_with_items(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<Vec<(Item, i32)>, sqlx::Error> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT i.id, i.guild_id, i.name, i.description, i.price, i.category_id,
+               i.emoji_unicode, i.emoji_id, i.is_inventory, i.is_usable, i.is_sellable,
+               i.is_listed, i.unlimited_stock, i.stock_remaining,
+               i.requirements AS "requirements: serde_json::Value",
+               actions AS "actions: serde_json::Value",
+               i.expires_at, i.created_at,
+               inv.quantity
+        FROM economy_inventory inv
+        JOIN economy_items i ON inv.guild_id = i.guild_id AND inv.item_id = i.id
+        WHERE inv.guild_id = $1 AND inv.user_id = $2
+        ORDER BY i.name
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+    )
+    .fetch_all(db)
+    .await?;
+
+    let result = rows
+        .into_iter()
+        .map(|r| {
+            let item = Item {
+                id: r.id,
+                guild_id: r.guild_id,
+                name: r.name,
+                description: r.description,
+                price: r.price,
+                category_id: r.category_id,
+                emoji_unicode: r.emoji_unicode,
+                emoji_id: r.emoji_id,
+                is_inventory: r.is_inventory,
+                is_usable: r.is_usable,
+                is_sellable: r.is_sellable,
+                is_listed: r.is_listed,
+                unlimited_stock: r.unlimited_stock,
+                stock_remaining: r.stock_remaining,
+                requirements: r.requirements,
+                actions: r.actions,
+                expires_at: r.expires_at,
+                created_at: r.created_at,
+            };
+            (item, r.quantity)
+        })
+        .collect();
+
+    Ok(result)
+}

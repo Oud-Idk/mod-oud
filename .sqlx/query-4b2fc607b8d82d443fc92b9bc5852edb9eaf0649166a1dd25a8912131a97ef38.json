@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT stock_remaining\n            FROM economy_items\n            WHERE guild_id = $1\n              AND id = $2\n              AND (expires_at IS NULL OR expires_at > NOW())\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stock_remaining",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "economy_items",
+            "name": "stock_remaining"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4b2fc607b8d82d443fc92b9bc5852edb9eaf0649166a1dd25a8912131a97ef38"
+}

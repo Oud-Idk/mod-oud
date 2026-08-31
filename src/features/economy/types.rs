@@ -7,8 +7,12 @@ use sqlx::FromRow;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+fn default_work_message() -> String {
+    "You earned **{reward} {currency}**!".to_string()
+}
+
 /// Per-guild economy configuration stored in `GuildSettings`.
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EconomyConfig {
     /// Whether the economy system is enabled for this guild.
@@ -21,6 +25,36 @@ pub struct EconomyConfig {
     pub work_min_reward: i64,
     /// Maximum coins earned per `/work` invocation.
     pub work_max_reward: i64,
+    /// Plaintext template for the `/work` success message. Supports `{reward}` and `{currency}` placeholders.
+    #[serde(default = "default_work_message")]
+    pub work_message: String,
+}
+
+impl Default for EconomyConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            currency_name: String::new(),
+            work_cooldown_secs: 0,
+            work_min_reward: 0,
+            work_max_reward: 0,
+            work_message: default_work_message(),
+        }
+    }
+}
+
+impl EconomyConfig {
+    /// Render the work message by replacing `{reward}` `{currency}` `{user}` placeholders.
+    #[must_use]
+    pub fn render_work_message(&self, reward: i64, currency: &str) -> String {
+        render_work_message_template(&self.work_message, reward, currency, "")
+    }
+
+    /// Render with user mention support.
+    #[must_use]
+    pub fn render_work_message_with_user(&self, reward: i64, currency: &str, user_mention: &str) -> String {
+        render_work_message_template(&self.work_message, reward, currency, user_mention)
+    }
 }
 
 /// A user's economy balance within a guild.
@@ -346,4 +380,41 @@ impl ItemCategory {
             .and_then(|id| id.parse::<u64>().ok())
             .map(EmojiId::new)
     }
+}
+
+/// A plaintext work message template. Relational: multiple per guild, picked at random.
+#[derive(Debug, Clone, FromRow)]
+pub struct WorkMessage {
+    pub id: Uuid,
+    pub guild_id: i64,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
+}
+
+impl WorkMessage {
+    #[must_use]
+    pub const fn guild_id(&self) -> GuildId {
+        GuildId::new(self.guild_id.cast_unsigned())
+    }
+
+    /// Render placeholders `{reward}` `{currency}` `{user}` (plaintext).
+    #[must_use]
+    pub fn render(&self, reward: i64, currency: &str, user_mention: &str) -> String {
+        self.content
+            .replace("{reward}", &reward.to_string())
+            .replace("{currency}", currency)
+            .replace("{user}", user_mention)
+    }
+}
+
+/// Helper for rendering work messages when no relational rows exist (fallback to config).
+pub fn render_work_message_template(template: &str, reward: i64, currency: &str, user_mention: &str) -> String {
+    let tmpl = if template.trim().is_empty() {
+        default_work_message()
+    } else {
+        template.to_string()
+    };
+    tmpl.replace("{reward}", &reward.to_string())
+        .replace("{currency}", currency)
+        .replace("{user}", user_mention)
 }

@@ -5,13 +5,17 @@
     clippy::option_if_let_else
 )]
 
+pub mod admin;
 pub mod cash;
 pub mod inventory;
 pub mod items;
+pub mod leaderboard;
 
+use super::commands::admin::admin;
 use super::commands::cash::cash;
 use super::commands::inventory::inventory;
 use super::commands::items::items;
+use super::commands::leaderboard::leaderboard;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy::types::EconomyConfig;
@@ -28,7 +32,7 @@ async fn get_config(ctx: &Context<'_>) -> Result<Option<EconomyConfig>, Error> {
 }
 
 /// Economy commands
-#[poise::command(slash_command, guild_only, subcommands("cash", "inventory", "items"))]
+#[poise::command(slash_command, guild_only, subcommands("cash", "inventory", "items", "admin", "leaderboard"))]
 pub async fn economy(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }

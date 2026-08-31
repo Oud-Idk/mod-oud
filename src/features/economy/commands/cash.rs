@@ -11,7 +11,7 @@ use std::time::Duration;
 #[poise::command(
     slash_command,
     guild_only,
-    subcommands("balance", "work", "deposit", "withdraw")
+    subcommands("balance", "work", "deposit", "withdraw", "transfer")
 )]
 pub async fn cash(_: Context<'_>) -> Result<(), Error> {
     Ok(())
@@ -53,8 +53,7 @@ pub async fn balance(
         )
         .color(BRAND_COLOR);
 
-    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
-        .await?;
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
 
     Ok(())
 }
@@ -94,7 +93,7 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
             &ctx,
             format!("You need to wait {wait_time} before working again."),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -103,9 +102,20 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
     let balance = database::add_cash(db, guild_id, user_id, reward).await?;
 
     let currency = &config.currency_name;
+    let user_mention = format!("<@{}>", user_id.get());
+    // Prefer relational work messages (random), fallback to guild config template
+    let description = match database::get_random_work_message(db, guild_id).await {
+        Ok(Some(wm)) => wm.render(reward, currency, &user_mention),
+        Ok(None) => config.render_work_message_with_user(reward, currency, &user_mention),
+        Err(e) => {
+            tracing::warn!(%guild_id, error = %e, "Failed to fetch random work message, falling back to config template");
+            config.render_work_message_with_user(reward, currency, &user_mention)
+        }
+    };
+
     let embed = CreateEmbed::new()
         .title("Work Complete!")
-        .description(format!("You earned **{reward} {currency}**!"))
+        .description(description)
         .field("Wallet", format!("{}", balance.cash), true)
         .field("Bank", format!("{}", balance.bank), true)
         .field("Total", format!("{}", balance.total()), true)
@@ -206,6 +216,80 @@ pub async fn withdraw(
 
     ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
         .await?;
+
+    Ok(())
+}
+
+/// Transfer coins from your wallet to another user
+#[poise::command(slash_command, guild_only)]
+pub async fn transfer(
+    ctx: Context<'_>,
+    #[description = "User to transfer to"] user: User,
+    #[description = "Amount to transfer"] amount: i64,
+) -> Result<(), Error> {
+    let Some(config) = commands::get_config(&ctx).await? else {
+        send_ephemeral(&ctx, "Economy isn't enabled in this server.").await?;
+        return Ok(());
+    };
+
+    if amount <= 0 {
+        send_ephemeral(&ctx, "Amount must be positive.").await?;
+        return Ok(());
+    }
+
+    let from_user = ctx.author().id;
+    let to_user = user.id;
+
+    if from_user == to_user {
+        send_ephemeral(&ctx, "You cannot transfer coins to yourself.").await?;
+        return Ok(());
+    }
+
+    if user.bot {
+        send_ephemeral(&ctx, "You cannot transfer coins to a bot.").await?;
+        return Ok(());
+    }
+
+    ctx.defer().await?;
+
+    let guild_id = ctx.guild_id().unwrap();
+    let db = &ctx.data().core.db;
+
+    let result = database::transfer_cash(db, guild_id, from_user, to_user, amount).await?;
+
+    let Some((sender_balance, _receiver_balance)) = result else {
+        let current = database::get_balance(db, guild_id, from_user).await?;
+        send_ephemeral(
+            &ctx,
+            format!(
+                "Insufficient wallet balance. You have **{} {}** in your wallet, but tried to transfer **{} {}**.",
+                current.cash, config.currency_name, amount, config.currency_name
+            ),
+        )
+            .await?;
+        return Ok(());
+    };
+
+    let currency = &config.currency_name;
+    let embed = CreateEmbed::new()
+        .title("Transfer Complete!")
+        .description(format!(
+            "You transferred **{amount} {currency}** to **{}**.",
+            user.display_name()
+        ))
+        .field(
+            "Your Wallet",
+            format!("{} {currency}", sender_balance.cash),
+            true,
+        )
+        .field(
+            "Your Bank",
+            format!("{} {currency}", sender_balance.bank),
+            true,
+        )
+        .color(BRAND_COLOR);
+
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
 
     Ok(())
 }

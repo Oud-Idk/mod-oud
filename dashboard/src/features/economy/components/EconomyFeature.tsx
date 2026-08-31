@@ -1,9 +1,12 @@
 import { JSX } from "react";
-import { getEconomyConfig, getEconomyItems } from "@/features/economy/queries";
+import { getEconomyConfig, getEconomyItems, getEconomyCategories, getEconomyWorkMessages, getEconomyLeaderboard } from "@/features/economy/queries";
 import {
     saveEconomyConfigAction,
     saveEconomyItemAction,
     deleteEconomyItemAction,
+    saveEconomyCategoryAction,
+    syncEconomyWorkMessagesAction,
+    fetchMoreEconomyLeaderboardAction,
 } from "@/features/economy/actions";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { EconomyBody } from "@/features/economy/components/EconomyBody";
@@ -21,9 +24,12 @@ export async function EconomyFeature({
     const resolvedParams = searchParams ? await searchParams : {};
     const selectedItemId = resolvedParams.id;
 
-    const [economyConfig, items, roleMap] = await Promise.all([
+    const [economyConfig, items, categories, workMessages, leaderboard, roleMap] = await Promise.all([
         getEconomyConfig(guildId),
         getEconomyItems(guildId),
+        getEconomyCategories(guildId),
+        getEconomyWorkMessages(guildId),
+        getEconomyLeaderboard(guildId, 40, 0),
         getRoleMap(guildId),
     ]);
 
@@ -32,6 +38,9 @@ export async function EconomyFeature({
     const onSaveConfig = saveEconomyConfigAction.bind(null, guildId);
     const onSaveItem = saveEconomyItemAction.bind(null, guildId);
     const onDeleteItem = deleteEconomyItemAction.bind(null, guildId);
+    const onSaveCategory = saveEconomyCategoryAction.bind(null, guildId);
+    const onSyncWorkMessages = syncEconomyWorkMessagesAction.bind(null, guildId);
+    const fetchMoreLeaderboard = fetchMoreEconomyLeaderboardAction.bind(null, guildId);
 
     return (
         <>
@@ -39,11 +48,17 @@ export async function EconomyFeature({
             <EconomyBody
                 economyConfig={economyConfig}
                 items={items}
+                categories={categories}
+                workMessages={workMessages}
+                leaderboard={leaderboard}
                 activeItem={activeItem}
                 roleMap={roleMap}
                 onSaveConfig={onSaveConfig}
                 onSaveItem={onSaveItem}
                 onDeleteItem={onDeleteItem}
+                onSaveCategory={onSaveCategory}
+                onSyncWorkMessages={onSyncWorkMessages}
+                fetchMoreLeaderboard={fetchMoreLeaderboard}
                 guildId={guildId}
             />
         </>

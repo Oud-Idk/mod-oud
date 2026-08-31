@@ -10,20 +10,24 @@ import { InputLabel } from "@/components/layout/InputLabel";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import {
     EconomyItem,
+    EconomyCategory,
     ItemRequirement,
     ItemAction,
     DEFAULT_ITEM_MESSAGE
 } from "@/features/economy/types";
+import { EconomyCategoryCreateModal } from "./EconomyCategoryCreateModal";
 
 interface ItemConfigProps {
     config: EconomyItem;
     allItems: EconomyItem[];
+    categories: EconomyCategory[];
     isPending: boolean;
     currencyName: string;
     roleMap: Record<string, string>;
     guildId: string;
     onDelete: (id: string) => Promise<boolean>;
     onChange: (updated: EconomyItem) => void;
+    onSaveCategory: (category: EconomyCategory) => Promise<EconomyCategory>;
 }
 
 const TRIGGER_OPTIONS = [
@@ -210,15 +214,18 @@ function QuantitiesEditor({
 export function EconomyItemConfig({
     config,
     allItems,
+    categories,
     isPending,
     currencyName,
     roleMap,
     guildId,
     onDelete,
     onChange,
+    onSaveCategory,
 }: ItemConfigProps): JSX.Element {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
     const isIdInvalid = config.id === undefined || config.id === "";
 
@@ -372,6 +379,46 @@ export function EconomyItemConfig({
                         onChange({ ...config, description: e.target.value });
                     }}
                 />
+            </div>
+
+            {/* Category */}
+            <div className="space-y-2">
+                <InputLabel>Category</InputLabel>
+                {(() => {
+                    const ADD_NEW = "__ADD_NEW__";
+                    const categoryOptions: { value: string; label: string }[] = [
+                        ...categories
+                            .filter((cat): cat is EconomyCategory & { id: string } => typeof cat.id === "string" && cat.id !== "")
+                            .map((cat) => ({
+                                value: cat.id,
+                                label: `${cat.emoji ?? ""} ${cat.name}`.trim(),
+                            })),
+                        { value: ADD_NEW, label: "+ Add Category" },
+                    ];
+                    const selectedValue = config.category ?? null;
+                    // Ensure selected value is either a known id or null; if stale id, still show it
+                    const hasSelected = selectedValue !== null && categories.some((c) => c.id === selectedValue);
+                    // If selectedValue is stale (category deleted), keep it as option so it doesn't disappear
+                    const effectiveOptions = hasSelected || selectedValue === null ? categoryOptions : [...categoryOptions.slice(0, -1), { value: selectedValue, label: `Unknown (${selectedValue.slice(0, 8)})` }, categoryOptions[categoryOptions.length - 1]];
+
+                    return (
+                        <Dropdown
+                            options={effectiveOptions}
+                            value={selectedValue}
+                            placeholder="No category"
+                            allowClear={true}
+                            onChange={(val) => {
+                                if (val === ADD_NEW) {
+                                    setIsCategoryModalOpen(true);
+                                    return;
+                                }
+                                // val === null means cleared
+                                onChange({ ...config, category: val });
+                            }}
+                        />
+                    );
+                })()}
+                <p className="text-xs text-muted-foreground">Group items in the store. Create a new category from the dropdown.</p>
             </div>
 
             {/* Item Flags */}
@@ -793,6 +840,16 @@ export function EconomyItemConfig({
                     </div>
                 )}
             </div>
+
+            <EconomyCategoryCreateModal
+                isOpen={isCategoryModalOpen}
+                onClose={() => { setIsCategoryModalOpen(false)} }
+                onSave={async (cat) => {
+                    const created = await onSaveCategory(cat);
+                    onChange({ ...config, category: created.id ?? null });
+                    return created;
+                }}
+            />
         </div>
     );
 }

@@ -4,18 +4,16 @@ use crate::features::economy::{commands, database, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
 
-// Re-export for backwards compatibility if external code imported via buy module
-pub use super::actions::execute_buy_actions;
-
-/// Buy an item from the store
+/// Sell an item from your inventory back to the store
 #[poise::command(slash_command, guild_only)]
-pub async fn buy(
+pub async fn sell(
     ctx: Context<'_>,
     #[description = "Item name or ID"] item_input: String,
-    #[description = "Quantity to buy"] quantity: Option<u32>,
+    #[description = "Quantity to sell"] quantity: Option<u32>,
 ) -> Result<(), Error> {
     let raw_qty = quantity.unwrap_or(1);
 
+    // Prevent u32 -> i32 integer overflow tricks
     let Ok(qty) = i32::try_from(raw_qty) else {
         send_ephemeral(&ctx, "Quantity is too large.").await?;
         return Ok(());
@@ -42,64 +40,54 @@ pub async fn buy(
         return Ok(());
     };
 
-    if let Err(reason) = validation::validate_buy_requirements(&ctx, &item, db).await? {
-        send_ephemeral(&ctx, format!("**Purchase Denied:** {reason}")).await?;
-        return Ok(());
-    }
-
-    let result = database::purchase_item_tx(db, guild_id, user_id, item.id, qty).await?;
+    let result = database::sell_item_tx(db, guild_id, user_id, item.id, qty).await?;
 
     match result {
-        Ok((bought_item, balance)) => {
+        Ok((sold_item, balance)) => {
             let currency = &config.currency_name;
-            let icon = bought_item.icon_str().unwrap_or_default();
-            let total_cost = bought_item.price * (qty as i64);
-
-            // Execute hooks/roles/actions tied to the item purchase
-            execute_buy_actions(&ctx, &bought_item, qty).await?;
+            let total_refund = sold_item.price.saturating_mul(qty as i64);
+            let icon = sold_item.icon_str().unwrap_or_default();
 
             let mut embed = CreateEmbed::new()
-                .title(format!("{icon} Purchase Complete!").trim().to_string())
+                .title(format!("{icon} Sold!").trim().to_string())
                 .description(format!(
-                    "You bought **{qty}x {}** for **{total_cost} {currency}**!",
-                    bought_item.name,
+                    "You sold **{qty}x {}** for **{total_refund} {currency}**!",
+                    sold_item.name,
                 ))
                 .field("Wallet", format!("{} {currency}", balance.cash), true)
                 .field("Bank", format!("{} {currency}", balance.bank), true)
                 .color(BRAND_COLOR);
 
-            if let Some(thumb) = bought_item.thumbnail_url() {
+            if let Some(thumb) = sold_item.thumbnail_url() {
                 embed = embed.thumbnail(thumb);
             }
 
             ctx.send(poise::CreateReply::default().embed(embed)).await?;
         }
-        Err(database::PurchaseError::InvalidQuantity) => {
+        Err(database::SellError::InvalidQuantity) => {
             send_ephemeral(&ctx, "Invalid quantity or total price is too large.").await?;
         }
-        Err(database::PurchaseError::InsufficientStock { remaining }) => {
-            send_ephemeral(
-                &ctx,
-                format!("Not enough stock! Only **{remaining}** remaining."),
-            )
-                .await?;
+        Err(database::SellError::NotSellable) => {
+            send_ephemeral(&ctx, "This item cannot be sold back to the shop.").await?;
         }
-        Err(database::PurchaseError::InsufficientFunds { wallet }) => {
-            let total_cost = item.price.saturating_mul(qty as i64);
-            send_ephemeral(
-                &ctx,
-                format!(
-                    "You need **{} {}** in your wallet, but you only have **{}**.",
-                    total_cost, config.currency_name, wallet
-                ),
-            )
-                .await?;
+        Err(database::SellError::InsufficientQuantity { owned }) => {
+            if owned == 0 {
+                send_ephemeral(&ctx, format!("You don't own any **{}**.", item.name)).await?;
+            } else {
+                send_ephemeral(
+                    &ctx,
+                    format!(
+                        "You only have **{owned}x {}**, but tried to sell **{qty}**.",
+                        item.name
+                    ),
+                )
+                    .await?;
+            }
         }
-        Err(database::PurchaseError::ItemNotFoundOrExpired) => {
+        Err(database::SellError::ItemNotFound) => {
             send_ephemeral(&ctx, "This item is no longer available.").await?;
         }
     }
 
     Ok(())
 }
-

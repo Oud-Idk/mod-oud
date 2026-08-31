@@ -180,3 +180,223 @@ export async function deleteEconomyItem(guildId: string, itemId: string): Promis
 
     return (result.rowCount ?? 0) > 0;
 }
+
+// ---------------------------------------------------------------------------
+// Category Queries
+// ---------------------------------------------------------------------------
+
+interface EconomyCategoryRow {
+    id: string;
+    guild_id: string;
+    name: string;
+    description: string;
+    position: number;
+    emoji_unicode: string | null;
+    emoji_id: string | null;
+}
+
+function mapRowToCategory(row: EconomyCategoryRow): import("./types").EconomyCategory {
+    let emoji: string | undefined = undefined;
+    if (row.emoji_id !== null && row.emoji_id !== "") {
+        emoji = `<:cat:${row.emoji_id}>`;
+    } else if (row.emoji_unicode !== null && row.emoji_unicode !== "") {
+        emoji = row.emoji_unicode;
+    }
+    return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        position: row.position,
+        emoji: emoji === "" ? undefined : emoji,
+    };
+}
+
+export async function getEconomyCategories(guildId: string): Promise<import("./types").EconomyCategory[]> {
+    const { rows } = await db.query<EconomyCategoryRow>(
+        `
+            SELECT *
+            FROM economy_categories
+            WHERE guild_id = $1
+            ORDER BY position ASC, name ASC
+        `,
+        [guildId]
+    );
+    return rows.map(mapRowToCategory);
+}
+
+export async function saveEconomyCategory(
+    guildId: string,
+    category: import("./types").EconomyCategory
+): Promise<import("./types").EconomyCategory> {
+    const categoryId = category.id ?? crypto.randomUUID();
+    const { unicode, id: emojiId } = parseEmoji(category.emoji);
+
+    const { rows } = await db.query<EconomyCategoryRow>(
+        `
+            INSERT INTO economy_categories (id, guild_id, name, description, position, emoji_unicode, emoji_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (id) DO UPDATE SET name          = EXCLUDED.name,
+                                           description   = EXCLUDED.description,
+                                           position      = EXCLUDED.position,
+                                           emoji_unicode = EXCLUDED.emoji_unicode,
+                                           emoji_id      = EXCLUDED.emoji_id
+            RETURNING *
+        `,
+        [categoryId, guildId, category.name, category.description, category.position, unicode, emojiId]
+    );
+    return mapRowToCategory(rows[0]);
+}
+
+export async function deleteEconomyCategory(guildId: string, categoryId: string): Promise<boolean> {
+    const result = await db.query(
+        `
+            DELETE FROM economy_categories
+            WHERE guild_id = $1 AND id = $2
+        `,
+        [guildId, categoryId]
+    );
+    return (result.rowCount ?? 0) > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Work Messages Queries (relational, multiple per guild)
+// ---------------------------------------------------------------------------
+
+interface EconomyWorkMessageRow {
+    id: string;
+    guild_id: string;
+    content: string;
+    created_at: Date;
+}
+
+function mapRowToWorkMessage(row: EconomyWorkMessageRow): import("./types").EconomyWorkMessage {
+    return {
+        id: row.id,
+        content: row.content,
+    };
+}
+
+export async function getEconomyWorkMessages(guildId: string): Promise<import("./types").EconomyWorkMessage[]> {
+    const { rows } = await db.query<EconomyWorkMessageRow>(
+        `
+            SELECT id, guild_id, content, created_at
+            FROM economy_work_messages
+            WHERE guild_id = $1
+            ORDER BY created_at ASC
+        `,
+        [guildId]
+    );
+    return rows.map(mapRowToWorkMessage);
+}
+
+export async function saveEconomyWorkMessage(
+    guildId: string,
+    message: import("./types").EconomyWorkMessage
+): Promise<import("./types").EconomyWorkMessage> {
+    const messageId = message.id ?? crypto.randomUUID();
+    const { rows } = await db.query<EconomyWorkMessageRow>(
+        `
+            INSERT INTO economy_work_messages (id, guild_id, content)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content
+            RETURNING id, guild_id, content, created_at
+        `,
+        [messageId, guildId, message.content]
+    );
+    return mapRowToWorkMessage(rows[0]);
+}
+
+export async function deleteEconomyWorkMessage(guildId: string, messageId: string): Promise<boolean> {
+    const result = await db.query(
+        `
+            DELETE FROM economy_work_messages
+            WHERE guild_id = $1 AND id = $2
+        `,
+        [guildId, messageId]
+    );
+    return (result.rowCount ?? 0) > 0;
+}
+
+export async function syncEconomyWorkMessages(
+    guildId: string,
+    messages: import("./types").EconomyWorkMessage[]
+): Promise<import("./types").EconomyWorkMessage[]> {
+    const client = await db.connect();
+    try {
+        await client.query("BEGIN");
+        if (messages.length === 0) {
+            await client.query("DELETE FROM economy_work_messages WHERE guild_id = $1", [guildId]);
+        } else {
+            const ids = messages.map((m) => m.id ?? crypto.randomUUID());
+            const contents = messages.map((m) => m.content);
+            await client.query(
+                "DELETE FROM economy_work_messages WHERE guild_id = $1 AND id <> ALL($2::uuid[])",
+                [guildId, ids]
+            );
+            await client.query(
+                `
+                INSERT INTO economy_work_messages (id, guild_id, content)
+                SELECT t.id, $1::bigint, t.content
+                FROM UNNEST($2::uuid[], $3::text[]) AS t(id, content)
+                ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content
+                `,
+                [guildId, ids, contents]
+            );
+        }
+        await client.query("COMMIT");
+        const { rows } = await client.query<EconomyWorkMessageRow>(
+            "SELECT id, guild_id, content, created_at FROM economy_work_messages WHERE guild_id = $1 ORDER BY created_at ASC",
+            [guildId]
+        );
+        return rows.map(mapRowToWorkMessage);
+    } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+export async function getEconomyLeaderboard(
+    guildId: string,
+    limit = 20,
+    offset = 0
+): Promise<import("./types").EconomyLeaderboardEntry[]> {
+    const { getLeaderboardInputSchema, economyLeaderboardEntrySchema } = await import("./types");
+    const valid = getLeaderboardInputSchema.parse({ guildId, limit, offset });
+    const { rows } = await db.query(
+        `
+        SELECT user_id::text AS "userId",
+               cash::int AS "cash",
+               bank::int AS "bank",
+               (cash + bank)::int AS "total"
+        FROM economy_balances
+        WHERE guild_id = $1
+        ORDER BY (cash + bank) DESC, user_id ASC
+        LIMIT $2 OFFSET $3
+        `,
+        [valid.guildId, valid.limit, valid.offset]
+    );
+    return rows.map((r: unknown) => economyLeaderboardEntrySchema.parse(r));
+}
+
+export async function fetchMoreEconomyLeaderboard(
+    guildId: string,
+    currentLowestTotal: number
+): Promise<import("./types").EconomyLeaderboardEntry[]> {
+    const { rows } = await db.query(
+        `
+        SELECT user_id::text AS "userId",
+               cash::int AS "cash",
+               bank::int AS "bank",
+               (cash + bank)::int AS "total"
+        FROM economy_balances
+        WHERE guild_id = $1 AND (cash + bank) < $2
+        ORDER BY (cash + bank) DESC, user_id ASC
+        LIMIT 20
+        `,
+        [guildId, currentLowestTotal]
+    );
+    const { economyLeaderboardEntrySchema } = await import("./types");
+    return rows.map((r: unknown) => economyLeaderboardEntrySchema.parse(r));
+}

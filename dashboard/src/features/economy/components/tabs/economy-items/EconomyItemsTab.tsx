@@ -4,7 +4,7 @@ import React, { useState, useEffect, useTransition, JSX } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";
-import { EconomyItem, economyItemSchema } from "@/features/economy/types";
+import { EconomyItem, EconomyCategory, economyItemSchema } from "@/features/economy/types";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
@@ -14,9 +14,11 @@ import { EconomyItemCreateModal } from "@/features/economy/components/tabs/econo
 
 interface EconomyItemsBodyProps {
     items: EconomyItem[];
+    categories: EconomyCategory[];
     activeConfig?: EconomyItem | null;
     onSave: (item: EconomyItem) => Promise<EconomyItem>;
     onDelete: (id: string) => Promise<boolean>;
+    onSaveCategory: (category: EconomyCategory) => Promise<EconomyCategory>;
     currencyName: string;
     guildId: string;
     roleMap: Record<string, string>;
@@ -24,9 +26,11 @@ interface EconomyItemsBodyProps {
 
 export function EconomyItemsTab({
     items,
+    categories,
     activeConfig,
     onSave,
     onDelete,
+    onSaveCategory,
     currencyName,
     guildId,
     roleMap,
@@ -44,17 +48,47 @@ export function EconomyItemsTab({
 
     const [isPending, startTransition] = useTransition();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [localCategories, setLocalCategories] = useState<EconomyCategory[]>(categories);
+
+    useEffect(() => {
+        setLocalCategories(categories);
+    }, [categories]);
+
+    const handleSaveCategory = async (cat: EconomyCategory): Promise<EconomyCategory> => {
+        const created = await onSaveCategory(cat);
+        setLocalCategories((prev) => {
+            if (prev.some((c) => c.id === created.id)) {
+                return prev.map((c) => (c.id === created.id ? created : c));
+            }
+            return [...prev, created];
+        });
+        return created;
+    };
 
     // Sync active config whenever the ?id= URL param changes or items update
+    // Preserve unsaved edits (dirty) for the same item when unrelated revalidation
+    // occurs (e.g. creating a category triggers revalidatePath -> new items array
+    // identity but same content -> would otherwise wipe the staged category pick).
     useEffect(() => {
         if (selectedId !== null && selectedId !== "") {
             const found = items.find((i) => i.id === selectedId);
             if (found !== undefined) {
-                setConfig(found);
+                setConfig((prev) => {
+                    if (prev?.id === found.id && !isDeepEqual(prev, found)) {
+                        return prev;
+                    }
+                    return found;
+                });
                 return;
             }
         }
-        setConfig(activeConfig ?? null);
+        setConfig((prev) => {
+            const baseline = activeConfig ?? null;
+            if (prev?.id === baseline?.id && baseline !== null && prev !== null && !isDeepEqual(prev, baseline)) {
+                return prev;
+            }
+            return baseline;
+        });
     }, [selectedId, items, activeConfig]);
 
     // Find the saved baseline to calculate isDirty
@@ -95,12 +129,13 @@ export function EconomyItemsTab({
                 items={items}
                 renderItem={(item) => {
                     const isCurrent = selectedId === item.id || config?.id === item.id;
+                    const cat = item.category !== null && item.category !== "" ? localCategories.find((c) => c.id === item.category) : undefined;
                     return (
                         <button
                             key={item.id ?? item.name}
                             type="button"
                             onClick={() => {
-                                if (item.id !== undefined) {
+                                if (item.id !== undefined && item.id !== "") {
                                     router.push(`/dashboard/${guildId}/economy?tab=items&id=${item.id}`);
                                 }
                             }}
@@ -114,6 +149,11 @@ export function EconomyItemsTab({
                             <div className="flex items-center gap-2 truncate">
                                 <span>{item.emoji}</span>
                                 <span className="truncate">{item.name}</span>
+                                {cat && (
+                                    <span className="hidden sm:inline-flex text-[10px] px-1.5 py-0.5 rounded bg-surface-muted border border-border text-muted-foreground">
+                                        {cat.name}
+                                    </span>
+                                )}
                             </div>
                             <span className="text-xs text-muted-foreground shrink-0 font-normal">
                                 {item.price} {currencyName}
@@ -148,11 +188,13 @@ export function EconomyItemsTab({
                         key={config.id}
                         config={config}
                         allItems={items}
+                        categories={localCategories}
                         isPending={isPending}
                         currencyName={currencyName}
                         guildId={guildId}
                         onDelete={onDelete}
                         onChange={setConfig}
+                        onSaveCategory={handleSaveCategory}
                         roleMap={roleMap}
                     />
                 )}

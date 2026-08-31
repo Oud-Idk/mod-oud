@@ -2,7 +2,7 @@ use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy::commands::inventory;
 use crate::features::economy::types::{ItemAction, ItemRequirement, MatchType};
-use crate::features::economy::{commands, validation};
+use crate::features::economy::{commands, database, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
 
@@ -36,6 +36,12 @@ pub async fn info(
         .field("Sellable", inventory::yes_no(item.is_sellable), true)
         .field("Listed", inventory::yes_no(item.is_listed), true)
         .color(BRAND_COLOR);
+
+    if let Some(cat_id) = item.category_id {
+        if let Ok(Some(cat)) = database::get_category(db, guild_id, cat_id).await {
+            embed = embed.field("Category", cat.name, true);
+        }
+    }
 
     if !item.description.is_empty() {
         embed = embed.description(&item.description);

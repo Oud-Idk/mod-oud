@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT guild_id, user_id, cash, bank\n        FROM economy_balances\n        WHERE guild_id = $1\n        ORDER BY (cash + bank) DESC, user_id ASC\n        LIMIT $2 OFFSET $3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "economy_balances",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "economy_balances",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "cash",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "economy_balances",
+            "name": "cash"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "bank",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "economy_balances",
+            "name": "bank"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f103b15d092beac748e8cd190599f9dbf7dece25f2d68333fd89007738b15a22"
+}

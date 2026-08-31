@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH deleted AS (\n            DELETE FROM economy_inventory\n            WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity = $4\n            RETURNING 1\n        )\n        UPDATE economy_inventory\n        SET quantity = quantity - $4\n        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity > $4\n          AND NOT EXISTS (SELECT 1 FROM deleted)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6f658167daf52792fb93c9e862d29ac84a326994899e9b0d1b55e61d32b1b003"
+}
