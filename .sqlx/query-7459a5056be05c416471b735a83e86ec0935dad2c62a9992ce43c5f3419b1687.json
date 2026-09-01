@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE economy_items\n        SET stock_remaining = stock_remaining + $3\n        WHERE guild_id = $1 AND id = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7459a5056be05c416471b735a83e86ec0935dad2c62a9992ce43c5f3419b1687"
+}

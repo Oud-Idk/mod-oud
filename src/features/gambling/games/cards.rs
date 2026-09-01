@@ -1,5 +1,5 @@
-use rand::seq::SliceRandom;
 use rand::rng;
+use rand::seq::SliceRandom;
 
 pub const TARGET: u32 = 21;
 pub const DEALER_LIMIT: u32 = 17;
@@ -160,7 +160,7 @@ impl Deck {
         self.cards.pop().unwrap()
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.cards.is_empty()
     }
 }

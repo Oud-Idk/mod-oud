@@ -1,7 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::unused_async,
-)]
+#![allow(missing_docs, clippy::unused_async)]
 
 pub mod admin;
 pub mod cash;

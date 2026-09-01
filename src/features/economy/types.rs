@@ -3,7 +3,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{EmojiId, GuildId, RoleId, UserId};
-use sqlx::FromRow;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -11,27 +10,27 @@ fn default_work_message() -> String {
     "You earned **{reward} {currency}**!".to_string()
 }
 
-fn default_rob_cooldown() -> i64 {
+const fn default_rob_cooldown() -> i64 {
     3600
 }
 
-fn default_rob_success_rate() -> f64 {
+const fn default_rob_success_rate() -> f64 {
     0.5
 }
 
-fn default_rob_min_percent() -> i64 {
+const fn default_rob_min_percent() -> i64 {
     10
 }
 
-fn default_rob_max_percent() -> i64 {
+const fn default_rob_max_percent() -> i64 {
     30
 }
 
-fn default_rob_min_cash() -> i64 {
+const fn default_rob_min_cash() -> i64 {
     100
 }
 
-fn default_rob_fine_percent() -> i64 {
+const fn default_rob_fine_percent() -> i64 {
     10
 }
 
@@ -159,10 +158,6 @@ impl Balance {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Item requirement & action types - discriminated union style
-// ---------------------------------------------------------------------------
-
 /// How many of the listed targets must match.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -184,12 +179,6 @@ pub struct TriggerFlags(pub u8);
 impl TriggerFlags {
     pub const BUY: Self = Self(0b01);
     pub const USE: Self = Self(0b10);
-    pub const BOTH: Self = Self(0b11);
-
-    #[must_use]
-    pub const fn new(flags: u8) -> Self {
-        Self(flags)
-    }
 
     #[must_use]
     pub const fn triggers_on_buy(self) -> bool {
@@ -327,15 +316,11 @@ impl ItemAction {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Database Models
-// ---------------------------------------------------------------------------
-
 /// A store item in the economy system.
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 pub struct Item {
     pub id: Uuid,
-    pub guild_id: i64,
+    pub guild_id: GuildId,
     pub name: String,
     pub description: String,
     pub price: i64,
@@ -355,12 +340,6 @@ pub struct Item {
 }
 
 impl Item {
-    /// Returns the typed `GuildId`.
-    #[must_use]
-    pub const fn guild_id(&self) -> GuildId {
-        GuildId::new(self.guild_id.cast_unsigned())
-    }
-
     /// Returns the typed `EmojiId` if a custom emoji was configured.
     #[must_use]
     pub fn emoji_id(&self) -> Option<EmojiId> {
@@ -406,34 +385,65 @@ impl Item {
 
         None
     }
+
+    #[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
+    pub const fn from_raw(
+        id: Uuid,
+        guild_id: i64,
+        name: String,
+        description: String,
+        price: i64,
+        category_id: Option<Uuid>,
+        emoji_unicode: Option<String>,
+        emoji_id: Option<String>,
+        is_inventory: bool,
+        is_usable: bool,
+        is_sellable: bool,
+        is_listed: bool,
+        unlimited_stock: bool,
+        stock_remaining: i32,
+        requirements: serde_json::Value,
+        actions: serde_json::Value,
+        expires_at: Option<DateTime<Utc>>,
+        created_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            id,
+            guild_id: GuildId::new(guild_id.cast_unsigned()),
+            name,
+            description,
+            price,
+            category_id,
+            emoji_unicode,
+            emoji_id,
+            is_inventory,
+            is_usable,
+            is_sellable,
+            is_listed,
+            unlimited_stock,
+            stock_remaining,
+            requirements,
+            actions,
+            expires_at,
+            created_at,
+        }
+    }
 }
 
 /// A row in the `economy_inventory` table.
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 pub struct InventoryRow {
-    pub guild_id: i64,
-    pub user_id: i64,
+    pub guild_id: GuildId,
+    pub user_id: UserId,
     pub item_id: Uuid,
     pub quantity: i32,
 }
 
-impl InventoryRow {
-    #[must_use]
-    pub const fn guild_id(&self) -> GuildId {
-        GuildId::new(self.guild_id.cast_unsigned())
-    }
-
-    #[must_use]
-    pub const fn user_id(&self) -> UserId {
-        UserId::new(self.user_id.cast_unsigned())
-    }
-}
-
 /// A category for organizing store items.
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 pub struct ItemCategory {
     pub id: Uuid,
-    pub guild_id: i64,
+    pub guild_id: GuildId,
     pub name: String,
     pub description: String,
     pub position: i32,
@@ -442,11 +452,6 @@ pub struct ItemCategory {
 }
 
 impl ItemCategory {
-    #[must_use]
-    pub const fn guild_id(&self) -> GuildId {
-        GuildId::new(self.guild_id.cast_unsigned())
-    }
-
     #[must_use]
     pub fn emoji_id(&self) -> Option<EmojiId> {
         self.emoji_id
@@ -457,22 +462,18 @@ impl ItemCategory {
 }
 
 /// A plaintext work message template. Relational: multiple per guild, picked at random.
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 pub struct WorkMessage {
     pub id: Uuid,
-    pub guild_id: i64,
+    pub guild_id: GuildId,
     pub content: String,
     pub created_at: DateTime<Utc>,
 }
 
 impl WorkMessage {
-    #[must_use]
-    pub const fn guild_id(&self) -> GuildId {
-        GuildId::new(self.guild_id.cast_unsigned())
-    }
-
     /// Render placeholders `{reward}` `{currency}` `{user}` (plaintext).
     #[must_use]
+    #[allow(clippy::literal_string_with_formatting_args)]
     pub fn render(&self, reward: i64, currency: &str, user_mention: &str) -> String {
         self.content
             .replace("{reward}", &reward.to_string())
@@ -482,6 +483,7 @@ impl WorkMessage {
 }
 
 /// Helper for rendering work messages when no relational rows exist (fallback to config).
+#[allow(clippy::literal_string_with_formatting_args)]
 pub fn render_work_message_template(
     template: &str,
     reward: i64,
@@ -493,6 +495,7 @@ pub fn render_work_message_template(
     } else {
         template.to_string()
     };
+
     tmpl.replace("{reward}", &reward.to_string())
         .replace("{currency}", currency)
         .replace("{user}", user_mention)

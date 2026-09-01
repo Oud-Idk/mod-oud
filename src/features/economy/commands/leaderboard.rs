@@ -1,10 +1,11 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database};
+use crate::features::economy::commands;
+use crate::features::economy::database::balances::get_leaderboard;
 use crate::shared::messages::send_ephemeral;
 use crate::shared::pagination;
 use serenity::all::{CreateEmbed, CreateEmbedFooter};
-use crate::features::economy::database::balances::get_leaderboard;
+use std::fmt::Write;
 
 /// Show the richest users (wallet + bank)
 #[poise::command(slash_command, guild_only)]
@@ -25,13 +26,13 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
             &ctx,
             "No balances yet. Be the first to `/economy cash work`!",
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
     let per_page = 10;
     let total_len = top.len();
-    let chunks: Vec<Vec<_>> = top.chunks(per_page).map(|c| c.to_vec()).collect();
+    let chunks: Vec<Vec<_>> = top.chunks(per_page).map(ToOwned::to_owned).collect();
     let total_pages = chunks.len();
     let currency = config.currency_name.clone();
 
@@ -48,12 +49,12 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
                 _ => "•",
             };
             let total = bal.total();
-            description.push_str(&format!(
-                "{medal} **#{rank}** <@{user}>: **{total} {currency}** (wallet {cash}, bank {bank})\n",
+            let _ = writeln!(
+                description, "{medal} **#{rank}** <@{user}>: **{total} {currency}** (wallet {cash}, bank {bank})",
                 user = bal.user_id.get(),
                 cash = bal.cash,
-                bank = bal.bank
-            ));
+                bank = bal.bank,
+            );
         }
 
         CreateEmbed::new()

@@ -1,9 +1,9 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, validation};
+use crate::features::economy::database::items::delete_item;
+use crate::features::economy::{commands, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-use crate::features::economy::database::items::delete_item;
 
 /// Delete a store item
 #[poise::command(slash_command, guild_only, required_permissions = "MANAGE_GUILD")]

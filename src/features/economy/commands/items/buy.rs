@@ -1,9 +1,10 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, ensure_balance, validation};
+use crate::features::economy::database::shop::{PurchaseError, purchase_item_tx};
+use crate::features::economy::{commands, ensure_balance, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-use crate::features::economy::database::shop::{purchase_item_tx, PurchaseError};
+
 // Re-export for backwards compatibility if external code imported via buy module
 pub use super::actions::execute_buy_actions;
 
@@ -56,7 +57,7 @@ pub async fn buy(
         Ok((bought_item, balance)) => {
             let currency = &config.currency_name;
             let icon = bought_item.icon_str().unwrap_or_default();
-            let total_cost = bought_item.price * (qty as i64);
+            let total_cost = bought_item.price * i64::from(qty);
 
             // Execute hooks/roles/actions tied to the item purchase
             execute_buy_actions(&ctx, &bought_item, qty).await?;
@@ -85,10 +86,10 @@ pub async fn buy(
                 &ctx,
                 format!("Not enough stock! Only **{remaining}** remaining."),
             )
-                .await?;
+            .await?;
         }
         Err(PurchaseError::InsufficientFunds { wallet }) => {
-            let total_cost = item.price.saturating_mul(qty as i64);
+            let total_cost = item.price.saturating_mul(i64::from(qty));
             send_ephemeral(
                 &ctx,
                 format!(
@@ -96,7 +97,7 @@ pub async fn buy(
                     total_cost, config.currency_name, wallet
                 ),
             )
-                .await?;
+            .await?;
         }
         Err(PurchaseError::ItemNotFoundOrExpired) => {
             send_ephemeral(&ctx, "This item is no longer available.").await?;
@@ -105,4 +106,3 @@ pub async fn buy(
 
     Ok(())
 }
-

@@ -29,8 +29,7 @@ pub async fn create_item(
     guild_id: GuildId,
     params: CreateItemParams<'_>,
 ) -> Result<Item, sqlx::Error> {
-    sqlx::query_as!(
-        Item,
+    let row = sqlx::query!(
         r#"
         INSERT INTO economy_items (
             guild_id, name, description, price, category_id,
@@ -68,8 +67,29 @@ pub async fn create_item(
         params.actions as &Value,
         params.expires_at,
     )
-    .fetch_one(db)
-    .await
+        .fetch_one(db)
+        .await?;
+
+    Ok(Item {
+        id: row.id,
+        guild_id: GuildId::new(row.guild_id.cast_unsigned()),
+        name: row.name,
+        description: row.description,
+        price: row.price,
+        category_id: row.category_id,
+        emoji_unicode: row.emoji_unicode,
+        emoji_id: row.emoji_id,
+        is_inventory: row.is_inventory,
+        is_usable: row.is_usable,
+        is_sellable: row.is_sellable,
+        is_listed: row.is_listed,
+        unlimited_stock: row.unlimited_stock,
+        stock_remaining: row.stock_remaining,
+        requirements: row.requirements,
+        actions: row.actions,
+        expires_at: row.expires_at,
+        created_at: row.created_at,
+    })
 }
 
 /// Fetch a single item by UUID, within a guild.
@@ -78,8 +98,7 @@ pub async fn get_item(
     guild_id: GuildId,
     item_id: Uuid,
 ) -> Result<Option<Item>, sqlx::Error> {
-    sqlx::query_as!(
-        Item,
+    let row = sqlx::query!(
         r#"
         SELECT id, guild_id, name, description, price, category_id,
                emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,
@@ -93,8 +112,29 @@ pub async fn get_item(
         guild_id.get().cast_signed(),
         item_id,
     )
-    .fetch_optional(db)
-    .await
+        .fetch_optional(db)
+        .await?;
+
+    Ok(row.map(|r| Item {
+        id: r.id,
+        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+        name: r.name,
+        description: r.description,
+        price: r.price,
+        category_id: r.category_id,
+        emoji_unicode: r.emoji_unicode,
+        emoji_id: r.emoji_id,
+        is_inventory: r.is_inventory,
+        is_usable: r.is_usable,
+        is_sellable: r.is_sellable,
+        is_listed: r.is_listed,
+        unlimited_stock: r.unlimited_stock,
+        stock_remaining: r.stock_remaining,
+        requirements: r.requirements,
+        actions: r.actions,
+        expires_at: r.expires_at,
+        created_at: r.created_at,
+    }))
 }
 
 /// Fetch a single item by name (case-insensitive), within a guild.
@@ -103,8 +143,7 @@ pub async fn get_item_by_name(
     guild_id: GuildId,
     name: &str,
 ) -> Result<Option<Item>, sqlx::Error> {
-    sqlx::query_as!(
-        Item,
+    let row = sqlx::query!(
         r#"
         SELECT id, guild_id, name, description, price, category_id,
                emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,
@@ -118,14 +157,34 @@ pub async fn get_item_by_name(
         guild_id.get().cast_signed(),
         name,
     )
-    .fetch_optional(db)
-    .await
+        .fetch_optional(db)
+        .await?;
+
+    Ok(row.map(|r| Item {
+        id: r.id,
+        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+        name: r.name,
+        description: r.description,
+        price: r.price,
+        category_id: r.category_id,
+        emoji_unicode: r.emoji_unicode,
+        emoji_id: r.emoji_id,
+        is_inventory: r.is_inventory,
+        is_usable: r.is_usable,
+        is_sellable: r.is_sellable,
+        is_listed: r.is_listed,
+        unlimited_stock: r.unlimited_stock,
+        stock_remaining: r.stock_remaining,
+        requirements: r.requirements,
+        actions: r.actions,
+        expires_at: r.expires_at,
+        created_at: r.created_at,
+    }))
 }
 
 /// List all items for a guild.
 pub async fn list_items(db: &PgPool, guild_id: GuildId) -> Result<Vec<Item>, sqlx::Error> {
-    sqlx::query_as!(
-        Item,
+    let rows = sqlx::query!(
         r#"
         SELECT id, guild_id, name, description, price, category_id,
                emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,
@@ -140,8 +199,32 @@ pub async fn list_items(db: &PgPool, guild_id: GuildId) -> Result<Vec<Item>, sql
         "#,
         guild_id.get().cast_signed(),
     )
-    .fetch_all(db)
-    .await
+        .fetch_all(db)
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| Item {
+            id: r.id,
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            name: r.name,
+            description: r.description,
+            price: r.price,
+            category_id: r.category_id,
+            emoji_unicode: r.emoji_unicode,
+            emoji_id: r.emoji_id,
+            is_inventory: r.is_inventory,
+            is_usable: r.is_usable,
+            is_sellable: r.is_sellable,
+            is_listed: r.is_listed,
+            unlimited_stock: r.unlimited_stock,
+            stock_remaining: r.stock_remaining,
+            requirements: r.requirements,
+            actions: r.actions,
+            expires_at: r.expires_at,
+            created_at: r.created_at,
+        })
+        .collect())
 }
 
 /// Delete an item by UUID. Returns the number of rows deleted.
@@ -158,8 +241,8 @@ pub async fn delete_item(
         guild_id.get().cast_signed(),
         item_id,
     )
-    .execute(db)
-    .await?;
+        .execute(db)
+        .await?;
 
     Ok(result.rows_affected())
 }
@@ -176,8 +259,7 @@ pub async fn decrement_stock(
         return Ok(None);
     }
 
-    sqlx::query_as!(
-        Item,
+    let row = sqlx::query!(
         r#"
         UPDATE economy_items
         SET stock_remaining = CASE
@@ -199,6 +281,27 @@ pub async fn decrement_stock(
         item_id,
         quantity,
     )
-    .fetch_optional(db)
-    .await
+        .fetch_optional(db)
+        .await?;
+
+    Ok(row.map(|r| Item {
+        id: r.id,
+        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+        name: r.name,
+        description: r.description,
+        price: r.price,
+        category_id: r.category_id,
+        emoji_unicode: r.emoji_unicode,
+        emoji_id: r.emoji_id,
+        is_inventory: r.is_inventory,
+        is_usable: r.is_usable,
+        is_sellable: r.is_sellable,
+        is_listed: r.is_listed,
+        unlimited_stock: r.unlimited_stock,
+        stock_remaining: r.stock_remaining,
+        requirements: r.requirements,
+        actions: r.actions,
+        expires_at: r.expires_at,
+        created_at: r.created_at,
+    }))
 }

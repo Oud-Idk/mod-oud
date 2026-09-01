@@ -66,7 +66,7 @@ pub async fn coinflip(
         send_ephemeral(&ctx, msg).await?;
         return Ok(());
     }
-    if let Some(wait) = try_acquire_gambling_cooldown(&ctx, &cfg).await? {
+    if let Some(wait) = try_acquire_gambling_cooldown(&ctx, &cfg).await {
         send_ephemeral(&ctx, wait).await?;
         return Ok(());
     }
@@ -79,8 +79,12 @@ pub async fn coinflip(
 
     // Deduct bet up front
     let Some(mut balance) = economy::deduct_cash(db, guild_id, user_id, bet).await? else {
-        let _ = release_gambling_cooldown(&ctx).await;
-        send_ephemeral(&ctx, "You don't have enough cash in your wallet for this bet.").await?;
+        release_gambling_cooldown(&ctx).await;
+        send_ephemeral(
+            &ctx,
+            "You don't have enough cash in your wallet for this bet.",
+        )
+        .await?;
         return Ok(());
     };
 

@@ -16,12 +16,6 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tokio_stream::StreamExt;
 
-#[derive(Debug, Clone)]
-pub enum GameOutcome {
-    Loss,
-    Cashout { streak: u32, payout: i64 },
-}
-
 /// Play Higher or Lower, guess if the next card is higher or lower than the current one.
 ///
 /// Streak builds linearly: each correct guess increases your total return to
@@ -48,7 +42,7 @@ pub async fn higherlower(
         send_ephemeral(&ctx, msg).await?;
         return Ok(());
     }
-    if let Some(wait) = try_acquire_gambling_cooldown(&ctx, &cfg).await? {
+    if let Some(wait) = try_acquire_gambling_cooldown(&ctx, &cfg).await {
         send_ephemeral(&ctx, wait).await?;
         return Ok(());
     }
@@ -61,7 +55,7 @@ pub async fn higherlower(
     let db = &ctx.data().core.db;
 
     let Some(mut balance) = economy::deduct_cash(db, guild_id, user_id, bet).await? else {
-        let _ = release_gambling_cooldown(&ctx).await;
+        release_gambling_cooldown(&ctx).await;
         send_ephemeral(
             &ctx,
             "You don't have enough cash in your wallet for this bet.",
@@ -105,10 +99,8 @@ pub async fn higherlower(
     };
 
     // Run the interactive guessing loop
-    let outcome = run_game_loop(&ctx, bet, states, timeout_secs).await?;
-
-    // Timeout handling
-    if outcome.is_none() {
+    let completed = run_game_loop(&ctx, bet, states, timeout_secs).await?;
+    if !completed {
         let timed_out_embed = render_embed(
             &ctx,
             current_card,
@@ -148,7 +140,7 @@ async fn run_game_loop(
     bet: i64,
     mut states: HigherLowerStates<'_>,
     timeout_secs: u64,
-) -> Result<Option<GameOutcome>, Error> {
+) -> Result<bool, Error> {
     let user_id = ctx.author().id;
 
     let mut stream = states
@@ -166,16 +158,14 @@ async fn run_game_loop(
         let outcome = match interaction.data.custom_id.as_str() {
             "hl_higher" => handle_guess(ctx, &interaction, Guess::Higher, bet, &mut states).await?,
             "hl_lower" => handle_guess(ctx, &interaction, Guess::Lower, bet, &mut states).await?,
-            "hl_cashout" => Some(handle_cashout(ctx, &interaction, bet, &mut states).await?),
-            _ => None,
+            "hl_cashout" => handle_cashout(ctx, &interaction, bet, &mut states).await?,
+            _ => false,
         };
 
-        if outcome.is_some() {
-            return Ok(outcome);
-        }
+        return Ok(outcome);
     }
 
-    Ok(None)
+    Ok(false)
 }
 
 /// Handles player guessing Higher or Lower.
@@ -185,7 +175,7 @@ async fn handle_guess(
     guess: Guess,
     bet: i64,
     states: &mut HigherLowerStates<'_>,
-) -> Result<Option<GameOutcome>, Error> {
+) -> Result<bool, Error> {
     if states.deck.is_empty() {
         *states.deck = Deck::new_shuffled();
     }
@@ -221,7 +211,7 @@ async fn handle_guess(
             )
             .await?;
 
-        Ok(None) // Game keeps rolling!
+        Ok(false) // Game keeps rolling!
     } else {
         let tie_or_wrong = if next_card.rank == states.current_card.rank {
             "It's a tie, house wins."
@@ -259,7 +249,7 @@ async fn handle_guess(
             )
             .await?;
 
-        Ok(Some(GameOutcome::Loss))
+        Ok(true)
     }
 }
 
@@ -269,7 +259,7 @@ async fn handle_cashout(
     interaction: &ComponentInteraction,
     bet: i64,
     states: &mut HigherLowerStates<'_>,
-) -> Result<GameOutcome, Error> {
+) -> Result<bool, Error> {
     let guild_id = ctx.guild_id().unwrap();
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
@@ -313,10 +303,7 @@ async fn handle_cashout(
         )
         .await?;
 
-    Ok(GameOutcome::Cashout {
-        streak: *states.streak,
-        payout,
-    })
+    Ok(true)
 }
 
 fn build_components(_streak: u32) -> Vec<CreateActionRow> {

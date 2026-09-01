@@ -1,13 +1,13 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_lock;
-use crate::features::raid_detection::cache;
 use crate::features::raid_detection::database;
 use crate::features::raid_detection::implementation::DynamicRaidDetector;
 use crate::features::raid_detection::raid_end::handle_raid_end;
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
+use crate::features::raid_detection::{RaidDetectionConfig, cache};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
@@ -55,7 +55,6 @@ pub async fn trigger_raid_manual(
         return Err(e);
     }
 
-    // Log the manual trigger event
     if let Err(e) = database::log_raid_event(
         &data.core.db,
         guild_id,
@@ -88,6 +87,24 @@ pub async fn trigger_raid_manual(
         return Ok(true);
     };
 
+    invoke_actions(&ctx, &data, guild_id, mod_username, &raid_config).await?;
+
+    info!(
+        %guild_id,
+        mod_username,
+        "Manual raid mode successfully activated"
+    );
+
+    Ok(true)
+}
+
+async fn invoke_actions(
+    ctx: &Context,
+    data: &BotData,
+    guild_id: GuildId,
+    mod_username: &str,
+    raid_config: &Box<RaidDetectionConfig>,
+) -> Result<(), Error> {
     for action in &raid_config.raid_actions {
         match action {
             RaidAction::LockdownServer => {
@@ -127,14 +144,7 @@ pub async fn trigger_raid_manual(
             _ => {}
         }
     }
-
-    info!(
-        %guild_id,
-        mod_username,
-        "Manual raid mode successfully activated"
-    );
-
-    Ok(true)
+    Ok(())
 }
 
 #[instrument(skip(ctx, data), fields(%guild_id))]

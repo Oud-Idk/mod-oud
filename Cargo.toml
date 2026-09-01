@@ -60,8 +60,9 @@ missing_docs = "deny"
 all = "deny"
 
 [lints.clippy]
-nursery = "warn"
-pedantic = "warn"
+struct_excessive_bools = "allow"
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
 # unwrap_used = "warn"
 
 # missing_errors_doc = "deny"

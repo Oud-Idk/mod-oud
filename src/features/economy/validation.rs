@@ -1,13 +1,13 @@
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{database, get_balance};
-use crate::features::economy::types::{Item, ItemRequirement, MatchType};
-use crate::shared::permissions::HasRoles;
-use std::borrow::Cow;
-use std::collections::HashMap;
-use serenity::all::{GuildId, Member, RoleId, UserId};
-use uuid::Uuid;
 use crate::features::economy::database::inventory::get_inventory;
 use crate::features::economy::database::items::{get_item, get_item_by_name};
+use crate::features::economy::get_balance;
+use crate::features::economy::types::{Item, ItemRequirement, MatchType};
+use crate::shared::permissions::HasRoles;
+use serenity::all::{GuildId, Member, RoleId, UserId};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 pub async fn resolve_item(
     db: &sqlx::PgPool,

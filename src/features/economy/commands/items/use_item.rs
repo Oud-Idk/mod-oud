@@ -1,19 +1,19 @@
+use super::actions::execute_use_actions;
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, ensure_balance, validation};
+use crate::features::economy::database::inventory::{get_inventory_item, remove_inventory_item};
+use crate::features::economy::{commands, ensure_balance, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-use crate::features::economy::database::inventory::{get_inventory_item, remove_inventory_item};
-use super::actions::execute_use_actions;
 
 /// Use an item from your inventory
 #[poise::command(slash_command, guild_only, rename = "use")]
 pub async fn use_item(
     ctx: Context<'_>,
     #[description = "Item name or ID"] item_input: String,
-    #[description = "Quantity to use"] quantity: Option<u32>,
+    #[description = "Quantity to use"] quantity: Option<i32>,
 ) -> Result<(), Error> {
-    let qty = quantity.unwrap_or(1) as i32;
+    let qty = quantity.unwrap_or(1);
     if qty <= 0 {
         send_ephemeral(&ctx, "Quantity must be at least 1.").await?;
         return Ok(());
@@ -56,7 +56,7 @@ pub async fn use_item(
                     item.name
                 ),
             )
-                .await?;
+            .await?;
         }
         return Ok(());
     }

@@ -2,7 +2,9 @@ use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy;
 use crate::features::gambling::database::get_gambling_config;
-use crate::features::gambling::games::roulette::{parse_space, payout_for, pocket_color, pocket_emoji, spin};
+use crate::features::gambling::games::roulette::{
+    parse_space, payout_for, pocket_color, pocket_emoji, spin,
+};
 use crate::features::gambling::{release_gambling_cooldown, try_acquire_gambling_cooldown};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
@@ -31,13 +33,13 @@ pub async fn roulette(
         send_ephemeral(&ctx, msg).await?;
         return Ok(());
     }
-    if let Some(wait) = try_acquire_gambling_cooldown(&ctx, &cfg).await? {
+    if let Some(wait) = try_acquire_gambling_cooldown(&ctx, &cfg).await {
         send_ephemeral(&ctx, wait).await?;
         return Ok(());
     }
 
     let Some(bet_kind) = parse_space(&space) else {
-        let _ = release_gambling_cooldown(&ctx).await;
+        release_gambling_cooldown(&ctx).await;
         send_ephemeral(
             &ctx,
             "Invalid space. Use: `0`-`36`, `odd`/`even`, `red`/`black`, `1st`/`2nd`/`3rd` or `1-12`/`13-24`/`25-36`. Examples: `/roulette 100 odd`, `/roulette 100 3rd`, `/roulette 100 13-24`, `/roulette 100 16`",
@@ -53,8 +55,12 @@ pub async fn roulette(
     let db = &ctx.data().core.db;
 
     let Some(mut balance) = economy::deduct_cash(db, guild_id, user_id, bet).await? else {
-        let _ = release_gambling_cooldown(&ctx).await;
-        send_ephemeral(&ctx, "You don't have enough cash in your wallet for this bet.").await?;
+        release_gambling_cooldown(&ctx).await;
+        send_ephemeral(
+            &ctx,
+            "You don't have enough cash in your wallet for this bet.",
+        )
+            .await?;
         return Ok(());
     };
 
@@ -97,10 +103,19 @@ pub async fn roulette(
         .title(title)
         .description(description)
         .color(BRAND_COLOR)
-        .field("Your Bet", format!("{} on {}", bet, bet_kind.display()), true)
+        .field(
+            "Your Bet",
+            format!("{} on {}", bet, bet_kind.display()),
+            true,
+        )
         .field(
             "Landed On",
-            format!("{} {} ({})", winning, pocket_emoji(winning), pocket_color(winning)),
+            format!(
+                "{} {} ({})",
+                winning,
+                pocket_emoji(winning),
+                pocket_color(winning)
+            ),
             true,
         )
         .field("Payout", format!("{multiplier}x"), true);

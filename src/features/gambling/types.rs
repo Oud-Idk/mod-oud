@@ -1,33 +1,23 @@
-#![allow(missing_docs)]
-
 use serde::{Deserialize, Serialize};
 
-// ---------------------------------------------------------------------------
-// Defaults — single place to keep Rust ↔ dashboard parity
-// ---------------------------------------------------------------------------
-
-fn default_gambling_enabled() -> bool {
+const fn default_gambling_enabled() -> bool {
     true
 }
-fn default_gambling_cooldown_secs() -> i64 {
+const fn default_gambling_cooldown_secs() -> i64 {
     0
 }
-fn default_gambling_min_bet() -> i64 {
+const fn default_gambling_min_bet() -> i64 {
     10
 }
-fn default_gambling_max_bet() -> i64 {
+const fn default_gambling_max_bet() -> i64 {
     0 // 0 = no cap
 }
-fn default_gambling_timeout_secs() -> u64 {
+const fn default_gambling_timeout_secs() -> u64 {
     60
 }
-fn default_game_enabled() -> bool {
+const fn default_game_enabled() -> bool {
     true
 }
-
-// ---------------------------------------------------------------------------
-// Per-game toggles (Tier 1: enabled-only sub-configs)
-// ---------------------------------------------------------------------------
 
 /// Blackjack sub-config (Tier 1: enabled only; payout/math stays hardcoded for now).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -219,7 +209,7 @@ impl GamblingConfig {
     /// Quick structural check used only by dashboard validation / tests.
     /// `max_bet == 0` means uncapped and always passes.
     #[must_use]
-    pub fn bets_are_consistent(&self) -> bool {
+    pub const fn bets_are_consistent(&self) -> bool {
         self.max_bet == 0 || self.max_bet >= self.min_bet
     }
 }

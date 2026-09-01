@@ -1,17 +1,14 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, deduct_cash, ensure_balance, get_balance, keys};
-use crate::shared::messages::send_ephemeral;
-use fred::interfaces::KeysInterface;
-use fred::prelude::{Expiration, SetOptions};
-use humantime::format_duration;
-use serenity::all::{CreateEmbed, User};
-use std::time::Duration;
 use crate::features::economy::database::balances::transfer_cash;
+use crate::features::economy::{
+    EconomyConfig, cache, commands, deduct_cash, ensure_balance, get_balance, keys,
+};
+use crate::shared::messages::send_ephemeral;
+use serenity::all::{CreateEmbed, User};
 
-/// Minimum victim cash above which rob is considered - also clamped by config.
+/// Minimum victim cash above which rob is considered. Also clamped by config.
 /// Business logic helpers are pure for testability.
-
 /// Returns the inclusive bounds for a steal amount given victim cash and config percents.
 #[must_use]
 pub fn steal_bounds(victim_cash: i64, min_percent: i64, max_percent: i64) -> (i64, i64) {
@@ -64,158 +61,108 @@ pub fn is_success(success_rate: f64, roll: f64) -> bool {
 /// Success steals a random percentage of the victim's wallet (cash only),
 /// failure makes the robber pay a fine. A per-user cooldown prevents spam.
 #[poise::command(slash_command, guild_only)]
-pub async fn rob(
-    ctx: Context<'_>,
-    #[description = "User to rob"] user: User,
-) -> Result<(), Error> {
-    if user.id == ctx.author().id {
-        send_ephemeral(&ctx, "You cannot rob yourself.").await?;
-        return Ok(());
+pub async fn rob(ctx: Context<'_>, #[description = "User to rob"] user: User) -> Result<(), Error> {
+    if user.id == ctx.author().id || user.bot {
+        let msg = if user.bot {
+            "You cannot rob a bot."
+        } else {
+            "You cannot rob yourself."
+        };
+        return send_ephemeral(&ctx, msg).await;
     }
 
-    if user.bot {
-        send_ephemeral(&ctx, "You cannot rob a bot.").await?;
-        return Ok(());
-    }
-
-    let Some(config) = commands::get_config(&ctx).await? else {
-        send_ephemeral(&ctx, "Economy isn't enabled in this server.").await?;
-        return Ok(());
+    let Some(cfg) = commands::get_config(&ctx).await? else {
+        return send_ephemeral(&ctx, "Economy isn't enabled in this server.").await;
     };
 
     ctx.defer().await?;
 
-    let guild_id = ctx.guild_id().unwrap();
-    let robber_id = ctx.author().id;
-    let victim_id = user.id;
-    let db = &ctx.data().core.db;
-    let redis = &ctx.data().core.redis;
-
-    // Fetch balances (ensure_balance already returns the balance!)
-    let robber_balance = ensure_balance(db, guild_id, robber_id, config.starting_balance).await?;
-    let victim_balance = get_balance(db, guild_id, victim_id).await?;
-
-    // Prevent zero-risk robbery exploits: Robber must have cash to risk!
-    if robber_balance.cash < config.rob.min_cash {
-        send_ephemeral(
-            &ctx,
-            format!(
-                "You need at least **{} {}** in your wallet to risk a heist.",
-                config.rob.min_cash, config.currency_name
-            ),
-        )
-            .await?;
-        return Ok(());
-    }
-
-    // Victim cash check
-    if victim_balance.cash < config.rob.min_cash {
-        send_ephemeral(
-            &ctx,
-            format!(
-                "**{}** is too poor to rob. They need at least **{} {}** in their wallet (they have **{}**).",
-                user.display_name(),
-                config.rob.min_cash,
-                config.currency_name,
-                victim_balance.cash
-            ),
-        )
-            .await?;
-        return Ok(());
-    }
-
-    // Cooldown check
-    let cooldown_key = keys::rob_cooldown_key(guild_id, robber_id);
-    let cooldown_secs = config.rob.cooldown_secs.max(0);
-    if cooldown_secs > 0 {
-        let acquired: Option<String> = redis
-            .set(
-                &cooldown_key,
-                "1",
-                Some(Expiration::EX(cooldown_secs)),
-                Some(SetOptions::NX),
-                false,
-            )
-            .await
-            .ok();
-
-        if acquired.is_none() {
-            let remaining = redis.ttl::<i64, _>(&cooldown_key).await.unwrap_or(0);
-            #[allow(clippy::cast_sign_loss)]
-            let wait_secs = remaining.max(0) as u64;
-            let wait_time = format_duration(Duration::from_secs(wait_secs));
-            send_ephemeral(
-                &ctx,
-                format!("You're on cooldown. Try again in {wait_time}."),
-            )
+    match run_heist(&ctx, &user, &cfg).await? {
+        HeistOutcome::Notice(msg) => send_ephemeral(&ctx, msg).await,
+        HeistOutcome::Embed(embed) => {
+            ctx.send(poise::CreateReply::default().embed(*embed))
                 .await?;
-            return Ok(());
+            Ok(())
         }
     }
+}
 
-    // Roll for success
-    let roll: f64 = rand::random();
-    let success = is_success(config.rob.success_rate, roll);
-    let currency = config.currency_name.clone();
+enum HeistOutcome {
+    Notice(String),
+    Embed(Box<CreateEmbed>),
+}
 
-    if success {
-        let amount = random_steal_amount(
-            victim_balance.cash,
-            config.rob.min_percent,
-            config.rob.max_percent,
-        );
+async fn run_heist(
+    ctx: &Context<'_>,
+    target: &User,
+    cfg: &EconomyConfig,
+) -> Result<HeistOutcome, Error> {
+    let (db, redis) = (&ctx.data().core.db, &ctx.data().core.redis);
+    let (gid, robber_id, victim_id) = (ctx.guild_id().unwrap(), ctx.author().id, target.id);
+    let (min, curr, name) = (cfg.rob.min_cash, &cfg.currency_name, target.display_name());
 
-        let result = transfer_cash(db, guild_id, victim_id, robber_id, amount).await?;
+    let robber = ensure_balance(db, gid, robber_id, cfg.starting_balance).await?;
+    let victim = get_balance(db, gid, victim_id).await?;
 
-        if let Some((victim_new, robber_new)) = result {
-            let embed = CreateEmbed::new()
-                .title("Heist Successful! 💰")
-                .description(format!(
-                    "You stole **{amount} {currency}** from **{}**!",
-                    user.display_name()
-                ))
-                .field("Your Wallet", format!("{} {currency}", robber_new.cash), true)
-                .field("Your Bank", format!("{} {currency}", robber_new.bank), true)
-                .field(
-                    format!("{}'s Wallet", user.display_name()),
-                    format!("{} {currency}", victim_new.cash),
-                    true,
-                )
-                .color(BRAND_COLOR);
+    if robber.cash < min {
+        return Ok(HeistOutcome::Notice(format!(
+            "You need at least **{min} {curr}** to risk a heist."
+        )));
+    }
+    if victim.cash < min {
+        return Ok(HeistOutcome::Notice(format!(
+            "**{name}** is too poor (needs **{min} {curr}**)."
+        )));
+    }
 
-            ctx.send(poise::CreateReply::default().embed(embed)).await?;
-        } else {
-            send_ephemeral(
-                &ctx,
-                format!(
-                    "**{}** no longer has enough cash to rob. Try again later.",
-                    user.display_name()
-                ),
-            )
-                .await?;
-        }
+    let key = keys::rob_cooldown_key(gid, robber_id);
+    if let Some(wait) = cache::check_cooldown(redis, &key, cfg.rob.cooldown_secs).await? {
+        return Ok(HeistOutcome::Notice(format!(
+            "You're on cooldown. Try again in {wait}."
+        )));
+    }
+
+    let is_win = is_success(cfg.rob.success_rate, rand::random());
+    let (title, desc, bal, victim_bal) = if is_win {
+        let amt = random_steal_amount(victim.cash, cfg.rob.min_percent, cfg.rob.max_percent);
+        let Some((v, r)) = transfer_cash(db, gid, victim_id, robber_id, amt).await? else {
+            return Ok(HeistOutcome::Notice(format!(
+                "**{name}** no longer has enough cash."
+            )));
+        };
+        (
+            "Heist Successful!",
+            format!("You stole **{amt} {curr}** from **{name}**!"),
+            r,
+            Some(v.cash),
+        )
     } else {
-        let fine = fine_amount(robber_balance.cash, config.rob.fine_percent);
-        let deducted = deduct_cash(db, guild_id, robber_id, fine).await?;
+        let fine = fine_amount(robber.cash, cfg.rob.fine_percent);
+        let Some(r) = deduct_cash(db, gid, robber_id, fine).await? else {
+            return Ok(HeistOutcome::Notice(
+                "You were caught, but escaped without paying!".into(),
+            ));
+        };
+        (
+            "Heist Failed!",
+            format!("Caught robbing **{name}**! Fine: **{fine} {curr}**."),
+            r,
+            None,
+        )
+    };
 
-        if let Some(new_balance) = deducted {
-            let embed = CreateEmbed::new()
-                .title("Heist Failed! 🚨")
-                .description(format!(
-                    "You were caught trying to rob **{}**! You paid a fine of **{fine} {currency}**.",
-                    user.display_name()
-                ))
-                .field("Your Wallet", format!("{} {currency}", new_balance.cash), true)
-                .field("Your Bank", format!("{} {currency}", new_balance.bank), true)
-                .color(BRAND_COLOR);
+    let mut embed = CreateEmbed::new()
+        .title(title)
+        .description(desc)
+        .field("Your Wallet", format!("{} {curr}", bal.cash), true)
+        .field("Your Bank", format!("{} {curr}", bal.bank), true)
+        .color(BRAND_COLOR);
 
-            ctx.send(poise::CreateReply::default().embed(embed)).await?;
-        } else {
-            send_ephemeral(&ctx, "You were caught, but managed to escape without paying!").await?;
-        }
+    if let Some(v_cash) = victim_bal {
+        embed = embed.field(format!("{name}'s Wallet"), format!("{v_cash} {curr}"), true);
     }
 
-    Ok(())
+    Ok(HeistOutcome::Embed(Box::new(embed)))
 }
 
 #[cfg(test)]

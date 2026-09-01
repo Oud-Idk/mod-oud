@@ -3,6 +3,7 @@ mod database;
 mod keys;
 mod types;
 mod validation;
+mod cache;
 
 pub use commands::economy;
 pub use types::EconomyConfig;

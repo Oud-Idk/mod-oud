@@ -1,13 +1,14 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy::commands::inventory;
-use crate::features::economy::{commands, database, validation};
+use crate::features::economy::database::items::{CreateItemParams, create_item};
+use crate::features::economy::{commands, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-use crate::features::economy::database::items::{create_item, CreateItemParams};
 
 /// Create a new store item
 #[poise::command(slash_command, guild_only, required_permissions = "MANAGE_GUILD")]
+#[allow(clippy::too_many_arguments)]
 pub async fn create(
     ctx: Context<'_>,
     #[description = "Item name (3-100 chars)"] name: String,

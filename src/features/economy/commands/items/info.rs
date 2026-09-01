@@ -1,11 +1,12 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy::commands::inventory;
+use crate::features::economy::database::categories::get_category;
 use crate::features::economy::types::{ItemAction, ItemRequirement, MatchType};
-use crate::features::economy::{commands, database, validation};
+use crate::features::economy::{commands, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-use crate::features::economy::database::categories::get_category;
+use std::fmt::Write;
 
 /// View detailed info on a store item
 #[poise::command(slash_command, guild_only)]
@@ -38,10 +39,10 @@ pub async fn info(
         .field("Listed", inventory::yes_no(item.is_listed), true)
         .color(BRAND_COLOR);
 
-    if let Some(cat_id) = item.category_id {
-        if let Ok(Some(cat)) = get_category(db, guild_id, cat_id).await {
-            embed = embed.field("Category", cat.name, true);
-        }
+    if let Some(cat_id) = item.category_id
+        && let Ok(Some(cat)) = get_category(db, guild_id, cat_id).await
+    {
+        embed = embed.field("Category", cat.name, true);
     }
 
     if !item.description.is_empty() {
@@ -58,119 +59,125 @@ pub async fn info(
 
     let requirements = item.parsed_requirements();
     if !requirements.is_empty() {
-        let mut req_text = String::new();
-        for req in &requirements {
-            let trigger_flags = req.trigger_flags();
-            let trigger = match (
-                trigger_flags.triggers_on_buy(),
-                trigger_flags.triggers_on_use(),
-            ) {
-                (true, true) => "on buy & use",
-                (true, false) => "on buy",
-                (false, true) => "on use",
-                (false, false) => "never",
-            };
-
-            match req {
-                ItemRequirement::Role {
-                    match_type,
-                    role_ids,
-                    ..
-                } => {
-                    req_text.push_str(&format!(
-                        "- Must {} {} role(s) {}\n",
-                        match match_type {
-                            MatchType::Every => "have all",
-                            MatchType::AtLeastOne => "have at least one of",
-                            MatchType::None => "not have any of",
-                        },
-                        role_ids.len(),
-                        trigger,
-                    ));
-                }
-                ItemRequirement::TotalBalance { balance, .. } => {
-                    req_text.push_str(&format!(
-                        "- Must have at least {} total balance {}\n",
-                        balance, trigger,
-                    ));
-                }
-                ItemRequirement::Item { quantities, .. } => {
-                    req_text.push_str(&format!(
-                        "- Must own {} required item type(s) {}\n",
-                        quantities.len(),
-                        trigger,
-                    ));
-                }
-            }
-        }
+        let req_text = create_requirements_text(&requirements);
         embed = embed.field("Requirements", req_text, false);
     }
 
     let actions = item.parsed_actions();
     if !actions.is_empty() {
-        let mut act_text = String::new();
-        for act in &actions {
-            let trigger_flags = act.trigger_flags();
-            let trigger = match (
-                trigger_flags.triggers_on_buy(),
-                trigger_flags.triggers_on_use(),
-            ) {
-                (true, true) => "on buy & use",
-                (true, false) => "on buy",
-                (false, true) => "on use",
-                (false, false) => "never",
-            };
-
-            match act {
-                ItemAction::Respond { .. } => {
-                    act_text.push_str(&format!("- Sends a custom message {}\n", trigger));
-                }
-                ItemAction::AddRoles { role_ids, .. } => {
-                    act_text.push_str(&format!("- Adds {} role(s) {}\n", role_ids.len(), trigger));
-                }
-                ItemAction::RemoveRoles { role_ids, .. } => {
-                    act_text.push_str(&format!(
-                        "- Removes {} role(s) {}\n",
-                        role_ids.len(),
-                        trigger
-                    ));
-                }
-                ItemAction::AddBalance { balance, .. } => {
-                    act_text.push_str(&format!("- Grants {} coins {}\n", balance, trigger));
-                }
-                ItemAction::RemoveBalance { balance, .. } => {
-                    act_text.push_str(&format!("- Deducts {} coins {}\n", balance, trigger));
-                }
-                ItemAction::AddItems {
-                    item_ids,
-                    quantities,
-                    ..
-                } => {
-                    let count = if !item_ids.is_empty() {
-                        item_ids.len()
-                    } else {
-                        quantities.len()
-                    };
-                    act_text.push_str(&format!("- Gives {} item(s) {}\n", count, trigger));
-                }
-                ItemAction::RemoveItems {
-                    item_ids,
-                    quantities,
-                    ..
-                } => {
-                    let count = if !item_ids.is_empty() {
-                        item_ids.len()
-                    } else {
-                        quantities.len()
-                    };
-                    act_text.push_str(&format!("- Removes {} item(s) {}\n", count, trigger));
-                }
-            }
-        }
+        let act_text = create_actions_text(&actions);
         embed = embed.field("Actions", act_text, false);
     }
 
     ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
         .await?;
     Ok(())
+}
+
+fn create_requirements_text(requirements: &[ItemRequirement]) -> String {
+    let mut req_text = String::new();
+    for req in requirements {
+        let trigger_flags = req.trigger_flags();
+        let trigger = match (
+            trigger_flags.triggers_on_buy(),
+            trigger_flags.triggers_on_use(),
+        ) {
+            (true, true) => "on buy & use",
+            (true, false) => "on buy",
+            (false, true) => "on use",
+            (false, false) => "never",
+        };
+
+        match req {
+            ItemRequirement::Role {
+                match_type,
+                role_ids,
+                ..
+            } => {
+                let _ = writeln!(
+                    req_text,
+                    "- Must {} {} role(s) {trigger}",
+                    match match_type {
+                        MatchType::Every => "have all",
+                        MatchType::AtLeastOne => "have at least one of",
+                        MatchType::None => "not have any of",
+                    },
+                    role_ids.len(),
+                );
+            }
+            ItemRequirement::TotalBalance { balance, .. } => {
+                let _ = writeln!(
+                    req_text,
+                    "- Must have at least {balance} total balance {trigger}",
+                );
+            }
+            ItemRequirement::Item { quantities, .. } => {
+                let _ = writeln!(
+                    req_text,
+                    "- Must own {} required item type(s) {trigger}",
+                    quantities.len(),
+                );
+            }
+        }
+    }
+    req_text
+}
+
+fn create_actions_text(actions: &Vec<ItemAction>) -> String {
+    let mut act_text = String::new();
+    for act in actions {
+        let trigger_flags = act.trigger_flags();
+        let trigger = match (
+            trigger_flags.triggers_on_buy(),
+            trigger_flags.triggers_on_use(),
+        ) {
+            (true, true) => "on buy & use",
+            (true, false) => "on buy",
+            (false, true) => "on use",
+            (false, false) => "never",
+        };
+
+        match act {
+            ItemAction::Respond { .. } => {
+                let _ = writeln!(act_text, "- Sends a custom message {trigger}");
+            }
+            ItemAction::AddRoles { role_ids, .. } => {
+                let _ = writeln!(act_text, "- Adds {} role(s) {trigger}", role_ids.len());
+            }
+            ItemAction::RemoveRoles { role_ids, .. } => {
+                let _ = writeln!(act_text, "- Removes {} role(s) {trigger}", role_ids.len());
+            }
+            ItemAction::AddBalance { balance, .. } => {
+                let _ = writeln!(act_text, "- Grants {balance} coins {trigger}");
+            }
+            ItemAction::RemoveBalance { balance, .. } => {
+                let _ = writeln!(act_text, "- Deducts {balance} coins {trigger}");
+            }
+            ItemAction::AddItems {
+                item_ids,
+                quantities,
+                ..
+            } => {
+                let count = if item_ids.is_empty() {
+                    quantities.len()
+                } else {
+                    item_ids.len()
+                };
+                let _ = writeln!(act_text, "- Gives {count} item(s) {trigger}");
+            }
+            ItemAction::RemoveItems {
+                item_ids,
+                quantities,
+                ..
+            } => {
+                let count = if item_ids.is_empty() {
+                    quantities.len()
+                } else {
+                    item_ids.len()
+                };
+                let _ = writeln!(act_text, "- Removes {count} item(s) {trigger}");
+            }
+        }
+    }
+    act_text
 }

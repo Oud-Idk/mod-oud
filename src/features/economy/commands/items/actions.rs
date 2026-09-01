@@ -131,7 +131,8 @@ async fn modify_roles(
     }
 }
 
-/// Normalizes both `quantities` map and `item_ids` fallback into a single list of (item_id, total_qty)
+/// Normalizes both `quantities` map and `item_ids` fallback into a
+/// single list of (`item_id`, `total_qty`)
 fn resolve_item_counts(
     quantities: &std::collections::HashMap<Uuid, i32>,
     item_ids: &[Uuid],

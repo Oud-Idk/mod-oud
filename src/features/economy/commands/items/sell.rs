@@ -1,25 +1,18 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, ensure_balance, validation};
+use crate::features::economy::database::shop::{SellError, sell_item_tx};
+use crate::features::economy::{commands, ensure_balance, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-use crate::features::economy::database::shop::{sell_item_tx, SellError};
 
 /// Sell an item from your inventory back to the store
 #[poise::command(slash_command, guild_only)]
 pub async fn sell(
     ctx: Context<'_>,
     #[description = "Item name or ID"] item_input: String,
-    #[description = "Quantity to sell"] quantity: Option<u32>,
+    #[description = "Quantity to sell"] quantity: Option<i32>,
 ) -> Result<(), Error> {
-    let raw_qty = quantity.unwrap_or(1);
-
-    // Prevent u32 -> i32 integer overflow tricks
-    let Ok(qty) = i32::try_from(raw_qty) else {
-        send_ephemeral(&ctx, "Quantity is too large.").await?;
-        return Ok(());
-    };
-
+    let qty = quantity.unwrap_or(1);
     if qty <= 0 {
         send_ephemeral(&ctx, "Quantity must be at least 1.").await?;
         return Ok(());
@@ -48,7 +41,7 @@ pub async fn sell(
     match result {
         Ok((sold_item, balance)) => {
             let currency = &config.currency_name;
-            let total_refund = sold_item.price.saturating_mul(qty as i64);
+            let total_refund = sold_item.price.saturating_mul(i64::from(qty));
             let icon = sold_item.icon_str().unwrap_or_default();
 
             let mut embed = CreateEmbed::new()
@@ -84,7 +77,7 @@ pub async fn sell(
                         item.name
                     ),
                 )
-                    .await?;
+                .await?;
             }
         }
         Err(SellError::ItemNotFound) => {

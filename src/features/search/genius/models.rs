@@ -235,7 +235,6 @@ pub struct DescriptionAnnotation {
     pub annotations: Vec<Annotation>,
 }
 
-#[allow(clippy::struct_excessive_bools)] // mirrors the Genius API response shape
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Annotation {
     pub id: i64,

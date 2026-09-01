@@ -4,8 +4,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 pub async fn list_work_messages(db: &PgPool, guild_id: GuildId) -> Result<Vec<WorkMessage>, sqlx::Error> {
-    sqlx::query_as!(
-        WorkMessage,
+    let rows = sqlx::query!(
         r#"
         SELECT id, guild_id, content, created_at
         FROM economy_work_messages
@@ -15,15 +14,24 @@ pub async fn list_work_messages(db: &PgPool, guild_id: GuildId) -> Result<Vec<Wo
         guild_id.get().cast_signed(),
     )
     .fetch_all(db)
-    .await
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| WorkMessage {
+            id: r.id,
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            content: r.content,
+            created_at: r.created_at,
+        })
+        .collect())
 }
 
 pub async fn get_random_work_message(
     db: &PgPool,
     guild_id: GuildId,
 ) -> Result<Option<WorkMessage>, sqlx::Error> {
-    sqlx::query_as!(
-        WorkMessage,
+    let row = sqlx::query!(
         r#"
         SELECT id, guild_id, content, created_at
         FROM economy_work_messages
@@ -34,7 +42,14 @@ pub async fn get_random_work_message(
         guild_id.get().cast_signed(),
     )
     .fetch_optional(db)
-    .await
+    .await?;
+
+    Ok(row.map(|r| WorkMessage {
+        id: r.id,
+        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+        content: r.content,
+        created_at: r.created_at,
+    }))
 }
 
 pub async fn create_work_message(
@@ -42,8 +57,7 @@ pub async fn create_work_message(
     guild_id: GuildId,
     content: &str,
 ) -> Result<WorkMessage, sqlx::Error> {
-    sqlx::query_as!(
-        WorkMessage,
+    let row = sqlx::query!(
         r#"
         INSERT INTO economy_work_messages (guild_id, content)
         VALUES ($1, $2)
@@ -53,7 +67,14 @@ pub async fn create_work_message(
         content,
     )
     .fetch_one(db)
-    .await
+    .await?;
+
+    Ok(WorkMessage {
+        id: row.id,
+        guild_id: GuildId::new(row.guild_id.cast_unsigned()),
+        content: row.content,
+        created_at: row.created_at,
+    })
 }
 
 pub async fn delete_work_message(
@@ -80,8 +101,7 @@ pub async fn update_work_message(
     message_id: Uuid,
     content: &str,
 ) -> Result<Option<WorkMessage>, sqlx::Error> {
-    sqlx::query_as!(
-        WorkMessage,
+    let row = sqlx::query!(
         r#"
         UPDATE economy_work_messages
         SET content = $3
@@ -93,5 +113,12 @@ pub async fn update_work_message(
         content,
     )
     .fetch_optional(db)
-    .await
+    .await?;
+
+    Ok(row.map(|r| WorkMessage {
+        id: r.id,
+        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+        content: r.content,
+        created_at: r.created_at,
+    }))
 }

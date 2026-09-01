@@ -116,8 +116,8 @@ pub fn spin() -> u8 {
 pub fn is_win(bet: RouletteBet, winning: u8) -> bool {
     match bet {
         RouletteBet::Straight(n) => n == winning,
-        RouletteBet::Even => winning != 0 && winning % 2 == 0,
-        RouletteBet::Odd => winning % 2 == 1,
+        RouletteBet::Even => winning != 0 && winning.is_multiple_of(2),
+        RouletteBet::Odd => !winning.is_multiple_of(2),
         RouletteBet::Red => is_red(winning),
         RouletteBet::Black => is_black(winning),
         RouletteBet::Dozen(1) => (1..=12).contains(&winning),
@@ -163,9 +163,7 @@ pub fn parse_space(input: &str) -> Option<RouletteBet> {
         "red" => return Some(RouletteBet::Red),
         "black" => return Some(RouletteBet::Black),
         "1st" | "1st dozen" | "1-12" | "1 - 12" | "first" => return Some(RouletteBet::Dozen(1)),
-        "2nd" | "2nd dozen" | "13-24" | "13 - 24" | "second" => {
-            return Some(RouletteBet::Dozen(2))
-        }
+        "2nd" | "2nd dozen" | "13-24" | "13 - 24" | "second" => return Some(RouletteBet::Dozen(2)),
         "3rd" | "3rd dozen" | "25-36" | "25 - 36" | "third" => return Some(RouletteBet::Dozen(3)),
         _ => {}
     }

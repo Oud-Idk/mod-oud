@@ -1,10 +1,12 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, ensure_balance};
+use crate::features::economy::database::inventory::get_inventory_with_items;
+use crate::features::economy::types::Item;
+use crate::features::economy::{commands, ensure_balance};
 use crate::shared::messages::send_ephemeral;
 use crate::shared::pagination;
 use serenity::all::{CreateEmbed, CreateEmbedFooter, User};
-use crate::features::economy::database::inventory::get_inventory_with_items;
+use std::fmt::Write;
 
 /// View your inventory
 #[poise::command(slash_command, guild_only)]
@@ -46,17 +48,17 @@ pub async fn inventory(
                 if item.is_usable { "Usable" } else { "" },
                 if item.is_sellable { "Sellable" } else { "" },
             ]
-                .iter()
-                .filter(|s| !s.is_empty())
-                .copied()
-                .collect::<Vec<_>>()
-                .join(", ");
+            .iter()
+            .filter(|s| !s.is_empty())
+            .copied()
+            .collect::<Vec<_>>()
+            .join(", ");
             let flag_str = if flags.is_empty() {
                 String::new()
             } else {
                 format!(" ({flags})")
             };
-            description.push_str(&format!("{} **{}** x{qty}{flag_str}\n", icon, item.name, ));
+            let _ = writeln!(description, "{} **{}** x{qty}{flag_str}", icon, item.name);
         }
         CreateEmbed::new()
             .title(format!("{}'s Inventory", target.display_name()))
@@ -68,12 +70,12 @@ pub async fn inventory(
                 total_pages
             )))
     })
-        .await?;
+    .await?;
 
     Ok(())
 }
 
-pub fn format_stock(item: &crate::features::economy::types::Item) -> String {
+pub fn format_stock(item: &Item) -> String {
     if item.unlimited_stock {
         "Unlimited".to_string()
     } else {
@@ -81,6 +83,6 @@ pub fn format_stock(item: &crate::features::economy::types::Item) -> String {
     }
 }
 
-pub fn yes_no(val: bool) -> &'static str {
+pub const fn yes_no(val: bool) -> &'static str {
     if val { "Yes" } else { "No" }
 }

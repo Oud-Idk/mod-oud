@@ -1,10 +1,10 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_unlock;
-use crate::features::raid_detection::cache;
 use crate::features::raid_detection::database;
 use crate::features::raid_detection::snapshot::restore_preraid_state;
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
+use crate::features::raid_detection::{RaidDetectionConfig, cache};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
@@ -74,6 +74,17 @@ pub async fn handle_raid_end(
         return Ok(());
     };
 
+    revert_actions(&ctx, data, guild_id, &raid_config).await?;
+
+    Ok(())
+}
+
+async fn revert_actions(
+    ctx: &Context,
+    data: &BotData,
+    guild_id: GuildId,
+    raid_config: &Box<RaidDetectionConfig>,
+) -> Result<(), Error> {
     for action in &raid_config.raid_actions {
         match action {
             RaidAction::LockdownServer => {
@@ -107,7 +118,6 @@ pub async fn handle_raid_end(
             _ => {}
         }
     }
-
     Ok(())
 }
 

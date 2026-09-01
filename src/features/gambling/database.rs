@@ -4,6 +4,9 @@ use crate::features::gambling::GamblingConfig;
 
 /// Fetch the gambling config for the current guild.
 /// Returns `None` when the feature is not configured or `enabled == false`.
+///
+/// # Errors
+/// Returns [`Err`] if ctx doesn't have a guild ID or settings fails to be fetched.
 pub async fn get_gambling_config(ctx: &Context<'_>) -> Result<Option<GamblingConfig>, Error> {
     let guild_id = ctx
         .guild_id()
@@ -12,8 +15,5 @@ pub async fn get_gambling_config(ctx: &Context<'_>) -> Result<Option<GamblingCon
     let db = &ctx.data().core.db;
     let cache = &ctx.data().core.guild_configs_cache;
     let settings = get_settings(db, redis, cache, guild_id).await?;
-    Ok(settings
-        .gambling
-        .filter(|c| c.enabled)
-        .map(|c| *c))
+    Ok(settings.gambling.filter(|c| c.enabled).map(|c| *c))
 }

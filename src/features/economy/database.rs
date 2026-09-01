@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub mod balances;
 pub mod categories;
 pub mod inventory;

@@ -1,13 +1,14 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
+use crate::features::economy::commands;
 use crate::features::economy::commands::inventory;
-use crate::features::economy::{commands, database};
+use crate::features::economy::database::categories::list_categories;
+use crate::features::economy::database::items::list_items;
 use crate::shared::messages::send_ephemeral;
 use crate::shared::pagination;
 use serenity::all::{CreateEmbed, CreateEmbedFooter};
 use std::collections::HashMap;
-use crate::features::economy::database::categories::list_categories;
-use crate::features::economy::database::items::list_items;
+use std::fmt::Write;
 
 /// View all items in the store
 #[poise::command(slash_command, guild_only)]
@@ -29,10 +30,7 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
     }
 
     let categories = list_categories(db, guild_id).await.unwrap_or_default();
-    let category_map: HashMap<_, _> = categories
-        .into_iter()
-        .filter_map(|c| Some((c.id, c.name)))
-        .collect();
+    let category_map: HashMap<_, _> = categories.into_iter().map(|c| (c.id, c.name)).collect();
 
     let per_page = 10;
     let chunks: Vec<_> = items.chunks(per_page).collect();
@@ -50,10 +48,11 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
                 .and_then(|cid| category_map.get(&cid))
                 .map(|name| format!(" - *{name}*"))
                 .unwrap_or_default();
-            description.push_str(&format!(
-                "{} **{}**: {} {} | {}{}\n",
+            let _ = writeln!(
+                description,
+                "{} **{}**: {} {} | {}{}",
                 icon, item.name, item.price, currency, stock, category_label
-            ));
+            );
         }
         CreateEmbed::new()
             .title("Store Items")
@@ -65,7 +64,7 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
                 total_pages
             )))
     })
-        .await?;
+    .await?;
 
     Ok(())
 }

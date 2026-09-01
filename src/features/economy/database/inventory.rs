@@ -9,8 +9,7 @@ pub async fn get_inventory(
     guild_id: GuildId,
     user_id: UserId,
 ) -> Result<Vec<InventoryRow>, sqlx::Error> {
-    sqlx::query_as!(
-        InventoryRow,
+    let rows = sqlx::query!(
         r#"
         SELECT guild_id, user_id, item_id, quantity
         FROM economy_inventory
@@ -21,7 +20,17 @@ pub async fn get_inventory(
         user_id.get().cast_signed(),
     )
     .fetch_all(db)
-    .await
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| InventoryRow {
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            item_id: r.item_id,
+            quantity: r.quantity,
+        })
+        .collect())
 }
 
 /// Fetch a single inventory row for a specific item.
@@ -31,8 +40,7 @@ pub async fn get_inventory_item(
     user_id: UserId,
     item_id: Uuid,
 ) -> Result<Option<InventoryRow>, sqlx::Error> {
-    sqlx::query_as!(
-        InventoryRow,
+    let row = sqlx::query!(
         r#"
         SELECT guild_id, user_id, item_id, quantity
         FROM economy_inventory
@@ -43,7 +51,14 @@ pub async fn get_inventory_item(
         item_id,
     )
     .fetch_optional(db)
-    .await
+    .await?;
+
+    Ok(row.map(|r| InventoryRow {
+        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+        user_id: UserId::new(r.user_id.cast_unsigned()),
+        item_id: r.item_id,
+        quantity: r.quantity,
+    }))
 }
 
 /// Add an item to a user's inventory (upserts, incrementing quantity).
@@ -54,8 +69,7 @@ pub async fn add_inventory_item(
     item_id: Uuid,
     quantity: i32,
 ) -> Result<InventoryRow, sqlx::Error> {
-    sqlx::query_as!(
-        InventoryRow,
+    let row = sqlx::query!(
         r#"
         INSERT INTO economy_inventory (guild_id, user_id, item_id, quantity)
         VALUES ($1, $2, $3, $4)
@@ -69,7 +83,14 @@ pub async fn add_inventory_item(
         quantity,
     )
     .fetch_one(db)
-    .await
+    .await?;
+
+    Ok(InventoryRow {
+        guild_id: GuildId::new(row.guild_id.cast_unsigned()),
+        user_id: UserId::new(row.user_id.cast_unsigned()),
+        item_id: row.item_id,
+        quantity: row.quantity,
+    })
 }
 
 /// Remove an item from a user's inventory. Deletes the row if quantity reaches 0.
@@ -165,7 +186,7 @@ pub async fn get_inventory_with_items(
         .map(|r| {
             let item = Item {
                 id: r.id,
-                guild_id: r.guild_id,
+                guild_id: GuildId::new(r.guild_id.cast_unsigned()),
                 name: r.name,
                 description: r.description,
                 price: r.price,
@@ -198,8 +219,7 @@ pub async fn add_inventory_item_tx(
     item_id: Uuid,
     quantity: i32,
 ) -> Result<InventoryRow, sqlx::Error> {
-    sqlx::query_as!(
-        InventoryRow,
+    let row = sqlx::query!(
         r#"
         INSERT INTO economy_inventory (guild_id, user_id, item_id, quantity)
         VALUES ($1, $2, $3, $4)
@@ -213,7 +233,14 @@ pub async fn add_inventory_item_tx(
         quantity,
     )
     .fetch_one(&mut **tx)
-    .await
+    .await?;
+
+    Ok(InventoryRow {
+        guild_id: GuildId::new(row.guild_id.cast_unsigned()),
+        user_id: UserId::new(row.user_id.cast_unsigned()),
+        item_id: row.item_id,
+        quantity: row.quantity,
+    })
 }
 
 /// Remove an item within a transaction. Deletes the row if quantity reaches 0.
@@ -258,8 +285,7 @@ pub async fn get_inventory_item_tx(
     user_id: UserId,
     item_id: Uuid,
 ) -> Result<Option<InventoryRow>, sqlx::Error> {
-    sqlx::query_as!(
-        InventoryRow,
+    let row = sqlx::query!(
         r#"
         SELECT guild_id, user_id, item_id, quantity
         FROM economy_inventory
@@ -270,7 +296,14 @@ pub async fn get_inventory_item_tx(
         item_id,
     )
     .fetch_optional(&mut **tx)
-    .await
+    .await?;
+
+    Ok(row.map(|r| InventoryRow {
+        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+        user_id: UserId::new(r.user_id.cast_unsigned()),
+        item_id: r.item_id,
+        quantity: r.quantity,
+    }))
 }
 
 /// Check if a user has at least `quantity` of an item inside a transaction.

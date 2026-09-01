@@ -1,6 +1,6 @@
 use crate::features::economy::types::{Balance, Item};
 use serenity::all::{GuildId, UserId};
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool};
 use uuid::Uuid;
 
 pub enum PurchaseError {
@@ -24,8 +24,35 @@ pub async fn purchase_item_tx(
 
     let mut tx = db.begin().await?;
 
-    let item = sqlx::query_as!(
-        Item,
+    let item = match deduct_item_stock(&mut tx, guild_id, item_id, quantity).await? {
+        Ok(item) => item,
+        Err(err) => return Ok(Err(err)),
+    };
+
+    let Some(total_cost) = item.price.checked_mul(i64::from(quantity)) else {
+        return Ok(Err(PurchaseError::InvalidQuantity));
+    };
+
+    let balance = match deduct_user_balance(&mut tx, guild_id, user_id, total_cost).await? {
+        Ok(balance) => balance,
+        Err(err) => return Ok(Err(err)),
+    };
+
+    if item.is_inventory {
+        upsert_inventory_item(&mut tx, guild_id, user_id, item.id, quantity).await?;
+    }
+
+    tx.commit().await?;
+    Ok(Ok((item, balance)))
+}
+
+async fn deduct_item_stock(
+    tx: &mut PgConnection,
+    guild_id: GuildId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<Result<Item, PurchaseError>, sqlx::Error> {
+    let row = sqlx::query!(
         r#"
         UPDATE economy_items
         SET stock_remaining = CASE
@@ -50,15 +77,12 @@ pub async fn purchase_item_tx(
     .fetch_optional(&mut *tx)
     .await?;
 
-    let Some(item) = item else {
-        // Fallback: check if the item actually exists and isn't expired
+    let Some(r) = row else {
         let current_stock = sqlx::query_scalar!(
             r#"
             SELECT stock_remaining
             FROM economy_items
-            WHERE guild_id = $1
-              AND id = $2
-              AND (expires_at IS NULL OR expires_at > NOW())
+            WHERE guild_id = $1 AND id = $2 AND (expires_at IS NULL OR expires_at > NOW())
             "#,
             guild_id.get().cast_signed(),
             item_id,
@@ -66,16 +90,40 @@ pub async fn purchase_item_tx(
         .fetch_optional(&mut *tx)
         .await?;
 
-        return current_stock.map_or_else(
-            || Ok(Err(PurchaseError::ItemNotFoundOrExpired)),
-            |stock| Ok(Err(PurchaseError::InsufficientStock { remaining: stock })),
-        );
+        return Ok(Err(current_stock
+            .map_or(PurchaseError::ItemNotFoundOrExpired, |stock| {
+                PurchaseError::InsufficientStock { remaining: stock }
+            })));
     };
 
-    let Some(total_cost) = item.price.checked_mul(i64::from(quantity)) else {
-        return Ok(Err(PurchaseError::InvalidQuantity)); // Overflow protection
-    };
+    Ok(Ok(Item::from_raw(
+        r.id,
+        r.guild_id,
+        r.name,
+        r.description,
+        r.price,
+        r.category_id,
+        r.emoji_unicode,
+        r.emoji_id,
+        r.is_inventory,
+        r.is_usable,
+        r.is_sellable,
+        r.is_listed,
+        r.unlimited_stock,
+        r.stock_remaining,
+        r.requirements,
+        r.actions,
+        r.expires_at,
+        r.created_at,
+    )))
+}
 
+async fn deduct_user_balance(
+    tx: &mut PgConnection,
+    guild_id: GuildId,
+    user_id: UserId,
+    total_cost: i64,
+) -> Result<Result<Balance, PurchaseError>, sqlx::Error> {
     let balance_row = sqlx::query!(
         r#"
         UPDATE economy_balances
@@ -105,29 +153,32 @@ pub async fn purchase_item_tx(
         }));
     };
 
-    if item.is_inventory {
-        sqlx::query!(
-            r#"
-            INSERT INTO economy_inventory (guild_id, user_id, item_id, quantity)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (guild_id, user_id, item_id) DO UPDATE SET
-                quantity = economy_inventory.quantity + EXCLUDED.quantity
-            "#,
-            guild_id.get().cast_signed(),
-            user_id.get().cast_signed(),
-            item.id,
-            quantity,
-        )
-        .execute(&mut *tx)
-        .await?;
-    }
+    Ok(Ok(Balance::from_raw(b.guild_id, b.user_id, b.cash, b.bank)))
+}
 
-    tx.commit().await?;
+async fn upsert_inventory_item(
+    tx: &mut PgConnection,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+        INSERT INTO economy_inventory (guild_id, user_id, item_id, quantity)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (guild_id, user_id, item_id) DO UPDATE SET
+            quantity = economy_inventory.quantity + EXCLUDED.quantity
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+        quantity,
+    )
+    .execute(&mut *tx)
+    .await?;
 
-    Ok(Ok((
-        item,
-        Balance::from_raw(b.guild_id, b.user_id, b.cash, b.bank),
-    )))
+    Ok(())
 }
 
 pub enum SellError {
@@ -187,8 +238,7 @@ async fn fetch_item_for_sale(
     guild_id: GuildId,
     item_id: Uuid,
 ) -> Result<Option<Item>, sqlx::Error> {
-    sqlx::query_as!(
-        Item,
+    let row = sqlx::query!(
         r#"
         SELECT id, guild_id, name, description, price, category_id,
                emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,
@@ -203,7 +253,28 @@ async fn fetch_item_for_sale(
         item_id,
     )
     .fetch_optional(&mut **tx)
-    .await
+    .await?;
+
+    Ok(row.map(|r| Item {
+        id: r.id,
+        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+        name: r.name,
+        description: r.description,
+        price: r.price,
+        category_id: r.category_id,
+        emoji_unicode: r.emoji_unicode,
+        emoji_id: r.emoji_id,
+        is_inventory: r.is_inventory,
+        is_usable: r.is_usable,
+        is_sellable: r.is_sellable,
+        is_listed: r.is_listed,
+        unlimited_stock: r.unlimited_stock,
+        stock_remaining: r.stock_remaining,
+        requirements: r.requirements,
+        actions: r.actions,
+        expires_at: r.expires_at,
+        created_at: r.created_at,
+    }))
 }
 
 /// Locks the user's inventory row and deducts the sold quantity.
