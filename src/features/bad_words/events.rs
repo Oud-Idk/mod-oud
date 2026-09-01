@@ -1,7 +1,7 @@
 use crate::core::config::state::{BotData, Error};
 use crate::features::automod::FilterVerdict;
 use crate::features::bad_words::rules::should_be_skipped_ruleset;
-use crate::features::bad_words::types::{BadWordRuleset, CompiledRuleset};
+use crate::features::bad_words::types::{BadWordRuleset, CompiledRuleset, MatchStrategy};
 use crate::features::bad_words::{cache, database, keys};
 use futures::FutureExt as _;
 use serenity::all::Message;
@@ -57,37 +57,34 @@ fn check_ruleset<'a>(
     ctx: &mut MessageContext<'_>,
     ruleset: &'a CompiledRuleset,
 ) -> Option<FilterVerdict<'a>> {
-    // Exact Match Check: word-boundary match against single words (O(1) hash
-    // lookup) and multi-word phrases (sliding window over message tokens)
-    if !ruleset.exact_words.is_empty() || !ruleset.exact_phrases.is_empty() {
+    if let Some((matcher, patterns)) = &ruleset.text_matcher {
         let lower = ctx.lower();
-        let tokens: Vec<&str> = lower
-            .split(|c: char| !c.is_alphanumeric())
-            .filter(|t| !t.is_empty())
-            .collect();
 
-        if let Some(word) = tokens.iter().find(|t| ruleset.exact_words.contains(**t)) {
-            return Some(block_verdict(ruleset, word));
-        }
+        // Use find_overlapping_iter so a rejected Exact match doesn't
+        // swallow or skip overlapping valid matches
+        for mat in matcher.find_overlapping_iter(&lower) {
+            let pattern_info = &patterns[mat.pattern().as_usize()];
 
-        if let Some((_, original)) = ruleset.exact_phrases.iter().find(|(phrase, _)| {
-            tokens.windows(phrase.len()).any(|window| {
-                window
-                    .iter()
-                    .zip(phrase)
-                    .all(|(token, expected)| token == expected)
-            })
-        }) {
-            return Some(block_verdict(ruleset, original));
-        }
-    }
+            match pattern_info.strategy {
+                MatchStrategy::Substring => {
+                    // Substring matches unconditionally!
+                    return Some(block_verdict(ruleset, &pattern_info.original));
+                }
+                MatchStrategy::Exact => {
+                    let start = mat.start();
+                    let end = mat.end();
 
-    // Substring Match Check: O(L) single-pass scan across all substrings
-    if let Some((matcher, original_patterns)) = &ruleset.substring_matcher {
-        let lower = ctx.lower();
-        if let Some(mat) = matcher.find(lower) {
-            let trigger = &original_patterns[mat.pattern().as_usize()];
-            return Some(block_verdict(ruleset, trigger));
+                    let left_ok = start == 0
+                        || !lower[..start].chars().next_back().unwrap().is_alphanumeric();
+                    let right_ok = end == lower.len()
+                        || !lower[end..].chars().next().unwrap().is_alphanumeric();
+
+                    if left_ok && right_ok {
+                        return Some(block_verdict(ruleset, &pattern_info.original));
+                    }
+                }
+                MatchStrategy::Regex => unreachable!("Regex are evaluated later"),
+            }
         }
     }
 
@@ -186,31 +183,30 @@ async fn fetch_and_cache_from_db(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::automod::{RuleAction, RuleScope};
+    use crate::features::automod::{FilterVerdict, RuleAction, RuleScope};
     use serenity::all::GuildId;
+    use std::borrow::Cow;
+    use crate::features::bad_words::types::Pattern;
 
-    fn ruleset_with_exact(words: &[&str], phrases: &[(&[&str], &str)]) -> CompiledRuleset {
-        CompiledRuleset {
+    /// Helper to construct a `CompiledRuleset` from a list of (strategy, pattern_str) pairs
+    fn ruleset_with(patterns: &[(MatchStrategy, &str)]) -> CompiledRuleset {
+        BadWordRuleset {
             id: uuid::Uuid::nil(),
             guild_id: GuildId::new(1),
             name: "test".to_string(),
             enabled: true,
+            patterns: patterns
+                .iter()
+                .map(|(strategy, val)| Pattern {
+                    strategy: *strategy,
+                    value: (*val).to_string(),
+                })
+                .collect(),
             actions: Vec::<RuleAction>::new(),
             timeout_duration_seconds: None,
             scope: RuleScope::default(),
-            exact_words: words.iter().map(|w| (*w).to_string()).collect(),
-            exact_phrases: phrases
-                .iter()
-                .map(|(tokens, original)| {
-                    (
-                        tokens.iter().map(|t| (*t).to_string()).collect(),
-                        (*original).to_string(),
-                    )
-                })
-                .collect(),
-            substring_matcher: None,
-            regexes: Vec::new(),
         }
+            .into()
     }
 
     fn trigger_of(verdict: Option<FilterVerdict<'_>>) -> Option<String> {
@@ -223,9 +219,8 @@ mod tests {
     }
 
     #[test]
-    fn exact_phrase_matches_case_and_punctuation() {
-        let ruleset =
-            ruleset_with_exact(&[], &[(&["guaranteed", "returns"], "guaranteed returns")]);
+    fn exact_phrase_matches_case_insensitive_and_surrounding_punctuation() {
+        let ruleset = ruleset_with(&[(MatchStrategy::Exact, "guaranteed returns")]);
         let mut ctx = MessageContext::new("Get GUARANTEED RETURNS now!!");
 
         let trigger = trigger_of(check_ruleset(&mut ctx, &ruleset));
@@ -234,35 +229,26 @@ mod tests {
     }
 
     #[test]
-    fn exact_phrase_matches_punctuation_separated_words() {
-        let ruleset =
-            ruleset_with_exact(&[], &[(&["guaranteed", "returns"], "guaranteed returns")]);
-        let mut ctx = MessageContext::new("100% guaranteed!!..returns");
-
-        let trigger = trigger_of(check_ruleset(&mut ctx, &ruleset));
-
-        assert_eq!(trigger.as_deref(), Some("guaranteed returns"));
-    }
-
-    #[test]
     fn exact_phrase_requires_word_boundaries() {
-        let ruleset =
-            ruleset_with_exact(&[], &[(&["guaranteed", "returns"], "guaranteed returns")]);
+        let ruleset = ruleset_with(&[(MatchStrategy::Exact, "guaranteed returns")]);
 
+        // Prefix boundary violation
         let mut ctx = MessageContext::new("unguaranteed returns");
         assert!(check_ruleset(&mut ctx, &ruleset).is_none());
 
+        // Incomplete phrase
         let mut ctx = MessageContext::new("guaranteed");
         assert!(check_ruleset(&mut ctx, &ruleset).is_none());
 
+        // Broken phrase
         let mut ctx = MessageContext::new("guaranteed no returns");
         assert!(check_ruleset(&mut ctx, &ruleset).is_none());
     }
 
     #[test]
-    fn single_exact_word_still_matches() {
-        let ruleset = ruleset_with_exact(&["scam"], &[]);
-        let mut ctx = MessageContext::new("what a total SCAM");
+    fn single_exact_word_matches_with_punctuation_boundaries() {
+        let ruleset = ruleset_with(&[(MatchStrategy::Exact, "scam")]);
+        let mut ctx = MessageContext::new("what a total !!SCAM??");
 
         let trigger = trigger_of(check_ruleset(&mut ctx, &ruleset));
 
@@ -271,9 +257,21 @@ mod tests {
 
     #[test]
     fn single_exact_word_respects_boundaries() {
-        let ruleset = ruleset_with_exact(&["scam"], &[]);
-        let mut ctx = MessageContext::new("noscamming here");
+        let ruleset = ruleset_with(&[(MatchStrategy::Exact, "scam")]);
 
+        // Embedded inside other words -> ignored by Exact strategy
+        let mut ctx = MessageContext::new("noscamming here");
         assert!(check_ruleset(&mut ctx, &ruleset).is_none());
+    }
+
+    #[test]
+    fn substring_strategy_matches_inside_words() {
+        let ruleset = ruleset_with(&[(MatchStrategy::Substring, "scam")]);
+
+        // Substring strategy SHOULD trigger even embedded inside words
+        let mut ctx = MessageContext::new("noscamming here");
+        let trigger = trigger_of(check_ruleset(&mut ctx, &ruleset));
+
+        assert_eq!(trigger.as_deref(), Some("scam"));
     }
 }

@@ -3,7 +3,6 @@ use aho_corasick::AhoCorasick;
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
-use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -56,6 +55,15 @@ impl BadWordRuleset {
     }
 }
 
+/// Metadata stored per pattern in the compiled Aho-Corasick engine
+#[derive(Debug, Clone)]
+pub struct CompiledPattern {
+    /// Original unnormalized pattern text for triggering audit logs / verdicts
+    pub original: String,
+    /// Whether this pattern needs word-boundary checks or matches unconditionally
+    pub strategy: MatchStrategy,
+}
+
 /// Pre-compiled, optimized structure kept in the L1 Moka cache
 #[derive(Debug, Clone)]
 pub struct CompiledRuleset {
@@ -74,16 +82,9 @@ pub struct CompiledRuleset {
     /// Scope the ruleset applies to.
     pub scope: RuleScope,
 
-    /// Lowercased exact words for O(1) hashset lookup
-    pub exact_words: HashSet<String>,
-
-    /// Multi-word exact patterns as lowercased token sequences,
-    /// paired with their original values for trigger reporting
-    pub exact_phrases: Vec<(Vec<String>, String)>,
-
-    /// Single-pass Aho-Corasick automaton for all substring patterns
-    /// Stores the automaton and the original pattern values by index
-    pub substring_matcher: Option<(AhoCorasick, Vec<String>)>,
+    /// Single-pass Aho-Corasick automaton handling BOTH exact and substring matches.
+    /// Stores the automaton paired with pattern metadata ordered by pattern ID.
+    pub text_matcher: Option<(AhoCorasick, Vec<CompiledPattern>)>,
 
     /// Pre-compiled regular expressions alongside their original raw strings
     pub regexes: Vec<(Regex, String)>,
@@ -104,34 +105,31 @@ impl CompiledRuleset {
 
 impl From<BadWordRuleset> for CompiledRuleset {
     fn from(raw: BadWordRuleset) -> Self {
-        let mut exact_words = HashSet::new();
-        let mut exact_phrases = Vec::new();
-        let mut sub_patterns = Vec::new();
+        let mut lower_text_patterns = Vec::new();
+        let mut compiled_text_patterns = Vec::new();
         let mut regexes = Vec::new();
 
         for p in raw.patterns {
             match p.strategy {
                 MatchStrategy::Exact => {
-                    let tokens: Vec<String> = p
-                        .value
-                        .to_lowercase()
-                        .split(|c: char| !c.is_alphanumeric())
-                        .filter(|t| !t.is_empty())
-                        .map(ToString::to_string)
-                        .collect();
-
-                    match tokens.as_slice() {
-                        [] => {}
-                        [word] => {
-                            exact_words.insert(word.clone());
-                        }
-                        _ => {
-                            exact_phrases.push((tokens, p.value));
-                        }
+                    let normalized = p.value.to_lowercase().trim().to_string();
+                    if !normalized.is_empty() {
+                        lower_text_patterns.push(normalized);
+                        compiled_text_patterns.push(CompiledPattern {
+                            original: p.value,
+                            strategy: MatchStrategy::Exact,
+                        });
                     }
                 }
                 MatchStrategy::Substring => {
-                    sub_patterns.push(p.value);
+                    let normalized = p.value.to_lowercase();
+                    if !normalized.is_empty() {
+                        lower_text_patterns.push(normalized);
+                        compiled_text_patterns.push(CompiledPattern {
+                            original: p.value,
+                            strategy: MatchStrategy::Substring,
+                        });
+                    }
                 }
                 MatchStrategy::Regex => {
                     if let Ok(re) = RegexBuilder::new(&p.value).case_insensitive(true).build() {
@@ -141,15 +139,12 @@ impl From<BadWordRuleset> for CompiledRuleset {
             }
         }
 
-        let substring_matcher = if sub_patterns.is_empty() {
+        let text_matcher = if lower_text_patterns.is_empty() {
             None
         } else {
-            // Build lowercased patterns for Aho-Corasick matching
-            let lower_sub_patterns: Vec<String> =
-                sub_patterns.iter().map(|s| s.to_lowercase()).collect();
-            AhoCorasick::new(lower_sub_patterns)
+            AhoCorasick::new(lower_text_patterns)
                 .ok()
-                .map(|ac| (ac, sub_patterns))
+                .map(|ac| (ac, compiled_text_patterns))
         };
 
         Self {
@@ -160,9 +155,7 @@ impl From<BadWordRuleset> for CompiledRuleset {
             actions: raw.actions,
             timeout_duration_seconds: raw.timeout_duration_seconds,
             scope: raw.scope,
-            exact_words,
-            exact_phrases,
-            substring_matcher,
+            text_matcher,
             regexes,
         }
     }
@@ -185,40 +178,38 @@ mod tests {
         }
     }
 
-    fn exact(value: &str) -> Pattern {
+    fn pattern(strategy: MatchStrategy, value: &str) -> Pattern {
         Pattern {
-            strategy: MatchStrategy::Exact,
+            strategy,
             value: value.to_string(),
         }
     }
 
     #[test]
-    fn single_word_exact_goes_to_hashset() {
-        let compiled: CompiledRuleset = ruleset_with(vec![exact("BadWord")]).into();
+    fn combines_exact_and_substring_into_single_matcher() {
+        let compiled: CompiledRuleset = ruleset_with(vec![
+            pattern(MatchStrategy::Exact, "badword"),
+            pattern(MatchStrategy::Substring, "sub"),
+            pattern(MatchStrategy::Exact, "guaranteed returns"),
+        ])
+            .into();
 
-        assert!(compiled.exact_words.contains("badword"));
-        assert!(compiled.exact_phrases.is_empty());
+        assert!(compiled.text_matcher.is_some());
+        let (_, patterns) = compiled.text_matcher.unwrap();
+        assert_eq!(patterns.len(), 3);
+        assert_eq!(patterns[0].strategy, MatchStrategy::Exact);
+        assert_eq!(patterns[1].strategy, MatchStrategy::Substring);
+        assert_eq!(patterns[2].strategy, MatchStrategy::Exact);
     }
 
     #[test]
-    fn multi_word_exact_becomes_phrase() {
-        let compiled: CompiledRuleset = ruleset_with(vec![exact("Guaranteed, RETURNS!")]).into();
+    fn drops_empty_or_whitespace_only_exact_patterns() {
+        let compiled: CompiledRuleset = ruleset_with(vec![
+            pattern(MatchStrategy::Exact, "   "),
+            pattern(MatchStrategy::Exact, ""),
+        ])
+            .into();
 
-        assert!(compiled.exact_words.is_empty());
-        assert_eq!(
-            compiled.exact_phrases,
-            vec![(
-                vec!["guaranteed".to_string(), "returns".to_string()],
-                "Guaranteed, RETURNS!".to_string()
-            )]
-        );
-    }
-
-    #[test]
-    fn punctuation_only_exact_is_dropped() {
-        let compiled: CompiledRuleset = ruleset_with(vec![exact("!!!"), exact("   ")]).into();
-
-        assert!(compiled.exact_words.is_empty());
-        assert!(compiled.exact_phrases.is_empty());
+        assert!(compiled.text_matcher.is_none());
     }
 }
