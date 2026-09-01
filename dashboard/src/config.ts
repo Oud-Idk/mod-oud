@@ -8,7 +8,7 @@ export const config = {
     /**
      * Browser-safe base URL for the Rust backend, e.g. WebSocket music control.
      * `NEXT_PUBLIC_*` vars are inlined into the client bundle at build time,
-     * so changing this requires a rebuild — it cannot be set at runtime only.
+     * so changing this requires a rebuild.
      */
     publicBackendUrl:
         process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080",

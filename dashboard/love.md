@@ -1,5 +1,7 @@
 # Everything About Love, I Guess?
 
+[View source on GitHub](https://github.com/Oud-Idk/mod-oud/blob/main/dashboard/love.md)
+
 I present you, a self-help document designed for people who hate self-help books.
 
 If you found this link, then congratulations, I suppose. Either you were looking for it because someone told you it existed, or you found it by accident, which in that case, you are either a wizard or you've been exploring to pages you are not supposed to explore. Or, the easiest explanation, I sent you the link because you looked like you needed it.
@@ -132,6 +134,8 @@ Either way, you are curious or have a crush but don't know what to do. In which 
 - [Aliases](#aliases)
 - [Legendary Ass Quotes](#legendary-ass-quotes)
 - [References](#references)
+- [Legalities](#legalities)
+- [WARRANTY & LIABILITY DISCLAIMERS](#warranty--liability-disclaimer)
 
 <!-- /TOC -->
 
@@ -147,7 +151,7 @@ A crush is none of that. A crush is noticing a few traits and behaviors that loo
 
 ## A Scientific Name?
 
-We call it a crush because we hear it everywhere. It's ubiquitous in any school and social situationio. But psychologists have a more precise name for the obsessive, intrusive version of this state _limerence_. It's coined by the psychologist Dr. Dorothy Tennov in her book _Love & Limerence_ (Tennov, 1979).
+We call it a crush because we hear it everywhere. It's ubiquitous in any school and social situations. But psychologists have a more precise name for the obsessive, intrusive version of this state _limerence_. It's coined by the psychologist Dr. Dorothy Tennov in her book _Love & Limerence_ (Tennov, 1979).
 
 Don't feel bad about it, as most relationships start with a crush. How do you think your parents found each other?
 
@@ -731,7 +735,11 @@ These components are continuous, not discrete. What it means is that you can hav
 
 Satisfaction is linked through your expectation and reality. If your **Real Triangle** matches your **Ideal Triangle**, you will be more satisfied. And if you feel you are 100% committed, but your partner feels otherwise, it will fail.
 
-# The Situationship
+# The In-Between
+
+## Talking Stage
+
+## Situationship
 
 According to Langlais et al. (2024), situationships are defined as a "romantic relationship with no clarity or label, low levels of commitments, but similar romantic behaviors as established couples by means of affection, sexual behaviors, and time spent together." In short, it's where you put in the effort of a partner but none of the security and no label. Look familiar? You might be going through one right now. Feeling all lovey-dovey but never actually having the talk. Wait–
 
@@ -739,7 +747,7 @@ Usually, if things go well, crushes (passion) turn to romantic love (passion + i
 
 And especially when Langlais et al. compared situationships to actual couples. There is little to no difference in the actual intimacy, like kissing or spending quality time together. And even then, people in situationships have significantly lower satisfaction and lower levels of trust.
 
-In short, do not do this in high school. Relevant reasons can be found at [Error Management Theory](#how-a-crush-works), [Intermittent Reinforcement](#what-does-gambling-have-to-do-with-crushes), and the [Zeigarnik Effect](#whats-the-zeigarnik-effect). Wondering why I don't connect situationships to these ideas? I'm lazy. And deal with it. You need your brain to work too.
+In short, if you want to suffer, get into a situationship. Relevant reasons can be found at [Error Management Theory](#how-a-crush-works), [Intermittent Reinforcement](#what-does-gambling-have-to-do-with-crushes), and the [Zeigarnik Effect](#whats-the-zeigarnik-effect). Wondering why I don't connect situationships to these ideas? I'm lazy. And deal with it. You need your brain to work too.
 
 You're not dating. But you're also not _not_ dating. Does it make sense? No. Therefore, do people avoid doing this? Also no.  
 TL;DR: Labels aren't scary; they're necessary.
@@ -795,7 +803,7 @@ They _need_ you to love them. Their behaviors are usually very energetic and soc
 
 They are cold and cynical, and they _use_ people. I think these guys are scary. Like real scary. Because they are hard to spot. They are NOT nice whatsoever and have even lower agreeableness. They do not help anyone, like at all. Plus, what they say doesn't match what they do.
 
-- They ask you a lot of questionos, but they don't say much about themselves. They are gathering information and looking for weaknesses to exploit.
+- They ask you a lot of questions, but they don't say much about themselves. They are gathering information and looking for weaknesses to exploit.
 - If they do something nice to you, there's _always_ a catch.
 - They will lie about things that happened 2 minutes ago just to make you doubt your own sanity.
 - They'll promise you big things to get what they want now, but they don't actually deliver it.
@@ -1012,7 +1020,7 @@ It feels like crap. Remember the body speaks, so you could probably feel literal
 
 - Your [Default Mode Network](#what-part-of-the-brain-actually-activates) goes into overdrive self-reflecting, thinking about why it happened and how to prevent it in the next relationship and how to be a better person (Vijayakumar et al., 2017). This will appear as staring into the ceiling, listening to sad songs, thinking about your lost partner.
 - Remember [frustration attraction](#addiction)? Fisher et al. (2010) found that even after rejection, your reward center keeps working even when you think about them. It's still trying to connect, even though the reality is that they are gone.
-- On top of that, your immune system actually goes weaker (Alobity, 2024). As I said previously, your T-cells (responsible for fighting specific bacteria and viruses) and B-cells (responsible for creating antibodies) weaken when you are stressed.
+- On top of that, your immune system actually goes weaker (Alotiby, 2024). As I said previously, your T-cells (responsible for fighting specific bacteria and viruses) and B-cells (responsible for creating antibodies) weaken when you are stressed.
 - And finally, the daydreams you had all become invalid. The plans in your head are also gone. If this happens to you, it's normal. Do not be ashamed.
 
 ## What should I do?
@@ -1416,3 +1424,30 @@ If someone is aroused, but there is no immediate explanation, they will use the 
 - **Ekman, P., & Friesen, W. V.** (1969). Nonverbal leakage and clues to deception. Psychiatry, 32(1), 88–106. https://doi.org/10.1080/00332747.1969.11023575
 - **T. Vacharkulksemsuk, E. Reit, P. Khambatta, P.W. Eastwick, E.J. Finkel, & D.R. Carney** (2016). Dominant, open nonverbal displays are attractive at zero-acquaintance, Proc. Natl. Acad. Sci. U.S.A. 113 (15) 4009-4014, https://doi.org/10.1073/pnas.1508932113.
 - **Mehrabian, A.** (1968). Relationship of attitude to seated posture, orientation, and distance. Journal of Personality and Social Psychology, 10(1), 26–30. https://doi.org/10.1037/h0026384
+
+---
+
+## Legalities
+
+This work is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/). Feel free to share, adapt, and build upon this guide with attribution if it's for non-commercial purposes.
+
+## WARRANTY & LIABILITY DISCLAIMER
+
+THIS 20,000-WORD MANIFESTO IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF:
+
+- ACTUALLY GETTING YOUR CRUSH TO SAY YES
+- PREVENTING THE CREATION OF CRINGEWORTHY PICKUP LINES
+- GETTING YOURSELF OUT OF A SITUATIONSHIP
+
+IN NO EVENT SHALL THE AUTHOR, THE RESEARCHES CITED, OR ANY ASSOCIATED NERDS BE LIABLE FOR ANY CLAIM, DAMAGES, AND BREAKUPS.
+
+THIS INCLUDES, BUT IS NOT LIMITED TO:
+
+1. Getting left on "Read" for three business days.
+2. Daydreaming for 4 hours instead of doing your math homework.
+3. Immune system degradation.
+4. Excessive cortisol in your bloodstream.
+5. Dropping your phone on your face while checking their Instagram story.
+6. Actually surviving against Brits.
+
+USE THE ADVICE AT YOUR OWN RISK. IF YOU FOLLOW THE ADVICE, AND IT FAILS, YOU ASSUME FULL RESPONSIBILITY FOR ALL ASSOCIATED CRINGE, LOSS OF RELATIONSHIPS/SITUATIONSHIPS, AND/OR SUBSEQUENT REGRET.

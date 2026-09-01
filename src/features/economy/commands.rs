@@ -1,8 +1,6 @@
 #![allow(
     missing_docs,
     clippy::unused_async,
-    clippy::format_push_string,
-    clippy::option_if_let_else
 )]
 
 pub mod admin;
@@ -10,15 +8,18 @@ pub mod cash;
 pub mod inventory;
 pub mod items;
 pub mod leaderboard;
+pub mod rob;
 
 use super::commands::admin::admin;
 use super::commands::cash::cash;
 use super::commands::inventory::inventory;
 use super::commands::items::items;
 use super::commands::leaderboard::leaderboard;
+use super::commands::rob::rob;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy::types::EconomyConfig;
+use crate::features::gambling::games;
 
 async fn get_config(ctx: &Context<'_>) -> Result<Option<EconomyConfig>, Error> {
     let guild_id = ctx
@@ -32,7 +33,11 @@ async fn get_config(ctx: &Context<'_>) -> Result<Option<EconomyConfig>, Error> {
 }
 
 /// Economy commands
-#[poise::command(slash_command, guild_only, subcommands("cash", "inventory", "items", "admin", "leaderboard"))]
+#[poise::command(
+    slash_command,
+    guild_only,
+    subcommands("cash", "inventory", "items", "admin", "leaderboard", "games", "rob")
+)]
 pub async fn economy(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }

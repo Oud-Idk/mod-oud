@@ -46,7 +46,7 @@ pub async fn ensure_preraid_state_saved(
         &data.core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
     if let Some(verification_settings) = settings.welcome.and_then(|w| w.verification) {
         snapshot.original_verification_type = verification_settings.captcha_type;
         snapshot.original_oauth_required = verification_settings.use_oauth;
@@ -60,7 +60,6 @@ pub async fn ensure_preraid_state_saved(
 
     let _: () = cache::add_guild_to_raid(guild_id, conn).await?;
 
-    // Persist to Postgres for crash recovery (upsert — safe if already present)
     if let Err(e) = database::save_active_raid_state(&data.core.db, guild_id, &snapshot).await {
         error!(error = ?e, %guild_id, "Failed to persist active raid state to database");
     }
@@ -129,7 +128,7 @@ pub async fn restore_preraid_state(
         snapshot.original_oauth_required,
         captcha_str.as_deref(),
     )
-    .await?;
+        .await?;
 
     // Remove from active raids set
     let _: () = cache::remove_guild_from_raid(guild_id, &data.core.redis).await?;

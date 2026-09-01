@@ -62,7 +62,7 @@ fn check_ruleset<'a>(
 
         // Use find_overlapping_iter so a rejected Exact match doesn't
         // swallow or skip overlapping valid matches
-        for mat in matcher.find_overlapping_iter(&lower) {
+        for mat in matcher.find_overlapping_iter(lower) {
             let pattern_info = &patterns[mat.pattern().as_usize()];
 
             match pattern_info.strategy {
@@ -75,7 +75,11 @@ fn check_ruleset<'a>(
                     let end = mat.end();
 
                     let left_ok = start == 0
-                        || !lower[..start].chars().next_back().unwrap().is_alphanumeric();
+                        || !lower[..start]
+                            .chars()
+                            .next_back()
+                            .unwrap()
+                            .is_alphanumeric();
                     let right_ok = end == lower.len()
                         || !lower[end..].chars().next().unwrap().is_alphanumeric();
 
@@ -184,9 +188,9 @@ async fn fetch_and_cache_from_db(
 mod tests {
     use super::*;
     use crate::features::automod::{FilterVerdict, RuleAction, RuleScope};
+    use crate::features::bad_words::types::Pattern;
     use serenity::all::GuildId;
     use std::borrow::Cow;
-    use crate::features::bad_words::types::Pattern;
 
     /// Helper to construct a `CompiledRuleset` from a list of (strategy, pattern_str) pairs
     fn ruleset_with(patterns: &[(MatchStrategy, &str)]) -> CompiledRuleset {
@@ -206,7 +210,7 @@ mod tests {
             timeout_duration_seconds: None,
             scope: RuleScope::default(),
         }
-            .into()
+        .into()
     }
 
     fn trigger_of(verdict: Option<FilterVerdict<'_>>) -> Option<String> {

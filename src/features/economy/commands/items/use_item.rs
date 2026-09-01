@@ -1,9 +1,9 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, validation};
+use crate::features::economy::{commands, database, ensure_balance, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-
+use crate::features::economy::database::inventory::{get_inventory_item, remove_inventory_item};
 use super::actions::execute_use_actions;
 
 /// Use an item from your inventory
@@ -30,7 +30,7 @@ pub async fn use_item(
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
-    database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
+    ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
 
     let Some(item) = validation::resolve_item(db, guild_id, &item_input).await? else {
         send_ephemeral(&ctx, "Item not found.").await?;
@@ -43,7 +43,7 @@ pub async fn use_item(
     }
 
     // Verify ownership
-    let inv_row = database::get_inventory_item(db, guild_id, user_id, item.id).await?;
+    let inv_row = get_inventory_item(db, guild_id, user_id, item.id).await?;
     let owned = inv_row.map_or(0, |r| r.quantity);
     if owned < qty {
         if owned == 0 {
@@ -56,7 +56,7 @@ pub async fn use_item(
                     item.name
                 ),
             )
-            .await?;
+                .await?;
         }
         return Ok(());
     }
@@ -67,7 +67,7 @@ pub async fn use_item(
     }
 
     // Consume the item(s) from inventory
-    database::remove_inventory_item(db, guild_id, user_id, item.id, qty).await?;
+    remove_inventory_item(db, guild_id, user_id, item.id, qty).await?;
 
     // Execute use-triggered actions (roles, balance, items, messages)
     execute_use_actions(&ctx, &item, qty).await?;

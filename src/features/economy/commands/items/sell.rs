@@ -1,8 +1,9 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, validation};
+use crate::features::economy::{commands, database, ensure_balance, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
+use crate::features::economy::database::shop::{sell_item_tx, SellError};
 
 /// Sell an item from your inventory back to the store
 #[poise::command(slash_command, guild_only)]
@@ -35,14 +36,14 @@ pub async fn sell(
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
-    database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
+    ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
 
     let Some(item) = validation::resolve_item(db, guild_id, &item_input).await? else {
         send_ephemeral(&ctx, "Item not found.").await?;
         return Ok(());
     };
 
-    let result = database::sell_item_tx(db, guild_id, user_id, item.id, qty).await?;
+    let result = sell_item_tx(db, guild_id, user_id, item.id, qty).await?;
 
     match result {
         Ok((sold_item, balance)) => {
@@ -66,13 +67,13 @@ pub async fn sell(
 
             ctx.send(poise::CreateReply::default().embed(embed)).await?;
         }
-        Err(database::SellError::InvalidQuantity) => {
+        Err(SellError::InvalidQuantity) => {
             send_ephemeral(&ctx, "Invalid quantity or total price is too large.").await?;
         }
-        Err(database::SellError::NotSellable) => {
+        Err(SellError::NotSellable) => {
             send_ephemeral(&ctx, "This item cannot be sold back to the shop.").await?;
         }
-        Err(database::SellError::InsufficientQuantity { owned }) => {
+        Err(SellError::InsufficientQuantity { owned }) => {
             if owned == 0 {
                 send_ephemeral(&ctx, format!("You don't own any **{}**.", item.name)).await?;
             } else {
@@ -86,7 +87,7 @@ pub async fn sell(
                     .await?;
             }
         }
-        Err(database::SellError::ItemNotFound) => {
+        Err(SellError::ItemNotFound) => {
             send_ephemeral(&ctx, "This item is no longer available.").await?;
         }
     }

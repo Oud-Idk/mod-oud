@@ -40,7 +40,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
             .filter(|d| !d.trim().is_empty())
             .unwrap_or("No description provided.");
 
-        command_list.push(format!("• **!{}** — {}", cmd.name, desc));
+        command_list.push(format!("• **!{}**: {}", cmd.name, desc));
     }
 
     let full_description = command_list.join("\n");

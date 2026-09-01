@@ -35,7 +35,7 @@ fn format_birthday_line(b: &FullUserBirthdayRecord) -> String {
     });
 
     format!(
-        "• <@{}> — **{} {}**{}\n",
+        "• <@{}>: **{} {}**{}\n",
         b.user_id, month_name, b.birth_day, age_str
     )
 }
@@ -67,7 +67,7 @@ pub async fn paginate_birthdays(
                 total_pages
             )))
     })
-    .await?;
+        .await?;
 
     Ok(())
 }

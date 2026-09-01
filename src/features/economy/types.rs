@@ -11,6 +11,67 @@ fn default_work_message() -> String {
     "You earned **{reward} {currency}**!".to_string()
 }
 
+fn default_rob_cooldown() -> i64 {
+    3600
+}
+
+fn default_rob_success_rate() -> f64 {
+    0.5
+}
+
+fn default_rob_min_percent() -> i64 {
+    10
+}
+
+fn default_rob_max_percent() -> i64 {
+    30
+}
+
+fn default_rob_min_cash() -> i64 {
+    100
+}
+
+fn default_rob_fine_percent() -> i64 {
+    10
+}
+
+/// Configuration settings specifically for the `/rob` command.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RobConfig {
+    /// Cooldown in seconds between `/rob` uses.
+    #[serde(default = "default_rob_cooldown")]
+    pub cooldown_secs: i64,
+    /// Success probability for `/rob` (0.0–1.0).
+    #[serde(default = "default_rob_success_rate")]
+    pub success_rate: f64,
+    /// Minimum percent of the victim's wallet stolen on success.
+    #[serde(default = "default_rob_min_percent")]
+    pub min_percent: i64,
+    /// Maximum percent of the victim's wallet stolen on success.
+    #[serde(default = "default_rob_max_percent")]
+    pub max_percent: i64,
+    /// Minimum wallet cash the victim must have to be robbed.
+    #[serde(default = "default_rob_min_cash")]
+    pub min_cash: i64,
+    /// Percent of robber's wallet lost as a fine on failure.
+    #[serde(default = "default_rob_fine_percent")]
+    pub fine_percent: i64,
+}
+
+impl Default for RobConfig {
+    fn default() -> Self {
+        Self {
+            cooldown_secs: default_rob_cooldown(),
+            success_rate: default_rob_success_rate(),
+            min_percent: default_rob_min_percent(),
+            max_percent: default_rob_max_percent(),
+            min_cash: default_rob_min_cash(),
+            fine_percent: default_rob_fine_percent(),
+        }
+    }
+}
+
 /// Per-guild economy configuration stored in `GuildSettings`.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +92,9 @@ pub struct EconomyConfig {
     /// Initial wallet balance granted to new users on first interaction.
     #[serde(default)]
     pub starting_balance: i64,
+    /// Robbery settings.
+    #[serde(default)]
+    pub rob: RobConfig,
 }
 
 impl Default for EconomyConfig {
@@ -43,6 +107,7 @@ impl Default for EconomyConfig {
             work_max_reward: 0,
             work_message: default_work_message(),
             starting_balance: 0,
+            rob: RobConfig::default(),
         }
     }
 }
@@ -56,7 +121,12 @@ impl EconomyConfig {
 
     /// Render with user mention support.
     #[must_use]
-    pub fn render_work_message_with_user(&self, reward: i64, currency: &str, user_mention: &str) -> String {
+    pub fn render_work_message_with_user(
+        &self,
+        reward: i64,
+        currency: &str,
+        user_mention: &str,
+    ) -> String {
         render_work_message_template(&self.work_message, reward, currency, user_mention)
     }
 }
@@ -167,7 +237,7 @@ pub enum ItemRequirement {
         #[serde(default)]
         trigger_flags: TriggerFlags,
         #[serde(default)]
-        quantities: HashMap<Uuid, u32>,
+        quantities: HashMap<Uuid, i32>,
     },
 }
 
@@ -226,7 +296,7 @@ pub enum ItemAction {
         #[serde(default)]
         trigger_flags: TriggerFlags,
         #[serde(default)]
-        quantities: HashMap<Uuid, u32>,
+        quantities: HashMap<Uuid, i32>,
         #[serde(default)]
         #[serde_as(as = "Vec<DisplayFromStr>")]
         item_ids: Vec<Uuid>,
@@ -235,7 +305,7 @@ pub enum ItemAction {
         #[serde(default)]
         trigger_flags: TriggerFlags,
         #[serde(default)]
-        quantities: HashMap<Uuid, u32>,
+        quantities: HashMap<Uuid, i32>,
         #[serde(default)]
         #[serde_as(as = "Vec<DisplayFromStr>")]
         item_ids: Vec<Uuid>,
@@ -324,17 +394,17 @@ impl Item {
     /// Returns a valid Discord CDN URL if this item has a custom emoji (for embed thumbnails)
     #[must_use]
     pub fn thumbnail_url(&self) -> Option<String> {
-        if let Some(ref id) = self.emoji_id {
-            Some(format!("https://cdn.discordapp.com/emojis/{id}.png"))
-        } else if let Some(ref unicode) = self.emoji_unicode {
-            if unicode.starts_with("http://") || unicode.starts_with("https://") {
-                Some(unicode.clone())
-            } else {
-                None
-            }
-        } else {
-            None
+        if let Some(id) = &self.emoji_id {
+            return Some(format!("https://cdn.discordapp.com/emojis/{id}.png"));
         }
+
+        if let Some(unicode) = &self.emoji_unicode
+            && (unicode.starts_with("http://") || unicode.starts_with("https://"))
+        {
+            return Some(unicode.clone());
+        }
+
+        None
     }
 }
 
@@ -412,7 +482,12 @@ impl WorkMessage {
 }
 
 /// Helper for rendering work messages when no relational rows exist (fallback to config).
-pub fn render_work_message_template(template: &str, reward: i64, currency: &str, user_mention: &str) -> String {
+pub fn render_work_message_template(
+    template: &str,
+    reward: i64,
+    currency: &str,
+    user_mention: &str,
+) -> String {
     let tmpl = if template.trim().is_empty() {
         default_work_message()
     } else {

@@ -1,12 +1,16 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, keys};
+use crate::features::economy::{
+    add_cash, commands, ensure_balance, get_balance, keys,
+};
 use crate::shared::messages::send_ephemeral;
 use fred::interfaces::KeysInterface;
 use fred::prelude::{Expiration, SetOptions};
 use humantime::format_duration;
 use serenity::all::{CreateEmbed, User};
 use std::time::Duration;
+use crate::features::economy::database::balances::{transfer_bank_to_cash, transfer_cash, transfer_cash_to_bank};
+use crate::features::economy::database::work_messages::get_random_work_message;
 
 #[poise::command(
     slash_command,
@@ -33,32 +37,19 @@ pub async fn balance(
     let db = &ctx.data().core.db;
 
     let balance = if target.id == ctx.author().id {
-        database::ensure_balance(db, guild_id, target.id, config.starting_balance).await?
+        ensure_balance(db, guild_id, target.id, config.starting_balance).await?
     } else {
-        database::get_balance(db, guild_id, target.id).await?
+        get_balance(db, guild_id, target.id).await?
     };
 
     let embed = CreateEmbed::new()
         .title(format!("{}'s Balance", target.display_name()))
-        .field(
-            "Wallet",
-            format!("{} {}", balance.cash, config.currency_name),
-            true,
-        )
-        .field(
-            "Bank",
-            format!("{} {}", balance.bank, config.currency_name),
-            true,
-        )
-        .field(
-            "Total",
-            format!("{} {}", balance.total(), config.currency_name),
-            false,
-        )
+        .field("Wallet", format!("{} {}", balance.cash, config.currency_name), true)
+        .field("Bank", format!("{} {}", balance.bank, config.currency_name), true)
+        .field("Total", format!("{} {}", balance.total(), config.currency_name), false)
         .color(BRAND_COLOR);
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
-
     Ok(())
 }
 
@@ -101,17 +92,18 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     }
 
-    // Seed starting balance before rewarding, so new users get starting + reward
-    database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
+    ctx.defer().await?;
+
+    // Seed starting balance before rewarding
+    ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
 
     let reward = rand::random_range(config.work_min_reward..=config.work_max_reward);
-
-    let balance = database::add_cash(db, guild_id, user_id, reward).await?;
+    let balance = add_cash(db, guild_id, user_id, reward).await?;
 
     let currency = &config.currency_name;
     let user_mention = format!("<@{}>", user_id.get());
-    // Prefer relational work messages (random), fallback to guild config template
-    let description = match database::get_random_work_message(db, guild_id).await {
+
+    let description = match get_random_work_message(db, guild_id).await {
         Ok(Some(wm)) => wm.render(reward, currency, &user_mention),
         Ok(None) => config.render_work_message_with_user(reward, currency, &user_mention),
         Err(e) => {
@@ -123,13 +115,12 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
     let embed = CreateEmbed::new()
         .title("Work Complete!")
         .description(description)
-        .field("Wallet", format!("{}", balance.cash), true)
-        .field("Bank", format!("{}", balance.bank), true)
-        .field("Total", format!("{}", balance.total()), true)
+        .field("Wallet", format!("{} {currency}", balance.cash), true)
+        .field("Bank", format!("{} {currency}", balance.bank), true)
+        .field("Total", format!("{} {currency}", balance.total()), false)
         .color(BRAND_COLOR);
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
-
     Ok(())
 }
 
@@ -148,7 +139,7 @@ pub async fn deposit(
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
-    let current = database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
+    let current = ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
     let deposit_amount = amount.unwrap_or(current.cash);
 
     if deposit_amount <= 0 {
@@ -156,9 +147,7 @@ pub async fn deposit(
         return Ok(());
     }
 
-    let Some(balance) =
-        database::transfer_cash_to_bank(db, guild_id, user_id, deposit_amount).await?
-    else {
+    let Some(balance) = transfer_cash_to_bank(db, guild_id, user_id, deposit_amount).await? else {
         send_ephemeral(&ctx, "Insufficient wallet balance.").await?;
         return Ok(());
     };
@@ -166,17 +155,13 @@ pub async fn deposit(
     let currency = &config.currency_name;
     let embed = CreateEmbed::new()
         .title("Deposit Complete!")
-        .description(format!(
-            "Deposited **{deposit_amount} {currency}** into your bank."
-        ))
+        .description(format!("Deposited **{deposit_amount} {currency}** into your bank."))
         .field("Wallet", format!("{} {currency}", balance.cash), true)
         .field("Bank", format!("{} {currency}", balance.bank), true)
         .field("Total", format!("{} {currency}", balance.total()), false)
         .color(BRAND_COLOR);
 
-    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
-        .await?;
-
+    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true)).await?;
     Ok(())
 }
 
@@ -195,7 +180,7 @@ pub async fn withdraw(
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
-    let current = database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
+    let current = ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
     let withdraw_amount = amount.unwrap_or(current.bank);
 
     if withdraw_amount <= 0 {
@@ -203,9 +188,7 @@ pub async fn withdraw(
         return Ok(());
     }
 
-    let Some(balance) =
-        database::transfer_bank_to_cash(db, guild_id, user_id, withdraw_amount).await?
-    else {
+    let Some(balance) = transfer_bank_to_cash(db, guild_id, user_id, withdraw_amount).await? else {
         send_ephemeral(&ctx, "Insufficient bank balance.").await?;
         return Ok(());
     };
@@ -213,17 +196,13 @@ pub async fn withdraw(
     let currency = &config.currency_name;
     let embed = CreateEmbed::new()
         .title("Withdrawal Complete!")
-        .description(format!(
-            "Withdrew **{withdraw_amount} {currency}** from your bank."
-        ))
+        .description(format!("Withdrew **{withdraw_amount} {currency}** from your bank."))
         .field("Wallet", format!("{} {currency}", balance.cash), true)
         .field("Bank", format!("{} {currency}", balance.bank), true)
         .field("Total", format!("{} {currency}", balance.total()), false)
         .color(BRAND_COLOR);
 
-    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
-        .await?;
-
+    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true)).await?;
     Ok(())
 }
 
@@ -234,11 +213,6 @@ pub async fn transfer(
     #[description = "User to transfer to"] user: User,
     #[description = "Amount to transfer"] amount: i64,
 ) -> Result<(), Error> {
-    let Some(config) = commands::get_config(&ctx).await? else {
-        send_ephemeral(&ctx, "Economy isn't enabled in this server.").await?;
-        return Ok(());
-    };
-
     if amount <= 0 {
         send_ephemeral(&ctx, "Amount must be positive.").await?;
         return Ok(());
@@ -257,19 +231,23 @@ pub async fn transfer(
         return Ok(());
     }
 
+    let Some(config) = commands::get_config(&ctx).await? else {
+        send_ephemeral(&ctx, "Economy isn't enabled in this server.").await?;
+        return Ok(());
+    };
+
     ctx.defer().await?;
 
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
 
-    // Seed both participants with starting balance if they have no row yet
-    database::ensure_balance(db, guild_id, from_user, config.starting_balance).await?;
-    database::ensure_balance(db, guild_id, to_user, config.starting_balance).await?;
+    // Seed sender account if they don't have one yet
+    ensure_balance(db, guild_id, from_user, config.starting_balance).await?;
 
-    let result = database::transfer_cash(db, guild_id, from_user, to_user, amount).await?;
+    let result = transfer_cash(db, guild_id, from_user, to_user, amount).await?;
 
     let Some((sender_balance, _receiver_balance)) = result else {
-        let current = database::get_balance(db, guild_id, from_user).await?;
+        let current = get_balance(db, guild_id, from_user).await?;
         send_ephemeral(
             &ctx,
             format!(
@@ -288,19 +266,11 @@ pub async fn transfer(
             "You transferred **{amount} {currency}** to **{}**.",
             user.display_name()
         ))
-        .field(
-            "Your Wallet",
-            format!("{} {currency}", sender_balance.cash),
-            true,
-        )
-        .field(
-            "Your Bank",
-            format!("{} {currency}", sender_balance.bank),
-            true,
-        )
+        .field("Your Wallet", format!("{} {currency}", sender_balance.cash), true)
+        .field("Your Bank", format!("{} {currency}", sender_balance.bank), true)
+        .field("Your Total", format!("{} {currency}", sender_balance.total()), false)
         .color(BRAND_COLOR);
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
-
     Ok(())
 }

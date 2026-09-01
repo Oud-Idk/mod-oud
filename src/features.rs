@@ -53,3 +53,5 @@ pub mod tickets;
 pub mod verification;
 /// Warning system.
 pub mod warning;
+/// Gambling mechanics for economy.
+pub mod gambling;

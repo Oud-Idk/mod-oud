@@ -44,7 +44,7 @@ pub async fn warn(
         &ctx.author().name,
         &member.user.name,
     )
-    .await?;
+        .await?;
 
     ctx.send(
         poise::CreateReply::default()
@@ -54,7 +54,7 @@ pub async fn warn(
             ))
             .ephemeral(true),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -87,7 +87,7 @@ pub async fn history(
             &ctx,
             format!("<@{}> has no active warnings.", member.user.id),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -115,7 +115,7 @@ pub async fn search(
         target_user_id,
         &search_pattern,
     )
-    .await?;
+        .await?;
 
     if records.is_empty() {
         let filter_message = match user {
@@ -126,7 +126,7 @@ pub async fn search(
             &ctx,
             format!("No warnings {filter_message}found matching `{query}`."),
         )
-        .await?;
+            .await?;
         return Ok(());
     }
 
@@ -160,7 +160,7 @@ pub async fn view(
             let reason = warn.reason.as_deref().unwrap_or("*No reason provided*");
 
             let embed = poise::serenity_prelude::CreateEmbed::new()
-                .title(format!("Warning Details — ID: `{}`", warn.id))
+                .title(format!("ID: `{}`", warn.id))
                 .color(BRAND_COLOR)
                 .field("User", format!("<@{}>", warn.user_id), true)
                 .field("Moderator", format!("<@{}>", warn.moderator_id), true)
@@ -176,7 +176,7 @@ pub async fn view(
                 &ctx,
                 format!("Could not find warning with ID **#{id}** in this server."),
             )
-            .await?;
+                .await?;
         }
     }
 
@@ -221,7 +221,7 @@ pub async fn delete(
         id,
         ctx.author(),
     )
-    .await?;
+        .await?;
 
     match result {
         Some((target_user_id, reason)) => {
@@ -237,7 +237,7 @@ pub async fn delete(
                 &ctx,
                 format!("Could not find a warning with ID **#{id}** in this server."),
             )
-            .await?;
+                .await?;
         }
     }
 

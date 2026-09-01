@@ -66,15 +66,14 @@ pub async fn purchase_item_tx(
         .fetch_optional(&mut *tx)
         .await?;
 
-        return match current_stock {
-            Some(stock) => Ok(Err(PurchaseError::InsufficientStock { remaining: stock })),
-            None => Ok(Err(PurchaseError::ItemNotFoundOrExpired)),
-        };
+        return current_stock.map_or_else(
+            || Ok(Err(PurchaseError::ItemNotFoundOrExpired)),
+            |stock| Ok(Err(PurchaseError::InsufficientStock { remaining: stock })),
+        );
     };
 
-    let total_cost = match item.price.checked_mul(quantity as i64) {
-        Some(cost) => cost,
-        None => return Ok(Err(PurchaseError::InvalidQuantity)), // Overflow protection
+    let Some(total_cost) = item.price.checked_mul(i64::from(quantity)) else {
+        return Ok(Err(PurchaseError::InvalidQuantity)); // Overflow protection
     };
 
     let balance_row = sqlx::query!(
@@ -151,7 +150,44 @@ pub async fn sell_item_tx(
 
     let mut tx = db.begin().await?;
 
-    let item = sqlx::query_as!(
+    // Fetch & Validate Item
+    let Some(item) = fetch_item_for_sale(&mut tx, guild_id, item_id).await? else {
+        return Ok(Err(SellError::ItemNotFound));
+    };
+
+    if !item.is_sellable {
+        return Ok(Err(SellError::NotSellable));
+    }
+
+    // Lock & Deduct from Inventory
+    if let Err(err) = deduct_inventory(&mut tx, guild_id, user_id, item_id, quantity).await? {
+        return Ok(Err(err));
+    }
+
+    // Calculate refund
+    let Some(total_refund) = item.price.checked_mul(i64::from(quantity)) else {
+        return Ok(Err(SellError::InvalidQuantity)); // Overflow protection
+    };
+
+    // Credit balance & restock shop
+    let balance = credit_balance(&mut tx, guild_id, user_id, total_refund).await?;
+
+    if !item.unlimited_stock {
+        restock_item(&mut tx, guild_id, item_id, quantity).await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(Ok((item, balance)))
+}
+
+/// Fetches the item details needed for the sale.
+async fn fetch_item_for_sale(
+    tx: &mut sqlx::PgTransaction<'_>,
+    guild_id: GuildId,
+    item_id: Uuid,
+) -> Result<Option<Item>, sqlx::Error> {
+    sqlx::query_as!(
         Item,
         r#"
         SELECT id, guild_id, name, description, price, category_id,
@@ -166,20 +202,18 @@ pub async fn sell_item_tx(
         guild_id.get().cast_signed(),
         item_id,
     )
-    .fetch_optional(&mut *tx)
-    .await?;
+    .fetch_optional(&mut **tx)
+    .await
+}
 
-    let Some(item) = item else {
-        tx.rollback().await?;
-        return Ok(Err(SellError::ItemNotFound));
-    };
-
-    if !item.is_sellable {
-        tx.rollback().await?;
-        return Ok(Err(SellError::NotSellable));
-    }
-
-    // Lock the inventory row to prevent concurrent sell races
+/// Locks the user's inventory row and deducts the sold quantity.
+async fn deduct_inventory(
+    tx: &mut sqlx::PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<Result<(), SellError>, sqlx::Error> {
     let owned = sqlx::query_scalar!(
         r#"
         SELECT quantity FROM economy_inventory
@@ -190,16 +224,14 @@ pub async fn sell_item_tx(
         user_id.get().cast_signed(),
         item_id,
     )
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await?
     .unwrap_or(0);
 
     if owned < quantity {
-        tx.rollback().await?;
         return Ok(Err(SellError::InsufficientQuantity { owned }));
     }
 
-    // Remove from inventory (delete row if exact qty, else decrement)
     sqlx::query!(
         r#"
         WITH deleted AS (
@@ -217,15 +249,20 @@ pub async fn sell_item_tx(
         item_id,
         quantity,
     )
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
 
-    let total_refund = match item.price.checked_mul(quantity as i64) {
-        Some(refund) => refund,
-        None => return Ok(Err(SellError::InvalidQuantity)),
-    };
+    Ok(Ok(()))
+}
 
-    let balance_row = sqlx::query!(
+/// Credits cash to the user's wallet.
+async fn credit_balance(
+    tx: &mut sqlx::PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    amount: i64,
+) -> Result<Balance, sqlx::Error> {
+    let row = sqlx::query!(
         r#"
         INSERT INTO economy_balances (guild_id, user_id, cash, bank)
         VALUES ($1, $2, $3, 0)
@@ -235,36 +272,38 @@ pub async fn sell_item_tx(
         "#,
         guild_id.get().cast_signed(),
         user_id.get().cast_signed(),
-        total_refund,
+        amount,
     )
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
 
-    // Restock if limited
-    if !item.unlimited_stock {
-        sqlx::query!(
-            r#"
-            UPDATE economy_items
-            SET stock_remaining = stock_remaining + $3
-            WHERE guild_id = $1 AND id = $2
-            "#,
-            guild_id.get().cast_signed(),
-            item_id,
-            quantity,
-        )
-        .execute(&mut *tx)
-        .await?;
-    }
+    Ok(Balance::from_raw(
+        row.guild_id,
+        row.user_id,
+        row.cash,
+        row.bank,
+    ))
+}
 
-    tx.commit().await?;
+/// Adds back stock for limited items.
+async fn restock_item(
+    tx: &mut sqlx::PgTransaction<'_>,
+    guild_id: GuildId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+        UPDATE economy_items
+        SET stock_remaining = stock_remaining + $3
+        WHERE guild_id = $1 AND id = $2
+        "#,
+        guild_id.get().cast_signed(),
+        item_id,
+        quantity,
+    )
+    .execute(&mut **tx)
+    .await?;
 
-    Ok(Ok((
-        item,
-        Balance::from_raw(
-            balance_row.guild_id,
-            balance_row.user_id,
-            balance_row.cash,
-            balance_row.bank,
-        ),
-    )))
+    Ok(())
 }

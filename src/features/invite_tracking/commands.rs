@@ -24,14 +24,14 @@ pub async fn inviter(
                 "**{}** was invited by <@{}> using code `{}` (<t:{}:R>).",
                 member.user.name, row.inviter_id, row.invite_code, timestamp
             ))
-            .await?;
+                .await?;
         }
         None => {
             ctx.say(format!(
                 "I couldn't find who invited **{}**. They may have joined before I started tracking, or via a vanity URL/bot invite.",
                 member.user.name
             ))
-            .await?;
+                .await?;
         }
     }
 
@@ -71,7 +71,7 @@ pub async fn invites(
     ctx.say(format!(
         "**Invite Stats for <@{target_id}>**\n• Total Invites: **{invite_count}**\n{invite_link_msg}"
     ))
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -96,7 +96,7 @@ pub async fn invites_leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     for (index, entry) in top_inviters.iter().enumerate() {
         let _ = writeln!(
             leaderboard_text,
-            "{}. <@{}> — **{}** invite{}",
+            "{}. <@{}>: **{}** invite{}",
             index + 1,
             entry.inviter_id,
             entry.count,

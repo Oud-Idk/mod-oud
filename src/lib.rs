@@ -1,4 +1,4 @@
-//! Mod Oud — a modular Discord moderation bot.
+//! Mod Oud: a modular Discord moderation bot.
 //!
 //! The crate is split into four layers:
 //! - [`core`]: bootstrapping glue (config, setup, error types).

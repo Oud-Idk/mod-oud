@@ -13,9 +13,7 @@ A self-hostable Discord moderation bot with an accompanying web dashboard. The b
 - Horizontally shardable (`SHARD_INDEX` / `TOTAL_SHARDS`): each shard runs as its own container
   sharing Postgres and Redis state.
 - Background/cron jobs use distributed Redis locks so multiple instances never double-execute.
-- Production traffic is served behind
-  a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/),
-  which means no inbound ports on the host.
+- Production traffic is served behind a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), which means no inbound ports on the host.
 - Backend of frontend (Next.js Server Actions) can interact with Redis for invalidation and Postgres
   for storing config
 

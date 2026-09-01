@@ -28,7 +28,7 @@ pub fn render(text: &str, resolver: &dyn PlaceholderResolver) -> String {
             .resolve(&caps["key"])
             .unwrap_or_else(|| caps[0].to_string())
     })
-    .into_owned()
+        .into_owned()
 }
 
 /// Optional Discord context used to resolve user/member, channel, and message
@@ -123,7 +123,7 @@ impl PlaceholderResolver for DiscordCtx<'_> {
             });
         }
 
-        // Random Number Generator — pure utility, no domain knowledge
+        // Random Number Generator
         if key == "random" {
             return Some(rand::rng().random_range(0..=10).to_string());
         }

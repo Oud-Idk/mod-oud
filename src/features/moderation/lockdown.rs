@@ -134,9 +134,7 @@ pub struct GlobalLockdownReport {
 /// Locks down every text channel in the guild, caching each channel's pre-lockdown
 /// `@everyone` overwrite in Redis first.
 ///
-/// Returns `Ok(None)` if a global lock or unlock sweep is already running for this
-/// guild — the caller should treat that as "did nothing, one is already in flight"
-/// rather than as an error.
+/// Returns `Ok(None)` if a global lock or unlock sweep is already running for this guild.
 ///
 /// # Errors
 /// Returns an error if the Redis lock cannot be acquired, the per-channel
@@ -155,7 +153,7 @@ pub async fn apply_global_lock(
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
-    .await?
+        .await?
     else {
         debug!(
             %guild_id,
@@ -214,9 +212,7 @@ pub async fn apply_global_lock(
 /// Unlocks every text channel in the guild, restoring each one's cached pre-lockdown
 /// `@everyone` overwrite (or deleting it entirely if none was cached).
 ///
-/// Returns `Ok(None)` if a global lock or unlock sweep is already running for this
-/// guild — the caller should treat that as "did nothing, one is already in flight"
-/// rather than as an error.
+/// Returns `Ok(None)` if a global lock or unlock sweep is already running for this guild.
 ///
 /// # Errors
 /// Returns an error if the Redis lock cannot be acquired or a Discord API
@@ -235,7 +231,7 @@ pub async fn apply_global_unlock(
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
-    .await?
+        .await?
     else {
         debug!(
             %guild_id,

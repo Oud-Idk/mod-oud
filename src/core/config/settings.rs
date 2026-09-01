@@ -4,6 +4,7 @@ use crate::core::config::{database, keys, redis};
 use crate::features::automod::{HoneypotConfig, MessageFilteringConfig};
 use crate::features::birthday::BirthdayConfig;
 use crate::features::economy::EconomyConfig;
+use crate::features::gambling::GamblingConfig;
 use crate::features::invite_tracking::InviteTrackerConfig;
 use crate::features::join_leave::{LeaveConfig, WelcomeConfig};
 use crate::features::leveling::LevelingConfig;
@@ -65,6 +66,9 @@ pub struct GuildSettings {
 
     /// Configuration for the virtual economy system (cash, bank, work).
     pub economy: Option<Box<EconomyConfig>>,
+
+    /// Configuration for gambling games (bet limits, cooldowns, per-game toggles).
+    pub gambling: Option<Box<GamblingConfig>>,
 }
 
 /// Direct message (DM) settings for various moderation actions.

@@ -6,6 +6,8 @@ use crate::shared::messages::send_ephemeral;
 use crate::shared::pagination;
 use serenity::all::{CreateEmbed, CreateEmbedFooter};
 use std::collections::HashMap;
+use crate::features::economy::database::categories::list_categories;
+use crate::features::economy::database::items::list_items;
 
 /// View all items in the store
 #[poise::command(slash_command, guild_only)]
@@ -20,13 +22,13 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
 
-    let items = database::list_items(db, guild_id).await?;
+    let items = list_items(db, guild_id).await?;
     if items.is_empty() {
         send_ephemeral(&ctx, "No items in the store.").await?;
         return Ok(());
     }
 
-    let categories = database::list_categories(db, guild_id).await.unwrap_or_default();
+    let categories = list_categories(db, guild_id).await.unwrap_or_default();
     let category_map: HashMap<_, _> = categories
         .into_iter()
         .filter_map(|c| Some((c.id, c.name)))

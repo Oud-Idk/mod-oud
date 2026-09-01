@@ -1,6 +1,6 @@
 use crate::features::economy::types::{InventoryRow, Item};
 use serenity::all::{GuildId, UserId};
-use sqlx::PgPool;
+use sqlx::{PgPool, PgTransaction};
 use uuid::Uuid;
 
 /// Fetch all inventory rows for a user in a guild.
@@ -188,4 +188,114 @@ pub async fn get_inventory_with_items(
         .collect();
 
     Ok(result)
+}
+
+/// Add an item to inventory within an active transaction (upserts/increments).
+pub async fn add_inventory_item_tx(
+    tx: &mut PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<InventoryRow, sqlx::Error> {
+    sqlx::query_as!(
+        InventoryRow,
+        r#"
+        INSERT INTO economy_inventory (guild_id, user_id, item_id, quantity)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (guild_id, user_id, item_id) DO UPDATE SET
+            quantity = economy_inventory.quantity + EXCLUDED.quantity
+        RETURNING guild_id, user_id, item_id, quantity
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+        quantity,
+    )
+    .fetch_one(&mut **tx)
+    .await
+}
+
+/// Remove an item within a transaction. Deletes the row if quantity reaches 0.
+pub async fn remove_inventory_item_tx(
+    tx: &mut PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<(), sqlx::Error> {
+    if quantity <= 0 {
+        return Ok(());
+    }
+
+    sqlx::query!(
+        r#"
+        WITH deleted AS (
+            DELETE FROM economy_inventory
+            WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity = $4
+            RETURNING 1
+        )
+        UPDATE economy_inventory
+        SET quantity = quantity - $4
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity > $4
+          AND NOT EXISTS (SELECT 1 FROM deleted)
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+        quantity,
+    )
+    .execute(&mut **tx)
+    .await?;
+
+    Ok(())
+}
+
+/// Fetch a single inventory row inside a transaction.
+pub async fn get_inventory_item_tx(
+    tx: &mut PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+) -> Result<Option<InventoryRow>, sqlx::Error> {
+    sqlx::query_as!(
+        InventoryRow,
+        r#"
+        SELECT guild_id, user_id, item_id, quantity
+        FROM economy_inventory
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+    )
+    .fetch_optional(&mut **tx)
+    .await
+}
+
+/// Check if a user has at least `quantity` of an item inside a transaction.
+pub async fn has_item_tx(
+    tx: &mut PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<bool, sqlx::Error> {
+    if quantity <= 0 {
+        return Ok(true);
+    }
+
+    let row = sqlx::query_scalar!(
+        r#"
+        SELECT quantity FROM economy_inventory
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item_id,
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+
+    Ok(row.is_some_and(|q| q >= quantity))
 }

@@ -4,6 +4,7 @@ use crate::features::economy::{commands, database};
 use crate::shared::messages::send_ephemeral;
 use crate::shared::pagination;
 use serenity::all::{CreateEmbed, CreateEmbedFooter};
+use crate::features::economy::database::balances::get_leaderboard;
 
 /// Show the richest users (wallet + bank)
 #[poise::command(slash_command, guild_only)]
@@ -18,9 +19,13 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
 
-    let top = database::get_leaderboard(db, guild_id, 100, 0).await?;
+    let top = get_leaderboard(db, guild_id, 100, 0).await?;
     if top.is_empty() {
-        send_ephemeral(&ctx, "No balances yet. Be the first to `/economy cash work`!").await?;
+        send_ephemeral(
+            &ctx,
+            "No balances yet. Be the first to `/economy cash work`!",
+        )
+            .await?;
         return Ok(());
     }
 
@@ -44,7 +49,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
             };
             let total = bal.total();
             description.push_str(&format!(
-                "{medal} **#{rank}** <@{user}> — **{total} {currency}** (wallet {cash}, bank {bank})\n",
+                "{medal} **#{rank}** <@{user}>: **{total} {currency}** (wallet {cash}, bank {bank})\n",
                 user = bal.user_id.get(),
                 cash = bal.cash,
                 bank = bal.bank
@@ -56,13 +61,13 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
             .description(description)
             .color(BRAND_COLOR)
             .footer(CreateEmbedFooter::new(format!(
-                "Page {} of {} — Top {}",
+                "Page {} of {} - Top {}",
                 page_idx + 1,
                 total_pages,
                 total_len
             )))
     })
-    .await?;
+        .await?;
 
     Ok(())
 }

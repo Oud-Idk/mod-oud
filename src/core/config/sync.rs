@@ -10,8 +10,8 @@ use std::sync::Arc;
 /// Listens for Redis Pub/Sub events on `config_updates` and evicts matching entries from the Moka caches.
 ///
 /// Supported payload formats:
-/// - `invalidate:GUILD_ID` — evicts the guild settings cache.
-/// - `invalidate:GUILD_ID:bad_words` — evicts the bad word rulesets cache.
+/// - `invalidate:GUILD_ID`: evicts the guild settings cache.
+/// - `invalidate:GUILD_ID:bad_words`: evicts the bad word rulesets cache.
 pub fn sync_configs(
     subscriber: &SubscriberClient,
     config_cache: &Cache<GuildId, GuildSettings>,

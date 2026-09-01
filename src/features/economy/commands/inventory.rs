@@ -1,9 +1,10 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database};
+use crate::features::economy::{commands, database, ensure_balance};
 use crate::shared::messages::send_ephemeral;
 use crate::shared::pagination;
 use serenity::all::{CreateEmbed, CreateEmbedFooter, User};
+use crate::features::economy::database::inventory::get_inventory_with_items;
 
 /// View your inventory
 #[poise::command(slash_command, guild_only)]
@@ -22,10 +23,10 @@ pub async fn inventory(
 
     // Seed starting balance for self-view as first interaction
     if target.id == ctx.author().id {
-        database::ensure_balance(db, guild_id, target.id, config.starting_balance).await?;
+        ensure_balance(db, guild_id, target.id, config.starting_balance).await?;
     }
 
-    let entries = database::get_inventory_with_items(db, guild_id, target.id).await?;
+    let entries = get_inventory_with_items(db, guild_id, target.id).await?;
 
     if entries.is_empty() {
         send_ephemeral(&ctx, format!("{} has no items.", target.display_name())).await?;
@@ -45,17 +46,17 @@ pub async fn inventory(
                 if item.is_usable { "Usable" } else { "" },
                 if item.is_sellable { "Sellable" } else { "" },
             ]
-            .iter()
-            .filter(|s| !s.is_empty())
-            .copied()
-            .collect::<Vec<_>>()
-            .join(", ");
+                .iter()
+                .filter(|s| !s.is_empty())
+                .copied()
+                .collect::<Vec<_>>()
+                .join(", ");
             let flag_str = if flags.is_empty() {
                 String::new()
             } else {
                 format!(" ({flags})")
             };
-            description.push_str(&format!("{} **{}** x{qty}{flag_str}\n", icon, item.name,));
+            description.push_str(&format!("{} **{}** x{qty}{flag_str}\n", icon, item.name, ));
         }
         CreateEmbed::new()
             .title(format!("{}'s Inventory", target.display_name()))
@@ -67,7 +68,7 @@ pub async fn inventory(
                 total_pages
             )))
     })
-    .await?;
+        .await?;
 
     Ok(())
 }

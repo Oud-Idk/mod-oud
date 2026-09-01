@@ -5,6 +5,7 @@ use crate::features::economy::types::{ItemAction, ItemRequirement, MatchType};
 use crate::features::economy::{commands, database, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
+use crate::features::economy::database::categories::get_category;
 
 /// View detailed info on a store item
 #[poise::command(slash_command, guild_only)]
@@ -38,7 +39,7 @@ pub async fn info(
         .color(BRAND_COLOR);
 
     if let Some(cat_id) = item.category_id {
-        if let Ok(Some(cat)) = database::get_category(db, guild_id, cat_id).await {
+        if let Ok(Some(cat)) = get_category(db, guild_id, cat_id).await {
             embed = embed.field("Category", cat.name, true);
         }
     }

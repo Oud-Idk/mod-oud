@@ -1,8 +1,10 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database};
+use crate::features::economy::{commands, ensure_balance, get_balance, deduct_cash, add_cash};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::{CreateEmbed, User};
+use crate::features::economy::database::balances::set_cash;
+use crate::features::economy::types::Balance;
 
 #[poise::command(slash_command, guild_only, subcommands("give", "take", "set"))]
 pub async fn admin(_: Context<'_>) -> Result<(), Error> {
@@ -20,7 +22,6 @@ pub async fn give(
         send_ephemeral(&ctx, "Amount must be positive.").await?;
         return Ok(());
     }
-
     if user.bot {
         send_ephemeral(&ctx, "You cannot give coins to a bot.").await?;
         return Ok(());
@@ -32,27 +33,15 @@ pub async fn give(
     };
 
     ctx.defer().await?;
-
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
 
-    database::ensure_balance(db, guild_id, user.id, config.starting_balance).await?;
-    let balance = database::add_cash(db, guild_id, user.id, amount).await?;
+    // Seed if brand new, then add cash
+    ensure_balance(db, guild_id, user.id, config.starting_balance).await?;
+    let balance = add_cash(db, guild_id, user.id, amount).await?;
 
-    let embed = CreateEmbed::new()
-        .title("Coins Given")
-        .description(format!(
-            "Gave **{} {}** to **{}**.",
-            amount,
-            config.currency_name,
-            user.display_name()
-        ))
-        .field("Wallet", format!("{} {}", balance.cash, config.currency_name), true)
-        .field("Bank", format!("{} {}", balance.bank, config.currency_name), true)
-        .field("Total", format!("{} {}", balance.total(), config.currency_name), false)
-        .color(BRAND_COLOR);
-
-    ctx.send(poise::CreateReply::default().embed(embed)).await?;
+    let description = format!("Gave **{amount} {}** to **{}**.", config.currency_name, user.display_name());
+    send_balance_embed(&ctx, "Coins Given", &description, &balance, &config.currency_name).await?;
     Ok(())
 }
 
@@ -67,7 +56,6 @@ pub async fn take(
         send_ephemeral(&ctx, "Amount must be positive.").await?;
         return Ok(());
     }
-
     if user.bot {
         send_ephemeral(&ctx, "You cannot take coins from a bot.").await?;
         return Ok(());
@@ -79,42 +67,35 @@ pub async fn take(
     };
 
     ctx.defer().await?;
-
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
 
-    database::ensure_balance(db, guild_id, user.id, config.starting_balance).await?;
-    let Some(balance) = database::deduct_cash(db, guild_id, user.id, amount).await? else {
-        let current = database::get_balance(db, guild_id, user.id).await?;
-        send_ephemeral(
-            &ctx,
-            format!(
-                "**{}** only has **{} {}** in their wallet, cannot take **{} {}**.",
-                user.display_name(),
-                current.cash,
-                config.currency_name,
-                amount,
-                config.currency_name
-            ),
-        )
-        .await?;
-        return Ok(());
+    // Try deducting directly first!
+    let deduct_res = deduct_cash(db, guild_id, user.id, amount).await?;
+
+    let balance = match deduct_res {
+        Some(bal) => bal,
+        None => {
+            // Either insufficient funds or user doesn't exist yet
+            let current = get_balance(db, guild_id, user.id).await?;
+            send_ephemeral(
+                &ctx,
+                format!(
+                    "**{}** only has **{} {}** in their wallet, cannot take **{} {}**.",
+                    user.display_name(),
+                    current.cash,
+                    config.currency_name,
+                    amount,
+                    config.currency_name
+                ),
+            )
+                .await?;
+            return Ok(());
+        }
     };
 
-    let embed = CreateEmbed::new()
-        .title("Coins Taken")
-        .description(format!(
-            "Took **{} {}** from **{}**.",
-            amount,
-            config.currency_name,
-            user.display_name()
-        ))
-        .field("Wallet", format!("{} {}", balance.cash, config.currency_name), true)
-        .field("Bank", format!("{} {}", balance.bank, config.currency_name), true)
-        .field("Total", format!("{} {}", balance.total(), config.currency_name), false)
-        .color(BRAND_COLOR);
-
-    ctx.send(poise::CreateReply::default().embed(embed)).await?;
+    let description = format!("Took **{amount} {}** from **{}**.", config.currency_name, user.display_name());
+    send_balance_embed(&ctx, "Coins Taken", &description, &balance, &config.currency_name).await?;
     Ok(())
 }
 
@@ -129,7 +110,6 @@ pub async fn set(
         send_ephemeral(&ctx, "Amount cannot be negative.").await?;
         return Ok(());
     }
-
     if user.bot {
         send_ephemeral(&ctx, "You cannot set a bot's balance.").await?;
         return Ok(());
@@ -141,23 +121,29 @@ pub async fn set(
     };
 
     ctx.defer().await?;
-
     let guild_id = ctx.guild_id().unwrap();
     let db = &ctx.data().core.db;
 
-    let balance = database::set_cash(db, guild_id, user.id, amount).await?;
+    let balance = set_cash(db, guild_id, user.id, amount).await?;
 
+    let description = format!("Set **{}**'s wallet to **{amount} {}**.", user.display_name(), config.currency_name);
+    send_balance_embed(&ctx, "Wallet Set", &description, &balance, &config.currency_name).await?;
+    Ok(())
+}
+
+async fn send_balance_embed(
+    ctx: &Context<'_>,
+    title: &str,
+    description: &str,
+    balance: &Balance,
+    currency_name: &str,
+) -> Result<(), Error> {
     let embed = CreateEmbed::new()
-        .title("Wallet Set")
-        .description(format!(
-            "Set **{}**'s wallet to **{} {}**.",
-            user.display_name(),
-            amount,
-            config.currency_name
-        ))
-        .field("Wallet", format!("{} {}", balance.cash, config.currency_name), true)
-        .field("Bank", format!("{} {}", balance.bank, config.currency_name), true)
-        .field("Total", format!("{} {}", balance.total(), config.currency_name), false)
+        .title(title)
+        .description(description)
+        .field("Wallet", format!("{} {currency_name}", balance.cash), true)
+        .field("Bank", format!("{} {currency_name}", balance.bank), true)
+        .field("Total", format!("{} {currency_name}", balance.total()), false)
         .color(BRAND_COLOR);
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;

@@ -1,9 +1,9 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{commands, database, validation};
+use crate::features::economy::{commands, database, ensure_balance, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-
+use crate::features::economy::database::shop::{purchase_item_tx, PurchaseError};
 // Re-export for backwards compatibility if external code imported via buy module
 pub use super::actions::execute_buy_actions;
 
@@ -38,7 +38,7 @@ pub async fn buy(
     let db = &ctx.data().core.db;
 
     // Seed starting balance before any balance checks
-    database::ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
+    ensure_balance(db, guild_id, user_id, config.starting_balance).await?;
 
     let Some(item) = validation::resolve_item(db, guild_id, &item_input).await? else {
         send_ephemeral(&ctx, "Item not found.").await?;
@@ -50,7 +50,7 @@ pub async fn buy(
         return Ok(());
     }
 
-    let result = database::purchase_item_tx(db, guild_id, user_id, item.id, qty).await?;
+    let result = purchase_item_tx(db, guild_id, user_id, item.id, qty).await?;
 
     match result {
         Ok((bought_item, balance)) => {
@@ -77,17 +77,17 @@ pub async fn buy(
 
             ctx.send(poise::CreateReply::default().embed(embed)).await?;
         }
-        Err(database::PurchaseError::InvalidQuantity) => {
+        Err(PurchaseError::InvalidQuantity) => {
             send_ephemeral(&ctx, "Invalid quantity or total price is too large.").await?;
         }
-        Err(database::PurchaseError::InsufficientStock { remaining }) => {
+        Err(PurchaseError::InsufficientStock { remaining }) => {
             send_ephemeral(
                 &ctx,
                 format!("Not enough stock! Only **{remaining}** remaining."),
             )
                 .await?;
         }
-        Err(database::PurchaseError::InsufficientFunds { wallet }) => {
+        Err(PurchaseError::InsufficientFunds { wallet }) => {
             let total_cost = item.price.saturating_mul(qty as i64);
             send_ephemeral(
                 &ctx,
@@ -98,7 +98,7 @@ pub async fn buy(
             )
                 .await?;
         }
-        Err(database::PurchaseError::ItemNotFoundOrExpired) => {
+        Err(PurchaseError::ItemNotFoundOrExpired) => {
             send_ephemeral(&ctx, "This item is no longer available.").await?;
         }
     }

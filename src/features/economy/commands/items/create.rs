@@ -4,6 +4,7 @@ use crate::features::economy::commands::inventory;
 use crate::features::economy::{commands, database, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
+use crate::features::economy::database::items::{create_item, CreateItemParams};
 
 /// Create a new store item
 #[poise::command(slash_command, guild_only, required_permissions = "MANAGE_GUILD")]
@@ -48,7 +49,7 @@ pub async fn create(
     let is_sellable = is_inventory && sellable.unwrap_or(true);
     let is_listed = listed.unwrap_or(true);
 
-    let payload = database::CreateItemParams {
+    let payload = CreateItemParams {
         name: &name,
         description: description.as_deref().unwrap_or(""),
         price,
@@ -66,7 +67,7 @@ pub async fn create(
         expires_at: None,
     };
 
-    let item = database::create_item(db, guild_id, payload).await?;
+    let item = create_item(db, guild_id, payload).await?;
 
     let mut embed = CreateEmbed::new()
         .title("Item Created!")

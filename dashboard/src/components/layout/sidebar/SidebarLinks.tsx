@@ -9,6 +9,7 @@ import {
     Cake,
     ChevronDown, CircleDollarSign,
     Clapperboard,
+    Dices,
     DoorOpen,
     FileText,
     LayoutDashboard,
@@ -92,6 +93,7 @@ export function SidebarLinks(): JSX.Element | null {
                 { name: "Reaction Roles", href: `/dashboard/${guildId}/reaction-roles`, icon: FaceSmileIcon },
                 { name: "Starboard", href: `/dashboard/${guildId}/starboard`, icon: Star },
                 { name: "Economy", href: `/dashboard/${guildId}/economy`, icon: CircleDollarSign },
+                { name: "Gambling", href: `/dashboard/${guildId}/gambling`, icon: Dices },
             ],
         },
         {

@@ -1,7 +1,11 @@
 use crate::features::economy::types::Balance;
 use serenity::all::{GuildId, UserId};
-use sqlx::PgPool;
+use sqlx::{PgPool, PgTransaction};
 
+/// Gets someone's balance.
+///
+/// # Errors
+/// Returns [`Err`] if any database operation fails.
 pub async fn get_balance(
     db: &PgPool,
     guild_id: GuildId,
@@ -19,19 +23,24 @@ pub async fn get_balance(
     .fetch_optional(db)
     .await?;
 
-    match row {
-        Some(r) => Ok(Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank)),
-        None => Ok(Balance {
-            guild_id,
-            user_id,
-            cash: 0,
-            bank: 0,
-        }),
-    }
+    row.map_or_else(
+        || {
+            Ok(Balance {
+                guild_id,
+                user_id,
+                cash: 0,
+                bank: 0,
+            })
+        },
+        |r| Ok(Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank)),
+    )
 }
 
 /// Ensure a balance row exists, seeding with `starting_balance` if missing.
 /// Returns the current balance (existing or newly seeded).
+///
+/// # Errors
+/// Returns [`Err`] if database operation fails.
 pub async fn ensure_balance(
     db: &PgPool,
     guild_id: GuildId,
@@ -89,6 +98,10 @@ pub async fn upsert_balance(
     Ok(())
 }
 
+/// Adds cash to someone's wallet.
+///
+/// # Errors
+/// Returns [`Err`] if any database operation fails.
 pub async fn add_cash(
     db: &PgPool,
     guild_id: GuildId,
@@ -147,6 +160,9 @@ pub async fn transfer_cash_to_bank(
 
 /// Deduct coins from a user's wallet. Returns the updated balance, or
 /// `None` if the user has insufficient funds.
+///
+/// # Errors
+/// Returns [`Err`] if database operation fails.
 pub async fn deduct_cash(
     db: &PgPool,
     guild_id: GuildId,
@@ -223,7 +239,12 @@ pub async fn set_cash(
     .fetch_one(db)
     .await?;
 
-    Ok(Balance::from_raw(row.guild_id, row.user_id, row.cash, row.bank))
+    Ok(Balance::from_raw(
+        row.guild_id,
+        row.user_id,
+        row.cash,
+        row.bank,
+    ))
 }
 
 pub async fn get_leaderboard(
@@ -360,4 +381,121 @@ pub async fn transfer_cash(
             receiver_row.bank,
         ),
     )))
+}
+
+/// Fetch balance within an active transaction / connection.
+pub async fn get_balance_tx(
+    tx: &mut PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<Balance, sqlx::Error> {
+    let row = sqlx::query!(
+        r#"
+        SELECT guild_id, user_id, cash, bank
+        FROM economy_balances
+        WHERE guild_id = $1 AND user_id = $2
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+
+    Ok(row.map_or_else(
+        || Balance {
+            guild_id,
+            user_id,
+            cash: 0,
+            bank: 0,
+        },
+        |r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank),
+    ))
+}
+
+/// Add cash to a user's wallet within a transaction (upserts if missing).
+pub async fn add_cash_tx(
+    tx: &mut PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    amount: i64,
+) -> Result<Balance, sqlx::Error> {
+    let row = sqlx::query!(
+        r#"
+        INSERT INTO economy_balances (guild_id, user_id, cash, bank)
+        VALUES ($1, $2, $3, 0)
+        ON CONFLICT (guild_id, user_id) DO UPDATE SET
+            cash = economy_balances.cash + EXCLUDED.cash
+        RETURNING guild_id, user_id, cash, bank
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        amount,
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+
+    Ok(Balance::from_raw(
+        row.guild_id,
+        row.user_id,
+        row.cash,
+        row.bank,
+    ))
+}
+
+/// Deduct cash within a transaction. Returns `None` if insufficient funds.
+pub async fn deduct_cash_tx(
+    tx: &mut PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    amount: i64,
+) -> Result<Option<Balance>, sqlx::Error> {
+    if amount <= 0 {
+        return Ok(None);
+    }
+
+    let row = sqlx::query!(
+        r#"
+        UPDATE economy_balances
+        SET cash = cash - $3
+        WHERE guild_id = $1 AND user_id = $2 AND cash >= $3
+        RETURNING guild_id, user_id, cash, bank
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        amount,
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+
+    Ok(row.map(|r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank)))
+}
+
+/// Set a user's exact cash balance within a transaction.
+pub async fn set_cash_tx(
+    tx: &mut PgTransaction<'_>,
+    guild_id: GuildId,
+    user_id: UserId,
+    amount: i64,
+) -> Result<Balance, sqlx::Error> {
+    let row = sqlx::query!(
+        r#"
+        INSERT INTO economy_balances (guild_id, user_id, cash, bank)
+        VALUES ($1, $2, $3, 0)
+        ON CONFLICT (guild_id, user_id) DO UPDATE SET
+            cash = EXCLUDED.cash
+        RETURNING guild_id, user_id, cash, bank
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        amount,
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+
+    Ok(Balance::from_raw(
+        row.guild_id,
+        row.user_id,
+        row.cash,
+        row.bank,
+    ))
 }
