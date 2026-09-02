@@ -57,7 +57,10 @@ describe("sendEmbedAction", () => {
                 "http://localhost:8080/api/guilds/guild-123/embeds/send",
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    cache: "no-store",
+                    headers: new Headers({
+                        "Content-Type": "application/json",
+                    }),
                     body: JSON.stringify({
                         channel_id: "channel-456",
                         content: null,

@@ -1,4 +1,3 @@
-import { config } from "@/config";
 import { backendFetch } from "@/lib/backend";
 import { reportConfigSchema, reportedMessageSchema, type ReportConfig, type ReportedMessage } from "./types";
 import { db } from "@/lib/db";

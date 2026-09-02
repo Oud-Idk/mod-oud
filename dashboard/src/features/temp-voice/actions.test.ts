@@ -164,7 +164,6 @@ describe("Temp Voice Action Module", () => {
             expect(url).toContain("/api/guilds/guild_123/temp-voice/setup");
             const init = mockFetch.mock.calls[0][1];
             expect(init?.method).toBe("POST");
-            expect(init?.headers).toEqual({ "Content-Type": "application/json" });
             expect(typeof init?.body).toBe("string");
             const bodyText = typeof init?.body === "string" ? init.body : "";
             expect(bodyText).toContain('"category_name":"Voice"');

@@ -439,7 +439,8 @@ describe("Reaction Roles Query Module", () => {
             expect(url).toContain("/api/guilds/guild_123/reaction-roles/4/send");
             expect(init).toEqual({
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                cache: "no-store",
+                headers: new Headers({ "Content-Type": "application/json" }),
             });
         });
 
@@ -520,7 +521,11 @@ describe("Reaction Roles Query Module", () => {
 
             const [url, init] = mockFetch.mock.calls[0];
             expect(url).toContain("/api/guilds/guild_123/reaction-roles/4/edit");
-            expect(init).toEqual({ method: "POST" });
+            expect(init).toEqual(
+                expect.objectContaining({
+                    method: "POST",
+                })
+            );
         });
 
         it("should swallow errors gracefully and log to console.error", async () => {

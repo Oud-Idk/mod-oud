@@ -90,5 +90,8 @@ function economyConfigFixture(): EconomyConfig {
         workCooldownSecs: 1800,
         workMinReward: 500,
         workMaxReward: 2500,
+        workMessage: "Work message",
+        startingBalance: 0,
+        giftingEnabled: true,
     };
 }

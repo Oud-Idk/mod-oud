@@ -1,4 +1,3 @@
-import { config } from "@/config"
 import { backendFetch } from "@/lib/backend";
 import { db } from "@/lib/db";
 import {

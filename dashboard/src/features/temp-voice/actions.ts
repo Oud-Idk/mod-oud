@@ -1,6 +1,5 @@
 "use server";
 
-import { config } from "@/config";
 import { backendFetch } from "@/lib/backend";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";

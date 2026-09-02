@@ -7,7 +7,6 @@ import {
     type WelcomeConfig, TeardownVerificationPayload,
 } from "./types";
 import { MessageLayout } from "@/features/_shared/embed";
-import { config } from "@/config";
 
 export async function setupVerificationService(
     guildId: string,

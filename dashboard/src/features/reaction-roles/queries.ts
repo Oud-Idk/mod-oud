@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { backendFetch } from "@/lib/backend";
-import { config } from "@/config";
 import { db } from "@/lib/db";
 import {
     reactionMessageSchema,

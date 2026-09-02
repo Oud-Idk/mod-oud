@@ -3,7 +3,6 @@ import { backendFetch } from "@/lib/backend";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
 import { z } from "zod";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
-import { config } from "@/config";
 
 export async function saveHoneypotConfig(guildId: string, config: HoneypotConfig): Promise<void> {
     await saveGuildConfigField(guildId, "honeypot", config);

@@ -13,7 +13,6 @@ import {
 } from "@/features/giveaways/types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { z } from "zod";
-import { config as globalConfig } from "@/config"
 
 export async function saveGiveawayAction(guildId: string, config: SaveGiveawayData): Promise<Giveaway> {
     try {

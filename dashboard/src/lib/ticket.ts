@@ -32,7 +32,7 @@ export function signTicket(
     secret?: string
 ): string {
     const s = secret ?? getSecret();
-    const payload = `${guildId}:${userId}:${expires}:${purpose}`;
+    const payload = `${guildId}:${userId}:${expires.toString()}:${purpose}`;
     return createHmac("sha256", s).update(payload).digest("hex");
 }
 
