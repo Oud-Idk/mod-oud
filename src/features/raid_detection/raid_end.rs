@@ -74,7 +74,7 @@ pub async fn handle_raid_end(
         return Ok(());
     };
 
-    revert_actions(&ctx, data, guild_id, &raid_config).await?;
+    revert_actions(ctx, data, guild_id, &raid_config).await?;
 
     Ok(())
 }
@@ -83,7 +83,7 @@ async fn revert_actions(
     ctx: &Context,
     data: &BotData,
     guild_id: GuildId,
-    raid_config: &Box<RaidDetectionConfig>,
+    raid_config: &RaidDetectionConfig,
 ) -> Result<(), Error> {
     for action in &raid_config.raid_actions {
         match action {

@@ -10,7 +10,7 @@ struct RawRaidGuild {
 
 impl From<RawRaidGuild> for GuildId {
     fn from(row: RawRaidGuild) -> Self {
-        GuildId::new(row.guild_id.cast_unsigned())
+        Self::new(row.guild_id.cast_unsigned())
     }
 }
 

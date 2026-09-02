@@ -1,6 +1,6 @@
 use crate::core::config::message_layout::MessageLayout;
 use serde::{Deserialize, Serialize};
-use serde_with::{DefaultOnError, DisplayFromStr, serde_as};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
@@ -57,7 +57,7 @@ pub struct VoiceSettings {
 #[serde(rename_all = "camelCase")]
 pub struct NotificationSettings {
     pub scope: NotificationScope,
-    #[serde_as(as = "DefaultOnError<Option<DisplayFromStr>>")]
+    #[serde_as(as = "Option<DisplayFromStr>")]
     pub channel_id: Option<ChannelId>,
     pub message: MessageLayout,
 }
@@ -69,24 +69,6 @@ pub struct UserLevel {
     pub cumulative_xp: i64,
     pub current_level: i64,
     pub current_xp: i64,
-}
-
-impl UserLevel {
-    pub const fn from_raw(
-        guild_id: i64,
-        user_id: i64,
-        cumulative_xp: i64,
-        current_level: i64,
-        current_xp: i64,
-    ) -> Self {
-        Self {
-            guild_id: GuildId::new(guild_id.cast_unsigned()),
-            user_id: UserId::new(user_id.cast_unsigned()),
-            cumulative_xp,
-            current_level,
-            current_xp,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

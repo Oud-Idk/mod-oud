@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, guild_id, content, created_at\n        FROM economy_work_messages\n        WHERE guild_id = $1\n        ORDER BY created_at ASC\n        ",
+  "query": "\n        SELECT id, guild_id, content\n        FROM economy_work_messages\n        WHERE guild_id = $1\n        ORDER BY created_at ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -35,17 +35,6 @@
             "name": "content"
           }
         }
-      },
-      {
-        "ordinal": 3,
-        "name": "created_at",
-        "type_info": "Timestamptz",
-        "origin": {
-          "Table": {
-            "table": "economy_work_messages",
-            "name": "created_at"
-          }
-        }
       }
     ],
     "parameters": {
@@ -56,9 +45,8 @@
     "nullable": [
       false,
       false,
-      false,
       false
     ]
   },
-  "hash": "7dec3cef423f5a819e9c23b08c033c162c05ad489fbc08cd576538a979c986f4"
+  "hash": "07942bb60f6fce9f0cdc4594c937c34e985371441a5b56ecff3c3d3e83b65244"
 }

@@ -1,5 +1,4 @@
 use crate::features::economy::types::WorkMessage;
-use chrono::{DateTime, Utc};
 use serenity::all::GuildId;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -9,7 +8,6 @@ struct RawWorkMessage {
     id: Uuid,
     guild_id: i64,
     content: String,
-    created_at: DateTime<Utc>,
 }
 
 impl From<RawWorkMessage> for WorkMessage {
@@ -18,16 +16,18 @@ impl From<RawWorkMessage> for WorkMessage {
             id: r.id,
             guild_id: GuildId::new(r.guild_id.cast_unsigned()),
             content: r.content,
-            created_at: r.created_at,
         }
     }
 }
 
-pub async fn list_work_messages(db: &PgPool, guild_id: GuildId) -> Result<Vec<WorkMessage>, sqlx::Error> {
+pub async fn list_work_messages(
+    db: &PgPool,
+    guild_id: GuildId,
+) -> Result<Vec<WorkMessage>, sqlx::Error> {
     let rows = sqlx::query_as!(
         RawWorkMessage,
         r#"
-        SELECT id, guild_id, content, created_at
+        SELECT id, guild_id, content
         FROM economy_work_messages
         WHERE guild_id = $1
         ORDER BY created_at ASC
@@ -47,7 +47,7 @@ pub async fn get_random_work_message(
     let row = sqlx::query_as!(
         RawWorkMessage,
         r#"
-        SELECT id, guild_id, content, created_at
+        SELECT id, guild_id, content
         FROM economy_work_messages
         WHERE guild_id = $1
         ORDER BY RANDOM()
@@ -71,7 +71,7 @@ pub async fn create_work_message(
         r#"
         INSERT INTO economy_work_messages (guild_id, content)
         VALUES ($1, $2)
-        RETURNING id, guild_id, content, created_at
+        RETURNING id, guild_id, content
         "#,
         guild_id.get().cast_signed(),
         content,
@@ -112,7 +112,7 @@ pub async fn update_work_message(
         UPDATE economy_work_messages
         SET content = $3
         WHERE guild_id = $1 AND id = $2
-        RETURNING id, guild_id, content, created_at
+        RETURNING id, guild_id, content
         "#,
         guild_id.get().cast_signed(),
         message_id,

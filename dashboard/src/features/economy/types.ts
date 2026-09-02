@@ -17,6 +17,7 @@ export const economyConfigSchema = z
         workMaxReward: z.number().int().nonnegative().default(5000),
         workMessage: z.string().default("You earned **{reward} {currency}**!"),
         startingBalance: z.number().int().nonnegative().default(0),
+        giftingEnabled: z.boolean().default(true),
     })
     .refine((data) => data.workMinReward <= data.workMaxReward, {
         message: "Minimum work reward must be less than or equal to maximum work reward.",

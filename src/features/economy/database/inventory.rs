@@ -47,6 +47,79 @@ struct RawInventoryItem {
     quantity: i32,
 }
 
+impl From<RawInventoryItem> for (Item, i32) {
+    fn from(r: RawInventoryItem) -> Self {
+        let item = Item {
+            id: r.id,
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            name: r.name,
+            description: r.description,
+            price: r.price,
+            category_id: r.category_id,
+            emoji_unicode: r.emoji_unicode,
+            emoji_id: r.emoji_id,
+            is_inventory: r.is_inventory,
+            is_usable: r.is_usable,
+            is_sellable: r.is_sellable,
+            is_listed: r.is_listed,
+            unlimited_stock: r.unlimited_stock,
+            stock_remaining: r.stock_remaining,
+            requirements: r.requirements,
+            actions: r.actions,
+            expires_at: r.expires_at,
+            created_at: r.created_at,
+        };
+        (item, r.quantity)
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct RawItem {
+    id: Uuid,
+    guild_id: i64,
+    name: String,
+    description: String,
+    price: i64,
+    category_id: Option<Uuid>,
+    emoji_unicode: Option<String>,
+    emoji_id: Option<String>,
+    is_inventory: bool,
+    is_usable: bool,
+    is_sellable: bool,
+    is_listed: bool,
+    unlimited_stock: bool,
+    stock_remaining: i32,
+    requirements: Value,
+    actions: Value,
+    expires_at: Option<DateTime<Utc>>,
+    created_at: DateTime<Utc>,
+}
+
+impl From<RawItem> for Item {
+    fn from(r: RawItem) -> Self {
+        Self {
+            id: r.id,
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            name: r.name,
+            description: r.description,
+            price: r.price,
+            category_id: r.category_id,
+            emoji_unicode: r.emoji_unicode,
+            emoji_id: r.emoji_id,
+            is_inventory: r.is_inventory,
+            is_usable: r.is_usable,
+            is_sellable: r.is_sellable,
+            is_listed: r.is_listed,
+            unlimited_stock: r.unlimited_stock,
+            stock_remaining: r.stock_remaining,
+            requirements: r.requirements,
+            actions: r.actions,
+            expires_at: r.expires_at,
+            created_at: r.created_at,
+        }
+    }
+}
+
 /// Fetch all inventory rows for a user in a guild.
 pub async fn get_inventory(
     db: &PgPool,
@@ -210,35 +283,7 @@ pub async fn get_inventory_with_items(
     .fetch_all(db)
     .await?;
 
-    let result = rows
-        .into_iter()
-        .map(|r| {
-            let quantity = r.quantity;
-            let item = Item {
-                id: r.id,
-                guild_id: GuildId::new(r.guild_id.cast_unsigned()),
-                name: r.name,
-                description: r.description,
-                price: r.price,
-                category_id: r.category_id,
-                emoji_unicode: r.emoji_unicode,
-                emoji_id: r.emoji_id,
-                is_inventory: r.is_inventory,
-                is_usable: r.is_usable,
-                is_sellable: r.is_sellable,
-                is_listed: r.is_listed,
-                unlimited_stock: r.unlimited_stock,
-                stock_remaining: r.stock_remaining,
-                requirements: r.requirements,
-                actions: r.actions,
-                expires_at: r.expires_at,
-                created_at: r.created_at,
-            };
-            (item, quantity)
-        })
-        .collect();
-
-    Ok(result)
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 /// Add an item to inventory within an active transaction (upserts/increments).
@@ -353,4 +398,119 @@ pub async fn has_item_tx(
     .await?;
 
     Ok(row.is_some_and(|q| q >= quantity))
+}
+
+pub enum GiftError {
+    InvalidQuantity,
+    ItemNotFound,
+    NotGiftable,
+    InsufficientQuantity { owned: i32 },
+}
+
+/// Atomically gift an item from one user to another within a transaction.
+/// Removes `quantity` from `from_user` and adds it to `to_user`.
+pub async fn gift_item_tx(
+    db: &PgPool,
+    guild_id: GuildId,
+    from_user: UserId,
+    to_user: UserId,
+    item_id: Uuid,
+    quantity: i32,
+) -> Result<Result<Item, GiftError>, sqlx::Error> {
+    if quantity <= 0 {
+        return Ok(Err(GiftError::InvalidQuantity));
+    }
+    if from_user == to_user {
+        return Ok(Err(GiftError::InvalidQuantity));
+    }
+
+    let mut tx = db.begin().await?;
+
+    // Fetch & validate item belongs to guild
+    let item_row = sqlx::query_as!(
+        RawItem,
+        r#"
+        SELECT id, guild_id, name, description, price, category_id,
+               emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,
+               is_listed, unlimited_stock, stock_remaining,
+               requirements, actions,
+               expires_at, created_at
+        FROM economy_items
+        WHERE guild_id = $1 AND id = $2
+        "#,
+        guild_id.get().cast_signed(),
+        item_id,
+    )
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    let Some(r) = item_row else {
+        return Ok(Err(GiftError::ItemNotFound));
+    };
+
+    let item: Item = r.into();
+
+    if !item.is_inventory {
+        return Ok(Err(GiftError::NotGiftable));
+    }
+
+    // Lock sender row and check owned quantity
+    let owned = sqlx::query_scalar!(
+        r#"
+        SELECT quantity FROM economy_inventory
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3
+        FOR UPDATE
+        "#,
+        guild_id.get().cast_signed(),
+        from_user.get().cast_signed(),
+        item_id,
+    )
+    .fetch_optional(&mut *tx)
+    .await?
+    .unwrap_or(0);
+
+    if owned < quantity {
+        return Ok(Err(GiftError::InsufficientQuantity { owned }));
+    }
+
+    // Remove from sender
+    sqlx::query!(
+        r#"
+        WITH deleted AS (
+            DELETE FROM economy_inventory
+            WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity = $4
+            RETURNING 1
+        )
+        UPDATE economy_inventory
+        SET quantity = quantity - $4
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity > $4
+          AND NOT EXISTS (SELECT 1 FROM deleted)
+        "#,
+        guild_id.get().cast_signed(),
+        from_user.get().cast_signed(),
+        item_id,
+        quantity,
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // Add to receiver
+    sqlx::query!(
+        r#"
+        INSERT INTO economy_inventory (guild_id, user_id, item_id, quantity)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (guild_id, user_id, item_id) DO UPDATE SET
+            quantity = economy_inventory.quantity + EXCLUDED.quantity
+        "#,
+        guild_id.get().cast_signed(),
+        to_user.get().cast_signed(),
+        item_id,
+        quantity,
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(Ok(item))
 }

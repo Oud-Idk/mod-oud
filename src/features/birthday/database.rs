@@ -21,6 +21,7 @@ impl From<RawUserBirthdayRecord> for UserBirthdayRecord {
 }
 
 #[derive(sqlx::FromRow)]
+#[allow(clippy::struct_field_names)]
 struct RawExpiredRole {
     guild_id: i64,
     user_id: i64,

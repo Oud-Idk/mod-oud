@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        UPDATE economy_work_messages\n        SET content = $3\n        WHERE guild_id = $1 AND id = $2\n        RETURNING id, guild_id, content, created_at\n        ",
+  "query": "\n        INSERT INTO economy_work_messages (guild_id, content)\n        VALUES ($1, $2)\n        RETURNING id, guild_id, content\n        ",
   "describe": {
     "columns": [
       {
@@ -35,32 +35,19 @@
             "name": "content"
           }
         }
-      },
-      {
-        "ordinal": 3,
-        "name": "created_at",
-        "type_info": "Timestamptz",
-        "origin": {
-          "Table": {
-            "table": "economy_work_messages",
-            "name": "created_at"
-          }
-        }
       }
     ],
     "parameters": {
       "Left": [
         "Int8",
-        "Uuid",
         "Text"
       ]
     },
     "nullable": [
       false,
       false,
-      false,
       false
     ]
   },
-  "hash": "55bf5df10e4a875700bc5665d45e356096e0cbab38fabf59121ea939d82647d7"
+  "hash": "9f785671d56a6670ec2c5f8dd40c4e624e7a615703425565cd5677e88c3e9eea"
 }

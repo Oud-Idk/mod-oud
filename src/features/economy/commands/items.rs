@@ -6,6 +6,7 @@ pub mod info;
 pub mod list;
 pub mod sell;
 pub mod use_item;
+pub mod gift;
 
 use buy::buy;
 use create::create;
@@ -14,14 +15,16 @@ use info::info;
 use list::list;
 use sell::sell;
 use use_item::use_item;
+use gift::gift;
 
 use crate::core::config::state::{Context, Error};
+
 
 /// Manage the item store
 #[poise::command(
     slash_command,
     guild_only,
-    subcommands("create", "delete", "list", "info", "buy", "use_item", "sell")
+    subcommands("create", "delete", "list", "info", "buy", "use_item", "sell", "gift")
 )]
 pub async fn items(_: Context<'_>) -> Result<(), Error> {
     Ok(())

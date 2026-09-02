@@ -102,6 +102,15 @@ export function EconomyGeneralSettingsTab({
                         <p className="text-xs mt-1">Initial wallet amount for new users on first
                             interaction.</p>
                     </div>
+
+                    <ToggleSwitch
+                        checked={config.giftingEnabled ?? true}
+                        onChange={(giftingEnabled) => {
+                            setConfig((prev) => ({ ...prev, giftingEnabled }));
+                        }}
+                        text="Allow Item Gifting"
+                    />
+                    <p className="text-xs -mt-3">Enables <code className="px-1 py-0.5 bg-surface-muted rounded text-xs">/economy gift</code> for transferring inventory items between users.</p>
                 </>
             )}
 

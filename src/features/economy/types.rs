@@ -34,6 +34,10 @@ const fn default_rob_fine_percent() -> i64 {
     10
 }
 
+const fn default_gifting_enabled() -> bool {
+    true
+}
+
 /// Configuration settings specifically for the `/rob` command.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -94,6 +98,9 @@ pub struct EconomyConfig {
     /// Robbery settings.
     #[serde(default)]
     pub rob: RobConfig,
+    /// Whether item gifting between users is enabled.
+    #[serde(default = "default_gifting_enabled")]
+    pub gifting_enabled: bool,
 }
 
 impl Default for EconomyConfig {
@@ -107,6 +114,7 @@ impl Default for EconomyConfig {
             work_message: default_work_message(),
             starting_balance: 0,
             rob: RobConfig::default(),
+            gifting_enabled: default_gifting_enabled(),
         }
     }
 }
@@ -144,17 +152,6 @@ impl Balance {
     #[must_use]
     pub const fn total(&self) -> i64 {
         self.cash + self.bank
-    }
-
-    /// Constructs a `Balance` from raw signed database values.
-    #[must_use]
-    pub const fn from_raw(guild_id: i64, user_id: i64, cash: i64, bank: i64) -> Self {
-        Self {
-            guild_id: GuildId::new(guild_id.cast_unsigned()),
-            user_id: UserId::new(user_id.cast_unsigned()),
-            cash,
-            bank,
-        }
     }
 }
 
@@ -385,53 +382,11 @@ impl Item {
 
         None
     }
-
-    #[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
-    pub const fn from_raw(
-        id: Uuid,
-        guild_id: i64,
-        name: String,
-        description: String,
-        price: i64,
-        category_id: Option<Uuid>,
-        emoji_unicode: Option<String>,
-        emoji_id: Option<String>,
-        is_inventory: bool,
-        is_usable: bool,
-        is_sellable: bool,
-        is_listed: bool,
-        unlimited_stock: bool,
-        stock_remaining: i32,
-        requirements: serde_json::Value,
-        actions: serde_json::Value,
-        expires_at: Option<DateTime<Utc>>,
-        created_at: DateTime<Utc>,
-    ) -> Self {
-        Self {
-            id,
-            guild_id: GuildId::new(guild_id.cast_unsigned()),
-            name,
-            description,
-            price,
-            category_id,
-            emoji_unicode,
-            emoji_id,
-            is_inventory,
-            is_usable,
-            is_sellable,
-            is_listed,
-            unlimited_stock,
-            stock_remaining,
-            requirements,
-            actions,
-            expires_at,
-            created_at,
-        }
-    }
 }
 
 /// A row in the `economy_inventory` table.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct InventoryRow {
     pub guild_id: GuildId,
     pub user_id: UserId,
@@ -441,33 +396,20 @@ pub struct InventoryRow {
 
 /// A category for organizing store items.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ItemCategory {
     pub id: Uuid,
     pub guild_id: GuildId,
     pub name: String,
-    pub description: String,
-    pub position: i32,
-    pub emoji_unicode: Option<String>,
-    pub emoji_id: Option<String>,
-}
-
-impl ItemCategory {
-    #[must_use]
-    pub fn emoji_id(&self) -> Option<EmojiId> {
-        self.emoji_id
-            .as_deref()
-            .and_then(|id| id.parse::<u64>().ok())
-            .map(EmojiId::new)
-    }
 }
 
 /// A plaintext work message template. Relational: multiple per guild, picked at random.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WorkMessage {
     pub id: Uuid,
     pub guild_id: GuildId,
     pub content: String,
-    pub created_at: DateTime<Utc>,
 }
 
 impl WorkMessage {

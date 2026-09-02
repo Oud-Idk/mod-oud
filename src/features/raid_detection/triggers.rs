@@ -87,7 +87,7 @@ pub async fn trigger_raid_manual(
         return Ok(true);
     };
 
-    invoke_actions(&ctx, &data, guild_id, mod_username, &raid_config).await?;
+    invoke_actions(ctx, data, guild_id, mod_username, &raid_config).await?;
 
     info!(
         %guild_id,
@@ -103,7 +103,7 @@ async fn invoke_actions(
     data: &BotData,
     guild_id: GuildId,
     mod_username: &str,
-    raid_config: &Box<RaidDetectionConfig>,
+    raid_config: &RaidDetectionConfig,
 ) -> Result<(), Error> {
     for action in &raid_config.raid_actions {
         match action {
