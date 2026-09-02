@@ -8,7 +8,6 @@ import { DeletedMessage } from "@/features/message-logging/types";
 import { AttachmentImage } from "@/components/layout/AttachmentImage";
 
 interface DeletedMessageLogViewerProps {
-    sseUrl: string;
     initialHistory?: DeletedMessage[];
     channelMap?: Record<string, string>;
     guildId: string;
@@ -16,7 +15,6 @@ interface DeletedMessageLogViewerProps {
 }
 
 export function DeletedMessageLogViewer({
-    sseUrl,
     initialHistory = [],
     channelMap = {},
     guildId,
@@ -28,14 +26,13 @@ export function DeletedMessageLogViewer({
         <>
             <LogViewer<DeletedMessage>
                 title="Deletion Logs"
-                sseUrl={sseUrl}
                 initialHistory={initialHistory}
                 guildId={guildId}
                 fetchMoreAction={fetchMoreAction}
                 eventName="message-delete"
                 emptyText="No activity recorded yet..."
                 renderItem={(log) => {
-                    const channelName = `#${channelMap[log.channel_id]}`;
+                    const channelName = `#${channelMap[log.channel_id] ?? log.channel_id}`;
 
                     const images = log.attachment_url !== null
                         ? log.attachment_url
@@ -76,7 +73,7 @@ export function DeletedMessageLogViewer({
                                 <div className="flex flex-wrap gap-2 pt-1">
                                     {images.map((url, index) => (
                                         <button
-                                            key={index}
+                                            key={`${url}-${index.toString()}`}
                                             type="button"
                                             onClick={() => { setActiveImageUrl(url); }}
                                             className="group relative block overflow-hidden rounded-md border border-border hover:border-brand cursor-zoom-in text-left transition-all"

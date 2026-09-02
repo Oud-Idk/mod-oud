@@ -1,4 +1,5 @@
 import { type HoneypotConfig, honeypotConfigSchema } from "./types";
+import { backendFetch } from "@/lib/backend";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
 import { z } from "zod";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
@@ -18,9 +19,8 @@ const backendHoneypotResponseSchema = z.object({
 });
 
 export async function setupHoneypot(guildId: string, channelName: string): Promise<{ channelId: string }> {
-    const backendUrl = config.backendInternalUrl;
 
-    const res = await fetch(`${backendUrl}/api/guilds/${guildId}/honeypot`, {
+    const res = await backendFetch(`/api/guilds/${guildId}/honeypot`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

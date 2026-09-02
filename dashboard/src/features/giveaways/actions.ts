@@ -1,6 +1,7 @@
 "use server";
 
 import { deleteGiveaway, saveGiveaway } from "@/features/giveaways/queries";
+import { backendFetch } from "@/lib/backend";
 import { revalidatePath } from "next/cache";
 import {
     Giveaway,
@@ -22,8 +23,7 @@ export async function saveGiveawayAction(guildId: string, config: SaveGiveawayDa
 
         if (ret.message_id !== null) {
             try {
-                const backendUrl = globalConfig.backendInternalUrl;
-                await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${ret.id.toString()}/edit`, { method: "POST" });
+                await backendFetch(`/api/guilds/${guildId}/giveaways/${ret.id.toString()}/edit`, { method: "POST" });
             } catch (err) {
                 console.error("Failed to auto-update Discord message on save:", err);
             }
@@ -54,10 +54,7 @@ export async function sendGiveawayAction(guildId: string, id: number): Promise<S
     try {
         const validatedInput = sendGiveawayInputSchema.parse({ guildId, id });
         await verifyGuildAccess(validatedInput.guildId);
-
-        const backendUrl = globalConfig.backendInternalUrl;
-        const response = await fetch(
-            `${backendUrl}/api/guilds/${validatedInput.guildId}/giveaways/${validatedInput.id.toString()}/send`,
+        const response = await backendFetch(`/api/guilds/${validatedInput.guildId}/giveaways/${validatedInput.id.toString()}/send`,
             { method: "POST" }
         );
 
@@ -77,8 +74,7 @@ export async function sendGiveawayAction(guildId: string, id: number): Promise<S
 export async function deleteGiveawayDiscordMessageAction(guildId: string, id: number): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
-        const backendUrl = globalConfig.backendInternalUrl;
-        const response = await fetch(`${backendUrl}/api/guilds/${guildId}/giveaways/${id.toString()}/message`, { method: "DELETE" });
+        const response = await backendFetch(`/api/guilds/${guildId}/giveaways/${id.toString()}/message`, { method: "DELETE" });
 
         if (!response.ok) {
             const error_text = (await response.text()).trim();

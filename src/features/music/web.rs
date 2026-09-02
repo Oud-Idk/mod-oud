@@ -29,6 +29,16 @@ use tracing::{debug, error, instrument, warn};
 pub struct WsQuery {
     #[serde_as(as = "DisplayFromStr")]
     pub guild_id: u64,
+    /// Discord user ID of the ticket owner.
+    #[serde(default)]
+    pub user_id: Option<String>,
+    /// Unix expiry seconds.
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde(default)]
+    pub expires: Option<u64>,
+    /// HMAC-SHA256 hex signature over "{guild_id}:{user_id}:{expires}:ws".
+    #[serde(default)]
+    pub sig: Option<String>,
 }
 
 /// Dependencies for the Redis-backed music web control worker.
@@ -101,7 +111,7 @@ pub fn start_music_web_control_worker(
                 guild_id,
                 command.action,
             )
-            .await;
+                .await;
 
             let result = match outcome {
                 Ok(data) => RemoteMusicResult::success(command.request_id.clone(), data),
@@ -179,7 +189,7 @@ async fn handle_music_command(
                 vc_channel_id,
                 respond,
             })
-            .await
+                .await
         }
         MusicAction::Restart => {
             send_simple(&actor_tx, |respond| GuildCommand::Restart { respond }).await
@@ -198,7 +208,7 @@ async fn handle_music_command(
                 vc_channel_id: channel_id,
                 respond,
             })
-            .await
+                .await
         }
         MusicAction::Seek { input } => {
             send_simple(&actor_tx, |respond| GuildCommand::Seek { input, respond }).await
@@ -301,8 +311,45 @@ pub async fn ws_handler(
     State(state): State<Arc<WebState>>,
     Query(params): Query<WsQuery>,
 ) -> Result<Response, axum::http::StatusCode> {
+    // Ticket verification for WS (signed ticket system).
+    let Some(secret) = state.core.config.internal_api_secret.as_deref() else {
+        warn!("INTERNAL_API_SECRET not set");
+        return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    };
+    let (Some(user_id), Some(expires), Some(sig)) =
+        (params.user_id.as_deref(), params.expires, params.sig.as_deref())
+    else {
+        warn!(guild_id = params.guild_id, "Missing ticket for WS");
+        return Err(axum::http::StatusCode::UNAUTHORIZED);
+    };
+    if !crate::web::ticket::verify_ticket(
+        &params.guild_id.to_string(),
+        user_id,
+        expires,
+        sig,
+        "ws",
+        secret.as_bytes(),
+    ) {
+        let expected = crate::web::ticket::sign_ticket(
+            &params.guild_id.to_string(),
+            user_id,
+            expires,
+            "ws",
+            secret.as_bytes(),
+        );
+        warn!(
+            guild_id = params.guild_id,
+            user_id = %user_id,
+            expires = expires,
+            expected = %expected,
+            "Invalid WS ticket. Sig mismatch (check INTERNAL_API_SECRET sync & purpose)"
+        );
+        return Err(axum::http::StatusCode::UNAUTHORIZED);
+    }
+
     debug!(
         guild_id = params.guild_id,
+        user_id = %user_id,
         "New WebSocket control connection"
     );
     Ok(ws.on_upgrade(move |socket| {

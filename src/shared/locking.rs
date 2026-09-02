@@ -122,7 +122,7 @@ pub async fn acquire_lock(
                             trace!(key = %key_string, "Lock TTL extended successfully");
                         }
                         Ok(_) => {
-                            warn!(key = %key_string, "Failed to renew lock—we might have lost ownership!");
+                            warn!(key = %key_string, "Failed to renew lock. We might have lost ownership!");
                             break;
                         }
                         Err(err) => {

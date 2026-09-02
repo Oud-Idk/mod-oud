@@ -1,12 +1,11 @@
 "use client";
 
-import { JSX} from "react";
+import { JSX } from "react";
 import { useSSEInfiniteScroll } from "@/lib/hooks/useSSEInfiniteScroll";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 
 interface LogViewerProps<T> {
     title: string;
-    sseUrl: string;
     initialHistory?: T[];
     guildId: string;
     fetchMoreAction: (guild_id: string, before_id: number) => Promise<T[]>;
@@ -17,7 +16,6 @@ interface LogViewerProps<T> {
 
 export function LogViewer<T extends { id: number }>({
     title,
-    sseUrl,
     initialHistory = [],
     guildId,
     fetchMoreAction,
@@ -26,7 +24,6 @@ export function LogViewer<T extends { id: number }>({
     renderItem,
 }: LogViewerProps<T>): JSX.Element {
     const { logs, status, hasMore, isLoadingMore, observerTarget } = useSSEInfiniteScroll<T>({
-        sseUrl,
         initialHistory,
         guildId,
         fetchMoreAction,
@@ -47,7 +44,7 @@ export function LogViewer<T extends { id: number }>({
                     <p className="text-muted-foreground text-sm text-center py-8 font-medium">{emptyText}</p>
                 ) : (
                     <>
-                        {logs.map((log) => renderItem(log))}
+                        {logs.map(renderItem)}
 
                         <div
                             ref={observerTarget}

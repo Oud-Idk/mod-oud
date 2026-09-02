@@ -8,6 +8,7 @@ import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { TextInput } from "@/components/ui/inputs/TextInput";
 import { config } from "@/config";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";
+import { issueRealtimeTicketAction } from "@/features/realtime/actions";
 import {
     MoveHorizontalIcon,
     PauseIcon,
@@ -89,9 +90,16 @@ const noop = (_err?: unknown): void => {
     // Silently ignored background handler
 };
 
-function wsUrl(guildId: string): string {
+async function wsUrlWithTicket(guildId: string): Promise<string> {
     const base = config.publicBackendUrl.replace(/^http/, "ws");
-    return `${base}/api/ws/control?guild_id=${encodeURIComponent(guildId)}`;
+    const ticket = await issueRealtimeTicketAction(guildId, "ws");
+    const params = new URLSearchParams({
+        guild_id: guildId,
+        user_id: ticket.userId,
+        expires: String(ticket.expires),
+        sig: ticket.sig,
+    });
+    return `${base}/api/ws/control?${params.toString()}`;
 }
 
 function formatTime(seconds: number): string {
@@ -333,37 +341,45 @@ export function MusicControlPanel({
             if (!isMountedRef.current) return;
 
             setStatus("connecting");
-            socket = new WebSocket(wsUrl(guildId));
-            socketRef.current = socket;
-
-            socket.onopen = (): void => {
+            // Ticket is signed server-side; never expose INTERNAL_API_SECRET to the browser.
+            void wsUrlWithTicket(guildId).then((url) => {
                 if (!isMountedRef.current) return;
-                backoffMs = 1000; // Reset backoff on successful connection
-                setStatus("connected");
-                sendCommandRef.current("nowPlaying")
-                    .then((data) => {
-                        updateNowPlayingStateRef.current(data);
-                    })
-                    .catch(noop);
-            };
+                socket = new WebSocket(url);
+                socketRef.current = socket;
 
-            socket.onmessage = (event: MessageEvent): void => {
-                handleIncomingFrame(event);
-            };
+                socket.onopen = (): void => {
+                    if (!isMountedRef.current) return;
+                    backoffMs = 1000;
+                    setStatus("connected");
+                    sendCommandRef.current("nowPlaying")
+                        .then((data) => {
+                            updateNowPlayingStateRef.current(data);
+                        })
+                        .catch(noop);
+                };
 
-            socket.onclose = (): void => {
-                rejectAllPending("Connection closed.");
-                if (!isMountedRef.current) return;
+                socket.onmessage = (event: MessageEvent): void => {
+                    handleIncomingFrame(event);
+                };
 
+                socket.onclose = (): void => {
+                    rejectAllPending("Connection closed.");
+                    if (!isMountedRef.current) return;
+                    setStatus("disconnected");
+                    reconnectTimer = setTimeout(connect, backoffMs);
+                    backoffMs = Math.min(backoffMs * 2, 16000);
+                };
+
+                socket.onerror = (): void => {
+                    socket?.close();
+                };
+            }).catch((err: unknown) => {
+                console.error("Failed to obtain WS ticket:", err);
                 setStatus("disconnected");
-                // Exponential backoff reconnect logic up to 16s max
                 reconnectTimer = setTimeout(connect, backoffMs);
                 backoffMs = Math.min(backoffMs * 2, 16000);
-            };
-
-            socket.onerror = (): void => {
-                socket?.close();
-            };
+            });
+            return;
         };
 
         connect();

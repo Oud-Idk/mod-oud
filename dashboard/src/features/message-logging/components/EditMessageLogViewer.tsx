@@ -5,7 +5,6 @@ import { LogViewer } from "./LogViewer";
 import { EditedMessage } from "@/features/message-logging/types";
 
 interface EditedMessageLogViewerProps {
-    sseUrl: string;
     initialHistory?: EditedMessage[];
     channelMap?: Record<string, string>;
     guildId: string;
@@ -13,7 +12,6 @@ interface EditedMessageLogViewerProps {
 }
 
 export function EditedMessageLogViewer({
-    sseUrl,
     initialHistory = [],
     channelMap = {},
     guildId,
@@ -22,7 +20,6 @@ export function EditedMessageLogViewer({
     return (
         <LogViewer<EditedMessage>
             title="Edit Logs"
-            sseUrl={sseUrl}
             initialHistory={initialHistory}
             guildId={guildId}
             fetchMoreAction={fetchMoreAction}

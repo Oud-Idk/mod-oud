@@ -97,7 +97,6 @@ export function ReportBody({
     } = useReportActions(guildId);
 
     const { logs, status, isLoadingMore, observerTarget } = useSSEInfiniteScroll<ReportedMessage>({
-        sseUrl: `/api/sse/events?guild_id=${guildId}`,
         initialHistory: initialReports,
         guildId,
         fetchMoreAction: (gid, beforeId) => fetchMoreReportsAction(gid, beforeId),

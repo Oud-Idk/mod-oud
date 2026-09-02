@@ -28,8 +28,8 @@ async fn handle_404(method: Method, uri: Uri) -> (StatusCode, &'static str) {
 }
 
 pub fn get_router(cors: CorsLayer, shared_state: Arc<WebState>) -> Router {
-    let api_routes = Router::new()
-        .merge(live_feed::routes())
+    // Internal Server-to-Server routes (Protected by Bearer INTERNAL_API_SECRET)
+    let internal_routes = Router::new()
         .merge(reporting::routes())
         .merge(tickets::routes())
         .merge(reaction_roles::routes())
@@ -40,7 +40,18 @@ pub fn get_router(cors: CorsLayer, shared_state: Arc<WebState>) -> Router {
         .merge(automod::routes())
         .merge(member_counter::routes())
         .merge(giveaways::routes())
+        .route_layer(axum::middleware::from_fn_with_state(
+            Arc::clone(&shared_state),
+            crate::web::middleware::require_internal_secret,
+        ));
+
+    // Real-time Browser routes (Protected by JWT)
+    let realtime_routes = Router::new()
+        .merge(live_feed::routes())
         .merge(music::routes());
+
+    // Assemble API
+    let api_routes = internal_routes.merge(realtime_routes);
 
     Router::new()
         .route("/health", get(health_check))

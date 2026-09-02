@@ -1,6 +1,7 @@
 "use server";
 
 import { config } from "@/config";
+import { backendFetch } from "@/lib/backend";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
@@ -69,9 +70,7 @@ export async function setupTempVoiceAction(
     try {
         await verifyGuildAccess(guildId);
         const validPayload = setupTempVoicePayloadSchema.parse(payload);
-
-        const backendUrl = config.backendInternalUrl;
-        const response = await fetch(`${backendUrl}/api/guilds/${guildId}/temp-voice/setup`, {
+        const response = await backendFetch(`/api/guilds/${guildId}/temp-voice/setup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -117,12 +116,8 @@ export async function sendInterfaceMessageAction(
 
         await verifyGuildAccess(validGuildId);
 
-        const backendUrl = config.backendInternalUrl;
-        const endpoint = `${backendUrl}/api/guilds/${validGuildId}/temp-voice/interface/setup`;
-
-        const response = await fetch(endpoint, {
+        const response = await backendFetch(`/api/guilds/${validGuildId}/temp-voice/interface/setup`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 channelId: validPayload.channelId,
                 embedState: validPayload.embedState,

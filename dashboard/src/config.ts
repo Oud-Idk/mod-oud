@@ -12,4 +12,10 @@ export const config = {
      */
     publicBackendUrl:
         process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080",
+
+    /**
+     * Server-only shared secret for backend-to-backend auth.
+     * Never use `NEXT_PUBLIC_` — this must not leak to the browser.
+     */
+    internalApiSecret: process.env.INTERNAL_API_SECRET ?? "",
 }

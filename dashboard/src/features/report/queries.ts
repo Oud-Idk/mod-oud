@@ -1,4 +1,5 @@
 import { config } from "@/config";
+import { backendFetch } from "@/lib/backend";
 import { reportConfigSchema, reportedMessageSchema, type ReportConfig, type ReportedMessage } from "./types";
 import { db } from "@/lib/db";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
@@ -38,7 +39,7 @@ export async function getMoreReportsFromDb(guildId: string, beforeId: number): P
 }
 
 async function sendReportCommand(payload: Record<string, unknown>): Promise<boolean> {
-    const response = await fetch(`${config.backendInternalUrl}/api/commands`, {
+    const response = await backendFetch(`/api/commands`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

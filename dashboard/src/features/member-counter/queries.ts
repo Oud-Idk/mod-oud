@@ -1,4 +1,5 @@
 import { config } from "@/config";
+import { backendFetch } from "@/lib/backend";
 import { z } from "zod";
 import {
     AutoCreateResponse,
@@ -27,9 +28,8 @@ export async function setupMemberCounterChannels(
     guildId: string,
     counters: CounterChannel[]
 ): Promise<AutoCreateResponse> {
-    const backendUrl = config.backendInternalUrl;
 
-    const response = await fetch(`${backendUrl}/api/guilds/${guildId}/member-counter/setup`, {
+    const response = await backendFetch(`/api/guilds/${guildId}/member-counter/setup`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

@@ -1,4 +1,5 @@
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
+import { backendFetch } from "@/lib/backend";
 import { getWelcomeConfig, saveWelcomeConfig } from "./queries";
 import {
     setupBackendResponseSchema,
@@ -12,8 +13,7 @@ export async function setupVerificationService(
     guildId: string,
     payload: MessageLayout
 ): Promise<SetupVerificationResult> {
-    const backendUrl = config.backendInternalUrl;
-    const response = await fetch(`${backendUrl}/api/guilds/${guildId}/verification`, {
+    const response = await backendFetch(`/api/guilds/${guildId}/verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -58,8 +58,7 @@ export async function teardownVerificationService(
     guildId: string,
     payload: TeardownVerificationPayload
 ): Promise<void> {
-    const backendUrl = config.backendInternalUrl;
-    const response = await fetch(`${backendUrl}/api/guilds/${guildId}/verification`, {
+    const response = await backendFetch(`/api/guilds/${guildId}/verification`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

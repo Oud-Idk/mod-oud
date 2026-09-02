@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { backendFetch } from "@/lib/backend";
 import { config } from "@/config";
 import { db } from "@/lib/db";
 import {
@@ -195,9 +196,7 @@ export async function sendReactionMessageToBackend(
     guildId: string,
     id: number
 ): Promise<{ message_id: string }> {
-    const backendUrl = config.backendInternalUrl;
-    const response = await fetch(
-        `${backendUrl}/api/guilds/${guildId}/reaction-roles/${String(id)}/send`,
+    const response = await backendFetch(`/api/guilds/${guildId}/reaction-roles/${String(id)}/send`,
         {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -219,9 +218,7 @@ export async function deleteDiscordMessageFromBackend(
     guildId: string,
     id: number
 ): Promise<void> {
-    const backendUrl = config.backendInternalUrl;
-    const response = await fetch(
-        `${backendUrl}/api/guilds/${guildId}/reaction-roles/${String(id)}/message`,
+    const response = await backendFetch(`/api/guilds/${guildId}/reaction-roles/${String(id)}/message`,
         { method: "DELETE" }
     );
 
@@ -238,9 +235,7 @@ export async function notifyBackendReactionMessageEdit(
     id: number
 ): Promise<void> {
     try {
-        const backendUrl = config.backendInternalUrl;
-        await fetch(
-            `${backendUrl}/api/guilds/${guildId}/reaction-roles/${String(id)}/edit`,
+        await backendFetch(`/api/guilds/${guildId}/reaction-roles/${String(id)}/edit`,
             { method: "POST" }
         );
     } catch (err: unknown) {

@@ -8,7 +8,7 @@ use crate::features::music::MusicState;
 use crate::features::music::WebCommandBus;
 use crate::shared::username_cache::UserUpdate;
 use crate::web::router::get_router;
-use axum::http::{HeaderValue, Method};
+use axum::http::{HeaderName, HeaderValue, Method};
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
 use moka::future::Cache;
@@ -76,8 +76,12 @@ pub async fn start_web_server(deps: WebServerDeps) -> Result<(), Error> {
 
     let cors = CorsLayer::new()
         .allow_origin(tower_http::cors::AllowOrigin::list(origins))
-        .allow_methods([Method::GET, Method::POST])
-        .allow_headers([axum::http::header::CONTENT_TYPE]);
+        .allow_methods([Method::GET, Method::POST, Method::DELETE])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+            HeaderName::from_static("x-internal-secret"),
+        ]);
 
     let shared_state = Arc::new(WebState {
         core: CoreServices {

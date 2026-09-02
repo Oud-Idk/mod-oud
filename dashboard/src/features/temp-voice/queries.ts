@@ -1,7 +1,9 @@
 import { config } from "@/config"
+import { backendFetch } from "@/lib/backend";
 import { db } from "@/lib/db";
 import {
     tempVoiceHubSchema,
+    type SaveableTempVoiceHub,
     type SaveTempVoiceHubInput,
     type TempVoiceHub,
 } from "./types";
@@ -26,7 +28,7 @@ export async function getTempVoiceHubs(guildId: string): Promise<TempVoiceHub[]>
 
 export async function saveTempVoiceHub(
     guildId: string,
-    hub: SaveTempVoiceHubInput
+    hub: SaveTempVoiceHubInput | SaveableTempVoiceHub
 ): Promise<TempVoiceHub> {
     const query = `
         INSERT INTO temp_voice_hubs (id, guild_id, name, hub_channel_id, category_id, user_limit, interface_channel_id,
@@ -41,8 +43,10 @@ export async function saveTempVoiceHub(
                 default_channel_name = EXCLUDED.default_channel_name
         RETURNING *;
     `;
+    const normalizedId =
+        typeof hub.id === "string" && hub.id.trim() !== "" ? hub.id : null;
     const res = await db.query(query, [
-        hub.id ?? null,
+        normalizedId,
         guildId,
         hub.name,
         hub.hub_channel_id,
@@ -71,9 +75,7 @@ export async function deleteTempVoiceHub(guildId: string, hubId: string): Promis
 
     if (dbRes.rows.length > 0) {
         const categoryId = dbRes.rows[0].category_id;
-
-        const backendUrl = config.backendInternalUrl;
-        const res = await fetch(`${backendUrl}/api/guilds/${guildId}/category/delete-entire`, {
+        const res = await backendFetch(`/api/guilds/${guildId}/category/delete-entire`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",

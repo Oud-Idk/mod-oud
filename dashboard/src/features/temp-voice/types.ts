@@ -13,7 +13,11 @@ export const tempVoiceHubSchema = z.object({
 
 export const saveTempVoiceHubInputSchema = z
     .object({
-        id: z.string().nullish().default(null),
+        id: z
+            .string()
+            .nullish()
+            .default(null)
+            .transform((val) => (typeof val === "string" && val.trim() === "" ? null : val)),
         guild_id: z.string().min(1, "Guild ID is required"),
         name: z.string().min(1, "Hub name is required"),
         hub_channel_id: z.string().nullish().default(null),

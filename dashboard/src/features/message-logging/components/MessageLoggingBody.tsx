@@ -199,7 +199,6 @@ export function MessageLoggingBody({
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     {config.events.messageDelete && (
                         <DeletedMessageLogViewer
-                            sseUrl={`http://localhost:8080/api/sse/events?guild_id=${guildId}`}
                             initialHistory={deletedMessagesHistory}
                             channelMap={channelMap}
                             guildId={guildId}
@@ -209,7 +208,6 @@ export function MessageLoggingBody({
 
                     {config.events.messageEdit && (
                         <EditedMessageLogViewer
-                            sseUrl={`http://localhost:8080/api/sse/events?guild_id=${guildId}`}
                             initialHistory={editedMessagesHistory}
                             channelMap={channelMap}
                             guildId={guildId}

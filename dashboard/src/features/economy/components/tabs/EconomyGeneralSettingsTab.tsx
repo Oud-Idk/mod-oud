@@ -104,7 +104,7 @@ export function EconomyGeneralSettingsTab({
                     </div>
 
                     <ToggleSwitch
-                        checked={config.giftingEnabled ?? true}
+                        checked={config.giftingEnabled}
                         onChange={(giftingEnabled) => {
                             setConfig((prev) => ({ ...prev, giftingEnabled }));
                         }}

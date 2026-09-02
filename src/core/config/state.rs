@@ -52,6 +52,10 @@ pub struct AppConfig {
     /// Optional shared secret key used for internal service verification.
     pub shared_secret: Option<String>,
 
+    /// Shared secret for backend-to-backend authentication (dashboard server -> Rust API).
+    /// If `None`, protected routes will reject all requests with 500 (misconfigured).
+    pub internal_api_secret: Option<String>,
+
     /// Optional Cloudflare Turnstile secret key for captcha checks.
     pub cf_secret_key: Option<String>,
 
@@ -95,6 +99,7 @@ impl AppConfig {
     pub fn from_env() -> Self {
         Self {
             shared_secret: std::env::var("VERIFICATION_SECRET").ok(),
+            internal_api_secret: std::env::var("INTERNAL_API_SECRET").ok(),
             cf_secret_key: std::env::var("TURNSTILE_SECRET").ok(),
             hc_secret_key: std::env::var("HCAPTCHA_SECRET").ok(),
             hc_site_key: std::env::var("HCAPTCHA_SITE_KEY").ok(),

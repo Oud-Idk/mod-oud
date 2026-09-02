@@ -91,14 +91,14 @@ export function HubForm({
         <div className="space-y-2">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-foreground">
-                    {initialHub.id.trim() === "" ? "Edit Voice Hub" : "Create Voice Hub"}
+                    {initialHub.id.trim() === "" ? "Create Voice Hub" : "Edit Voice Hub"}
                 </h3>
                 <Button
                     variant="danger"
                     onClick={handleDelete}
                     disabled={isPending || isDeleting}
                 >
-                    {isDeleting ? "Deleting..." : initialHub.id.trim() === "" ? "Delete Hub" : "Cancel"}
+                    {isDeleting ? "Deleting..." : initialHub.id.trim() === "" ? "Cancel" : "Delete Hub"}
                 </Button>
             </div>
 

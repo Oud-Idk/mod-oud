@@ -1,6 +1,6 @@
 "use server";
 
-import { config } from "@/config"
+import { backendFetch } from "@/lib/backend";
 import { z } from "zod";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import {
@@ -24,14 +24,8 @@ export async function sendEmbedAction(
 
         await verifyGuildAccess(validGuildId);
 
-        const backendUrl = config.backendInternalUrl;
-        const endpoint = `${backendUrl}/api/guilds/${validGuildId}/embeds/send`;
-
-        const response = await fetch(endpoint, {
+        const response = await backendFetch(`/api/guilds/${validGuildId}/embeds/send`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
             body: JSON.stringify({
                 channel_id: validPayload.channelId,
                 content: null,

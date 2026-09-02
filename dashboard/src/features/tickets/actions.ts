@@ -1,6 +1,7 @@
 "use server";
 
 import { config } from "@/config"
+import { backendFetch } from "@/lib/backend";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { verifyGuildAccess } from "@/features/_shared/guild";
@@ -44,9 +45,8 @@ const sendTicketMessageResponseSchema = z.object({
 export async function sendTicketMessageAction(guildId: string, channelId: string): Promise<string> {
     try {
         await verifyGuildAccess(guildId);
-        const backendUrl = config.backendInternalUrl;
 
-        const response = await fetch(`${backendUrl}/api/guilds/${guildId}/tickets/send-message`, {
+        const response = await backendFetch(`/api/guilds/${guildId}/tickets/send-message`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -78,9 +78,8 @@ export async function sendTicketMessageAction(guildId: string, channelId: string
 export async function deleteTicketMessageAction(guildId: string, channelId: string, messageId: string): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
-        const backendUrl = config.backendInternalUrl;
 
-        const response = await fetch(`${backendUrl}/api/guilds/${guildId}/tickets/delete-message`, {
+        const response = await backendFetch(`/api/guilds/${guildId}/tickets/delete-message`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
