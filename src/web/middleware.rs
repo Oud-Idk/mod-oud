@@ -22,6 +22,9 @@ const EXEMPT_PATHS: &[&str] = &[
 /// Rejects with 401 if header is missing/invalid, 500 if server is misconfigured.
 /// Exempt paths (health, verify, ws, sse) are passed through. WS/SSE use
 /// signed ticket verification instead (see `crate::web::ticket`).
+///
+/// # Errors
+/// Returns [`Err`] when INTERNAL_API_SECRET isn't found or isn't valid, or when auth is invalid.
 pub async fn require_internal_secret(
     axum::extract::State(state): axum::extract::State<Arc<WebState>>,
     request: Request,

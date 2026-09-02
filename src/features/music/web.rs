@@ -36,7 +36,7 @@ pub struct WsQuery {
     #[serde_as(as = "Option<DisplayFromStr>")]
     #[serde(default)]
     pub expires: Option<u64>,
-    /// HMAC-SHA256 hex signature over "{guild_id}:{user_id}:{expires}:ws".
+    /// HMAC-SHA256 hex signature over "`{guild_id}`:`{user_id}`:`{expires}`:`ws`".
     #[serde(default)]
     pub sig: Option<String>,
 }

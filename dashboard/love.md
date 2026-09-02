@@ -87,7 +87,14 @@ Either way, you are curious or have a crush but don't know what to do. In which 
     - [Narcissism.](#narcissism)
     - [Machiavellianism.](#machiavellianism)
     - [Psychopathy](#psychopathy)
-  - [The Playbook](#the-playbook)
+  - [The Manipulation Bible](#the-manipulation-bible)
+    - [Hooking You In](#hooking-you-in)
+    - [Keeping You On Edge](#keeping-you-on-edge)
+    - [Avoiding Accountability](#avoiding-accountability)
+    - [Reality Distortion](#reality-distortion)
+    - [Isolation](#isolation)
+    - [Control](#control)
+    - [Preventing You from Leaving](#preventing-you-from-leaving)
 - [The Friendzone](#the-friendzone)
   - [Dealing With It](#dealing-with-it)
 - [Blushing](#blushing)
@@ -127,13 +134,12 @@ Either way, you are curious or have a crush but don't know what to do. In which 
 - [Crushing on Your Best Friend](#crushing-on-your-best-friend)
 - [Misattribution of Arousal](#misattribution-of-arousal)
 - [Fun Facts, FAQs & Tips](#fun-facts-faqs-tips)
-- [Aliases](#aliases)
+- [Aliases & Quick Access](#aliases-quick-access)
 - [Legendary Quotes](#legendary-quotes)
 - [References](#references)
   - [Legalities](#legalities)
   - [WARRANTY & LIABILITY DISCLAIMER](#warranty-liability-disclaimer)
-
-<!-- /TOC -->
+  <!-- /TOC -->
 
 # Definition Of a Crush
 
@@ -463,7 +469,7 @@ We want things more when other people want them.
 
 Disqualify yourself. If they are confused, let them have the other person. Call them out if they're enjoying it. Or talk to them to snap them back to reality.
 
-Also see The Triangulation Phenomenon at [Manipulation Tactics](#the-playbook).
+Also see The Triangulation Phenomenon at [Manipulation Tactics](#the-manipulation-bible).
 
 # Attachment Theory
 
@@ -840,70 +846,110 @@ The only way to deal with them is to ignore them. Remove them from your life. Yo
 
 If you want a shortcut on how to deal with them, you mustn't explain yourself (Durvasula, 2019). Stop defending yourself. Don't try to make them understand. Become boring as hell. No reaction, no compliments, and no anger. It will sound hard, but it will work. They will get bored and find another one to bother. Or in other words, become a **Grey Rock**.
 
-## The Playbook
+## The Manipulation Bible
 
 For simplicity’s sake, I'm going to label the toxic person "the manipulator" and the target "you" while leaving any other third parties as "Person A/B/C/D".
+I'll sort this by function.
 
+### Hooking You In
+
+- **Love Bombing**: Giving you way too much affection and/or grand romantic gestures early in the relationship.
+  - Goal: To blind the other person from looking for any red flags while dissolving any boundaries.
+  - Example: Sending a 1,000-word essay declaring soulmates on your first date.
+  - Note: Some is okay; too much is NOT okay.
+- **Future Faking**: Making grandiose, usually bullshit promises without any follow-ups.
+  - Goal: To keep you on edge and compliant in an unpleasant present.
+  - Example: "Come on, don't break up now, look at the possibilities we have! Vacation, marriage, and whatnot".
+  - Note: Paired with Love Bombing to make hooking you easier.
 - **Triangulation**: When the manipulator flirts (among other actions) with Person A to make you jealous.
   - Goal: To make you panic that they might be losing interest for you, making you chase the manipulator.
   - Example: Flirting with your friend in front of you to make you jealous.
-- **Gaslighting**: Denying reality that you question your own sanity.
-  - Goal: To make you doubt your own memories.
-  - Example: "What, that never happened. You're just making stuff again."
+
+### Keeping You On Edge
+
+- **Hot & Cold Cycle**: Randomly switching between indifference and affection.
+  - Goal: To make someone obsessed through intermittent reinforcement.
+  - Example: After leaving you on delivered for five days, they randomly drop, "OH MY GOD, I MISSED YOU SO MUCH!!!" at 3 AM.
+- **Contradicting Statements**: Making a situation where any option is the "wrong" one. Damned if you do, damned if you don't.
+  - Goal: Keep you perpetually wrong and anxious to induce compliance.
+  - Example: If you reach out, you are "clingy". If you don't, you're "cold".
+- **Moving the Goalposts**: Moving expectations for every previous standards you meet.
+  - Goal: To make you never feel good enough to ask for better treatment.
+  - Example: "Yeah you did get a B, but why not an A?"
+- **Intermittent Disengagement**: Constantly flipping between loving and distant.
+  - Goal: To keep you hooked using intermittent reinforcement.
+  - Example: Leaving you on read for three days after a vulnerable conversation.
+  - Note: Often overlaps with Hot & Cold Cycle, but usually shows up later
+
+### Avoiding Accountability
+
 - **DARVO (Deny, Attack, Reverse Victim, Offender)**: Flipping the script when confronted about a certain behavior.
   - Goal: To make themselves the victim and avoid accountability and responsibility.
   - Example: "YOU ruined my day for bringing this up."
+- **Fake Apology**: Offering apology that secretly blames you.
+  - Goal: Appear remorseful without taking accountability.
+  - Example: "I'm sorry you felt that way."
+- **Jokes with Hidden Meaning**: Disguising cruel remarks as jokes.
+  - Goal: To deliver insults in the guise of jokes (and also avoiding accountability).
+  - Example: "Relax, I'm just joking, why are you mad?"
+- **Invalid Excuses**: Using something irrelevant but plausible to invent excuses for the manipulator's behavior.
+  - Goal: To provide an excuse so they can keep manipulating you.
+  - Example: "I'm sorry, it's just the stress from work and that I'm feeling under the weather" (still proceeds to manipulate you)
+- **Weaponized Incompetence**: Purposefully failing a basic task or pretending to be stupid.
+  - Goal: To delegate responsibility to you.
+  - Example: "Dude, I don't know how to do the dishes. You're better at it. Cmon."
+
+### Reality Distortion
+
+- **Gaslighting**: Denying reality that you question your own sanity.
+  - Goal: To make you doubt your own memories.
+  - Example: "What, that never happened. You're just making stuff again."
+- **Reactive Baiting**: Pushing your buttons until you have enough of it.
+  - Goal: To shift blame from the manipulator to you, so you become the problem.
+  - Example: Poking your insecurities until you're fed up and raise your voice, then saying, "Look how crazy you are."
+
+### Isolation
+
+- **Support-System Sabotage**: Mocking your support system (i.e., friends and family).
+  - Goal: To make you feel ashamed for having those in the first place, making you more isolated.
+  - Example: "Hmph, go spend time with your pet since you clearly like him more."
+- **Over-Surveillance**: Monitoring who you talk to, chat to, or call.
+  - Goal: To prevent you from comparing notes about the manipulator to your friend.
+  - Example: Lurking quietly on group calls to monitor who you talk to.
+- **Public Betrayal & Humiliation**: Posting something private like your vulnerabilities and your secrets to the public.
+  - Goal: To humiliate you in public so they look down on you and keep you feeling small.
+  - Example: "Hey, he is actually insecure about his heights. Talk about that!"
+
+### Control
+
+- **Tone Policing & Pet Name**: Using seemingly sweet names and attacking how you express your needs.
+  - Goal: To invalidate your anger and make you seem irrational.
+  - Example: "Hey sweetheart, you're getting too emotional right now."
 - **Weaponized Martyrdom**: Inventing fake and dramatic sacrifices.
   - Goal: To appear that you owe something to them, making you compliant.
   - Example: "I allocated time for you, and this is what I get? Getting ignored for 10 minutes?"
 - **Identity Steamrolling**: Rejecting boundaries and forcing identities to you like a toy.
   - Goal: To erode autonomy, so the manipulator can control what you are.
   - Example: Treating you like a therapist even though you asserted boundaries.
-- **Invalid Excuses**: Using something irrelevant but plausible to invent excuses for the manipulator's behavior.
-  - Goal: To provide an excuse so they can keep manipulating you.
-  - Example: "I'm sorry, it's just the stress from work and that I'm feeling under the weather" (still proceeds to do manipulate you)
-- **Public Betrayal & Humiliation**: Posting something private like your vulnerabilities and your secrets to the public.
-  - Goal: To humiliate you in public so they look down on you and keep you feeling small.
-  - Example: "Hey, he is actually insecure about his heights. Talk about that!"
-- **Tone Policing & Pet Name**: Using seemingly sweet names and attacking how you express your needs.
-  - Goal: To invalidate your anger and make you seem irrational.
-  - Example: "Hey sweetheart, you're getting too emotional right now."
-- **Intermittent Disengagement**: Constantly flipping between loving and distant.
-  - Goal: To keep you hooked using intermitted reinforcement.
-  - Example: Leaving you on read for three days after a vulnerable conversation.
-- **Surveillance**: Monitoring who you talk to, chat to, or call.
-  - Goal: To prevent you from comparing notes about the manipulator to your friend.
-  - Example: Lurking quietly on group calls to monitor who you talk to.
-- **Support-System Sabotage**: Mocking your support system (i.e., friends and family).
-  - Goal: To make you feel ashamed for having those in the first place, making you more isolated.
-  - Example: "Hmph, go spend time with your pet since you clearly like him more."
-- **Guilt-Blocking**: Blocking you to make you feel guilty rather than for safety.
-  - Goal: To make you ruminate and begging for the manipulator to unblock.
-  - Example: Suddenly blocking you in the middle of an argument to force an apology when they unblock.
-- **Jokes with Hidden Meaning**: Disguising cruel remarks as jokes.
-  - Goal: To deliver insults in the guise of jokes (and also avoiding accountability).
-  - Example: "Relax, I'm just joking, why are you mad?"
-- **Weaponized Incompetence**: Purposefully failing a basic task or pretending to be stupid.
-  - Goal: To delegate responsibility to you.
-  - Example: "Dude, I don't know how to do the dishes. You're better at it. Cmon."
-- **Reactive Baiting**: Pushing your buttons until you have enough of it.
-  - Goal: To shift blame from the manipulator to you, so you become the problem.
-  - Example: Poking your insecurities until you're fed up and raise your voice, then saying, "Look how crazy you are."
 - **Vulnerability Farming**: Fishing out your deepest traumas under the guise of bonding.
   - Goal: To keep track of your vulnerabilities, so the manipulator can use it against you when they want something.
   - Example: During a fight, the manipulator says, "no wonder your ex left you."
-- **Future Faking**: Making grandiose, usually bullshit promises without any follow-ups.
-  - Goal: To keep you on edge and compliant in an unpleasant present.
-  - Example: "Come on, don't break up now, look at the possibilities we have! Vacation, marriage, and whatnot".
-- **Moving the Goalposts**: Moving expectations for every previous standards you meet.
-  - Goal: To make you never feel good enough to ask for better treatment.
-  - Example: "Yeah you did get a B, but why not an A?"
-- **Contradicting Statements**: Making a situation where any option is the "wrong" one.
-  - Goal: Keep you perpetually wrong and anxious to induce compliance.
-  - Example: If you reach out, you are "clingy". If you don't, you're "cold".
-- **Fake Apology**: Offering apology that secretly blames you.
-  - Goal: Appear remorseful without taking accountability.
-  - Example: "I'm sorry you felt that way."
+  - Note: Tends to show up later.
+- **Guilt-Blocking**: Blocking you to make you feel guilty rather than for safety.
+  - Goal: To make you ruminate and begging for the manipulator to unblock.
+  - Example: Suddenly blocking you in the middle of an argument to force an apology when they unblock.
+
+### Preventing You from Leaving
+
+- **Hoovering**: Keeping you from leaving when the manipulator senses that you are finally moving on.
+  - Goal: To regain control, feed their ego, and ensure that they actually still have power.
+  - Example: Replying to your Instagram story, "Hey there, still thinking about u ;)" after months of silence.
+- **Crisis Manufacturing**: Inventing a fake emergency the second you go.
+  - Goal: To make you feel so guilty you will come back.
+  - Example: "If you leave now, you know what I'll do to myself!"
+- **Miraculous Reformation**: Suddenly admitting to literally everything they did wrong the time you two were together and promises miraculous changes overnight.
+  - Goal: To make you believe that they will change (they won't).
+  - Example: "Listen, I finally thought about it, and I see everything I did wrong. I'm sorry, please, give me one more chance!"
 
 # The Friendzone
 
@@ -1284,18 +1330,79 @@ If someone is aroused, but there is no immediate explanation, they will use the 
    - In a study, students had to wear an embarrassing T-shirt to a room. The students thought everyone noticed it, but in reality, fewer than 20% of people even saw it. Everyone else were busy thinking about their own embarrassing shirt.
    - Not an excuse to perform obnoxious actions in the public.
 
-# Aliases
+# Aliases & Quick Access
 
-1. What to do when I get rejected
-   - [Why We Hate Rejection](#why-we-hate-rejection)
-   - [Breakups - What Should I Do](#the-prescription)
-   - [Friendzone - How to Deal With It](#dealing-with-it)
+**What to do when I get rejected**
 
-   Tealdeer:
-   - Say "All good, thanks for being honest!" Absolutely no guilt-tripping. I will strangle you if you do.
-   - For the first 24 hours, **no looking at their profile**. **Do not look at their IG, Discord, X, whatever**.
-   - Journal about it in 3rd person.
-   - Then go do hobbies like compiling Rust code. I guarantee it will last longer than your sadness.
+- [Why We Hate Rejection](#why-we-hate-rejection)
+- [Breakups - What Should I Do](#the-prescription)
+- [Friendzone - How to Deal With It](#dealing-with-it)
+
+TL;DR:
+
+- Say "All good, thanks for being honest!" Absolutely no guilt-tripping. I will strangle you if you do.
+- For the first 24 hours, **no looking at their profile**. **Do not look at their IG, Discord, X, whatever**.
+- Journal about it in 3rd person.
+- Then go do hobbies like compiling Rust code. I guarantee it will last longer than your sadness.
+
+---
+
+**Signs of a toxic partner and how to deal with it**
+
+- [The Dark Triad](#the-dark-triad)
+- [The Four Horsemen of The Apocalypse](#the-four-horsemen-of-the-apocalypse)
+- [The Manipulation Bible](#the-manipulation-bible)
+
+TL;DR:
+
+- Know and name the pattern. The Manipulation Bible is your friend.
+- Track frequency, not single incidents.
+- Boundaries keep getting tested. Note if a boundary keeps getting "accidentally" crossed.
+- Isolation tactics are often a leading indicator.
+
+---
+
+**They haven't texted back in 6 hours, and now I'm dying inside.**
+
+- [Attachment Theory - The Panic Slider](#the-panic-slider)
+- [Dopamine - The Prediction Error](#the-prediction-error)
+- [The Zeigarnik Effect](#the-zeigarnik-effect)
+
+TL;DR:
+
+- Put the phone in another room.
+- They are probably asleep, doing homework, or coding in Rust, not plotting your demise.
+- Do not double-text.
+- Your brain is mistaking a drop in dopamine for a legitimate life-or-death crisis. Drink water.
+
+---
+
+**I'm stuck in the Talking Stage, and I'm going nowhere.**
+
+- [The In-Between](#the-in-between)
+- [The Zeigarnik Effect - Vague Answers](#vague-answers-and-their-effect)
+- [The Triangular Theory of Love](#the-triangular-theory-of-love)
+
+TL;DR:
+
+- A sane maximum duration is **2 months**. If you want no stress, 2 weeks.
+- Ambiguity is not depth. Unwrap or false.
+- Have _The Talk™_. Take replies at face value.
+
+---
+
+**I'm catching feelings for my best friend**
+
+- [Crushing on Your Best Friend](#crushing-on-your-best-friend)
+- [The Fork](#the-fork)
+- [Misattribution of Arousal](#misattribution-of-arousal)
+
+TL;DR:
+
+- Do not beat around the bush and especially do not shove the feelings inside.
+- But also don't make a 3-page confession.
+- State your feelings casually. Don't put that burden on them.
+- If you need space after an unfortunate answer, get space.
 
 # Legendary Quotes
 

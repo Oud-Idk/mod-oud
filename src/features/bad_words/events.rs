@@ -76,10 +76,10 @@ fn check_ruleset<'a>(
 
                     let left_ok = start == 0
                         || !lower[..start]
-                            .chars()
-                            .next_back()
-                            .unwrap()
-                            .is_alphanumeric();
+                        .chars()
+                        .next_back()
+                        .unwrap()
+                        .is_alphanumeric();
                     let right_ok = end == lower.len()
                         || !lower[end..].chars().next().unwrap().is_alphanumeric();
 
@@ -192,7 +192,7 @@ mod tests {
     use serenity::all::GuildId;
     use std::borrow::Cow;
 
-    /// Helper to construct a `CompiledRuleset` from a list of (strategy, pattern_str) pairs
+    /// Helper to construct a `CompiledRuleset` from a list of (`strategy`, `pattern_str`) pairs
     fn ruleset_with(patterns: &[(MatchStrategy, &str)]) -> CompiledRuleset {
         BadWordRuleset {
             id: uuid::Uuid::nil(),
@@ -210,7 +210,7 @@ mod tests {
             timeout_duration_seconds: None,
             scope: RuleScope::default(),
         }
-        .into()
+            .into()
     }
 
     fn trigger_of(verdict: Option<FilterVerdict<'_>>) -> Option<String> {

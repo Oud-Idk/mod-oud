@@ -13,6 +13,7 @@ use subtle::ConstantTimeEq;
 ///
 /// `purpose` must be `"ws"` for music WebSocket or `"sse"` for live-feed SSE.
 /// Returns `true` only if signature matches AND `now <= expires`.
+#[must_use]
 pub fn verify_ticket(
     guild_id: &str,
     user_id: &str,
@@ -69,11 +70,11 @@ mod tests {
     #[test]
     fn ticket_roundtrip_verifies() {
         let secret = b"test-secret-123";
-        let sig = sign_ticket("1170276413056745482", "123456789", 9999999999, "ws", secret);
+        let sig = sign_ticket("1170276413056745482", "123456789", 9_999_999_999, "ws", secret);
         assert!(verify_ticket(
             "1170276413056745482",
             "123456789",
-            9999999999,
+            9_999_999_999,
             &sig,
             "ws",
             secret
@@ -83,8 +84,8 @@ mod tests {
     #[test]
     fn wrong_purpose_rejects() {
         let secret = b"test-secret-123";
-        let sig = sign_ticket("1", "2", 9999999999, "ws", secret);
-        assert!(!verify_ticket("1", "2", 9999999999, &sig, "sse", secret));
+        let sig = sign_ticket("1", "2", 9_999_999_999, "ws", secret);
+        assert!(!verify_ticket("1", "2", 9_999_999_999, &sig, "sse", secret));
     }
 
     #[test]
@@ -97,7 +98,7 @@ mod tests {
     #[test]
     fn tampered_guild_rejects() {
         let secret = b"test-secret-123";
-        let sig = sign_ticket("1", "2", 9999999999, "ws", secret);
-        assert!(!verify_ticket("999", "2", 9999999999, &sig, "ws", secret));
+        let sig = sign_ticket("1", "2", 9_999_999_999, "ws", secret);
+        assert!(!verify_ticket("999", "2", 9_999_999_999, &sig, "ws", secret));
     }
 }
