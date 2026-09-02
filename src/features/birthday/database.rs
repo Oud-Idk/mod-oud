@@ -5,6 +5,57 @@ use serenity::model::id::MessageId;
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 
+#[derive(sqlx::FromRow)]
+struct RawUserBirthdayRecord {
+    user_id: i64,
+    birth_year: Option<i32>,
+}
+
+impl From<RawUserBirthdayRecord> for UserBirthdayRecord {
+    fn from(r: RawUserBirthdayRecord) -> Self {
+        Self {
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            birth_year: r.birth_year,
+        }
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct RawExpiredRole {
+    guild_id: i64,
+    user_id: i64,
+    role_id: i64,
+}
+
+impl From<RawExpiredRole> for ExpiredRole {
+    fn from(r: RawExpiredRole) -> Self {
+        Self {
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            role_id: RoleId::new(r.role_id.cast_unsigned()),
+        }
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct RawFullUserBirthdayRecord {
+    user_id: i64,
+    birth_month: i16,
+    birth_day: i16,
+    birth_year: Option<i32>,
+}
+
+impl From<RawFullUserBirthdayRecord> for FullUserBirthdayRecord {
+    fn from(r: RawFullUserBirthdayRecord) -> Self {
+        Self {
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            birth_month: r.birth_month,
+            birth_day: r.birth_day,
+            birth_year: r.birth_year,
+        }
+    }
+}
+
 pub async fn store_birthday_log(
     db: &PgPool,
     current_year: i32,
@@ -36,7 +87,8 @@ pub async fn get_unannounced_birthdays(
     current_year: i32,
     guild_id: GuildId,
 ) -> Result<Vec<UserBirthdayRecord>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawUserBirthdayRecord,
         r#"
         SELECT ub.user_id, ub.birth_year
         FROM user_birthdays ub
@@ -57,13 +109,7 @@ pub async fn get_unannounced_birthdays(
     .fetch_all(db)
     .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| UserBirthdayRecord {
-            user_id: UserId::new(r.user_id.cast_unsigned()),
-            birth_year: r.birth_year,
-        })
-        .collect())
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 pub async fn save_user_with_birthday_role(
@@ -88,7 +134,8 @@ pub async fn save_user_with_birthday_role(
 }
 
 pub async fn fetch_expired_birthday_roles(pool: &PgPool) -> Result<Vec<ExpiredRole>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawExpiredRole,
         r#"
         SELECT guild_id, user_id, role_id
         FROM active_birthday_roles
@@ -98,14 +145,7 @@ pub async fn fetch_expired_birthday_roles(pool: &PgPool) -> Result<Vec<ExpiredRo
     .fetch_all(pool)
     .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| ExpiredRole {
-            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
-            user_id: UserId::new(r.user_id.cast_unsigned()),
-            role_id: RoleId::new(r.role_id.cast_unsigned()),
-        })
-        .collect())
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 pub async fn fetch_enabled_guild_ids(
@@ -193,7 +233,8 @@ pub async fn get_upcoming_birthdays(
     db: &PgPool,
     lookahead_days: i32,
 ) -> Result<Vec<FullUserBirthdayRecord>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawFullUserBirthdayRecord,
         r#"
         SELECT user_id, birth_month, birth_day, birth_year
         FROM user_birthdays
@@ -209,15 +250,7 @@ pub async fn get_upcoming_birthdays(
         .fetch_all(db)
         .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| FullUserBirthdayRecord {
-            user_id: UserId::new(r.user_id.cast_unsigned()),
-            birth_month: r.birth_month,
-            birth_day: r.birth_day,
-            birth_year: r.birth_year,
-        })
-        .collect())
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 /// Get a user's birthday record
@@ -225,7 +258,8 @@ pub async fn get_user_birthday(
     db: &PgPool,
     user_id: UserId,
 ) -> Result<Option<FullUserBirthdayRecord>, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawFullUserBirthdayRecord,
         r#"
         SELECT user_id, birth_month, birth_day, birth_year
         FROM user_birthdays
@@ -236,12 +270,7 @@ pub async fn get_user_birthday(
     .fetch_optional(db)
     .await?;
 
-    Ok(row.map(|r| FullUserBirthdayRecord {
-        user_id: UserId::new(r.user_id.cast_unsigned()),
-        birth_month: r.birth_month,
-        birth_day: r.birth_day,
-        birth_year: r.birth_year,
-    }))
+    Ok(row.map(Into::into))
 }
 
 /// Remove a user's birthday record

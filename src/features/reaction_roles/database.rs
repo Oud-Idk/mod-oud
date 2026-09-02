@@ -13,6 +13,27 @@ use sqlx::types::Json;
 use std::sync::Arc;
 use tracing::warn;
 
+#[derive(sqlx::FromRow)]
+struct RawReactionMessage {
+    id: i64,
+    message_id: Option<i64>,
+    channel_id: i64,
+    mode: InteractionMode,
+    message: Json<MessageLayout>,
+}
+
+impl From<RawReactionMessage> for ReactionMessage {
+    fn from(r: RawReactionMessage) -> Self {
+        Self {
+            id: r.id,
+            message_id: r.message_id.map(|id| MessageId::new(id.cast_unsigned())),
+            channel_id: ChannelId::new(r.channel_id.cast_unsigned()),
+            mode: r.mode,
+            message: r.message,
+        }
+    }
+}
+
 /// Retrieves the Role ID associated with a message and emoji, utilizing Redis caching.
 pub async fn get_reaction_role(
     data: &BotData,
@@ -53,7 +74,8 @@ pub async fn fetch_reaction_message(
     config_id: i64,
     guild_id: GuildId,
 ) -> Result<ReactionMessage, (StatusCode, String)> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawReactionMessage,
         r#"
         SELECT id, message_id, channel_id, mode as "mode: InteractionMode", message as "message: Json<MessageLayout>"
         FROM reaction_messages
@@ -73,13 +95,7 @@ pub async fn fetch_reaction_message(
         (StatusCode::NOT_FOUND, "Reaction configuration not found".to_string())
     })?;
 
-    Ok(ReactionMessage {
-        id: row.id,
-        message_id: row.message_id.map(|id| MessageId::new(id.cast_unsigned())),
-        channel_id: ChannelId::from(row.channel_id.cast_unsigned()),
-        mode: row.mode,
-        message: row.message,
-    })
+    Ok(row.into())
 }
 
 /// Fetches associated reaction roles configuration from the database

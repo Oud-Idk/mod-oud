@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id, guild_id, channel_id, message_id, author_id, reporter_id,\n            content, attachment_url, reason,\n            status as \"status!: ReportStatus\", message_deleted,\n            user_warned, user_timed_out, user_banned\n        FROM reported_messages\n        WHERE id = $1\n        ",
+  "query": "\n        SELECT\n            id, guild_id, channel_id, message_id, author_id, reporter_id,\n            content, attachment_url, reason,\n            status as \"status: ReportStatus\", message_deleted,\n            user_warned, user_timed_out, user_banned\n        FROM reported_messages\n        WHERE id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -104,7 +104,7 @@
       },
       {
         "ordinal": 9,
-        "name": "status!: ReportStatus",
+        "name": "status: ReportStatus",
         "type_info": {
           "Custom": {
             "name": "report_status",
@@ -191,5 +191,5 @@
       false
     ]
   },
-  "hash": "d82c78909982a96963fcc21559c317ffc0c3db1aeb7a676639b5e16bc51f6133"
+  "hash": "3d3c3127be67eab24d61651fd282fa23aff3377204c0bb1971c5afba7c9b32a6"
 }

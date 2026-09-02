@@ -3,6 +3,22 @@ use crate::features::raid_detection::types::RaidEventType;
 use serenity::all::GuildId;
 use sqlx::PgPool;
 
+#[derive(sqlx::FromRow)]
+struct RawRaidGuild {
+    guild_id: i64,
+}
+
+impl From<RawRaidGuild> for GuildId {
+    fn from(row: RawRaidGuild) -> Self {
+        GuildId::new(row.guild_id.cast_unsigned())
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct RawActiveRaidState {
+    pre_raid_snapshot: serde_json::Value,
+}
+
 pub async fn bump_verification_to_max(
     pool: &PgPool,
     guild_id: GuildId,
@@ -101,7 +117,8 @@ pub async fn load_active_raid_state(
     pool: &PgPool,
     guild_id: GuildId,
 ) -> Result<Option<PreRaidState>, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawActiveRaidState,
         r#"
         SELECT pre_raid_snapshot
         FROM raid_active_state
@@ -137,7 +154,8 @@ pub async fn delete_active_raid_state(pool: &PgPool, guild_id: GuildId) -> Resul
 }
 
 pub async fn get_all_active_raid_guilds(pool: &PgPool) -> Result<Vec<GuildId>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawRaidGuild,
         r#"
         SELECT guild_id
         FROM raid_active_state
@@ -146,10 +164,7 @@ pub async fn get_all_active_raid_guilds(pool: &PgPool) -> Result<Vec<GuildId>, s
     .fetch_all(pool)
     .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| GuildId::new(r.guild_id.cast_unsigned()))
-        .collect())
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 pub async fn upsert_hourly_stats(

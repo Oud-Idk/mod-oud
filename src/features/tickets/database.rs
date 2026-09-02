@@ -8,6 +8,23 @@ use sqlx::{PgPool, Postgres, Transaction};
 use std::result;
 use tracing::{instrument, trace};
 
+#[derive(sqlx::FromRow)]
+struct RawInactiveTicket {
+    channel_id: i64,
+    guild_id: i64,
+    last_activity: Option<DateTime<Utc>>,
+}
+
+impl From<RawInactiveTicket> for InactiveTicket {
+    fn from(r: RawInactiveTicket) -> Self {
+        Self {
+            channel_id: ChannelId::new(r.channel_id.cast_unsigned()),
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            last_activity: r.last_activity,
+        }
+    }
+}
+
 pub async fn mark_ticket_as_closed_db(data: &BotData, channel_id: ChannelId) -> Result<()> {
     sqlx::query!(
         "UPDATE tickets SET status = 'CLOSED', closed_at = NOW() WHERE channel_id = $1",
@@ -77,7 +94,8 @@ pub async fn fetch_inactive_tickets(
     pool: &PgPool,
     safety_threshold: DateTime<Utc>,
 ) -> Result<Vec<InactiveTicket>> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawInactiveTicket,
         r#"
         SELECT channel_id, guild_id, last_activity
         FROM tickets
@@ -89,16 +107,7 @@ pub async fn fetch_inactive_tickets(
     .fetch_all(pool)
     .await?;
 
-    let candidates = rows
-        .into_iter()
-        .map(|row| InactiveTicket {
-            channel_id: ChannelId::new(row.channel_id.cast_unsigned()),
-            guild_id: GuildId::new(row.guild_id.cast_unsigned()),
-            last_activity: row.last_activity,
-        })
-        .collect();
-
-    Ok(candidates)
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 pub async fn mark_ticket_as_warned(pool: &PgPool, target_ids: &[ChannelId]) -> Result<()> {
@@ -122,7 +131,8 @@ pub async fn fetch_closing_candidates(
     pool: &PgPool,
     safety_threshold: DateTime<Utc>,
 ) -> Result<Vec<InactiveTicket>> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawInactiveTicket,
         r#"
         SELECT channel_id, guild_id, last_activity
         FROM tickets
@@ -134,16 +144,7 @@ pub async fn fetch_closing_candidates(
     .fetch_all(pool)
     .await?;
 
-    let candidates = rows
-        .into_iter()
-        .map(|row| InactiveTicket {
-            channel_id: ChannelId::new(row.channel_id.cast_unsigned()),
-            guild_id: GuildId::new(row.guild_id.cast_unsigned()),
-            last_activity: row.last_activity,
-        })
-        .collect();
-
-    Ok(candidates)
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 pub async fn mark_ticket_as_closed(pool: &PgPool, tickets_to_close: &[ChannelId]) -> Result<()> {

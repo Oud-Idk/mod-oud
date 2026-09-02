@@ -3,6 +3,25 @@ use anyhow::Result;
 use serenity::all::{ChannelId, Context, GuildId, MessageId, UserId};
 use sqlx::PgPool;
 
+#[derive(sqlx::FromRow)]
+struct SimpleStarboardRow {
+    pub starboard_message_id: Option<i64>,
+    pub starboard_channel_id: i64,
+    pub keep_deleted_messages: Option<bool>,
+}
+
+impl From<SimpleStarboardRow> for SimpleStarboard {
+    fn from(row: SimpleStarboardRow) -> Self {
+        Self {
+            keep_deleted_messages: row.keep_deleted_messages,
+            starboard_message_id: row
+                .starboard_message_id
+                .map(|id| MessageId::new(id.cast_unsigned())),
+            starboard_channel_id: ChannelId::new(row.starboard_channel_id.cast_unsigned()),
+        }
+    }
+}
+
 /// Helper to fetch the existing starboard message ID from the database
 pub async fn fetch_starboard_message_id(
     db: &PgPool,
@@ -121,25 +140,6 @@ pub async fn delete_starboard(db: &PgPool, id: MessageId) -> Result<()> {
     .execute(db)
     .await?;
     Ok(())
-}
-
-#[derive(sqlx::FromRow)]
-struct SimpleStarboardRow {
-    pub starboard_message_id: Option<i64>,
-    pub starboard_channel_id: i64,
-    pub keep_deleted_messages: Option<bool>,
-}
-
-impl From<SimpleStarboardRow> for SimpleStarboard {
-    fn from(row: SimpleStarboardRow) -> Self {
-        Self {
-            keep_deleted_messages: row.keep_deleted_messages,
-            starboard_message_id: row
-                .starboard_message_id
-                .map(|id| MessageId::new(id.cast_unsigned())),
-            starboard_channel_id: ChannelId::new(row.starboard_channel_id.cast_unsigned()),
-        }
-    }
 }
 
 pub async fn fetch_starboard(db: &PgPool, id: MessageId) -> Result<Vec<SimpleStarboard>> {

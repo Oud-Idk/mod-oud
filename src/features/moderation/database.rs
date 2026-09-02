@@ -7,6 +7,23 @@ use serenity::model::id::UserId;
 use sqlx::PgPool;
 use sqlx::postgres::types::PgInterval;
 
+#[derive(sqlx::FromRow)]
+struct RawTempBanRecord {
+    id: i64,
+    guild_id: i64,
+    user_id: i64,
+}
+
+impl From<RawTempBanRecord> for TempBanRecord {
+    fn from(r: RawTempBanRecord) -> Self {
+        Self {
+            id: r.id,
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+        }
+    }
+}
+
 trait ToPgInterval {
     fn to_pg_interval(&self) -> PgInterval;
 }
@@ -60,7 +77,8 @@ pub async fn fetch_expired_temp_bans(
     db: &PgPool,
     now: chrono::DateTime<chrono::Utc>,
 ) -> Result<Vec<TempBanRecord>> {
-    let records = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawTempBanRecord,
         r#"
         SELECT id, guild_id, user_id FROM temp_bans
         WHERE unban_at <= $1
@@ -69,16 +87,9 @@ pub async fn fetch_expired_temp_bans(
         now
     )
     .fetch_all(db)
-    .await?
-    .into_iter()
-    .map(|r| TempBanRecord {
-        id: r.id,
-        guild_id: GuildId::from(r.guild_id.cast_unsigned()),
-        user_id: UserId::from(r.guild_id.cast_unsigned()),
-    })
-    .collect();
+    .await?;
 
-    Ok(records)
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 /// Deletes processed temp ban records by ID.

@@ -2,6 +2,25 @@ use crate::features::economy::types::Balance;
 use serenity::all::{GuildId, UserId};
 use sqlx::{PgPool, PgTransaction};
 
+#[derive(sqlx::FromRow)]
+struct RawBalance {
+    guild_id: i64,
+    user_id: i64,
+    cash: i64,
+    bank: i64,
+}
+
+impl From<RawBalance> for Balance {
+    fn from(r: RawBalance) -> Self {
+        Self {
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            cash: r.cash,
+            bank: r.bank,
+        }
+    }
+}
+
 /// Gets someone's balance.
 ///
 /// # Errors
@@ -11,7 +30,8 @@ pub async fn get_balance(
     guild_id: GuildId,
     user_id: UserId,
 ) -> Result<Balance, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         SELECT guild_id, user_id, cash, bank
         FROM economy_balances
@@ -23,17 +43,15 @@ pub async fn get_balance(
     .fetch_optional(db)
     .await?;
 
-    row.map_or_else(
-        || {
-            Ok(Balance {
-                guild_id,
-                user_id,
-                cash: 0,
-                bank: 0,
-            })
+    Ok(row.map_or_else(
+        || Balance {
+            guild_id,
+            user_id,
+            cash: 0,
+            bank: 0,
         },
-        |r| Ok(Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank)),
-    )
+        Into::into,
+    ))
 }
 
 /// Ensure a balance row exists, seeding with `starting_balance` if missing.
@@ -51,7 +69,8 @@ pub async fn ensure_balance(
         return get_balance(db, guild_id, user_id).await;
     }
 
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         INSERT INTO economy_balances (guild_id, user_id, cash, bank)
         VALUES ($1, $2, $3, 0)
@@ -66,7 +85,7 @@ pub async fn ensure_balance(
     .await?;
 
     if let Some(r) = row {
-        Ok(Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank))
+        Ok(r.into())
     } else {
         get_balance(db, guild_id, user_id).await
     }
@@ -108,7 +127,8 @@ pub async fn add_cash(
     user_id: UserId,
     amount: i64,
 ) -> Result<Balance, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         INSERT INTO economy_balances (guild_id, user_id, cash, bank)
         VALUES ($1, $2, $3, 0)
@@ -123,12 +143,7 @@ pub async fn add_cash(
     .fetch_one(db)
     .await?;
 
-    Ok(Balance::from_raw(
-        row.guild_id,
-        row.user_id,
-        row.cash,
-        row.bank,
-    ))
+    Ok(row.into())
 }
 
 pub async fn transfer_cash_to_bank(
@@ -141,7 +156,8 @@ pub async fn transfer_cash_to_bank(
         return Ok(None);
     }
 
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         UPDATE economy_balances
         SET cash = cash - $3, bank = bank + $3
@@ -155,7 +171,7 @@ pub async fn transfer_cash_to_bank(
     .fetch_optional(db)
     .await?;
 
-    Ok(row.map(|r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank)))
+    Ok(row.map(Into::into))
 }
 
 /// Deduct coins from a user's wallet. Returns the updated balance, or
@@ -173,7 +189,8 @@ pub async fn deduct_cash(
         return Ok(None);
     }
 
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         UPDATE economy_balances
         SET cash = cash - $3
@@ -187,7 +204,7 @@ pub async fn deduct_cash(
     .fetch_optional(db)
     .await?;
 
-    Ok(row.map(|r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank)))
+    Ok(row.map(Into::into))
 }
 
 pub async fn transfer_bank_to_cash(
@@ -200,7 +217,8 @@ pub async fn transfer_bank_to_cash(
         return Ok(None);
     }
 
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         UPDATE economy_balances
         SET bank = bank - $3, cash = cash + $3
@@ -214,7 +232,7 @@ pub async fn transfer_bank_to_cash(
     .fetch_optional(db)
     .await?;
 
-    Ok(row.map(|r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank)))
+    Ok(row.map(Into::into))
 }
 
 /// Set a user's wallet to an exact amount (admin). Preserves bank.
@@ -224,7 +242,8 @@ pub async fn set_cash(
     user_id: UserId,
     amount: i64,
 ) -> Result<Balance, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         INSERT INTO economy_balances (guild_id, user_id, cash, bank)
         VALUES ($1, $2, $3, 0)
@@ -239,12 +258,7 @@ pub async fn set_cash(
     .fetch_one(db)
     .await?;
 
-    Ok(Balance::from_raw(
-        row.guild_id,
-        row.user_id,
-        row.cash,
-        row.bank,
-    ))
+    Ok(row.into())
 }
 
 pub async fn get_leaderboard(
@@ -253,7 +267,8 @@ pub async fn get_leaderboard(
     limit: i64,
     offset: i64,
 ) -> Result<Vec<Balance>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawBalance,
         r#"
         SELECT guild_id, user_id, cash, bank
         FROM economy_balances
@@ -268,10 +283,7 @@ pub async fn get_leaderboard(
     .fetch_all(db)
     .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank))
-        .collect())
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 pub async fn get_leaderboard_paginated(
@@ -280,7 +292,8 @@ pub async fn get_leaderboard_paginated(
     current_lowest_total: i64,
     limit: i64,
 ) -> Result<Vec<Balance>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawBalance,
         r#"
         SELECT guild_id, user_id, cash, bank
         FROM economy_balances
@@ -296,10 +309,7 @@ pub async fn get_leaderboard_paginated(
     .fetch_all(db)
     .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank))
-        .collect())
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 pub async fn transfer_cash(
@@ -336,7 +346,8 @@ pub async fn transfer_cash(
     .fetch_all(&mut *tx)
     .await?;
 
-    let sender_row = sqlx::query!(
+    let sender_row = sqlx::query_as!(
+        RawBalance,
         r#"
         UPDATE economy_balances
         SET cash = cash - $3
@@ -355,7 +366,8 @@ pub async fn transfer_cash(
         return Ok(None);
     };
 
-    let receiver_row = sqlx::query!(
+    let receiver_row = sqlx::query_as!(
+        RawBalance,
         r#"
         INSERT INTO economy_balances (guild_id, user_id, cash, bank)
         VALUES ($1, $2, $3, 0)
@@ -372,15 +384,7 @@ pub async fn transfer_cash(
 
     tx.commit().await?;
 
-    Ok(Some((
-        Balance::from_raw(s.guild_id, s.user_id, s.cash, s.bank),
-        Balance::from_raw(
-            receiver_row.guild_id,
-            receiver_row.user_id,
-            receiver_row.cash,
-            receiver_row.bank,
-        ),
-    )))
+    Ok(Some((s.into(), receiver_row.into())))
 }
 
 /// Fetch balance within an active transaction / connection.
@@ -389,7 +393,8 @@ pub async fn get_balance_tx(
     guild_id: GuildId,
     user_id: UserId,
 ) -> Result<Balance, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         SELECT guild_id, user_id, cash, bank
         FROM economy_balances
@@ -408,7 +413,7 @@ pub async fn get_balance_tx(
             cash: 0,
             bank: 0,
         },
-        |r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank),
+        Into::into,
     ))
 }
 
@@ -419,7 +424,8 @@ pub async fn add_cash_tx(
     user_id: UserId,
     amount: i64,
 ) -> Result<Balance, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         INSERT INTO economy_balances (guild_id, user_id, cash, bank)
         VALUES ($1, $2, $3, 0)
@@ -434,12 +440,7 @@ pub async fn add_cash_tx(
     .fetch_one(&mut **tx)
     .await?;
 
-    Ok(Balance::from_raw(
-        row.guild_id,
-        row.user_id,
-        row.cash,
-        row.bank,
-    ))
+    Ok(row.into())
 }
 
 /// Deduct cash within a transaction. Returns `None` if insufficient funds.
@@ -453,7 +454,8 @@ pub async fn deduct_cash_tx(
         return Ok(None);
     }
 
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         UPDATE economy_balances
         SET cash = cash - $3
@@ -467,7 +469,7 @@ pub async fn deduct_cash_tx(
     .fetch_optional(&mut **tx)
     .await?;
 
-    Ok(row.map(|r| Balance::from_raw(r.guild_id, r.user_id, r.cash, r.bank)))
+    Ok(row.map(Into::into))
 }
 
 /// Set a user's exact cash balance within a transaction.
@@ -477,7 +479,8 @@ pub async fn set_cash_tx(
     user_id: UserId,
     amount: i64,
 ) -> Result<Balance, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         INSERT INTO economy_balances (guild_id, user_id, cash, bank)
         VALUES ($1, $2, $3, 0)
@@ -492,10 +495,5 @@ pub async fn set_cash_tx(
     .fetch_one(&mut **tx)
     .await?;
 
-    Ok(Balance::from_raw(
-        row.guild_id,
-        row.user_id,
-        row.cash,
-        row.bank,
-    ))
+    Ok(row.into())
 }

@@ -4,6 +4,51 @@ use serenity::all::{ChannelId, GuildId, Message, MessageId, User, UserId};
 use sqlx::PgPool;
 use tracing::{error, warn};
 
+#[derive(sqlx::FromRow)]
+struct RawReportedMessage {
+    id: i64,
+    guild_id: i64,
+    channel_id: i64,
+    message_id: i64,
+    author_id: i64,
+    reporter_id: i64,
+    content: String,
+    attachment_url: Option<String>,
+    reason: String,
+    status: ReportStatus,
+    message_deleted: bool,
+    user_warned: bool,
+    user_timed_out: bool,
+    user_banned: bool,
+}
+
+impl From<RawReportedMessage> for ReportedMessagePayload {
+    fn from(r: RawReportedMessage) -> Self {
+        Self {
+            id: r.id,
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            channel_id: ChannelId::new(r.channel_id.cast_unsigned()),
+            message_id: MessageId::new(r.message_id.cast_unsigned()),
+            author_id: UserId::new(r.author_id.cast_unsigned()),
+            reporter_id: UserId::new(r.reporter_id.cast_unsigned()),
+            content: r.content,
+            attachment_url: r.attachment_url,
+            reason: r.reason,
+            status: r.status,
+            message_deleted: r.message_deleted.into(),
+            user_warned: r.user_warned.into(),
+            user_timed_out: r.user_timed_out.into(),
+            user_banned: r.user_banned.into(),
+        }
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct RawTargetReport {
+    guild_id: i64,
+    author_id: i64,
+}
+
 pub struct Id {
     pub(crate) id: i64,
 }
@@ -45,12 +90,13 @@ pub async fn get_reported_message_by_id(
     pool: &PgPool,
     id: i64,
 ) -> Result<Option<ReportedMessagePayload>, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawReportedMessage,
         r#"
         SELECT
             id, guild_id, channel_id, message_id, author_id, reporter_id,
             content, attachment_url, reason,
-            status as "status!: ReportStatus", message_deleted,
+            status as "status: ReportStatus", message_deleted,
             user_warned, user_timed_out, user_banned
         FROM reported_messages
         WHERE id = $1
@@ -60,29 +106,15 @@ pub async fn get_reported_message_by_id(
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(|r| ReportedMessagePayload {
-        id: r.id,
-        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
-        channel_id: ChannelId::new(r.channel_id.cast_unsigned()),
-        message_id: MessageId::new(r.message_id.cast_unsigned()),
-        author_id: UserId::new(r.author_id.cast_unsigned()),
-        reporter_id: UserId::new(r.reporter_id.cast_unsigned()),
-        content: r.content,
-        attachment_url: r.attachment_url,
-        reason: r.reason,
-        status: r.status,
-        message_deleted: r.message_deleted.into(),
-        user_warned: r.user_warned.into(),
-        user_timed_out: r.user_timed_out.into(),
-        user_banned: r.user_banned.into(),
-    }))
+    Ok(row.map(Into::into))
 }
 
 pub async fn fetch_target_report(
     pool: &PgPool,
     report_id: i64,
 ) -> Result<(GuildId, UserId, String), (StatusCode, String)> {
-    let report = sqlx::query!(
+    let report = sqlx::query_as!(
+        RawTargetReport,
         "SELECT guild_id, author_id FROM reported_messages WHERE id = $1",
         report_id
     )

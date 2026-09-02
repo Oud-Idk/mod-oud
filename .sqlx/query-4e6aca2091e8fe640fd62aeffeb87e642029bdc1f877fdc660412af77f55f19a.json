@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, guild_id, name, description, price, category_id,\n               emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,\n               is_listed, unlimited_stock, stock_remaining,\n               requirements AS \"requirements: serde_json::Value\",\n               actions AS \"actions: serde_json::Value\",\n               expires_at, created_at\n        FROM economy_items\n        WHERE guild_id = $1 AND LOWER(name) = LOWER($2)\n        ",
+  "query": "\n        SELECT id, guild_id, name, description, price, category_id,\n               emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,\n               is_listed, unlimited_stock, stock_remaining,\n               requirements, actions,\n               expires_at, created_at\n        FROM economy_items\n        WHERE guild_id = $1 AND LOWER(name) = LOWER($2)\n        ",
   "describe": {
     "columns": [
       {
@@ -159,7 +159,7 @@
       },
       {
         "ordinal": 14,
-        "name": "requirements: serde_json::Value",
+        "name": "requirements",
         "type_info": "Jsonb",
         "origin": {
           "Table": {
@@ -170,7 +170,7 @@
       },
       {
         "ordinal": 15,
-        "name": "actions: serde_json::Value",
+        "name": "actions",
         "type_info": "Jsonb",
         "origin": {
           "Table": {
@@ -229,5 +229,5 @@
       false
     ]
   },
-  "hash": "4c0a24aa2e90dcf613aceb749d429b2b460c55f5d83f2e87aadec01fb074868c"
+  "hash": "4e6aca2091e8fe640fd62aeffeb87e642029bdc1f877fdc660412af77f55f19a"
 }

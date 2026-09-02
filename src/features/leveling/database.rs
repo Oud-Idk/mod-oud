@@ -9,12 +9,56 @@ use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use tracing::trace;
 
+#[derive(sqlx::FromRow)]
+struct RawUserLevel {
+    guild_id: i64,
+    user_id: i64,
+    cumulative_xp: i64,
+    current_level: i64,
+    current_xp: i64,
+}
+
+impl From<RawUserLevel> for UserLevel {
+    fn from(r: RawUserLevel) -> Self {
+        Self {
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            cumulative_xp: r.cumulative_xp,
+            current_level: r.current_level,
+            current_xp: r.current_xp,
+        }
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct RawLevelReward {
+    level_requirement: i64,
+    roles_to_add: Option<Vec<i64>>,
+    remove_previous_roles: Option<bool>,
+}
+
+impl From<RawLevelReward> for LevelReward {
+    fn from(r: RawLevelReward) -> Self {
+        Self {
+            level_requirement: r.level_requirement,
+            roles_to_add: r.roles_to_add.map(|roles| {
+                roles
+                    .into_iter()
+                    .map(|id| RoleId::new(id.cast_unsigned()))
+                    .collect()
+            }),
+            remove_previous_roles: r.remove_previous_roles,
+        }
+    }
+}
+
 pub async fn get_level(
     db: &PgPool,
     guild_id: GuildId,
     user_id: UserId,
 ) -> Result<Option<UserLevel>, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawUserLevel,
         r#"
         SELECT guild_id, user_id, cumulative_xp, current_level, current_xp
         FROM levels
@@ -26,15 +70,7 @@ pub async fn get_level(
     .fetch_optional(db)
     .await?;
 
-    Ok(row.map(|r| {
-        UserLevel::from_raw(
-            r.guild_id,
-            r.user_id,
-            r.cumulative_xp,
-            r.current_level,
-            r.current_xp,
-        )
-    }))
+    Ok(row.map(Into::into))
 }
 
 pub async fn insert_level(
@@ -42,7 +78,8 @@ pub async fn insert_level(
     guild_id: GuildId,
     user_id: UserId,
 ) -> Result<UserLevel, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawUserLevel,
         r#"
         INSERT INTO levels (user_id, guild_id)
         VALUES ($1, $2)
@@ -54,13 +91,7 @@ pub async fn insert_level(
     .fetch_one(db)
     .await?;
 
-    Ok(UserLevel::from_raw(
-        row.guild_id,
-        row.user_id,
-        row.cumulative_xp,
-        row.current_level,
-        row.current_xp,
-    ))
+    Ok(row.into())
 }
 
 pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQueryResult> {
@@ -101,7 +132,8 @@ pub async fn fetch_level_rewards(
     db: &PgPool,
     guild_id: GuildId,
 ) -> Result<Vec<LevelReward>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawLevelReward,
         r#"
         SELECT level_requirement, roles_to_add, remove_previous_roles
         FROM level_rewards
@@ -112,21 +144,7 @@ pub async fn fetch_level_rewards(
     .fetch_all(db)
     .await?;
 
-    let rewards = rows
-        .into_iter()
-        .map(|row| LevelReward {
-            level_requirement: row.level_requirement,
-            roles_to_add: row.roles_to_add.map(|roles| {
-                roles
-                    .into_iter()
-                    .map(|id| RoleId::new(id.cast_unsigned()))
-                    .collect()
-            }),
-            remove_previous_roles: row.remove_previous_roles,
-        })
-        .collect();
-
-    Ok(rewards)
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 pub async fn get_user_level(

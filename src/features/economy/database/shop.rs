@@ -1,7 +1,75 @@
 use crate::features::economy::types::{Balance, Item};
+use chrono::{DateTime, Utc};
+use serde_json::Value;
 use serenity::all::{GuildId, UserId};
 use sqlx::{PgConnection, PgPool};
 use uuid::Uuid;
+
+#[derive(sqlx::FromRow)]
+struct RawItem {
+    id: Uuid,
+    guild_id: i64,
+    name: String,
+    description: String,
+    price: i64,
+    category_id: Option<Uuid>,
+    emoji_unicode: Option<String>,
+    emoji_id: Option<String>,
+    is_inventory: bool,
+    is_usable: bool,
+    is_sellable: bool,
+    is_listed: bool,
+    unlimited_stock: bool,
+    stock_remaining: i32,
+    requirements: Value,
+    actions: Value,
+    expires_at: Option<DateTime<Utc>>,
+    created_at: DateTime<Utc>,
+}
+
+impl From<RawItem> for Item {
+    fn from(r: RawItem) -> Self {
+        Self {
+            id: r.id,
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            name: r.name,
+            description: r.description,
+            price: r.price,
+            category_id: r.category_id,
+            emoji_unicode: r.emoji_unicode,
+            emoji_id: r.emoji_id,
+            is_inventory: r.is_inventory,
+            is_usable: r.is_usable,
+            is_sellable: r.is_sellable,
+            is_listed: r.is_listed,
+            unlimited_stock: r.unlimited_stock,
+            stock_remaining: r.stock_remaining,
+            requirements: r.requirements,
+            actions: r.actions,
+            expires_at: r.expires_at,
+            created_at: r.created_at,
+        }
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct RawBalance {
+    guild_id: i64,
+    user_id: i64,
+    cash: i64,
+    bank: i64,
+}
+
+impl From<RawBalance> for Balance {
+    fn from(r: RawBalance) -> Self {
+        Self {
+            guild_id: GuildId::new(r.guild_id.cast_unsigned()),
+            user_id: UserId::new(r.user_id.cast_unsigned()),
+            cash: r.cash,
+            bank: r.bank,
+        }
+    }
+}
 
 pub enum PurchaseError {
     InvalidQuantity,
@@ -52,7 +120,8 @@ async fn deduct_item_stock(
     item_id: Uuid,
     quantity: i32,
 ) -> Result<Result<Item, PurchaseError>, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawItem,
         r#"
         UPDATE economy_items
         SET stock_remaining = CASE
@@ -66,8 +135,7 @@ async fn deduct_item_stock(
         RETURNING id, guild_id, name, description, price, category_id,
                   emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,
                   is_listed, unlimited_stock, stock_remaining,
-                  requirements AS "requirements: serde_json::Value",
-                  actions AS "actions: serde_json::Value",
+                  requirements, actions,
                   expires_at, created_at
         "#,
         guild_id.get().cast_signed(),
@@ -96,26 +164,7 @@ async fn deduct_item_stock(
             })));
     };
 
-    Ok(Ok(Item::from_raw(
-        r.id,
-        r.guild_id,
-        r.name,
-        r.description,
-        r.price,
-        r.category_id,
-        r.emoji_unicode,
-        r.emoji_id,
-        r.is_inventory,
-        r.is_usable,
-        r.is_sellable,
-        r.is_listed,
-        r.unlimited_stock,
-        r.stock_remaining,
-        r.requirements,
-        r.actions,
-        r.expires_at,
-        r.created_at,
-    )))
+    Ok(Ok(r.into()))
 }
 
 async fn deduct_user_balance(
@@ -124,7 +173,8 @@ async fn deduct_user_balance(
     user_id: UserId,
     total_cost: i64,
 ) -> Result<Result<Balance, PurchaseError>, sqlx::Error> {
-    let balance_row = sqlx::query!(
+    let balance_row = sqlx::query_as!(
+        RawBalance,
         r#"
         UPDATE economy_balances
         SET cash = cash - $3
@@ -153,7 +203,7 @@ async fn deduct_user_balance(
         }));
     };
 
-    Ok(Ok(Balance::from_raw(b.guild_id, b.user_id, b.cash, b.bank)))
+    Ok(Ok(b.into()))
 }
 
 async fn upsert_inventory_item(
@@ -238,13 +288,13 @@ async fn fetch_item_for_sale(
     guild_id: GuildId,
     item_id: Uuid,
 ) -> Result<Option<Item>, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawItem,
         r#"
         SELECT id, guild_id, name, description, price, category_id,
                emoji_unicode, emoji_id, is_inventory, is_usable, is_sellable,
                is_listed, unlimited_stock, stock_remaining,
-               requirements AS "requirements: serde_json::Value",
-               actions AS "actions: serde_json::Value",
+               requirements, actions,
                expires_at, created_at
         FROM economy_items
         WHERE guild_id = $1 AND id = $2
@@ -255,26 +305,7 @@ async fn fetch_item_for_sale(
     .fetch_optional(&mut **tx)
     .await?;
 
-    Ok(row.map(|r| Item {
-        id: r.id,
-        guild_id: GuildId::new(r.guild_id.cast_unsigned()),
-        name: r.name,
-        description: r.description,
-        price: r.price,
-        category_id: r.category_id,
-        emoji_unicode: r.emoji_unicode,
-        emoji_id: r.emoji_id,
-        is_inventory: r.is_inventory,
-        is_usable: r.is_usable,
-        is_sellable: r.is_sellable,
-        is_listed: r.is_listed,
-        unlimited_stock: r.unlimited_stock,
-        stock_remaining: r.stock_remaining,
-        requirements: r.requirements,
-        actions: r.actions,
-        expires_at: r.expires_at,
-        created_at: r.created_at,
-    }))
+    Ok(row.map(Into::into))
 }
 
 /// Locks the user's inventory row and deducts the sold quantity.
@@ -333,7 +364,8 @@ async fn credit_balance(
     user_id: UserId,
     amount: i64,
 ) -> Result<Balance, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as!(
+        RawBalance,
         r#"
         INSERT INTO economy_balances (guild_id, user_id, cash, bank)
         VALUES ($1, $2, $3, 0)
@@ -348,12 +380,7 @@ async fn credit_balance(
     .fetch_one(&mut **tx)
     .await?;
 
-    Ok(Balance::from_raw(
-        row.guild_id,
-        row.user_id,
-        row.cash,
-        row.bank,
-    ))
+    Ok(row.into())
 }
 
 /// Adds back stock for limited items.

@@ -6,6 +6,21 @@ use serenity::{
 };
 use sqlx::{PgPool, Postgres, Transaction};
 
+#[derive(sqlx::FromRow)]
+struct RawInviterLeaderboardEntry {
+    inviter_id: i64,
+    count: i64,
+}
+
+impl From<RawInviterLeaderboardEntry> for InviterLeaderboardEntry {
+    fn from(r: RawInviterLeaderboardEntry) -> Self {
+        Self {
+            inviter_id: UserId::new(r.inviter_id.cast_unsigned()),
+            count: r.count,
+        }
+    }
+}
+
 pub async fn upsert_invited_member(
     tx: &mut Transaction<'_, Postgres>,
     guild_id: u64,
@@ -119,7 +134,8 @@ pub async fn get_top_inviters(
     guild_id: GuildId,
     limit: i64,
 ) -> Result<Vec<InviterLeaderboardEntry>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query_as!(
+        RawInviterLeaderboardEntry,
         r#"
         SELECT inviter_id, count
         FROM inviter_counts
@@ -133,14 +149,5 @@ pub async fn get_top_inviters(
     .fetch_all(db)
     .await?;
 
-    // Convert raw signed integer DB snowflakes directly into serenity `UserId`
-    let entries = rows
-        .into_iter()
-        .map(|row| InviterLeaderboardEntry {
-            inviter_id: UserId::new(row.inviter_id.cast_unsigned()),
-            count: row.count,
-        })
-        .collect();
-
-    Ok(entries)
+    Ok(rows.into_iter().map(Into::into).collect())
 }
