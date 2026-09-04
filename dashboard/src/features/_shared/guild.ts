@@ -94,3 +94,34 @@ export async function saveGuildConfigField(guildId: string, key: string, value: 
         console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
     }
 }
+
+/**
+ * Full-replace variant of {@link saveGuildConfigField}.
+ *
+ * Overwrites the whole JSONB key instead of shallow-merging, so it can remove
+ * nested properties (merging can only add or overwrite, never delete). Use
+ * sparingly — only when the caller owns the entire object.
+ */
+export async function replaceGuildConfigField(guildId: string, key: string, value: unknown): Promise<void> {
+    const query = `
+        INSERT INTO guild_configs (guild_id, settings)
+        VALUES ($1, JSONB_BUILD_OBJECT($2::TEXT, $3::JSONB))
+        ON CONFLICT (guild_id) DO UPDATE
+            SET settings = JSONB_SET(
+                    COALESCE(guild_configs.settings, '{}'::JSONB),
+                    ARRAY[$2::TEXT],
+                    $3::JSONB,
+                    true
+                           );
+    `;
+
+    await db.query(query, [guildId, key, JSON.stringify(value)]);
+
+    const cacheKey = `config:guild:${guildId}`;
+    try {
+        await redis.del(cacheKey);
+        await redis.publish("config_updates", `invalidate:${guildId}`);
+    } catch (redisError) {
+        console.error(`Failed to clear cache for guild ${guildId}:`, redisError);
+    }
+}

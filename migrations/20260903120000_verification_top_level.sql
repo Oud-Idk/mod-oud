@@ -7,11 +7,11 @@
 
 UPDATE guild_configs
 SET settings = jsonb_set(
-    COALESCE(settings, '{}'::jsonb),
-    '{verification}',
-    settings #> '{welcome,verification}',
-    true
-)
+        COALESCE(settings, '{}'::jsonb),
+        '{verification}',
+        settings #> '{welcome,verification}',
+        true
+               )
 WHERE settings #> '{welcome,verification}' IS NOT NULL
   AND settings #> '{verification}' IS NULL;
 

@@ -1,5 +1,5 @@
 import { auth, signIn } from "@/lib/auth";
-import { getWelcomeConfig } from "@/features/welcome/queries";
+import { getVerificationConfig } from "../queries";
 import VerifyForm from "./VerifyForm";
 import Emphasis from "@/components/layout/Emphasis";
 import { Button } from "@/components/ui/inputs/Button";
@@ -21,10 +21,10 @@ export async function VerificationFeature({ searchParams }: VerifyFeatureProps):
         return <p>Invalid search params!</p>
     }
 
-    const settings = await getWelcomeConfig(guildId);
+    const settings = await getVerificationConfig(guildId);
     const currentUrl = `/verify?user_id=${userId}&guild_id=${guildId}&expires=${expires}&sig=${sig}`;
 
-    if (settings.verification.useOauth && session?.accessToken === undefined) {
+    if (settings.useOauth && session?.accessToken === undefined) {
         return (
             <main className="flex min-h-dvh flex-col items-center justify-center p-4">
                 <div className="border border-border bg-surface">
@@ -47,15 +47,15 @@ export async function VerificationFeature({ searchParams }: VerifyFeatureProps):
     }
 
     return (
-        <main className="flex min-h-dvh flex-col items-center justify-center p-4">
+        <main className="flex h-full flex-col items-center justify-center p-4">
             <VerifyForm
                 userId={userId}
                 guildId={guildId}
                 expires={expires}
                 sig={sig}
                 session={session}
-                captchaType={settings.verification.captchaType}
-                useOauth={settings.verification.useOauth}
+                captchaType={settings.captchaType}
+                useOauth={settings.useOauth}
             />
         </main>
     );

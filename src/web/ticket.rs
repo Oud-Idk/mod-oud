@@ -49,6 +49,9 @@ pub fn verify_ticket(
 }
 
 /// Generates a ticket signature for a given payload (used in tests / docs).
+///
+/// # Panics
+/// Function will not panic; HMAC accepts any key length.
 #[must_use]
 pub fn sign_ticket(
     guild_id: &str,

@@ -8,7 +8,6 @@ import { MessageConfigEditor } from "@/features/_shared/message-creator/componen
 import { WELCOME_CONFIG } from "../builderConfigs";
 
 import { AutoAssignRole } from "./AutoAssignRole";
-import { VerificationTab } from "./VerificationTab";
 import type { WelcomeConfig } from "../types";
 import { saveWelcomeConfigSchema } from "../types";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
@@ -21,31 +20,25 @@ export interface DiscordRole {
 }
 
 interface WelcomeBodyProps {
-    guildId: string;
     welcomeConfig: WelcomeConfig;
     channels: DiscordChannel[];
     roles: DiscordRole[];
     onSave: (config: WelcomeConfig) => Promise<void>;
-    profilePictureUrl?: string;
-    channelMap: Record<string, string>;
 }
 
-type TabValue = "PUBLIC" | "PRIVATE" | "ROLES" | "VERIFICATION";
+type TabValue = "PUBLIC" | "PRIVATE" | "ROLES";
 
 const WELCOME_TABS: TabItem<TabValue>[] = [
     { value: "PUBLIC", label: "Public Message" },
     { value: "PRIVATE", label: "Private Message (DM)" },
     { value: "ROLES", label: "Welcome Roles" },
-    { value: "VERIFICATION", label: "Verification" },
 ];
 
 export function WelcomeBody({
-    guildId,
     welcomeConfig,
     channels,
     roles,
     onSave,
-    channelMap,
 }: WelcomeBodyProps): JSX.Element {
     const [activeTab, setActiveTab] = useState<TabValue>("PUBLIC");
     const [targetChannelIsEmpty, setTargetChannelIsEmpty] = useState(false);
@@ -63,12 +56,6 @@ export function WelcomeBody({
         onSave,
         schema: saveWelcomeConfigSchema,
     });
-
-    const isSystemConfigured =
-        config.verification.verificationChannelId !== null &&
-        config.verification.verificationChannelId !== "" &&
-        config.verification.verificationRoleId !== null &&
-        config.verification.verificationRoleId !== "";
 
     return (
         <div className="space-y-4">
@@ -168,18 +155,6 @@ export function WelcomeBody({
 
                 {activeTab === "ROLES" && (
                     <AutoAssignRole roles={roles} config={config} isPending={isPending} setConfig={setConfig} />
-                )}
-
-                {activeTab === "VERIFICATION" && (
-                    <VerificationTab
-                        config={config}
-                        setConfig={setConfig}
-                        isSystemConfigured={isSystemConfigured}
-                        guildId={guildId}
-                        isDirty={isDirty}
-                        roles={roles}
-                        channelMap={channelMap}
-                    />
                 )}
             </div>
 

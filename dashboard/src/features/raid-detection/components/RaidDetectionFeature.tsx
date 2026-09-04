@@ -4,16 +4,16 @@ import { getRaidDetectionConfig, getRaidStatus } from "../queries";
 import { saveRaidDetectionConfigAction } from "../actions";
 import { RaidDetectionBody } from "./RaidDetectionBody";
 import { JSX} from "react";
-import { getWelcomeConfig } from "@/features/welcome/queries";
+import { getVerificationConfig } from "@/features/verification";
 
 interface RaidDetectionFeatureProps {
     guildId: string;
 }
 
 export async function RaidDetectionFeature({ guildId }: RaidDetectionFeatureProps): Promise<JSX.Element> {
-    const [raidDetectionConfig, welcomeConfig, channelMap] = await Promise.all([
+    const [raidDetectionConfig, verificationConfig, channelMap] = await Promise.all([
         getRaidDetectionConfig(guildId),
-        getWelcomeConfig(guildId),
+        getVerificationConfig(guildId),
         getTextChannelMap(guildId),
     ]);
 
@@ -30,7 +30,7 @@ export async function RaidDetectionFeature({ guildId }: RaidDetectionFeatureProp
             <DashboardHeader>Anti-Raid</DashboardHeader>
             <RaidDetectionBody
                 raidDetectionConfig={raidDetectionConfig}
-                welcomeConfig={welcomeConfig}
+                verificationConfig={verificationConfig}
                 onSave={handleSave}
                 raidStatus={raidStatus}
                 channelMap={channelMap}

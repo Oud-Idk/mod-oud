@@ -17,11 +17,11 @@ import {
     RaidDetectionConfig,
     raidDetectionConfigSchema,
 } from "@/features/raid-detection/types";
-import { WelcomeConfig } from "@/features/welcome/types";
+import { VerificationConfig } from "@/features/verification";
 
 interface RaidDetectionBodyProps {
     raidDetectionConfig: RaidDetectionConfig;
-    welcomeConfig: WelcomeConfig;
+    verificationConfig: VerificationConfig;
     channelMap: Record<string, string>;
     onSave: (config: RaidDetectionConfig) => Promise<void>;
     raidStatus: RaidStatusSnapshot;
@@ -29,7 +29,7 @@ interface RaidDetectionBodyProps {
 
 export function RaidDetectionBody({
     raidDetectionConfig,
-    welcomeConfig,
+    verificationConfig,
     channelMap,
     onSave,
     raidStatus,
@@ -125,7 +125,7 @@ export function RaidDetectionBody({
         (action) => action.type === "BUMP_VERIFICATION",
     );
 
-    const verification = welcomeConfig.verification;
+    const verification = verificationConfig;
     const isVerificationDisabled =
         !verification.enabled ||
         verification.verificationChannelId === null ||

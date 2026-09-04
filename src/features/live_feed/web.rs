@@ -29,7 +29,7 @@ pub struct SseQuery {
     #[serde_as(as = "Option<DisplayFromStr>")]
     #[serde(default)]
     pub expires: Option<u64>,
-    /// HMAC-SHA256 hex signature over "{guild_id}:{user_id}:{expires}:sse".
+    /// HMAC-SHA256 hex signature over `{guild_id}:{user_id}:{expires}:sse`.
     #[serde(default)]
     pub sig: Option<String>,
 }

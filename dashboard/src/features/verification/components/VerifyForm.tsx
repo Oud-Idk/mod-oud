@@ -6,7 +6,8 @@ import Emphasis from "@/components/layout/Emphasis";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { Session } from "next-auth";
 import Image from "next/image";
-import { CaptchaType } from "@/features/welcome/types";
+import { config } from "@/config";
+import { CaptchaType } from "@/features/verification";
 import { Button } from "@/components/ui/inputs/Button";
 
 interface VerifyFormProps {
@@ -19,7 +20,15 @@ interface VerifyFormProps {
     useOauth?: boolean;
 }
 
-export default function VerifyForm({ userId, guildId, expires, sig, session, captchaType, useOauth }: VerifyFormProps): JSX.Element {
+export default function VerifyForm({
+    userId,
+    guildId,
+    expires,
+    sig,
+    session,
+    captchaType,
+    useOauth
+}: VerifyFormProps): JSX.Element {
     const [status, setStatus] = useState<'IDLE' | 'VERIFYING' | 'SUCCESS' | 'ERROR'>('IDLE');
     const [message, setMessage] = useState('');
     const [token, setToken] = useState<string | null>(null);
@@ -44,14 +53,14 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
         setStatus('VERIFYING');
 
         try {
-            const res = await fetch('http://localhost:8080/api/verify', {
+            const res = await fetch(`${config.publicBackendUrl}/api/verify`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    user_id_str: userId,
-                    guild_id_str: guildId,
+                    user_id: userId,
+                    guild_id: guildId,
                     expires: parseInt(expires, 10),
                     sig,
                     captcha_token: token,
@@ -85,9 +94,11 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
         userImage !== "";
 
     return (
-        <div className="bg-surface p-8 rounded-lg text-center max-w-sm w-full shadow-lg border border-border">
+        <div
+            className="bg-surface p-8 rounded-lg text-center max-w-sm w-full shadow-lg border border-border">
             <Emphasis className="text-xl font-bold">Prove You&apos;re Human</Emphasis>
-            <p className="my-2">A quick check to prove that you&apos;re a human and not a clanker.</p>
+            <p className="my-2">A quick check to prove that you&apos;re a human and not a
+                clanker.</p>
             {shouldShowUser && (
                 <div className="flex flex-row items-center justify-center mb-4 gap-2 rounded-full">
                     <Image src={userImage} alt="Profile Picture" width={32} height={32}/>
@@ -114,8 +125,12 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
                 ) : (
                     <Turnstile
                         sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""}
-                        onSuccess={(t) => { setToken(t); }}
-                        onExpire={() => { setToken(null); }}
+                        onSuccess={(t) => {
+                            setToken(t);
+                        }}
+                        onExpire={() => {
+                            setToken(null);
+                        }}
                     />
                 )}
             </div>
@@ -129,7 +144,7 @@ export default function VerifyForm({ userId, guildId, expires, sig, session, cap
             </Button>
 
             {message !== '' && (
-                <p className={`mt-4 text-sm font-semibold ${status === 'SUCCESS' ? 'text-green-400' : 'text-red-400'}`}>
+                <p className={`mt-4 text-sm font-semibold ${status === 'SUCCESS' ? 'text-success' : 'text-danger'}`}>
                     {message}
                 </p>
             )}

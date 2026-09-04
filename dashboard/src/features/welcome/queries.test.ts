@@ -25,23 +25,6 @@ function welcomeConfigFixture(): WelcomeConfig {
             enabled: true,
             message: { format: "TEXT", content: "Private welcome", embed: {} },
         },
-        verification: {
-            enabled: false,
-            useOauth: false,
-            captchaType: "TURNSTILE",
-            verificationMessageId: null,
-            verificationChannelId: null,
-            verificationRoleId: null,
-            message: {
-                format: "EMBED",
-                content: "Please complete the verification below to gain access to the server.",
-                embed: {
-                    title: "Server Verification Required",
-                    description: "Click the verification button below to verify your account.",
-                    color: 0x55ee77,
-                },
-            },
-        },
         joinRoleIds: ["role_1"],
     };
 }
@@ -59,7 +42,6 @@ describe("Welcome Query Module", () => {
 
             expect(mockGetGuildConfigField).toHaveBeenCalledWith("guild_123", "welcome");
             expect(result.public.enabled).toBe(false);
-            expect(result.verification.enabled).toBe(false);
             expect(result.joinRoleIds).toEqual([]);
         });
 

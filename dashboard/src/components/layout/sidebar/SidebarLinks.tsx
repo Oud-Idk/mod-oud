@@ -24,6 +24,7 @@ import {
     ScrollTextIcon,
     Shield,
     ShieldAlert,
+    ShieldCheck,
     Skull,
     Sparkles,
     Star,
@@ -116,6 +117,7 @@ export function SidebarLinks(): JSX.Element | null {
             icon: MessageSquare,
             items: [
                 { name: "Welcome", href: `/dashboard/${guildId}/welcome`, icon: MessageSquare },
+                { name: "Verification", href: `/dashboard/${guildId}/verification`, icon: ShieldCheck },
                 { name: "Leave", href: `/dashboard/${guildId}/leave`, icon: DoorOpen },
             ],
         },

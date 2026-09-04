@@ -1,13 +1,26 @@
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
 import { backendFetch } from "@/lib/backend";
+import { z } from "zod";
 import { getVerificationConfig, saveVerificationConfig } from "./queries";
 import {
-    setupBackendResponseSchema,
-    type SetupVerificationResult,
     type VerificationConfig,
     type TeardownVerificationPayload,
 } from "./types";
 import { MessageLayout } from "@/features/_shared/embed";
+
+// Backend wire shape for POST /api/guilds/:id/verification — kept inline here
+// (not in types.ts) since no other part of the feature should import it.
+const setupBackendResponseSchema = z.object({
+    verification_message_id: z.string(),
+    verification_channel_id: z.string(),
+    verification_role_id: z.string(),
+});
+
+export interface SetupVerificationResult {
+    verificationMessageId: string;
+    verificationChannelId: string;
+    verificationRoleId: string;
+}
 
 export async function setupVerificationService(
     guildId: string,

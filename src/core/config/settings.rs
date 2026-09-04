@@ -13,6 +13,7 @@ use crate::features::message_logging::MessageLoggingConfig;
 use crate::features::raid_detection::RaidDetectionConfig;
 use crate::features::reporting::ReportConfig;
 use crate::features::tickets::TicketConfig;
+use crate::features::verification::VerificationSettings;
 use crate::shared::ok_or_none;
 use anyhow::{Context, Result};
 use fred::clients::Client;
@@ -27,6 +28,13 @@ use tracing::{debug, error, trace, warn};
 pub struct GuildSettings {
     /// Configuration for welcome messages sent when a new member joins.
     pub welcome: Option<Box<WelcomeConfig>>,
+
+    /// Configuration for membership verification (captcha, verified role).
+    ///
+    /// Split out of `welcome` so the two features are configured independently.
+    /// Older rows may still carry the settings nested at `welcome.verification`;
+    /// use [`GuildSettings::verification_settings`] to read with fallback.
+    pub verification: Option<Box<VerificationSettings>>,
 
     /// Configuration for leave messages sent when a member exits.
     pub leave: Option<Box<LeaveConfig>>,
@@ -117,6 +125,16 @@ pub struct ModerationDMsConfig {
 }
 
 impl GuildSettings {
+    /// Returns the membership verification settings, preferring the top-level
+    /// `verification` key and falling back to the legacy `welcome.verification`
+    /// nesting for rows written before the split migration.
+    #[must_use]
+    pub fn verification_settings(&self) -> Option<&VerificationSettings> {
+        self.verification
+            .as_deref()
+            .or_else(|| self.welcome.as_ref().and_then(|w| w.verification.as_ref()))
+    }
+
     /// A quick method to check if any message logging is enabled (delete or edit events)
     #[must_use]
     pub fn is_message_logging_enabled(&self) -> bool {

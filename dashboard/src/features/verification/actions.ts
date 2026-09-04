@@ -14,14 +14,9 @@ import {
 import {
     setupVerificationService,
     teardownVerificationService,
+    type SetupVerificationResult,
 } from "./service";
 import { MessageLayout, messageLayoutSchema } from "@/features/_shared/embed";
-
-export interface SetupVerificationResult {
-    verificationMessageId: string;
-    verificationChannelId: string;
-    verificationRoleId: string;
-};
 
 export async function saveVerificationConfigAction(
     guildId: string,

@@ -23,7 +23,35 @@ pub async fn bump_verification_to_max(
     pool: &PgPool,
     guild_id: GuildId,
 ) -> Result<u64, sqlx::Error> {
-    let rows_affected = sqlx::query!(
+    // Writes both the top-level `verification` key and the legacy
+    // `welcome.verification` nesting; each branch only fires where that path
+    // exists so partially migrated rows are never stubbed into existence.
+    let top_level = sqlx::query!(
+        r#"
+        UPDATE guild_configs
+        SET settings = jsonb_set(
+            jsonb_set(
+                settings,
+                '{verification,useOauth}',
+                to_jsonb($2::bool),
+                false
+            ),
+            '{verification,captchaType}',
+            to_jsonb($3::text),
+            false
+        )
+        WHERE guild_id = $1
+          AND settings #> '{verification}' IS NOT NULL;
+        "#,
+        guild_id.get().cast_signed(),
+        true,
+        "HCAPTCHA"
+    )
+    .execute(pool)
+    .await?
+    .rows_affected();
+
+    let legacy = sqlx::query!(
         r#"
         UPDATE guild_configs
         SET settings = jsonb_set(
@@ -48,7 +76,7 @@ pub async fn bump_verification_to_max(
     .await?
     .rows_affected();
 
-    Ok(rows_affected)
+    Ok(top_level + legacy)
 }
 
 pub async fn restore_verification_settings(
@@ -57,7 +85,35 @@ pub async fn restore_verification_settings(
     use_oauth: Option<bool>,
     captcha_type: Option<&str>,
 ) -> Result<u64, sqlx::Error> {
-    let rows_affected = sqlx::query!(
+    // Restores both the top-level `verification` key and the legacy
+    // `welcome.verification` nesting; each branch only fires where that path
+    // exists so partially migrated rows are never stubbed into existence.
+    let top_level = sqlx::query!(
+        r#"
+        UPDATE guild_configs
+        SET settings = jsonb_set(
+            jsonb_set(
+                settings,
+                '{verification,useOauth}',
+                COALESCE(to_jsonb($2::bool), 'null'::jsonb),
+                true
+            ),
+            '{verification,captchaType}',
+            COALESCE(to_jsonb($3::text), 'null'::jsonb),
+            true
+        )
+        WHERE guild_id = $1
+          AND settings #> '{verification}' IS NOT NULL;
+        "#,
+        guild_id.get().cast_signed(),
+        use_oauth,
+        captcha_type
+    )
+    .execute(pool)
+    .await?
+    .rows_affected();
+
+    let legacy = sqlx::query!(
         r#"
         UPDATE guild_configs
         SET settings = jsonb_set(
@@ -82,7 +138,7 @@ pub async fn restore_verification_settings(
     .await?
     .rows_affected();
 
-    Ok(rows_affected)
+    Ok(top_level + legacy)
 }
 
 // ── Active raid state ────────────────────────────────────────────────

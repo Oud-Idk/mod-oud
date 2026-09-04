@@ -47,8 +47,8 @@ pub async fn ensure_preraid_state_saved(
         guild_id,
     )
         .await?;
-    if let Some(verification_settings) = settings.welcome.and_then(|w| w.verification) {
-        snapshot.original_verification_type = verification_settings.captcha_type;
+    if let Some(verification_settings) = settings.verification_settings() {
+        snapshot.original_verification_type = verification_settings.captcha_type.clone();
         snapshot.original_oauth_required = verification_settings.use_oauth;
     }
 

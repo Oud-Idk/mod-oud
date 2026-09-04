@@ -182,7 +182,7 @@ export function VerificationBody({
                                     This system uses{" "}
                                     <Link
                                         href="https://developers.cloudflare.com/turnstile/"
-                                        className="hover:underline text-blue-500 font-medium"
+                                        className="hover:underline text-brand font-medium"
                                         target="_blank"
                                     >
                                         Cloudflare Turnstile
@@ -190,7 +190,7 @@ export function VerificationBody({
                                     or{" "}
                                     <Link
                                         href="https://www.hcaptcha.com/"
-                                        className="hover:underline text-blue-500 font-medium"
+                                        className="hover:underline text-brand font-medium"
                                         target="_blank"
                                     >
                                         hCaptcha
@@ -314,7 +314,7 @@ export function VerificationBody({
 
                                 {/* UX Help hint for disabled button */}
                                 {isDirty && !isSystemConfigured && (
-                                    <p className="text-xs text-amber-500 mt-1">Save your changes first before running setup.</p>
+                                    <p className="text-xs text-warning mt-1">Save your changes first before running setup.</p>
                                 )}
                             </div>
                         ) : (

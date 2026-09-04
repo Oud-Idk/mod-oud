@@ -70,9 +70,7 @@ pub async fn handle_verify(
     // Fetch guild settings & validation config
     let settings = fetch_guild_settings(&state, payload.guild_id).await?;
     let verification_cfg = settings
-        .welcome
-        .as_ref()
-        .and_then(|w| w.verification.as_ref())
+        .verification_settings()
         .filter(|v| v.captcha_type.as_ref() == Some(&payload.captcha_type))
         .ok_or_else(|| {
             warn!(

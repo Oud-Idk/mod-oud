@@ -41,6 +41,10 @@ pub struct WelcomeConfig {
     pub private: Option<WelcomeMessageSettings>,
     /// Roles automatically assigned to new members.
     pub join_role_ids: Option<Vec<String>>,
-    /// Verification settings used after joining, if any.
+    /// Legacy nested verification settings.
+    ///
+    /// Deprecated: verification now lives at the top-level `verification` settings
+    /// key. Kept for reading rows written before the split migration — use
+    /// `GuildSettings::verification_settings()` instead of this field directly.
     pub verification: Option<VerificationSettings>,
 }

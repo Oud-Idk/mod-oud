@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{trace, warn};
 
 /// Paths that bypass the internal secret check (public or ticket-authenticated).
 const EXEMPT_PATHS: &[&str] = &[
@@ -24,7 +24,7 @@ const EXEMPT_PATHS: &[&str] = &[
 /// signed ticket verification instead (see `crate::web::ticket`).
 ///
 /// # Errors
-/// Returns [`Err`] when INTERNAL_API_SECRET isn't found or isn't valid, or when auth is invalid.
+/// Returns [`Err`] when `INTERNAL_API_SECRET` isn't found or isn't valid, or when auth is invalid.
 pub async fn require_internal_secret(
     axum::extract::State(state): axum::extract::State<Arc<WebState>>,
     request: Request,
@@ -34,8 +34,11 @@ pub async fn require_internal_secret(
     if EXEMPT_PATHS.iter().any(|p| path == *p || path.starts_with(&format!("{p}?"))) {
         return Ok(next.run(request).await);
     }
+
+    trace!("Received request with path: {path}");
+
     // Also allow nested /api prefix check for exempt subpaths
-    if path.starts_with("/api/verify")
+    if path.starts_with("/verify")
         || path.starts_with("/api/ws/control")
         || path.starts_with("/api/sse/events")
     {
@@ -55,11 +58,11 @@ pub async fn require_internal_secret(
         .headers()
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
-        .and_then(|v| {
+        .map(|v| {
             if v.starts_with("Bearer ") {
-                Some(v.trim_start_matches("Bearer ").trim())
+                v.trim_start_matches("Bearer ").trim()
             } else {
-                Some(v.trim())
+                v.trim()
             }
         })
         .or_else(|| {

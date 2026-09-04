@@ -107,6 +107,7 @@ Either way, you are curious or have a crush but don't know what to do. In which 
   - [I-statements](#i-statements)
 - [Breakups](#breakups)
   - [Reasons For Breakups](#reasons-for-breakups)
+  - [Relationship Classes](#relationship-classes)
   - [The Pain](#the-pain)
   - [The Prescription](#the-prescription)
   - [The Poison](#the-poison)
@@ -1057,12 +1058,39 @@ I know what you're saying. "But author, I do not want to sound like an unlicense
 
 # Breakups
 
-GG, boys. You lost them. But, it kind of stings, doesn't it? But statistics say that it's almost guaranteed. Research says that nearly all (85%) people experience at least one break-up in their lifetime (Battaglia et al., 1998), so there's no point trying to wish positively that your
-_first ever_ partner is going to stay here forever.
+GG, boys. You lost them. But, it kind of stings, doesn't it? But statistics say that it's almost guaranteed. Research says that nearly all (85%) people experience at least one break-up in their lifetime (Battaglia et al., 1998), so there's no point trying to wish positively that your _first ever_ partner is going to stay here forever.
 
 ## Reasons For Breakups
 
-Please go to [the four horsemen of the apocalypse](#the-four-horsemen-of-the-apocalypse), or scroll literally 2 sections up, you forgetful idiot.
+Scott et al. (2013) surveyed 52 divorced individuals, and the top chronic reasons are
+
+1. **A lack of commitment (75%)**. One does the vacation plans, the chores, the finances, and the calendar, while the other is a sack of useless biological matter. In that case, of course the one bearing the responsibilities would get tired.
+2. **Infidelity (59.6%)** aka Cheating.
+3. **Too Much Fighting / Terrible Communication (57.7%)**. Constant screaming matches that never got properly resolved in the end, and boom.
+4. **Marrying Too Young (45.1%)** where people still don't know who they are and/or are still too immature to make major decisions.
+5. **Financial Problems (36.7%)**. It contributed to increased stress and tension instead of causing the breakup itself. Others said that it is linked to other problems like substance abuse or health problems.
+6. **Substance Abuse (34.6%)**. Participants thought that the severity of the problem in their relationship was either minimized, or if attempts were made to help the partner with the problem, they would not improve and/or seek help.
+7. **Domestic Violence (23.5%)**. Verbal abuse and physical aggression. Often they thought they could just talk it out, but it didn't work.
+
+And there are acute (i.e., final straw) reasons too, most common are
+
+1. **Infidelity (24%)**
+2. **Domestic Violence (21.2%)**
+3. **Substance Abuse (12.1%)**
+
+Fact: **0%** of the ex-couples agreed on the same acute reason. One said cheating, while the other said arguing.
+
+Over **70%** of people said that their ex should have worked harder to save the relationship, whereas only **~32%** admitted personally that they should have tried harder.
+
+Relationships usually decay slowly (i.e., holding resentment, arguing, not trying anymore) but end spectacularly (cheating, abuse, drugs).
+
+## Relationship Classes
+
+Even though they took a 12-hour premarital counseling course, it failed for three main reasons:
+
+1. **The Sunk Cost Fallacy**: People took the class right before wedding, and when they realize that their parter is a walking red flag, they thought, "Oh well, I suppose it's too late now as I have spent money and prepared for the wedding."
+2. **Theory vs. Practice**: The ideas theoretically work, just that all the knowledge got thrown out of the window in a real argument.
+3. **Honeymoon Phrase**: People were shocked that the honeymoon phase, you know, doesn't last forever and that attraction change. Plus, they didn't realize at first that marriage comes with stress (from kids and/or finances).
 
 ## The Pain
 
@@ -1528,6 +1556,7 @@ TL;DR:
 - **T. Vacharkulksemsuk, E. Reit, P. Khambatta, P.W. Eastwick, E.J. Finkel, & D.R. Carney** (2016). Dominant, open nonverbal displays are attractive at zero-acquaintance, Proc. Natl. Acad. Sci. U.S.A. 113 (15) 4009-4014, https://doi.org/10.1073/pnas.1508932113.
 - **Mehrabian, A.** (1968). Relationship of attitude to seated posture, orientation, and distance. Journal of Personality and Social Psychology, 10(1), 26–30. https://doi.org/10.1037/h0026384
 - **Hardesty, M., Wilson, S. E., Wasserman, L., Young, S., Massey, S., & Merriwether, A.** (2024). What Are College Students Talking About When They Say They’re “Just Talking?”. Emerging Adulthood, 12(3), 372-386.
+- **Scott, S. B., Rhoades, G. K., Stanley, S. M., Allen, E. S., & Markman, H. J.** (2013). Reasons for Divorce and Recollections of Premarital Intervention: Implications for Improving Relationship Education. Couple & family psychology, 2(2), 131–145. https://doi.org/10.1037/a0032025
 
 ---
 

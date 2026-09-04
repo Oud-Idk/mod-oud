@@ -10,6 +10,7 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, instrument};
+use crate::web::middleware::require_internal_secret;
 
 #[instrument]
 async fn health_check() -> &'static str {
@@ -42,7 +43,7 @@ pub fn get_router(cors: CorsLayer, shared_state: Arc<WebState>) -> Router {
         .merge(giveaways::routes())
         .route_layer(axum::middleware::from_fn_with_state(
             Arc::clone(&shared_state),
-            crate::web::middleware::require_internal_secret,
+            require_internal_secret,
         ));
 
     // Real-time Browser routes (Protected by JWT)

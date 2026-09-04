@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
     verificationConfigSchema,
     saveVerificationConfigSchema,
-    setupVerificationPayloadSchema,
-    setupBackendResponseSchema,
     teardownVerificationPayloadSchema,
 } from "./types";
 
@@ -67,54 +65,18 @@ describe("saveVerificationConfigSchema", () => {
         expect(parsed.verificationRoleId).toBe("role_1");
         expect(parsed.verificationMessageId).toBe("msg_1");
     });
-});
 
-describe("setupVerificationPayloadSchema", () => {
-    it("should accept a valid embed message", () => {
-        const result = setupVerificationPayloadSchema.safeParse({
-            message: {
-                format: "EMBED",
-                content: "",
-                embed: { title: "Verify", description: "Click to verify" },
-            },
+    // The setup flow requires saving `enabled: true` before bindings exist
+    // (Setup tab only appears once enabled; setup fills in the ids).
+    it("should accept an enabled config without bindings (pre-setup state)", () => {
+        const result = saveVerificationConfigSchema.safeParse({
+            enabled: true,
+            verificationChannelId: null,
+            verificationRoleId: null,
+            verificationMessageId: null,
         });
 
         expect(result.success).toBe(true);
-    });
-
-    it("should REJECT an empty embed message", () => {
-        const result = setupVerificationPayloadSchema.safeParse({
-            message: {
-                format: "EMBED",
-                content: "",
-                embed: {},
-            },
-        });
-
-        expect(result.success).toBe(false);
-    });
-});
-
-describe("setupBackendResponseSchema", () => {
-    it("should parse all three ids", () => {
-        const parsed = setupBackendResponseSchema.parse({
-            verification_message_id: "msg_1",
-            verification_channel_id: "channel_1",
-            verification_role_id: "role_1",
-        });
-
-        expect(parsed.verification_message_id).toBe("msg_1");
-        expect(parsed.verification_channel_id).toBe("channel_1");
-        expect(parsed.verification_role_id).toBe("role_1");
-    });
-
-    it("should REJECT when a required id is missing", () => {
-        expect(
-            setupBackendResponseSchema.safeParse({
-                verification_message_id: "msg_1",
-                verification_channel_id: "channel_1",
-            }).success
-        ).toBe(false);
     });
 });
 

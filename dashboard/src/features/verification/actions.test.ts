@@ -4,8 +4,8 @@ import {
     saveVerificationConfigAction,
     setupVerificationAction,
     teardownVerificationAction,
-    type SetupVerificationResult,
 } from "./actions";
+import type { SetupVerificationResult } from "./service";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveVerificationConfig } from "./queries";
 import { setupVerificationService, teardownVerificationService } from "./service";
