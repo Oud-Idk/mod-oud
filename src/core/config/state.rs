@@ -83,6 +83,9 @@ pub struct AppConfig {
     /// Optional RAWG API key
     pub rawg_api_key: Option<String>,
 
+    /// Optional Wordnik API key
+    pub wordnik_api_key: Option<String>,
+
     /// Dashboard origin used to build absolute links (e.g. verification URLs),
     /// including the scheme: `http://localhost:3000` locally,
     /// `https://dashboard.example.com` in production.
@@ -114,6 +117,7 @@ impl AppConfig {
             genius_api_key: std::env::var("GENIUS_API_KEY").ok(),
             tmdb_api_key: std::env::var("TMDB_API_KEY").ok(),
             rawg_api_key: std::env::var("RAWG_API_KEY").ok(),
+            wordnik_api_key: std::env::var("WORDNIK_API_KEY").ok(),
         }
     }
 }
