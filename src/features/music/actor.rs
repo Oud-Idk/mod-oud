@@ -17,6 +17,7 @@ use core::time::Duration;
 use fred::clients::Client;
 use fred::interfaces::PubsubInterface;
 use rand::seq::SliceRandom;
+use serde::{Deserialize, Serialize};
 use serenity::all::{ChannelId, GuildId, User, UserId};
 use songbird::CoreEvent;
 use songbird::Songbird;
@@ -25,7 +26,6 @@ use songbird::input::AuxMetadata;
 use songbird::tracks::TrackHandle;
 use std::sync::Arc;
 use std::vec::IntoIter;
-use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{Instant, timeout};
 use tracing::{debug, warn};
@@ -140,7 +140,7 @@ pub struct Requester {
 
 impl From<&User> for Requester {
     fn from(user: &User) -> Self {
-        Requester {
+        Self {
             id: user.id,
             name: Arc::from(user.name.clone()),
         }
@@ -149,7 +149,7 @@ impl From<&User> for Requester {
 
 impl Default for Requester {
     fn default() -> Self {
-        Requester {
+        Self {
             id: UserId::default(),
             name: Arc::from(""),
         }
@@ -550,11 +550,7 @@ impl GuildActor {
         }
     }
 
-    fn populate_queue(
-        &mut self,
-        requested_by: &Requester,
-        terms_iter: &mut IntoIter<String>,
-    ) {
+    fn populate_queue(&mut self, requested_by: &Requester, terms_iter: &mut IntoIter<String>) {
         for search_term in terms_iter {
             let display_title = search_term
                 .strip_prefix("ytsearch:")

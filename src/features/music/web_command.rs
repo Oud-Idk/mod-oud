@@ -1,23 +1,14 @@
 //! Wire types and transport for dashboard music control commands.
 //!
-//! Commands flow over Redis pub/sub so the web server can run in a separate
-//! process (or behind a load balancer across several bot instances):
-//!
-//! ```text
-//! web instance ──publish──▶ music_web_commands ──▶ owning bot instance's actor
-//!      ▲                                                        │
-//!      └────────reply◀── music_web_replies:{instance} ◀─────────┘
-//! ```
-//!
+//! Commands flow over Redis pub/sub so the web server can run in a separate process.
 //! Every bot instance receives every command but only the instance whose shard
-//! owns the target guild answers; replies carry the originating request id back
-//! to the publishing web instance's unique reply channel.
+//! owns the target guild answers.
 
 use crate::features::music::keys;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use serde::{Deserialize, Serialize};
-use serenity::model::id::{ChannelId, GuildId, UserId};
+use serenity::model::id::{ChannelId, GuildId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -324,6 +315,7 @@ pub enum ServerMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serenity::model::id::UserId;
     use std::sync::Arc;
 
     #[test]
