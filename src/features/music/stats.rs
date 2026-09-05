@@ -1,3 +1,4 @@
+use crate::features::music::actor::Requester;
 use crate::shared::locking::acquire_lock;
 use anyhow::Result;
 use fred::clients::Client;
@@ -8,7 +9,6 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tracing::{error, trace, warn};
 use uuid::Uuid;
-use crate::features::music::actor::Requester;
 
 /// How long play events are kept before being pruned (rolling window).
 const STATS_RETENTION: &str = "12 months";

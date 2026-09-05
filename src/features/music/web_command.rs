@@ -4,6 +4,7 @@
 //! Every bot instance receives every command but only the instance whose shard
 //! owns the target guild answers.
 
+use crate::features::music::actor::Requester;
 use crate::features::music::keys;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
@@ -15,7 +16,6 @@ use std::time::Duration;
 use tokio::sync::oneshot;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
-use crate::features::music::actor::Requester;
 
 /// How long the web server waits for an owning bot instance to answer.
 const COMMAND_TIMEOUT_SECS: u64 = 30;
@@ -357,10 +357,7 @@ mod tests {
 
         match message {
             ClientMessage::Music {
-                action:
-                MusicAction::Play {
-                    requested_by, ..
-                },
+                action: MusicAction::Play { requested_by, .. },
                 ..
             } => {
                 assert_eq!(

@@ -12,8 +12,8 @@ use crate::features::search::{
     spotify::commands::spotify,
     tmdb::commands::movie,
     urban::commands::urban,
-    youtube::commands::youtube,
     wordnik::commands::wordnik,
+    youtube::commands::youtube,
 };
 use anyhow::Result;
 

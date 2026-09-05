@@ -17,7 +17,11 @@ impl WordnikClient {
     }
 
     /// Search for a word/term definition
-    pub async fn define(&self, term: &str, limit: usize) -> Result<Vec<WordnikDefinition>, reqwest::Error> {
+    pub async fn define(
+        &self,
+        term: &str,
+        limit: usize,
+    ) -> Result<Vec<WordnikDefinition>, reqwest::Error> {
         let params = [
             ("limit", limit.to_string()),
             ("includeRelated", "false".to_string()),
@@ -38,7 +42,10 @@ impl WordnikClient {
         Ok(response)
     }
 
-    pub async fn word_of_the_day(&self, date: Option<&str>) -> Result<WordOfTheDay, reqwest::Error> {
+    pub async fn word_of_the_day(
+        &self,
+        date: Option<&str>,
+    ) -> Result<WordOfTheDay, reqwest::Error> {
         let mut request = self
             .http
             .get(format!("{}/words.json/wordOfTheDay", self.base_url))

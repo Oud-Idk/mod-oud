@@ -114,7 +114,6 @@ pub async fn start_streaming(
     let handle_uuid = handle.uuid();
     debug!(guild_id = %services.guild_id, uuid = %handle_uuid, "Started playing track input");
 
-
     let handler = TrackEndHandler {
         command_tx: services.command_tx.clone(),
         expected_uuid: handle_uuid,
