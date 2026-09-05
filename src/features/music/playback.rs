@@ -377,10 +377,15 @@ mod tests {
 
     #[tokio::test]
     async fn enqueue_forwards_query_and_reports_outcome() {
+        let requester = Requester {
+            id: UserId::default(),
+            name: Arc::from("dj"),
+        };
+        let expected = requester.clone();
         let handle = spawn_fake(move |cmd| match cmd {
             GuildCommand::QueueAdd(payload) => {
                 assert_eq!(payload.query, "lofi beats");
-                assert_eq!(payload.requested_by, Requester::default());
+                assert_eq!(payload.requested_by, expected);
                 let _ = payload
                     .respond
                     .send(Ok(QueueAddOutcome::Queued(track_info())));
@@ -389,14 +394,7 @@ mod tests {
         });
 
         match handle
-            .enqueue(
-                "lofi beats",
-                ChannelId::new(3),
-                Requester {
-                    id: UserId::default(),
-                    name: Arc::from("dj"),
-                },
-            )
+            .enqueue("lofi beats", ChannelId::new(3), requester)
             .await
             .expect("enqueue should succeed")
         {
