@@ -322,7 +322,6 @@ mod tests {
                 ));
                 let _ = payload.respond.send(Ok(PlayOutcome::Single(track_info())));
             }
-            GuildCommand::WebPlay(_) => panic!("handle must build Play, not WebPlay"),
             _ => panic!("expected Play"),
         });
 

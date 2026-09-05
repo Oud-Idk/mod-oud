@@ -183,9 +183,6 @@ pub enum GuildCommand {
     /// Force-starts playback of a track or playlist, stopping whatever is currently playing.
     Play(Box<PlayPayload>),
 
-    /// Force-starts playback initiated from the external web dashboard interface.
-    WebPlay(Box<PlayPayload>),
-
     /// Smart-enqueues a track or playlist (plays immediately if idle, appends to the queue if active).
     QueueAdd(Box<QueueAddPayload>),
 
@@ -1142,17 +1139,14 @@ impl GuildActor {
 
     async fn process_command(&mut self, cmd: GuildCommand) {
         match cmd {
-            GuildCommand::Play(payload) | GuildCommand::WebPlay(payload) => {
+            GuildCommand::Play(payload) => {
                 let PlayPayload {
                     query,
                     vc_channel_id,
                     requested_by,
                     respond,
                 } = *payload;
-                let _ = respond.send(
-                    self.handle_play(query, vc_channel_id, requested_by)
-                        .await,
-                );
+                let _ = respond.send(self.handle_play(query, vc_channel_id, requested_by).await);
             }
             GuildCommand::Skip { respond } => {
                 let _ = respond.send(self.handle_skip().await);
