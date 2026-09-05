@@ -46,7 +46,7 @@ pub async fn ensure_preraid_state_saved(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
     if let Some(verification_settings) = settings.verification_settings() {
         snapshot.original_verification_type = verification_settings.captcha_type.clone();
         snapshot.original_oauth_required = verification_settings.use_oauth;
@@ -128,7 +128,7 @@ pub async fn restore_preraid_state(
         snapshot.original_oauth_required,
         captcha_str.as_deref(),
     )
-        .await?;
+    .await?;
 
     // Remove from active raids set
     let _: () = cache::remove_guild_from_raid(guild_id, &data.core.redis).await?;

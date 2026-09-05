@@ -17,7 +17,7 @@ use core::time::Duration;
 use fred::clients::Client;
 use fred::interfaces::PubsubInterface;
 use rand::seq::SliceRandom;
-use serenity::all::{ChannelId, GuildId, User};
+use serenity::all::{ChannelId, GuildId, User, UserId};
 use songbird::CoreEvent;
 use songbird::Songbird;
 use songbird::events::{Event, EventContext, EventHandler as VoiceEventHandler};
@@ -25,6 +25,7 @@ use songbird::input::AuxMetadata;
 use songbird::tracks::TrackHandle;
 use std::sync::Arc;
 use std::vec::IntoIter;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{Instant, timeout};
 use tracing::{debug, warn};
@@ -128,11 +129,34 @@ fn parse_seek_input(input: &str) -> Option<SeekMode> {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Requester {
+    pub id: UserId,
+    pub name: Arc<str>,
+}
+
+impl From<&User> for Requester {
+    fn from(user: &User) -> Self {
+        Requester {
+            id: user.id,
+            name: Arc::from(user.name.clone()),
+        }
+    }
+}
+
+impl Default for Requester {
+    fn default() -> Self {
+        Requester {
+            id: UserId::default(),
+            name: Arc::from(""),
+        }
+    }
+}
+
 pub struct PlayPayload {
     pub query: String,
     pub vc_channel_id: ChannelId,
-    pub requested_by_name: String,
-    pub requested_by_id: u64,
+    pub requested_by: Requester,
     pub respond: oneshot::Sender<Result<PlayOutcome>>,
 }
 
@@ -143,7 +167,7 @@ pub struct QueueAddPayload {
     /// The voice channel ID that the bot should connect to if it is not currently in a voice channel.
     pub vc_channel_id: ChannelId,
     /// The Discord user who initiated the request.
-    pub requested_by: User,
+    pub requested_by: Requester,
     /// Oneshot channel sender used to return the outcome ([`QueueAddOutcome`]) back to the caller.
     pub respond: oneshot::Sender<Result<QueueAddOutcome>>,
 }
@@ -366,12 +390,9 @@ impl GuildActor {
         &mut self,
         query: String,
         vc_channel_id: ChannelId,
-        requested_by_name: String,
-        requested_by_id: u64,
+        requested_by: Requester,
     ) -> Result<PlayOutcome> {
         self.retry_count = 0;
-        let requester: Arc<str> = Arc::from(requested_by_name.as_str());
-
         if let Some(search_terms) = resolve_any_playlist(
             &self.reqwest_client,
             &self.spotify_auth,
@@ -393,14 +414,13 @@ impl GuildActor {
                 .start_playback(
                     Some(vc_channel_id),
                     first_term,
-                    requester.clone(),
-                    requested_by_id,
+                    &requested_by,
                     None,
                     OldTrackDisposition::History,
                 )
                 .await?;
 
-            self.populate_queue(&requester, requested_by_id, &mut terms_iter);
+            self.populate_queue(&requested_by, &mut terms_iter);
 
             return Ok(PlayOutcome::Playlist {
                 first_track,
@@ -420,8 +440,7 @@ impl GuildActor {
             .start_playback(
                 Some(vc_channel_id),
                 query_url,
-                requester,
-                requested_by_id,
+                &requested_by,
                 None,
                 OldTrackDisposition::History,
             )
@@ -434,11 +453,8 @@ impl GuildActor {
         &mut self,
         query: String,
         vc_channel_id: ChannelId,
-        requested_by: User,
+        requested_by: Requester,
     ) -> Result<QueueAddOutcome> {
-        let requester: Arc<str> = Arc::from(requested_by.name.as_str());
-        let requested_by_id = requested_by.id.get();
-
         if let Some(search_terms) = resolve_any_playlist(
             &self.reqwest_client,
             &self.spotify_auth,
@@ -466,8 +482,7 @@ impl GuildActor {
             let first_queued = QueuedTrack {
                 query: first_meta.source_url.take().unwrap_or(first_term),
                 metadata: first_meta.clone(),
-                requested_by: requester.clone(),
-                requested_by_id,
+                requested_by: requested_by.clone(),
             };
 
             let first_track_info = StartedTrackInfo { title, thumbnail };
@@ -477,8 +492,7 @@ impl GuildActor {
                 self.start_playback(
                     Some(vc_channel_id),
                     first_queued.query,
-                    first_queued.requested_by,
-                    first_queued.requested_by_id,
+                    &first_queued.requested_by,
                     Some(first_queued.metadata),
                     OldTrackDisposition::History,
                 )
@@ -488,7 +502,7 @@ impl GuildActor {
                 self.state.queue.push_back(first_queued);
             }
 
-            self.populate_queue(&requester, requested_by_id, &mut terms_iter);
+            self.populate_queue(&requested_by, &mut terms_iter);
 
             return Ok(QueueAddOutcome::PlaylistQueued {
                 count: total_tracks,
@@ -510,8 +524,7 @@ impl GuildActor {
         let queued = QueuedTrack {
             query,
             metadata,
-            requested_by: requester.clone(),
-            requested_by_id,
+            requested_by: requested_by.clone(),
         };
 
         if self.state.current.is_some() {
@@ -525,8 +538,7 @@ impl GuildActor {
                 .start_playback(
                     Some(vc_channel_id),
                     queued.query,
-                    queued.requested_by,
-                    queued.requested_by_id,
+                    &queued.requested_by,
                     Some(queued.metadata),
                     OldTrackDisposition::History,
                 )
@@ -540,8 +552,7 @@ impl GuildActor {
 
     fn populate_queue(
         &mut self,
-        requested_by: &Arc<str>,
-        requested_by_id: u64,
+        requested_by: &Requester,
         terms_iter: &mut IntoIter<String>,
     ) {
         for search_term in terms_iter {
@@ -559,7 +570,6 @@ impl GuildActor {
                 query: search_term,
                 metadata: placeholder_meta,
                 requested_by: requested_by.clone(),
-                requested_by_id,
             });
         }
     }
@@ -582,12 +592,13 @@ impl GuildActor {
                 self.state.current_paused_total = Duration::ZERO;
 
                 if let Some(meta) = self.state.current_meta.as_ref() {
-                    let req_id = self
+                    let default_req = Requester::default();
+                    let req = self
                         .state
                         .current_track
                         .as_ref()
-                        .map_or(0, |t| t.requested_by_id);
-                    record_track_start(&self.stats_tx, self.guild_id, req_id, handle.uuid(), meta);
+                        .map_or(&default_req, |t| &t.requested_by);
+                    record_track_start(&self.stats_tx, self.guild_id, req, handle.uuid(), meta);
                 }
 
                 let title = self
@@ -618,8 +629,7 @@ impl GuildActor {
         self.start_playback(
             None,
             current_track.query,
-            current_track.requested_by,
-            current_track.requested_by_id,
+            &current_track.requested_by,
             Some(current_track.metadata),
             OldTrackDisposition::History,
         )
@@ -653,8 +663,7 @@ impl GuildActor {
                 .start_playback(
                     None,
                     next.query,
-                    next.requested_by,
-                    next.requested_by_id,
+                    &next.requested_by,
                     None,
                     OldTrackDisposition::History,
                 )
@@ -677,8 +686,7 @@ impl GuildActor {
             .start_playback(
                 Some(vc_channel_id),
                 previous.query,
-                previous.requested_by,
-                previous.requested_by_id,
+                &previous.requested_by,
                 Some(previous.metadata),
                 OldTrackDisposition::QueueFront,
             )
@@ -750,8 +758,7 @@ impl GuildActor {
         self.start_playback(
             None,
             target.query,
-            target.requested_by,
-            target.requested_by_id,
+            &target.requested_by,
             Some(target.metadata),
             OldTrackDisposition::History,
         )
@@ -787,8 +794,7 @@ impl GuildActor {
         self.start_playback(
             None,
             target.query,
-            target.requested_by,
-            target.requested_by_id,
+            &target.requested_by,
             Some(target.metadata),
             OldTrackDisposition::History,
         )
@@ -904,8 +910,6 @@ impl GuildActor {
         {
             return;
         }
-        // Reconnect failed (e.g. the streamer went offline): fall through
-        // to the natural-end handling so the queue can advance.
 
         let fallback_duration = self.state.current_meta.as_ref().and_then(|m| m.duration);
 
@@ -947,8 +951,7 @@ impl GuildActor {
                     .start_playback(
                         None,
                         fresh_query_url, // Pass freshly resolved URL
-                        current_track.requested_by,
-                        current_track.requested_by_id,
+                        &current_track.requested_by,
                         Some(current_track.metadata),
                         OldTrackDisposition::History,
                     )
@@ -982,8 +985,7 @@ impl GuildActor {
                 .start_playback(
                     None,
                     next.query,
-                    next.requested_by,
-                    next.requested_by_id,
+                    &next.requested_by,
                     None,
                     OldTrackDisposition::History,
                 )
@@ -1035,8 +1037,7 @@ impl GuildActor {
             self.services(),
             &call,
             fresh_query_url,
-            current_track.requested_by,
-            current_track.requested_by_id,
+            &current_track.requested_by,
             Some(current_track.metadata),
         )
         .await
@@ -1142,12 +1143,11 @@ impl GuildActor {
                 let PlayPayload {
                     query,
                     vc_channel_id,
-                    requested_by_name,
-                    requested_by_id,
+                    requested_by,
                     respond,
                 } = *payload;
                 let _ = respond.send(
-                    self.handle_play(query, vc_channel_id, requested_by_name, requested_by_id)
+                    self.handle_play(query, vc_channel_id, requested_by)
                         .await,
                 );
             }
@@ -1268,8 +1268,7 @@ impl GuildActor {
         &mut self,
         vc_channel_id: Option<ChannelId>,
         query: String,
-        requested_by: Arc<str>,
-        requested_by_id: u64,
+        requested_by: &Requester,
         cached_meta: Option<AuxMetadata>,
         disposition: OldTrackDisposition,
     ) -> Result<StartedTrackInfo> {
@@ -1297,15 +1296,8 @@ impl GuildActor {
             let _ = old_handle.stop();
         }
 
-        let started = prepare_and_play(
-            self.services(),
-            &call,
-            query,
-            requested_by,
-            requested_by_id,
-            cached_meta,
-        )
-        .await?;
+        let started =
+            prepare_and_play(self.services(), &call, query, requested_by, cached_meta).await?;
 
         let handle_uuid = started.handle.uuid();
         let title = started
@@ -1327,7 +1319,7 @@ impl GuildActor {
             record_track_start(
                 &self.stats_tx,
                 self.guild_id,
-                requested_by_id,
+                requested_by,
                 handle_uuid,
                 meta,
             );

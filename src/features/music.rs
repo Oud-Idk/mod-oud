@@ -4,6 +4,7 @@ mod actor;
 mod commands;
 mod ffmpeg_live;
 mod keys;
+mod playback;
 mod player;
 mod spotify;
 mod state;
@@ -22,7 +23,8 @@ pub use web::MusicWebControlParams;
 pub use web::routes;
 pub use web::start_music_web_control_worker;
 
-pub use actor::{GuildCommand, QueueAddPayload};
+pub use actor::{GuildCommand, QueueAddPayload, Requester};
+pub use playback::PlaybackHandle;
 pub use state::start_music_event_bridge;
 pub use state::{MusicState, QueueAddOutcome};
 pub use web_command::{RemoteMusicCommand, RemoteMusicResult, WebCommandBus};

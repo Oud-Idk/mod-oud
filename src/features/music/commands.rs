@@ -1,7 +1,7 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::Context;
-use crate::features::music::actor::{GuildCommand, PlayPayload, QueueAddPayload};
+use crate::features::music::actor::{GuildCommand, PlayPayload, QueueAddPayload, Requester};
 use crate::features::music::player::format_duration;
 use crate::features::music::state::{PlayOutcome, QueueAddOutcome, StartedTrackInfo};
 use crate::shared::pagination::paginate;
@@ -147,8 +147,7 @@ pub async fn play(
             GuildCommand::Play(Box::new(PlayPayload {
                 query,
                 vc_channel_id,
-                requested_by_name: ctx.author().name.clone(),
-                requested_by_id: ctx.author().id.get(),
+                requested_by: Requester::from(ctx.author()),
                 respond,
             }))
         })
@@ -376,7 +375,7 @@ pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
 
             let description = format!(
                 "{}\n\n{}\n`{} / {}` | {}\nRequested by **{}**",
-                title_fmt, bar, position_fmt, duration_fmt, status_str, track.requested_by
+                title_fmt, bar, position_fmt, duration_fmt, status_str, track.requested_by.name
             );
 
             ctx.send(
@@ -437,7 +436,7 @@ pub async fn add(
             GuildCommand::QueueAdd(Box::new(QueueAddPayload {
                 query,
                 vc_channel_id,
-                requested_by: ctx.author().clone(),
+                requested_by: Requester::from(ctx.author()),
                 respond,
             }))
         })
@@ -536,7 +535,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
                 let _ = writeln!(
                     description,
                     "{}. {}{} (Requested by **{}**)",
-                    track_num, title_fmt, duration_fmt, track.requested_by
+                    track_num, title_fmt, duration_fmt, track.requested_by.name
                 );
             }
         }

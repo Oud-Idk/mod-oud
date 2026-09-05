@@ -76,10 +76,10 @@ pub async fn fetch_media_only_from_db(
         "SELECT * FROM media_only_channels WHERE channel_id = $1",
         channel_id.get().cast_signed()
     )
-        .fetch_optional(db)
-        .await
-        .map(|row| row.map(MediaOnlyChannel::from))
-        .context("failed to fetch media_only_channels")
+    .fetch_optional(db)
+    .await
+    .map(|row| row.map(MediaOnlyChannel::from))
+    .context("failed to fetch media_only_channels")
 }
 
 pub async fn delete_media_only_from_db(db: &PgPool, channel_id: ChannelId) -> Result<u64> {
@@ -87,10 +87,10 @@ pub async fn delete_media_only_from_db(db: &PgPool, channel_id: ChannelId) -> Re
         "DELETE FROM media_only_channels WHERE channel_id = $1",
         channel_id.get().cast_signed()
     )
-        .execute(db)
-        .await
-        .context("failed to delete media_only_channels")?
-        .rows_affected();
+    .execute(db)
+    .await
+    .context("failed to delete media_only_channels")?
+    .rows_affected();
 
     Ok(rows_affected)
 }
@@ -104,10 +104,10 @@ pub async fn list_media_only_channels(
         "SELECT * FROM media_only_channels WHERE guild_id = $1",
         guild_id.get().cast_signed()
     )
-        .fetch_all(db)
-        .await
-        .map(|rows| rows.into_iter().map(MediaOnlyChannel::from).collect())
-        .context("failed to fetch media_only_channels")
+    .fetch_all(db)
+    .await
+    .map(|rows| rows.into_iter().map(MediaOnlyChannel::from).collect())
+    .context("failed to fetch media_only_channels")
 }
 
 pub async fn store_media_only_in_db(db: &PgPool, payload: &MediaOnlyChannel) -> Result<()> {
@@ -153,9 +153,9 @@ pub async fn store_media_only_in_db(db: &PgPool, payload: &MediaOnlyChannel) -> 
         payload.delete_warning_after_secs,
         exempt_roles.as_deref(),
     )
-        .execute(db)
-        .await
-        .context("failed to insert media_only_channels")?;
+    .execute(db)
+    .await
+    .context("failed to insert media_only_channels")?;
 
     Ok(())
 }

@@ -28,7 +28,7 @@ pub fn render(text: &str, resolver: &dyn PlaceholderResolver) -> String {
             .resolve(&caps["key"])
             .unwrap_or_else(|| caps[0].to_string())
     })
-        .into_owned()
+    .into_owned()
 }
 
 /// Optional Discord context used to resolve user/member, channel, and message

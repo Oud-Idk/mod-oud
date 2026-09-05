@@ -24,6 +24,7 @@ use std::time::Duration;
 use tokio::sync::oneshot;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
+use crate::features::music::actor::Requester;
 
 /// How long the web server waits for an owning bot instance to answer.
 const COMMAND_TIMEOUT_SECS: u64 = 30;
@@ -41,7 +42,7 @@ pub enum MusicAction {
         /// The query from the web (`YouTube` search / Spotify URL / `YouTube` URL).
         query: String,
         /// Requested by user ID.
-        requested_by_id: Option<UserId>,
+        requested_by: Requester,
     },
     /// Pause playback.
     Pause,
@@ -323,11 +324,12 @@ pub enum ServerMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn deserializes_play_message() {
         let message: ClientMessage = serde_json::from_str(
-            r#"{"type":"music","requestId":"abc","action":"play","query":"Never Gonna Give You Up","requestedById":"123"}"#,
+            r#"{"type":"music","requestId":"abc","action":"play","query":"Never Gonna Give You Up","requestedBy":{"id":"123","name":"Rick"}}"#,
         )
             .expect("should deserialize");
 
@@ -337,10 +339,16 @@ mod tests {
                 match action {
                     MusicAction::Play {
                         query,
-                        requested_by_id,
+                        requested_by,
                     } => {
                         assert_eq!(query, "Never Gonna Give You Up");
-                        assert_eq!(requested_by_id, Some(UserId::from(123)));
+                        assert_eq!(
+                            requested_by,
+                            Requester {
+                                id: UserId::from(123),
+                                name: Arc::from("Rick"),
+                            }
+                        );
                     }
                     _ => panic!("Expected MusicAction::Play variant"),
                 }
@@ -351,42 +359,40 @@ mod tests {
     #[test]
     fn deserializes_play_message_with_numeric_id() {
         let message: ClientMessage = serde_json::from_str(
-            r#"{"type":"music","action":"play","query":"x","requestedById":123}"#,
+            r#"{"type":"music","action":"play","query":"x","requestedBy":{"id":123,"name":"Rick"}}"#,
         )
-        .expect("should deserialize");
+            .expect("should deserialize");
 
         match message {
             ClientMessage::Music {
                 action:
-                    MusicAction::Play {
-                        requested_by_id, ..
-                    },
+                MusicAction::Play {
+                    requested_by, ..
+                },
                 ..
             } => {
-                assert_eq!(requested_by_id, Some(UserId::from(123)));
+                assert_eq!(
+                    requested_by,
+                    Requester {
+                        id: UserId::from(123),
+                        name: Arc::from("Rick"),
+                    }
+                );
             }
             ClientMessage::Music { .. } => panic!("Expected MusicAction::Play variant"),
         }
     }
 
     #[test]
-    fn deserializes_play_message_without_requested_by() {
-        let message: ClientMessage =
-            serde_json::from_str(r#"{"type":"music","action":"play","query":"x"}"#)
-                .expect("should deserialize");
+    fn rejects_play_message_without_requested_by() {
+        // Enforcing the rule: no requester, no service!
+        let result: Result<ClientMessage, _> =
+            serde_json::from_str(r#"{"type":"music","action":"play","query":"x"}"#);
 
-        match message {
-            ClientMessage::Music {
-                action:
-                    MusicAction::Play {
-                        requested_by_id, ..
-                    },
-                ..
-            } => {
-                assert_eq!(requested_by_id, None);
-            }
-            ClientMessage::Music { .. } => panic!("Expected MusicAction::Play variant"),
-        }
+        assert!(
+            result.is_err(),
+            "play message must fail to deserialize if requestedBy is missing"
+        );
     }
 
     #[test]
@@ -404,7 +410,6 @@ mod tests {
         ];
 
         for (name, expected) in actions {
-            // If testing via ClientMessage:
             let json = format!(r#"{{"type":"music","action":"{name}"}}"#);
             let msg: ClientMessage = serde_json::from_str(&json)
                 .unwrap_or_else(|e| panic!("failed to deserialize {name}: {e}"));
@@ -431,13 +436,18 @@ mod tests {
 
     #[test]
     fn remote_command_round_trips_through_json() {
+        let requester = Requester {
+            id: UserId::from(42),
+            name: Arc::from("Ferris"),
+        };
+
         let command = RemoteMusicCommand {
             request_id: "req-1".to_string(),
             guild_id: 987_654_321,
             reply_to: "music_web_replies:abc".to_string(),
             action: MusicAction::Play {
                 query: "test song".to_string(),
-                requested_by_id: Some(UserId::from(42)),
+                requested_by: requester.clone(),
             },
         };
 
@@ -446,6 +456,7 @@ mod tests {
         assert!(json.contains("\"guildId\":987654321"));
         assert!(json.contains("\"replyTo\":\"music_web_replies:abc\""));
         assert!(json.contains("\"action\":\"play\""));
+        assert!(json.contains("\"requestedBy\":"));
 
         let parsed: RemoteMusicCommand = serde_json::from_str(&json).expect("should deserialize");
         assert_eq!(parsed.request_id, "req-1");
@@ -455,7 +466,7 @@ mod tests {
             parsed.action,
             MusicAction::Play {
                 query: "test song".to_string(),
-                requested_by_id: Some(UserId::from(42)),
+                requested_by: requester,
             }
         );
     }

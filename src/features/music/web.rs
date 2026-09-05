@@ -189,7 +189,7 @@ async fn handle_music_command(
                 vc_channel_id,
                 respond,
             })
-                .await
+            .await
         }
         MusicAction::Restart => {
             send_simple(&actor_tx, |respond| GuildCommand::Restart { respond }).await
@@ -208,35 +208,23 @@ async fn handle_music_command(
                 vc_channel_id: channel_id,
                 respond,
             })
-                .await
+            .await
         }
         MusicAction::Seek { input } => {
             send_simple(&actor_tx, |respond| GuildCommand::Seek { input, respond }).await
         }
         MusicAction::Play {
             query,
-            requested_by_id,
+            requested_by,
         } => {
             let vc_channel_id = resolve_voice_channel(http, guild_id).await?;
-
-            let (requested_by_name, requested_by_id) = match requested_by_id {
-                Some(user_id) => {
-                    let name = http
-                        .get_user(user_id)
-                        .await
-                        .map_or_else(|_| "Web".to_string(), |user| user.name);
-                    (name, user_id.get())
-                }
-                None => ("Web".to_string(), 0),
-            };
 
             let (respond_tx, respond_rx) = oneshot::channel();
             actor_tx
                 .send(GuildCommand::WebPlay(Box::new(PlayPayload {
                     query,
                     vc_channel_id,
-                    requested_by_name,
-                    requested_by_id,
+                    requested_by,
                     respond: respond_tx,
                 })))
                 .await
@@ -316,9 +304,11 @@ pub async fn ws_handler(
         warn!("INTERNAL_API_SECRET not set");
         return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     };
-    let (Some(user_id), Some(expires), Some(sig)) =
-        (params.user_id.as_deref(), params.expires, params.sig.as_deref())
-    else {
+    let (Some(user_id), Some(expires), Some(sig)) = (
+        params.user_id.as_deref(),
+        params.expires,
+        params.sig.as_deref(),
+    ) else {
         warn!(guild_id = params.guild_id, "Missing ticket for WS");
         return Err(axum::http::StatusCode::UNAUTHORIZED);
     };

@@ -1,5 +1,5 @@
-use crate::features::music::actor::GuildActor;
 use crate::features::music::actor::GuildCommand;
+use crate::features::music::actor::{GuildActor, Requester};
 use crate::features::music::keys;
 use crate::features::music::stats::StatsTx;
 use crate::shared::spotify_auth::SpotifyAuthCache;
@@ -79,8 +79,7 @@ pub struct QueuedTrack {
     pub query: String,
     #[serde(serialize_with = "serialize_aux_metadata")]
     pub metadata: AuxMetadata,
-    pub requested_by: Arc<str>,
-    pub requested_by_id: u64,
+    pub requested_by: Requester,
 }
 
 #[derive(Default, Debug)]

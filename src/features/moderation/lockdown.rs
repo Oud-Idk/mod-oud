@@ -153,7 +153,7 @@ pub async fn apply_global_lock(
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
-        .await?
+    .await?
     else {
         debug!(
             %guild_id,
@@ -231,7 +231,7 @@ pub async fn apply_global_unlock(
         &lock_token,
         GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS,
     )
-        .await?
+    .await?
     else {
         debug!(
             %guild_id,

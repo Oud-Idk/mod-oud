@@ -1,6 +1,6 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{BotData, Error};
-use crate::features::music::{GuildCommand, QueueAddOutcome, QueueAddPayload};
+use crate::features::music::{GuildCommand, QueueAddOutcome, QueueAddPayload, Requester};
 use crate::shared::voice_state::get_user_vc_in_guild;
 use serenity::all::{
     ComponentInteraction, Context, CreateEmbed, CreateEmbedAuthor, CreateInteractionResponse,
@@ -78,7 +78,7 @@ pub async fn handle_search_play(
     let payload = QueueAddPayload {
         query,
         vc_channel_id,
-        requested_by: component.user.clone(),
+        requested_by: Requester::from(&component.user),
         respond: tx,
     };
 

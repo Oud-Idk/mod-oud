@@ -9,7 +9,7 @@ use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, error};
 use uuid::Uuid;
 
-use crate::features::music::actor::GuildCommand;
+use crate::features::music::actor::{GuildCommand, Requester};
 use crate::features::music::state::{GuildPlayer, QueuedTrack};
 
 /// The bits of the app shared by every playback operation.
@@ -93,8 +93,7 @@ pub async fn start_streaming(
     call: &Arc<Mutex<Call>>,
     query: String,
     metadata: AuxMetadata,
-    requested_by: Arc<str>,
-    requested_by_id: u64,
+    requested_by: &Requester,
 ) -> StartedTrack {
     use crate::features::music::ffmpeg_live::{FfmpegLiveInput, is_audio_toolchain_available};
 
@@ -115,10 +114,7 @@ pub async fn start_streaming(
     let handle_uuid = handle.uuid();
     debug!(guild_id = %services.guild_id, uuid = %handle_uuid, "Started playing track input");
 
-    // Install event listeners that notify the Actor when a track finishes.
-    // `Error` is registered too: if the input dies mid-stream (e.g. the
-    // ffmpeg process behind a live stream exits), the track must be
-    // reclaimed/reconnected instead of silently going dead.
+
     let handler = TrackEndHandler {
         command_tx: services.command_tx.clone(),
         expected_uuid: handle_uuid,
@@ -129,8 +125,7 @@ pub async fn start_streaming(
     let track = QueuedTrack {
         query: metadata.source_url.clone().unwrap_or(query),
         metadata: metadata.clone(),
-        requested_by,
-        requested_by_id,
+        requested_by: requested_by.clone(),
     };
 
     StartedTrack {
@@ -145,23 +140,14 @@ pub async fn prepare_and_play(
     services: PlaybackServices<'_>,
     call: &Arc<Mutex<Call>>,
     query: String,
-    requested_by: Arc<str>,
-    requested_by_id: u64,
+    requested_by: &Requester,
     cached: Option<AuxMetadata>,
 ) -> Result<StartedTrack> {
     let metadata = match cached {
         Some(metadata) => metadata,
         None => fetch_metadata(services.clone(), &query).await?,
     };
-    Ok(start_streaming(
-        services,
-        call,
-        query,
-        metadata,
-        requested_by,
-        requested_by_id,
-    )
-    .await)
+    Ok(start_streaming(services, call, query, metadata, requested_by).await)
 }
 
 /// Swaps the active track directly inside the `GuildPlayer` state owned by the actor,

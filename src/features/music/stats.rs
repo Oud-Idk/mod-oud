@@ -1,13 +1,14 @@
 use crate::shared::locking::acquire_lock;
 use anyhow::Result;
 use fred::clients::Client;
-use serenity::all::GuildId;
+use serenity::all::{GuildId, UserId};
 use songbird::input::AuxMetadata;
 use sqlx::PgPool;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tracing::{error, trace, warn};
 use uuid::Uuid;
+use crate::features::music::actor::Requester;
 
 /// How long play events are kept before being pruned (rolling window).
 const STATS_RETENTION: &str = "12 months";
@@ -27,8 +28,8 @@ const FLUSH_INTERVAL: Duration = Duration::from_secs(1);
 /// drains them in order and batch-writes to the database.
 pub enum StatsEvent {
     Start {
-        guild_id: u64,
-        user_id: u64,
+        guild_id: GuildId,
+        user_id: UserId,
         handle_uuid: String,
         track_url: Option<String>,
         title: String,
@@ -48,7 +49,7 @@ pub type StatsTx = mpsc::UnboundedSender<StatsEvent>;
 pub fn record_track_start(
     tx: &StatsTx,
     guild_id: GuildId,
-    requested_by_id: u64,
+    requested_by: &Requester,
     handle_uuid: Uuid,
     metadata: &AuxMetadata,
 ) {
@@ -66,8 +67,8 @@ pub fn record_track_start(
         .map(|d| i64::try_from(d.as_millis()).expect("The year is 292,000,000 AD"));
 
     let _ = tx.send(StatsEvent::Start {
-        guild_id: guild_id.get(),
-        user_id: requested_by_id,
+        guild_id,
+        user_id: requested_by.id,
         handle_uuid: handle_uuid.to_string(),
         track_url,
         title,
@@ -150,8 +151,8 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
                     (guild_id, user_id, track_url, title, artist, duration_ms, handle_uuid)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 "#,
-                guild_id.cast_signed(),
-                user_id.cast_signed(),
+                guild_id.get().cast_signed(),
+                user_id.get().cast_signed(),
                 track_url.as_deref(),
                 title,
                 artist,

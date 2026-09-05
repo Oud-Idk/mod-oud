@@ -46,7 +46,7 @@ pub async fn slots(
             &ctx,
             "You don't have enough cash in your wallet for this bet.",
         )
-            .await?;
+        .await?;
         return Ok(());
     };
 

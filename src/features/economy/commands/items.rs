@@ -2,23 +2,22 @@ pub mod actions;
 pub mod buy;
 pub mod create;
 pub mod delete;
+pub mod gift;
 pub mod info;
 pub mod list;
 pub mod sell;
 pub mod use_item;
-pub mod gift;
 
 use buy::buy;
 use create::create;
 use delete::delete;
+use gift::gift;
 use info::info;
 use list::list;
 use sell::sell;
 use use_item::use_item;
-use gift::gift;
 
 use crate::core::config::state::{Context, Error};
-
 
 /// Manage the item store
 #[poise::command(

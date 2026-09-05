@@ -73,7 +73,13 @@ mod tests {
     #[test]
     fn ticket_roundtrip_verifies() {
         let secret = b"test-secret-123";
-        let sig = sign_ticket("1170276413056745482", "123456789", 9_999_999_999, "ws", secret);
+        let sig = sign_ticket(
+            "1170276413056745482",
+            "123456789",
+            9_999_999_999,
+            "ws",
+            secret,
+        );
         assert!(verify_ticket(
             "1170276413056745482",
             "123456789",
@@ -102,6 +108,13 @@ mod tests {
     fn tampered_guild_rejects() {
         let secret = b"test-secret-123";
         let sig = sign_ticket("1", "2", 9_999_999_999, "ws", secret);
-        assert!(!verify_ticket("999", "2", 9_999_999_999, &sig, "ws", secret));
+        assert!(!verify_ticket(
+            "999",
+            "2",
+            9_999_999_999,
+            &sig,
+            "ws",
+            secret
+        ));
     }
 }
