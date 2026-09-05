@@ -1,12 +1,11 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{BotData, Error};
-use crate::features::music::{GuildCommand, QueueAddOutcome, QueueAddPayload, Requester};
+use crate::features::music::{PlaybackHandle, QueueAddOutcome, Requester};
 use crate::shared::voice_state::get_user_vc_in_guild;
 use serenity::all::{
     ComponentInteraction, Context, CreateEmbed, CreateEmbedAuthor, CreateInteractionResponse,
     CreateInteractionResponseMessage, EditInteractionResponse, User,
 };
-use tokio::sync::oneshot;
 
 /// Handles `▶️ Play in VC` buttons added to `/search spotify` and `/search youtube` results.
 ///
@@ -69,38 +68,18 @@ pub async fn handle_search_play(
         return Ok(true);
     };
 
-    let actor_tx = data
-        .music_state
-        .get_or_spawn_actor(guild_id, manager, data.core.reqwest_client.clone())
-        .await;
+    let handle = PlaybackHandle::new(
+        data.music_state
+            .get_or_spawn_actor(guild_id, manager, data.core.reqwest_client.clone())
+            .await,
+    );
 
-    let (tx, rx) = oneshot::channel();
-    let payload = QueueAddPayload {
-        query,
-        vc_channel_id,
-        requested_by: Requester::from(&component.user),
-        respond: tx,
-    };
-
-    if let Err(e) = actor_tx
-        .send(GuildCommand::QueueAdd(Box::new(payload)))
+    match handle
+        .enqueue(query, vc_channel_id, Requester::from(&component.user))
         .await
     {
-        edit_reply(ctx, component, &format!("Failed to queue track: {e}")).await;
-        return Ok(true);
-    }
-
-    match rx.await {
-        Ok(Ok(outcome)) => report_outcome(ctx, component, outcome).await,
-        Ok(Err(e)) => edit_reply(ctx, component, &format!("Failed to play: {e}")).await,
-        Err(_) => {
-            edit_reply(
-                ctx,
-                component,
-                "Music actor did not respond in time. Please try again.",
-            )
-            .await;
-        }
+        Ok(outcome) => report_outcome(ctx, component, outcome).await,
+        Err(e) => edit_reply(ctx, component, &format!("Failed to play: {e}")).await,
     }
 
     Ok(true)
