@@ -28,7 +28,7 @@ export async function MusicStatsFeature({ guildId }: MusicStatsFeatureProps): Pr
             <DashboardHeader>Music</DashboardHeader>
             <MusicControlPanel
                 guildId={guildId}
-                requestedById={session?.user.id ?? undefined}
+                userAuth={session?.user}
                 voiceChannelMap={voiceChannelMap}
             />
             <MusicStatsBody

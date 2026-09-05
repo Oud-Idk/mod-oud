@@ -38,13 +38,17 @@ pub struct SseQuery {
 pub async fn sse_handler(
     State(state): State<Arc<WebState>>,
     Query(params): Query<SseQuery>,
-) -> Result<Sse<impl Stream<Item=Result<Event, Infallible>>>, StatusCode> {
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
     // Ticket verification for real-time endpoint (signed ticket system).
     let Some(secret) = state.core.config.internal_api_secret.as_deref() else {
         warn!("INTERNAL_API_SECRET not set — rejecting SSE");
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     };
-    let (Some(user_id), Some(expires), Some(sig)) = (params.user_id.as_deref(), params.expires, params.sig.as_deref()) else {
+    let (Some(user_id), Some(expires), Some(sig)) = (
+        params.user_id.as_deref(),
+        params.expires,
+        params.sig.as_deref(),
+    ) else {
         warn!(guild_id = %params.guild_id, "Missing ticket for SSE");
         return Err(StatusCode::UNAUTHORIZED);
     };
@@ -82,7 +86,7 @@ pub async fn sse_handler(
             msg.inspect_err(
                 |e| warn!(error = %e, "SSE connection lagged and missed broadcast events"),
             )
-                .ok()
+            .ok()
         })
         .filter(move |msg| {
             msg.guild_id().is_some_and(|g_id| {

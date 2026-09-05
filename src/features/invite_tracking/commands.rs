@@ -24,7 +24,7 @@ pub async fn inviter(
                 "**{}** was invited by <@{}> using code `{}` (<t:{}:R>).",
                 member.user.name, row.inviter_id, row.invite_code, timestamp
             ))
-                .await?;
+            .await?;
         }
         None => {
             ctx.say(format!(

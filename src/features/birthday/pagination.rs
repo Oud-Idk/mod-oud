@@ -67,7 +67,7 @@ pub async fn paginate_birthdays(
                 total_pages
             )))
     })
-        .await?;
+    .await?;
 
     Ok(())
 }

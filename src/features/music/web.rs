@@ -1,7 +1,7 @@
 use crate::core::config::state::WebState;
-use crate::features::music::actor::{GuildCommand, PlayPayload};
 use crate::features::music::keys;
-use crate::features::music::state::MusicState;
+use crate::features::music::playback::PlaybackHandle;
+use crate::features::music::state::{MusicState, PlayOutcome};
 use crate::features::music::web_command::{
     ClientMessage, MusicAction, RemoteMusicCommand, RemoteMusicResult, ServerMessage,
 };
@@ -20,8 +20,6 @@ use serde_with::{DisplayFromStr, serde_as};
 use songbird::Songbird;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
 use tracing::{debug, error, instrument, warn};
 
 #[serde_as]
@@ -170,92 +168,47 @@ async fn handle_music_command(
     guild_id: serenity::GuildId,
     action: MusicAction,
 ) -> Result<serde_json::Value, String> {
-    let actor_tx = music_state
-        .get_or_spawn_actor(guild_id, Arc::clone(manager), reqwest_client.clone())
-        .await;
+    let handle = PlaybackHandle::new(
+        music_state
+            .get_or_spawn_actor(guild_id, Arc::clone(manager), reqwest_client.clone())
+            .await,
+    );
 
     match action {
-        MusicAction::Pause => {
-            send_simple(&actor_tx, |respond| GuildCommand::Pause { respond }).await
-        }
-        MusicAction::Resume => {
-            send_simple(&actor_tx, |respond| GuildCommand::Resume { respond }).await
-        }
-        MusicAction::Stop => send_simple(&actor_tx, |respond| GuildCommand::Stop { respond }).await,
-        MusicAction::Skip => send_simple(&actor_tx, |respond| GuildCommand::Skip { respond }).await,
+        MusicAction::Pause => to_json(handle.pause().await),
+        MusicAction::Resume => to_json(handle.resume().await),
+        MusicAction::Stop => to_json(handle.stop().await),
+        MusicAction::Skip => to_json(handle.skip().await),
         MusicAction::Prev => {
             let vc_channel_id = resolve_voice_channel(http, guild_id).await?;
-            send_simple(&actor_tx, move |respond| GuildCommand::Prev {
-                vc_channel_id,
-                respond,
-            })
-                .await
+            to_json(handle.prev(vc_channel_id).await)
         }
-        MusicAction::Restart => {
-            send_simple(&actor_tx, |respond| GuildCommand::Restart { respond }).await
-        }
-        MusicAction::Shuffle => {
-            send_simple(&actor_tx, |respond| GuildCommand::QueueShuffle { respond }).await
-        }
-        MusicAction::ClearQueue => {
-            send_simple(&actor_tx, |respond| GuildCommand::QueueClear { respond }).await
-        }
-        MusicAction::NowPlaying => {
-            send_simple(&actor_tx, |respond| GuildCommand::NowPlaying { respond }).await
-        }
-        MusicAction::GoToChannel { channel_id } => {
-            send_simple(&actor_tx, |respond| GuildCommand::GoToChannel {
-                vc_channel_id: channel_id,
-                respond,
-            })
-                .await
-        }
-        MusicAction::Seek { input } => {
-            send_simple(&actor_tx, |respond| GuildCommand::Seek { input, respond }).await
-        }
+        MusicAction::Restart => to_json(handle.restart().await),
+        MusicAction::Shuffle => to_json(handle.queue_shuffle().await),
+        MusicAction::ClearQueue => to_json(handle.queue_clear().await),
+        MusicAction::NowPlaying => to_json(handle.now_playing().await),
+        MusicAction::GoToChannel { channel_id } => to_json(handle.go_to_channel(channel_id).await),
+        MusicAction::Seek { input } => to_json(handle.seek(input).await),
         MusicAction::Play {
             query,
-            requested_by_id,
+            requested_by,
         } => {
             let vc_channel_id = resolve_voice_channel(http, guild_id).await?;
 
-            let (requested_by_name, requested_by_id) = match requested_by_id {
-                Some(user_id) => {
-                    let name = http
-                        .get_user(user_id)
-                        .await
-                        .map_or_else(|_| "Web".to_string(), |user| user.name);
-                    (name, user_id.get())
-                }
-                None => ("Web".to_string(), 0),
-            };
-
-            let (respond_tx, respond_rx) = oneshot::channel();
-            actor_tx
-                .send(GuildCommand::WebPlay(Box::new(PlayPayload {
-                    query,
-                    vc_channel_id,
-                    requested_by_name,
-                    requested_by_id,
-                    respond: respond_tx,
-                })))
+            let outcome = handle
+                .play(query, vc_channel_id, requested_by)
                 .await
-                .map_err(|e| format!("Failed to send play command: {e}"))?;
-
-            let outcome = respond_rx
-                .await
-                .map_err(|e| format!("Play command channel closed: {e}"))?
                 .map_err(|e| e.to_string())?;
 
             let data = match outcome {
-                crate::features::music::state::PlayOutcome::Single(info) => {
+                PlayOutcome::Single(info) => {
                     serde_json::json!({
                         "status": "playing",
                         "title": info.title,
                         "thumbnail": info.thumbnail
                     })
                 }
-                crate::features::music::state::PlayOutcome::Playlist { first_track, count } => {
+                PlayOutcome::Playlist { first_track, count } => {
                     serde_json::json!({
                         "status": "playing",
                         "title": first_track.title,
@@ -269,22 +222,13 @@ async fn handle_music_command(
     }
 }
 
-/// Dispatches a [`GuildCommand`] that carries a oneshot reply and serializes the
-/// reply value for the web client.
-async fn send_simple<T: serde::Serialize>(
-    actor_tx: &Sender<GuildCommand>,
-    build: impl FnOnce(oneshot::Sender<anyhow::Result<T>>) -> GuildCommand,
+/// Serializes a handle result for the web client, flattening actor errors to
+/// strings the dashboard can display.
+fn to_json<T: serde::Serialize>(
+    result: Result<T, anyhow::Error>,
 ) -> Result<serde_json::Value, String> {
-    let (respond_tx, respond_rx) = oneshot::channel();
-    actor_tx
-        .send(build(respond_tx))
-        .await
-        .map_err(|e| format!("Failed to send command to music actor: {e}"))?;
-    match respond_rx.await {
-        Ok(Ok(value)) => serde_json::to_value(value).map_err(|e| e.to_string()),
-        Ok(Err(e)) => Err(e.to_string()),
-        Err(e) => Err(format!("Music actor closed command channel: {e}")),
-    }
+    let value = result.map_err(|e| e.to_string())?;
+    serde_json::to_value(value).map_err(|e| e.to_string())
 }
 
 /// Picks a voice channel to join when the bot isn't connected yet. If the bot is
@@ -316,9 +260,11 @@ pub async fn ws_handler(
         warn!("INTERNAL_API_SECRET not set");
         return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     };
-    let (Some(user_id), Some(expires), Some(sig)) =
-        (params.user_id.as_deref(), params.expires, params.sig.as_deref())
-    else {
+    let (Some(user_id), Some(expires), Some(sig)) = (
+        params.user_id.as_deref(),
+        params.expires,
+        params.sig.as_deref(),
+    ) else {
         warn!(guild_id = params.guild_id, "Missing ticket for WS");
         return Err(axum::http::StatusCode::UNAUTHORIZED);
     };

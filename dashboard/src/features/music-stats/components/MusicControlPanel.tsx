@@ -20,12 +20,13 @@ import {
     SquareIcon
 } from "lucide-react";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
+import { User } from "next-auth";
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
 interface MusicControlPanelProps {
     guildId: string;
-    requestedById?: string;
+    userAuth?: User;
     voiceChannelMap: Record<string, string>;
 }
 
@@ -127,7 +128,7 @@ function parseDuration(raw: unknown): number {
 
 export function MusicControlPanel({
     guildId,
-    requestedById,
+    userAuth,
     voiceChannelMap
 }: MusicControlPanelProps): JSX.Element | null {
     const [mounted, setMounted] = useState(false);
@@ -443,17 +444,28 @@ export function MusicControlPanel({
             showFeedback(false, "Enter a track name or URL to play.");
             return;
         }
+
+        if (userAuth?.id === undefined || userAuth.name === undefined) {
+            showFeedback(false, "Seems like some info about your account is missing. You may need to re-login.");
+            return;
+        }
+
         setPosition(0);
         setIsPaused(false);
         playheadAnchorRef.current = {
             basePos: 0,
             timestamp: performance.now(),
         };
-        void sendCommand("play", { query: trimmed, requestedById })
+        void sendCommand("play", {
+            query: trimmed, requestedBy: {
+                id: userAuth.id,
+                name: userAuth.name,
+            }
+        })
             .then(() => sendCommand("nowPlaying"))
             .catch(noop);
         setQuery("");
-    }, [query, requestedById, sendCommand, showFeedback]);
+    }, [query, userAuth, sendCommand, showFeedback]);
 
     const handleResume = useCallback((): void => {
         setIsPaused(false);

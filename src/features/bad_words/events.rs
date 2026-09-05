@@ -76,10 +76,10 @@ fn check_ruleset<'a>(
 
                     let left_ok = start == 0
                         || !lower[..start]
-                        .chars()
-                        .next_back()
-                        .unwrap()
-                        .is_alphanumeric();
+                            .chars()
+                            .next_back()
+                            .unwrap()
+                            .is_alphanumeric();
                     let right_ok = end == lower.len()
                         || !lower[end..].chars().next().unwrap().is_alphanumeric();
 
@@ -210,7 +210,7 @@ mod tests {
             timeout_duration_seconds: None,
             scope: RuleScope::default(),
         }
-            .into()
+        .into()
     }
 
     fn trigger_of(verdict: Option<FilterVerdict<'_>>) -> Option<String> {

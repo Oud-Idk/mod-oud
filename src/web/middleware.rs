@@ -31,7 +31,10 @@ pub async fn require_internal_secret(
     next: Next,
 ) -> Result<Response, (StatusCode, String)> {
     let path = request.uri().path().to_string();
-    if EXEMPT_PATHS.iter().any(|p| path == *p || path.starts_with(&format!("{p}?"))) {
+    if EXEMPT_PATHS
+        .iter()
+        .any(|p| path == *p || path.starts_with(&format!("{p}?")))
+    {
         return Ok(next.run(request).await);
     }
 
@@ -46,7 +49,10 @@ pub async fn require_internal_secret(
     }
 
     let Some(expected) = state.core.config.internal_api_secret.as_deref() else {
-        warn!("INTERNAL_API_SECRET not set. Rejecting protected route {}", path);
+        warn!(
+            "INTERNAL_API_SECRET not set. Rejecting protected route {}",
+            path
+        );
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "Server misconfigured".to_string(),
@@ -75,7 +81,13 @@ pub async fn require_internal_secret(
 
     match provided {
         Some(token) if token == expected => Ok(next.run(request).await),
-        Some(_) => Err((StatusCode::UNAUTHORIZED, "Invalid internal secret".to_string())),
-        None => Err((StatusCode::UNAUTHORIZED, "Missing Authorization".to_string())),
+        Some(_) => Err((
+            StatusCode::UNAUTHORIZED,
+            "Invalid internal secret".to_string(),
+        )),
+        None => Err((
+            StatusCode::UNAUTHORIZED,
+            "Missing Authorization".to_string(),
+        )),
     }
 }

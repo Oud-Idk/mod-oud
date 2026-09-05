@@ -1,16 +1,16 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::{
-    add_cash, commands, ensure_balance, get_balance, keys,
+use crate::features::economy::database::balances::{
+    transfer_bank_to_cash, transfer_cash, transfer_cash_to_bank,
 };
+use crate::features::economy::database::work_messages::get_random_work_message;
+use crate::features::economy::{add_cash, commands, ensure_balance, get_balance, keys};
 use crate::shared::messages::send_ephemeral;
 use fred::interfaces::KeysInterface;
 use fred::prelude::{Expiration, SetOptions};
 use humantime::format_duration;
 use serenity::all::{CreateEmbed, User};
 use std::time::Duration;
-use crate::features::economy::database::balances::{transfer_bank_to_cash, transfer_cash, transfer_cash_to_bank};
-use crate::features::economy::database::work_messages::get_random_work_message;
 
 #[poise::command(
     slash_command,
@@ -44,9 +44,21 @@ pub async fn balance(
 
     let embed = CreateEmbed::new()
         .title(format!("{}'s Balance", target.display_name()))
-        .field("Wallet", format!("{} {}", balance.cash, config.currency_name), true)
-        .field("Bank", format!("{} {}", balance.bank, config.currency_name), true)
-        .field("Total", format!("{} {}", balance.total(), config.currency_name), false)
+        .field(
+            "Wallet",
+            format!("{} {}", balance.cash, config.currency_name),
+            true,
+        )
+        .field(
+            "Bank",
+            format!("{} {}", balance.bank, config.currency_name),
+            true,
+        )
+        .field(
+            "Total",
+            format!("{} {}", balance.total(), config.currency_name),
+            false,
+        )
         .color(BRAND_COLOR);
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
@@ -88,7 +100,7 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
             &ctx,
             format!("You need to wait {wait_time} before working again."),
         )
-            .await?;
+        .await?;
         return Ok(());
     }
 
@@ -155,13 +167,16 @@ pub async fn deposit(
     let currency = &config.currency_name;
     let embed = CreateEmbed::new()
         .title("Deposit Complete!")
-        .description(format!("Deposited **{deposit_amount} {currency}** into your bank."))
+        .description(format!(
+            "Deposited **{deposit_amount} {currency}** into your bank."
+        ))
         .field("Wallet", format!("{} {currency}", balance.cash), true)
         .field("Bank", format!("{} {currency}", balance.bank), true)
         .field("Total", format!("{} {currency}", balance.total()), false)
         .color(BRAND_COLOR);
 
-    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true)).await?;
+    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
+        .await?;
     Ok(())
 }
 
@@ -196,13 +211,16 @@ pub async fn withdraw(
     let currency = &config.currency_name;
     let embed = CreateEmbed::new()
         .title("Withdrawal Complete!")
-        .description(format!("Withdrew **{withdraw_amount} {currency}** from your bank."))
+        .description(format!(
+            "Withdrew **{withdraw_amount} {currency}** from your bank."
+        ))
         .field("Wallet", format!("{} {currency}", balance.cash), true)
         .field("Bank", format!("{} {currency}", balance.bank), true)
         .field("Total", format!("{} {currency}", balance.total()), false)
         .color(BRAND_COLOR);
 
-    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true)).await?;
+    ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))
+        .await?;
     Ok(())
 }
 
@@ -266,9 +284,21 @@ pub async fn transfer(
             "You transferred **{amount} {currency}** to **{}**.",
             user.display_name()
         ))
-        .field("Your Wallet", format!("{} {currency}", sender_balance.cash), true)
-        .field("Your Bank", format!("{} {currency}", sender_balance.bank), true)
-        .field("Your Total", format!("{} {currency}", sender_balance.total()), false)
+        .field(
+            "Your Wallet",
+            format!("{} {currency}", sender_balance.cash),
+            true,
+        )
+        .field(
+            "Your Bank",
+            format!("{} {currency}", sender_balance.bank),
+            true,
+        )
+        .field(
+            "Your Total",
+            format!("{} {currency}", sender_balance.total()),
+            false,
+        )
         .color(BRAND_COLOR);
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;

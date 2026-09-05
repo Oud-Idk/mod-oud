@@ -192,7 +192,7 @@ mod tests {
             pattern(MatchStrategy::Substring, "sub"),
             pattern(MatchStrategy::Exact, "guaranteed returns"),
         ])
-            .into();
+        .into();
 
         assert!(compiled.text_matcher.is_some());
         let (_, patterns) = compiled.text_matcher.unwrap();
@@ -208,7 +208,7 @@ mod tests {
             pattern(MatchStrategy::Exact, "   "),
             pattern(MatchStrategy::Exact, ""),
         ])
-            .into();
+        .into();
 
         assert!(compiled.text_matcher.is_none());
     }

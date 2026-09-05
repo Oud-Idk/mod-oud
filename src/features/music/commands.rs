@@ -1,9 +1,10 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::Context;
-use crate::features::music::actor::{GuildCommand, PlayPayload, QueueAddPayload};
+use crate::features::music::actor::Requester;
+use crate::features::music::playback::PlaybackHandle;
 use crate::features::music::player::format_duration;
-use crate::features::music::state::{PlayOutcome, QueueAddOutcome, StartedTrackInfo};
+use crate::features::music::state::{PlayOutcome, QueueAddOutcome};
 use crate::shared::pagination::paginate;
 use crate::shared::voice_state::get_user_vc_in_guild;
 use anyhow::{Context as _, Result};
@@ -11,8 +12,6 @@ use poise::CreateReply;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, User};
 use std::fmt::Write;
 use std::time::Duration;
-use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
 use tracing::debug;
 
 async fn reply(ctx: &Context<'_>, message: impl Into<String>) -> Result<()> {
@@ -20,29 +19,12 @@ async fn reply(ctx: &Context<'_>, message: impl Into<String>) -> Result<()> {
     Ok(())
 }
 
-pub struct PreparedCommand<T = Result<StartedTrackInfo>> {
-    pub actor_tx: Sender<GuildCommand>,
+pub struct PreparedCommand {
+    pub handle: PlaybackHandle,
     pub vc_channel_id: Option<ChannelId>,
-    pub track_tx: oneshot::Sender<T>,
-    pub track_rx: oneshot::Receiver<T>,
 }
 
-impl<T> PreparedCommand<Result<T>> {
-    /// Dispatches a command to the music actor and waits for the track result.
-    /// Deduplicates the `actor_tx.send()` + `track_rx.await??` boilerplate!
-    pub async fn dispatch(
-        self,
-        make_cmd: impl FnOnce(oneshot::Sender<Result<T>>) -> GuildCommand,
-    ) -> Result<T> {
-        self.actor_tx.send(make_cmd(self.track_tx)).await?;
-        self.track_rx.await?
-    }
-}
-
-async fn prepare_command<T>(
-    ctx: &Context<'_>,
-    require_vc: bool,
-) -> Result<Option<PreparedCommand<T>>> {
+async fn prepare_command(ctx: &Context<'_>, require_vc: bool) -> Result<Option<PreparedCommand>> {
     ctx.defer().await?;
     let Some(guild_id) = ctx.guild_id() else {
         return Ok(None);
@@ -72,13 +54,9 @@ async fn prepare_command<T>(
         None
     };
 
-    let (track_tx, track_rx) = oneshot::channel();
-
     Ok(Some(PreparedCommand {
-        actor_tx,
+        handle: PlaybackHandle::new(actor_tx),
         vc_channel_id,
-        track_tx,
-        track_rx,
     }))
 }
 
@@ -143,15 +121,8 @@ pub async fn play(
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
     let outcome = p
-        .dispatch(|respond| {
-            GuildCommand::Play(Box::new(PlayPayload {
-                query,
-                vc_channel_id,
-                requested_by_name: ctx.author().name.clone(),
-                requested_by_id: ctx.author().id.get(),
-                respond,
-            }))
-        })
+        .handle
+        .play(query, vc_channel_id, Requester::from(ctx.author()))
         .await?;
 
     match outcome {
@@ -192,11 +163,7 @@ pub async fn go_to_channel(
         return Ok(());
     };
 
-    p.dispatch(|respond| GuildCommand::GoToChannel {
-        vc_channel_id: channel.id,
-        respond,
-    })
-    .await?;
+    p.handle.go_to_channel(channel.id).await?;
 
     reply(
         &ctx,
@@ -214,9 +181,7 @@ pub async fn restart(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let info = p
-        .dispatch(|respond| GuildCommand::Restart { respond })
-        .await?;
+    let info = p.handle.restart().await?;
     reply(
         &ctx,
         format!("Restarted **{}** from the beginning.", info.title),
@@ -233,7 +198,7 @@ pub async fn stop(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    p.dispatch(|respond| GuildCommand::Stop { respond }).await?;
+    p.handle.stop().await?;
     reply(&ctx, "Stopped current track.").await?;
 
     Ok(())
@@ -246,8 +211,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    p.dispatch(|respond| GuildCommand::Pause { respond })
-        .await?;
+    p.handle.pause().await?;
     reply(&ctx, "Paused current track.").await?;
 
     Ok(())
@@ -260,8 +224,7 @@ pub async fn resume(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    p.dispatch(|respond| GuildCommand::Resume { respond })
-        .await?;
+    p.handle.resume().await?;
     reply(&ctx, "Resumed current track.").await?;
 
     Ok(())
@@ -277,12 +240,7 @@ pub async fn seek(
         return Ok(());
     };
 
-    let duration = p
-        .dispatch(|respond| GuildCommand::Seek {
-            input: time,
-            respond,
-        })
-        .await?;
+    let duration = p.handle.seek(time).await?;
     reply(
         &ctx,
         format!(
@@ -302,7 +260,7 @@ pub async fn next(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let next_title = p.dispatch(|respond| GuildCommand::Skip { respond }).await?;
+    let next_title = p.handle.skip().await?;
 
     match next_title {
         Some(title) => reply(&ctx, format!("Skipped. Now playing **{title}**.")).await?,
@@ -345,9 +303,7 @@ pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let res = p
-        .dispatch(|respond| GuildCommand::NowPlaying { respond })
-        .await?;
+    let res = p.handle.now_playing().await?;
 
     match res {
         Some(np) => {
@@ -376,7 +332,7 @@ pub async fn nowplaying(ctx: Context<'_>) -> Result<()> {
 
             let description = format!(
                 "{}\n\n{}\n`{} / {}` | {}\nRequested by **{}**",
-                title_fmt, bar, position_fmt, duration_fmt, status_str, track.requested_by
+                title_fmt, bar, position_fmt, duration_fmt, status_str, track.requested_by.name
             );
 
             ctx.send(
@@ -410,12 +366,7 @@ pub async fn prev(ctx: Context<'_>) -> Result<()> {
     };
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
-    let info = p
-        .dispatch(|respond| GuildCommand::Prev {
-            vc_channel_id,
-            respond,
-        })
-        .await?;
+    let info = p.handle.prev(vc_channel_id).await?;
     reply(&ctx, format!("Playing previous track: **{}**.", info.title)).await?;
 
     Ok(())
@@ -433,14 +384,8 @@ pub async fn add(
     let vc_channel_id = p.vc_channel_id.context("No voice channel available")?;
 
     let outcome = p
-        .dispatch(|respond| {
-            GuildCommand::QueueAdd(Box::new(QueueAddPayload {
-                query,
-                vc_channel_id,
-                requested_by: ctx.author().clone(),
-                respond,
-            }))
-        })
+        .handle
+        .enqueue(query, vc_channel_id, Requester::from(ctx.author()))
         .await?;
 
     match outcome {
@@ -480,9 +425,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let snapshot = p
-        .dispatch(|respond| GuildCommand::QueueList { respond })
-        .await?;
+    let snapshot = p.handle.queue_snapshot().await?;
 
     if snapshot.current_meta.is_none() && snapshot.queue.is_empty() {
         reply(&ctx, "The queue is currently empty and nothing is playing.").await?;
@@ -536,7 +479,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
                 let _ = writeln!(
                     description,
                     "{}. {}{} (Requested by **{}**)",
-                    track_num, title_fmt, duration_fmt, track.requested_by
+                    track_num, title_fmt, duration_fmt, track.requested_by.name
                 );
             }
         }
@@ -561,9 +504,7 @@ pub async fn clear(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let count = p
-        .dispatch(|respond| GuildCommand::QueueClear { respond })
-        .await?;
+    let count = p.handle.queue_clear().await?;
 
     if count == 0 {
         reply(&ctx, "The queue is already empty.").await?;
@@ -584,9 +525,7 @@ pub async fn remove(
         return Ok(());
     };
 
-    let removed = p
-        .dispatch(|respond| GuildCommand::QueueRemove { position, respond })
-        .await?;
+    let removed = p.handle.queue_remove(position).await?;
     let title = removed
         .metadata
         .title
@@ -605,9 +544,7 @@ pub async fn shuffle(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let count = p
-        .dispatch(|respond| GuildCommand::QueueShuffle { respond })
-        .await?;
+    let count = p.handle.queue_shuffle().await?;
 
     if count == 0 {
         reply(&ctx, "The queue is empty, there's nothing to shuffle.").await?;
@@ -628,9 +565,7 @@ pub async fn goto(
         return Ok(());
     };
 
-    let info = p
-        .dispatch(|respond| GuildCommand::QueueJump { position, respond })
-        .await?;
+    let info = p.handle.queue_jump(position).await?;
     reply(&ctx, format!("Jumped to **{}**.", info.title)).await?;
 
     Ok(())
@@ -643,9 +578,7 @@ pub async fn history_list(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let snapshot = p
-        .dispatch(|respond| GuildCommand::HistoryList { respond })
-        .await?;
+    let snapshot = p.handle.history_list().await?;
 
     if snapshot.is_empty() {
         reply(&ctx, "No tracks in the play history yet.").await?;
@@ -702,9 +635,7 @@ pub async fn history_goto(
         return Ok(());
     };
 
-    let info = p
-        .dispatch(|respond| GuildCommand::HistoryJump { position, respond })
-        .await?;
+    let info = p.handle.history_jump(position).await?;
     reply(&ctx, format!("Replaying **{}**.", info.title)).await?;
 
     Ok(())

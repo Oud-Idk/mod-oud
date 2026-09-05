@@ -3,6 +3,7 @@ use crate::features::{
     automod, general, giveaways, live_feed, member_counter, moderation, music, reaction_roles,
     reporting, temp_voice, tickets, verification,
 };
+use crate::web::middleware::require_internal_secret;
 use axum::Router;
 use axum::http::{Method, StatusCode, Uri};
 use axum::routing::get;
@@ -10,7 +11,6 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, instrument};
-use crate::web::middleware::require_internal_secret;
 
 #[instrument]
 async fn health_check() -> &'static str {

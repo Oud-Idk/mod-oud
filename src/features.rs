@@ -11,6 +11,8 @@ pub mod birthday;
 pub mod custom_commands;
 /// Virtual economy (cash, bank, work).
 pub mod economy;
+/// Gambling mechanics for economy.
+pub mod gambling;
 /// General utility commands.
 pub mod general;
 /// Giveaways.
@@ -53,5 +55,3 @@ pub mod tickets;
 pub mod verification;
 /// Warning system.
 pub mod warning;
-/// Gambling mechanics for economy.
-pub mod gambling;

@@ -17,7 +17,13 @@ pub enum Symbol {
 
 impl Symbol {
     /// All symbols in definition order.
-    pub const ALL: [Self; 5] = [Self::Cherry, Self::Lemon, Self::Orange, Self::Bell, Self::Seven];
+    pub const ALL: [Self; 5] = [
+        Self::Cherry,
+        Self::Lemon,
+        Self::Orange,
+        Self::Bell,
+        Self::Seven,
+    ];
 
     /// Emoji representation for embeds.
     #[must_use]
