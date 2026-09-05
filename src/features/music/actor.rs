@@ -130,8 +130,11 @@ fn parse_seek_input(input: &str) -> Option<SeekMode> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// A generic requester user.
 pub struct Requester {
+    /// Discord snowflake of the user who initiated the request.
     pub id: UserId,
+    /// Display name of the user who initiated the request.
     pub name: Arc<str>,
 }
 
