@@ -1133,6 +1133,8 @@ impl GuildActor {
         }
     }
 
+    /// Runs one mailbox command to completion.
+    /// Only `Play` and `QueueAdd` may await open-ended I/O.
     async fn process_command(&mut self, cmd: GuildCommand) {
         match cmd {
             GuildCommand::Play(payload) => {

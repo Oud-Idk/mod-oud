@@ -1,7 +1,4 @@
-//! Narrow method-based interface over the guild music actor mailbox.
-//!
-//! Each method hides the `mpsc` and `oneshot` plumbing so callers learn one
-//! reply type per call instead of the channel protocol.
+//! Method-based interface over the guild music actor mailbox.
 
 use crate::features::music::actor::{GuildCommand, PlayPayload, QueueAddPayload, Requester};
 use crate::features::music::state::{
@@ -11,51 +8,87 @@ use anyhow::{Context, Result};
 use serenity::all::ChannelId;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
+use tokio::time::timeout;
+
+/// Stall backstop for ordinary replies, not a latency SLO.
+const ORDINARY_REPLY_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Caller-facing handle to one guild's music actor.
+///
+/// Times out after `ORDINARY_REPLY_TIMEOUT`. `play` and `enqueue` wait without a deadline.
 #[derive(Clone, Debug)]
 pub struct PlaybackHandle {
     tx: mpsc::Sender<GuildCommand>,
+    ordinary_timeout: Duration,
 }
 
 impl PlaybackHandle {
-    /// Wraps an actor mailbox sender without spawning anything.
+    /// Wraps an actor mailbox sender; ordinary waits default to 10s.
     #[must_use]
     pub const fn new(tx: mpsc::Sender<GuildCommand>) -> Self {
-        Self { tx }
+        Self {
+            tx,
+            ordinary_timeout: ORDINARY_REPLY_TIMEOUT,
+        }
     }
 
-    /// Sends one command and awaits its typed reply.
-    ///
-    /// Actor-side failures pass through unchanged; only transport failures
-    /// (closed mailbox, dropped reply) gain context here.
-    async fn call<T>(
+    /// Overrides the ordinary reply timeout. `play`/`enqueue` are unaffected.
+    #[must_use]
+    pub const fn with_ordinary_timeout(mut self, timeout: Duration) -> Self {
+        self.ordinary_timeout = timeout;
+        self
+    }
+
+    /// Sends one command, returning the reply receiver.
+    async fn send_command<T>(
         &self,
         build: impl FnOnce(oneshot::Sender<Result<T>>) -> GuildCommand,
-    ) -> Result<T> {
+    ) -> Result<oneshot::Receiver<Result<T>>> {
         let (respond_tx, respond_rx) = oneshot::channel();
         self.tx
             .send(build(respond_tx))
             .await
             .context("music actor mailbox closed")?;
+        Ok(respond_rx)
+    }
+
+    /// Sends one command and awaits its reply, bounded by the ordinary timeout.
+    async fn call<T>(
+        &self,
+        build: impl FnOnce(oneshot::Sender<Result<T>>) -> GuildCommand,
+    ) -> Result<T> {
+        let respond_rx = self.send_command(build).await?;
+        timeout(self.ordinary_timeout, respond_rx)
+            .await
+            .context("music actor did not reply in time")?
+            .context("music actor dropped the reply channel")?
+    }
+
+    /// Sends one command and awaits its reply with no deadline (resolution
+    /// does unbounded network I/O, so any fixed deadline is unvalidated).
+    async fn call_without_deadline<T>(
+        &self,
+        build: impl FnOnce(oneshot::Sender<Result<T>>) -> GuildCommand,
+    ) -> Result<T> {
+        let respond_rx = self.send_command(build).await?;
         respond_rx
             .await
             .context("music actor dropped the reply channel")?
     }
 
     /// Force-starts playback, stopping whatever is currently playing.
+    /// Waits without a deadline.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the reply
+    /// channel is dropped, or the actor reports a failure.
     pub async fn play(
         &self,
         query: impl Into<String>,
         vc_channel_id: ChannelId,
         requested_by: Requester,
     ) -> Result<PlayOutcome> {
-        self.call(|respond| {
+        self.call_without_deadline(|respond| {
             GuildCommand::Play(Box::new(PlayPayload {
                 query: query.into(),
                 vc_channel_id,
@@ -67,18 +100,18 @@ impl PlaybackHandle {
     }
 
     /// Smart-enqueues: plays immediately if idle, appends if active.
+    /// Waits without a deadline.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the reply
+    /// channel is dropped, or the actor reports a failure.
     pub async fn enqueue(
         &self,
         query: impl Into<String>,
         vc_channel_id: ChannelId,
         requested_by: Requester,
     ) -> Result<QueueAddOutcome> {
-        self.call(|respond| {
+        self.call_without_deadline(|respond| {
             GuildCommand::QueueAdd(Box::new(QueueAddPayload {
                 query: query.into(),
                 vc_channel_id,
@@ -92,9 +125,9 @@ impl PlaybackHandle {
     /// Skips the current track, returning the next track's title if any.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn skip(&self) -> Result<Option<String>> {
         self.call(|respond| GuildCommand::Skip { respond }).await
     }
@@ -102,9 +135,9 @@ impl PlaybackHandle {
     /// Replays the most recent history entry, joining voice if disconnected.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn prev(&self, vc_channel_id: ChannelId) -> Result<StartedTrackInfo> {
         self.call(|respond| GuildCommand::Prev {
             vc_channel_id,
@@ -116,9 +149,9 @@ impl PlaybackHandle {
     /// Snapshots the current track and upcoming queue.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn queue_snapshot(&self) -> Result<QueueSnapshot> {
         self.call(|respond| GuildCommand::QueueList { respond })
             .await
@@ -127,9 +160,9 @@ impl PlaybackHandle {
     /// Clears pending tracks, returning how many were removed.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn queue_clear(&self) -> Result<usize> {
         self.call(|respond| GuildCommand::QueueClear { respond })
             .await
@@ -138,9 +171,9 @@ impl PlaybackHandle {
     /// Removes the track at a 1-based position, returning it.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn queue_remove(&self, position: usize) -> Result<QueuedTrack> {
         self.call(|respond| GuildCommand::QueueRemove { position, respond })
             .await
@@ -149,9 +182,9 @@ impl PlaybackHandle {
     /// Shuffles the queue, returning how many tracks were shuffled.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn queue_shuffle(&self) -> Result<usize> {
         self.call(|respond| GuildCommand::QueueShuffle { respond })
             .await
@@ -160,9 +193,9 @@ impl PlaybackHandle {
     /// Jumps to the 1-based queue position, pushing skipped tracks to history.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn queue_jump(&self, position: usize) -> Result<StartedTrackInfo> {
         self.call(|respond| GuildCommand::QueueJump { position, respond })
             .await
@@ -171,9 +204,9 @@ impl PlaybackHandle {
     /// Lists recently played tracks, most recent first.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn history_list(&self) -> Result<Vec<QueuedTrack>> {
         self.call(|respond| GuildCommand::HistoryList { respond })
             .await
@@ -182,9 +215,9 @@ impl PlaybackHandle {
     /// Replays the history entry at a 1-based index, most recent first.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn history_jump(&self, position: usize) -> Result<StartedTrackInfo> {
         self.call(|respond| GuildCommand::HistoryJump { position, respond })
             .await
@@ -193,9 +226,9 @@ impl PlaybackHandle {
     /// Reports live playback info, or `None` when nothing is playing.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn now_playing(&self) -> Result<Option<NowPlayingResponse>> {
         self.call(|respond| GuildCommand::NowPlaying { respond })
             .await
@@ -204,9 +237,9 @@ impl PlaybackHandle {
     /// Restarts the current track from `0:00`.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn restart(&self) -> Result<StartedTrackInfo> {
         self.call(|respond| GuildCommand::Restart { respond }).await
     }
@@ -214,9 +247,9 @@ impl PlaybackHandle {
     /// Stops playback, clears the queue, and leaves voice.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn stop(&self) -> Result<()> {
         self.call(|respond| GuildCommand::Stop { respond }).await
     }
@@ -224,9 +257,9 @@ impl PlaybackHandle {
     /// Pauses the current track.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn pause(&self) -> Result<()> {
         self.call(|respond| GuildCommand::Pause { respond }).await
     }
@@ -234,9 +267,9 @@ impl PlaybackHandle {
     /// Resumes a paused track.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn resume(&self) -> Result<()> {
         self.call(|respond| GuildCommand::Resume { respond }).await
     }
@@ -244,9 +277,9 @@ impl PlaybackHandle {
     /// Seeks to an absolute (`1:30`) or relative (`+30`, `-15`) position.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn seek(&self, input: impl Into<String>) -> Result<Duration> {
         let input = input.into();
         self.call(|respond| GuildCommand::Seek { input, respond })
@@ -256,9 +289,9 @@ impl PlaybackHandle {
     /// Moves the bot to another voice channel without interrupting playback.
     ///
     /// # Errors
-    ///
-    /// Fails if the actor mailbox is closed, the reply is dropped, or the
-    /// actor reports a failure.
+    /// Returns an error if the music actor mailbox is closed, the actor
+    /// does not reply in time, the reply channel is dropped, or the actor
+    /// reports a failure.
     pub async fn go_to_channel(&self, vc_channel_id: ChannelId) -> Result<()> {
         self.call(|respond| GuildCommand::GoToChannel {
             vc_channel_id,
@@ -648,5 +681,102 @@ mod tests {
         drop(handle);
         join.await
             .expect("fake actor should exit once all handles drop");
+    }
+
+    #[tokio::test]
+    async fn stalled_reply_times_out_instead_of_hanging() {
+        let handle = spawn_fake(|cmd| match cmd {
+            GuildCommand::Pause { .. } => {
+                // Actor stalls: hold the reply open, never answer.
+                std::mem::forget(cmd);
+            }
+            _ => panic!("expected Pause"),
+        })
+        .with_ordinary_timeout(Duration::from_millis(30));
+
+        let err = handle
+            .pause()
+            .await
+            .expect_err("stalled reply should time out");
+        assert!(err.to_string().contains("did not reply in time"));
+    }
+
+    #[tokio::test]
+    async fn slow_resolution_ignores_ordinary_timeout() {
+        let handle = spawn_fake(move |cmd| match cmd {
+            GuildCommand::Play(payload) => {
+                tokio::spawn(async move {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    let _ = payload.respond.send(Ok(PlayOutcome::Single(track_info())));
+                });
+            }
+            GuildCommand::QueueAdd(payload) => {
+                tokio::spawn(async move {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    let _ = payload
+                        .respond
+                        .send(Ok(QueueAddOutcome::Queued(track_info())));
+                });
+            }
+            _ => panic!("expected Play or QueueAdd"),
+        })
+        .with_ordinary_timeout(Duration::from_millis(20));
+
+        let requester = Requester {
+            id: UserId::new(9),
+            name: Arc::from("dj"),
+        };
+        match handle
+            .play("slow playlist", ChannelId::new(1), requester.clone())
+            .await
+            .expect("slow play must not time out")
+        {
+            PlayOutcome::Single(info) => assert_eq!(info.title, track_info().title),
+            PlayOutcome::Playlist { .. } => panic!("expected Single"),
+        }
+        match handle
+            .enqueue("slow track", ChannelId::new(1), requester)
+            .await
+            .expect("slow enqueue must not time out")
+        {
+            QueueAddOutcome::Queued(info) => assert_eq!(info.title, track_info().title),
+            _ => panic!("expected Queued"),
+        }
+    }
+
+    #[tokio::test]
+    async fn abandoned_wait_leaves_mailbox_usable() {
+        let (probe_tx, probe_rx) = oneshot::channel();
+        let mut probe_tx = Some(probe_tx);
+        let (tx, mut rx) = mpsc::channel::<GuildCommand>(16);
+        tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Some(cmd) = rx.recv().await {
+                if held.is_empty() {
+                    let _ = probe_tx.take().expect("probe set").send(());
+                    held.push(cmd); // hold the first reply open: stall, never answer
+                    continue;
+                }
+                if let GuildCommand::Pause { respond } = cmd {
+                    let _ = respond.send(Ok(()));
+                }
+            }
+        });
+
+        let handle = PlaybackHandle::new(tx).with_ordinary_timeout(Duration::from_secs(30));
+        let stalled = tokio::spawn({
+            let handle = handle.clone();
+            async move { handle.pause().await }
+        });
+        probe_rx.await.expect("actor got the stalled command");
+        stalled.abort();
+        assert!(
+            stalled
+                .await
+                .expect_err("abort yields JoinError")
+                .is_cancelled()
+        );
+
+        handle.pause().await.expect("mailbox usable after abandon");
     }
 }
