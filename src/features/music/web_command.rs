@@ -32,7 +32,7 @@ pub enum MusicAction {
     Play {
         /// The query from the web (`YouTube` search / Spotify URL / `YouTube` URL).
         query: String,
-        /// Requested by user ID.
+        /// User who requested.
         requested_by: Requester,
     },
     /// Pause playback.
