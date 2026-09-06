@@ -1,4 +1,6 @@
-use crate::features::search::dictionary::models::{WordOfTheDay, WordnikDefinition};
+use crate::features::search::dictionary::models::{
+    DictionaryAPIResponse, FreeDictionaryResponse, WordOfTheDay, WordnikDefinition,
+};
 
 #[derive(Clone)]
 pub struct WordnikClient {
@@ -61,6 +63,35 @@ impl WordnikClient {
             .error_for_status()?
             .json::<WordOfTheDay>()
             .await?;
+
+        Ok(response)
+    }
+}
+
+#[derive(Clone)]
+pub struct FreeDictionaryClient {
+    http: reqwest::Client,
+    base_url: &'static str,
+}
+
+impl FreeDictionaryClient {
+    pub const fn new(http: reqwest::Client) -> Self {
+        Self {
+            http,
+            base_url: "https://freedictionaryapi.com/api/v1",
+        }
+    }
+
+    pub async fn define(&self, word: &str) -> Result<Vec<DictionaryAPIResponse>, reqwest::Error> {
+        let response = self
+            .http
+            .get(format!("{}/entries/en/{word}", self.base_url))
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<FreeDictionaryResponse>()
+            .await?
+            .into_vec();
 
         Ok(response)
     }
