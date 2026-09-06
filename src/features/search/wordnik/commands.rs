@@ -25,7 +25,7 @@ pub async fn wordnik(
         .as_deref()
         .filter(|k| !k.trim().is_empty())
         .with_context(
-            || "Wordnik API key is not set up in environment variables (`Wordnik_API_KEY`).",
+            || "Wordnik API key is not set up in environment variables (`WORDNIK_API_KEY`).",
         )?
         .into();
     let client = WordnikClient::new(reqwest_client, api_key);
@@ -42,6 +42,7 @@ pub async fn wordnik(
             .define(&query, count)
             .await?
             .into_iter()
+            .filter(|d| d.text.is_some())
             .take(count)
             .collect::<Vec<_>>();
         anyhow::ensure!(
