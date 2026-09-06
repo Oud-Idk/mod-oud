@@ -1,4 +1,5 @@
 mod commands;
+mod dictionary;
 mod events;
 mod genius;
 mod giphy;
@@ -11,7 +12,6 @@ mod rawg;
 mod spotify;
 mod tmdb;
 mod urban;
-mod dictionary;
 mod youtube;
 
 pub use commands::search;

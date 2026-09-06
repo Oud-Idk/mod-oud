@@ -2,6 +2,7 @@
 
 use crate::core::config::state::Context;
 use crate::features::search::{
+    dictionary::commands::dictionary,
     genius::commands::genius,
     giphy::commands::giphy,
     kitsu::commands::{anime, manga},
@@ -12,7 +13,6 @@ use crate::features::search::{
     spotify::commands::spotify,
     tmdb::commands::movie,
     urban::commands::urban,
-    dictionary::commands::dictionary,
     youtube::commands::youtube,
 };
 use anyhow::Result;
@@ -20,8 +20,19 @@ use anyhow::Result;
 #[poise::command(
     slash_command,
     subcommands(
-        "anime", "manga", "urban", "giphy", "klipy", "youtube", "spotify", "genius", "movie",
-        "rawg", "pokemon", "weather", "dictionary"
+        "anime",
+        "manga",
+        "urban",
+        "giphy",
+        "klipy",
+        "youtube",
+        "spotify",
+        "genius",
+        "movie",
+        "rawg",
+        "pokemon",
+        "weather",
+        "dictionary"
     )
 )]
 pub async fn search(_: Context<'_>) -> Result<()> {
