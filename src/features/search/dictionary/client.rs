@@ -1,4 +1,4 @@
-use crate::features::search::wordnik::models::{WordOfTheDay, WordnikDefinition};
+use crate::features::search::dictionary::models::{WordOfTheDay, WordnikDefinition};
 
 #[derive(Clone)]
 pub struct WordnikClient {

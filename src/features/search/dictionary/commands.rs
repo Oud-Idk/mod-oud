@@ -2,14 +2,14 @@ use crate::core::config::state::Context;
 use anyhow::Context as _;
 use poise::CreateReply;
 
-use crate::features::search::wordnik::client::WordnikClient;
-use crate::features::search::wordnik::message::{
+use crate::features::search::dictionary::client::WordnikClient;
+use crate::features::search::dictionary::message::{
     create_wordnik_message, create_wordnik_multi_message, create_wotd_message,
 };
 
 /// Searches Wordnik for a word or phrase definition.
 #[poise::command(slash_command)]
-pub async fn wordnik(
+pub async fn dictionary(
     ctx: Context<'_>,
     #[description = "Word or phrase to define"] query: String,
     #[description = "Whether to take the Word of The Day"] wotd: Option<bool>,

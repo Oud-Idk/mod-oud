@@ -11,7 +11,7 @@ mod rawg;
 mod spotify;
 mod tmdb;
 mod urban;
-mod wordnik;
+mod dictionary;
 mod youtube;
 
 pub use commands::search;

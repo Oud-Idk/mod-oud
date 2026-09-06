@@ -12,7 +12,7 @@ use crate::features::search::{
     spotify::commands::spotify,
     tmdb::commands::movie,
     urban::commands::urban,
-    wordnik::commands::wordnik,
+    dictionary::commands::dictionary,
     youtube::commands::youtube,
 };
 use anyhow::Result;
@@ -21,7 +21,7 @@ use anyhow::Result;
     slash_command,
     subcommands(
         "anime", "manga", "urban", "giphy", "klipy", "youtube", "spotify", "genius", "movie",
-        "rawg", "pokemon", "weather", "wordnik"
+        "rawg", "pokemon", "weather", "dictionary"
     )
 )]
 pub async fn search(_: Context<'_>) -> Result<()> {
