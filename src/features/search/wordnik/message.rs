@@ -9,7 +9,8 @@ pub fn create_wordnik_message(entry: &WordnikDefinition) -> CreateEmbed {
     let raw_definition = entry.text.as_deref().unwrap_or("No definition provided.");
     let definition = truncate(raw_definition, 2048);
 
-    let permalink = format!("https://www.wordnik.com/words/{word}");
+    let encoded_word = urlencoding::encode(word);
+    let permalink = format!("https://www.wordnik.com/words/{encoded_word}");
 
     let mut embed = CreateEmbed::new()
         .color(BRAND_COLOR)
@@ -69,7 +70,8 @@ pub fn create_wordnik_multi_message(entries: &[WordnikDefinition]) -> CreateEmbe
 
 /// Creates a Discord embed from a Wordnik `WoTD`.
 pub fn create_wotd_message(entry: &WordOfTheDay) -> CreateEmbed {
-    let permalink = format!("https://www.wordnik.com/words/{}", entry.word);
+    let encoded_word = urlencoding::encode(entry.word.as_str());
+    let permalink = format!("https://www.wordnik.com/words/{encoded_word}");
 
     let primary_def = entry.definitions.as_ref().and_then(|defs| defs.first());
 

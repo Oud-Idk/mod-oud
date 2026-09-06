@@ -3924,6 +3924,7 @@ dependencies = [
  "tracing-subscriber",
  "unicode-segmentation",
  "unit-prefix",
+ "urlencoding",
  "uuid",
 ]
 
