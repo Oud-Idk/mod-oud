@@ -52,7 +52,9 @@ async fn async_main() -> Result<(), Error> {
     let pool = connect_database(&env_config.database_url, env_config.run_migrations).await?;
     let (redis_client, subscriber_client) = connect_redis(&env_config.redis_url).await?;
 
-    let reqwest_client = reqwest::Client::new();
+    let reqwest_client = reqwest::Client::builder()
+        .user_agent("Mod Oud/0.1.0")
+        .build()?;
 
     let http = Arc::new(serenity::Http::new(&env_config.token));
 

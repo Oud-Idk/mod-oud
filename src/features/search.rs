@@ -13,6 +13,7 @@ mod spotify;
 mod tmdb;
 mod urban;
 mod youtube;
+mod wikipedia;
 
 pub use commands::search;
 pub use events::handle_search_play;

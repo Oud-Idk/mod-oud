@@ -14,6 +14,7 @@ use crate::features::search::{
     tmdb::commands::movie,
     urban::commands::urban,
     youtube::commands::youtube,
+    wikipedia::commands::wikipedia,
 };
 use anyhow::Result;
 
@@ -32,7 +33,8 @@ use anyhow::Result;
         "rawg",
         "pokemon",
         "weather",
-        "dictionary"
+        "dictionary",
+        "wikipedia",
     )
 )]
 pub async fn search(_: Context<'_>) -> Result<()> {
