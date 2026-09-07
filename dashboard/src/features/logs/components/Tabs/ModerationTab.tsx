@@ -133,11 +133,31 @@ export function ModerationTab({ guildId }: ModerationTabProps): JSX.Element {
                                     {log.action_type.toUpperCase()}
                                 </span>
                             </TableCell>
-                            <TableCell className="font-mono text-xs text-muted-foreground">
-                                {log.target_id ?? "—"}
+                            <TableCell>
+                                {log.target_id === null ? (
+                                    "—"
+                                ) : (
+                                    <>
+                                        <span className="block text-sm font-medium text-foreground">
+                                            {log.target_username.length > 0
+                                                ? log.target_username
+                                                : `User ${log.target_id}`}
+                                        </span>
+                                        <span className="block font-mono text-xs text-muted-foreground">
+                                            {log.target_id}
+                                        </span>
+                                    </>
+                                )}
                             </TableCell>
-                            <TableCell className="font-mono text-xs text-muted-foreground">
-                                {log.moderator_id}
+                            <TableCell>
+                                <span className="block text-sm font-medium text-foreground">
+                                    {log.moderator_username.length > 0
+                                        ? log.moderator_username
+                                        : `User ${log.moderator_id}`}
+                                </span>
+                                <span className="block font-mono text-xs text-muted-foreground">
+                                    {log.moderator_id}
+                                </span>
                             </TableCell>
                             <TableCell className="max-w-xs truncate text-foreground">
                                 {log.reason !== null && log.reason !== "" ? (

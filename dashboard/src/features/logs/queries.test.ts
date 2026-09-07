@@ -27,6 +27,7 @@ describe("Logs Query Module", () => {
                     id: "1",
                     guild_id: "guild_123",
                     user_id: "user_1",
+                    username: "Alice",
                     channel_id: null,
                     message_id: null,
                     rule_type: "BAD_WORD",
@@ -46,6 +47,29 @@ describe("Logs Query Module", () => {
             expect(params[1]).toBeNull();
             expect(params[2]).toBeNull();
             expect(params[3]).toBe(20);
+        });
+
+        it("should default missing username to empty string", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        id: "2",
+                        guild_id: "guild_123",
+                        user_id: "user_9",
+                        channel_id: null,
+                        message_id: null,
+                        rule_type: "SPAM",
+                        trigger_content: null,
+                        original_content: null,
+                        actions_taken: [],
+                        created_at: "2026-01-01T00:00:00.000Z",
+                    },
+                ],
+            });
+
+            const result = await getAutomodLogs("guild_123");
+
+            expect(result[0].username).toBe("");
         });
 
         it("should pass cursors and limit through", async () => {
@@ -105,7 +129,9 @@ describe("Logs Query Module", () => {
                         case_id: "1",
                         guild_id: "guild_123",
                         target_id: "user_2",
+                        target_username: "Bob",
                         moderator_id: "user_1",
+                        moderator_username: "Alice",
                         action_type: "BAN",
                         reason: "Spam",
                         duration: { years: 1, months: 2, days: 3, hours: 4, minutes: 5, seconds: 6 },
@@ -121,7 +147,9 @@ describe("Logs Query Module", () => {
                     case_id: "1",
                     guild_id: "guild_123",
                     target_id: "user_2",
+                    target_username: "Bob",
                     moderator_id: "user_1",
+                    moderator_username: "Alice",
                     action_type: "BAN",
                     reason: "Spam",
                     duration: "1y 2mo 3d 4h 5m 6s",
