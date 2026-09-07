@@ -12,12 +12,23 @@ export async function saveReportConfig(guildId: string, configData: ReportConfig
     await saveGuildConfigField(guildId, "report", configData);
 }
 
+const REPORT_COLUMNS = `
+    r.id, r.guild_id, r.channel_id, r.message_id,
+    r.author_id, COALESCE(a.username, '') AS author_username,
+    r.reporter_id, COALESCE(p.username, '') AS reporter_username,
+    r.content, r.attachment_url, r.reason, r.status,
+    r.moderator_id, r.moderator_notes, r.created_at, r.resolved_at,
+    r.message_deleted, r.user_warned, r.user_timed_out, r.user_banned
+    FROM reported_messages r
+    LEFT JOIN discord_users a ON a.user_id = r.author_id
+    LEFT JOIN discord_users p ON p.user_id = r.reporter_id
+`;
+
 export async function getInitialReportsFromDb(guildId: string): Promise<ReportedMessage[]> {
     const result = await db.query(
-        `SELECT *
-         FROM reported_messages
-         WHERE guild_id = $1
-         ORDER BY id DESC
+        `SELECT ${REPORT_COLUMNS}
+         WHERE r.guild_id = $1
+         ORDER BY r.id DESC
          LIMIT 10`,
         [guildId]
     );
@@ -26,11 +37,10 @@ export async function getInitialReportsFromDb(guildId: string): Promise<Reported
 
 export async function getMoreReportsFromDb(guildId: string, beforeId: number): Promise<ReportedMessage[]> {
     const result = await db.query(
-        `SELECT *
-         FROM reported_messages
-         WHERE guild_id = $1
-           AND id < $2
-         ORDER BY id DESC
+        `SELECT ${REPORT_COLUMNS}
+         WHERE r.guild_id = $1
+           AND r.id < $2
+         ORDER BY r.id DESC
          LIMIT 10`,
         [guildId, beforeId]
     );

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id, guild_id, channel_id, message_id, author_id, reporter_id,\n            content, attachment_url, reason,\n            status as \"status: ReportStatus\", message_deleted,\n            user_warned, user_timed_out, user_banned\n        FROM reported_messages\n        WHERE id = $1\n        ",
+  "query": "\n        SELECT\n            r.id, r.guild_id, r.channel_id, r.message_id, r.author_id, r.reporter_id,\n            a.username AS author_name, p.username AS reporter_name,\n            r.content, r.attachment_url, r.reason,\n            r.status as \"status: ReportStatus\", r.message_deleted,\n            r.user_warned, r.user_timed_out, r.user_banned\n        FROM reported_messages r\n        LEFT JOIN discord_users a ON a.user_id = r.author_id\n        LEFT JOIN discord_users p ON p.user_id = r.reporter_id\n        WHERE r.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -71,6 +71,28 @@
       },
       {
         "ordinal": 6,
+        "name": "author_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "discord_users",
+            "name": "username"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "reporter_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "discord_users",
+            "name": "username"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
         "name": "content",
         "type_info": "Text",
         "origin": {
@@ -81,7 +103,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 9,
         "name": "attachment_url",
         "type_info": "Text",
         "origin": {
@@ -92,7 +114,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 10,
         "name": "reason",
         "type_info": "Text",
         "origin": {
@@ -103,7 +125,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 11,
         "name": "status: ReportStatus",
         "type_info": {
           "Custom": {
@@ -125,7 +147,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 12,
         "name": "message_deleted",
         "type_info": "Bool",
         "origin": {
@@ -136,7 +158,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 13,
         "name": "user_warned",
         "type_info": "Bool",
         "origin": {
@@ -147,7 +169,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 14,
         "name": "user_timed_out",
         "type_info": "Bool",
         "origin": {
@@ -158,7 +180,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 15,
         "name": "user_banned",
         "type_info": "Bool",
         "origin": {
@@ -181,6 +203,8 @@
       false,
       false,
       false,
+      true,
+      true,
       false,
       true,
       false,
@@ -191,5 +215,5 @@
       false
     ]
   },
-  "hash": "3d3c3127be67eab24d61651fd282fa23aff3377204c0bb1971c5afba7c9b32a6"
+  "hash": "46a22f89fdb99d038692c2cf7aaa2ca293935aafd9cbaa11679022b9f8acdb07"
 }

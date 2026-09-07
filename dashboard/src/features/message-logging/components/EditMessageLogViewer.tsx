@@ -27,6 +27,8 @@ export function EditedMessageLogViewer({
             emptyText="No edited messages recorded..."
             renderItem={(log) => {
                 const channelName = channelMap[log.channel_id];
+                const authorDisplay =
+                    log.author_username.length > 0 ? log.author_username : `User ${log.author_id}`;
 
                 return (
                     <div
@@ -36,7 +38,10 @@ export function EditedMessageLogViewer({
                         <div className="flex justify-between items-center text-xs">
                             <span className="font-semibold text-foreground flex items-center gap-2">
                                 <span>Message Edited</span>
-                                <span className="text-muted-foreground font-normal">| Author ID: {log.author_id}</span>
+                                <span className="font-normal">
+                                    {authorDisplay}{" "}
+                                    <span className="text-muted-foreground font-mono">({log.author_id})</span>
+                                </span>
                                 <span className="text-brand font-medium">{channelName}</span>
                             </span>
                             <span className="text-muted-foreground">

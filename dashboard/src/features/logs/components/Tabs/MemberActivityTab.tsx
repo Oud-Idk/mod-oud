@@ -13,7 +13,7 @@ interface MemberActivityTabProps {
 }
 
 const LIMIT = 20;
-const HEADERS = ["User ID", "Action", "Timestamp"];
+const HEADERS = ["User", "Action", "Timestamp"];
 
 export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Element {
     const [logs, setLogs] = useState<JoinLeaveLog[]>([]);
@@ -103,7 +103,12 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Elem
                 <TableBody>
                     {logs.map((log) => (
                         <TableRow key={log.id}>
-                            <TableCell className="font-mono text-xs text-muted-foreground">{log.user_id}</TableCell>
+                            <TableCell>
+                                <span className="block text-sm font-medium text-foreground">
+                                    {log.username.length > 0 ? log.username : `User ${log.user_id}`}
+                                </span>
+                                <span className="block font-mono text-xs text-muted-foreground">{log.user_id}</span>
+                            </TableCell>
                             <TableCell>
                                 {log.action === "JOIN" ? (
                                     <span className="px-2 py-0.5 text-xs font-semibold rounded bg-success-subtle text-success border border-success/15">

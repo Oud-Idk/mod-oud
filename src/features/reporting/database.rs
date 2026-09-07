@@ -11,7 +11,9 @@ struct RawReportedMessage {
     channel_id: i64,
     message_id: i64,
     author_id: i64,
+    author_name: Option<String>,
     reporter_id: i64,
+    reporter_name: Option<String>,
     content: String,
     attachment_url: Option<String>,
     reason: String,
@@ -30,7 +32,9 @@ impl From<RawReportedMessage> for ReportedMessagePayload {
             channel_id: ChannelId::new(r.channel_id.cast_unsigned()),
             message_id: MessageId::new(r.message_id.cast_unsigned()),
             author_id: UserId::new(r.author_id.cast_unsigned()),
+            author_name: r.author_name.unwrap_or_default(),
             reporter_id: UserId::new(r.reporter_id.cast_unsigned()),
+            reporter_name: r.reporter_name.unwrap_or_default(),
             content: r.content,
             attachment_url: r.attachment_url,
             reason: r.reason,
@@ -94,12 +98,15 @@ pub async fn get_reported_message_by_id(
         RawReportedMessage,
         r#"
         SELECT
-            id, guild_id, channel_id, message_id, author_id, reporter_id,
-            content, attachment_url, reason,
-            status as "status: ReportStatus", message_deleted,
-            user_warned, user_timed_out, user_banned
-        FROM reported_messages
-        WHERE id = $1
+            r.id, r.guild_id, r.channel_id, r.message_id, r.author_id, r.reporter_id,
+            a.username AS author_name, p.username AS reporter_name,
+            r.content, r.attachment_url, r.reason,
+            r.status as "status: ReportStatus", r.message_deleted,
+            r.user_warned, r.user_timed_out, r.user_banned
+        FROM reported_messages r
+        LEFT JOIN discord_users a ON a.user_id = r.author_id
+        LEFT JOIN discord_users p ON p.user_id = r.reporter_id
+        WHERE r.id = $1
         "#,
         id
     )

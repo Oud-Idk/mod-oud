@@ -20,19 +20,21 @@ async function queryEditedMessages(
     const validLimit = z.number().int().positive().parse(limit);
 
     const params: unknown[] = [validGuildId];
-    let whereClause = "WHERE guild_id = $1";
+    let whereClause = "WHERE m.guild_id = $1";
 
     if (validBeforeId !== undefined) {
         params.push(validBeforeId);
-        whereClause += ` AND id < $${params.length.toString()}`;
+        whereClause += ` AND m.id < $${params.length.toString()}`;
     }
 
     params.push(validLimit);
     const sql = `
-        SELECT id, message_id, author_id, channel_id, guild_id, old_content, new_content, edited_at AS updated_at
-        FROM modified_messages
+        SELECT m.id, m.message_id, m.author_id, COALESCE(u.username, '') AS author_username,
+               m.channel_id, m.guild_id, m.old_content, m.new_content, m.edited_at AS updated_at
+        FROM modified_messages m
+        LEFT JOIN discord_users u ON u.user_id = m.author_id
                  ${whereClause}
-        ORDER BY id DESC
+        ORDER BY m.id DESC
         LIMIT $${params.length.toString()}
     `;
 
@@ -61,19 +63,23 @@ async function queryDeletedMessages(
     const validLimit = z.number().int().positive().parse(limit);
 
     const params: unknown[] = [validGuildId];
-    let whereClause = "WHERE guild_id = $1";
+    let whereClause = "WHERE d.guild_id = $1";
 
     if (validBeforeId !== undefined) {
         params.push(validBeforeId);
-        whereClause += ` AND id < $${params.length.toString()}`;
+        whereClause += ` AND d.id < $${params.length.toString()}`;
     }
 
     params.push(validLimit);
     const sql = `
-        SELECT id, message_id, author_id, channel_id, deleted_by_id, guild_id, content, attachment_url, deleted_at
-        FROM deleted_messages
+        SELECT d.id, d.message_id, d.author_id, COALESCE(a.username, '') AS author_username,
+               d.channel_id, d.deleted_by_id, COALESCE(b.username, '') AS deleted_by_username,
+               d.guild_id, d.content, d.attachment_url, d.deleted_at
+        FROM deleted_messages d
+        LEFT JOIN discord_users a ON a.user_id = d.author_id
+        LEFT JOIN discord_users b ON b.user_id = d.deleted_by_id
                  ${whereClause}
-        ORDER BY ${validBeforeId !== undefined ? "id" : "deleted_at"} DESC
+        ORDER BY ${validBeforeId !== undefined ? "d.id" : "d.deleted_at"} DESC
         LIMIT $${params.length.toString()}
     `;
 

@@ -25,7 +25,9 @@ interface RawModerationLog {
     case_id: string | number;
     guild_id: string;
     target_id: string | null;
+    target_username: string | null;
     moderator_id: string;
+    moderator_username: string | null;
     action_type: string;
     reason: string | null;
     duration: PgInterval | null;
@@ -72,24 +74,26 @@ export async function getAutomodLogs(
     });
 
     const query = `
-        SELECT id::TEXT,
-               guild_id,
-               user_id,
-               channel_id,
-               message_id,
-               rule_type,
-               trigger_content,
-               original_content,
-               actions_taken,
-               created_at
-        FROM automod_logs
-        WHERE guild_id = $1
+        SELECT a.id::TEXT,
+               a.guild_id,
+               a.user_id,
+               COALESCE(u.username, '') AS username,
+               a.channel_id,
+               a.message_id,
+               a.rule_type,
+               a.trigger_content,
+               a.original_content,
+               a.actions_taken,
+               a.created_at
+        FROM automod_logs a
+        LEFT JOIN discord_users u ON u.user_id = a.user_id
+        WHERE a.guild_id = $1
           AND (
             $2::TEXT IS NULL OR $3::BIGINT IS NULL OR
-            created_at < $2::TIMESTAMPTZ OR
-            (created_at = $2::TIMESTAMPTZ AND id < $3::BIGINT)
+            a.created_at < $2::TIMESTAMPTZ OR
+            (a.created_at = $2::TIMESTAMPTZ AND a.id < $3::BIGINT)
             )
-        ORDER BY created_at DESC, id DESC
+        ORDER BY a.created_at DESC, a.id DESC
         LIMIT $4;
     `;
 
@@ -121,20 +125,22 @@ export async function getJoinLeaveLogs(
         action !== undefined && action !== null ? joinLeaveActionSchema.parse(action) : null;
 
     const query = `
-        SELECT id::TEXT,
-               user_id::TEXT,
-               guild_id::TEXT,
-               action,
-               created_at
-        FROM join_leave_logs
-        WHERE guild_id = $1
-          AND ($2::TEXT IS NULL OR action = $2::LOG_ACTION)
+        SELECT j.id::TEXT,
+               j.user_id::TEXT,
+               COALESCE(u.username, '') AS username,
+               j.guild_id::TEXT,
+               j.action,
+               j.created_at
+        FROM join_leave_logs j
+        LEFT JOIN discord_users u ON u.user_id = j.user_id
+        WHERE j.guild_id = $1
+          AND ($2::TEXT IS NULL OR j.action = $2::LOG_ACTION)
           AND (
             $3::TEXT IS NULL OR $4::BIGINT IS NULL OR
-            created_at < $3::TIMESTAMPTZ OR
-            (created_at = $3::TIMESTAMPTZ AND id < $4::BIGINT)
+            j.created_at < $3::TIMESTAMPTZ OR
+            (j.created_at = $3::TIMESTAMPTZ AND j.id < $4::BIGINT)
             )
-        ORDER BY created_at DESC, id DESC
+        ORDER BY j.created_at DESC, j.id DESC
         LIMIT $5;
     `;
 
@@ -163,22 +169,26 @@ export async function getModerationLogs(
     });
 
     const query = `
-        SELECT case_id::TEXT,
-               guild_id::TEXT,
-               target_id::TEXT,
-               moderator_id::TEXT,
-               action_type,
-               reason,
-               duration,
-               created_at
-        FROM moderation_logs
-        WHERE guild_id = $1
+        SELECT m.case_id::TEXT,
+               m.guild_id::TEXT,
+               m.target_id::TEXT,
+               COALESCE(t.username, '') AS target_username,
+               m.moderator_id::TEXT,
+               COALESCE(mo.username, '') AS moderator_username,
+               m.action_type,
+               m.reason,
+               m.duration,
+               m.created_at
+        FROM moderation_logs m
+        LEFT JOIN discord_users t ON t.user_id = m.target_id
+        LEFT JOIN discord_users mo ON mo.user_id = m.moderator_id
+        WHERE m.guild_id = $1
           AND (
             $2::TEXT IS NULL OR $3::INTEGER IS NULL OR
-            created_at < $2::TIMESTAMPTZ OR
-            (created_at = $2::TIMESTAMPTZ AND case_id < $3::INTEGER)
+            m.created_at < $2::TIMESTAMPTZ OR
+            (m.created_at = $2::TIMESTAMPTZ AND m.case_id < $3::INTEGER)
             )
-        ORDER BY created_at DESC, case_id DESC
+        ORDER BY m.created_at DESC, m.case_id DESC
         LIMIT $4;
     `;
 

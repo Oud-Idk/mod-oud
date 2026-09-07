@@ -13,7 +13,7 @@ interface AutomodTabProps {
 }
 
 const LIMIT = 20;
-const HEADERS = ["User ID", "Rule Type", "Triggered By", "Original Content", "Actions Taken", "Timestamp"];
+const HEADERS = ["User", "Rule Type", "Triggered By", "Original Content", "Actions Taken", "Timestamp"];
 
 export function AutomodTab({ guildId }: AutomodTabProps): JSX.Element {
     const [logs, setLogs] = useState<AutomodLog[]>([]);
@@ -103,8 +103,11 @@ export function AutomodTab({ guildId }: AutomodTabProps): JSX.Element {
                 <TableBody>
                     {logs.map((log) => (
                         <TableRow key={log.id}>
-                            <TableCell className="font-mono text-xs">
-                                {log.user_id}
+                            <TableCell>
+                                <span className="block text-sm font-medium text-foreground">
+                                    {log.username.length > 0 ? log.username : `User ${log.user_id}`}
+                                </span>
+                                <span className="block font-mono text-xs text-muted-foreground">{log.user_id}</span>
                             </TableCell>
                             <TableCell className="font-semibold text-danger">
                                 {log.rule_type}
