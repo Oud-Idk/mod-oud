@@ -31,6 +31,58 @@ export const sseLogPayloadSchema = z
 
 export type SSELogPayload = z.infer<typeof sseLogPayloadSchema>;
 
+export interface SSEUsernames {
+    author_username: string;
+    reporter_username: string;
+    deleted_by_username: string;
+}
+
+/**
+ * Normalizes realtime username fields to the canonical history names.
+ * Only fields present in the incoming event are returned, so merging a
+ * partial event into an existing row preserves its current usernames.
+ */
+export function normalizeSSEUsernames(parsed: SSELogPayload): Partial<SSEUsernames> {
+    const authorUsername = parsed.author_name ?? parsed.author_username;
+    const reporterUsername = parsed.reporter_name ?? parsed.reporter_username;
+    const deletedByUsername = parsed.deleted_by_name ?? parsed.deleted_by_username;
+    return {
+        ...(authorUsername !== undefined ? { author_username: authorUsername } : {}),
+        ...(reporterUsername !== undefined ? { reporter_username: reporterUsername } : {}),
+        ...(deletedByUsername !== undefined ? { deleted_by_username: deletedByUsername } : {}),
+    };
+}
+
+/**
+ * Builds a new log entry from a parsed SSE payload. The canonical username
+ * fields are always initialized (defaults spread before the normalized
+ * values so an event omitting them still yields safe empty strings).
+ */
+export function buildNewSSELogEntry(
+    parsed: SSELogPayload,
+    eventId: number,
+    guildId: string
+): Record<string, unknown> & SSEUsernames {
+    return {
+        id: eventId,
+        guild_id: parsed.guild_id ?? guildId,
+        channel_id: parsed.channel_id,
+        message_id: parsed.message_id,
+        author_id: parsed.author_id,
+        reporter_id: parsed.reporter_id,
+        message_content: parsed.content ?? parsed.message_content,
+        attachment_url: parsed.attachment_url ?? null,
+        reason: parsed.reason,
+        status: parsed.status ?? "UNDER_REVIEW",
+        created_at: parsed.created_at ?? new Date().toISOString(),
+        ...parsed,
+        author_username: "",
+        reporter_username: "",
+        deleted_by_username: "",
+        ...normalizeSSEUsernames(parsed),
+    };
+}
+
 export interface UseMessageLogViewerProps<T> {
     initialHistory?: T[];
     guildId: string;
@@ -154,27 +206,13 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
 
                         const parsed = parseResult.data;
 
-                        // Realtime payloads (Rust, snake_case) carry `*_name`; history rows
-                        // (SQL JOINs) carry `*_username`. Normalize to the history names.
-                        const authorUsername = parsed.author_name ?? parsed.author_username;
-                        const reporterUsername = parsed.reporter_name ?? parsed.reporter_username;
-                        const deletedByUsername = parsed.deleted_by_name ?? parsed.deleted_by_username;
-                        const normalizedUsernames = {
-                            ...(authorUsername !== undefined
-                                ? { author_username: authorUsername }
-                                : {}),
-                            ...(reporterUsername !== undefined
-                                ? { reporter_username: reporterUsername }
-                                : {}),
-                            ...(deletedByUsername !== undefined
-                                ? { deleted_by_username: deletedByUsername }
-                                : {}),
-                        };
-
                         // Coerce id to number if T extends { id: number }, or fallback to timestamp
                         const rawId = parsed.id;
                         const numericId = typeof rawId === "string" ? Number(rawId) : rawId;
                         const eventId = (numericId !== undefined && !Number.isNaN(numericId)) ? numericId : Date.now();
+
+                        // History-shaped canonical names for merging into existing rows.
+                        const normalizedUsernames = normalizeSSEUsernames(parsed);
 
                         setLogs((prev: T[]): T[] => {
                             const exists = prev.some((log) => log.id === eventId);
@@ -195,21 +233,7 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
                                 });
                             }
 
-                            const newEntry = {
-                                id: eventId,
-                                guild_id: parsed.guild_id ?? guildId,
-                                channel_id: parsed.channel_id,
-                                message_id: parsed.message_id,
-                                author_id: parsed.author_id,
-                                reporter_id: parsed.reporter_id,
-                                message_content: parsed.content ?? parsed.message_content,
-                                attachment_url: parsed.attachment_url ?? null,
-                                reason: parsed.reason,
-                                status: parsed.status ?? "UNDER_REVIEW",
-                                created_at: parsed.created_at ?? new Date().toISOString(),
-                                ...parsed,
-                                ...normalizedUsernames,
-                            };
+                            const newEntry = buildNewSSELogEntry(parsed, eventId, guildId);
 
                             if (isLogItem(newEntry)) {
                                 return [newEntry, ...prev];
