@@ -56,6 +56,7 @@ pub async fn issue_report(
 
     let reported_author = &reported_message.author;
     store_username_relation(username_buf, reported_author.id, &reported_author.name).await?;
+    store_username_relation(username_buf, reporter.id, &reporter.name).await?;
 
     let content = reported_message.content.clone();
     let attachment_url = extract_image_urls(reported_message).join(",");
@@ -93,6 +94,7 @@ pub async fn issue_report(
         guild_id,
         message_id: reported_message.id,
         author_id: reported_message.author.id,
+        author_name: reported_author.name.clone(),
         channel_id: reported_message.channel_id,
         reason,
         content,
@@ -103,6 +105,7 @@ pub async fn issue_report(
         user_timed_out: false.into(),
         user_banned: false.into(),
         reporter_id: reporter.id,
+        reporter_name: reporter.name.clone(),
     };
 
     trace!(report_id = id, "Serializing report payload to JSON");

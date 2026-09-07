@@ -5,7 +5,9 @@ import { JSX } from "react";
 
 interface ReportContentProps {
     authorName: string;
+    authorId?: string;
     reporterName: string;
+    reporterId?: string;
     messageContent: string;
     reason: string;
     attachmentUrl?: string | null;
@@ -14,7 +16,9 @@ interface ReportContentProps {
 
 export function ReportContent({
     authorName,
+    authorId,
     reporterName,
+    reporterId,
     messageContent,
     reason,
     attachmentUrl,
@@ -26,8 +30,14 @@ export function ReportContent({
     return (
         <div className="space-y-2">
             <div className="text-sm mb-0">
-                Author: <code className="py-0.5 rounded">{authorName}</code>{" "}&nbsp;|&nbsp;
+                Author: <code className="py-0.5 rounded">{authorName}</code>
+                {authorId !== undefined && (
+                    <span className="text-xs text-muted-foreground font-mono"> ({authorId})</span>
+                )}{" "}&nbsp;|&nbsp;
                 Reporter: <code className="py-0.5 rounded">{reporterName}</code>
+                {reporterId !== undefined && (
+                    <span className="text-xs text-muted-foreground font-mono"> ({reporterId})</span>
+                )}
             </div>
 
             {cleanContent !== "" && (

@@ -40,8 +40,10 @@ export function ReportedMessageCard({
             />
 
             <ReportContent
-                authorName={log.author_id}
-                reporterName={log.reporter_id}
+                authorName={log.author_username.length > 0 ? log.author_username : `User ${log.author_id}`}
+                authorId={log.author_id}
+                reporterName={log.reporter_username.length > 0 ? log.reporter_username : `User ${log.reporter_id}`}
+                reporterId={log.reporter_id}
                 messageContent={log.content}
                 reason={log.reason}
                 attachmentUrl={log.attachment_url}

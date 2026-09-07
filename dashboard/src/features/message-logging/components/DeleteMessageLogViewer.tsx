@@ -33,6 +33,14 @@ export function DeletedMessageLogViewer({
                 emptyText="No activity recorded yet..."
                 renderItem={(log) => {
                     const channelName = `#${channelMap[log.channel_id] ?? log.channel_id}`;
+                    const authorDisplay =
+                        log.author_username.length > 0 ? log.author_username : `User ${log.author_id}`;
+                    const deleterDisplay =
+                        log.deleted_by_id !== null
+                            ? log.deleted_by_username.length > 0
+                                ? log.deleted_by_username
+                                : `User ${log.deleted_by_id}`
+                            : null;
 
                     const images = log.attachment_url !== null
                         ? log.attachment_url
@@ -49,7 +57,10 @@ export function DeletedMessageLogViewer({
                             <div className="flex justify-between items-center text-xs">
                                 <span className="font-semibold text-foreground flex items-center gap-2">
                                     <span>Message Deleted</span>
-                                    <span className="text-muted-foreground font-normal">| Author ID: {log.author_id}</span>
+                                    <span className="font-normal">
+                                        {authorDisplay}{" "}
+                                        <span className="text-muted-foreground font-mono">({log.author_id})</span>
+                                    </span>
                                     <span className="text-brand font-medium">{channelName}</span>
                                 </span>
                                 <span className="text-muted-foreground text-[11px]">
@@ -57,9 +68,11 @@ export function DeletedMessageLogViewer({
                                 </span>
                             </div>
 
-                            {log.deleted_by_id !== null && (
+                            {deleterDisplay !== null && (
                                 <p className="text-xs text-muted-foreground">
-                                    <span className="font-medium text-foreground">Deleted By:</span> {log.deleted_by_id}
+                                    <span className="font-medium text-foreground">Deleted By:</span>{" "}
+                                    {deleterDisplay}{" "}
+                                    <span className="font-mono">({log.deleted_by_id})</span>
                                 </p>
                             )}
 

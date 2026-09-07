@@ -108,9 +108,15 @@ pub struct ReportedMessagePayload {
     /// ID of the reported message's author.
     #[serde_as(as = "DisplayFromStr")]
     pub author_id: UserId,
+    /// Username of the reported message's author.
+    #[serde(default)]
+    pub author_name: String,
     /// ID of the user who filed the report.
     #[serde_as(as = "DisplayFromStr")]
     pub reporter_id: UserId,
+    /// Username of the user who filed the report.
+    #[serde(default)]
+    pub reporter_name: String,
     /// Reason given for the report.
     pub reason: String,
     /// Content of the reported message.

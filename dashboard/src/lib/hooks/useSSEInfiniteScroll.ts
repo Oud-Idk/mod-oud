@@ -12,7 +12,14 @@ export const sseLogPayloadSchema = z
         channel_id: z.string().optional(),
         message_id: z.string().optional(),
         author_id: z.string().optional(),
+        author_name: z.string().optional(),
+        author_username: z.string().optional(),
         reporter_id: z.string().optional(),
+        reporter_name: z.string().optional(),
+        reporter_username: z.string().optional(),
+        deleted_by_id: z.string().nullable().optional(),
+        deleted_by_name: z.string().nullable().optional(),
+        deleted_by_username: z.string().optional(),
         content: z.string().optional(),
         message_content: z.string().optional(),
         attachment_url: z.string().nullable().optional(),
@@ -147,6 +154,23 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
 
                         const parsed = parseResult.data;
 
+                        // Realtime payloads (Rust, snake_case) carry `*_name`; history rows
+                        // (SQL JOINs) carry `*_username`. Normalize to the history names.
+                        const authorUsername = parsed.author_name ?? parsed.author_username;
+                        const reporterUsername = parsed.reporter_name ?? parsed.reporter_username;
+                        const deletedByUsername = parsed.deleted_by_name ?? parsed.deleted_by_username;
+                        const normalizedUsernames = {
+                            ...(authorUsername !== undefined
+                                ? { author_username: authorUsername }
+                                : {}),
+                            ...(reporterUsername !== undefined
+                                ? { reporter_username: reporterUsername }
+                                : {}),
+                            ...(deletedByUsername !== undefined
+                                ? { deleted_by_username: deletedByUsername }
+                                : {}),
+                        };
+
                         // Coerce id to number if T extends { id: number }, or fallback to timestamp
                         const rawId = parsed.id;
                         const numericId = typeof rawId === "string" ? Number(rawId) : rawId;
@@ -160,6 +184,7 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
                                         const merged = {
                                             ...log,
                                             ...parsed,
+                                            ...normalizedUsernames,
                                             id: eventId,
                                         };
                                         if (isLogItem(merged)) {
@@ -183,6 +208,7 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
                                 status: parsed.status ?? "UNDER_REVIEW",
                                 created_at: parsed.created_at ?? new Date().toISOString(),
                                 ...parsed,
+                                ...normalizedUsernames,
                             };
 
                             if (isLogItem(newEntry)) {
