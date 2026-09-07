@@ -109,8 +109,8 @@ export function EconomyLeaderboardTab({
                                 <div className="flex items-center space-x-4">
                                     <span className={`font-mono text-sm w-8 text-center select-none ${rankStyle}`}>#{rank}</span>
                                     <div>
-                                        <p className="font-bold text-sm text-foreground font-mono">{entry.userId}</p>
-                                        <Footer>Wallet {entry.cash.toLocaleString()} · Bank {entry.bank.toLocaleString()}</Footer>
+                                        <p className="font-bold text-sm text-foreground">{entry.username.length > 0 ? entry.username : `User ${entry.userId}`}</p>
+                                        <Footer><span className="font-mono">{entry.userId}</span> · Wallet {entry.cash.toLocaleString()} · Bank {entry.bank.toLocaleString()}</Footer>
                                     </div>
                                 </div>
                                 <div className="text-right">

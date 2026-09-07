@@ -61,13 +61,15 @@ export async function getTopListeners(guildId: string, limit = TOP_LIMIT): Promi
 
     const res = await db.query(
         `
-            SELECT user_id::TEXT AS "userId",
+            SELECT e.user_id::TEXT AS "userId",
+                   COALESCE(u.username, '') AS "username",
                    COUNT(*)::INTEGER AS "plays",
-                   COALESCE(SUM(COALESCE(NULLIF(listened_ms, 0), duration_ms, 0)), 0)::BIGINT AS "totalListenedMs"
-            FROM music_play_events
-            WHERE guild_id = $1
-              AND played_at >= NOW() - ($2::text)::interval
-            GROUP BY user_id
+                   COALESCE(SUM(COALESCE(NULLIF(e.listened_ms, 0), e.duration_ms, 0)), 0)::BIGINT AS "totalListenedMs"
+            FROM music_play_events e
+            LEFT JOIN discord_users u ON u.user_id = e.user_id
+            WHERE e.guild_id = $1
+              AND e.played_at >= NOW() - ($2::text)::interval
+            GROUP BY e.user_id, u.username
             ORDER BY "plays" DESC
             LIMIT $3
         `,

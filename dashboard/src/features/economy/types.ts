@@ -121,6 +121,7 @@ export const economyWorkMessageSchema = z.object({
 
 export const economyLeaderboardEntrySchema = z.object({
     userId: z.string(),
+    username: z.string().default(""),
     cash: z.number().int(),
     bank: z.number().int(),
     total: z.number().int(),

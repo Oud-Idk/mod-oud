@@ -141,22 +141,23 @@ export function MusicStatsBody({
                     <EmptyState message="No music plays recorded in the last 30 days." />
                 ) : (
                     <Table className="border border-border bg-surface rounded-lg overflow-hidden">
-                        <TableHeader headers={["Rank", "User ID", "Plays", "Listening Time"]} />
+                        <TableHeader headers={["Rank", "Listener", "Plays", "Listening Time"]} />
                         <TableBody>
                             {topListeners.map((listener, index) => (
                                 <TableRow key={listener.userId}>
                                     <TableCell className="font-medium">
                                         <RankBadge rank={index + 1} />
                                     </TableCell>
-                                    <TableCell className="font-mono text-xs text-foreground">
+                                    <TableCell className="text-foreground">
                                         <a
                                             href={`https://discord.com/users/${listener.userId}`}
                                             target="_blank"
                                             rel="noreferrer noopener"
-                                            className="hover:text-brand transition-colors"
+                                            className="block text-sm font-medium hover:text-brand transition-colors"
                                         >
-                                            {listener.userId}
+                                            {listener.username.length > 0 ? listener.username : `User ${listener.userId}`}
                                         </a>
+                                        <span className="block font-mono text-xs text-muted-foreground">{listener.userId}</span>
                                     </TableCell>
                                     <TableCell className="font-semibold text-foreground">
                                         {listener.plays.toLocaleString()}

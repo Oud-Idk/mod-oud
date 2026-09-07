@@ -29,11 +29,13 @@ export async function getInviteLeaderboard(
         const validParams = getLeaderboardInputSchema.parse({ guildId, limit, offset });
 
         const query = `
-            SELECT inviter_id::TEXT AS "inviterId",
-                   count::INTEGER   AS "count"
-            FROM inviter_counts
-            WHERE guild_id = $1
-            ORDER BY count DESC
+            SELECT c.inviter_id::TEXT AS "inviterId",
+                   COALESCE(u.username, '') AS "username",
+                   c.count::INTEGER   AS "count"
+            FROM inviter_counts c
+            LEFT JOIN discord_users u ON u.user_id = c.inviter_id
+            WHERE c.guild_id = $1
+            ORDER BY c.count DESC
             LIMIT $2 OFFSET $3;
         `;
         const res = await db.query(query, [

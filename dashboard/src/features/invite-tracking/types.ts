@@ -6,6 +6,7 @@ export const inviteTrackerConfigSchema = z.object({
 
 export const leaderboardEntrySchema = z.object({
     inviterId: z.string(),
+    username: z.string().default(""),
     count: z.number().int().min(0),
 });
 

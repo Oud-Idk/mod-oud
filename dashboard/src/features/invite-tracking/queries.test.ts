@@ -85,8 +85,8 @@ describe("Invite Tracker Query Module", () => {
         it("should query the database and parse the returned rows", async () => {
             mockQuery.mockResolvedValue({
                 rows: [
-                    { inviterId: "user_1", count: 10 },
-                    { inviterId: "user_2", count: 3 },
+                    { inviterId: "user_1", username: "Alice", count: 10 },
+                    { inviterId: "user_2", username: "", count: 3 },
                 ],
             });
 
@@ -97,9 +97,19 @@ describe("Invite Tracker Query Module", () => {
                 ["guild_123", 15, 0]
             );
             expect(result).toEqual([
-                { inviterId: "user_1", count: 10 },
-                { inviterId: "user_2", count: 3 },
+                { inviterId: "user_1", username: "Alice", count: 10 },
+                { inviterId: "user_2", username: "", count: 3 },
             ]);
+        });
+
+        it("should default missing username to empty string", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [{ inviterId: "user_1", count: 10 }],
+            });
+
+            const result = await getInviteLeaderboard("guild_123");
+
+            expect(result).toEqual([{ inviterId: "user_1", username: "", count: 10 }]);
         });
 
         it("should pass the limit and offset to the query", async () => {

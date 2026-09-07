@@ -10,6 +10,7 @@ export const trackStatSchema = z.object({
 
 export const listenerStatSchema = z.object({
     userId: z.string(),
+    username: z.string().default(""),
     plays: z.coerce.number().int().nonnegative(),
     totalListenedMs: z.coerce.number().int().nonnegative(),
 });

@@ -146,17 +146,19 @@ export function InviteTrackingBody({
                     ) : (
                         <>
                             <Table className="border border-border bg-surface rounded-lg overflow-hidden">
-                                <TableHeader headers={["Rank", "Inviter ID", "Invites"]}/>
+                                <TableHeader headers={["Rank", "Inviter", "Invites"]}/>
                                 <TableBody>
                                     {leaderboard.map((entry, index) => {
                                         const rank = index + 1;
+                                        const displayName = entry.username.length > 0 ? entry.username : `User ${entry.inviterId}`;
                                         return (
                                             <TableRow key={entry.inviterId}>
                                                 <TableCell className="font-medium">
                                                     {renderRankBadge(rank)}
                                                 </TableCell>
-                                                <TableCell className="font-mono text-xs text-foreground">
-                                                    {entry.inviterId}
+                                                <TableCell className="text-foreground">
+                                                    <span className="block text-sm font-medium">{displayName}</span>
+                                                    <span className="block font-mono text-xs text-muted-foreground">{entry.inviterId}</span>
                                                 </TableCell>
                                                 <TableCell className="font-semibold text-foreground">
                                                     {entry.count.toLocaleString()}

@@ -366,13 +366,15 @@ export async function getEconomyLeaderboard(
     const valid = getLeaderboardInputSchema.parse({ guildId, limit, offset });
     const { rows } = await db.query(
         `
-        SELECT user_id::text AS "userId",
-               cash::int AS "cash",
-               bank::int AS "bank",
-               (cash + bank)::int AS "total"
-        FROM economy_balances
-        WHERE guild_id = $1
-        ORDER BY (cash + bank) DESC, user_id ASC
+        SELECT b.user_id::text AS "userId",
+               COALESCE(u.username, '') AS "username",
+               b.cash::int AS "cash",
+               b.bank::int AS "bank",
+               (b.cash + b.bank)::int AS "total"
+        FROM economy_balances b
+        LEFT JOIN discord_users u ON u.user_id = b.user_id
+        WHERE b.guild_id = $1
+        ORDER BY (b.cash + b.bank) DESC, b.user_id ASC
         LIMIT $2 OFFSET $3
         `,
         [valid.guildId, valid.limit, valid.offset]
@@ -386,13 +388,15 @@ export async function fetchMoreEconomyLeaderboard(
 ): Promise<import("./types").EconomyLeaderboardEntry[]> {
     const { rows } = await db.query(
         `
-        SELECT user_id::text AS "userId",
-               cash::int AS "cash",
-               bank::int AS "bank",
-               (cash + bank)::int AS "total"
-        FROM economy_balances
-        WHERE guild_id = $1 AND (cash + bank) < $2
-        ORDER BY (cash + bank) DESC, user_id ASC
+        SELECT b.user_id::text AS "userId",
+               COALESCE(u.username, '') AS "username",
+               b.cash::int AS "cash",
+               b.bank::int AS "bank",
+               (b.cash + b.bank)::int AS "total"
+        FROM economy_balances b
+        LEFT JOIN discord_users u ON u.user_id = b.user_id
+        WHERE b.guild_id = $1 AND (b.cash + b.bank) < $2
+        ORDER BY (b.cash + b.bank) DESC, b.user_id ASC
         LIMIT 20
         `,
         [guildId, currentLowestTotal]
