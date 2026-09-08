@@ -121,7 +121,11 @@ const getUserGuildsCached = unstable_cache(
  * React.cache() ensures that if Sidebar and Page both call this in the same
  * render pass, it only runs once.
  */
-export const getGuildLists = cache(async (userAccessToken: string): Promise<GuildLists> => {
+export const getGuildLists = cache(async (userAccessToken?: string): Promise<GuildLists> => {
+    if (userAccessToken === undefined) {
+        return { mutualGuilds: [], inviteableGuilds: [] };
+    }
+
     try {
         const [userGuilds, botGuilds] = await Promise.all([
             getUserGuildsCached(userAccessToken),

@@ -1,4 +1,4 @@
-import NextAuth, { type Session, type Account, type Profile } from "next-auth";
+import NextAuth, { type Session } from "next-auth";
 import Discord from "next-auth/providers/discord";
 import { type JWT } from "next-auth/jwt";
 import { z } from "zod";
@@ -56,7 +56,12 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
     if (refreshToken === undefined) {
         console.warn("[Auth] No refresh token found. Forcing re-authentication.");
-        return { ...token, error: "RefreshAccessTokenError" };
+        return {
+            ...token,
+            accessToken: undefined,
+            refreshToken: undefined,
+            error: "RefreshAccessTokenError"
+        };
     }
 
     const now = Date.now();
@@ -66,9 +71,14 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
         console.log(`[Auth] Parallel token refresh detected for ${userId}. Joining request...`);
         try {
             const result = await existing.promise;
-            return { ...token, ...result };
+            return { ...token, ...result, error: undefined };
         } catch {
-            return { ...token, error: "RefreshAccessTokenError" };
+            return {
+                ...token,
+                accessToken: undefined,
+                refreshToken: undefined,
+                error: "RefreshAccessTokenError"
+            };
         }
     }
 
@@ -110,10 +120,15 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     try {
         const result = await refreshPromise;
         console.log(`[Auth] Successfully rotated Discord access token for ${userId}`);
-        return { ...token, ...result };
+        return { ...token, ...result, error: undefined };
     } catch (error) {
         console.error(`[Auth] Error rotating Discord token for ${userId}:`, error);
-        return { ...token, error: "RefreshAccessTokenError" };
+        return {
+            ...token,
+            accessToken: undefined,
+            refreshToken: undefined,
+            error: "RefreshAccessTokenError"
+        };
     } finally {
         inFlightMap.delete(userId);
     }
@@ -128,16 +143,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }),
     ],
     callbacks: {
-        async jwt({ token, account, profile }: {
-            token: JWT;
-            account?: Account | null;
-            profile?: Profile;
-        }): Promise<JWT> {
-            if (account !== null && account !== undefined) {
-                const expiresAt =
-                    account.expires_at !== undefined
-                        ? account.expires_at * 1000
-                        : Date.now() + (account.expires_in ?? 7200) * 1000;
+        async jwt({ token, account, profile }) {
+            if (account) {
+                const expiresAt = account.expires_at !== undefined
+                    ? account.expires_at * 1000
+                    : Date.now() + (account.expires_in ?? 7200) * 1000;
 
                 const discordId = typeof profile?.id === "string"
                     ? profile.id
@@ -149,7 +159,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     refreshToken: account.refresh_token,
                     accessTokenExpires: expiresAt,
                     discordId,
+                    error: undefined,
                 };
+            }
+
+            if (token.error === "RefreshAccessTokenError") {
+                return token;
             }
 
             if (token.accessTokenExpires !== undefined && Date.now() < token.accessTokenExpires) {
