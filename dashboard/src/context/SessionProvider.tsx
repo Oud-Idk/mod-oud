@@ -13,8 +13,9 @@ const SessionInvalidator = (): null => {
     useEffect(() => {
         if (status === "loading") return;
 
-        if (session === null) {
-            void signOut({ redirect: false });
+        if (session?.error === "RefreshAccessTokenError") {
+            console.warn("[Auth] Session expired or refresh token invalid. Signing out.");
+            void signOut({ redirectTo: "/" });
         }
     }, [session, status]);
 

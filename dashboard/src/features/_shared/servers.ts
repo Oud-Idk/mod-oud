@@ -105,6 +105,11 @@ const getUserGuildsCached = unstable_cache(
             headers: { Authorization: `Bearer ${token}` },
         });
 
+        if (res.status === 401 || res.status === 403) {
+            console.warn("[Servers] User token rejected by Discord (401/403). Returning empty list.");
+            return [];
+        }
+
         if (!res.ok) {
             const body = await res.text().catch(() => "");
             throw new Error(`Discord user guilds fetch failed: ${String(res.status)} ${body}`);
