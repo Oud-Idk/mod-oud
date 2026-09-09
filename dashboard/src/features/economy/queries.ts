@@ -181,33 +181,17 @@ export async function deleteEconomyItem(guildId: string, itemId: string): Promis
     return (result.rowCount ?? 0) > 0;
 }
 
-// ---------------------------------------------------------------------------
-// Category Queries
-// ---------------------------------------------------------------------------
 
 interface EconomyCategoryRow {
     id: string;
     guild_id: string;
     name: string;
-    description: string;
-    position: number;
-    emoji_unicode: string | null;
-    emoji_id: string | null;
 }
 
 function mapRowToCategory(row: EconomyCategoryRow): import("./types").EconomyCategory {
-    let emoji: string | undefined = undefined;
-    if (row.emoji_id !== null && row.emoji_id !== "") {
-        emoji = `<:cat:${row.emoji_id}>`;
-    } else if (row.emoji_unicode !== null && row.emoji_unicode !== "") {
-        emoji = row.emoji_unicode;
-    }
     return {
         id: row.id,
         name: row.name,
-        description: row.description,
-        position: row.position,
-        emoji: emoji === "" ? undefined : emoji,
     };
 }
 
@@ -217,7 +201,7 @@ export async function getEconomyCategories(guildId: string): Promise<import("./t
             SELECT *
             FROM economy_categories
             WHERE guild_id = $1
-            ORDER BY position ASC, name ASC
+            ORDER BY name
         `,
         [guildId]
     );
@@ -229,20 +213,14 @@ export async function saveEconomyCategory(
     category: import("./types").EconomyCategory
 ): Promise<import("./types").EconomyCategory> {
     const categoryId = category.id ?? crypto.randomUUID();
-    const { unicode, id: emojiId } = parseEmoji(category.emoji);
-
     const { rows } = await db.query<EconomyCategoryRow>(
         `
-            INSERT INTO economy_categories (id, guild_id, name, description, position, emoji_unicode, emoji_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (id) DO UPDATE SET name          = EXCLUDED.name,
-                                           description   = EXCLUDED.description,
-                                           position      = EXCLUDED.position,
-                                           emoji_unicode = EXCLUDED.emoji_unicode,
-                                           emoji_id      = EXCLUDED.emoji_id
+            INSERT INTO economy_categories (id, guild_id, name)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
             RETURNING *
         `,
-        [categoryId, guildId, category.name, category.description, category.position, unicode, emojiId]
+        [categoryId, guildId, category.name]
     );
     return mapRowToCategory(rows[0]);
 }

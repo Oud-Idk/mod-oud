@@ -90,9 +90,6 @@ export const itemActionSchema = z.discriminatedUnion("type", [
 export const economyCategorySchema = z.object({
     id: z.uuid().optional(),
     name: z.string().min(1, "Name is required").max(100),
-    description: z.string().default(""),
-    position: z.number().int().nonnegative().default(0),
-    emoji: z.string().optional(),
 });
 
 export const economyItemSchema = z.object({
