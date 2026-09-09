@@ -142,7 +142,7 @@ impl PlaceholderResolver for DiscordCtx<'_> {
 /// Returns the shared regex used to match `{key}` placeholders.
 ///
 /// # Panics
-/// Panics when `RegEx` entered is invalid.
+/// May panic when `RegEx` entered is invalid.
 pub fn get_placeholder_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap())

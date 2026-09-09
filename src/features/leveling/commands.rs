@@ -19,6 +19,7 @@ use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{Options, Tree};
 use std::io::Cursor;
 use unit_prefix::NumberPrefix;
+use crate::shared::card_engine::{fetch_avatar_data_uri, render_svg_to_png, SvgTemplate};
 
 static RESVG_OPTIONS: OnceLock<Options<'static>> = OnceLock::new();
 
@@ -225,9 +226,9 @@ pub async fn card(
 
     let avatar_url = target_user.face();
 
-    let profile_picture = fetch_avatar_as_base64(&avatar_url)
+    let profile_picture = fetch_avatar_data_uri(&avatar_url)
         .await
-        .unwrap_or(avatar_url);
+        .unwrap_or_else(|| avatar_url.to_string());
 
     let display_name = target_user
         .global_name
@@ -237,42 +238,29 @@ pub async fn card(
     let formatted_xp = format_compact(xp);
     let formatted_max_xp = format_compact(max_xp);
 
-    let manipulated_svg = svg_template
-        .replace("fill=\"#000000\"", &format!("fill=\"{bg_color}\""))
-        .replace("{{BACKGROUND_COLOR}}", bg_color)
-        .replace("{{USERNAME}}", display_name)
-        .replace("{{BAR.FOREGROUND}}", bar_foreground)
-        .replace("{{BAR.BACKGROUND}}", bar_background)
-        .replace("{{SEPARATOR}}", line_sep)
-        .replace("{{PROFILE_PICTURE}}", &profile_picture)
-        .replace("{{USERNAME_COLOR}}", username_color)
-        .replace("{{STATISTICS}}", stats_color)
-        .replace("{{ACCENT}}", accent_color)
-        .replace("{{LEVEL}}", &level.to_string())
-        .replace("{{XP.PROGRESS}}", &formatted_xp) // Used variable here
-        .replace("{{XP.MAX}}", &formatted_max_xp) // Used variable here
-        .replace("{{RANK}}", &rank.to_string())
-        .replace("{{FILL_WIDTH}}", &fill_width_str);
+    let svg = SvgTemplate::new(svg_template)
+        .set_raw("BACKGROUND_COLOR", bg_color)
+        .set_text("USERNAME", display_name)
+        .set_raw("BAR.FOREGROUND", bar_foreground)
+        .set_raw("BAR.BACKGROUND", bar_background)
+        .set_raw("SEPARATOR", line_sep)
+        .set_raw("PROFILE_PICTURE", &profile_picture)
+        .set_raw("USERNAME_COLOR", username_color)
+        .set_raw("STATISTICS", stats_color)
+        .set_raw("ACCENT", accent_color)
+        .set_raw("LEVEL", level)
+        .set_raw("XP.PROGRESS", formatted_xp)
+        .set_raw("XP.MAX", formatted_max_xp)
+        .set_raw("RANK", rank)
+        .set_raw("FILL_WIDTH", fill_width_str)
+        .render();
 
-    let png_bytes = rasterize_svg(&manipulated_svg, 2.0)?;
-
+    let png_bytes = render_svg_to_png(svg, 2.0).await?;
     let attachment = CreateAttachment::bytes(png_bytes, "level_card.png");
     ctx.send(poise::CreateReply::default().attachment(attachment))
         .await?;
 
     Ok(())
-}
-
-async fn fetch_avatar_as_base64(url: &str) -> Option<String> {
-    let bytes = reqwest::get(url).await.ok()?.bytes().await.ok()?;
-    let img = image::load_from_memory(&bytes).ok()?;
-
-    let mut png_bytes = Vec::new();
-    img.write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png)
-        .ok()?;
-
-    let b64 = STANDARD.encode(&png_bytes);
-    Some(format!("data:image/png;base64,{b64}"))
 }
 
 /// Add levels to a user (admin only).
@@ -396,50 +384,6 @@ pub async fn remove(
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
-}
-
-fn get_options() -> &'static Options<'static> {
-    RESVG_OPTIONS.get_or_init(|| {
-        let inter_font_bytes = include_bytes!("assets/InterVariable.ttf");
-        let jetbrains_font_bytes = include_bytes!("assets/JetBrainsMono[wght].ttf");
-
-        let mut opt = Options::default();
-        let fontdb = opt.fontdb_mut();
-
-        fontdb.load_font_data(jetbrains_font_bytes.to_vec());
-        fontdb.load_font_data(inter_font_bytes.to_vec());
-
-        opt.font_family = "Inter Variable".to_string();
-        opt
-    })
-}
-
-/// Helper function to convert SVG string to PNG bytes using resvg
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-fn rasterize_svg(svg_str: &str, scale: f32) -> Result<Vec<u8>> {
-    let tree =
-        Tree::from_str(svg_str, get_options()).with_context(|| "Failed to parse SVG template")?;
-
-    let size = tree.size();
-
-    let width = (size.width() * scale).round() as u32;
-    let height = (size.height() * scale).round() as u32;
-
-    let mut pixmap =
-        Pixmap::new(width, height).with_context(|| "Failed to allocate memory for PNG image")?;
-
-    // Render with scale matrix
-    resvg::render(
-        &tree,
-        Transform::from_scale(scale, scale),
-        &mut pixmap.as_mut(),
-    );
-
-    let png_bytes = pixmap
-        .encode_png()
-        .with_context(|| "Failed to encode PNG")?;
-
-    Ok(png_bytes)
 }
 
 fn is_leveling_enabled(settings: &GuildSettings) -> bool {

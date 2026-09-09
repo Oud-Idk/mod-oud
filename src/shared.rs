@@ -24,6 +24,8 @@ pub mod spotify_auth;
 pub mod username_cache;
 /// Voice state caching.
 pub mod voice_state;
+/// SVG card system.
+pub mod card_engine;
 
 pub use serde_helpers::{ok_or_none, opt_string_i64, string_i64};
 pub use username_cache::{get_username, store_username_relation};
