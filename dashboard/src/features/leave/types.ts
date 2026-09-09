@@ -1,28 +1,16 @@
-import { z } from "zod";
-import { messageLayoutSchema } from "@/features/_shared/embed";
+import { checkMessageNotEmpty, isBlank, memberMessageConfigSchema } from "@/features/welcome/types";
 
-export const DEFAULT_LEAVE_MESSAGE = {
-    enabled: true,
-    format: "EMBED" as const,
-    content: "",
-    embed: {},
-};
+export const saveLeaveConfigSchema = memberMessageConfigSchema.superRefine((data, ctx) => {
+    if (data.enabled) {
+        if (isBlank(data.channelId)) {
+            ctx.addIssue({
+                code: 'custom',
+                message: "Please select a channel for leave messages.",
+                path: ["channelId"],
+            });
+        }
 
-export const leaveConfigSchema = z.object({
-    enabled: z.boolean().default(false),
-    channelId: z.string().nullish().default(null),
-    message: messageLayoutSchema.default(DEFAULT_LEAVE_MESSAGE),
-});
-
-export const saveLeaveConfigSchema = leaveConfigSchema.superRefine((data, ctx) => {
-    if (data.enabled && data.channelId === null) {
-        ctx.addIssue({
-            code: 'custom',
-            message: "Please select a channel for leave messages!",
-            path: ["channelId"],
-        });
+        checkMessageNotEmpty(data.message, [], ctx);
     }
 });
 
-export type LeaveConfig = z.infer<typeof leaveConfigSchema>;
-export const defaultLeaveConfig: LeaveConfig = leaveConfigSchema.parse({});

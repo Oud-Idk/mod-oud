@@ -1,15 +1,10 @@
-use std::sync::OnceLock;
-use std::time::Duration;
-
-use anyhow::Result;
-use resvg::tiny_skia::Transform;
-use resvg::usvg::Options;
 use tracing::warn;
 
 use crate::features::join_leave::types::WelcomeImageStyle;
 use crate::shared::card_engine::{fetch_avatar_data_uri, render_svg_to_png, truncate, xml_escape, SvgTemplate};
 
-const TEMPLATE: &str = include_str!("assets/welcome_template.svg");
+const WELCOME_TEMPLATE: &str = include_str!("assets/welcome_template.svg");
+const LEAVE_TEMPLATE: &str = include_str!("assets/leave_template.svg");
 const MAX_USERNAME_CHARS: usize = 24;
 const MAX_GUILD_CHARS: usize = 32;
 
@@ -24,7 +19,8 @@ fn pick<'a>(value: &'a str, fallback: &'a str) -> &'a str {
 }
 
 /// Fills the SVG template.
-pub fn build_welcome_svg(
+pub fn build_join_leave_svg(
+    template: &str,
     display_name: &str,
     guild_name: &str,
     member_count: u64,
@@ -40,7 +36,7 @@ pub fn build_welcome_svg(
         _ => 28,
     };
 
-    SvgTemplate::new(TEMPLATE)
+    SvgTemplate::new(template)
         .set_text("USERNAME", &username)
         .set_text("SERVER_NAME", &guild_name)
         .set_raw("USERNAME_SIZE", username_size)
@@ -65,12 +61,39 @@ pub async fn generate_welcome_card(
     style: &WelcomeImageStyle,
 ) -> Option<Vec<u8>> {
     let avatar_data_uri = fetch_avatar_data_uri(avatar_url).await.unwrap_or_default();
-    let svg = build_welcome_svg(display_name, guild_name, member_count, &avatar_data_uri, style);
+    let svg = build_join_leave_svg(WELCOME_TEMPLATE, display_name, guild_name, member_count, &avatar_data_uri, style);
 
     match render_svg_to_png(svg, 2.0).await {
         Ok(bytes) => Some(bytes),
         Err(e) => {
             warn!(error = ?e, "Failed to render welcome card");
+            None
+        }
+    }
+}
+
+pub async fn generate_leave_card(
+    display_name: &str,
+    avatar_url: &str,
+    member_count: u64,
+    guild_name: &str,
+    style: &WelcomeImageStyle,
+) -> Option<Vec<u8>> {
+    let avatar_data_uri = fetch_avatar_data_uri(avatar_url).await.unwrap_or_default();
+
+    let svg = build_join_leave_svg(
+        LEAVE_TEMPLATE,
+        display_name,
+        guild_name,
+        member_count,
+        &avatar_data_uri,
+        style,
+    );
+
+    match render_svg_to_png(svg, 2.0).await {
+        Ok(bytes) => Some(bytes),
+        Err(e) => {
+            tracing::warn!(error = ?e, "Failed to render leave card");
             None
         }
     }

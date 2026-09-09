@@ -5,7 +5,7 @@
             <circle cx="100" cy="100" r="60"/>
         </clipPath>
 
-        <!-- Optional subtle card roundness -->
+        <!-- Subtle card roundness -->
         <clipPath id="cardClip">
             <rect width="800" height="200" rx="12"/>
         </clipPath>
@@ -35,7 +35,7 @@
         <!-- Heading / Tag -->
         <text x="190" y="62" fill="{{HEADING_COLOR}}" font-family="'Inter Variable', sans-serif"
               font-size="26px" font-weight="700" letter-spacing="2">
-            Welcome
+            Goodbye
         </text>
 
         <!-- Username -->
@@ -50,7 +50,7 @@
         <!-- Membership Details -->
         <text x="190" y="158" fill="{{MEMBER_TEXT_COLOR}}" font-family="'Inter Variable', sans-serif"
               font-size="15px" font-weight="500">
-            Member #{{MEMBER_COUNT}} of {{SERVER_NAME}}
+            Left {{SERVER_NAME}} • {{MEMBER_COUNT}} members remain
         </text>
 
         <!-- Bottom Accent Strip -->

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-    WelcomeMessageConfigSchema,
+    memberMessageConfigSchema,
     privateWelcomeConfigSchema,
     welcomeConfigSchema,
     saveWelcomeConfigSchema,
@@ -9,7 +9,7 @@ import {
 
 describe("publicWelcomeConfigSchema", () => {
     it("should apply defaults when parsing an empty object", () => {
-        const parsed = WelcomeMessageConfigSchema.parse({});
+        const parsed = memberMessageConfigSchema.parse({});
 
         expect(parsed.enabled).toBe(false);
         expect(parsed.channel_id).toBeNull();
@@ -20,7 +20,7 @@ describe("publicWelcomeConfigSchema", () => {
     });
 
     it("should keep provided values", () => {
-        const parsed = WelcomeMessageConfigSchema.parse({
+        const parsed = memberMessageConfigSchema.parse({
             enabled: true,
             channel_id: "channel_1",
             sendImage: true,

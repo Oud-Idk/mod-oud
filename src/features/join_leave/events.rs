@@ -7,63 +7,6 @@ use serenity::all::{Context, EditMember, GuildId, Member, RoleId, User};
 use std::collections::HashSet;
 use tracing::{debug, info, trace, warn};
 
-/// Sends leave message when a member leaves.
-///
-/// # Errors
-/// Returns `Err` when leave event fails to be logged at `PostgreSQL`.
-pub async fn send_leave_message(
-    ctx: &Context,
-    guild_id: GuildId,
-    user: &User,
-    member_data_if_available: Option<&Member>,
-    data: &BotData,
-) -> Result<()> {
-    let user_id = user.id;
-    info!(%guild_id, %user_id, user_name = %user.name, "Member left the guild");
-
-    let settings = get_settings(
-        &data.core.db,
-        &data.core.redis,
-        &data.core.guild_configs_cache,
-        guild_id,
-    )
-    .await?;
-
-    let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.enabled) else {
-        trace!(
-            %guild_id,
-            %user_id, "Leave notifications are disabled; logging departure directly to DB"
-        );
-        return database::log_leave_to_db(user_id, guild_id, &data.core.db).await;
-    };
-
-    let Some(channel_id) = leave_cfg.channel_id else {
-        warn!(
-            %guild_id,
-            %user_id, "Leave notifications are enabled, but target channel ID is missing or invalid"
-        );
-        return database::log_leave_to_db(user_id, guild_id, &data.core.db).await;
-    };
-
-    let msg_payload =
-        messages::build_goodbye_message(ctx, guild_id, user, member_data_if_available, leave_cfg)
-            .await;
-
-    debug!(
-        %guild_id,
-        %user_id,
-        target_channel = channel_id.get(),
-        "Dispatching goodbye notification message"
-    );
-    if let Err(e) = channel_id.send_message(&ctx.http, msg_payload).await {
-        warn!(error = ?e, %guild_id, %user_id, target_channel = channel_id.get(), "Failed to send goodbye notification to channel");
-    }
-
-    trace!(%guild_id, %user_id, "Logging member leave record to database");
-    database::log_leave_to_db(user_id, guild_id, &data.core.db).await?;
-    Ok(())
-}
-
 async fn apply_join_roles(ctx: &Context, member: &Member, role_ids: &[String]) -> Result<()> {
     let guild_id = member.guild_id.get();
     let user_id = member.user.id.get();

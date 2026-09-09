@@ -18,7 +18,7 @@ use mod_oud::features::music::WebCommandBus;
 use mod_oud::features::{
     automod, birthday, custom_commands, economy, general, invite_tracking, leveling, media_only,
     member_counter, moderation, music, raid_detection, reporting, search, temp_voice, tickets,
-    warning,
+    warning, join_leave
 };
 use mod_oud::shared::spotify_auth::SpotifyAuthCache;
 use mod_oud::shared::username_cache::UserUpdate;
@@ -423,6 +423,7 @@ fn build_commands() -> Vec<poise::Command<BotData, Error>> {
         music::music(),
         search::search(),
         economy::economy(),
+        join_leave::test_member_message(),
         register(),
     ]
 }

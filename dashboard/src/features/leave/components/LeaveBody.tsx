@@ -1,18 +1,21 @@
 "use client";
 
-import { JSX, useCallback, useMemo, useState } from "react";
+import React, { JSX, useCallback, useMemo, useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
-import { LeaveConfig, saveLeaveConfigSchema } from "@/features/leave/types";
 import { DiscordEmbed } from "@/features/_shared/embed";
 import { LEAVE_CONFIG } from "@/features/leave/builderConfigs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
 import { DiscordChannel } from "@/features/_shared/channels.types";
+import { MemberMessageConfig } from "@/features/welcome/types";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { WelcomeImageStyleEditor } from "@/features/welcome/components/WelcomeImageStyleEditor";
+import { saveLeaveConfigSchema } from "@/features/leave/types";
 
 interface LeaveBodyProps {
-    leaveConfig: LeaveConfig;
+    leaveConfig: MemberMessageConfig;
     channels: DiscordChannel[];
-    onSave: (config: LeaveConfig) => Promise<void>;
+    onSave: (config: MemberMessageConfig) => Promise<void>;
 }
 
 export function LeaveBody({
@@ -38,7 +41,7 @@ export function LeaveBody({
         schema: saveLeaveConfigSchema,
     });
 
-    const handleChange = useCallback((updated: Partial<LeaveConfig>) => {
+    const handleChange = useCallback((updated: Partial<MemberMessageConfig>) => {
         setConfig((prev) => ({ ...prev, ...updated }));
     }, [setConfig]);
 
@@ -55,6 +58,8 @@ export function LeaveBody({
         format: config.message.format,
         content: config.message.content,
         embed: config.message.embed,
+        imageStyle: config.imageStyle,
+        sendImage: config.sendImage,
     }), [config]);
 
     return (
@@ -83,6 +88,32 @@ export function LeaveBody({
                 placeholderText="{user.username} has left the server. Goodbye!"
                 setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                 targetChannelIsEmpty={targetChannelIsEmpty}
+                customFields={
+                    <div className="space-y-4">
+                        <ToggleSwitch
+                            checked={config.sendImage}
+                            disabled={isPending}
+                            onChange={(checked) => {
+                                setConfig((prev) => ({
+                                    ...prev, sendImage: checked,
+                                }));
+                            }}
+                            className="mt-2"
+                            text="Send Welcome Image"
+                        />
+                        {config.sendImage && (
+                            <WelcomeImageStyleEditor
+                                style={config.imageStyle}
+                                disabled={isPending}
+                                onChange={(imageStyle) => {
+                                    setConfig((prev) => ({
+                                        ...prev, imageStyle,
+                                    }));
+                                }}
+                            />
+                        )}
+                    </div>
+                }
             />
 
             {isDirty && (

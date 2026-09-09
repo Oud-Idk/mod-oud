@@ -1,8 +1,5 @@
 import { z } from "zod";
-import {
-    BaseMessageLayoutSchema,
-    isEmbedEmpty,
-} from "@/features/_shared/embed";
+import { BaseMessageLayoutSchema, isEmbedEmpty, } from "@/features/_shared/embed";
 
 type BaseMessageLayout = z.infer<typeof BaseMessageLayoutSchema>;
 
@@ -17,9 +14,9 @@ export const welcomeImageStyleSchema = z.object({
     separatorColor: z.string().default("#FFFFFF"),
 });
 
-export const WelcomeMessageConfigSchema = z.object({
+export const memberMessageConfigSchema = z.object({
     enabled: z.boolean().default(false),
-    channel_id: z.string().nullish().default(null),
+    channelId: z.string().nullish().default(null),
     sendImage: z.boolean().default(false),
     imageStyle: welcomeImageStyleSchema.default(welcomeImageStyleSchema.parse({})),
     message: BaseMessageLayoutSchema.default({
@@ -29,9 +26,9 @@ export const WelcomeMessageConfigSchema = z.object({
     }),
 });
 
-const DEFAULT_WELCOME_MESSAGE_CONFIG = {
+const DEFAULT_MESSAGE_CONFIG = {
     enabled: false,
-    channel_id: null,
+    channelId: null,
     sendImage: false,
     imageStyle: welcomeImageStyleSchema.parse({}),
     message: {
@@ -39,36 +36,37 @@ const DEFAULT_WELCOME_MESSAGE_CONFIG = {
         content: "",
         embed: {},
     },
-}
+};
 
 export const welcomeConfigSchema = z.object({
-    public: WelcomeMessageConfigSchema.default(DEFAULT_WELCOME_MESSAGE_CONFIG),
-    private: WelcomeMessageConfigSchema.default(DEFAULT_WELCOME_MESSAGE_CONFIG),
+    public: memberMessageConfigSchema.default(DEFAULT_MESSAGE_CONFIG),
+    private: memberMessageConfigSchema.default(DEFAULT_MESSAGE_CONFIG),
     joinRoleIds: z.array(z.string()).default([]),
 });
 
 export const saveWelcomeConfigSchema = welcomeConfigSchema.superRefine((data, ctx) => {
-    if (data.public.enabled && (data.public.channel_id === null || data.public.channel_id.trim() === "")) {
+    if (data.public.enabled && isBlank(data.public.channelId)) {
         ctx.addIssue({
             code: 'custom',
             message: "Please select a channel for public welcome messages.",
-            path: ["public", "channel_id"],
+            path: ["public", "channelId"],
         });
     }
     if (data.public.enabled) {
-        checkMessageNotEmpty(data.public.message, "public", ctx);
+        checkMessageNotEmpty(data.public.message, ["public"], ctx);
     }
     if (data.private.enabled) {
-        checkMessageNotEmpty(data.private.message, "private", ctx);
+        checkMessageNotEmpty(data.private.message, ["private"], ctx);
     }
 });
 
-// Same rules (and messages/paths) as the shared `messageLayoutSchema`, but
-// only applied when the section is actually enabled — a disabled section with
-// an empty draft must never block saving the rest of the form.
-function checkMessageNotEmpty(
+export function isBlank(value: string | null | undefined): boolean {
+    return value === null || value === undefined || value.trim() === "";
+}
+
+export function checkMessageNotEmpty(
     message: BaseMessageLayout,
-    section: "public" | "private",
+    pathPrefix: (string | number)[],
     ctx: z.RefinementCtx,
 ): void {
     if (message.format === "TEXT") {
@@ -76,17 +74,18 @@ function checkMessageNotEmpty(
             ctx.addIssue({
                 code: 'custom',
                 message: "Message content cannot be empty when format is set to TEXT!",
-                path: [section, "message", "content"],
+                path: [...pathPrefix, "message", "content"],
             });
         }
     } else if (isEmbedEmpty(message.embed)) {
         ctx.addIssue({
             code: 'custom',
             message: "Embed must have a title, description, or fields when format is set to EMBED!",
-            path: [section, "message", "embed"],
+            path: [...pathPrefix, "message", "embed"],
         });
     }
 }
 
+export type MemberMessageConfig = z.infer<typeof memberMessageConfigSchema>;
 export type WelcomeConfig = z.infer<typeof welcomeConfigSchema>;
 export type WelcomeImageStyle = z.infer<typeof welcomeImageStyleSchema>;

@@ -19,7 +19,7 @@
         <rect id="accent" x="450" y="-620" width="250" height="150" fill="{{ACCENT_DIAG_COLOR}}" transform="rotate(45)"/>
 
         <!-- Avatar Ring -->
-        <circle cx="100" cy="100" r="66" fill="{{AVATAR_RING_COLOR}}"/>
+        <circle cx="100" cy="100" r="63" fill="none" stroke="{{AVATAR_RING_COLOR}}" stroke-width="4"/>
 
         <!-- Avatar Image -->
         <image

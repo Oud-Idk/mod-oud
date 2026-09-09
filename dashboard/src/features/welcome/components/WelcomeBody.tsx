@@ -68,7 +68,7 @@ export function WelcomeBody({
                     <MessageConfigEditor
                         config={{
                             enabled: config.public.enabled,
-                            channel_id: config.public.channel_id ?? "",
+                            channel_id: config.public.channelId ?? "",
                             content: config.public.message.content,
                             embed: config.public.message.embed,
                             format: config.public.message.format,
@@ -79,7 +79,7 @@ export function WelcomeBody({
                                 public: {
                                     ...prev.public,
                                     enabled: updated.enabled ?? false,
-                                    channel_id:
+                                    channelId:
                                         updated.channel_id !== undefined && updated.channel_id !== ""
                                             ? updated.channel_id
                                             : null,

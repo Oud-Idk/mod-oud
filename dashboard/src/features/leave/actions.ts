@@ -1,12 +1,13 @@
 "use server";
 
 import { z } from "zod";
-import { LeaveConfig, saveLeaveConfigSchema } from "@/features/leave/types";
 import { saveLeaveConfig } from "@/features/leave/queries";
 import { revalidatePath } from "next/cache";
 import { verifyGuildAccess } from "@/features/_shared/guild";
+import { MemberMessageConfig } from "@/features/welcome/types";
+import { saveLeaveConfigSchema } from "@/features/leave/types";
 
-export async function saveLeaveConfigAction(guildId: string, data: LeaveConfig): Promise<void> {
+export async function saveLeaveConfigAction(guildId: string, data: MemberMessageConfig): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
         const validConfig = saveLeaveConfigSchema.parse(data);
