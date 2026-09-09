@@ -180,6 +180,34 @@ export function WelcomeBody({
                         placeholderText="Thanks for joining our server, {user.mention}! Here are some links to get started..."
                         setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                         targetChannelIsEmpty={targetChannelIsEmpty}
+                        customFields={
+                            <div className="space-y-4">
+                                <ToggleSwitch
+                                    checked={config.private.sendImage}
+                                    disabled={isPending}
+                                    onChange={(checked) => {
+                                        setConfig((prev) => ({
+                                            ...prev,
+                                            private: { ...prev.private, sendImage: checked },
+                                        }));
+                                    }}
+                                    className="mt-2"
+                                    text="Send Welcome Image"
+                                />
+                                {config.private.sendImage && (
+                                    <WelcomeImageStyleEditor
+                                        style={config.private.imageStyle}
+                                        disabled={isPending}
+                                        onChange={(imageStyle) => {
+                                            setConfig((prev) => ({
+                                                ...prev,
+                                                private: { ...prev.private, imageStyle },
+                                            }));
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        }
                     />
                 )}
 

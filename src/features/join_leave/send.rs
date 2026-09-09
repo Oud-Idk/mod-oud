@@ -3,7 +3,7 @@ use crate::core::config::state::Error;
 use crate::features::join_leave::image::generate_welcome_card;
 use crate::features::join_leave::messages;
 use crate::features::join_leave::types::{WelcomeConfig, WelcomeImageStyle};
-use serenity::all::{CreateAttachment, CreateMessage, GuildChannel, Member};
+use serenity::all::{Context, CreateAttachment, CreateMessage, GuildChannel, Member};
 use tracing::{debug, trace, warn};
 
 /// Attaches the generated welcome card when `send_image` is on.
@@ -42,8 +42,8 @@ async fn maybe_attach_welcome_card(
 }
 /// Assembles and sends the public welcome message to the designated channel.
 pub async fn send_public_welcome(
-    ctx: &serenity::all::Context,
-    member: &serenity::all::Member,
+    ctx: &Context,
+    member: &Member,
     config: &WelcomeConfig,
     context_channel: &GuildChannel,
     gctx: &GuildCtx,
@@ -100,8 +100,8 @@ pub async fn send_public_welcome(
 
 /// Assembles and sends the welcome message directly to the member's DMs.
 pub async fn send_private_welcome(
-    ctx: &serenity::all::Context,
-    member: &serenity::all::Member,
+    ctx: &Context,
+    member: &Member,
     config: &WelcomeConfig,
     context_channel: &GuildChannel,
     gctx: &GuildCtx,

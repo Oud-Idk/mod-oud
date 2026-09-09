@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
     BaseMessageLayoutSchema,
-    DEFAULT_TOGGLABLE_MESSAGE_LAYOUT,
     isEmbedEmpty,
 } from "@/features/_shared/embed";
 
@@ -18,13 +17,11 @@ export const welcomeImageStyleSchema = z.object({
     separatorColor: z.string().default("#FFFFFF"),
 });
 
-export const publicWelcomeConfigSchema = z.object({
+export const WelcomeMessageConfigSchema = z.object({
     enabled: z.boolean().default(false),
     channel_id: z.string().nullish().default(null),
     sendImage: z.boolean().default(false),
     imageStyle: welcomeImageStyleSchema.default(welcomeImageStyleSchema.parse({})),
-    // Lax on purpose: emptiness is enforced at save time, and only when this
-    // section is enabled (draft mode). See `saveWelcomeConfigSchema`.
     message: BaseMessageLayoutSchema.default({
         format: "EMBED",
         content: "",
@@ -32,27 +29,21 @@ export const publicWelcomeConfigSchema = z.object({
     }),
 });
 
-export const privateWelcomeConfigSchema = z
-    .object({
-        enabled: z.boolean().default(false),
-        // Same draft-mode laxity as the public message.
-        message: BaseMessageLayoutSchema,
-    })
-    .default(DEFAULT_TOGGLABLE_MESSAGE_LAYOUT);
+const DEFAULT_WELCOME_MESSAGE_CONFIG = {
+    enabled: false,
+    channel_id: null,
+    sendImage: false,
+    imageStyle: welcomeImageStyleSchema.parse({}),
+    message: {
+        format: "EMBED" as const,
+        content: "",
+        embed: {},
+    },
+}
 
 export const welcomeConfigSchema = z.object({
-    public: publicWelcomeConfigSchema.default({
-        enabled: false,
-        channel_id: null,
-        sendImage: false,
-        imageStyle: welcomeImageStyleSchema.parse({}),
-        message: {
-            format: "EMBED",
-            content: "",
-            embed: {},
-        },
-    }),
-    private: privateWelcomeConfigSchema.default(DEFAULT_TOGGLABLE_MESSAGE_LAYOUT),
+    public: WelcomeMessageConfigSchema.default(DEFAULT_WELCOME_MESSAGE_CONFIG),
+    private: WelcomeMessageConfigSchema.default(DEFAULT_WELCOME_MESSAGE_CONFIG),
     joinRoleIds: z.array(z.string()).default([]),
 });
 
@@ -97,7 +88,5 @@ function checkMessageNotEmpty(
     }
 }
 
-export type PublicWelcomeConfig = z.infer<typeof publicWelcomeConfigSchema>;
-export type PrivateWelcomeConfig = z.infer<typeof privateWelcomeConfigSchema>;
 export type WelcomeConfig = z.infer<typeof welcomeConfigSchema>;
 export type WelcomeImageStyle = z.infer<typeof welcomeImageStyleSchema>;

@@ -7,8 +7,6 @@ use resvg::usvg::{Options, Tree};
 use std::io::Cursor;
 use std::sync::OnceLock;
 use std::time::Duration;
-use tracing::warn;
-use std::borrow::Cow;
 use aho_corasick::AhoCorasick;
 
 static RESVG_OPTIONS: OnceLock<Options<'static>> = OnceLock::new();
