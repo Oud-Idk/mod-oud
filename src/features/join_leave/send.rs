@@ -7,9 +7,6 @@ use serenity::all::{Context, CreateAttachment, CreateMessage, GuildChannel, Memb
 use tracing::{debug, trace, warn};
 
 /// Attaches the generated welcome card when `send_image` is on.
-///
-/// Falls back to the plain builder on render failure so a broken image never
-/// blocks the text/embed welcome.
 async fn maybe_attach_welcome_card(
     builder: CreateMessage,
     send_image: bool,
@@ -20,11 +17,13 @@ async fn maybe_attach_welcome_card(
     if !send_image {
         return builder;
     }
+
     let display_name = member
         .user
         .global_name
         .as_deref()
         .unwrap_or(&member.user.name);
+
     let bytes = generate_welcome_card(
         display_name,
         &member.user.face(),
@@ -32,14 +31,17 @@ async fn maybe_attach_welcome_card(
         &gctx.name,
         style,
     )
-    .await;
-    if let Some(bytes) = bytes {
-        builder.add_file(CreateAttachment::bytes(bytes, "welcome.png"))
-    } else {
-        warn!("Skipping welcome image attachment; sending text/embed only");
-        builder
+        .await;
+
+    match bytes {
+        Some(bytes) => builder.add_file(CreateAttachment::bytes(bytes, "welcome.png")),
+        None => {
+            warn!("Skipping welcome image attachment; sending text/embed only");
+            builder
+        }
     }
 }
+
 /// Assembles and sends the public welcome message to the designated channel.
 pub async fn send_public_welcome(
     ctx: &Context,
@@ -52,11 +54,7 @@ pub async fn send_public_welcome(
     let guild_id = member.guild_id;
     let user_id = member.user.id;
 
-    let Some(public) = config
-        .public
-        .as_ref()
-        .filter(|p| p.enabled.unwrap_or(false))
-    else {
+    let Some(public) = config.public.as_ref().filter(|p| p.enabled.unwrap_or(false)) else {
         return Ok(());
     };
 
@@ -67,7 +65,7 @@ pub async fn send_public_welcome(
 
     trace!(%guild_id, %user_id, %channel_id, "Assembling public welcome message layout");
 
-    match messages::build_welcome_message(
+    let builder = match messages::build_welcome_message(
         public,
         member,
         context_channel,
@@ -75,24 +73,26 @@ pub async fn send_public_welcome(
         warning_text,
         false,
     ) {
-        Ok(builder) => {
-            let builder = maybe_attach_welcome_card(
-                builder,
-                public.send_image,
-                &public.image_style,
-                member,
-                gctx,
-            )
-            .await;
-            if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
-                warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "Failed to send public welcome message to channel");
-            } else {
-                debug!(%guild_id, %user_id, target_channel = %channel_id, "Public welcome message sent successfully");
-            }
-        }
+        Ok(b) => b,
         Err(e) => {
             warn!(error = ?e, %guild_id, %user_id, "Failed to compile public welcome layout template");
+            return Ok(());
         }
+    };
+
+    let builder = maybe_attach_welcome_card(
+        builder,
+        public.send_image,
+        &public.image_style,
+        member,
+        gctx,
+    )
+        .await;
+
+    if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
+        warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "Failed to send public welcome message to channel");
+    } else {
+        debug!(%guild_id, %user_id, target_channel = %channel_id, "Public welcome message sent successfully");
     }
 
     Ok(())
@@ -110,54 +110,48 @@ pub async fn send_private_welcome(
     let guild_id = member.guild_id.get();
     let user_id = member.user.id.get();
 
-    let Some(private) = config
-        .private
-        .as_ref()
-        .filter(|p| p.enabled.unwrap_or(false))
-    else {
+    let Some(private) = config.private.as_ref().filter(|p| p.enabled.unwrap_or(false)) else {
         return Ok(());
     };
 
-    trace!(
-        guild_id,
-        user_id, "Establishing private DM context for welcome message"
-    );
-    match member.user.create_dm_channel(&ctx.http).await {
-        Ok(dm_channel) => {
-            match messages::build_welcome_message(
-                private,
-                member,
-                context_channel,
-                gctx,
-                warning_text,
-                true,
-            ) {
-                Ok(builder) => {
-                    let builder = maybe_attach_welcome_card(
-                        builder,
-                        private.send_image,
-                        &private.image_style,
-                        member,
-                        gctx,
-                    )
-                    .await;
-                    if let Err(e) = dm_channel.send_message(&ctx.http, builder).await {
-                        warn!(error = ?e, guild_id, user_id, "Failed to send private DM welcome message to user");
-                    } else {
-                        debug!(
-                            guild_id,
-                            user_id, "Private DM welcome message sent successfully"
-                        );
-                    }
-                }
-                Err(e) => {
-                    warn!(error = ?e, guild_id, user_id, "Failed to compile private DM welcome layout template");
-                }
-            }
-        }
+    trace!(guild_id, user_id, "Establishing private DM context for welcome message");
+
+    let dm_channel = match member.user.create_dm_channel(&ctx.http).await {
+        Ok(ch) => ch,
         Err(e) => {
             warn!(error = ?e, guild_id, user_id, "Failed to establish DM channel with newly joined user");
+            return Ok(());
         }
+    };
+
+    let builder = match messages::build_welcome_message(
+        private,
+        member,
+        context_channel,
+        gctx,
+        warning_text,
+        true,
+    ) {
+        Ok(b) => b,
+        Err(e) => {
+            warn!(error = ?e, guild_id, user_id, "Failed to compile private DM welcome layout template");
+            return Ok(());
+        }
+    };
+
+    let builder = maybe_attach_welcome_card(
+        builder,
+        private.send_image,
+        &private.image_style,
+        member,
+        gctx,
+    )
+        .await;
+
+    if let Err(e) = dm_channel.send_message(&ctx.http, builder).await {
+        warn!(error = ?e, guild_id, user_id, "Failed to send private DM welcome message to user");
+    } else {
+        debug!(guild_id, user_id, "Private DM welcome message sent successfully");
     }
 
     Ok(())
