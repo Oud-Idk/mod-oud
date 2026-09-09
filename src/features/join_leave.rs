@@ -1,5 +1,6 @@
 mod database;
 mod events;
+mod image;
 mod messages;
 mod placeholders;
 mod send;

@@ -92,7 +92,7 @@ export function MessageConfigEditor({
                     />
 
                     {config.format === "TEXT" ? (
-                        <div className="flex flex-row gap-8">
+                        <div className="md:grid md:grid-cols-2 gap-8">
                             <PlaintextEditor
                                 value={config.content ?? ""}
                                 placeholder={placeholderText}

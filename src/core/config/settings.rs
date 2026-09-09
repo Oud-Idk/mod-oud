@@ -130,9 +130,7 @@ impl GuildSettings {
     /// nesting for rows written before the split migration.
     #[must_use]
     pub fn verification_settings(&self) -> Option<&VerificationSettings> {
-        self.verification
-            .as_deref()
-            .or_else(|| self.welcome.as_ref().and_then(|w| w.verification.as_ref()))
+        self.verification.as_deref()
     }
 
     /// A quick method to check if any message logging is enabled (delete or edit events)

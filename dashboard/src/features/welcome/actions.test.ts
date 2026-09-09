@@ -29,6 +29,15 @@ function welcomeConfigFixture(): WelcomeConfig {
         public: {
             enabled: true,
             channel_id: "channel_1",
+            sendImage: false,
+            imageStyle: {
+                backgroundColor: "#2B2D31",
+                accentColor: "#5865F2",
+                avatarRingColor: "#5865F2",
+                headingColor: "#FFFFFF",
+                usernameColor: "#5865F2",
+                memberTextColor: "#B5BAC1",
+            },
             message: { format: "TEXT", content: "Welcome!", embed: {} },
         },
         private: {
@@ -66,6 +75,8 @@ describe("Welcome Action Module", () => {
                 public: {
                     enabled: true,
                     channel_id: null,
+                    sendImage: false,
+                    imageStyle: welcomeConfigFixture().public.imageStyle,
                     message: {
                         format: "EMBED",
                         content: "",

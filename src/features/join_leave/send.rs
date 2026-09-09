@@ -1,10 +1,45 @@
 use crate::core::config::guild_ctx::GuildCtx;
 use crate::core::config::state::Error;
+use crate::features::join_leave::image::generate_welcome_card;
 use crate::features::join_leave::messages;
-use crate::features::join_leave::types::WelcomeConfig;
-use serenity::all::GuildChannel;
+use crate::features::join_leave::types::{WelcomeConfig, WelcomeImageStyle};
+use serenity::all::{CreateAttachment, CreateMessage, GuildChannel, Member};
 use tracing::{debug, trace, warn};
 
+/// Attaches the generated welcome card when `send_image` is on.
+///
+/// Falls back to the plain builder on render failure so a broken image never
+/// blocks the text/embed welcome.
+async fn maybe_attach_welcome_card(
+    builder: CreateMessage,
+    send_image: bool,
+    style: &WelcomeImageStyle,
+    member: &Member,
+    gctx: &GuildCtx,
+) -> CreateMessage {
+    if !send_image {
+        return builder;
+    }
+    let display_name = member
+        .user
+        .global_name
+        .as_deref()
+        .unwrap_or(&member.user.name);
+    let bytes = generate_welcome_card(
+        display_name,
+        &member.user.face(),
+        gctx.member_count,
+        &gctx.name,
+        style,
+    )
+    .await;
+    if let Some(bytes) = bytes {
+        builder.add_file(CreateAttachment::bytes(bytes, "welcome.png"))
+    } else {
+        warn!("Skipping welcome image attachment; sending text/embed only");
+        builder
+    }
+}
 /// Assembles and sends the public welcome message to the designated channel.
 pub async fn send_public_welcome(
     ctx: &serenity::all::Context,
@@ -41,6 +76,14 @@ pub async fn send_public_welcome(
         false,
     ) {
         Ok(builder) => {
+            let builder = maybe_attach_welcome_card(
+                builder,
+                public.send_image,
+                &public.image_style,
+                member,
+                gctx,
+            )
+            .await;
             if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
                 warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "Failed to send public welcome message to channel");
             } else {
@@ -90,6 +133,14 @@ pub async fn send_private_welcome(
                 true,
             ) {
                 Ok(builder) => {
+                    let builder = maybe_attach_welcome_card(
+                        builder,
+                        private.send_image,
+                        &private.image_style,
+                        member,
+                        gctx,
+                    )
+                    .await;
                     if let Err(e) = dm_channel.send_message(&ctx.http, builder).await {
                         warn!(error = ?e, guild_id, user_id, "Failed to send private DM welcome message to user");
                     } else {

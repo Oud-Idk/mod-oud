@@ -28,6 +28,61 @@ pub struct WelcomeMessageSettings {
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub channel_id: Option<ChannelId>,
     pub message: MessageLayout,
+    #[serde(default)]
+    pub send_image: bool,
+    #[serde(default)]
+    pub image_style: WelcomeImageStyle,
+}
+
+/// Colors for the generated welcome card.
+#[allow(clippy::struct_field_names)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WelcomeImageStyle {
+    #[serde(default = "default_background_color")]
+    pub background_color: String,
+    #[serde(default = "default_accent_color")]
+    pub accent_color: String,
+    #[serde(default = "default_accent_color")]
+    pub avatar_ring_color: String,
+    #[serde(default = "white")]
+    pub heading_color: String,
+    #[serde(default = "white")]
+    pub username_color: String,
+    #[serde(default = "white")]
+    pub member_text_color: String,
+    #[serde(default = "default_accent_color")]
+    pub accent_diag_color: String,
+    #[serde(default = "white")]
+    pub separator_color: String,
+}
+
+fn default_background_color() -> String {
+    "#000000".to_string()
+}
+fn default_accent_color() -> String {
+    "#5865F2".to_string()
+}
+fn white() -> String {
+    "#FFFFFF".to_string()
+}
+fn grey() -> String {
+    "#B5B5B5".to_string()
+}
+
+impl Default for WelcomeImageStyle {
+    fn default() -> Self {
+        Self {
+            background_color: default_background_color(),
+            accent_color: default_accent_color(),
+            avatar_ring_color: default_accent_color(),
+            heading_color: white(),
+            username_color: white(),
+            member_text_color: grey(),
+            accent_diag_color: default_accent_color(),
+            separator_color: white(),
+        }
+    }
 }
 
 /// Config for the welcome messages.
@@ -41,10 +96,4 @@ pub struct WelcomeConfig {
     pub private: Option<WelcomeMessageSettings>,
     /// Roles automatically assigned to new members.
     pub join_role_ids: Option<Vec<String>>,
-    /// Legacy nested verification settings.
-    ///
-    /// Deprecated: verification now lives at the top-level `verification` settings
-    /// key. Kept for reading rows written before the split migration — use
-    /// `GuildSettings::verification_settings()` instead of this field directly.
-    pub verification: Option<VerificationSettings>,
 }

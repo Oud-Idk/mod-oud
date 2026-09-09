@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200">
+    <defs>
+        <!-- Avatar clip path -->
+        <clipPath id="avatarClip">
+            <circle cx="100" cy="100" r="60"/>
+        </clipPath>
+
+        <!-- Optional subtle card roundness -->
+        <clipPath id="cardClip">
+            <rect width="800" height="200" rx="12"/>
+        </clipPath>
+    </defs>
+
+    <g clip-path="url(#cardClip)">
+        <!-- Background -->
+        <rect width="100%" height="100%" fill="{{BACKGROUND_COLOR}}"/>
+
+        <!-- Top-Right Geometric Accent -->
+        <rect id="accent" x="450" y="-620" width="250" height="150" fill="{{ACCENT_DIAG_COLOR}}" transform="rotate(45)"/>
+
+        <!-- Avatar Ring -->
+        <circle cx="100" cy="100" r="66" fill="{{AVATAR_RING_COLOR}}"/>
+
+        <!-- Avatar Image -->
+        <image
+                href="{{PROFILE_PICTURE}}"
+                x="40"
+                y="40"
+                width="120"
+                height="120"
+                clip-path="url(#avatarClip)"
+                preserveAspectRatio="xMidYMid slice"
+        />
+
+        <!-- Heading / Tag -->
+        <text x="190" y="62" fill="{{HEADING_COLOR}}" font-family="'Inter Variable', sans-serif"
+              font-size="26px" font-weight="700" letter-spacing="2">
+            Welcome
+        </text>
+
+        <!-- Username -->
+        <text x="190" y="110" fill="{{USERNAME_COLOR}}" font-family="'Inter Variable', sans-serif"
+              font-size="{{USERNAME_SIZE}}px" font-weight="800">
+            {{USERNAME}}
+        </text>
+
+        <!-- Sleek Separator Line -->
+        <rect x="190" y="128" width="550" height="4" rx="1" fill="{{SEPARATOR_COLOR}}"/>
+
+        <!-- Membership Details -->
+        <text x="190" y="158" fill="{{MEMBER_TEXT_COLOR}}" font-family="'Inter Variable', sans-serif"
+              font-size="15px" font-weight="500">
+            Member #{{MEMBER_COUNT}} of {{SERVER_NAME}}
+        </text>
+
+        <!-- Bottom Accent Strip -->
+        <rect x="0" y="194" width="800" height="6" fill="{{ACCENT_COLOR}}"/>
+    </g>
+</svg>

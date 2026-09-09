@@ -5,6 +5,8 @@ import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";
+import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import { WelcomeImageStyleEditor } from "./WelcomeImageStyleEditor";
 import { WELCOME_CONFIG } from "../builderConfigs";
 
 import { AutoAssignRole } from "./AutoAssignRole";
@@ -107,6 +109,34 @@ export function WelcomeBody({
                         placeholderText="Welcome to the server, {user.mention}!"
                         setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                         targetChannelIsEmpty={targetChannelIsEmpty}
+                        customFields={
+                            <div className="space-y-4">
+                                <ToggleSwitch
+                                    checked={config.public.sendImage}
+                                    disabled={isPending}
+                                    onChange={(checked) => {
+                                        setConfig((prev) => ({
+                                            ...prev,
+                                            public: { ...prev.public, sendImage: checked },
+                                        }));
+                                    }}
+                                    className="mt-2"
+                                    text="Send Welcome Image"
+                                />
+                                {config.public.sendImage && (
+                                    <WelcomeImageStyleEditor
+                                        style={config.public.imageStyle}
+                                        disabled={isPending}
+                                        onChange={(imageStyle) => {
+                                            setConfig((prev) => ({
+                                                ...prev,
+                                                public: { ...prev.public, imageStyle },
+                                            }));
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        }
                     />
                 )}
 
