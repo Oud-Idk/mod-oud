@@ -1,7 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getLeaveConfig, saveLeaveConfig } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
-import { DEFAULT_LEAVE_MESSAGE } from "@/features/leave/types";
+
+const DEFAULT_LEAVE_MESSAGE = {
+    format: "EMBED" as const,
+    content: "",
+    embed: {},
+};
+
+const DEFAULT_LEAVE_IMAGE_STYLE = {
+    backgroundColor: "#000000",
+    accentColor: "#5865F2",
+    avatarRingColor: "#5865F2",
+    headingColor: "#FFFFFF",
+    usernameColor: "#FFFFFF",
+    memberTextColor: "#B5BAC1",
+    accentDiagColor: "#5865F2",
+    separatorColor: "#FFFFFF",
+};
 
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
@@ -55,6 +71,8 @@ describe("Leave Query Module", () => {
             const config = {
                 enabled: true,
                 channelId: "chan_1",
+                sendImage: false,
+                imageStyle: DEFAULT_LEAVE_IMAGE_STYLE,
                 message: DEFAULT_LEAVE_MESSAGE,
             };
 
@@ -70,6 +88,8 @@ describe("Leave Query Module", () => {
                 saveLeaveConfig("guild_123", {
                     enabled: false,
                     channelId: null,
+                    sendImage: false,
+                    imageStyle: DEFAULT_LEAVE_IMAGE_STYLE,
                     message: DEFAULT_LEAVE_MESSAGE,
                 })
             ).rejects.toThrow("connection lost");

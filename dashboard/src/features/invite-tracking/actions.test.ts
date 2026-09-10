@@ -93,7 +93,7 @@ describe("Invite Tracker Server Actions", () => {
         it("should verify access, fetch the leaderboard, and return it", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(getInviteLeaderboard).mockResolvedValue([
-                { inviterId: "user_1", count: 10 },
+                { inviterId: "user_1", count: 10, username: "Spicy is a bitch" },
             ]);
 
             const result = await fetchInviteLeaderboardAction("guild_123", 0);

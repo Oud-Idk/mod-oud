@@ -33,11 +33,7 @@ export function EconomyCategoryCreateModal({
 
         startTransition(async () => {
             try {
-                const payload: EconomyCategory = {
-                    name: name.trim(),
-                    description: "",
-                    position: 0,
-                };
+                const payload: EconomyCategory = {name: name.trim() };
                 const created = await onSave(payload);
                 toast.success(`Category "${created.name}" created`);
                 setName("");

@@ -18,20 +18,34 @@ function welcomeConfigFixture(): WelcomeConfig {
     return {
         public: {
             enabled: true,
-            channel_id: "channel_1",
+            channelId: "channel_1",
             sendImage: false,
             imageStyle: {
-                backgroundColor: "#2B2D31",
+                backgroundColor: "#000000",
                 accentColor: "#5865F2",
                 avatarRingColor: "#5865F2",
                 headingColor: "#FFFFFF",
-                usernameColor: "#5865F2",
+                usernameColor: "#FFFFFF",
                 memberTextColor: "#B5BAC1",
+                accentDiagColor: "#5865F2",
+                separatorColor: "#FFFFFF",
             },
             message: { format: "TEXT", content: "Welcome!", embed: {} },
         },
         private: {
             enabled: true,
+            channelId: null,
+            sendImage: false,
+            imageStyle: {
+                backgroundColor: "#000000",
+                accentColor: "#5865F2",
+                avatarRingColor: "#5865F2",
+                headingColor: "#FFFFFF",
+                usernameColor: "#FFFFFF",
+                memberTextColor: "#B5BAC1",
+                accentDiagColor: "#5865F2",
+                separatorColor: "#FFFFFF",
+            },
             message: { format: "TEXT", content: "Private welcome", embed: {} },
         },
         joinRoleIds: ["role_1"],
@@ -60,7 +74,7 @@ describe("Welcome Query Module", () => {
 
             const result = await getWelcomeConfig("guild_123");
 
-            expect(result.public.channel_id).toBe("channel_1");
+            expect(result.public.channelId).toBe("channel_1");
             expect(result.joinRoleIds).toEqual(["role_1"]);
         });
 

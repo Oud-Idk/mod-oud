@@ -391,7 +391,7 @@ export function EconomyItemConfig({
                             .filter((cat): cat is EconomyCategory & { id: string } => typeof cat.id === "string" && cat.id !== "")
                             .map((cat) => ({
                                 value: cat.id,
-                                label: `${cat.emoji ?? ""} ${cat.name}`.trim(),
+                                label: cat.name.trim(),
                             })),
                         { value: ADD_NEW, label: "+ Add Category" },
                     ];

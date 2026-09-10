@@ -34,7 +34,12 @@ describe("Logs Action Module", () => {
         });
 
         it("should return the query result", async () => {
-            const logs: AutomodLog[] = [{ id: "1", guild_id: "guild_123", user_id: "u", channel_id: null, message_id: null, rule_type: "BAD_WORD", trigger_content: null, original_content: null, actions_taken: [], created_at: "2026-01-01T00:00:00.000Z" }];
+            const logs: AutomodLog[] = [{
+                id: "1", guild_id: "guild_123", user_id: "u",
+                channel_id: null, message_id: null, rule_type: "BAD_WORD",
+                trigger_content: null, original_content: null, actions_taken: [],
+                created_at: "2026-01-01T00:00:00.000Z", username: "Spice",
+            }];
             vi.mocked(getAutomodLogs).mockResolvedValue(logs);
 
             const result = await getAutomodLogsAction("guild_123", 5);
@@ -61,7 +66,11 @@ describe("Logs Action Module", () => {
 
     describe("getJoinLeaveLogsAction", () => {
         it("should return the query result with the action filter", async () => {
-            const logs: JoinLeaveLog[] = [{ id: "1", user_id: "u", guild_id: "guild_123", action: "JOIN", created_at: "2026-01-01T00:00:00.000Z" }];
+            const logs: JoinLeaveLog[] = [{
+                id: "1", user_id: "u", guild_id: "guild_123",
+                action: "JOIN", created_at: "2026-01-01T00:00:00.000Z",
+                username: "Spicy is so stupid he whiffed a 10 km/h defense",
+            }];
             vi.mocked(getJoinLeaveLogs).mockResolvedValue(logs);
 
             const result = await getJoinLeaveLogsAction("guild_123", "JOIN");
@@ -81,7 +90,12 @@ describe("Logs Action Module", () => {
 
     describe("getModerationLogsAction", () => {
         it("should return the query result with the case id cursor", async () => {
-            const logs: ModerationLog[] = [{ case_id: "1", guild_id: "guild_123", target_id: null, moderator_id: "m", action_type: "BAN", reason: null, duration: null, created_at: "2026-01-01T00:00:00.000Z" }];
+            const logs: ModerationLog[] = [{
+                case_id: "1", guild_id: "guild_123", target_id: null,
+                moderator_id: "m", action_type: "BAN", reason: null,
+                duration: null, created_at: "2026-01-01T00:00:00.000Z",
+                target_username: "SpicyWolf", moderator_username: "Oud",
+            }];
             vi.mocked(getModerationLogs).mockResolvedValue(logs);
 
             const result = await getModerationLogsAction("guild_123", 10, "2026-01-01T00:00:00.000Z", "5");

@@ -1,18 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
     memberMessageConfigSchema,
-    privateWelcomeConfigSchema,
     welcomeConfigSchema,
     saveWelcomeConfigSchema,
     welcomeImageStyleSchema,
 } from "./types";
 
-describe("publicWelcomeConfigSchema", () => {
+describe("memberMessageConfigSchema", () => {
     it("should apply defaults when parsing an empty object", () => {
         const parsed = memberMessageConfigSchema.parse({});
 
         expect(parsed.enabled).toBe(false);
-        expect(parsed.channel_id).toBeNull();
+        expect(parsed.channelId).toBeNull();
         expect(parsed.sendImage).toBe(false);
         expect(parsed.message.format).toBe("EMBED");
         expect(parsed.message.content).toBe("");
@@ -22,7 +21,7 @@ describe("publicWelcomeConfigSchema", () => {
     it("should keep provided values", () => {
         const parsed = memberMessageConfigSchema.parse({
             enabled: true,
-            channel_id: "channel_1",
+            channelId: "channel_1",
             sendImage: true,
             message: {
                 format: "TEXT",
@@ -31,24 +30,26 @@ describe("publicWelcomeConfigSchema", () => {
         });
 
         expect(parsed.enabled).toBe(true);
-        expect(parsed.channel_id).toBe("channel_1");
+        expect(parsed.channelId).toBe("channel_1");
         expect(parsed.sendImage).toBe(true);
         expect(parsed.message.format).toBe("TEXT");
         expect(parsed.message.content).toBe("Welcome!");
     });
 });
 
-describe("privateWelcomeConfigSchema", () => {
-    it("should apply defaults when parsing undefined", () => {
-        const parsed = privateWelcomeConfigSchema.parse(undefined);
+describe("memberMessageConfigSchema (private section mirrors public)", () => {
+    it("should apply defaults when parsing an empty object", () => {
+        const parsed = memberMessageConfigSchema.parse({});
 
         expect(parsed.enabled).toBe(false);
-        expect(parsed.message.format).toBe("TEXT");
+        expect(parsed.channelId).toBeNull();
+        expect(parsed.sendImage).toBe(false);
+        expect(parsed.message.format).toBe("EMBED");
         expect(parsed.message.content).toBe("");
     });
 
     it("should ACCEPT an empty message in draft mode (base schema is lax)", () => {
-        const result = privateWelcomeConfigSchema.safeParse({
+        const result = memberMessageConfigSchema.safeParse({
             enabled: true,
             message: { format: "TEXT", content: "" },
         });
@@ -63,15 +64,17 @@ describe("welcomeConfigSchema", () => {
 
         expect(parsed.public).toEqual({
             enabled: false,
-            channel_id: null,
+            channelId: null,
             sendImage: false,
             imageStyle: {
-                backgroundColor: "#2B2D31",
+                backgroundColor: "#000000",
                 accentColor: "#5865F2",
                 avatarRingColor: "#5865F2",
                 headingColor: "#FFFFFF",
-                usernameColor: "#5865F2",
+                usernameColor: "#FFFFFF",
                 memberTextColor: "#B5BAC1",
+                accentDiagColor: "#5865F2",
+                separatorColor: "#FFFFFF",
             },
             message: {
                 format: "EMBED",
@@ -81,9 +84,20 @@ describe("welcomeConfigSchema", () => {
         });
         expect(parsed.private).toEqual({
             enabled: false,
+            channelId: null,
+            sendImage: false,
+            imageStyle: {
+                backgroundColor: "#000000",
+                accentColor: "#5865F2",
+                avatarRingColor: "#5865F2",
+                headingColor: "#FFFFFF",
+                usernameColor: "#FFFFFF",
+                memberTextColor: "#B5BAC1",
+                accentDiagColor: "#5865F2",
+                separatorColor: "#FFFFFF",
+            },
             message: {
-                enabled: false,
-                format: "TEXT",
+                format: "EMBED",
                 content: "",
                 embed: {},
             },
@@ -104,12 +118,14 @@ describe("welcomeImageStyleSchema", () => {
     it("should apply defaults when parsing an empty object", () => {
         const parsed = welcomeImageStyleSchema.parse({});
 
-        expect(parsed.backgroundColor).toBe("#2B2D31");
+        expect(parsed.backgroundColor).toBe("#000000");
         expect(parsed.accentColor).toBe("#5865F2");
         expect(parsed.avatarRingColor).toBe("#5865F2");
         expect(parsed.headingColor).toBe("#FFFFFF");
-        expect(parsed.usernameColor).toBe("#5865F2");
+        expect(parsed.usernameColor).toBe("#FFFFFF");
         expect(parsed.memberTextColor).toBe("#B5BAC1");
+        expect(parsed.accentDiagColor).toBe("#5865F2");
+        expect(parsed.separatorColor).toBe("#FFFFFF");
     });
 
     it("should keep provided colors", () => {
@@ -125,10 +141,10 @@ describe("welcomeImageStyleSchema", () => {
 });
 
 describe("saveWelcomeConfigSchema", () => {
-    // Kills .trim() whitespace mutants and path: ["public", "channel_id"] mutant
+    // Kills .trim() whitespace mutants and path: ["public", "channelId"] mutant
     it("should REJECT public welcome messages without a channel or with whitespace", () => {
         const resultNull = saveWelcomeConfigSchema.safeParse({
-            public: { enabled: true, channel_id: null },
+            public: { enabled: true, channelId: null },
         });
 
         expect(resultNull.success).toBe(false);
@@ -136,12 +152,12 @@ describe("saveWelcomeConfigSchema", () => {
             expect(resultNull.error.issues).toContainEqual({
                 code: 'custom',
                 message: "Please select a channel for public welcome messages.",
-                path: ["public", "channel_id"],
+                path: ["public", "channelId"],
             });
         }
 
         const resultSpace = saveWelcomeConfigSchema.safeParse({
-            public: { enabled: true, channel_id: "   " },
+            public: { enabled: true, channelId: "   " },
         });
         expect(resultSpace.success).toBe(false);
     });
@@ -150,7 +166,7 @@ describe("saveWelcomeConfigSchema", () => {
         const result = saveWelcomeConfigSchema.safeParse({
             public: {
                 enabled: true,
-                channel_id: "channel_1",
+                channelId: "channel_1",
                 message: { format: "TEXT", content: "Welcome!" },
             },
         });
@@ -160,7 +176,7 @@ describe("saveWelcomeConfigSchema", () => {
 
     it("should accept public welcome messages that are disabled", () => {
         const result = saveWelcomeConfigSchema.safeParse({
-            public: { enabled: false, channel_id: null },
+            public: { enabled: false, channelId: null },
         });
 
         expect(result.success).toBe(true);
@@ -170,7 +186,7 @@ describe("saveWelcomeConfigSchema", () => {
         const result = saveWelcomeConfigSchema.safeParse({
             public: {
                 enabled: true,
-                channel_id: "channel_1",
+                channelId: "channel_1",
                 message: { format: "TEXT", content: "Welcome!" },
             },
             private: {
@@ -187,7 +203,7 @@ describe("saveWelcomeConfigSchema", () => {
         const result = saveWelcomeConfigSchema.safeParse({
             public: {
                 enabled: true,
-                channel_id: "channel_1",
+                channelId: "channel_1",
                 message: { format: "TEXT", content: "   " },
             },
         });
@@ -206,7 +222,7 @@ describe("saveWelcomeConfigSchema", () => {
         const result = saveWelcomeConfigSchema.safeParse({
             public: {
                 enabled: true,
-                channel_id: "channel_1",
+                channelId: "channel_1",
                 message: { format: "EMBED", content: "", embed: {} },
             },
         });

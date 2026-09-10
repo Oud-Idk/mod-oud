@@ -35,6 +35,17 @@ describe("Leave Server Actions", () => {
     const validLeaveConfig = {
         enabled: true,
         channelId: "chan_1",
+        sendImage: false,
+        imageStyle: {
+            backgroundColor: "#000000",
+            accentColor: "#5865F2",
+            avatarRingColor: "#5865F2",
+            headingColor: "#FFFFFF",
+            usernameColor: "#FFFFFF",
+            memberTextColor: "#B5BAC1",
+            accentDiagColor: "#5865F2",
+            separatorColor: "#FFFFFF",
+        },
         message: {
             format: "TEXT" as const,
             content: "Sad to see you go!",
@@ -61,7 +72,7 @@ describe("Leave Server Actions", () => {
                     ...validLeaveConfig,
                     channelId: null,
                 })
-            ).rejects.toThrow("Please select a channel for leave messages!");
+            ).rejects.toThrow("Please select a channel for leave messages.");
 
             expect(saveLeaveConfig).not.toHaveBeenCalled();
         });

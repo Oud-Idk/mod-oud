@@ -74,6 +74,8 @@ function reportedMessageFixture(): ReportedMessage {
         user_warned: false,
         user_timed_out: false,
         user_banned: false,
+        author_username: "SpicyWolf",
+        reporter_username: "Oudie Foodie",
     };
 }
 

@@ -99,6 +99,7 @@ describe("Message Logging Action Module", () => {
                     old_content: null,
                     new_content: null,
                     updated_at: "2026-01-01T00:00:00.000Z",
+                    author_username: "Fucking Spicy",
                 },
             ];
             vi.mocked(fetchMoreEditedMessages).mockResolvedValue(rows);
@@ -136,6 +137,8 @@ describe("Message Logging Action Module", () => {
                     content: "hello",
                     attachment_url: null,
                     deleted_at: "2026-01-01T00:00:00.000Z",
+                    author_username: "I don't like Spicy",
+                    deleted_by_username: "Spice",
                 },
             ];
             vi.mocked(fetchMoreDeletedMessages).mockResolvedValue(rows);
