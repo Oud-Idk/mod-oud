@@ -12,6 +12,9 @@ use tokio::time::timeout;
 
 /// Stall backstop for ordinary replies, not a latency SLO.
 const ORDINARY_REPLY_TIMEOUT: Duration = Duration::from_secs(10);
+/// Backward seeks re-create the HTTP stream (yt-dlp + reconnect), so the
+/// actor may take up to 15s. This covers that plus mailbox/broadcast overhead.
+const SEEK_REPLY_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Caller-facing handle to one guild's music actor.
 ///
@@ -276,14 +279,22 @@ impl PlaybackHandle {
 
     /// Seeks to an absolute (`1:30`) or relative (`+30`, `-15`) position.
     ///
+    /// Uses a longer reply deadline than ordinary commands because backward
+    /// seeks re-fetch the stream and may take up to 15s inside the actor.
+    ///
     /// # Errors
     /// Returns an error if the music actor mailbox is closed, the actor
     /// does not reply in time, the reply channel is dropped, or the actor
     /// reports a failure.
     pub async fn seek(&self, input: impl Into<String>) -> Result<Duration> {
         let input = input.into();
-        self.call(|respond| GuildCommand::Seek { input, respond })
+        let respond_rx = self
+            .send_command(|respond| GuildCommand::Seek { input, respond })
+            .await?;
+        timeout(self.ordinary_timeout.max(SEEK_REPLY_TIMEOUT), respond_rx)
             .await
+            .context("music actor did not reply in time")?
+            .context("music actor dropped the reply channel")?
     }
 
     /// Moves the bot to another voice channel without interrupting playback.

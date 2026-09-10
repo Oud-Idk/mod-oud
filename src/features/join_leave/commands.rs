@@ -29,121 +29,93 @@ pub async fn test_member_message(
     ctx.defer_ephemeral().await?;
 
     let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
-    let author_member = ctx
+    let author = ctx
         .author_member()
         .await
         .with_context(|| "Member context missing")?;
-
     let channel = ctx
         .channel_id()
         .to_channel(&ctx.serenity_context())
         .await?
         .guild()
         .with_context(|| "Guild channel required")?;
-
     let gctx = get_guild_ctx(guild_id, &ctx).await?;
 
-    let redis = &ctx.data().core.redis;
-    let db = &ctx.data().core.db;
-    let cache = &ctx.data().core.guild_configs_cache;
-
-    let settings = get_settings(db, redis, cache, guild_id).await?;
-
+    let core = &ctx.data().core;
+    let settings = get_settings(&core.db, &core.redis, &core.guild_configs_cache, guild_id).await?;
     let mut reply = CreateReply::default().ephemeral(true);
-    let display_name = author_member
+    let name = author
         .user
         .global_name
         .as_deref()
-        .unwrap_or(&author_member.user.name);
+        .unwrap_or(&author.user.name);
 
     match message_type {
         MemberMessageType::Public | MemberMessageType::Private => {
-            let Some(welcome_cfg) = &settings.welcome else {
+            let Some(cfg) = &settings.welcome else {
                 ctx.send(reply.content("❌ Welcome settings are not configured!"))
                     .await?;
                 return Ok(());
             };
 
             let is_dm = matches!(message_type, MemberMessageType::Private);
-            let msg_settings = if is_dm {
-                welcome_cfg.private.as_ref()
-            } else {
-                welcome_cfg.public.as_ref()
-            };
-
-            let Some(msg_settings) = msg_settings else {
+            let Some(msg_cfg) = (if is_dm { &cfg.private } else { &cfg.public }).as_ref() else {
                 ctx.send(reply.content(format!("❌ {message_type:?} settings not found!")))
                     .await?;
                 return Ok(());
             };
 
-            let warning_note = if msg_settings.enabled.unwrap_or(false) {
-                ""
+            let note = if msg_cfg.enabled.unwrap_or(false) {
+                Default::default()
             } else {
                 "*(Note: This welcome message is currently disabled in settings)*\n\n"
             };
 
-            // Build welcome message layout
-            let msg_builder = messages::build_welcome_message(
-                msg_settings,
-                &author_member,
-                &channel,
-                &gctx,
-                warning_note,
-                is_dm,
-            )?;
-
-            // Generate welcome SVG card if enabled
-            if msg_settings.send_image
-                && let Some(bytes) = generate_welcome_card(
-                    display_name,
-                    &author_member.user.face(),
+            let msg =
+                messages::build_welcome_message(msg_cfg, &author, &channel, &gctx, note, is_dm)?;
+            if msg_cfg.send_image
+                && let Some(b) = generate_welcome_card(
+                    name,
+                    &author.user.face(),
                     gctx.member_count,
                     &gctx.name,
-                    &msg_settings.image_style,
+                    &msg_cfg.image_style,
                 )
                 .await
             {
-                reply = reply.attachment(CreateAttachment::bytes(bytes, "welcome_preview.png"));
+                reply = reply.attachment(CreateAttachment::bytes(b, "welcome_preview.png"));
             }
-
-            apply_message_to_reply(msg_builder, &mut reply);
+            apply_message_to_reply(msg, &mut reply);
         }
 
         MemberMessageType::Leave => {
-            let Some(leave_cfg) = &settings.leave else {
+            let Some(cfg) = &settings.leave else {
                 ctx.send(reply.content("❌ Leave settings are not configured!"))
                     .await?;
                 return Ok(());
             };
 
-            let msg_settings = &leave_cfg.message;
-
-            // Build goodbye message layout
-            let msg_builder = messages::build_goodbye_message(
+            let msg = messages::build_goodbye_message(
                 ctx.serenity_context(),
                 guild_id,
-                &author_member.user,
-                Some(&author_member),
-                leave_cfg,
+                &author.user,
+                Some(&author),
+                cfg,
             )
             .await;
-
-            // Generate goodbye SVG card if enabled
-            if msg_settings.send_image
-                && let Some(bytes) = generate_leave_card(
-                    display_name,
-                    &author_member.user.face(),
+            if cfg.message.send_image
+                && let Some(b) = generate_leave_card(
+                    name,
+                    &author.user.face(),
                     gctx.member_count,
                     &gctx.name,
-                    &msg_settings.image_style,
+                    &cfg.message.image_style,
                 )
                 .await
             {
-                reply = reply.attachment(CreateAttachment::bytes(bytes, "leave_preview.png"));
+                reply = reply.attachment(CreateAttachment::bytes(b, "leave_preview.png"));
             }
-
-            apply_message_to_reply(msg_builder, &mut reply);
+            apply_message_to_reply(msg, &mut reply);
         }
     }
 

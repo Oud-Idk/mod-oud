@@ -114,6 +114,12 @@ async fn resolve_any_playlist(
     None
 }
 
+/// Fast path: forward seeks decode-and-discard within the existing stream.
+const SEEK_FORWARD_TIMEOUT: Duration = Duration::from_secs(4);
+/// Slow path: backward seeks re-create the HTTP stream (yt-dlp + reconnect +
+/// re-demux), so they need a much larger budget.
+const SEEK_BACKWARD_TIMEOUT: Duration = Duration::from_secs(15);
+
 /// Parses seek inputs with relative signs like "+30", "-15", or absolute "1:30".
 fn parse_seek_input(input: &str) -> Option<SeekMode> {
     let trimmed = input.trim();
@@ -1115,7 +1121,13 @@ impl GuildActor {
         }
 
         self.seek_in_flight = true;
-        let result = timeout(Duration::from_secs(4), handle.seek_async(target)).await;
+        let is_backward = target < current_pos;
+        let seek_timeout = if is_backward {
+            SEEK_BACKWARD_TIMEOUT
+        } else {
+            SEEK_FORWARD_TIMEOUT
+        };
+        let result = timeout(seek_timeout, handle.seek_async(target)).await;
         self.seek_in_flight = false;
 
         match result {
@@ -1129,7 +1141,14 @@ impl GuildActor {
                 Ok(target)
             }
             Ok(Err(e)) => bail!("Seek failed on audio engine: {e:?}"),
-            Err(_) => bail!("Seek timed out while waiting for media buffer. Try again."),
+            Err(_) if is_backward => bail!(
+                "Seek timed out after {}s while re-buffering audio. Backward seeks re-fetch the stream, so they take longer — please try again, or try a smaller jump.",
+                seek_timeout.as_secs()
+            ),
+            Err(_) => bail!(
+                "Seek timed out after {}s while waiting for media buffer. Try again.",
+                seek_timeout.as_secs()
+            ),
         }
     }
 
