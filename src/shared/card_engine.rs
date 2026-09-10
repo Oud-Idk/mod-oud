@@ -40,6 +40,7 @@ pub fn resvg_options() -> &'static Options<'static> {
 }
 
 /// Safe XML escaping so users named `<script>` don't break your SVGs
+#[must_use]
 pub fn xml_escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
@@ -56,6 +57,7 @@ pub fn xml_escape(text: &str) -> String {
 }
 
 /// Truncates string gracefully with ellipsis
+#[must_use]
 pub fn truncate(text: &str, max: usize) -> String {
     if text.chars().count() <= max {
         return text.to_string();
@@ -65,6 +67,7 @@ pub fn truncate(text: &str, max: usize) -> String {
 }
 
 /// Returns value if not blank, otherwise fallback
+#[must_use]
 pub fn fallback<'a>(val: &'a str, default: &'a str) -> &'a str {
     let trimmed = val.trim();
     if trimmed.is_empty() { default } else { trimmed }
@@ -116,6 +119,7 @@ pub struct SvgTemplate<'a> {
 
 impl<'a> SvgTemplate<'a> {
     /// Creates a new SVG template object.
+    #[must_use]
     pub fn new(template: &'a str) -> Self {
         Self {
             template,

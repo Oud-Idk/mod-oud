@@ -1,5 +1,4 @@
 use crate::core::config::message_layout::MessageLayout;
-use crate::features::verification::VerificationSettings;
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::ChannelId;

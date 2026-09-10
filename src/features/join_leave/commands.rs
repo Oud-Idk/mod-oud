@@ -88,8 +88,8 @@ pub async fn test_member_message(
             )?;
 
             // Generate welcome SVG card if enabled
-            if msg_settings.send_image {
-                if let Some(bytes) = generate_welcome_card(
+            if msg_settings.send_image
+                && let Some(bytes) = generate_welcome_card(
                     display_name,
                     &author_member.user.face(),
                     gctx.member_count,
@@ -98,7 +98,6 @@ pub async fn test_member_message(
                 ).await {
                     reply = reply.attachment(CreateAttachment::bytes(bytes, "welcome_preview.png"));
                 }
-            }
 
             apply_message_to_reply(msg_builder, &mut reply);
         }
@@ -113,7 +112,7 @@ pub async fn test_member_message(
 
             // Build goodbye message layout
             let msg_builder = messages::build_goodbye_message(
-                &ctx.serenity_context(),
+                ctx.serenity_context(),
                 guild_id,
                 &author_member.user,
                 Some(&author_member),
@@ -121,8 +120,8 @@ pub async fn test_member_message(
             ).await;
 
             // Generate goodbye SVG card if enabled
-            if msg_settings.send_image {
-                if let Some(bytes) = generate_leave_card(
+            if msg_settings.send_image
+                && let Some(bytes) = generate_leave_card(
                     display_name,
                     &author_member.user.face(),
                     gctx.member_count,
@@ -131,7 +130,6 @@ pub async fn test_member_message(
                 ).await {
                     reply = reply.attachment(CreateAttachment::bytes(bytes, "leave_preview.png"));
                 }
-            }
 
             apply_message_to_reply(msg_builder, &mut reply);
         }
@@ -141,7 +139,7 @@ pub async fn test_member_message(
     Ok(())
 }
 
-/// Helper to forward Serenity CreateMessage components into Poise CreateReply
+/// Helper to forward Serenity `CreateMessage` components into Poise `CreateReply`
 fn apply_message_to_reply(builder: serenity::all::CreateMessage, reply: &mut poise::CreateReply) {
     if let Ok(value) = serde_json::to_value(builder) {
         if let Some(content) = value.get("content").and_then(|c| c.as_str()) {

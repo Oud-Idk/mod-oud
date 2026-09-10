@@ -110,7 +110,7 @@ pub struct Sense {
     pub translations: Vec<Translation>,
     /// Recursive reference to self for sub-definitions:
     #[serde(default)]
-    pub subsenses: Vec<Sense>,
+    pub subsenses: Vec<Self>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

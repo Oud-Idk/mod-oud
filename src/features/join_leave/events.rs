@@ -1,11 +1,11 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
-use crate::features::join_leave::{database, log_join_to_db, messages, send};
+use crate::features::join_leave::{log_join_to_db, messages, send};
 use anyhow::Result;
-use serenity::all::{Context, EditMember, GuildId, Member, RoleId, User};
+use serenity::all::{Context, EditMember, Member, RoleId, User};
 use std::collections::HashSet;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, trace, warn};
 
 async fn apply_join_roles(ctx: &Context, member: &Member, role_ids: &[String]) -> Result<()> {
     let guild_id = member.guild_id.get();

@@ -33,12 +33,9 @@ async fn maybe_attach_welcome_card(
     )
         .await;
 
-    match bytes {
-        Some(bytes) => builder.add_file(CreateAttachment::bytes(bytes, "welcome.png")),
-        None => {
-            warn!("Skipping welcome image attachment; sending text/embed only");
-            builder
-        }
+    if let Some(bytes) = bytes { builder.add_file(CreateAttachment::bytes(bytes, "welcome.png")) } else {
+        warn!("Skipping welcome image attachment; sending text/embed only");
+        builder
     }
 }
 

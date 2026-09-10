@@ -199,7 +199,7 @@ pub fn create_free_dict_message(response: &DictionaryAPIResponse, count: usize) 
         embed = embed.description("No definition available.");
     }
 
-    embed.footer(create_free_dict_footer(&response))
+    embed.footer(create_free_dict_footer(response))
 }
 
 /// Creates a Discord embed from multiple Free Dictionary API responses.
@@ -239,5 +239,5 @@ pub fn create_free_dict_multi_message(
         }
     }
 
-    embed.footer(create_free_dict_footer(&first))
+    embed.footer(create_free_dict_footer(first))
 }

@@ -1,7 +1,7 @@
 use tracing::warn;
 
 use crate::features::join_leave::types::WelcomeImageStyle;
-use crate::shared::card_engine::{fetch_avatar_data_uri, render_svg_to_png, truncate, xml_escape, SvgTemplate};
+use crate::shared::card_engine::{fetch_avatar_data_uri, render_svg_to_png, truncate, SvgTemplate};
 
 const WELCOME_TEMPLATE: &str = include_str!("assets/welcome_template.svg");
 const LEAVE_TEMPLATE: &str = include_str!("assets/leave_template.svg");

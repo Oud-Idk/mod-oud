@@ -20,7 +20,7 @@ pub async fn wikipedia(
             ctx.send(reply).await?;
         }
         None => {
-            ctx.say(format!("No Wikipedia article found for **`{}`**!", query))
+            ctx.say(format!("No Wikipedia article found for **`{query}`**!"))
                 .await?;
         }
     }

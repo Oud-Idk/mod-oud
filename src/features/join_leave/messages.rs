@@ -240,9 +240,7 @@ pub async fn send_leave_message(
         let display_name = user.global_name.as_deref().unwrap_or(&user.name);
 
         let (guild_name, member_count) = guild_id
-            .to_guild_cached(&ctx.cache)
-            .map(|g| (g.name.clone(), g.member_count))
-            .unwrap_or_else(|| ("the server".to_string(), 0));
+            .to_guild_cached(&ctx.cache).map_or_else(|| ("the server".to_string(), 0), |g| (g.name.clone(), g.member_count));
 
         if let Some(bytes) = generate_leave_card(
             display_name,

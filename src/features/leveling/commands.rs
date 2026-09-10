@@ -12,12 +12,7 @@ use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use anyhow::Context as _;
 use anyhow::Result;
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
-use image::ImageFormat;
-use resvg::tiny_skia::{Pixmap, Transform};
-use resvg::usvg::{Options, Tree};
-use std::io::Cursor;
+use resvg::usvg::Options;
 use unit_prefix::NumberPrefix;
 use crate::shared::card_engine::{fetch_avatar_data_uri, render_svg_to_png, SvgTemplate};
 
@@ -228,7 +223,7 @@ pub async fn card(
 
     let profile_picture = fetch_avatar_data_uri(&avatar_url)
         .await
-        .unwrap_or_else(|| avatar_url.to_string());
+        .unwrap_or_else(|| avatar_url.clone());
 
     let display_name = target_user
         .global_name
