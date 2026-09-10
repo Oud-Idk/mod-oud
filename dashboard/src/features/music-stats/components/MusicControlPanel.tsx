@@ -66,13 +66,16 @@ const durationObjectSchema = z.object({
     duration: z.number().optional(),
 });
 
+const durationSchema = z.union([z.number(), z.string(), durationObjectSchema, z.null()]).optional();
+const requesterSchema = z.union([z.string(), z.looseObject({ name: z.string() })]).optional();
+
 const nowPlayingPayloadSchema = z.object({
     title: z.string().optional(),
     thumbnail: z.string().optional(),
-    requested_by: z.string().optional(),
-    requestedBy: z.string().optional(),
-    duration: z.union([z.number(), z.string(), durationObjectSchema]).optional(),
-    durationSec: z.union([z.number(), z.string(), durationObjectSchema]).optional(),
+    requested_by: requesterSchema,
+    requestedBy: requesterSchema,
+    duration: durationSchema,
+    durationSec: durationSchema,
     position_sec: z.number().optional(),
     positionSec: z.number().optional(),
     is_paused: z.boolean().optional(),
@@ -82,8 +85,8 @@ const nowPlayingPayloadSchema = z.object({
     metadata: z.object({
         title: z.string().optional(),
         thumbnail: z.string().optional(),
-        duration: z.union([z.number(), z.string(), durationObjectSchema]).optional(),
-        durationSec: z.union([z.number(), z.string(), durationObjectSchema]).optional(),
+        duration: durationSchema,
+        durationSec: durationSchema,
     }).optional(),
 });
 
@@ -110,8 +113,17 @@ function formatTime(seconds: number): string {
     return `${String(mins)}:${secs.toString().padStart(2, "0")}`;
 }
 
+function parseRequester(raw: unknown): string | undefined {
+    if (typeof raw === "string") return raw;
+    if (typeof raw === "object" && raw !== null && "name" in raw && typeof raw.name === "string") {
+        return raw.name;
+    }
+    return undefined;
+}
+
 function parseDuration(raw: unknown): number {
     if (typeof raw === "number") return raw;
+    if (raw === null) return 0;
     if (typeof raw === "string") {
         const parsed = Number.parseFloat(raw);
         if (!Number.isNaN(parsed)) return parsed;
@@ -200,7 +212,7 @@ export function MusicControlPanel({
             setNowPlaying((prev) => ({
                 title,
                 thumbnail: item.metadata?.thumbnail ?? item.thumbnail ?? prev?.thumbnail,
-                requestedBy: item.requested_by ?? item.requestedBy ?? prev?.requestedBy ?? "Web",
+                requestedBy: parseRequester(item.requested_by) ?? parseRequester(item.requestedBy) ?? prev?.requestedBy ?? "Web",
                 durationSec: newDuration > 0 ? newDuration : prev?.durationSec,
                 positionSec: livePosition,
                 isPaused: pausedState,
