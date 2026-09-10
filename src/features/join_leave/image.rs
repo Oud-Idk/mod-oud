@@ -1,7 +1,7 @@
 use tracing::warn;
 
 use crate::features::join_leave::types::WelcomeImageStyle;
-use crate::shared::card_engine::{fetch_avatar_data_uri, render_svg_to_png, truncate, SvgTemplate};
+use crate::shared::card_engine::{SvgTemplate, fetch_avatar_data_uri, render_svg_to_png, truncate};
 
 const WELCOME_TEMPLATE: &str = include_str!("assets/welcome_template.svg");
 const LEAVE_TEMPLATE: &str = include_str!("assets/leave_template.svg");
@@ -51,7 +51,14 @@ pub async fn generate_welcome_card(
     style: &WelcomeImageStyle,
 ) -> Option<Vec<u8>> {
     let avatar_data_uri = fetch_avatar_data_uri(avatar_url).await.unwrap_or_default();
-    let svg = build_join_leave_svg(WELCOME_TEMPLATE, display_name, guild_name, member_count, &avatar_data_uri, style);
+    let svg = build_join_leave_svg(
+        WELCOME_TEMPLATE,
+        display_name,
+        guild_name,
+        member_count,
+        &avatar_data_uri,
+        style,
+    );
 
     match render_svg_to_png(svg, 2.0).await {
         Ok(bytes) => Some(bytes),

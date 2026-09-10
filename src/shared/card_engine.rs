@@ -1,3 +1,4 @@
+use aho_corasick::AhoCorasick;
 use anyhow::{Context as _, Result};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
@@ -7,7 +8,6 @@ use resvg::usvg::{Options, Tree};
 use std::io::Cursor;
 use std::sync::OnceLock;
 use std::time::Duration;
-use aho_corasick::AhoCorasick;
 
 static RESVG_OPTIONS: OnceLock<Options<'static>> = OnceLock::new();
 static HTTP: OnceLock<reqwest::Client> = OnceLock::new();
@@ -81,11 +81,19 @@ pub async fn fetch_avatar_data_uri(url: &str) -> Option<String> {
         return None;
     }
 
-    let bytes = http_client().get(url).send().await.ok()?.bytes().await.ok()?;
+    let bytes = http_client()
+        .get(url)
+        .send()
+        .await
+        .ok()?
+        .bytes()
+        .await
+        .ok()?;
     let img = image::load_from_memory(&bytes).ok()?;
 
     let mut png_bytes = Vec::new();
-    img.write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png).ok()?;
+    img.write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png)
+        .ok()?;
 
     let encoded = STANDARD.encode(&png_bytes);
     Some(format!("data:image/png;base64,{encoded}"))
@@ -104,14 +112,17 @@ pub async fn render_svg_to_png(svg: String, scale: f32) -> Result<Vec<u8>> {
         let height = (size.height() * scale).round() as u32;
 
         let mut pixmap = Pixmap::new(width, height).context("Failed to allocate PNG buffer")?;
-        resvg::render(&tree, Transform::from_scale(scale, scale), &mut pixmap.as_mut());
+        resvg::render(
+            &tree,
+            Transform::from_scale(scale, scale),
+            &mut pixmap.as_mut(),
+        );
 
         pixmap.encode_png().context("Failed to encode PNG")
     })
-        .await
-        .context("Render task was cancelled")?
+    .await
+    .context("Render task was cancelled")?
 }
-
 
 /// An SVG template system.
 pub struct SvgTemplate<'a> {
@@ -141,11 +152,7 @@ impl<'a> SvgTemplate<'a> {
 
     /// Raw / trusted text that shouldn't be escaped (hex colors, base64 data URIs, numbers)
     #[must_use]
-    pub fn set_raw(
-        mut self,
-        key: impl std::fmt::Display,
-        value: impl std::fmt::Display,
-    ) -> Self {
+    pub fn set_raw(mut self, key: impl std::fmt::Display, value: impl std::fmt::Display) -> Self {
         self.patterns.push(format!("{{{{{key}}}}}"));
         self.replacements.push(value.to_string());
         self

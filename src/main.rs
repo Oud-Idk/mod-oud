@@ -16,9 +16,9 @@ use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::music::MusicState;
 use mod_oud::features::music::WebCommandBus;
 use mod_oud::features::{
-    automod, birthday, custom_commands, economy, general, invite_tracking, leveling, media_only,
-    member_counter, moderation, music, raid_detection, reporting, search, temp_voice, tickets,
-    warning, join_leave
+    automod, birthday, custom_commands, economy, general, invite_tracking, join_leave, leveling,
+    media_only, member_counter, moderation, music, raid_detection, reporting, search, temp_voice,
+    tickets, warning,
 };
 use mod_oud::shared::spotify_auth::SpotifyAuthCache;
 use mod_oud::shared::username_cache::UserUpdate;

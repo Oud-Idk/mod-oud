@@ -21,11 +21,7 @@ pub enum MemberMessageType {
 }
 
 /// Test and preview your server's welcome or goodbye message layouts and cards.
-#[poise::command(
-    slash_command,
-    guild_only,
-    required_permissions = "MANAGE_GUILD"
-)]
+#[poise::command(slash_command, guild_only, required_permissions = "MANAGE_GUILD")]
 pub async fn test_member_message(
     ctx: Context<'_>,
     #[description = "The message type you want to preview"] message_type: MemberMessageType,
@@ -33,9 +29,13 @@ pub async fn test_member_message(
     ctx.defer_ephemeral().await?;
 
     let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
-    let author_member = ctx.author_member().await.with_context(|| "Member context missing")?;
+    let author_member = ctx
+        .author_member()
+        .await
+        .with_context(|| "Member context missing")?;
 
-    let channel = ctx.channel_id()
+    let channel = ctx
+        .channel_id()
         .to_channel(&ctx.serenity_context())
         .await?
         .guild()
@@ -50,12 +50,17 @@ pub async fn test_member_message(
     let settings = get_settings(db, redis, cache, guild_id).await?;
 
     let mut reply = CreateReply::default().ephemeral(true);
-    let display_name = author_member.user.global_name.as_deref().unwrap_or(&author_member.user.name);
+    let display_name = author_member
+        .user
+        .global_name
+        .as_deref()
+        .unwrap_or(&author_member.user.name);
 
     match message_type {
         MemberMessageType::Public | MemberMessageType::Private => {
             let Some(welcome_cfg) = &settings.welcome else {
-                ctx.send(reply.content("❌ Welcome settings are not configured!")).await?;
+                ctx.send(reply.content("❌ Welcome settings are not configured!"))
+                    .await?;
                 return Ok(());
             };
 
@@ -67,7 +72,8 @@ pub async fn test_member_message(
             };
 
             let Some(msg_settings) = msg_settings else {
-                ctx.send(reply.content(format!("❌ {message_type:?} settings not found!"))).await?;
+                ctx.send(reply.content(format!("❌ {message_type:?} settings not found!")))
+                    .await?;
                 return Ok(());
             };
 
@@ -95,16 +101,19 @@ pub async fn test_member_message(
                     gctx.member_count,
                     &gctx.name,
                     &msg_settings.image_style,
-                ).await {
-                    reply = reply.attachment(CreateAttachment::bytes(bytes, "welcome_preview.png"));
-                }
+                )
+                .await
+            {
+                reply = reply.attachment(CreateAttachment::bytes(bytes, "welcome_preview.png"));
+            }
 
             apply_message_to_reply(msg_builder, &mut reply);
         }
 
         MemberMessageType::Leave => {
             let Some(leave_cfg) = &settings.leave else {
-                ctx.send(reply.content("❌ Leave settings are not configured!")).await?;
+                ctx.send(reply.content("❌ Leave settings are not configured!"))
+                    .await?;
                 return Ok(());
             };
 
@@ -117,7 +126,8 @@ pub async fn test_member_message(
                 &author_member.user,
                 Some(&author_member),
                 leave_cfg,
-            ).await;
+            )
+            .await;
 
             // Generate goodbye SVG card if enabled
             if msg_settings.send_image
@@ -127,9 +137,11 @@ pub async fn test_member_message(
                     gctx.member_count,
                     &gctx.name,
                     &msg_settings.image_style,
-                ).await {
-                    reply = reply.attachment(CreateAttachment::bytes(bytes, "leave_preview.png"));
-                }
+                )
+                .await
+            {
+                reply = reply.attachment(CreateAttachment::bytes(bytes, "leave_preview.png"));
+            }
 
             apply_message_to_reply(msg_builder, &mut reply);
         }

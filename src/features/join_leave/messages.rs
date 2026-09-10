@@ -2,13 +2,16 @@ use crate::core::config::guild_ctx::{GuildCtx, get_guild_ctx};
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::join_leave::database;
+use crate::features::join_leave::image::generate_leave_card;
 use crate::features::join_leave::placeholders::replace_welcome_goodbye_placeholders;
 use crate::features::join_leave::types::LeaveConfig;
 use crate::features::join_leave::types::MessageSettings;
 use crate::shared::embed::build_custom_message;
-use serenity::all::{ChannelId, ChannelType, Color, Context, CreateAttachment, CreateEmbed, CreateMessage, GuildChannel, GuildId, Member, Mentionable, Timestamp, User};
+use serenity::all::{
+    ChannelId, ChannelType, Color, Context, CreateAttachment, CreateEmbed, CreateMessage,
+    GuildChannel, GuildId, Member, Mentionable, Timestamp, User,
+};
 use tracing::{debug, info, trace, warn};
-use crate::features::join_leave::image::generate_leave_card;
 
 pub fn build_welcome_message(
     settings: &MessageSettings,
@@ -62,10 +65,7 @@ pub fn build_welcome_message(
     }))
 }
 
-pub fn build_fallback_message(
-    user: &User,
-    member: Option<&Member>,
-) -> CreateMessage {
+pub fn build_fallback_message(user: &User, member: Option<&Member>) -> CreateMessage {
     let roles_text = format_member_roles(member);
     let embed = CreateEmbed::new()
         .title("Member Left / Kicked")
@@ -216,7 +216,11 @@ pub async fn send_leave_message(
     )
     .await?;
 
-    let Some(leave_cfg) = settings.leave.as_ref().filter(|cfg| cfg.message.enabled.unwrap_or(false)) else {
+    let Some(leave_cfg) = settings
+        .leave
+        .as_ref()
+        .filter(|cfg| cfg.message.enabled.unwrap_or(false))
+    else {
         trace!(
             %guild_id,
             %user_id, "Leave notifications are disabled; logging departure directly to DB"
@@ -233,14 +237,15 @@ pub async fn send_leave_message(
     };
 
     let mut msg_payload =
-        build_goodbye_message(ctx, guild_id, user, member_data_if_available, leave_cfg)
-            .await;
+        build_goodbye_message(ctx, guild_id, user, member_data_if_available, leave_cfg).await;
 
     if leave_cfg.message.send_image {
         let display_name = user.global_name.as_deref().unwrap_or(&user.name);
 
-        let (guild_name, member_count) = guild_id
-            .to_guild_cached(&ctx.cache).map_or_else(|| ("the server".to_string(), 0), |g| (g.name.clone(), g.member_count));
+        let (guild_name, member_count) = guild_id.to_guild_cached(&ctx.cache).map_or_else(
+            || ("the server".to_string(), 0),
+            |g| (g.name.clone(), g.member_count),
+        );
 
         if let Some(bytes) = generate_leave_card(
             display_name,
@@ -249,7 +254,7 @@ pub async fn send_leave_message(
             &guild_name,
             &leave_cfg.message.image_style,
         )
-            .await
+        .await
         {
             msg_payload = msg_payload.add_file(CreateAttachment::bytes(bytes, "goodbye.png"));
         }

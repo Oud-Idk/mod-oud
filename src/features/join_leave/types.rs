@@ -27,7 +27,6 @@ pub struct WelcomeConfig {
     pub join_role_ids: Option<Vec<String>>,
 }
 
-
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]

@@ -12,8 +12,8 @@ mod rawg;
 mod spotify;
 mod tmdb;
 mod urban;
-mod youtube;
 mod wikipedia;
+mod youtube;
 
 pub use commands::search;
 pub use events::handle_search_play;

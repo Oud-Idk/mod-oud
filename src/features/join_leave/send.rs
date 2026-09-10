@@ -31,9 +31,11 @@ async fn maybe_attach_welcome_card(
         &gctx.name,
         style,
     )
-        .await;
+    .await;
 
-    if let Some(bytes) = bytes { builder.add_file(CreateAttachment::bytes(bytes, "welcome.png")) } else {
+    if let Some(bytes) = bytes {
+        builder.add_file(CreateAttachment::bytes(bytes, "welcome.png"))
+    } else {
         warn!("Skipping welcome image attachment; sending text/embed only");
         builder
     }
@@ -51,7 +53,11 @@ pub async fn send_public_welcome(
     let guild_id = member.guild_id;
     let user_id = member.user.id;
 
-    let Some(public) = config.public.as_ref().filter(|p| p.enabled.unwrap_or(false)) else {
+    let Some(public) = config
+        .public
+        .as_ref()
+        .filter(|p| p.enabled.unwrap_or(false))
+    else {
         return Ok(());
     };
 
@@ -84,7 +90,7 @@ pub async fn send_public_welcome(
         member,
         gctx,
     )
-        .await;
+    .await;
 
     if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
         warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "Failed to send public welcome message to channel");
@@ -107,11 +113,18 @@ pub async fn send_private_welcome(
     let guild_id = member.guild_id.get();
     let user_id = member.user.id.get();
 
-    let Some(private) = config.private.as_ref().filter(|p| p.enabled.unwrap_or(false)) else {
+    let Some(private) = config
+        .private
+        .as_ref()
+        .filter(|p| p.enabled.unwrap_or(false))
+    else {
         return Ok(());
     };
 
-    trace!(guild_id, user_id, "Establishing private DM context for welcome message");
+    trace!(
+        guild_id,
+        user_id, "Establishing private DM context for welcome message"
+    );
 
     let dm_channel = match member.user.create_dm_channel(&ctx.http).await {
         Ok(ch) => ch,
@@ -143,12 +156,15 @@ pub async fn send_private_welcome(
         member,
         gctx,
     )
-        .await;
+    .await;
 
     if let Err(e) = dm_channel.send_message(&ctx.http, builder).await {
         warn!(error = ?e, guild_id, user_id, "Failed to send private DM welcome message to user");
     } else {
-        debug!(guild_id, user_id, "Private DM welcome message sent successfully");
+        debug!(
+            guild_id,
+            user_id, "Private DM welcome message sent successfully"
+        );
     }
 
     Ok(())

@@ -1,17 +1,17 @@
 #![allow(missing_docs, clippy::unused_async)]
+use crate::constants::BRAND_COLOR;
 use crate::core::config::settings::{GuildSettings, get_settings};
+use crate::core::config::state::{Context, Error};
 use crate::features::leveling::calculation::{calculate_cumulative_xp, calculate_xp_needed};
 use crate::features::leveling::database::{get_user_level, update_level};
 use crate::features::leveling::{cache, database, keys};
+use crate::shared::card_engine::{SvgTemplate, fetch_avatar_data_uri, render_svg_to_png};
 use crate::shared::messages::send_ephemeral;
-use serenity::all::{CreateAttachment, CreateEmbed, User};
-use tracing::{debug, trace};
-use crate::constants::BRAND_COLOR;
-use crate::core::config::state::{Context, Error};
 use anyhow::Context as _;
 use anyhow::Result;
+use serenity::all::{CreateAttachment, CreateEmbed, User};
+use tracing::{debug, trace};
 use unit_prefix::NumberPrefix;
-use crate::shared::card_engine::{fetch_avatar_data_uri, render_svg_to_png, SvgTemplate};
 
 /// Leveling commands
 #[poise::command(

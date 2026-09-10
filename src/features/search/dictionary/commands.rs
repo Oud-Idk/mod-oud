@@ -1,7 +1,7 @@
 use crate::core::config::state::Context;
 use anyhow::Context as _;
-use poise::serenity_prelude::CreateEmbed;
 use poise::CreateReply;
+use poise::serenity_prelude::CreateEmbed;
 
 use crate::features::search::dictionary::client::{FreeDictionaryClient, WordnikClient};
 use crate::features::search::dictionary::message::{
@@ -32,9 +32,9 @@ pub async fn dictionary(
 
     // Word of the Day is only available via Wordnik
     if wotd.unwrap_or(false) {
-        let key = wordnik_key.with_context(|| {
-            "Wordnik API key is not set up in environment variables (`WORDNIK_API_KEY`)."
-        })?;
+        let key = wordnik_key.with_context(
+            || "Wordnik API key is not set up in environment variables (`WORDNIK_API_KEY`).",
+        )?;
         let client = WordnikClient::new(reqwest_client, key.to_string());
         let word_of_the_day = client.word_of_the_day(None).await?;
         let embed = create_wotd_message(&word_of_the_day);
