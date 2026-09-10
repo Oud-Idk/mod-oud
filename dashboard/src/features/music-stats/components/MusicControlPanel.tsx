@@ -699,7 +699,7 @@ export function MusicControlPanel({
                                 handleSeekCommit(Number(e.currentTarget.value));
                             }
                         }}
-                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:cursor-not-allowed"
+                        className="w-full h-1.5 bg-surface-active rounded-lg appearance-none cursor-pointer accent-primary disabled:cursor-not-allowed"
                     />
                 </div>
             )}
