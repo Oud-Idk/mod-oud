@@ -8,16 +8,6 @@ const LEAVE_TEMPLATE: &str = include_str!("assets/leave_template.svg");
 const MAX_USERNAME_CHARS: usize = 24;
 const MAX_GUILD_CHARS: usize = 32;
 
-/// Returns `value` trimmed, or `fallback` when blank.
-fn pick<'a>(value: &'a str, fallback: &'a str) -> &'a str {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        fallback
-    } else {
-        trimmed
-    }
-}
-
 /// Fills the SVG template.
 pub fn build_join_leave_svg(
     template: &str,

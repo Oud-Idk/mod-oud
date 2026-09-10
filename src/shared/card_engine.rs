@@ -92,6 +92,9 @@ pub async fn fetch_avatar_data_uri(url: &str) -> Option<String> {
 }
 
 /// Renders raw SVG string to PNG bytes on a blocking worker thread
+///
+/// # Errors
+/// Returns `Err` if SVG is invalid, PNG allocation failed, or PNG encoding failed.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub async fn render_svg_to_png(svg: String, scale: f32) -> Result<Vec<u8>> {
     tokio::task::spawn_blocking(move || {
@@ -129,6 +132,7 @@ impl<'a> SvgTemplate<'a> {
     }
 
     /// User-controlled text that MUST be XML-escaped (e.g., usernames, server names)
+    #[must_use]
     pub fn set_text(mut self, key: impl std::fmt::Display, value: &str) -> Self {
         self.patterns.push(format!("{{{{{key}}}}}"));
         self.replacements.push(xml_escape(value));
@@ -136,6 +140,7 @@ impl<'a> SvgTemplate<'a> {
     }
 
     /// Raw / trusted text that shouldn't be escaped (hex colors, base64 data URIs, numbers)
+    #[must_use]
     pub fn set_raw(
         mut self,
         key: impl std::fmt::Display,
@@ -147,6 +152,9 @@ impl<'a> SvgTemplate<'a> {
     }
 
     /// Match all keys simultaneously in a single pass!
+    ///
+    /// # Panics
+    /// Will not panic from a string of patterns.
     pub fn render(self) -> String {
         if self.patterns.is_empty() {
             return self.template.to_string();

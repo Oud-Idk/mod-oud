@@ -226,9 +226,10 @@ pub fn create_free_dict_multi_message(
             let definition = entry
                 .senses
                 .first()
-                .map_or("No definition provided.".to_string(), |s| {
-                    s.definition.clone()
-                });
+                .map_or_else(
+                    || "No definition provided.".to_string(),
+                    |s| s.definition.clone()
+                );
 
             let field_name = format!("{}. *({pos})*", i + 1);
             embed = embed.field(field_name, truncate(&definition, 1024), false);

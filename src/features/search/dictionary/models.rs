@@ -62,19 +62,12 @@ pub struct Entry {
     #[serde(default)]
     pub pronunciations: Vec<Pronunciation>,
     #[serde(default)]
-    pub forms: Vec<Form>,
-    #[serde(default)]
     pub senses: Vec<Sense>,
-    #[serde(default)]
-    pub synonyms: Vec<String>,
-    #[serde(default)]
-    pub antonyms: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Language {
     pub code: String,
-    pub name: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -82,48 +75,13 @@ pub struct Pronunciation {
     #[serde(rename = "type")]
     pub kind: String,
     pub text: String,
-    #[serde(default)]
-    pub tags: Vec<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Form {
-    pub word: String,
-    #[serde(default)]
-    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Sense {
     pub definition: String,
     #[serde(default)]
-    pub tags: Vec<String>,
-    #[serde(default)]
     pub examples: Vec<String>,
-    #[serde(default)]
-    pub quotes: Vec<Quote>,
-    #[serde(default)]
-    pub synonyms: Vec<String>,
-    #[serde(default)]
-    pub antonyms: Vec<String>,
-    #[serde(default)]
-    pub translations: Vec<Translation>,
-    /// Recursive reference to self for sub-definitions:
-    #[serde(default)]
-    pub subsenses: Vec<Self>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Quote {
-    pub text: String,
-    #[serde(default)]
-    pub reference: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Translation {
-    pub language: Language,
-    pub word: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -136,26 +94,4 @@ pub struct Source {
 #[derive(Debug, Clone, Deserialize)]
 pub struct License {
     pub name: String,
-    pub url: String,
-}
-
-impl DictionaryAPIResponse {
-    /// Grabs the first English definition, or falls back to any language available.
-    pub fn primary_definition(&self) -> Option<&str> {
-        self.entries
-            .iter()
-            .find(|e| e.language.code == "en")
-            .or_else(|| self.entries.first())
-            .and_then(|e| e.senses.first())
-            .map(|s| s.definition.as_str())
-    }
-
-    /// Grabs the primary pronunciation IPA if available
-    pub fn ipa(&self) -> Option<&str> {
-        self.entries
-            .iter()
-            .flat_map(|e| &e.pronunciations)
-            .find(|p| p.kind == "ipa")
-            .map(|p| p.text.as_str())
-    }
 }

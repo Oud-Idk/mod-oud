@@ -31,7 +31,5 @@ pub struct SearchResult {
 
 #[derive(Debug, Deserialize)]
 pub struct SearchPage {
-    pub id: u64,
     pub key: String,
-    pub title: String,
 }

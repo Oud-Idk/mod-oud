@@ -4,10 +4,7 @@ use crate::features::search::truncate;
 use crate::features::search::wikipedia::models::WikiSummary;
 
 pub fn create_wikipedia_message(entry: &WikiSummary) -> CreateEmbed {
-    let content = match &entry.description {
-        Some(desc) => format!("*{}*\n\n{}", desc, entry.extract),
-        None => entry.extract.clone(),
-    };
+    let content = entry.description.as_ref().map_or_else(|| entry.extract.clone(), |desc| format!("*{}*\n\n{}", desc, entry.extract));
 
     let description_text = truncate(&content, 2048);
 
