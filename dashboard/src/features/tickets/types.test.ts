@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { DEFAULT_MESSAGE_LAYOUT, isDeepEqual } from "@/features/_shared/embed";
 import {
     TicketConfigSchema,
     SaveTicketConfigSchema,
@@ -6,6 +7,7 @@ import {
     TicketSchema,
     TicketMessageSchema,
     ViewTicketStatusSchema,
+    type TicketConfig,
 } from "./types";
 
 describe("Ticket Schemas Unit Tests", () => {
@@ -243,6 +245,46 @@ describe("Ticket Schemas Unit Tests", () => {
 
         it("should reject an unknown status", () => {
             expect(ViewTicketStatusSchema.safeParse("PENDING").success).toBe(false);
+        });
+    });
+
+    describe("message.enabled phantom regression (stuck save popup)", () => {
+        it("should not include enabled inside default message layouts", () => {
+            expect("enabled" in DEFAULT_MESSAGE_LAYOUT).toBe(false);
+
+            const parsed = TicketConfigSchema.parse({});
+
+            expect("enabled" in parsed.panelMessage.message).toBe(false);
+            expect("enabled" in parsed.welcomeMessage.message).toBe(false);
+        });
+
+        it("should strip a legacy nested enabled flag when parsing stored config", () => {
+            const stored: unknown = {
+                panelMessage: { enabled: false, message: { format: "TEXT", content: "hello", embed: {}, enabled: false } },
+                welcomeMessage: { enabled: false, message: { format: "TEXT", content: "hi", embed: {}, enabled: false } },
+            };
+
+            const parsed = TicketConfigSchema.parse(stored);
+
+            expect("enabled" in parsed.panelMessage.message).toBe(false);
+            expect("enabled" in parsed.welcomeMessage.message).toBe(false);
+        });
+
+        it("should read as clean after toggling ticketing on and back off", () => {
+            // The toggle handler rebuilds panelMessage.message as
+            // { format, content, embed }; with phantom-free defaults this
+            // round-trips back to the initial config exactly.
+            const initial = TicketConfigSchema.parse({});
+            const toggledBackOff: TicketConfig = {
+                ...initial,
+                enabled: false,
+                panelMessage: {
+                    enabled: false,
+                    message: { format: "TEXT", content: "", embed: {} },
+                },
+            };
+
+            expect(isDeepEqual(toggledBackOff, initial)).toBe(true);
         });
     });
 });

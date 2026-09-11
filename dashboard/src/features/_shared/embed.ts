@@ -41,7 +41,6 @@ export type EmbedField = z.infer<typeof EmbedFieldSchema>;
 export type DiscordEmbed = z.infer<typeof DiscordEmbedSchema>;
 
 export const DEFAULT_MESSAGE_LAYOUT = Object.freeze({
-    enabled: false,
     format: "TEXT" as const,
     content: "",
     embed: {},

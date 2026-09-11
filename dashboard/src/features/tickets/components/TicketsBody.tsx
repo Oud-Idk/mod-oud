@@ -97,7 +97,10 @@ export function TicketsBody({
                     onEmbedChange={(embed) => { 
                         setConfig((prev) => ({
                             ...prev,
-                            welcomeMessage: { ...prev.welcomeMessage, embed },
+                            welcomeMessage: {
+                                ...prev.welcomeMessage,
+                                message: { ...prev.welcomeMessage.message, embed },
+                            },
                         })); }
                     }
                     disabled={isPending}

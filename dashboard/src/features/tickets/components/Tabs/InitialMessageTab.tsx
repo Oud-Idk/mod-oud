@@ -17,7 +17,12 @@ interface InitialMessageTabProps {
 export default function InitialMessageTab({ config, onChange, onEmbedChange, disabled, resetKey }: InitialMessageTabProps): JSX.Element {
     return <div className="flex flex-col gap-3">
             <MessageConfigEditor
-                config={config.welcomeMessage.message}
+                config={{
+                    format: config.welcomeMessage.message.format,
+                    content: config.welcomeMessage.message.content,
+                    embed: config.welcomeMessage.message.embed,
+                    enabled: config.welcomeMessage.enabled,
+                }}
                 onChange={onChange}
                 onEmbedChange={onEmbedChange}
                 channels={[]}
