@@ -1,69 +1,13 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
-
-<svg
-        xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-        xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-        xmlns:svg="http://www.w3.org/2000/svg"
-        width="512"
-        height="512"
-        viewBox="0 0 512 512"
-        version="1.1"
-        id="svg1"
-        inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
-        sodipodi:docname="Logo.svg"
-        xmlns="http://www.w3.org/2000/svg">
-    <sodipodi:namedview
-            id="namedview1"
-            pagecolor="#ffffff"
-            bordercolor="#000000"
-            borderopacity="0.25"
-            inkscape:showpageshadow="2"
-            inkscape:pageopacity="0.0"
-            inkscape:pagecheckerboard="0"
-            inkscape:deskcolor="#d1d1d1"
-            inkscape:document-units="px"
-            inkscape:zoom="1.1269531"
-            inkscape:cx="13.310225"
-            inkscape:cy="81.636048"
-            inkscape:window-width="2560"
-            inkscape:window-height="1365"
-            inkscape:window-x="0"
-            inkscape:window-y="0"
-            inkscape:window-maximized="1"
-            inkscape:current-layer="layer1"/>
-    <defs
-            id="defs1">
-        <linearGradient
-                id="swatch2"
-                inkscape:swatch="solid">
-            <stop
-                    style="stop-color:#000000;stop-opacity:1;"
-                    offset="0"
-                    id="stop2"/>
-        </linearGradient>
-    </defs>
-    <g
-            inkscape:label="Layer 1"
-            inkscape:groupmode="layer"
-            id="layer1">
-        <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="m 259.20139,26.239233 c -56.42938,53.587493 -131.5801,82.978737 -209.392144,81.892707 -9.900601,30.16265 -14.93138,61.71032 -14.903096,93.45628 0,139.36214 95.30087,256.44432 224.29524,289.64 128.99533,-33.19568 224.29526,-150.27786 224.29526,-289.64 0,-32.64738 -5.23711,-64.04872 -14.90309,-93.45628 H 464.807 c -131.54162,0 -203.97401,-80.11801 -205.60561,-81.892707 z"
-                id="path1"
-                style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:29.1968;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-                sodipodi:nodetypes="ccccscsc"/>
-        <text
-                xml:space="preserve"
-                style="font-size:272.038px;font-family:'Inter Variable';-inkscape-font-specification:'Inter Variable';letter-spacing:-10px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:none;stroke-width:3.08453;stroke-dasharray:none;stroke-opacity:1"
-                x="106.04008"
-                y="349.24188"
-                id="text2"><tspan
-             sodipodi:role="line"
-             id="tspan2"
-             x="106.04008"
-             y="349.24188"
-             style="font-style:normal;font-variant:normal;font-weight:800;font-stretch:normal;font-size:272.038px;font-family:'JetBrains Mono';-inkscape-font-specification:'JetBrains Mono Ultra-Bold';letter-spacing:-10px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:3.08453">MO</tspan></text>
-    </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+    <path
+            d="M259.2 26.24c-56.43 53.59-131.58 82.98-209.39 81.89-9.9 30.16-14.93 61.71-14.9 93.46 0 139.36 95.3 256.44 224.29 289.64 129-33.2 224.3-150.28 224.3-289.64 0-32.65-5.24-64.05-14.9-93.46H464.8c-131.54 0-203.97-80.12-205.6-81.89z"
+            fill="none"
+            stroke="#000"
+            stroke-width="29.2"
+            stroke-linecap="round"
+    />
+    <path
+            fill="#000"
+            d="M117.42 349V150.44h49.78l20.13 84.86 20.13-84.86h50.32V349h-37.26v-76.16q0-19.86 1.09-38.9 1.36-19.04 3.26-36.18 1.9-17.13 3.54-31l-25.02 97.92h-32.64l-24.48-95.47q1.9 11.7 3.8 28.01 1.91 16.32 3.27 35.64 1.36 19.04 1.36 39.98V349zm223.38 2.72q-29.92 0-47.6-16.86-17.68-16.87-17.68-45.7v-78.88q0-29.1 17.68-45.7 17.68-16.86 47.6-16.86 29.92 0 47.6 16.86 17.68 16.6 17.68 45.7v78.88q0 28.83-17.68 45.7-17.68 16.86-47.6 16.86zm0-35.36q12.24 0 18.22-6.26 6.26-6.52 6.26-18.22v-84.32q0-11.97-5.98-18.22-5.99-6.26-18.5-6.26-12.51 0-18.5 6.26-5.98 6.25-5.98 18.22v84.32q0 11.7 5.98 18.22 6.26 6.26 18.5 6.26z"
+    />
 </svg>
