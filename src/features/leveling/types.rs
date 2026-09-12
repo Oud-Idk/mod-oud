@@ -1,19 +1,37 @@
 use crate::core::config::message_layout::MessageLayout;
 use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, serde_as};
+use serde_with::{serde_as, DisplayFromStr};
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum NotificationScope {
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(
+    tag = "scope",
+    rename_all = "SCREAMING_SNAKE_CASE",
+    rename_all_fields = "camelCase"
+)]
+#[derive(Default)]
+pub enum NotificationTarget {
     #[default]
     None,
     Dm,
-    SpecifiedChannel,
     CurrentChannel,
+    SpecifiedChannel {
+        #[serde_as(as = "DisplayFromStr")]
+        channel_id: ChannelId,
+    },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationSettings {
+    #[serde(flatten)]
+    pub target: NotificationTarget,
+    pub message: MessageLayout,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ScopeMode {
     #[default]
@@ -21,19 +39,29 @@ pub enum ScopeMode {
     Enforced,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct VcSession {
-    pub join_time: i64,
-    pub channel_id: ChannelId,
-    pub accumulated_secs: i64,
-    pub clock_started_at: Option<i64>,
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LevelingScope {
+    pub mode: ScopeMode,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde_as(as = "Vec<DisplayFromStr>")]
+    pub roles: Vec<RoleId>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde_as(as = "Vec<DisplayFromStr>")]
+    pub channels: Vec<ChannelId>,
 }
 
+// ==========================================
+// 3. Text & Voice Settings
+// ==========================================
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Range {
-    pub min: i64,
-    pub max: i64,
+    pub min: u32,
+    pub max: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -52,83 +80,106 @@ pub struct VoiceSettings {
     pub xp_range: Range,
 }
 
-#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+#[allow(clippy::struct_field_names)]
+pub struct ImageCardColors {
+    pub text_color: String,
+    pub bar_foreground_color: String,
+    pub bar_background_color: String,
+    pub accent_color: String,
+    pub line_separator_color: String,
+    pub username_color: String,
+    pub statistics_color: String,
+    pub background_color: String,
+}
+
+/// Top-level configuration for the leveling and experience (XP) feature.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct NotificationSettings {
-    pub scope: NotificationScope,
-    #[serde_as(as = "Option<DisplayFromStr>")]
-    pub channel_id: Option<ChannelId>,
-    pub message: MessageLayout,
+pub struct LevelingConfig {
+    /// Configuration for earning experience via text messages.
+    pub text: TextSettings,
+    /// Configuration for earning experience while active in voice channels.
+    pub voice: VoiceSettings,
+    /// Guild-specific channel and role filtering rules (exemptions or enforcements).
+    pub scope: LevelingScope,
+    /// Color and styling customizations for the generated rank card image.
+    pub image_card: ImageCardColors,
+    /// Delivery targets and message layouts for level-up announcements.
+    pub notify: NotificationSettings,
+    /// The maximum level a member can achieve. Set to `0` for uncapped leveling.
+    pub level_cap: u32,
+    /// Whether a member's XP and level progress are retained if they leave and rejoin the server.
+    pub keep_level_on_leave: bool,
 }
 
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(
+    tag = "targetType",
+    rename_all = "SCREAMING_SNAKE_CASE",
+    rename_all_fields = "camelCase"
+)]
+pub enum XpTarget {
+    Channel {
+        #[serde_as(as = "DisplayFromStr")]
+        target_id: ChannelId,
+    },
+    Role {
+        #[serde_as(as = "DisplayFromStr")]
+        target_id: RoleId,
+    },
+}
+
+#[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct UserLevel {
-    pub guild_id: GuildId,
-    pub user_id: UserId,
-    pub cumulative_xp: i64,
-    pub current_level: i64,
-    pub current_xp: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct LevelReward {
-    pub level_requirement: i64,
-    pub roles_to_add: Option<Vec<RoleId>>,
-    pub remove_previous_roles: Option<bool>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct XpMultiplier {
-    pub target_id: i64,
-    pub target_type: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub guild_id: GuildId,
+    #[serde(flatten)]
+    pub target: XpTarget,
     pub multiplier: f32,
 }
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct LevelingScope {
-    pub mode: ScopeMode,
-
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+pub struct LevelReward {
+    pub id: Option<i64>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub guild_id: Option<GuildId>,
+    pub level_requirement: u32,
+    #[serde(default)]
     #[serde_as(as = "Vec<DisplayFromStr>")]
-    pub roles: Vec<RoleId>,
-
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    #[serde_as(as = "Vec<DisplayFromStr>")]
-    pub channels: Vec<ChannelId>,
+    pub roles_to_add: Vec<RoleId>,
+    #[serde(default)]
+    pub remove_previous_roles: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ImageCardColors {
-    pub text: String,
-    pub bar_foreground: String,
-    pub bar_background: String,
-    pub accent: String,
-    pub line_separator: String,
+pub struct UserLevel {
+    #[serde_as(as = "DisplayFromStr")]
+    pub guild_id: GuildId,
+    #[serde_as(as = "DisplayFromStr")]
+    pub user_id: UserId,
+    pub cumulative_xp: u64,
+    pub current_level: u32,
+    pub current_xp: u64,
+    #[serde(default)]
     pub username: String,
-    pub statistics: String,
-    pub background: String,
 }
 
-/// Top-level config for the leveling feature.
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct LevelingConfig {
-    /// Settings for text-based XP.
-    pub text: TextSettings,
-    /// Settings for voice-based XP.
-    pub voice: VoiceSettings,
-    /// Channels/roles that are exempt or enforced.
-    pub scope: LevelingScope,
-    /// Styling for the rank card image.
-    pub image_card: ImageCardColors,
-    /// How level-up notifications are delivered.
-    pub notify: NotificationSettings,
-    /// Maximum level a member can reach.
-    pub level_cap: i64,
-    /// Whether XP is kept when a member leaves and rejoins.
-    pub keep_level_on_leave: bool,
+pub struct VcSession {
+    pub join_time: i64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub channel_id: ChannelId,
+    pub accumulated_secs: i64,
+    pub clock_started_at: Option<i64>,
 }

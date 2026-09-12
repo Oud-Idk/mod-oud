@@ -29,19 +29,19 @@ pub fn determine_role_changes(
     let mut roles_to_add = Vec::new();
     let mut roles_to_remove = Vec::new();
 
-    if active_reward.remove_previous_roles.unwrap_or(false) {
-        roles_to_add.extend(active_reward.roles_to_add.iter().flatten().copied());
+    if active_reward.remove_previous_roles {
+        roles_to_add.extend(active_reward.roles_to_add.iter().copied());
 
         let lower_rewards = eligible_rewards
             .iter()
             .filter(|r| r.level_requirement < active_reward.level_requirement);
 
         for prev_reward in lower_rewards {
-            roles_to_remove.extend(prev_reward.roles_to_add.iter().flatten().copied());
+            roles_to_remove.extend(prev_reward.roles_to_add.iter().copied());
         }
     } else {
         for reward in eligible_rewards {
-            roles_to_add.extend(reward.roles_to_add.iter().flatten().copied());
+            roles_to_add.extend(reward.roles_to_add.iter().copied());
         }
     }
 

@@ -7,7 +7,7 @@ use crate::features::leveling::database::get_user_level;
 use crate::features::leveling::keys::{member_stats_key, multiplier_key};
 use crate::features::leveling::notifications::LevelUpEvent;
 use crate::features::leveling::rules::get_multiplier;
-use crate::features::leveling::types::{LevelingConfig, NotificationScope};
+use crate::features::leveling::types::{LevelingConfig, NotificationTarget};
 use crate::features::leveling::{cache, keys, notifications, rewards, rules};
 use serenity::all::{Context, Message, RoleId};
 use tracing::{debug, info, trace, warn};
@@ -41,7 +41,7 @@ pub async fn handle_text_leveling(
         &data.core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
     let config_maybe = settings.leveling;
     let Some(leveling_config) = config_maybe else {
         return Ok(());
@@ -169,7 +169,7 @@ pub fn spawn_level_up_effects(
     let db_lvl_up = db.clone();
 
     tokio::spawn(async move {
-        if !matches!(config.notify.scope, NotificationScope::None) {
+        if !matches!(config.notify.target, NotificationTarget::None) {
             trace!(
                 %guild_id,
                 %author_id,

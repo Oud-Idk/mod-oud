@@ -1,7 +1,6 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::features::leveling::placeholders::replace_level_notify_placeholder;
-use crate::features::leveling::types::UserLevel;
-use crate::features::leveling::types::{LevelingConfig, NotificationScope};
+use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserLevel};
 use crate::shared::embed::build_custom_message;
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User};
@@ -9,30 +8,29 @@ use tracing::{debug, trace, warn};
 
 pub async fn send_according_to_config(
     ctx: &Context,
-    channel_id: ChannelId,
+    current_channel_id: ChannelId,
     config: &LevelingConfig,
     author: &User,
     msg: CreateMessage,
 ) -> Result<()> {
     trace!(
-        channel_id = channel_id.get(),
+        current_channel_id = current_channel_id.get(),
         author_id = author.id.get(),
         "Sending announcement message according to notification scope configuration"
     );
 
-    match config.notify.scope {
-        NotificationScope::CurrentChannel => {
+    match config.notify.target {
+        NotificationTarget::CurrentChannel => {
+            current_channel_id.send_message(&ctx.http, msg).await?;
+        }
+        NotificationTarget::SpecifiedChannel { channel_id } => {
+            // channel_id is guaranteed to be here by the type system!
             channel_id.send_message(&ctx.http, msg).await?;
         }
-        NotificationScope::SpecifiedChannel => {
-            if let Some(channel_id) = config.notify.channel_id {
-                channel_id.send_message(ctx.http.clone(), msg).await?;
-            }
-        }
-        NotificationScope::Dm => {
+        NotificationTarget::Dm => {
             let _ = author.dm(&ctx.http, msg).await;
         }
-        NotificationScope::None => {}
+        NotificationTarget::None => {}
     }
     Ok(())
 }
@@ -42,7 +40,7 @@ pub struct LevelUpEvent {
     pub channel_id: ChannelId,
     pub author: User,
     pub user_level: UserLevel,
-    pub previous_level: i64,
+    pub previous_level: u32,
 }
 
 pub async fn send_message(
@@ -77,15 +75,15 @@ pub async fn send_message(
             )
         },
     )
-    .unwrap_or_else(|e| {
-        warn!(
+        .unwrap_or_else(|e| {
+            warn!(
             error = ?e,
             %guild_id,
             user_id = %user_id,
             "Failed to compile custom level-up layout; using standard fallback"
         );
-        None
-    });
+            None
+        });
 
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(
@@ -111,7 +109,7 @@ pub async fn send_voice_level_up_message(
     config: &LevelingConfig,
     guild_id: GuildId,
     voice_channel_id: ChannelId,
-    previous_level: i64,
+    previous_level: u32,
 ) -> Result<()> {
     trace!(
         %guild_id,
@@ -134,14 +132,14 @@ pub async fn send_voice_level_up_message(
             )
         },
     )
-    .unwrap_or_else(|e| {
-        warn!(
+        .unwrap_or_else(|e| {
+            warn!(
             error = ?e,
             %guild_id,
             "Failed to construct custom VC level-up layout; using standard fallback"
         );
-        None
-    });
+            None
+        });
 
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(

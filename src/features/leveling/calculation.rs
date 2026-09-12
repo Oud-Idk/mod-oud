@@ -37,15 +37,16 @@ pub async fn clamp_to_level_cap(
     Ok(false)
 }
 
-pub const fn calculate_xp_needed(level: i64) -> i64 {
-    5 * level.pow(2) + 50 * level + 100
+pub const fn calculate_xp_needed(level: u32) -> u64 {
+    let l = level as u64;
+    5 * l.pow(2) + 50 * l + 100
 }
 
-pub const fn calculate_cumulative_xp(level: i64, current_xp: i64) -> i64 {
-    if level <= 0 {
+pub const fn calculate_cumulative_xp(level: u32, current_xp: u64) -> u64 {
+    if level == 0 {
         return current_xp;
     }
-    let n = level;
+    let n = level as u64;
 
     // Sum of 5*l^2 + 50*l + 100 from l = 0 to n-1
     let sum_sq = (5 * n * (n - 1) * (2 * n - 1)) / 6;
@@ -55,31 +56,31 @@ pub const fn calculate_cumulative_xp(level: i64, current_xp: i64) -> i64 {
     current_xp + sum_sq + sum_linear + sum_const
 }
 
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn calculate_level_up(
     leveling_config: &LevelingConfig,
     applied_multiplier: f32,
     user_level: &UserLevel,
-) -> (i64, i64) {
+) -> (u32, u64) {
     let previous_level = user_level.current_level;
     let base_xp =
         rand::random_range(leveling_config.text.xp_range.min..=leveling_config.text.xp_range.max);
-    let gained_xp = (base_xp as f32 * applied_multiplier) as i64;
+    let gained_xp = (base_xp as f32 * applied_multiplier).round() as u64;
     (previous_level, gained_xp)
 }
 
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-pub fn calculate_session_xp(elapsed_minutes: i64, config: &LevelingConfig, multiplier: f32) -> i64 {
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+pub fn calculate_session_xp(elapsed_minutes: u64, config: &LevelingConfig, multiplier: f32) -> u64 {
     (0..elapsed_minutes)
         .map(|_| {
             let base_xp = rand::random_range(config.voice.xp_range.min..=config.voice.xp_range.max);
-            (base_xp as f32 * multiplier) as i64
+            (base_xp as f32 * multiplier).round() as u64
         })
         .sum()
 }
 
 /// Applies cumulative XP changes and loops through any earned levels.
-pub const fn process_level_ups(user_level: &mut UserLevel, level_cap: i64) -> bool {
+pub const fn process_level_ups(user_level: &mut UserLevel, level_cap: u32) -> bool {
     let mut leveled_up = false;
 
     loop {

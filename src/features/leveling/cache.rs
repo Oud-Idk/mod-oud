@@ -36,7 +36,7 @@ pub async fn cache_aside_multipliers(
         })
     } else {
         debug!(key = %multiplier_key, "Cache miss; fetching multipliers from database");
-        let db_multipliers = database::get_multipliers(db, guild_id.get()).await?;
+        let db_multipliers = database::get_multipliers(db, guild_id).await?;
 
         debug!(key = %multiplier_key, "Serializing and caching multipliers in Redis");
         let serialized = serde_json::to_string(&db_multipliers)?;
@@ -63,6 +63,10 @@ pub async fn create_redis_cooldown(
     redis: &Client,
 ) -> FredResult<bool> {
     let cooldown_duration = config.text.xp_cooldown;
+
+    if cooldown_duration == 0 {
+        return Ok(true);
+    }
 
     debug!(
         key = %cooldown_key,

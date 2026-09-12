@@ -3,8 +3,7 @@ use super::super::{cache, calculation, database, notifications, rewards, rules};
 use crate::core::config::state::BotData;
 use crate::features::leveling;
 use crate::features::leveling::keys::member_stats_key;
-use crate::features::leveling::types::UserLevel;
-use crate::features::leveling::types::{LevelingConfig, NotificationScope};
+use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserLevel};
 use anyhow::Result;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
@@ -165,9 +164,9 @@ async fn award_vc_xp_for_session(
         channel_id,
         &member.roles,
     )
-    .await?;
+        .await?;
 
-    let elapsed_minutes = elapsed_seconds / 60;
+    let elapsed_minutes = (elapsed_seconds / 60).max(0).cast_unsigned();
     let total_added_xp =
         calculation::calculate_session_xp(elapsed_minutes, leveling_config, multiplier);
 
@@ -180,7 +179,7 @@ async fn award_vc_xp_for_session(
         leveling_config,
         total_added_xp,
     )
-    .await?
+        .await?
     else {
         return Ok(());
     };
@@ -239,8 +238,8 @@ async fn apply_xp_and_process_levels(
     stats_key: &str,
     username: &str,
     leveling_config: &LevelingConfig,
-    total_added_xp: i64,
-) -> Result<Option<(UserLevel, i64)>> {
+    total_added_xp: u64,
+) -> Result<Option<(UserLevel, u32)>> {
     let redis = &data.core.redis;
 
     let mut user_level =
@@ -254,7 +253,7 @@ async fn apply_xp_and_process_levels(
         stats_key,
         &mut user_level,
     )
-    .await?;
+        .await?;
 
     if should_be_clamped {
         return Ok(None);
@@ -282,7 +281,7 @@ async fn handle_level_up(
     config: &LevelingConfig,
     event: &LevelUpEvent,
 ) -> Result<()> {
-    if !matches!(config.notify.scope, NotificationScope::None) {
+    if !matches!(config.notify.target, NotificationTarget::None) {
         notifications::send_voice_level_up_message(
             ctx,
             &event.author,
@@ -292,7 +291,7 @@ async fn handle_level_up(
             event.channel_id,
             event.previous_level,
         )
-        .await?;
+            .await?;
     }
 
     let _ = rewards::apply_level_rewards(
@@ -302,6 +301,6 @@ async fn handle_level_up(
         event.user_level.user_id,
         event.user_level.current_level,
     )
-    .await;
+        .await;
     Ok(())
 }
