@@ -2,7 +2,7 @@ use crate::core::config::state::{BotData, Error};
 use crate::events::interact::on_interact;
 use crate::features::{
     automod, custom_commands, invite_tracking, join_leave, leveling, media_only, message_logging,
-    raid_detection, reaction_roles, starboard, temp_voice, tickets,
+    moderation, raid_detection, reaction_roles, starboard, temp_voice, tickets,
 };
 use crate::shared::store_username_relation;
 use crate::shared::voice_state::sync_guild_voice_state;
@@ -102,6 +102,10 @@ pub async fn dispatch_events(
 
         FullEvent::AutoModActionExecution { execution } => {
             automod::store_automod(ctx, execution, data).await?;
+        }
+
+        FullEvent::GuildAuditLogEntryCreate { entry, guild_id } => {
+            moderation::handle_audit_log_entry(ctx, *guild_id, entry, data).await?;
         }
 
         FullEvent::GuildCreate { guild, .. } => {

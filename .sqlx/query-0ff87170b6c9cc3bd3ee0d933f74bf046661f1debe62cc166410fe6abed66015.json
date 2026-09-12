@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO giveaways (guild_id, host_id, channel_id, prize, winner_count, end_time, is_finished, message_layout)\n        VALUES ($1, $2, $3, $4, $5, $6, FALSE, '{\"format\": \"TEXT\", \"content\": \"🎉 **GIVEAWAY** 🎉\\nPrize: **{prize}**\\nClick the button below to enter!\", \"embed\": {}}'::jsonb)\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "giveaways",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0ff87170b6c9cc3bd3ee0d933f74bf046661f1debe62cc166410fe6abed66015"
+}

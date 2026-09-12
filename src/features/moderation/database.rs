@@ -72,6 +72,43 @@ pub async fn log_moderation_action(
     Ok(())
 }
 
+/// Records a moderation action performed natively in Discord (right-click
+/// timeout/kick/ban, etc.) and synced via the guild audit log.
+///
+/// Unlike [`log_moderation_action`], this takes plain IDs because an audit log
+/// entry only carries snowflakes, and tags the row with `source = 'AUDIT_SYNC'`
+/// so the dashboard can distinguish it from bot-issued actions.
+///
+/// # Errors
+/// Returns an error if the audit log insert fails.
+pub async fn log_external_moderation_action(
+    db: &PgPool,
+    guild_id: GuildId,
+    target_id: UserId,
+    moderator_id: UserId,
+    reason: Option<&str>,
+    action: ActionType,
+    interval: Option<TimeDelta>,
+) -> Result<()> {
+    let pg_interval = interval.map(|delta| delta.to_pg_interval());
+
+    sqlx::query!(
+        r#"
+        INSERT INTO moderation_logs (guild_id, target_id, moderator_id, action_type, reason, duration, source)
+        VALUES ($1, $2, $3, $4, $5, $6, 'AUDIT_SYNC')
+        "#,
+        guild_id.get().cast_signed(),
+        target_id.get().cast_signed(),
+        moderator_id.get().cast_signed(),
+        action as ActionType,
+        reason,
+        pg_interval,
+    )
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
 /// Fetches expired temp bans up to a limit of 200.
 pub async fn fetch_expired_temp_bans(
     db: &PgPool,

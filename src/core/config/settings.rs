@@ -30,10 +30,6 @@ pub struct GuildSettings {
     pub welcome: Option<Box<WelcomeConfig>>,
 
     /// Configuration for membership verification (captcha, verified role).
-    ///
-    /// Split out of `welcome` so the two features are configured independently.
-    /// Older rows may still carry the settings nested at `welcome.verification`;
-    /// use [`GuildSettings::verification_settings`] to read with fallback.
     pub verification: Option<Box<VerificationSettings>>,
 
     /// Configuration for leave messages sent when a member exits.
