@@ -125,6 +125,7 @@ export function WelcomeBody({
                                 />
                                 {config.public.sendImage && (
                                     <WelcomeImageStyleEditor
+                                        templatePath="/welcome-template.svg"
                                         style={config.public.imageStyle}
                                         disabled={isPending}
                                         onChange={(imageStyle) => {
@@ -196,6 +197,7 @@ export function WelcomeBody({
                                 />
                                 {config.private.sendImage && (
                                     <WelcomeImageStyleEditor
+                                        templatePath="/welcome-template.svg"
                                         style={config.private.imageStyle}
                                         disabled={isPending}
                                         onChange={(imageStyle) => {

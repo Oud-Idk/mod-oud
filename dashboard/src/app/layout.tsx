@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/context/ThemeProvider";
 import { SessionProvider } from "@/context/SessionProvider";
 import "./globals.css";
 import React, { JSX } from "react";
+import { EasterEggs } from "@/features/easter-eggs/EasterEggs";
 
 const inter = Inter({
     subsets: ["latin"],
@@ -110,7 +111,7 @@ export default function RootLayout({
             className={`${inter.variable} ${jetbrainsMono.variable}`}
         >
         <body
-            className="bg-surface text-foreground min-h-dvh flex flex-col font-sans antialiased selection:bg-brand-subtle selection:text-brand">
+            className="bg-background text-foreground min-h-dvh flex flex-col font-sans antialiased selection:bg-brand-subtle selection:text-brand">
         <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -120,6 +121,8 @@ export default function RootLayout({
             <SessionProvider>
                 {children}
             </SessionProvider>
+
+            <EasterEggs/>
 
             <Toaster
                 position="top-right"

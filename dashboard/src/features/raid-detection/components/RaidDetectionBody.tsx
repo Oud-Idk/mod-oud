@@ -7,7 +7,7 @@ import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { InputLabel } from "@/components/layout/InputLabel";
-import { AlertTriangle, ShieldAlert, Sparkles } from "lucide-react";
+import { AlertTriangle, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -157,7 +157,7 @@ export function RaidDetectionBody({
             />
 
             {config.enabled && (
-                <div className="space-y-6">
+                <div className="space-y-6 mt-2">
                     {raidStatus.isRaidActive && (
                         <div
                             className="p-4 bg-danger-subtle border border-danger-border rounded-xl flex items-start justify-between gap-4 text-danger animate-pulse">
@@ -462,8 +462,7 @@ export function RaidDetectionBody({
                     <div className="p-4 bg-surface-muted border border-border rounded-xl space-y-1.5">
                         <div
                             className="flex items-center gap-1.5 text-foreground font-semibold text-xs uppercase tracking-wider">
-                            <Sparkles className="w-4 h-4 text-brand"/>
-                            <span>How Dynamic Anomaly Detection Works</span>
+                            <span>How Raid Detection Works</span>
                         </div>
                         <p className="text-xs text-muted-foreground leading-relaxed">
                             The bot analyzes your server&apos;s join history over the past 7 days to calculate your baseline traffic.

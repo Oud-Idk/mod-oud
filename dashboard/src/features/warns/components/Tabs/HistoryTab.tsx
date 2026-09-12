@@ -44,7 +44,7 @@ function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-row gap-2 max-w-md">
+            <div className="flex flex-row gap-2 max-w-xl">
                 <TextInput
                     value={userId}
                     onChange={handleInputChange}

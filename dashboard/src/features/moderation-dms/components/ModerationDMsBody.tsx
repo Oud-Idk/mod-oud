@@ -115,7 +115,10 @@ export function ModerationDMsBody({
     const onValidatedSave = (): void => {
         const result = moderationDMsConfigSchema.safeParse(config);
         if (!result.success) {
-            toast.error(result.error.issues[0].message);
+            const issue = result.error.issues[0];
+            const fieldName = issue.path.length > 0 ? `${String(issue.path[0])}: ` : "";
+
+            toast.error(`${fieldName}${issue.message}`);
             return;
         }
         handleSave();
@@ -133,18 +136,33 @@ export function ModerationDMsBody({
                     format: config[activeKey].message.format,
                 }}
                 onChange={(updated) => {
-                    setConfig((prev) => ({
-                        ...prev,
-                        [activeKey]: {
-                            ...prev[activeKey],
-                            enabled: updated.enabled ?? false,
-                            message: {
-                                format: updated.format,
-                                content: updated.content ?? "",
-                                embed: updated.embed ?? {},
+                    setConfig((prev) => {
+                        const wasEnabled = prev[activeKey].enabled;
+                        const isNowEnabled = updated.enabled ?? false;
+
+                        const shouldAutoFill =
+                            !wasEnabled &&
+                            isNowEnabled &&
+                            (updated.content ?? "").trim() === "" &&
+                            updated.format === "TEXT";
+
+                        const finalContent = shouldAutoFill
+                            ? PLACEHOLDERS[activeTab]
+                            : (updated.content ?? "");
+
+                        return {
+                            ...prev,
+                            [activeKey]: {
+                                ...prev[activeKey],
+                                enabled: isNowEnabled,
+                                message: {
+                                    format: updated.format,
+                                    content: finalContent,
+                                    embed: updated.embed ?? {},
+                                },
                             },
-                        },
-                    }));
+                        };
+                    });
                 }}
                 onEmbedChange={(embed) => {
                     setConfig((prev) => ({

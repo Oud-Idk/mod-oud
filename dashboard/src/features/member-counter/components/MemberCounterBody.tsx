@@ -169,7 +169,7 @@ export function MemberCounterBody({
 
             {config.enabled && (
                 <div className="space-y-2">
-                    <div className="max-w-md">
+                    <div className="max-w-xl">
                         <InputLabel>Update Frequency</InputLabel>
                         <Dropdown
                             value={String(config.updateIntervalMinutes)}

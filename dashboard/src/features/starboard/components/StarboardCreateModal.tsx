@@ -72,7 +72,7 @@ export function StarboardCreateModal({
     if (!isOpen) return null;
 
     return (
-        <Modal onClose={onClose} headerText="Create New Starboard" className="max-w-md">
+        <Modal onClose={onClose} headerText="Create New Starboard" className="max-w-xl">
             <form onSubmit={handleCreateSubmit} className="space-y-2">
                 <div>
                     <InputLabel required>Destination Channel</InputLabel>

@@ -46,7 +46,7 @@ export function CustomCommandCreateModal({
         <Modal
             onClose={onClose}
             headerText="Create Custom Command"
-            className="max-w-md"
+            className="max-w-xl"
         >
             <div className="space-y-2">
                 <div>

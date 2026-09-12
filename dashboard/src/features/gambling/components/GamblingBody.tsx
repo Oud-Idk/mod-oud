@@ -9,6 +9,7 @@ import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { DurationInput } from "@/components/ui/inputs/DurationInput";
 import Footer from "@/components/layout/Footer";
+import Emphasis from "@/components/layout/Emphasis";
 
 interface GamblingBodyProps {
     gamblingConfig: GamblingConfig;
@@ -23,7 +24,7 @@ export function GamblingBody({ gamblingConfig, onSave }: GamblingBodyProps): JSX
     });
 
     return (
-        <div className="space-y-6 max-w-2xl pt-2">
+        <div className="space-y-4 max-w-2xl pt-2">
             <ToggleSwitch
                 checked={config.enabled}
                 onChange={(enabled) => {
@@ -38,11 +39,8 @@ export function GamblingBody({ gamblingConfig, onSave }: GamblingBodyProps): JSX
 
             {config.enabled && (
                 <>
-                    {/* Bet limits & cooldowns */}
-                    <div
-                        className="bg-surface border border-border rounded-xl p-5 space-y-4 shadow-xs">
-                        <h3 className="text-sm font-semibold text-foreground">Bet Limits &
-                            Cooldown</h3>
+                    <div>
+                        <Emphasis>Bet Limits & Cooldown</Emphasis>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -102,11 +100,9 @@ export function GamblingBody({ gamblingConfig, onSave }: GamblingBodyProps): JSX
                         </div>
                     </div>
 
-                    {/* Per-game toggles */}
-                    <div
-                        className="bg-surface border border-border rounded-xl p-5 space-y-3 shadow-xs">
-                        <h3 className="text-sm font-semibold text-foreground">Enabled Games</h3>
-                        <p className="text-xs text-muted-foreground">Disable individual games
+                    <div>
+                        <Emphasis>Enabled Games</Emphasis>
+                        <p className="text-xs">Disable individual games
                             without disabling the whole module.</p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

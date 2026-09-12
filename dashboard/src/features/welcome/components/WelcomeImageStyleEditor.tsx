@@ -9,6 +9,7 @@ interface WelcomeImageStyleEditorProps {
     style: WelcomeImageStyle;
     disabled?: boolean;
     onChange: (style: WelcomeImageStyle) => void;
+    templatePath: string;
 }
 
 interface ColorPickerInputProps {
@@ -60,17 +61,17 @@ function ColorPickerInput({ label, value, disabled = false, onChange }: ColorPic
     );
 }
 
-export function WelcomeImageStyleEditor({ style, disabled = false, onChange }: WelcomeImageStyleEditorProps): JSX.Element {
+export function WelcomeImageStyleEditor({ templatePath, style, disabled = false, onChange }: WelcomeImageStyleEditorProps): JSX.Element {
     const [template, setTemplate] = useState<string>("");
 
     useEffect(() => {
-        void fetch("/welcome-template.svg")
+        void fetch(templatePath)
             .then((res) => res.text())
             .then((svg) => { setTemplate(svg); })
             .catch((err: unknown) => {
                 console.error("Failed to load welcome template SVG:", err);
             });
-    }, []);
+    }, [templatePath]);
 
     const update = (key: keyof WelcomeImageStyle, value: string): void => {
         onChange({ ...style, [key]: value });

@@ -143,7 +143,7 @@ export function RemindersBody({
                     );
                 }}
                 noActivePlaceholder={
-                    <div className="max-w-md mx-auto space-y-4 flex items-center flex-col text-center">
+                    <div className="max-w-xl mx-auto space-y-4 flex items-center flex-col text-center">
                         <div className="space-y-1">
                             <h3 className="text-lg font-semibold text-foreground">
                                 Manage Reminders

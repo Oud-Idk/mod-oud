@@ -99,10 +99,11 @@ export function LeaveBody({
                                 }));
                             }}
                             className="mt-2"
-                            text="Send Welcome Image"
+                            text="Send Goodbye Image"
                         />
                         {config.sendImage && (
                             <WelcomeImageStyleEditor
+                                templatePath="/leave-template.svg"
                                 style={config.imageStyle}
                                 disabled={isPending}
                                 onChange={(imageStyle) => {

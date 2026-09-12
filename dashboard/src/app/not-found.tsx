@@ -3,32 +3,12 @@ import Emphasis from "@/components/layout/Emphasis";
 import { BananaIcon } from "lucide-react";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
-import { ProfileDropdown } from "@/components/layout/ProfileDropdown";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { auth } from "@/lib/auth";
-import Logo from "@/components/ui/Logo";
+import Logo from "@/components/ui/icons/Logo";
+import { RootHeader } from "@/components/dashboard/RootHeader";
 
-export default async function NotFound(): Promise<JSX.Element> {
-    const session = await auth();
-
+export default function NotFound(): JSX.Element {
     return <main>
-        <header
-            className="sticky top-0 z-10 backdrop-blur-md bg-surface/80 border-b border-border-subtle">
-            <div
-                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-                <Link href="/" className="flex items-center gap-3 focus-ring">
-                    <Logo className="w-10 h-10"/>
-                    <span className="text-xl font-bold tracking-tight text-foreground">
-                        Mod Oud
-                    </span>
-                </Link>
-
-                <div className="flex gap-3 items-center">
-                    {session?.user && <ProfileDropdown session={session}/>}
-                    <ThemeToggle/>
-                </div>
-            </div>
-        </header>
+        <RootHeader />
         <div
             className="rounded-xl min-w-60 min-h-100 max-w-150 w-2/3 bg-surface absolute top-1/2 left-1/2 -translate-1/2 border border-border p-6 flex flex-col items-center justify-center gap-2 text-center">
             <Logo className="w-16 h-16"/>

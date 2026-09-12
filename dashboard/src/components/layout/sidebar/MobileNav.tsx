@@ -4,7 +4,8 @@ import React, { JSX, useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import Logo from "@/components/ui/Logo";
+
+import { LogoTextLink } from "@/components/dashboard/LogoTextLink";
 
 export function MobileNav({ children }: { children: React.ReactNode }): JSX.Element {
     const [isOpen, setIsOpen] = useState(false);
@@ -17,13 +18,9 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
 
     return (
         <div className="md:hidden">
-            {/* 1. The Mobile Top Header bar (Always visible on mobile) */}
             <header
-                className="h-14 border-b border-border-subtle flex items-center justify-between px-4 bg-surface text-foreground w-full sticky top-0 z-30">
-                <div className="flex items-center gap-2">
-                    <Logo className="w-8 h-8"/>
-                    <span className="font-bold text-sm tracking-tight">Mod Oud</span>
-                </div>
+                className="h-16 border-b border-border-subtle flex items-center justify-between px-4 bg-background text-foreground w-full sticky top-0 z-30">
+                <LogoTextLink />
 
                 <div className="flex items-center gap-2">
                     <ThemeToggle/>
@@ -40,7 +37,6 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
                 </div>
             </header>
 
-            {/* 2. Backdrop Overlay */}
             {isOpen && (
                 <div
                     className="fixed inset-0 z-40 bg-overlay backdrop-blur-xs transition-opacity duration-200"
@@ -61,7 +57,7 @@ export function MobileNav({ children }: { children: React.ReactNode }): JSX.Elem
                     onClick={() => {
                         setIsOpen(false);
                     }}
-                    className="absolute top-3 right-3 z-50 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-active transition-colors focus-ring"
+                    className="absolute top-4.5 right-4 z-50 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-active transition-colors focus-ring"
                     aria-label="Close sidebar"
                 >
                     <X className="w-4 h-4"/>

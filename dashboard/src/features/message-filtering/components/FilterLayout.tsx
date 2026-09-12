@@ -38,7 +38,7 @@ export function FilterLayout({
             />
 
             {enabled && (
-                <div className="space-y-2 max-w-md">
+                <div className="space-y-2 max-w-xl">
                     {children}
 
                     <ActionsSettings

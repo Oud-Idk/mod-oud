@@ -298,7 +298,7 @@ export function StarboardConfigEditor({
                                 ]}
                                 value={config.role_restriction_type ?? "NONE"}
                                 onChange={(val) => { onChange({ ...config, role_restriction_type: val ?? "NONE" }); }}
-                                className="max-w-md"
+                                className="max-w-xl"
                             />
                             {config.role_restriction_type !== "NONE" && (
                                 <div className="space-y-3 pt-2">
@@ -318,7 +318,7 @@ export function StarboardConfigEditor({
                                             setRoleDropdownValue("");
                                         }}
                                         placeholder="Add role restriction..."
-                                        className="max-w-md"
+                                        className="max-w-xl"
                                     />
                                 </div>
                             )}
@@ -339,7 +339,7 @@ export function StarboardConfigEditor({
                                 ]}
                                 value={config.channel_restriction_type ?? "NONE"}
                                 onChange={(val) => { onChange({ ...config, channel_restriction_type: val ?? "NONE" }); }}
-                                className="max-w-md"
+                                className="max-w-xl"
                             />
                             {config.channel_restriction_type !== "NONE" && (
                                 <div className="space-y-3 pt-2">
@@ -359,7 +359,7 @@ export function StarboardConfigEditor({
                                             setChannelDropdownValue("");
                                         }}
                                         placeholder="Add channel restriction..."
-                                        className="max-w-md"
+                                        className="max-w-xl"
                                     />
                                 </div>
                             )}

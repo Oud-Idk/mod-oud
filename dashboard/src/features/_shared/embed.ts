@@ -148,10 +148,26 @@ export const DEFAULT_TOGGLABLE_MESSAGE_LAYOUT = Object.freeze({
     message: DEFAULT_MESSAGE_LAYOUT,
 });
 
-export const TogglableMessageSchema = z.object({
-    enabled: z.boolean().default(false),
-    message: messageLayoutSchema,
-}).default(DEFAULT_TOGGLABLE_MESSAGE_LAYOUT);
+export const TogglableMessageSchema = z
+    .object({
+        enabled: z.boolean().default(false),
+        message: BaseMessageLayoutSchema.default(DEFAULT_MESSAGE_LAYOUT),
+    })
+    .superRefine((data, ctx) => {
+        // ONLY validate content/embed when the message is actually enabled!
+        if (data.enabled) {
+            const result = messageLayoutSchema.safeParse(data.message);
+            if (!result.success) {
+                for (const issue of result.error.issues) {
+                    ctx.addIssue({
+                        ...issue,
+                        path: ["message", ...issue.path],
+                    });
+                }
+            }
+        }
+    })
+    .default(DEFAULT_TOGGLABLE_MESSAGE_LAYOUT);
 
 export type MessageLayout = z.infer<typeof messageLayoutSchema>;
 

@@ -48,7 +48,7 @@ export function OffensiveMessagesTab({
             <p>Powered by <Link
                 href="https://github.com/finnbear/rustrict" className="text-blue-500 hover:underline"
             >Rustirct</Link>. Enabling this feature but doing no actions will default to logging only.</p>
-            <div className="space-y-4 max-w-md">
+            <div className="space-y-4 max-w-xl">
                 <div className="space-y-2">
                     <InputLabel>Threshold</InputLabel>
                     <Dropdown

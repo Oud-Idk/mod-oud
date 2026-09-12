@@ -26,7 +26,7 @@ export function PercentSlider({
     const percentageDisplay = `${Math.round(value * 100).toString()}%`;
 
     return (
-        <div className={cn("flex flex-col gap-2 w-full max-w-md", disabled && "opacity-50 pointer-events-none", className)}>
+        <div className={cn("flex flex-col gap-2 w-full max-w-xl", disabled && "opacity-50 pointer-events-none", className)}>
             {(label !== undefined) && (
                 <div className="flex justify-between items-center text-sm">
                     <span className="font-medium text-foreground">{label}</span>

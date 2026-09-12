@@ -26,7 +26,7 @@ export default function GeneralsTab({
                     <Footer>Configure when inactive tickets receive a warning, and when they are closed. </Footer>
                 </div>
 
-                <div className="flex flex-col max-w-md">
+                <div className="flex flex-col max-w-xl">
                     <NumberInput
                         label="Warn Threshold (Minutes)"
                         value={config.warnThreshold}

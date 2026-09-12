@@ -36,7 +36,7 @@ export function ServerButton({
             href={isInvite ? inviteUrl : `/dashboard/${guild.id}`}
             target={isInvite ? "_blank" : undefined}
             rel={isInvite ? "noopener noreferrer" : undefined}
-            className="group relative flex items-center justify-between p-3.5 rounded-xl bg-surface-muted border border-border hover:border-brand/50 hover:bg-surface-active transition-all duration-200 shadow-sm hover:shadow-dropdown focus-ring"
+            className="group relative flex items-center justify-between p-3.5 rounded-xl bg-surface-muted border border-border hover:border-brand/50 hover:bg-surface-active transition-all duration-200 shadow focus-ring"
         >
             <div className="flex items-center gap-3.5 min-w-0">
                 {iconUrl !== null ? (

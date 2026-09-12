@@ -55,7 +55,7 @@ export function ScopeSettings({
         <div>
             <Emphasis>Scope Settings</Emphasis>
 
-            <div className="space-y-2 max-w-md">
+            <div className="space-y-2 max-w-xl">
                 <InputLabel className="block mt-0">
                     Filter Behavior
                 </InputLabel>
@@ -141,7 +141,7 @@ export function ScopeSettings({
                             ? "Select channels to exempt..."
                             : "Select channels to enforce..."
                     }
-                    className="max-w-md"
+                    className="max-w-xl"
                 />
             </div>
 
@@ -160,7 +160,7 @@ export function ScopeSettings({
                             ? "Select roles to exempt..."
                             : "Select roles to enforce..."
                     }
-                    className="max-w-md"
+                    className="max-w-xl"
                 />
             </div>
         </div>

@@ -118,7 +118,7 @@ export function BadWordTab({
                     );
                 }}
                 noActivePlaceholder={
-                    <div className="max-w-md mx-auto space-y-4">
+                    <div className="max-w-xl mx-auto space-y-4">
                         <div className="space-y-1">
                             <h3 className="text-lg font-semibold">No Ruleset Selected</h3>
                             <p className="text-sm text-muted-foreground">

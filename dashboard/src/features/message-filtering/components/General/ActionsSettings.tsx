@@ -23,7 +23,7 @@ const ACTION_OPTIONS: DropdownOption<RuleAction>[] = [
 
 export function ActionsSettings({ actions, timeoutDuration, onChange }: ActionsSettingsProps): JSX.Element {
     return (
-        <div className="space-y-2 max-w-md">
+        <div className="space-y-2 max-w-xl">
             <InputLabel>Actions</InputLabel>
 
             <Dropdown<RuleAction>

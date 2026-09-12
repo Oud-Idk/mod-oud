@@ -33,7 +33,7 @@ export function EconomyGeneralSettingsTab({
     });
 
     return (
-        <div className="space-y-4 max-w-md pt-2">
+        <div className="space-y-4 max-w-xl pt-2">
             <ToggleSwitch
                 checked={config.enabled}
                 onChange={(enabled) => {
@@ -110,7 +110,7 @@ export function EconomyGeneralSettingsTab({
                         }}
                         text="Allow Item Gifting"
                     />
-                    <p className="text-xs -mt-3">Enables <code className="px-1 py-0.5 bg-surface-muted rounded text-xs">/economy gift</code> for transferring inventory items between users.</p>
+                    <p className="text-xs">Enables <code className="px-1 py-0.5 bg-surface-muted rounded text-xs">/economy gift</code> for transferring inventory items between users.</p>
                 </>
             )}
 

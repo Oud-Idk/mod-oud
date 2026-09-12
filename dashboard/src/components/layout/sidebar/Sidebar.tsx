@@ -5,12 +5,11 @@ import { User } from "lucide-react";
 import { LogoutButton } from "@/components/layout/sidebar/LogoutButton";
 import { ServerList } from "@/components/layout/sidebar/ServerList";
 import { getGuildLists } from "@/features/_shared/servers";
-import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SidebarLinks } from "@/components/layout/sidebar/SidebarLinks";
 import { DiscordGuild } from "@/features/_shared/guild";
 import Image from "next/image";
-import Logo from "@/components/ui/Logo";
+import { LogoTextLink } from "@/components/dashboard/LogoTextLink";
 
 export async function Sidebar(): Promise<JSX.Element> {
     const session = await auth();
@@ -23,15 +22,12 @@ export async function Sidebar(): Promise<JSX.Element> {
 
     return (
         <aside
-            className="w-64 h-dvh border-r border-border bg-surface flex flex-col"
+            className="w-64 h-dvh border-r border-border bg-background flex flex-col"
         >
             <div
                 className="flex justify-between items-center px-2 pl-4 mt-3 mb-1 shrink-0"
             >
-                <div className="flex flex-row items-center gap-2">
-                    <Logo className="h-8 w-8"/>
-                    <Link href="/" className="font-bold focus-ring">Mod Oud</Link>
-                </div>
+                <LogoTextLink />
                 <div className="hidden md:block">
                     <ThemeToggle/>
                 </div>

@@ -171,7 +171,7 @@ export function BadWordRulesetConfig({
                         <InputLabel>Add Word or Regex</InputLabel>
                         <form
                             onSubmit={handleQuickAdd}
-                            className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center max-w-md"
+                            className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center max-w-xl"
                         >
                             <TextInput
                                 value={wordInput}
@@ -205,7 +205,7 @@ export function BadWordRulesetConfig({
                         </form>
                     </div>
 
-                    <div className="space-y-1 max-w-md">
+                    <div className="space-y-1 max-w-xl">
                         <div className="flex justify-between items-center">
                             <InputLabel>Bulk Words (Comma or Newline separated)</InputLabel>
                             <span className="text-xs text-text-subtle">

@@ -137,7 +137,7 @@ export function MediaOnlyBody({
                     );
                 }}
                 noActivePlaceholder={
-                    <div className="max-w-md mx-auto space-y-4 text-center">
+                    <div className="max-w-xl mx-auto space-y-4 text-center">
                         <div className="space-y-1">
                             <h3 className="font-semibold text-foreground">No Channel Selected</h3>
                             <p className="text-sm text-muted-foreground leading-relaxed">

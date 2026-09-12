@@ -64,7 +64,7 @@ export function ReactionRoleCreateModal({
         <Modal
             onClose={onClose}
             headerText="Create New Reaction Role"
-            className="max-w-md"
+            className="max-w-xl"
         >
             <form onSubmit={handleCreateSubmit} className="space-y-4">
                 <p className="text-xs text-muted-foreground -mt-1">

@@ -57,7 +57,7 @@ export default async function SecretPage(): Promise<JSX.Element> {
     return (
         <div className="flex flex-col flex-1 h-full min-h-0 overflow-hidden w-full">
             <main className="flex-1 min-h-0 overflow-y-auto w-full">
-                <div className="mx-auto px-6 py-10 max-w-5xl">
+                <div className="mx-auto px-6 py-10 max-w-6l">
                     <MarkdownWithToc content={content}/>
                 </div>
             </main>
@@ -65,7 +65,7 @@ export default async function SecretPage(): Promise<JSX.Element> {
             <footer
                 className="shrink-0 z-20 backdrop-blur-md bg-surface/80 border-t border-border-subtle py-3">
                 <div
-                    className="max-w-4xl mx-auto px-6 flex justify-between items-center text-xs font-jetbrains-mono tracking-widest gap-4 uppercase">
+                    className="max-w-6xl mx-auto px-6 flex justify-between items-center text-xs font-jetbrains-mono tracking-widest gap-4 uppercase">
                     <div className="flex gap-6">
                         <span className="flex flex-col">
                             <span className="text-[10px] text-muted-foreground">Word Count</span>

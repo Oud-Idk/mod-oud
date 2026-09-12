@@ -1,5 +1,3 @@
-// features/tickets/components/Tabs/TicketingTab.tsx
-
 import { Dispatch, JSX, SetStateAction, useCallback, useMemo } from "react";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { TicketConfig } from "@/features/tickets/types";
@@ -117,7 +115,7 @@ export default function TicketingTab({
                 modeLabel="Message Mode (Tickets Panel)"
                 placeholderText="Click the button below to open a support ticket."
                 customFields={
-                    <div className="max-w-md flex flex-col">
+                    <div className="max-w-xl flex flex-col">
                         <div>
                             <InputLabel required>Ticket Destination Category</InputLabel>
                             <Dropdown

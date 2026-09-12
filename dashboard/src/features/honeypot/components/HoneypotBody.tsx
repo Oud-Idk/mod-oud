@@ -95,7 +95,7 @@ export function HoneypotBody({
             />
 
             {config.enabled && (
-                <div className="space-y-4 max-w-md">
+                <div className="space-y-4 max-w-xl">
                     <div className="space-y-2">
                         <InputLabel>Channel</InputLabel>
                         <Dropdown

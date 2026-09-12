@@ -34,7 +34,7 @@ src/
 │       ├── components/         # Feature-specific UI components
 │       │   ├── StarboardBody.tsx
 │       │   └── StarboardConfigModal.tsx
-│       ├── hooks.ts            # Feature-specific client hooks (or hooks/ if 3+)
+│       ├── useKeySequence.ts            # Feature-specific client hooks (or hooks/ if 3+)
 │       ├── queries.ts          # DB queries (Drizzle/Prisma/SQL) for this feature
 │       └── types.ts            # Feature-specific types & Zod schemas (excl. shared req/res)
 ├── components/                 # GENERIC UI PRIMITIVES ONLY (No business logic!)

@@ -152,7 +152,7 @@ export function SidebarLinks(): JSX.Element | null {
                 href={overviewLink.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-ring ${
                     isOverviewActive
-                        ? "bg-surface-active text-foreground font-semibold"
+                        ? "bg-surface-muted text-foreground font-semibold"
                         : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                 }`}
             >
@@ -175,7 +175,7 @@ export function SidebarLinks(): JSX.Element | null {
                             className={`flex items-center justify-between w-full px-3 py-2 text-xs font-semibold uppercase tracking-wider rounded-md transition-colors focus-ring ${
                                 hasActiveChild
                                     ? "text-brand"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-surface"
                             }`}
                         >
                             <div className="flex items-center gap-2">

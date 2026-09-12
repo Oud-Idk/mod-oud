@@ -46,7 +46,7 @@ export function MediaOnlyCreateModal({
     };
 
     return (
-        <Modal onClose={onClose} headerText="Add Media-Only Channel" className="max-w-md">
+        <Modal onClose={onClose} headerText="Add Media-Only Channel" className="max-w-xl">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <InputLabel required>Channel</InputLabel>

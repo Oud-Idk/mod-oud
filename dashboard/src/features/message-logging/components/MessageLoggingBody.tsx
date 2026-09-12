@@ -148,7 +148,7 @@ export function MessageLoggingBody({
                     {isLoggingEnabled && (
                         <div>
                             <h4 className="text-2xl font-semibold">Exclusion Rules</h4>
-                            <div className="flex flex-col max-w-md gap-2">
+                            <div className="flex flex-col max-w-xl gap-2">
                                 <div className="space-y-2">
                                     <InputLabel>Ignored Channels</InputLabel>
                                     <Dropdown

@@ -117,7 +117,7 @@ export function AutomodTab({ guildId }: AutomodTabProps): JSX.Element {
                                     ? log.trigger_content
                                     : "—"}
                             </TableCell>
-                            <TableCell className="max-w-md truncate">
+                            <TableCell className="max-w-xl truncate">
                                 {log.original_content !== null && log.original_content !== ""
                                     ? log.original_content
                                     : "—"}
