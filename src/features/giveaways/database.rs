@@ -124,7 +124,7 @@ pub async fn create_giveaway(
     let rec = sqlx::query!(
         r#"
         INSERT INTO giveaways (guild_id, host_id, channel_id, prize, winner_count, end_time, is_finished, message_layout)
-        VALUES ($1, $2, $3, $4, $5, $6, FALSE, '{"enabled": true, "format": "TEXT", "content": "", "embed": {}}'::jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6, FALSE, '{"format": "TEXT", "content": "🎉 **GIVEAWAY** 🎉\nPrize: **{prize}**\nClick the button below to enter!", "embed": {}}'::jsonb)
         RETURNING id
         "#,
         guild_id.get().cast_signed(),
