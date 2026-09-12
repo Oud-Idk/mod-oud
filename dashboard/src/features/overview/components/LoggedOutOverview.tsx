@@ -226,13 +226,13 @@ export function LoggedOutOverview(): JSX.Element {
             ))}
         </div>
         <div className="w-full py-10 mt-10 flex justify-center bg-surface px-12">
-            <div className="flex max-w-7xl w-full justify-between">
-                <div>
+            <div className="flex max-w-7xl w-full justify-between flex-col sm:flex-row items-center">
+                <div className="mb-16">
                     <Logo className="w-24 h-24 mb-6" />
                     <p>Blazingly fast Discord moderation</p>
                     <Link href="https://github.com/Oud-Idk/mod-oud"><GithubLogo className="mt-4"/></Link>
                 </div>
-                <div className="flex flex-row gap-8">
+                <div className="flex flex-col lg:flex-row gap-8">
                     <div>
                         <Emphasis>Mod Oud</Emphasis>
                         <ul>
