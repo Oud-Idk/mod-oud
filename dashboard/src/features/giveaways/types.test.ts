@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+    giveawaySchema,
     saveGiveawayInputSchema,
     SaveGiveawaySchema,
     sendGiveawayInputSchema,
@@ -168,6 +169,45 @@ describe("giveaway message layout (format enum)", () => {
                 message: { format: "MARKDOWN", content: "bold **text**" },
             })
         ).toThrow();
+    });
+});
+
+describe("giveawaySchema (legacy slash-command rows)", () => {
+    const slashRow = {
+        id: 1,
+        guild_id: "guild_123",
+        host_id: "user_123",
+        channel_id: "chan_1",
+        message_id: "msg_1",
+        prize: "Nitro",
+        winner_count: 1,
+        end_time: "2026-12-31T23:59:59.000Z",
+        is_finished: false,
+        // exactly what the Rust slash command used to insert (TEXT + empty content)
+        message: { enabled: true, format: "TEXT", content: "", embed: {} },
+    };
+
+    it("should fall back to the default message instead of throwing", () => {
+        const parsed = giveawaySchema.parse(slashRow);
+
+        expect(parsed.message).toEqual(DEFAULT_GIVEAWAY_MESSAGE);
+    });
+
+    it("should still reject an empty TEXT message on the strict save schema", () => {
+        const payload = saveGiveawayInputSchema.parse({
+            guild_id: "guild_123",
+            host_id: "user_123",
+            channel_id: "chan_1",
+            prize: "Nitro",
+            end_time: "2026-12-31T23:59:59.000Z",
+        });
+
+        expect(() =>
+            SaveGiveawaySchema.parse({
+                ...payload,
+                message: { format: "TEXT", content: "   ", embed: {} },
+            })
+        ).toThrow("Message content cannot be empty when format is set to TEXT!");
     });
 });
 

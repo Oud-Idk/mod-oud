@@ -97,6 +97,25 @@ describe("Giveaways Query Module", () => {
             expect(result[0].end_time).toBe("2026-01-01T00:00:00.000Z");
         });
 
+        it("should fall back to the default message for legacy slash-command rows", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    createMockGiveawayRow({
+                        id: 1,
+                        message: { enabled: true, format: "TEXT", content: "", embed: {} },
+                    }),
+                    createMockGiveawayRow({ id: 2 }),
+                ],
+                rowCount: 2,
+            });
+
+            const result = await getGiveaways("guild_123");
+
+            expect(result).toHaveLength(2);
+            expect(result[0].message.content).toContain("GIVEAWAY");
+            expect(result[1].message).toMatchObject({ format: "TEXT", content: "🎉 Win stuff!" });
+        });
+
         it("should propagate a database error", async () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 

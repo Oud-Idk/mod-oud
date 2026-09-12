@@ -20,13 +20,13 @@ export const giveawaySchema = z.object({
     end_time: IsoDateSchema,
     is_finished: z.boolean().default(false),
 
-    message: messageLayoutSchema.default(DEFAULT_GIVEAWAY_MESSAGE),
+    message: messageLayoutSchema.catch(DEFAULT_GIVEAWAY_MESSAGE).default(DEFAULT_GIVEAWAY_MESSAGE),
 });
 
 export type Giveaway = z.infer<typeof giveawaySchema>;
 
 export const saveGiveawayInputSchema = giveawaySchema
-    .omit({ is_finished: true })
+    .omit({ is_finished: true, message: true })
     .extend({
         id: z.coerce.number().int().positive().optional(),
         channel_id: z.string().nullish().default(null),
