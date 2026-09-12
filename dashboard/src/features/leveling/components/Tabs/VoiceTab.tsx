@@ -15,7 +15,7 @@ export function VoiceTab({
     handleChange,
 }: VoiceTabProps): JSX.Element {
     return (
-        <div className="max-w-md">
+        <div className="max-w-xl">
             <ToggleSwitch
                 checked={config.voice.enabled}
                 onChange={(v) => { handleChange({ voice: { ...config.voice, enabled: v, } }); }}

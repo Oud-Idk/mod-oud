@@ -4,12 +4,19 @@ import { JSX, useOptimistic, useState, useTransition } from "react";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { NumberInput } from "@/components/ui/inputs/NumberInput";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
-import { SaveXpMultiplierInput, TargetType, XpMultiplier, saveXpMultiplierInputSchema } from "@/features/leveling/types";
+import {
+    SaveXpMultiplierInput,
+    XpMultiplier,
+    XpTarget,
+    saveXpMultiplierInputSchema,
+} from "@/features/leveling/types";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { Button } from "@/components/ui/inputs/Button";
 import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";
 import { toast } from "sonner";
+
+export type TargetType = XpTarget["targetType"];
 
 export interface MultiplierTabProps {
     guildId: string;
@@ -47,13 +54,13 @@ export function MultiplierTab({
     >(multipliers, (state, action) => {
         switch (action.type) {
             case "add": {
-                const currentIds = new Set(state.map((m) => m.target_id));
-                const newItems = action.targets.filter((t) => !currentIds.has(t.target_id));
+                const currentIds = new Set(state.map((m) => m.targetId));
+                const newItems = action.targets.filter((t) => !currentIds.has(t.targetId));
                 return [...state, ...newItems];
             }
             case "delete": {
                 const deleteSet = new Set(action.targetIds);
-                return state.filter((m) => !deleteSet.has(m.target_id));
+                return state.filter((m) => !deleteSet.has(m.targetId));
             }
             default:
                 return state;
@@ -68,13 +75,14 @@ export function MultiplierTab({
 
         const effectiveMultiplier = multiplierValue ?? 1.0;
 
-        const targetsToSave: SaveXpMultiplierInput[] = selectedTargetIds.map((id) => ({
-            targetId: id,
-            targetType,
-            multiplier: effectiveMultiplier,
-        }));
+        // Discriminated union construction
+        const targetsToSave: SaveXpMultiplierInput[] = selectedTargetIds.map((id) =>
+            targetType === "ROLE"
+                ? { targetType: "ROLE", targetId: id, multiplier: effectiveMultiplier }
+                : { targetType: "CHANNEL", targetId: id, multiplier: effectiveMultiplier }
+        );
 
-        // Validate with Zod
+        // Validate each item with Zod
         for (const target of targetsToSave) {
             const result = saveXpMultiplierInputSchema.safeParse(target);
             if (!result.success) {
@@ -83,16 +91,15 @@ export function MultiplierTab({
             }
         }
 
-        const optimisticPayload: XpMultiplier[] = selectedTargetIds.map((id) => ({
-            guild_id: guildId,
-            target_id: id,
-            target_type: targetType,
-            multiplier: effectiveMultiplier,
-        }));
+        const optimisticPayload: XpMultiplier[] = selectedTargetIds.map((id) =>
+            targetType === "ROLE"
+                ? { guildId, targetType: "ROLE", targetId: id, multiplier: effectiveMultiplier }
+                : { guildId, targetType: "CHANNEL", targetId: id, multiplier: effectiveMultiplier }
+        );
 
         startMutation(async () => {
             setOptimisticMultipliers({ type: "add", targets: optimisticPayload });
-            setSelectedTargetIds([]); // Reset selection state
+            setSelectedTargetIds([]); // Reset selection dropdown
 
             try {
                 await onSave(targetsToSave);
@@ -136,9 +143,11 @@ export function MultiplierTab({
     };
 
     // Bulk selection helper logic
-    const allActiveIds = optimisticMultipliers.map((m) => m.target_id);
-    const isAllSelected = optimisticMultipliers.length > 0 && selectedActiveIds.length === optimisticMultipliers.length;
-    const isSomeSelected = selectedActiveIds.length > 0 && selectedActiveIds.length < optimisticMultipliers.length;
+    const allActiveIds = optimisticMultipliers.map((m) => m.targetId);
+    const isAllSelected =
+        optimisticMultipliers.length > 0 && selectedActiveIds.length === optimisticMultipliers.length;
+    const isSomeSelected =
+        selectedActiveIds.length > 0 && selectedActiveIds.length < optimisticMultipliers.length;
 
     const handleToggleSelectAll = (): void => {
         if (isAllSelected) {
@@ -157,13 +166,14 @@ export function MultiplierTab({
     };
 
     // Filter out options that already have active multipliers applied
-    const excludedIds = optimisticMultipliers.map((m) => m.target_id);
+    const excludedIds = optimisticMultipliers.map((m) => m.targetId);
 
-    const filteredOptions = targetType === "ROLE"
-        ? getAvailableRoleOptions(roleMap, excludedIds)
-        : Object.entries(channelMap)
-            .filter(([id]) => !optimisticMultipliers.some((m) => m.target_id === id))
-            .map(([id, name]) => ({ value: id, label: `#${name}` }));
+    const filteredOptions =
+        targetType === "ROLE"
+            ? getAvailableRoleOptions(roleMap, excludedIds)
+            : Object.entries(channelMap)
+                .filter(([id]) => !optimisticMultipliers.some((m) => m.targetId === id))
+                .map(([id, name]) => ({ value: id, label: `#${name}` }));
 
     return (
         <div className="space-y-2">
@@ -200,7 +210,9 @@ export function MultiplierTab({
                             multiple
                             options={filteredOptions}
                             value={selectedTargetIds}
-                            onChange={(val) => { setSelectedTargetIds(val); }}
+                            onChange={(val) => {
+                                setSelectedTargetIds(val);
+                            }}
                             placeholder={targetType === "ROLE" ? "Choose roles..." : "Choose channels..."}
                             disabled={filteredOptions.length === 0}
                         />
@@ -251,7 +263,6 @@ export function MultiplierTab({
                     </div>
                 ) : (
                     <div className="border border-border rounded-lg overflow-hidden bg-surface shadow-sm">
-
                         {/* Select All Header */}
                         <div className="flex items-center gap-3 px-4 py-3 bg-surface-muted border-b border-border">
                             <input
@@ -272,19 +283,29 @@ export function MultiplierTab({
                         {/* List Items */}
                         <div className="divide-y divide-border">
                             {optimisticMultipliers.map((m) => {
-                                const displayName = m.target_type === "ROLE"
-                                    ? (roleMap[m.target_id] !== "" ? `@${roleMap[m.target_id]}` : `@Unknown Role`)
-                                    : (channelMap[m.target_id] !== "" ? `#${channelMap[m.target_id]}` : `#Unknown Channel`);
+                                const roleName = roleMap[m.targetId];
+                                const channelName = channelMap[m.targetId];
+
+                                const displayName =
+                                    m.targetType === "ROLE"
+                                        ? roleName !== ""
+                                            ? `@${roleName}`
+                                            : "@Unknown Role"
+                                        : channelName !== ""
+                                            ? `#${channelName}`
+                                            : "#Unknown Channel";
 
                                 return (
                                     <div
-                                        key={m.target_id}
+                                        key={m.targetId}
                                         className="flex items-center gap-3 p-4 bg-surface hover:bg-surface-active/20 transition-colors duration-150"
                                     >
                                         <input
                                             type="checkbox"
-                                            checked={selectedActiveIds.includes(m.target_id)}
-                                            onChange={() => { handleToggleSelect(m.target_id); }}
+                                            checked={selectedActiveIds.includes(m.targetId)}
+                                            onChange={() => {
+                                                handleToggleSelect(m.targetId);
+                                            }}
                                             disabled={isMutating}
                                             className="h-4 w-4 rounded border-border bg-surface text-brand cursor-pointer focus-ring disabled:opacity-50"
                                         />
@@ -294,7 +315,7 @@ export function MultiplierTab({
                                                     {displayName}
                                                 </span>
                                                 <span className="text-[10px] px-2 py-0.5 rounded bg-brand-subtle border border-brand/10 text-brand uppercase tracking-wider font-mono font-bold">
-                                                    {m.target_type}
+                                                    {m.targetType}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-4">
@@ -304,7 +325,9 @@ export function MultiplierTab({
                                                 <Button
                                                     variant="danger"
                                                     disabled={isMutating}
-                                                    onClick={() => { handleDeleteSingle(m.target_id); }}
+                                                    onClick={() => {
+                                                        handleDeleteSingle(m.targetId);
+                                                    }}
                                                     className="px-3 py-1"
                                                 >
                                                     Delete

@@ -36,7 +36,7 @@ export function LeaderboardTab({
 
         try {
             const lastItem = displayedLevels[displayedLevels.length - 1];
-            const lowestXp = lastItem.cumulative_xp;
+            const lowestXp = lastItem.cumulativeXp;
             const newLevels = await fetchMoreLevels(lowestXp);
 
             if (newLevels.length === 0) {
@@ -114,11 +114,11 @@ export function LeaderboardTab({
                     const displayName =
                         userLevel.username.length > 0
                             ? userLevel.username
-                            : `User ${userLevel.user_id}`;
+                            : `User ${userLevel.userId}`;
 
                     return (
                         <div
-                            key={`${userLevel.guild_id}-${userLevel.user_id}`}
+                            key={`${userLevel.guildId}-${userLevel.userId}`}
                             className={`flex justify-between items-center py-1 px-2 border rounded-lg text-foreground transition-all duration-150 ${rowStyle}`}
                         >
                             <div className="flex items-center space-x-4">
@@ -130,15 +130,15 @@ export function LeaderboardTab({
                                         {displayName}
                                     </p>
                                     <Footer>
-                                        Level {userLevel.current_level}
+                                        Level {userLevel.currentLevel}
                                     </Footer>
                                 </div>
                             </div>
                             <div className="text-right">
                                 <p className="font-mono text-sm font-extrabold text-foreground">
-                                    {userLevel.cumulative_xp.toLocaleString()} XP
+                                    {userLevel.cumulativeXp.toLocaleString()} XP
                                 </p>
-                                <Footer>{userLevel.current_xp.toLocaleString()} current level XP</Footer>
+                                <Footer>{userLevel.currentXp.toLocaleString()} current level XP</Footer>
                             </div>
                         </div>
                     );

@@ -18,7 +18,7 @@ import {
     XpMultiplier,
     SaveXpMultiplierInput,
     SaveLevelRewardInput,
-    saveLevelingConfigSchema
+    levelingConfigSchema,
 } from "@/features/leveling/types";
 
 import { DiscordChannel } from "@/features/_shared/channels.types";
@@ -40,7 +40,14 @@ interface LevelingBodyProps {
     fetchMoreLevels: (currentLowestXp: number) => Promise<UserLevel[]>;
 }
 
-type TabValue = "TEXT" | "VOICE" | "GENERAL" | "MULTIPLIERS" | "REWARDS" | "LEADERBOARD" | "IMAGE_CARD";
+type TabValue =
+    | "TEXT"
+    | "VOICE"
+    | "GENERAL"
+    | "MULTIPLIERS"
+    | "REWARDS"
+    | "LEADERBOARD"
+    | "IMAGE_CARD";
 
 const LEVEL_TABS: TabItem<TabValue>[] = [
     { value: "TEXT", label: "Text" },
@@ -71,28 +78,24 @@ export function LevelingBody({
     const normalizedLevelingConfig = useMemo(() => levelingConfig, [levelingConfig]);
     const [activeTab, setActiveTab] = useState<TabValue>("TEXT");
 
-    const {
-        config,
-        setConfig,
-        isPending,
-        isDirty,
-        handleSave,
-        handleCancel,
-    } = useConfigForm({
+    const { config, setConfig, isPending, isDirty, handleSave, handleCancel } = useConfigForm({
         initialConfig: normalizedLevelingConfig,
         onSave,
-        schema: saveLevelingConfigSchema,
+        schema: levelingConfigSchema,
     });
 
-    const handleChange = useCallback((updated: Partial<LevelingConfig>) => {
-        setConfig((prev) => ({ ...prev, ...updated }));
-    }, [setConfig]);
+    const handleChange = useCallback(
+        (updated: Partial<LevelingConfig>) => {
+            setConfig((prev) => ({ ...prev, ...updated }));
+        },
+        [setConfig]
+    );
 
     return (
         <div>
-            <Tabs tabs={LEVEL_TABS} activeTab={activeTab} onChange={setActiveTab}/>
-            {activeTab === "TEXT" && <TextTab config={config} handleChange={handleChange}/>}
-            {activeTab === "VOICE" && <VoiceTab config={config} handleChange={handleChange}/>}
+            <Tabs tabs={LEVEL_TABS} activeTab={activeTab} onChange={setActiveTab} />
+            {activeTab === "TEXT" && <TextTab config={config} handleChange={handleChange} />}
+            {activeTab === "VOICE" && <VoiceTab config={config} handleChange={handleChange} />}
             {activeTab === "GENERAL" && (
                 <GeneralTab
                     config={config}
@@ -132,7 +135,9 @@ export function LevelingBody({
 
             {isDirty && (
                 <SavePopup
-                    handleCancel={handleCancel} handleSave={handleSave} isSaving={isPending}
+                    handleCancel={handleCancel}
+                    handleSave={handleSave}
+                    isSaving={isPending}
                 />
             )}
         </div>

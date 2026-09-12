@@ -44,19 +44,8 @@ export function RewardTab({
 }: LevelRewardsTabProps): JSX.Element {
     const availableRoles = getAvailableRoleOptions(roleMap);
 
-    // Normalize initial server props for comparison
-    const initialRewards = useMemo<RewardItemState[]>(() =>
-            rewards.map((r) => ({
-                id: r.id,
-                levelRequirement: r.level_requirement,
-                rolesToAdd: r.roles_to_add,
-                removePreviousRoles: r.remove_previous_roles,
-            })),
-        [rewards]
-    );
-
     // Map database rewards (snake_case) to camelCase local state
-    const [localRewards, setLocalRewards] = useState<RewardItemState[]>(initialRewards);
+    const [localRewards, setLocalRewards] = useState<RewardItemState[]>(rewards);
     const [deletedIds, setDeletedIds] = useState<number[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const router = useRouter();
@@ -64,10 +53,10 @@ export function RewardTab({
     // Determine if any changes exist between current state and original props
     const hasChanges = useMemo<boolean>(() => {
         if (deletedIds.length > 0) return true;
-        if (localRewards.length !== initialRewards.length) return true;
+        if (localRewards.length !== rewards.length) return true;
 
         return localRewards.some((local, idx) => {
-            const initial = initialRewards[idx];
+            const initial = rewards[idx];
             return (
                 local.id !== initial.id ||
                 local.levelRequirement !== initial.levelRequirement ||
@@ -75,12 +64,12 @@ export function RewardTab({
                 !areArraysEqual(local.rolesToAdd, initial.rolesToAdd)
             );
         });
-    }, [localRewards, initialRewards, deletedIds]);
+    }, [localRewards, rewards, deletedIds]);
 
     useEffect(() => {
-        setLocalRewards(initialRewards);
+        setLocalRewards(rewards);
         setDeletedIds([]);
-    }, [initialRewards]);
+    }, [rewards]);
 
     const handleAddReward = (): void => {
         const nextLevel =

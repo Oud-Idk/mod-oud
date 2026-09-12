@@ -24,7 +24,7 @@ export function TextTab({
                 className="mb-0"
             />
             {config.text.enabled && (
-                <div className="space-y-2 mb-8 max-w-md">
+                <div className="space-y-2 mb-8 max-w-xl">
                     <div>
                         <InputLabel>XP Range</InputLabel>
                         <RangeSlider
