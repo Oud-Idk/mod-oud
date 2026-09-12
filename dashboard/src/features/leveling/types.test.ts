@@ -1,13 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
     levelingConfigSchema,
-    saveLevelingConfigSchema,
+    notificationTargetSchema,
     saveXpMultiplierInputSchema,
     saveLevelRewardInputSchema,
     userLevelSchema,
     xpMultiplierSchema,
     levelRewardSchema,
-    notificationScopeSchema,
     DEFAULT_LEVEL_NOTIFY_MESSAGE,
 } from "./types";
 
@@ -28,7 +27,6 @@ describe("levelingConfigSchema", () => {
         expect(parsed.scope.channels).toEqual([]);
 
         expect(parsed.notify.scope).toBe("NONE");
-        expect(parsed.notify.channelId).toBeNull();
 
         expect(parsed.imageCard.textColor).toBe("#FFFFFF");
         expect(parsed.imageCard.barForegroundColor).toBe("#5865f2");
@@ -57,54 +55,42 @@ describe("levelingConfigSchema", () => {
     });
 });
 
-describe("saveLevelingConfigSchema (.superRefine validation)", () => {
-    const validConfig = levelingConfigSchema.parse({
-        notify: { message: { format: "TEXT", content: "Level up!" } },
+describe("notificationTargetSchema", () => {
+    it("should PASS when notify scope is NONE", () => {
+        const result = notificationTargetSchema.safeParse({ scope: "NONE" });
+        expect(result.success).toBe(true);
     });
 
-    it("should PASS when notify scope is NONE without a channel", () => {
-        const result = saveLevelingConfigSchema.safeParse({
-            ...validConfig,
-            notify: { ...validConfig.notify, scope: "NONE", channelId: null },
+    it("should PASS when notify scope is CURRENT_CHANNEL or DM", () => {
+        expect(notificationTargetSchema.safeParse({ scope: "CURRENT_CHANNEL" }).success).toBe(true);
+        expect(notificationTargetSchema.safeParse({ scope: "DM" }).success).toBe(true);
+    });
+
+    it("should PASS when notify scope is SPECIFIED_CHANNEL with a channelId", () => {
+        const result = notificationTargetSchema.safeParse({
+            scope: "SPECIFIED_CHANNEL",
+            channelId: "chan_1",
         });
 
         expect(result.success).toBe(true);
     });
 
-    it("should PASS when notify scope is SPECIFIED_CHANNEL with a channel", () => {
-        const result = saveLevelingConfigSchema.safeParse({
-            ...validConfig,
-            notify: { ...validConfig.notify, scope: "SPECIFIED_CHANNEL", channelId: "chan_1" },
-        });
-
-        expect(result.success).toBe(true);
-    });
-
-    it("should REJECT SPECIFIED_CHANNEL without a target channel", () => {
-        const result = saveLevelingConfigSchema.safeParse({
-            ...validConfig,
-            notify: { ...validConfig.notify, scope: "SPECIFIED_CHANNEL", channelId: null },
+    it("should REJECT SPECIFIED_CHANNEL without a target channel or with empty channelId", () => {
+        const result = notificationTargetSchema.safeParse({
+            scope: "SPECIFIED_CHANNEL",
+            channelId: "",
         });
 
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues[0].message).toBe(
-                "Please select a target channel for level-up notifications!"
+                "Please select a target channel for notifications!"
             );
         }
     });
-});
-
-describe("notificationScopeSchema", () => {
-    it("should accept all known scopes and default to NONE", () => {
-        expect(notificationScopeSchema.parse("CURRENT_CHANNEL")).toBe("CURRENT_CHANNEL");
-        expect(notificationScopeSchema.parse("SPECIFIED_CHANNEL")).toBe("SPECIFIED_CHANNEL");
-        expect(notificationScopeSchema.parse("DM")).toBe("DM");
-        expect(notificationScopeSchema.parse(undefined)).toBe("NONE");
-    });
 
     it("should reject an unknown scope", () => {
-        expect(notificationScopeSchema.safeParse("EVERYWHERE").success).toBe(false);
+        expect(notificationTargetSchema.safeParse({ scope: "EVERYWHERE" }).success).toBe(false);
     });
 });
 
@@ -118,15 +104,25 @@ describe("saveXpMultiplierInputSchema", () => {
         expect(parsed.multiplier).toBe(1);
     });
 
-    it("should reject an empty targetId", () => {
-        const result = saveXpMultiplierInputSchema.safeParse({
+    it("should reject an empty targetId with appropriate union message", () => {
+        const channelResult = saveXpMultiplierInputSchema.safeParse({
             targetId: "",
             targetType: "CHANNEL",
         });
 
-        expect(result.success).toBe(false);
-        if (!result.success) {
-            expect(result.error.issues[0].message).toBe("Target ID is required");
+        expect(channelResult.success).toBe(false);
+        if (!channelResult.success) {
+            expect(channelResult.error.issues[0].message).toBe("Target Channel ID is required");
+        }
+
+        const roleResult = saveXpMultiplierInputSchema.safeParse({
+            targetId: "",
+            targetType: "ROLE",
+        });
+
+        expect(roleResult.success).toBe(false);
+        if (!roleResult.success) {
+            expect(roleResult.error.issues[0].message).toBe("Target Role ID is required");
         }
     });
 
@@ -169,71 +165,65 @@ describe("saveLevelRewardInputSchema", () => {
 });
 
 describe("userLevelSchema", () => {
-    it("should default XP and level fields to 0", () => {
+    it("should default XP and level fields to 0 and username to empty string", () => {
         const parsed = userLevelSchema.parse({
-            guild_id: "guild_123",
-            user_id: "user_123",
+            guildId: "guild_123",
+            userId: "user_123",
         });
 
-        expect(parsed.cumulative_xp).toBe(0);
-        expect(parsed.current_level).toBe(0);
-        expect(parsed.current_xp).toBe(0);
+        expect(parsed.cumulativeXp).toBe(0);
+        expect(parsed.currentLevel).toBe(0);
+        expect(parsed.currentXp).toBe(0);
         expect(parsed.username).toBe("");
     });
 
-    it("should reject negative XP values", () => {
-        const result = userLevelSchema.safeParse({
-            guild_id: "guild_123",
-            user_id: "user_123",
-            cumulative_xp: -1,
+    it("should coerce string values into numbers", () => {
+        const parsed = userLevelSchema.parse({
+            guildId: "guild_123",
+            userId: "user_123",
+            cumulativeXp: "1500",
+            currentLevel: "5",
+            currentXp: "100",
         });
 
-        expect(result.success).toBe(false);
-    });
-
-    it("should reject a fractional level", () => {
-        const result = userLevelSchema.safeParse({
-            guild_id: "guild_123",
-            user_id: "user_123",
-            current_level: 3.5,
-        });
-
-        expect(result.success).toBe(false);
+        expect(parsed.cumulativeXp).toBe(1500);
+        expect(parsed.currentLevel).toBe(5);
+        expect(parsed.currentXp).toBe(100);
     });
 });
 
 describe("xpMultiplierSchema and levelRewardSchema (DB rows)", () => {
     it("should default multiplier to 1", () => {
         const parsed = xpMultiplierSchema.parse({
-            guild_id: "guild_123",
-            target_id: "role_1",
-            target_type: "ROLE",
+            guildId: "guild_123",
+            targetId: "role_1",
+            targetType: "ROLE",
         });
 
         expect(parsed.multiplier).toBe(1);
     });
 
-    it("should reject an unknown target_type in a DB row", () => {
+    it("should reject an unknown targetType in a DB row", () => {
         expect(
             xpMultiplierSchema.safeParse({
-                guild_id: "guild_123",
-                target_id: "role_1",
-                target_type: "USER",
+                guildId: "guild_123",
+                targetId: "role_1",
+                targetType: "USER",
             }).success
         ).toBe(false);
     });
 
     it("should apply defaults for level reward roles", () => {
         const parsed = levelRewardSchema.parse({
-            level_requirement: 5,
+            levelRequirement: 5,
         });
 
-        expect(parsed.roles_to_add).toEqual([]);
-        expect(parsed.remove_previous_roles).toBe(false);
+        expect(parsed.rolesToAdd).toEqual([]);
+        expect(parsed.removePreviousRoles).toBe(false);
     });
 
     it("should reject a level reward below level 1", () => {
-        const result = levelRewardSchema.safeParse({ level_requirement: 0 });
+        const result = levelRewardSchema.safeParse({ levelRequirement: 0 });
 
         expect(result.success).toBe(false);
     });

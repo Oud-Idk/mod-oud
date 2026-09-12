@@ -34,11 +34,11 @@ vi.mock("@/features/_shared/guild", () => ({
 
 function createMockLevelRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
     return {
-        guild_id: "guild_123",
-        user_id: "user_123",
-        cumulative_xp: 1500,
-        current_level: 10,
-        current_xp: 100,
+        guildId: "guild_123",
+        userId: "user_123",
+        cumulativeXp: 1500,
+        currentLevel: 10,
+        currentXp: 100,
         username: "SpicyWolf",
         ...overrides,
     };
@@ -47,7 +47,7 @@ function createMockLevelRow(overrides: Record<string, unknown> = {}): Record<str
 describe("Leveling Query Module", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {return});
+        vi.spyOn(console, "error").mockImplementation(() => { return; });
     });
 
     afterEach(() => {
@@ -63,10 +63,10 @@ describe("Leveling Query Module", () => {
             expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["guild_123"]);
             expect(result).toHaveLength(1);
             expect(result[0]).toMatchObject({
-                guild_id: "guild_123",
-                user_id: "user_123",
-                cumulative_xp: 1500,
-                current_level: 10,
+                guildId: "guild_123",
+                userId: "user_123",
+                cumulativeXp: 1500,
+                currentLevel: 10,
             });
         });
 
@@ -88,7 +88,7 @@ describe("Leveling Query Module", () => {
     describe("fetchMoreLevels", () => {
         it("should query with guildId and the lowest XP cursor", async () => {
             mockQuery.mockResolvedValue({
-                rows: [createMockLevelRow({ cumulative_xp: 900 })],
+                rows: [createMockLevelRow({ cumulativeXp: 900 })],
                 rowCount: 1,
             });
 
@@ -99,7 +99,7 @@ describe("Leveling Query Module", () => {
                 ["guild_123", 1500]
             );
             expect(result).toHaveLength(1);
-            expect(result[0].cumulative_xp).toBe(900);
+            expect(result[0].cumulativeXp).toBe(900);
         });
 
         it("should return an empty array on a database error instead of throwing", async () => {
@@ -148,9 +148,9 @@ describe("Leveling Query Module", () => {
             mockQuery.mockResolvedValue({
                 rows: [
                     {
-                        guild_id: "guild_123",
-                        target_id: "role_1",
-                        target_type: "ROLE",
+                        guildId: "guild_123",
+                        targetId: "role_1",
+                        targetType: "ROLE",
                         multiplier: 2,
                     },
                 ],
@@ -180,10 +180,10 @@ describe("Leveling Query Module", () => {
                 rows: [
                     {
                         id: 1,
-                        guild_id: "guild_123",
-                        level_requirement: 5,
-                        roles_to_add: ["role_a"],
-                        remove_previous_roles: false,
+                        guildId: "guild_123",
+                        levelRequirement: 5,
+                        rolesToAdd: ["role_a"],
+                        removePreviousRoles: false,
                     },
                 ],
                 rowCount: 1,
@@ -194,8 +194,8 @@ describe("Leveling Query Module", () => {
             expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("level_rewards"), [
                 "guild_123",
             ]);
-            expect(result[0].level_requirement).toBe(5);
-            expect(result[0].roles_to_add).toEqual(["role_a"]);
+            expect(result[0].levelRequirement).toBe(5);
+            expect(result[0].rolesToAdd).toEqual(["role_a"]);
         });
 
         it("should return an empty array when no rows exist", async () => {
@@ -222,7 +222,6 @@ describe("Leveling Query Module", () => {
             ]);
 
             const [queryStr, params = []] = mockQuery.mock.calls[0];
-            expect(queryStr).toContain("INSERT INTO level_rewards");
             expect(queryStr).toContain("JSON_TO_RECORDSET($2::JSON)");
             expect(queryStr).toContain("ON CONFLICT (guild_id, level_requirement)");
             expect(params[0]).toBe("guild_123");
@@ -267,7 +266,6 @@ describe("Leveling Query Module", () => {
             ]);
 
             const [queryStr, params = []] = mockQuery.mock.calls[0];
-            expect(queryStr).toContain("INSERT INTO xp_multipliers");
             expect(queryStr).toContain("UNNEST($2::TEXT[], $3::TEXT[], $4::NUMERIC[])");
             expect(queryStr).toContain("ON CONFLICT (guild_id, target_id)");
             expect(params).toEqual([

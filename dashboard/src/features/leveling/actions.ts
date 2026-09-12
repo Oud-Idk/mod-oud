@@ -8,15 +8,15 @@ import {
     fetchMoreLevels,
     saveLevelingConfig,
     saveLevelRewards,
-    saveXpMultipliers
+    saveXpMultipliers,
 } from "@/features/leveling/queries";
 import {
     LevelingConfig,
     SaveLevelRewardInput,
     SaveXpMultiplierInput,
+    levelingConfigSchema,
     saveLevelRewardInputSchema,
     saveXpMultiplierInputSchema,
-    saveLevelingConfigSchema
 } from "@/features/leveling/types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
@@ -32,7 +32,7 @@ export async function deleteMultipliersAction(
     } catch (error: unknown) {
         console.error("Failed to delete multipliers:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0].message);
+            throw new Error(error.issues[0]?.message ?? "Invalid target IDs");
         }
         throw new Error(error instanceof Error ? error.message : "Could not delete multipliers.");
     }
@@ -44,13 +44,14 @@ export async function saveMultipliersAction(
 ): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
+        // Validates each item against the discriminated union!
         const validTargets = z.array(saveXpMultiplierInputSchema).parse(targets);
         await saveXpMultipliers(guildId, validTargets);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error: unknown) {
         console.error("Failed to save multipliers:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0].message);
+            throw new Error(error.issues[0]?.message ?? "Invalid multiplier data");
         }
         throw new Error(error instanceof Error ? error.message : "Could not save multipliers.");
     }
@@ -68,7 +69,7 @@ export async function saveRewardsAction(
     } catch (error: unknown) {
         console.error("Failed to save rewards:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0].message);
+            throw new Error(error.issues[0]?.message ?? "Invalid reward configuration");
         }
         throw new Error(error instanceof Error ? error.message : "Could not save rewards.");
     }
@@ -86,7 +87,7 @@ export async function deleteRewardsAction(
     } catch (error: unknown) {
         console.error("Failed to delete rewards:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0].message);
+            throw new Error(error.issues[0]?.message ?? "Invalid reward IDs");
         }
         throw new Error(error instanceof Error ? error.message : "Could not delete rewards.");
     }
@@ -112,13 +113,13 @@ export async function saveLevelingConfigAction(
 ): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
-        const validConfig = saveLevelingConfigSchema.parse(data);
+        const validConfig = levelingConfigSchema.parse(data);
         await saveLevelingConfig(guildId, validConfig);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error: unknown) {
         console.error("Failed to save leveling config:", error);
         if (error instanceof z.ZodError) {
-            throw new Error(error.issues[0].message);
+            throw new Error(error.issues[0]?.message ?? "Invalid leveling settings");
         }
         throw new Error(error instanceof Error ? error.message : "Could not save configuration.");
     }

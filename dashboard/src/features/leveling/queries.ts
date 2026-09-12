@@ -18,10 +18,15 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 export async function getLevels(guildId: string): Promise<UserLevel[]> {
     const validGuildId = z.string().min(1).parse(guildId);
     const query = `
-        SELECT l.guild_id, l.user_id, l.cumulative_xp, l.current_level, l.current_xp,
-               COALESCE(u.username, '') AS username
+        SELECT
+            l.guild_id::text AS "guildId",
+            l.user_id::text AS "userId",
+            l.cumulative_xp AS "cumulativeXp",
+            l.current_level AS "currentLevel",
+            l.current_xp AS "currentXp",
+            COALESCE(u.username, '') AS username
         FROM levels l
-        LEFT JOIN discord_users u ON u.user_id = l.user_id
+                 LEFT JOIN discord_users u ON u.user_id = l.user_id
         WHERE l.guild_id = $1
         ORDER BY l.cumulative_xp DESC
         LIMIT 40;
@@ -35,15 +40,23 @@ export async function getLevels(guildId: string): Promise<UserLevel[]> {
     }
 }
 
-export async function fetchMoreLevels(guildId: string, currentLowestXp: number): Promise<UserLevel[]> {
+export async function fetchMoreLevels(
+    guildId: string,
+    currentLowestXp: number
+): Promise<UserLevel[]> {
     const validGuildId = z.string().min(1).parse(guildId);
     const validLowestXp = z.number().parse(currentLowestXp);
 
     const query = `
-        SELECT l.guild_id, l.user_id, l.cumulative_xp, l.current_level, l.current_xp,
-               COALESCE(u.username, '') AS username
+        SELECT
+            l.guild_id::text AS "guildId",
+            l.user_id::text AS "userId",
+            l.cumulative_xp AS "cumulativeXp",
+            l.current_level AS "currentLevel",
+            l.current_xp AS "currentXp",
+            COALESCE(u.username, '') AS username
         FROM levels l
-        LEFT JOIN discord_users u ON u.user_id = l.user_id
+                 LEFT JOIN discord_users u ON u.user_id = l.user_id
         WHERE l.guild_id = $1
           AND l.cumulative_xp < $2
         ORDER BY l.cumulative_xp DESC
@@ -71,7 +84,13 @@ export async function saveLevelingConfig(guildId: string, config: LevelingConfig
 export async function getXpMultipliers(guildId: string): Promise<XpMultiplier[]> {
     const validGuildId = z.string().min(1).parse(guildId);
     const { rows } = await db.query(
-        "SELECT guild_id, target_id, target_type, multiplier FROM xp_multipliers WHERE guild_id = $1",
+        `SELECT 
+            guild_id::text AS "guildId",
+            target_id::text AS "targetId",
+            target_type AS "targetType",
+            multiplier::float AS multiplier
+         FROM xp_multipliers 
+         WHERE guild_id = $1`,
         [validGuildId]
     );
     return z.array(xpMultiplierSchema).parse(rows);
@@ -80,7 +99,14 @@ export async function getXpMultipliers(guildId: string): Promise<XpMultiplier[]>
 export async function getLevelRewards(guildId: string): Promise<LevelReward[]> {
     const validGuildId = z.string().min(1).parse(guildId);
     const { rows } = await db.query(
-        "SELECT id, guild_id, level_requirement, roles_to_add, remove_previous_roles FROM level_rewards WHERE guild_id = $1",
+        `SELECT 
+            id,
+            guild_id::text AS "guildId",
+            level_requirement AS "levelRequirement",
+            COALESCE(roles_to_add::text[], ARRAY[]::text[]) AS "rolesToAdd",
+            remove_previous_roles AS "removePreviousRoles"
+         FROM level_rewards 
+         WHERE guild_id = $1`,
         [validGuildId]
     );
     return z.array(levelRewardSchema).parse(rows);

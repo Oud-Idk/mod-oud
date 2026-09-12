@@ -44,7 +44,7 @@ vi.mock("next/cache", () => ({
 describe("Leveling Server Actions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {return});
+        vi.spyOn(console, "error").mockImplementation(() => { return; });
     });
 
     afterEach(() => {
@@ -99,7 +99,6 @@ describe("Leveling Server Actions", () => {
                 "Multiplier deletion validation failure"
             );
         });
-
     });
 
     describe("saveMultipliersAction", () => {
@@ -124,7 +123,7 @@ describe("Leveling Server Actions", () => {
                 saveMultipliersAction("guild_123", [
                     { targetId: "", targetType: "ROLE", multiplier: 1 },
                 ])
-            ).rejects.toThrow("Target ID is required");
+            ).rejects.toThrow("Target Role ID is required");
 
             expect(saveXpMultipliers).not.toHaveBeenCalled();
         });
@@ -160,7 +159,6 @@ describe("Leveling Server Actions", () => {
                 "Multiplier save validation failure"
             );
         });
-
     });
 
     describe("saveRewardsAction", () => {
@@ -211,7 +209,6 @@ describe("Leveling Server Actions", () => {
                 "Reward save validation failure"
             );
         });
-
     });
 
     describe("deleteRewardsAction", () => {
@@ -254,14 +251,13 @@ describe("Leveling Server Actions", () => {
                 "Reward deletion validation failure"
             );
         });
-
     });
 
     describe("fetchMoreLevelsAction", () => {
         it("should verify access and return the fetched levels without revalidating", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(fetchMoreLevels).mockResolvedValue([
-                { guild_id: "guild_123", user_id: "user_1", cumulative_xp: 900, current_level: 8, current_xp: 50, username: "a" },
+                { guildId: "guild_123", userId: "user_1", cumulativeXp: 900, currentLevel: 8, currentXp: 50, username: "a" },
             ]);
 
             const result = await fetchMoreLevelsAction("guild_123", 1500);
@@ -284,7 +280,15 @@ describe("Leveling Server Actions", () => {
 
     describe("saveLevelingConfigAction", () => {
         const validConfig = levelingConfigSchema.parse({
-            notify: { message: { format: "TEXT", content: "Level up!" } },
+            notify: {
+                scope: "NONE",
+                message: {
+                    enabled: true,
+                    format: "TEXT",
+                    content: "Level up!",
+                    embed: {},
+                },
+            },
         });
 
         it("should verify access, validate, save, and revalidate the path", async () => {
@@ -299,16 +303,23 @@ describe("Leveling Server Actions", () => {
 
         it("should reject SPECIFIED_CHANNEL notifications without a target channel", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            const config = levelingConfigSchema.parse({
+            const invalidConfig = {
+                ...validConfig,
                 notify: {
                     scope: "SPECIFIED_CHANNEL",
-                    channelId: null,
-                    message: { format: "TEXT", content: "Level up!" },
+                    channelId: "",
+                    message: {
+                        enabled: true,
+                        format: "TEXT",
+                        content: "Level up!",
+                        embed: {},
+                    },
                 },
-            });
+            };
 
-            await expect(saveLevelingConfigAction("guild_123", config)).rejects.toThrow(
-                "Please select a target channel for level-up notifications!"
+            // @ts-expect-error test for invalid config
+            await expect(saveLevelingConfigAction("guild_123", invalidConfig)).rejects.toThrow(
+                "Please select a target channel for notifications!"
             );
 
             expect(saveLevelingConfig).not.toHaveBeenCalled();
@@ -335,6 +346,5 @@ describe("Leveling Server Actions", () => {
                 "Leveling config validation failure"
             );
         });
-
     });
 });
