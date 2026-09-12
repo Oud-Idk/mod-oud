@@ -8,9 +8,9 @@ interface LogoProps {
 
 export default function Logo({ className }: LogoProps): JSX.Element {
     return <>
-        <Image src="/logo-black.svg" alt="Logo" width={64} height={64}
+        <Image src="/logo-black.svg" alt="Logo" width={64} height={64} loading="eager"
                className={cn("block dark:hidden w-10 h-10", className)}/>
-        <Image src="/logo-white.svg" alt="Logo" width={64} height={64}
+        <Image src="/logo-white.svg" alt="Logo" width={64} height={64} loading="eager"
                className={cn("hidden dark:block w-10 h-10", className)}/>
     </>
 }
