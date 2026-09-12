@@ -46,6 +46,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tw-merge": "^0.0.1-alpha.3",
+    "uwuifier": "^4.2.2",
     "validator": "^13.15.35",
     "zod": "^4.4.3"
   },
@@ -69,5 +70,8 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "sharp@0.34.5": true
   }
 }
