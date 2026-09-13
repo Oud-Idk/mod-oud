@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO seen_entries (feed_id, entry_id)\n        VALUES ($1, $2)\n        ON CONFLICT (feed_id, entry_id) DO NOTHING\n        RETURNING feed_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "feed_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "seen_entries",
+            "name": "feed_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e8dcce17edab29a3a9f033a7395e2bf9a61f3a776d8fc9b332fcb59606fbcaa3"
+}

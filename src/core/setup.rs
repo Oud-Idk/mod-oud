@@ -13,6 +13,9 @@ use crate::features::music::{
 };
 use crate::features::raid_detection::{reconcile_active_raids, start_raid_stats_flush_worker};
 use crate::features::reminder::start_reminder_worker;
+use crate::features::social_notifications::{
+    start_feed_polling_worker, start_websub_renewal_worker,
+};
 use crate::features::tickets::{
     TicketLogPayload, start_ticket_inactivity_worker, start_ticket_logger, sync_tickets,
 };
@@ -128,6 +131,7 @@ pub fn setup<'a>(
             active_tickets_cache: &active_tickets_cache,
             ticket_rx,
             username_rx,
+            reqwest_client: &reqwest_client,
         });
 
         let spam_tracker = SpamTracker::new(redis_client.clone());
@@ -241,6 +245,9 @@ pub struct JobParams<'a> {
 
     /// Channel transmitter for storing usernames.
     pub username_tx: &'a mpsc::Sender<UserUpdate>,
+
+    /// Shared HTTP client for external feed fetches and hub subscriptions.
+    pub reqwest_client: &'a reqwest::Client,
 }
 
 /// Spawns background worker tasks for tickets, moderation, level flushing, reminders, and feature jobs.
@@ -255,6 +262,7 @@ pub fn start_jobs(params: JobParams) {
         ticket_rx,
         username_rx,
         username_tx,
+        reqwest_client,
     } = params;
 
     sync_tickets(redis_client, subscriber_client, active_tickets_cache);
@@ -297,6 +305,17 @@ pub fn start_jobs(params: JobParams) {
     start_music_stats_prune_worker(db.clone(), redis_client.clone());
 
     start_raid_stats_flush_worker(db.clone(), redis_client.clone());
+
+    start_feed_polling_worker(db.clone(), ctx.http.clone(), redis_client.clone());
+
+    let app_config = AppConfig::from_env();
+    start_websub_renewal_worker(
+        db.clone(),
+        redis_client.clone(),
+        reqwest_client.clone(),
+        app_config.domain,
+        app_config.internal_api_secret,
+    );
 }
 
 /// Serenity [`TypeMapKey`](serenity::prelude::TypeMapKey) container for storing the shared [`ShardManager`].

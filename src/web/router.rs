@@ -1,7 +1,7 @@
 use crate::core::config::state::WebState;
 use crate::features::{
     automod, general, giveaways, live_feed, member_counter, moderation, music, reaction_roles,
-    reporting, temp_voice, tickets, verification,
+    reporting, social_notifications, temp_voice, tickets, verification,
 };
 use crate::web::middleware::require_internal_secret;
 use axum::Router;
@@ -54,8 +54,13 @@ pub fn get_router(cors: CorsLayer, shared_state: Arc<WebState>) -> Router {
     // Assemble API
     let api_routes = internal_routes.merge(realtime_routes);
 
+    // Public WebSub callback (called by external hubs, verified via HMAC secret).
+    // Mounted at root to match `{DOMAIN}/websub/{feed_id}` callbacks.
+    let websub_routes = social_notifications::routes();
+
     Router::new()
         .route("/health", get(health_check))
+        .merge(websub_routes)
         .nest("/api", api_routes)
         .fallback(handle_404)
         .layer(cors)

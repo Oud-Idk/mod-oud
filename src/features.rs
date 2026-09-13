@@ -55,3 +55,5 @@ pub mod tickets;
 pub mod verification;
 /// Warning system.
 pub mod warning;
+/// Social push notifications system.
+pub mod social_notifications;

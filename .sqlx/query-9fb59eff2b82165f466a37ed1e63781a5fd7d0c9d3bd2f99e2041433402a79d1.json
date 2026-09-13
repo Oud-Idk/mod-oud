@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO channel_subscriptions (feed_id, channel_id, guild_id)\n        VALUES ($1, $2, $3)\n        ON CONFLICT (feed_id, channel_id) DO NOTHING\n        RETURNING feed_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "feed_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "channel_subscriptions",
+            "name": "feed_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9fb59eff2b82165f466a37ed1e63781a5fd7d0c9d3bd2f99e2041433402a79d1"
+}
