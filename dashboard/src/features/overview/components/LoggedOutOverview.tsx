@@ -79,7 +79,7 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
         width: 2000,
         height: 1000,
         title: "Powerful Moderation Features",
-        description: "Sleep peacefully knowing Mod Oud is on watch. It auto-filters slurs with an Aho-Corasick automaton (yes, the string-matching algorithm, not the bug), nukes crypto wallet addresses before the shill army arrives, and zaps zalgo text back to the abyss where it came from. Sketchy links, server invites, excessive caps, emoji floods, and spoiler spam — all handled before your morning coffee gets cold.",
+        description: "Sleep peacefully knowing Mod Oud is on watch. It auto-filters slurs with an Aho-Corasick automaton (yes, the string-matching algorithm, not the bug), nukes crypto wallet addresses before the shill army arrives, and zaps zalgo text back to the abyss where it came from. Sketchy links, server invites, excessive caps, emoji floods, and spoiler spam, all handled before your morning coffee gets cold.",
         imagePosition: "left",
     },
     {
@@ -88,7 +88,7 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
         width: 2000,
         height: 1000,
         title: "All Hail Observability",
-        description: "Ever wished you had a time machine to see who deleted that one message or purged an entire channel at 3 AM? The logging system caches recent audit log entries in Redis, so you can trace every message edit, deletion, and bulk purge in real time. Pair it with the live feed and you'll know about server drama before the members do.",
+        description: "Ever wished you had a time machine to see who banned your favorite member without digging through the audit logs? The logging forwards all relevant events to one place (including any slash commands), so you can trace every moderation events with ease.",
         imagePosition: "right",
         textAlign: "right",
     },
@@ -107,7 +107,7 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
         width: 2000,
         height: 1000,
         title: "Economy & Entertainment",
-        description: "Let your members work a 9-to-5 shift, rob their friends (and get fined when they fail), buy questionable items from the shop, and gamble their entire fake life savings on slots, roulette, coinflip, and blackjack. It's a full-blown virtual economy inspired by UnbelievaBoat, except it's free and you can actually read the source code when RNG feels personal.",
+        description: "Let your members work a 9-to-5 shift, rob their friends (and get fined when they fail), buy questionable items from the shop, and gamble their entire fake life savings on slots, roulette, coinflip, and blackjack. It's a full-blown virtual economy inspired by UnbelievaBoat, except it's free and you can actually read the source code when RNG feels personal. You can have my word on this one, and that it's cryptographically secure.",
         imagePosition: "right",
         textAlign: "right",
     },
@@ -126,7 +126,7 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
         width: 2000,
         height: 1000,
         title: "Customizable Welcome & Goodbye Messages",
-        description: "Greet newcomers with a beautifully rendered welcome card — an SVG template you can recolor to match your server's vibe, showing their avatar, username, and member count. Same energy for goodbye messages when someone decides to leave your server for that other one with the cooler emoji. Because first impressions matter, and last impressions are just awkward.",
+        description: "Greet newcomers with a beautifully rendered welcome card. An SVG template you can recolor to match your server's vibe, showing their avatar, username, and member count. Same energy for goodbye messages when someone decides to leave your server for that other one with the cooler emoji. Because first impressions matter, and last impressions are just awkward.",
         imagePosition: "right",
         textAlign: "right",
     },
@@ -136,7 +136,7 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
         width: 2000,
         height: 1000,
         title: "Intuitive Music",
-        description: "Queue up YouTube tracks or Spotify jams and control playback from the dashboard via WebSocket. The music player runs on an actor model — because nothing says 'I've given up on writing a simple Discord bot' like implementing concurrency patterns from a 1973 paper. Pause, resume, skip, seek, and watch the now-playing card update in real time.",
+        description: "Queue up YouTube tracks or Spotify jams and control playback from the dashboard via WebSocket. The music player runs on an actor model, because nothing says 'I've given up on writing a simple Discord bot' like implementing concurrency patterns from a 1973 paper. Pause, resume, skip, seek, and watch the now-playing card update in real time.",
         imagePosition: "left",
     },
     {
@@ -155,7 +155,7 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
         width: 2000,
         height: 1000,
         title: "Interactive Leveling",
-        description: "Reward your most active members with XP, levels, and role rewards. Earn XP in text channels or just vibe in voice channels — because talking is overrated. Customize channel and role multipliers, set a level cap, generate rank cards on SVG, and watch your members compete for that #1 spot like their life depends on it. Keep-level-on-leave means the chronic leavers don't get to keep their rank, sorry.",
+        description: "Reward your most active members with XP, levels, and role rewards. Earn XP in text channels or just vibe in voice channels, because talking is overrated. Though you must actually not be deafened for it to work. Customize channel and role multipliers, set a level cap, generate rank cards on SVG, and watch your members compete for that #1 spot like their life depends on it.",
         imagePosition: "left",
     },
     {
@@ -164,7 +164,7 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
         width: 2000,
         height: 1000,
         title: "Customizable Messages",
-        description: "Literally all moderation messages can be customized, like ban DMs, mute notifications, kick reasons, warning thresholds, softban announcements. Useful if your server is furry-focused, bilingual, or just has a very specific vibe that 'You have been banned' doesn't capture. Because nothing says 'professionalism' like a goodnight message before a 7-day timeout.",
+        description: "Literally all moderation messages can be customized, like ban DMs, mute notifications, kick reasons, warning thresholds, softban announcements. Useful if your server is... furry-focused, bilingual, or just has a very specific vibe that 'You have been banned' doesn't capture. Because nothing says 'professionalism' like an uwu message before a 7-day timeout.",
         imagePosition: "right",
         textAlign: "right",
     },
@@ -195,7 +195,7 @@ export function LoggedOutOverview(): JSX.Element {
                 <div>
                     <Emphasis className="font-bold text-3xl">Written in Rust</Emphasis>
                     <p className="mt-2 text-muted-foreground">
-                        Mod Oud is built in Rust, the language that taught us the meaning of suffering — in a good way. Zero-cost abstractions, fearless concurrency, and a borrow checker that yells at you until your code is technically immortal. It&apos;s fast enough to handle your server&apos;s chaos and reliable enough to run for weeks without someone SSH-ing in to restart it.
+                        Mod Oud is built in Rust, the language that taught us the meaning of suffering, in a good way. Zero-cost abstractions, fearless concurrency, and a borrow checker that yells at you until your code is technically immortal. It&apos;s fast enough to handle your server&apos;s chaos and reliable enough to run for weeks without someone SSH-ing in to restart it.
                     </p>
                 </div>
             </div>
@@ -205,7 +205,7 @@ export function LoggedOutOverview(): JSX.Element {
                 <div>
                     <Emphasis className="font-bold text-3xl">Open Source</Emphasis>
                     <p className="mt-2 text-muted-foreground">
-                        Licensed GPL-3.0, because your moderation bot shouldn&apos;t be a black box. Fork it, audit it, self-host it, contribute that one feature you&apos;ve been complaining about on Discord for six months. The entire codebase is on GitHub — frontend, backend, SQL migrations, and the Dockerfile. No &quot;enterprise edition,&quot; no paywalled features, just you and a `git clone`.
+                        Licensed GPL-3.0, because your moderation bot shouldn&apos;t be a black box. Fork it, audit it, self-host it, contribute that one feature you&apos;ve been complaining about on Discord for six months. The entire codebase is on GitHub, as in the frontend, backend, SQL migrations, and the Dockerfile. No &quot;enterprise edition,&quot; no paywalled features, just you and a <code>git clone</code>.
                     </p>
                 </div>
             </div>
@@ -225,6 +225,12 @@ export function LoggedOutOverview(): JSX.Element {
                 <FeatureSpotlightRow key={spotlight.src} {...spotlight} />
             ))}
         </div>
+
+        <div className="flex flex-col items-center mt-8 space-y-4">
+            <Emphasis>What are you waiting for? Go sign up now for a blazingly fast Discord bot!</Emphasis>
+            <SignInWithDiscord/>
+        </div>
+
         <div className="w-full py-10 mt-10 flex justify-center bg-surface px-12">
             <div className="flex max-w-7xl w-full justify-between flex-col sm:flex-row items-center">
                 <div className="mb-16">

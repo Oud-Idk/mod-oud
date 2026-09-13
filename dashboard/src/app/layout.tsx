@@ -1,21 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/context/ThemeProvider";
 import { SessionProvider } from "@/context/SessionProvider";
 import "./globals.css";
 import React, { JSX } from "react";
 import { EasterEggs } from "@/features/easter-eggs/EasterEggs";
-
-const inter = Inter({
-    subsets: ["latin"],
-    variable: "--font-inter",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-    subsets: ["latin"],
-    variable: "--font-mono",
-});
+import { inter, jetbrainsMono, notoEmoji } from "@/lib/fonts";
 
 export const viewport: Viewport = {
     themeColor: "#0C1936",
@@ -73,10 +63,10 @@ export const metadata: Metadata = {
     // Twitter / X Card
     twitter: {
         card: "summary_large_image",
-        title: "Mod Oud, Blazingly Fast Discord Moderation",
+        title: "Mod Oud",
         description: siteConfig.description,
         images: [siteConfig.ogImage],
-        creator: "@modoud", // Optional: your handle
+        creator: "@oud-idk",
     },
 
     // Robots & Indexing
@@ -108,7 +98,7 @@ export default function RootLayout({
         <html
             lang="en"
             suppressHydrationWarning
-            className={`${inter.variable} ${jetbrainsMono.variable}`}
+            className={`${inter.variable} ${jetbrainsMono.variable} ${notoEmoji.variable}`}
         >
         <body
             className="bg-background text-foreground min-h-dvh flex flex-col font-sans antialiased selection:bg-brand-subtle selection:text-brand">
