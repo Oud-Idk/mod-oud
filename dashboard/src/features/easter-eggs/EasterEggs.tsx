@@ -136,8 +136,8 @@ export function EasterEggs(): JSX.Element {
             {showLeonSky && (
                 <Modal uncloseable headerText="A message from the fire department">
                     {/* TODO get this commissioned */}
-                    Uhh, I still need to get a Leon & Sky fanart commissioned. Imagine you saw something shocking here :o
-                    And imagine if the Image has title="Mod Oud will forever me free as in free beer and free speech, and I am maintaining this without the expectation of profit and hosting this with my own money. But I am going to spend $45 on Leon & Sky fanart because... I am totally financially responsible"
+                    TODO: Uhh, I still need to get a Leon & Sky fanart commissioned. Imagine you saw something shocking here :o
+                    Image has title=&quot;Mod Oud will forever me free as in free beer and free speech, and I am maintaining this without the expectation of profit and hosting this with my own money. But I am going to spend $45 on Leon & Sky fanart because... I am totally financially responsible&quot;
                 </Modal>
             )}
             {showCarl && (
