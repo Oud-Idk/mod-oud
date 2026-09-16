@@ -8,6 +8,18 @@ import { CustomCommand, SaveCustomCommandData, SaveCustomCommandSchema, CustomPr
 import { deleteCustomCommand, saveCustomCommand, saveCustomPrefix } from "@/features/custom-commands/queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
+async function invalidateCommandCache(guildId: string, commandName?: string): Promise<void> {
+    const keys = [`cmd_anywhere:${guildId}`];
+    if (commandName !== undefined && commandName.trim() !== "") {
+        keys.push(`cmd:${guildId}:${commandName.toLowerCase()}`);
+    }
+    try {
+        await redis.del(...keys);
+    } catch (err) {
+        console.error("Failed to clear Redis cache for command:", err);
+    }
+}
+
 export async function saveCustomCommandAction(guildId: string, config: SaveCustomCommandData): Promise<CustomCommand> {
     try {
         await verifyGuildAccess(guildId);
@@ -16,14 +28,7 @@ export async function saveCustomCommandAction(guildId: string, config: SaveCusto
 
         const ret = await saveCustomCommand(config);
 
-        if (ret.name.trim() !== "") {
-            const cacheKey = `cmd:${guildId}:${ret.name.toLowerCase()}`;
-            try {
-                await redis.del(cacheKey);
-            } catch (err) {
-                console.error("Failed to clear Redis cache for command:", err);
-            }
-        }
+        await invalidateCommandCache(guildId, ret.name);
 
         revalidatePath(`/dashboard/${guildId}/custom-commands`);
         return ret;
@@ -45,14 +50,7 @@ export async function deleteCustomCommandAction(guildId: string, id: number, com
 
         const ret = await deleteCustomCommand(id, guildId);
 
-        if (commandName !== undefined) {
-            const cacheKey = `cmd:${guildId}:${commandName.toLowerCase()}`;
-            try {
-                await redis.del(cacheKey);
-            } catch (err) {
-                console.error("Failed to clear Redis cache on delete:", err);
-            }
-        }
+        await invalidateCommandCache(guildId, commandName);
 
         revalidatePath(`/dashboard/${guildId}/custom-commands`);
         return ret;

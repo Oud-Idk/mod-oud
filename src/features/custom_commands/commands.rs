@@ -63,8 +63,9 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
             .as_deref()
             .filter(|d| !d.trim().is_empty())
             .unwrap_or("No description provided.");
+        let anywhere = if cmd.trigger_anywhere { " 🌐" } else { "" };
 
-        command_list.push(format!("• **{prefix}{}**: {}", cmd.name, desc));
+        command_list.push(format!("• **{prefix}{}**{anywhere}: {}", cmd.name, desc));
     }
 
     let full_description = command_list.join("\n");
@@ -79,7 +80,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
         .description(display_description)
         .color(BRAND_COLOR)
         .footer(serenity::all::CreateEmbedFooter::new(format!(
-            "Use {prefix}<name> in chat (or @bot <name>) to run a command!"
+            "Use {prefix}<name> in chat (or @bot <name>) to run a command! 🌐 = also triggers anywhere in a message."
         )));
 
     ctx.send(CreateReply::default().embed(embed)).await?;

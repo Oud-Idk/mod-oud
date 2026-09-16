@@ -31,6 +31,7 @@ function createMockCommand(overrides: Partial<SaveCommandInput> = {}): SaveComma
         description: "I wish SpicyWolf will die tomorrow",
         enabled: true,
         delete_trigger: false,
+        trigger_anywhere: false,
         cooldown_type: "NONE",
         cooldown_seconds: 0,
         allowed_roles: [],
@@ -220,6 +221,60 @@ describe("Custom Commands Query Module", () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 
             await expect(saveCustomCommand(newCommand)).rejects.toThrow("connection lost");
+        });
+
+        it("should persist the trigger_anywhere flag on insert and update", async () => {
+            const anywhereCommand = createMockCommand({
+                guild_id: "guild_123",
+                name: "rules",
+                trigger_anywhere: true,
+                actions: [{ type: "add_role", data: { role_id: "role_1" } }],
+            });
+            mockQuery.mockResolvedValue({
+                rows: [{ ...anywhereCommand, id: 5 }],
+                rowCount: 1,
+            });
+
+            const inserted = await saveCustomCommand(anywhereCommand);
+            expect(inserted.trigger_anywhere).toBe(true);
+            const [, insertParams = []] = mockQuery.mock.calls[0];
+            expect(insertParams).toContain(true);
+
+            const updated = { ...anywhereCommand, id: 5 };
+            mockQuery.mockResolvedValue({ rows: [updated], rowCount: 1 });
+
+            await saveCustomCommand(updated);
+            const [updateStr, updateParams = []] = mockQuery.mock.calls[1];
+            expect(updateStr).toContain("trigger_anywhere");
+            expect(updateParams).toContain(true);
+        });
+
+        it("should parse trigger_anywhere when listing commands", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        id: 1,
+                        guild_id: "guild_123",
+                        name: "rules",
+                        description: "",
+                        enabled: true,
+                        delete_trigger: false,
+                        trigger_anywhere: true,
+                        cooldown_type: "NONE",
+                        cooldown_seconds: 0,
+                        allowed_roles: [],
+                        ignored_roles: [],
+                        allowed_channels: [],
+                        ignored_channels: [],
+                        actions: [],
+                    },
+                ],
+                rowCount: 1,
+            });
+
+            const result = await getCustomCommands("guild_123");
+
+            expect(result[0].trigger_anywhere).toBe(true);
         });
     });
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, guild_id, name, description, enabled, delete_trigger,\n               cooldown_type as \"cooldown_type: CooldownType\", cooldown_seconds,\n               allowed_roles, ignored_roles, allowed_channels, ignored_channels,\n               actions as \"actions: Json<Vec<CommandAction>>\"\n        FROM custom_commands\n        WHERE guild_id = $1 AND LOWER(name) = $2 AND enabled = TRUE\n        ",
+  "query": "\n        SELECT id, guild_id, name, description, enabled, delete_trigger, trigger_anywhere,\n               cooldown_type as \"cooldown_type: CooldownType\", cooldown_seconds,\n               allowed_roles, ignored_roles, allowed_channels, ignored_channels,\n               actions as \"actions: Json<Vec<CommandAction>>\"\n        FROM custom_commands\n        WHERE guild_id = $1 AND LOWER(name) = $2 AND enabled = TRUE\n        ",
   "describe": {
     "columns": [
       {
@@ -71,6 +71,17 @@
       },
       {
         "ordinal": 6,
+        "name": "trigger_anywhere",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "trigger_anywhere"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "cooldown_type: CooldownType",
         "type_info": {
           "Custom": {
@@ -92,7 +103,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "cooldown_seconds",
         "type_info": "Int4",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "allowed_roles",
         "type_info": "Int8Array",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "ignored_roles",
         "type_info": "Int8Array",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "allowed_channels",
         "type_info": "Int8Array",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "ignored_channels",
         "type_info": "Int8Array",
         "origin": {
@@ -147,7 +158,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "actions: Json<Vec<CommandAction>>",
         "type_info": "Jsonb",
         "origin": {
@@ -177,8 +188,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "951349ce615893ab5d282ddb661057e5d2e74e0c2b957e045c7c252a4b9910d4"
+  "hash": "d548db8bf8a83b4cafb3028cb8803d77c33c67af89ec6903de3408fccf041f63"
 }

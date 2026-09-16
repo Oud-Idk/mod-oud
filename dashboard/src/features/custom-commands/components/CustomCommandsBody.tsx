@@ -91,7 +91,7 @@ export function CustomCommandsBody({
                             )}
                         >
                             <div className="flex justify-between items-center gap-2 w-full">
-                                <span className="truncate font-semibold text-sm">{prefix}{item.name}</span>
+                                <span className="truncate font-semibold text-sm">{!item.trigger_anywhere && prefix}{item.name}{item.trigger_anywhere ? " 🌐" : ""}</span>
                                 <span
                                     className={cn(
                                         "text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
@@ -149,6 +149,7 @@ export function CustomCommandsBody({
                         description: v.description,
                         enabled: true,
                         delete_trigger: false,
+                        trigger_anywhere: false,
                         cooldown_type: "NONE",
                         cooldown_seconds: 0,
                         allowed_roles: [],

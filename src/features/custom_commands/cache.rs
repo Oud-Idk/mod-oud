@@ -40,6 +40,24 @@ pub async fn get_custom_command_from_redis(
     serde_json::from_str::<CustomCommand>(&cached_str).ok()
 }
 
+/// Reads the cached anywhere-enabled command names for a guild.
+/// Returns `None` on a cache miss so the caller falls through to the DB.
+pub async fn get_anywhere_names_from_redis(redis: &Client, cache_key: &str) -> Option<Vec<String>> {
+    let Ok(Some(cached_str)) = redis.get::<Option<String>, _>(cache_key).await else {
+        return None;
+    };
+    serde_json::from_str::<Vec<String>>(&cached_str).ok()
+}
+
+/// Caches anywhere-enabled command names (including the empty list) for 5 minutes.
+pub async fn cache_anywhere_names_to_redis(redis: &Client, cache_key: &str, names: &[String]) {
+    if let Ok(json_str) = serde_json::to_string(names) {
+        let _ = redis
+            .set::<(), _, _>(cache_key, json_str, Some(Expiration::EX(300)), None, false)
+            .await;
+    }
+}
+
 /// Checks whether a custom command is on cooldown, setting the cooldown if it is not.
 /// Returns `Ok(true)` if the command is currently on cooldown.
 ///

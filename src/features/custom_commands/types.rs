@@ -96,6 +96,40 @@ pub fn strip_custom_prefix<'a>(
     content.strip_prefix(prefix)
 }
 
+/// Returns `true` for characters allowed inside a custom command name.
+fn is_command_name_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '-' || c == '_'
+}
+
+/// Finds anywhere-enabled command names mentioned as whole tokens in `content`.
+///
+/// Matching is case-insensitive and token-based: `content` is split on every
+/// character that cannot appear in a command name, so `rule-1` matches
+/// `"read rule-1!"` but not `"myrule-1x"`. Returns matched names longest-first
+/// with duplicates removed.
+#[must_use]
+pub fn find_anywhere_matches(
+    content: &str,
+    candidates: impl IntoIterator<Item = impl AsRef<str>>,
+) -> Vec<String> {
+    let tokens: std::collections::HashSet<String> = content
+        .split(|c: char| !is_command_name_char(c))
+        .filter(|t| !t.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect();
+    if tokens.is_empty() {
+        return Vec::new();
+    }
+    let mut matched: Vec<String> = candidates
+        .into_iter()
+        .map(|c| c.as_ref().to_ascii_lowercase())
+        .filter(|name| !name.is_empty() && tokens.contains(name))
+        .collect();
+    matched.sort_by(|a, b| b.len().cmp(&a.len()).then(a.cmp(b)));
+    matched.dedup();
+    matched
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(
     type_name = "COMMAND_COOLDOWN_TYPE",
@@ -144,6 +178,7 @@ pub struct CustomCommand {
     pub description: Option<String>,
     pub enabled: bool,
     pub delete_trigger: bool,
+    pub trigger_anywhere: bool,
     pub cooldown_type: CooldownType,
     pub cooldown_seconds: i32,
     pub allowed_roles: Vec<RoleId>,
@@ -161,6 +196,7 @@ pub struct CustomCommandRow {
     pub description: Option<String>,
     pub enabled: bool,
     pub delete_trigger: bool,
+    pub trigger_anywhere: bool,
     pub cooldown_type: CooldownType,
     pub cooldown_seconds: i32,
     pub allowed_roles: Vec<i64>,
@@ -179,6 +215,7 @@ impl From<CustomCommandRow> for CustomCommand {
             description: row.description,
             enabled: row.enabled,
             delete_trigger: row.delete_trigger,
+            trigger_anywhere: row.trigger_anywhere,
             cooldown_type: row.cooldown_type,
             cooldown_seconds: row.cooldown_seconds,
             allowed_roles: row
@@ -292,5 +329,40 @@ mod tests {
         assert_eq!(strip_custom_prefix("?hello", "!", Some(bot_id)), None);
         assert_eq!(strip_custom_prefix("!hello", "!", None), Some("hello"));
         assert_eq!(strip_custom_prefix("<@123>hello", "!", None), None);
+    }
+
+    #[test]
+    fn anywhere_matches_whole_tokens_case_insensitively() {
+        let names = ["rule-1", "rules", "info"];
+        assert_eq!(
+            find_anywhere_matches("Hey, don't forget to read rule-1", names),
+            vec!["rule-1".to_string()]
+        );
+        assert_eq!(
+            find_anywhere_matches("PLEASE READ RULE-1!", names),
+            vec!["rule-1".to_string()]
+        );
+        assert_eq!(
+            find_anywhere_matches("check ?rule-1 out", names),
+            vec!["rule-1".to_string()]
+        );
+    }
+
+    #[test]
+    fn anywhere_rejects_partial_tokens() {
+        let names = ["rule-1", "rules"];
+        assert!(find_anywhere_matches("myrule-1x is here", names).is_empty());
+        assert!(find_anywhere_matches("read the ruleset", names).is_empty());
+        assert!(find_anywhere_matches("", names).is_empty());
+        assert!(find_anywhere_matches("hello world", names).is_empty());
+    }
+
+    #[test]
+    fn anywhere_orders_longest_first_and_dedupes() {
+        let names = ["rule", "rule-1", "rule-1", "info"];
+        assert_eq!(
+            find_anywhere_matches("rule and rule-1 and info", names),
+            vec!["rule-1".to_string(), "info".to_string(), "rule".to_string()]
+        );
     }
 }

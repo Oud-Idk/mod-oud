@@ -25,6 +25,7 @@ export async function getCustomCommands(guildId: string): Promise<CustomCommand[
                COALESCE(description, '')        AS description,
                enabled,
                delete_trigger,
+               COALESCE(trigger_anywhere, FALSE) AS trigger_anywhere,
                cooldown_type,
                cooldown_seconds,
                allowed_roles    AS allowed_roles,
@@ -55,15 +56,16 @@ export async function saveCustomCommand(data: SaveCustomCommandData): Promise<Cu
                 description      = $2,
                 enabled          = $3,
                 delete_trigger   = $4,
-                cooldown_type    = $5,
-                cooldown_seconds = $6,
-                allowed_roles    = $7,
-                ignored_roles    = $8,
-                allowed_channels = $9,
-                ignored_channels = $10,
-                actions          = $11::JSONB
-            WHERE id = $12
-              AND guild_id = $13
+                trigger_anywhere = $5,
+                cooldown_type    = $6,
+                cooldown_seconds = $7,
+                allowed_roles    = $8,
+                ignored_roles    = $9,
+                allowed_channels = $10,
+                ignored_channels = $11,
+                actions          = $12::JSONB
+            WHERE id = $13
+              AND guild_id = $14
             RETURNING *;
         `;
         params = [
@@ -71,6 +73,7 @@ export async function saveCustomCommand(data: SaveCustomCommandData): Promise<Cu
             data.description ?? null,
             data.enabled,
             data.delete_trigger,
+            data.trigger_anywhere,
             data.cooldown_type,
             data.cooldown_seconds,
             data.allowed_roles,
@@ -84,11 +87,11 @@ export async function saveCustomCommand(data: SaveCustomCommandData): Promise<Cu
     } else {
         query = `
             INSERT INTO custom_commands (
-                guild_id, name, description, enabled, delete_trigger,
+                guild_id, name, description, enabled, delete_trigger, trigger_anywhere,
                 cooldown_type, cooldown_seconds, allowed_roles, ignored_roles,
                 allowed_channels, ignored_channels, actions
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::JSONB)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::JSONB)
             RETURNING *;
         `;
         params = [
@@ -97,6 +100,7 @@ export async function saveCustomCommand(data: SaveCustomCommandData): Promise<Cu
             data.description ?? null,
             data.enabled,
             data.delete_trigger,
+            data.trigger_anywhere,
             data.cooldown_type,
             data.cooldown_seconds,
             data.allowed_roles,

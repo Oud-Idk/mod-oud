@@ -68,7 +68,7 @@ describe("Custom Commands Server Actions", (): void => {
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
             expect(saveCustomCommand).toHaveBeenCalledWith(validCommand);
-            expect(redis.del).toHaveBeenCalledWith("cmd:guild_123:testcmd");
+            expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123", "cmd:guild_123:testcmd");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/custom-commands");
         });
 
@@ -81,7 +81,7 @@ describe("Custom Commands Server Actions", (): void => {
             expect(redis.del).not.toHaveBeenCalled();
         });
 
-        it("should skip Redis cache clear when saved command has no name", async (): Promise<void> => {
+        it("should only clear the anywhere list when saved command has no name", async (): Promise<void> => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
             // Spreads mockSavedCommand to keep all properties, overriding name with ""
@@ -93,7 +93,7 @@ describe("Custom Commands Server Actions", (): void => {
 
             await saveCustomCommandAction("guild_123", validCommand);
 
-            expect(redis.del).not.toHaveBeenCalled();
+            expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123");
             expect(revalidatePath).toHaveBeenCalled();
         });
 
@@ -184,19 +184,19 @@ describe("Custom Commands Server Actions", (): void => {
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
             expect(deleteCustomCommand).toHaveBeenCalledWith(42, "guild_123");
-            expect(redis.del).toHaveBeenCalledWith("cmd:guild_123:ping");
+            expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123", "cmd:guild_123:ping");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/custom-commands");
             expect(result).toBe(true);
         });
 
-        it("should skip Redis cache clear when commandName is not provided", async (): Promise<void> => {
+        it("should still clear the anywhere list when commandName is not provided", async (): Promise<void> => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(deleteCustomCommand).mockResolvedValue(true);
 
             const result = await deleteCustomCommandAction("guild_123", 42);
 
             expect(result).toBe(true);
-            expect(redis.del).not.toHaveBeenCalled();
+            expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123");
         });
 
         it("should handle Redis deletion failures without crashing delete action", async (): Promise<void> => {

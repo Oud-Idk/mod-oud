@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT name, description\n        FROM custom_commands\n        WHERE guild_id = $1 AND enabled = TRUE\n        ORDER BY name ASC\n        ",
+  "query": "\n        SELECT name, description, trigger_anywhere\n        FROM custom_commands\n        WHERE guild_id = $1 AND enabled = TRUE\n        ORDER BY name ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -24,6 +24,17 @@
             "name": "description"
           }
         }
+      },
+      {
+        "ordinal": 2,
+        "name": "trigger_anywhere",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "custom_commands",
+            "name": "trigger_anywhere"
+          }
+        }
       }
     ],
     "parameters": {
@@ -33,8 +44,9 @@
     },
     "nullable": [
       false,
-      true
+      true,
+      false
     ]
   },
-  "hash": "11f23d479bc118f7ded499344fc948c12e25112eed0aefce67e341ad6b94e0b2"
+  "hash": "c84ebc8d5ab65e2e33a75d1b7fd9c3a13f1a385805a1cc7455e7a1e33f5b1c88"
 }

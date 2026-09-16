@@ -178,11 +178,19 @@ export function CustomCommandConfig({
                         </div>
                     </div>
 
-                    <ToggleSwitch
-                        checked={config.delete_trigger}
-                        onChange={(checked) => { onChange({ ...config, delete_trigger: checked }); }}
-                        text="Delete user trigger message after command execution"
-                    />
+                    <div className="block">
+                        <ToggleSwitch
+                            checked={config.delete_trigger}
+                            onChange={(checked) => { onChange({ ...config, delete_trigger: checked }); }}
+                            text="Delete user trigger message after command execution"
+                        />
+
+                        <ToggleSwitch
+                            checked={config.trigger_anywhere}
+                            onChange={(checked) => { onChange({ ...config, trigger_anywhere: checked }); }}
+                            text="Trigger when the name appears anywhere in a message (e.g. “don't forget to read rules”)"
+                        />
+                    </div>
                 </div>
             )}
 

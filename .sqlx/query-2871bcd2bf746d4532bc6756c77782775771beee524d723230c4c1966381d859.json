@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT LOWER(name)\n        FROM custom_commands\n        WHERE guild_id = $1 AND enabled = TRUE AND trigger_anywhere = TRUE\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lower",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2871bcd2bf746d4532bc6756c77782775771beee524d723230c4c1966381d859"
+}

@@ -50,6 +50,7 @@ export const saveCustomCommandInputSchema = z.object({
     description: z.string().nullish().default(""),
     enabled: z.boolean().default(true),
     delete_trigger: z.boolean().default(false),
+    trigger_anywhere: z.boolean().default(false),
     cooldown_type: cooldownTypeSchema.default("NONE"),
     cooldown_seconds: z.number().nonnegative().default(0),
     allowed_roles: z.array(z.coerce.string()).default([]),

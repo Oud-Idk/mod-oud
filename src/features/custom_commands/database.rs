@@ -24,7 +24,7 @@ pub async fn get_custom_command_by_name(
     let command = sqlx::query_as!(
         CustomCommandRow,
         r#"
-        SELECT id, guild_id, name, description, enabled, delete_trigger,
+        SELECT id, guild_id, name, description, enabled, delete_trigger, trigger_anywhere,
                cooldown_type as "cooldown_type: CooldownType", cooldown_seconds,
                allowed_roles, ignored_roles, allowed_channels, ignored_channels,
                actions as "actions: Json<Vec<CommandAction>>"
@@ -43,6 +43,40 @@ pub async fn get_custom_command_by_name(
     Ok(command)
 }
 
+/// Returns the lowercased names of enabled anywhere-trigger commands in a guild.
+///
+/// The list itself is cached in Redis; individual commands are resolved through
+/// [`get_custom_command_by_name`] so row data keeps a single cached source of truth.
+pub async fn get_anywhere_command_names(
+    pool: &PgPool,
+    redis: &Client,
+    guild_id: GuildId,
+) -> Result<Vec<String>, Error> {
+    let cache_key = keys::anywhere_commands_key(guild_id);
+
+    if let Some(names) = cache::get_anywhere_names_from_redis(redis, &cache_key).await {
+        return Ok(names);
+    }
+
+    let names: Vec<String> = sqlx::query_scalar!(
+        r#"
+        SELECT LOWER(name)
+        FROM custom_commands
+        WHERE guild_id = $1 AND enabled = TRUE AND trigger_anywhere = TRUE
+        "#,
+        guild_id.get().cast_signed(),
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .flatten()
+    .collect();
+
+    cache::cache_anywhere_names_to_redis(redis, &cache_key, &names).await;
+
+    Ok(names)
+}
+
 pub async fn get_custom_command(
     pool: &PgPool,
     guild_id: GuildId,
@@ -50,7 +84,7 @@ pub async fn get_custom_command(
     sqlx::query_as!(
         SimpleCustomCommand,
         r#"
-        SELECT name, description
+        SELECT name, description, trigger_anywhere
         FROM custom_commands
         WHERE guild_id = $1 AND enabled = TRUE
         ORDER BY name ASC
@@ -64,4 +98,5 @@ pub async fn get_custom_command(
 pub struct SimpleCustomCommand {
     pub name: String,
     pub description: Option<String>,
+    pub trigger_anywhere: bool,
 }

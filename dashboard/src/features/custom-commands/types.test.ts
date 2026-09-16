@@ -74,6 +74,7 @@ describe("Custom Commands Schemas", () => {
             expect(result.data.enabled).toBe(false);
             expect(result.data.cooldown_type).toBe("NONE");
             expect(result.data.cooldown_seconds).toBe(0);
+            expect(result.data.trigger_anywhere).toBe(false);
             expect(result.data.allowed_roles).toEqual([]);
             expect(result.data.ignored_roles).toEqual([]);
             expect(result.data.actions).toEqual([]);
