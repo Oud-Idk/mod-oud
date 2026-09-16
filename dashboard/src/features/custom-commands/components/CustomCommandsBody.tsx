@@ -20,6 +20,7 @@ interface CustomCommandsBodyProps {
     channelMap: Record<string, string>;
     roleMap: Record<string, string>;
     guildId: string;
+    prefix: string;
 }
 
 export function CustomCommandsBody({
@@ -29,7 +30,8 @@ export function CustomCommandsBody({
     onDelete,
     channelMap,
     roleMap,
-    guildId
+    guildId,
+    prefix
 }: CustomCommandsBodyProps): JSX.Element {
     const router = useRouter();
     const [config, setConfig] = useState<CustomCommand | null>(activeConfig);
@@ -89,7 +91,7 @@ export function CustomCommandsBody({
                             )}
                         >
                             <div className="flex justify-between items-center gap-2 w-full">
-                                <span className="truncate font-semibold text-sm">!{item.name}</span>
+                                <span className="truncate font-semibold text-sm">{prefix}{item.name}</span>
                                 <span
                                     className={cn(
                                         "text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
@@ -143,7 +145,7 @@ export function CustomCommandsBody({
                 onSave={async (v) => {
                     const newCmd = await onSave({
                         guild_id: guildId,
-                        name: v.name.replace(/^!/, ""),
+                        name: v.name.replace(/^[^a-zA-Z0-9_-]+/, ""),
                         description: v.description,
                         enabled: true,
                         delete_trigger: false,

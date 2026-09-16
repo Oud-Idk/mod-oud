@@ -1,1 +1,6 @@
 export { CustomCommandsFeature } from './components/CustomCommandsFeature'
+export { CustomPrefixConfig } from './components/CustomPrefixConfig'
+export { getCustomCommands, saveCustomCommand, deleteCustomCommand, getCustomPrefix, saveCustomPrefix } from './queries'
+export { saveCustomCommandAction, deleteCustomCommandAction, saveCustomPrefixAction } from './actions'
+export { customPrefixSchema, DEFAULT_CUSTOM_PREFIX } from './types'
+export type { CustomPrefixConfig as CustomPrefixConfigType } from './types'

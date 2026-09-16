@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels";
-import { deleteCustomCommandAction, saveCustomCommandAction } from "../actions";
+import { deleteCustomCommandAction, saveCustomCommandAction, saveCustomPrefixAction } from "../actions";
 import { CustomCommandsBody } from "@/features/custom-commands/components/CustomCommandsBody";
-import { getCustomCommands } from "@/features/custom-commands/queries";
+import { CustomPrefixConfig } from "@/features/custom-commands/components/CustomPrefixConfig";
+import { getCustomCommands, getCustomPrefix } from "@/features/custom-commands/queries";
 import { JSX } from "react";
 
 interface CustomCommandsFeatureProps {
@@ -22,10 +23,11 @@ export async function CustomCommandsFeature({
         redirect("/");
     }
 
-    const [commands, channelMap, roleMap] = await Promise.all([
+    const [commands, channelMap, roleMap, prefixConfig] = await Promise.all([
         getCustomCommands(guildId),
         getTextChannelMap(guildId),
         getRoleMap(guildId),
+        getCustomPrefix(guildId),
     ]);
 
     const activeConfig =
@@ -35,10 +37,12 @@ export async function CustomCommandsFeature({
 
     const onSave = saveCustomCommandAction.bind(null, guildId);
     const onDelete = deleteCustomCommandAction.bind(null, guildId);
+    const onSavePrefix = saveCustomPrefixAction.bind(null, guildId);
 
     return (
-        <div>
+        <div className="space-y-4">
             <DashboardHeader>Custom Commands</DashboardHeader>
+            <CustomPrefixConfig initialConfig={prefixConfig} onSave={onSavePrefix} />
             <CustomCommandsBody
                 commands={commands}
                 activeConfig={activeConfig}
@@ -47,6 +51,7 @@ export async function CustomCommandsFeature({
                 channelMap={channelMap}
                 roleMap={roleMap}
                 guildId={guildId}
+                prefix={prefixConfig.prefix}
             />
         </div>
     );

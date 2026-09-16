@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SaveCustomCommandSchema } from "./types";
+import { SaveCustomCommandSchema, customPrefixSchema } from "./types";
 
 describe("Custom Commands Schemas", () => {
     it("should REJECT command names with spaces or special characters", () => {
@@ -331,6 +331,33 @@ describe("Custom Commands Schemas", () => {
             const result = SaveCustomCommandSchema.safeParse(invalid);
 
             expect(result.success).toBe(false);
+        });
+    });
+
+    describe("customPrefixSchema", () => {
+        it("should ACCEPT common symbol prefixes", () => {
+            for (const prefix of ["!", "?", ".", "-", "+", "$", "%", "!!", "!?"]) {
+                expect(customPrefixSchema.safeParse({ prefix }).success).toBe(true);
+            }
+        });
+
+        it("should default to ! when empty object is given", () => {
+            const result = customPrefixSchema.safeParse({});
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.prefix).toBe("!");
+            }
+        });
+
+        it("should REJECT empty, long, alphanumeric, whitespace, or forbidden prefixes", () => {
+            expect(customPrefixSchema.safeParse({ prefix: "" }).success).toBe(false);
+            expect(customPrefixSchema.safeParse({ prefix: "!!!!" }).success).toBe(false);
+            expect(customPrefixSchema.safeParse({ prefix: "! cmd" }).success).toBe(false);
+            expect(customPrefixSchema.safeParse({ prefix: "a" }).success).toBe(false);
+            expect(customPrefixSchema.safeParse({ prefix: "1" }).success).toBe(false);
+            for (const bad of ["<", ">", "@", "#", "`", "/"]) {
+                expect(customPrefixSchema.safeParse({ prefix: bad }).success).toBe(false);
+            }
         });
     });
 });

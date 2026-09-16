@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { saveCustomCommandAction, deleteCustomCommandAction } from "./actions";
+import { saveCustomCommandAction, deleteCustomCommandAction, saveCustomPrefixAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
-import { saveCustomCommand, deleteCustomCommand } from "@/features/custom-commands/queries";
+import { saveCustomCommand, deleteCustomCommand, saveCustomPrefix } from "@/features/custom-commands/queries";
 import redis from "@/lib/redis";
 import { revalidatePath } from "next/cache";
 import { customCommandSchema, saveCustomCommandInputSchema } from "@/features/custom-commands/types";
@@ -14,6 +14,7 @@ vi.mock("@/features/_shared/guild", () => ({
 vi.mock("@/features/custom-commands/queries", () => ({
     saveCustomCommand: vi.fn(),
     deleteCustomCommand: vi.fn(),
+    saveCustomPrefix: vi.fn(),
 }));
 
 vi.mock("@/lib/redis", () => ({
@@ -224,6 +225,37 @@ describe("Custom Commands Server Actions", (): void => {
             await expect(deleteCustomCommandAction("guild_123", 42, "ping")).rejects.toThrow(
                 "Could not delete custom command."
             );
+        });
+    });
+
+    describe("saveCustomPrefixAction", (): void => {
+        it("should verify access, validate, and save prefix", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveCustomPrefix).mockResolvedValue(undefined);
+
+            await saveCustomPrefixAction("guild_123", { prefix: "?" });
+
+            expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
+            expect(saveCustomPrefix).toHaveBeenCalledWith("guild_123", { prefix: "?" });
+            expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/custom-commands");
+        });
+
+        it("should REJECT invalid prefix without saving", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+
+            await expect(saveCustomPrefixAction("guild_123", { prefix: "abc" })).rejects.toThrow(
+                "Prefix must not contain letters or numbers."
+            );
+
+            expect(saveCustomPrefix).not.toHaveBeenCalled();
+        });
+
+        it("should propagate access errors", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("no access"));
+
+            await expect(saveCustomPrefixAction("guild_123", { prefix: "?" })).rejects.toThrow("no access");
+
+            expect(saveCustomPrefix).not.toHaveBeenCalled();
         });
     });
 });

@@ -1,9 +1,21 @@
 import { db } from "@/lib/db";
+import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import {
     customCommandSchema,
+    customPrefixSchema,
     type CustomCommand,
+    type CustomPrefixConfig,
     type SaveCustomCommandData,
 } from "./types";
+
+export async function getCustomPrefix(guildId: string): Promise<CustomPrefixConfig> {
+    const raw = await getGuildConfigField(guildId, "custom_commands");
+    return customPrefixSchema.parse(raw ?? {});
+}
+
+export async function saveCustomPrefix(guildId: string, config: CustomPrefixConfig): Promise<void> {
+    await saveGuildConfigField(guildId, "custom_commands", config);
+}
 
 export async function getCustomCommands(guildId: string): Promise<CustomCommand[]> {
     const query = `

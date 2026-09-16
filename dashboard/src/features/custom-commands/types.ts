@@ -81,3 +81,25 @@ export type CommandAction = z.infer<typeof commandActionSchema>;
 export type SaveCustomCommandData = z.infer<typeof saveCustomCommandInputSchema>;
 export type CustomCommand = z.infer<typeof customCommandSchema>;
 export type { MessageLayout };
+
+export const DEFAULT_CUSTOM_PREFIX = "!";
+
+const FORBIDDEN_PREFIX_PATTERN = /[<>@#`/]/;
+
+/** Per-guild trigger prefix, stored under the `custom_commands` guild-config key. Mirrors Rust validation. */
+export const customPrefixSchema = z.object({
+    prefix: z
+        .string()
+        .trim()
+        .min(1, "Prefix must not be empty.")
+        .max(3, "Prefix must be at most 3 characters.")
+        .refine((v) => !/\s/.test(v), "Prefix must not contain whitespace.")
+        .refine((v) => !/[A-Za-z0-9]/.test(v), "Prefix must not contain letters or numbers.")
+        .refine(
+            (v) => !FORBIDDEN_PREFIX_PATTERN.test(v),
+            "Prefix must not contain <, >, @, #, ` or /."
+        )
+        .default(DEFAULT_CUSTOM_PREFIX),
+});
+
+export type CustomPrefixConfig = z.infer<typeof customPrefixSchema>;

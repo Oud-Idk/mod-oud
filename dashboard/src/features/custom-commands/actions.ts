@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import redis from "@/lib/redis";
 import { z } from "zod";
 
-import { CustomCommand, SaveCustomCommandData, SaveCustomCommandSchema } from "@/features/custom-commands/types";
-import { deleteCustomCommand, saveCustomCommand } from "@/features/custom-commands/queries";
+import { CustomCommand, SaveCustomCommandData, SaveCustomCommandSchema, CustomPrefixConfig, customPrefixSchema } from "@/features/custom-commands/types";
+import { deleteCustomCommand, saveCustomCommand, saveCustomPrefix } from "@/features/custom-commands/queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
 export async function saveCustomCommandAction(guildId: string, config: SaveCustomCommandData): Promise<CustomCommand> {
@@ -59,5 +59,25 @@ export async function deleteCustomCommandAction(guildId: string, id: number, com
     } catch (error) {
         console.error("Failed to delete custom command:", error);
         throw new Error(error instanceof Error ? error.message : "Could not delete custom command.");
+    }
+}
+
+export async function saveCustomPrefixAction(guildId: string, rawData: unknown): Promise<void> {
+    try {
+        await verifyGuildAccess(guildId);
+
+        const validated: CustomPrefixConfig = customPrefixSchema.parse(rawData);
+
+        await saveCustomPrefix(guildId, validated);
+
+        revalidatePath(`/dashboard/${guildId}/custom-commands`);
+    } catch (error) {
+        console.error("Failed to save custom prefix:", error);
+
+        if (error instanceof z.ZodError) {
+            throw new Error(error.issues[0].message);
+        }
+
+        throw new Error(error instanceof Error ? error.message : "Could not save custom prefix.");
     }
 }

@@ -3,6 +3,7 @@ use crate::core::config::message_layout::TogglableMessage;
 use crate::core::config::{database, keys, redis};
 use crate::features::automod::{HoneypotConfig, MessageFilteringConfig};
 use crate::features::birthday::BirthdayConfig;
+use crate::features::custom_commands::CustomCommandsConfig;
 use crate::features::economy::EconomyConfig;
 use crate::features::gambling::GamblingConfig;
 use crate::features::invite_tracking::InviteTrackerConfig;
@@ -73,6 +74,9 @@ pub struct GuildSettings {
 
     /// Configuration for gambling games (bet limits, cooldowns, per-game toggles).
     pub gambling: Option<Box<GamblingConfig>>,
+
+    /// Configuration for custom commands (trigger prefix).
+    pub custom_commands: Option<Box<CustomCommandsConfig>>,
 }
 
 /// Direct message (DM) settings for various moderation actions.

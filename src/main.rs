@@ -328,7 +328,8 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("!".into()),
+                prefix: None,
+                dynamic_prefix: Some(dynamic_prefix),
                 edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
                     Duration::from_hours(1),
                 ))),
@@ -389,6 +390,37 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
     Ok(())
 }
 
+/// Resolves the per-guild command prefix for poise prefix commands.
+///
+/// Falls back to `!` when the guild has no custom prefix or settings fail to
+/// load, so prefix commands keep working even on cache/DB errors.
+fn dynamic_prefix(
+    ctx: poise::PartialContext<'_, BotData, Error>,
+) -> poise::BoxFuture<'_, Result<Option<String>, Error>> {
+    Box::pin(async move {
+        let Some(guild_id) = ctx.guild_id else {
+            return Ok(Some("!".to_string()));
+        };
+        let data = ctx.data;
+        match config::settings::get_settings(
+            &data.core.db,
+            &data.core.redis,
+            &data.core.guild_configs_cache,
+            guild_id,
+        )
+        .await
+        {
+            Ok(settings) => Ok(Some(
+                mod_oud::features::custom_commands::resolve_prefix(&settings).to_string(),
+            )),
+            Err(e) => {
+                warn!(error = ?e, %guild_id, "Failed to load prefix; falling back to default");
+                Ok(Some("!".to_string()))
+            }
+        }
+    })
+}
+
 /// Collects the application commands to register with the gateway.
 fn build_commands() -> Vec<poise::Command<BotData, Error>> {
     vec![
@@ -414,6 +446,7 @@ fn build_commands() -> Vec<poise::Command<BotData, Error>> {
         invite_tracking::inviter(),
         invite_tracking::invites_leaderboard(),
         custom_commands::custom_commands(),
+        custom_commands::prefix(),
         raid_detection::raid(),
         birthday::birthday(),
         automod::honeypot(),

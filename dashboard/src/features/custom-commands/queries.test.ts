@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getCustomCommands, saveCustomCommand, deleteCustomCommand } from "./queries";
+import { getCustomCommands, saveCustomCommand, deleteCustomCommand, getCustomPrefix, saveCustomPrefix } from "./queries";
+import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { db } from "@/lib/db";
 
 const mockQuery = vi.hoisted(() =>
@@ -13,6 +14,11 @@ vi.mock("@/lib/db", () => ({
     db: {
         query: mockQuery,
     },
+}));
+
+vi.mock("@/features/_shared/guild", () => ({
+    getGuildConfigField: vi.fn(),
+    saveGuildConfigField: vi.fn(),
 }));
 
 
@@ -246,6 +252,35 @@ describe("Custom Commands Query Module", () => {
             const result = await deleteCustomCommand(1, "guild_123");
 
             expect(result).toBe(false);
+        });
+    });
+
+    describe("getCustomPrefix", () => {
+        it("should return default prefix when DB returns null", async () => {
+            vi.mocked(getGuildConfigField).mockResolvedValue(null);
+
+            const result = await getCustomPrefix("guild_123");
+
+            expect(getGuildConfigField).toHaveBeenCalledWith("guild_123", "custom_commands");
+            expect(result.prefix).toBe("!");
+        });
+
+        it("should return saved prefix", async () => {
+            vi.mocked(getGuildConfigField).mockResolvedValue({ prefix: "?" });
+
+            const result = await getCustomPrefix("guild_123");
+
+            expect(result.prefix).toBe("?");
+        });
+    });
+
+    describe("saveCustomPrefix", () => {
+        it("should save via guild config field", async () => {
+            vi.mocked(saveGuildConfigField).mockResolvedValue(undefined);
+
+            await saveCustomPrefix("guild_123", { prefix: "?" });
+
+            expect(saveGuildConfigField).toHaveBeenCalledWith("guild_123", "custom_commands", { prefix: "?" });
         });
     });
 });
