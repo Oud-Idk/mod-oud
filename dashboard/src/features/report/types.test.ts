@@ -48,7 +48,7 @@ describe("reportedMessageSchema", () => {
             message_id: "msg_1",
             author_id: "user_1",
             reporter_id: "user_2",
-            created_at: "2026-01-01T00:00:00.000Z",
+            created_at: new Date(),
         });
 
         expect(parsed.id).toBe(42);
@@ -78,8 +78,8 @@ describe("reportedMessageSchema", () => {
             status: "ACTIONED",
             moderator_id: "user_3",
             moderator_notes: "Resolved",
-            created_at: "2026-01-01T00:00:00.000Z",
-            resolved_at: "2026-01-02T00:00:00.000Z",
+            created_at: new Date(),
+            resolved_at: new Date(),
             message_deleted: true,
             user_warned: true,
         });

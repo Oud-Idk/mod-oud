@@ -25,7 +25,6 @@ const REPORT_DM_TABS: TabItem<ReportTabValue>[] = [
     { value: "DISMISSED_DM", label: "Report Dismissed" },
 ];
 
-
 const TAB_TO_CONFIG_KEY = {
     RESOLVED_DM: "resolvedDm",
     DISMISSED_DM: "dismissedDm",
@@ -51,14 +50,19 @@ export function NotificationsTab({
 
             <div className="mt-4">
                 <MessageConfigEditor
-                    config={config[activeKey].message}
+                    config={{
+                        enabled: config[activeKey].enabled,
+                        ...config[activeKey].message
+                    }}
                     onChange={(updated) => { 
                         handleChange({
                             [activeKey]: {
                                 enabled: updated.enabled,
-                                content: updated.content,
-                                embed: updated.embed,
-                                format: updated.format,
+                                message: {
+                                    content: updated.content,
+                                    embed: updated.embed,
+                                    format: updated.format,
+                                }
                             },
                         }); }
                     }

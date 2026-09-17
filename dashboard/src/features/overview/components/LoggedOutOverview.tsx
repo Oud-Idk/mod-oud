@@ -226,7 +226,7 @@ export function LoggedOutOverview(): JSX.Element {
             ))}
         </div>
 
-        <div className="flex flex-col items-center mt-8 space-y-4">
+        <div className="flex flex-col items-center mt-8 space-y-4 mx-8">
             <Emphasis>What are you waiting for? Go sign up now for a blazingly fast Discord bot!</Emphasis>
             <SignInWithDiscord/>
         </div>

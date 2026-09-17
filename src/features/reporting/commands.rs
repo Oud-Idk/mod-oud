@@ -1,9 +1,12 @@
 #![allow(missing_docs, clippy::unused_async)]
+
+use std::sync::Arc;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::reporting::actions;
 use poise::Modal;
 use tracing::{debug, info, trace, warn};
+use crate::features::reporting::actions::ReportMetadata;
 
 #[derive(poise::Modal)]
 #[name = "Report This Message"]
@@ -47,7 +50,7 @@ pub async fn report_message(
         "Fetching server settings for report configuration check"
     );
     let config = get_settings(db, &redis, guild_configs, guild_id).await?;
-    let report_enabled = config.report.is_some_and(|r| r.enabled);
+    let report_enabled = config.report.as_ref().is_some_and(|r| r.enabled);
 
     if !report_enabled {
         debug!(
@@ -71,14 +74,20 @@ pub async fn report_message(
             reporter_id = %reporter.id,
             reported_message_id = %reported_message.id, "Report modal submitted; issuing report"
         );
+        let metadata = ReportMetadata {
+            guild_id,
+            reported_message: &reported_message,
+            reporter,
+            reason: modal.reason,
+        };
         let result = actions::issue_report(
             db,
             &ctx.data().core.redis,
             &ctx.data().core.username_tx,
-            guild_id,
-            &reported_message,
-            reporter,
-            modal.reason,
+            metadata,
+            &config,
+            Arc::clone(&ctx.serenity_context().http),
+            &ctx.data().core.config.domain,
         )
         .await?;
 

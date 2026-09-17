@@ -41,8 +41,7 @@ export function HistoryTab({
     isLoadingMore,
 }: HistoryTabProps): JSX.Element {
     return (
-        <div className="border border-border rounded-xl bg-surface p-4 flex flex-col space-y-4 shadow-sm">
-            {/* Header + Status & Filters */}
+        <div className="flex-1 min-h-0 border border-border rounded-xl bg-surface p-4 flex flex-col shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <h3 className="text-lg font-semibold text-foreground">Recent Reports</h3>
@@ -53,7 +52,6 @@ export function HistoryTab({
                     />
                 </div>
 
-                {/* Filter Segmented Control */}
                 <div
                     className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs self-start sm:self-auto border border-border-subtle">
                     <button
@@ -95,8 +93,7 @@ export function HistoryTab({
                 </div>
             </div>
 
-            <div
-                className="space-y-4 max-h-125 overflow-y-auto p-4 rounded-xl border border-border-subtle bg-surface-muted/30">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 rounded-xl border border-border-subtle bg-surface-muted/30 space-y-4">
                 {filteredLogs.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-12 text-center">
                         {statusFilter === "OPEN"

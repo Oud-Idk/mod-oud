@@ -20,7 +20,7 @@ export async function ReportFeature({ guildId }: ReportFeatureProps): Promise<JS
     const onSave = saveReportConfigAction.bind(null, guildId);
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full max-h-full flex flex-col overflow-hidden">
             <DashboardHeader>Reporting</DashboardHeader>
             <ReportBody
                 reportConfig={reportConfig}

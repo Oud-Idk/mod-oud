@@ -25,7 +25,7 @@ export function ReportContent({
     onImageClick,
 }: ReportContentProps): JSX.Element {
     const cleanContent = messageContent.trim();
-    const attachments = typeof attachmentUrl === 'string' ? attachmentUrl.split(",").map(u => u.trim()) : [];
+    const attachments = typeof attachmentUrl === 'string' ? attachmentUrl.split(",").map(u => u.trim()).filter(u => u != "") : [];
 
     return (
         <div className="space-y-2">

@@ -91,7 +91,7 @@ describe("Report Query Module", () => {
                         message_id: "msg_1",
                         author_id: "user_1",
                         reporter_id: "user_2",
-                        created_at: "2026-01-01T00:00:00.000Z",
+                        created_at: new Date(),
                     },
                 ],
             });

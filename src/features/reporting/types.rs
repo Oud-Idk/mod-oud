@@ -75,6 +75,9 @@ pub struct ReportConfig {
     pub resolved_dm: Option<TogglableMessage>,
     /// Message sent to the reporter when a report is dismissed.
     pub dismissed_dm: Option<TogglableMessage>,
+    /// The reporting channel, if any.,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    pub reporting_channel: Option<ChannelId>,
 }
 
 #[derive(Deserialize, Debug)]

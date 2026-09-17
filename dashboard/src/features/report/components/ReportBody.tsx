@@ -117,7 +117,7 @@ export function ReportBody({
     }, [logs, statusFilter]);
 
     return (
-        <div className="flex-1 scrollbar-thin space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-4 pr-2 flex flex-col">
             <ToggleSwitch
                 checked={config.enabled}
                 onChange={(v) => { handleChange({ enabled: v }); }}

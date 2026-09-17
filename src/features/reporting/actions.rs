@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::features::reporting::cache;
 use crate::features::reporting::database::insert_reported_message;
 use crate::features::reporting::types::{ReportStatus, ReportedMessagePayload};
@@ -6,8 +7,10 @@ use crate::shared::username_cache::UserUpdate;
 use anyhow::Result;
 use fred::clients::Client;
 use futures_util::TryFutureExt;
-use serenity::all::{GuildId, Message, User};
+use serenity::all::{CreateMessage, GuildId, Http, Message, User};
+use tokio::sync::mpsc;
 use tracing::{debug, trace, warn};
+use crate::core::config::settings::GuildSettings;
 
 pub fn extract_image_urls(message: &Message) -> Vec<String> {
     let mut urls = Vec::new();
@@ -36,17 +39,28 @@ pub fn extract_image_urls(message: &Message) -> Vec<String> {
     urls
 }
 
+pub struct ReportMetadata<'a> {
+    pub(crate) guild_id: GuildId,
+    pub(crate) reported_message: &'a Message,
+    pub(crate) reporter: &'a User,
+    pub(crate) reason: String,
+}
+
 /// Core logic for saving a report to Postgres and publishing it to Redis Pub/Sub.
 /// Returns the generated report ID, or None if the message was already reported by this user.
 pub async fn issue_report(
     db: &sqlx::PgPool,
     redis: &Client,
-    username_buf: &tokio::sync::mpsc::Sender<UserUpdate>,
-    guild_id: GuildId,
-    reported_message: &Message,
-    reporter: &User,
-    reason: String,
+    username_buf: &mpsc::Sender<UserUpdate>,
+    report_metadata: ReportMetadata<'_>,
+    config: &GuildSettings,
+    http: Arc<Http>,
+    domain: &str,
 ) -> Result<Option<i64>> {
+    let ReportMetadata {
+        guild_id, reported_message, reporter, reason,
+    } = report_metadata;
+
     trace!(
         %guild_id,
         message_id = %reported_message.id,
@@ -87,8 +101,6 @@ pub async fn issue_report(
         "Successfully saved reported message to database"
     );
 
-    let status = ReportStatus::UnderReview;
-
     let payload = ReportedMessagePayload {
         id,
         guild_id,
@@ -99,7 +111,7 @@ pub async fn issue_report(
         reason,
         content,
         attachment_url: Some(attachment_url),
-        status,
+        status: ReportStatus::UnderReview,
         message_deleted: false.into(),
         user_warned: false.into(),
         user_timed_out: false.into(),
@@ -126,9 +138,29 @@ pub async fn issue_report(
         })
         .await?;
 
+    send_message_to_channel(http, &config, reported_message, guild_id, domain).await?;
+
     debug!(
         report_id = id,
         "Successfully completed report processing and transmission"
     );
     Ok(Some(row.id))
+}
+
+async fn send_message_to_channel(http: Arc<Http>, config: &GuildSettings, message: &Message, guild_id: GuildId, domain: &str) -> Result<()> {
+    let Some(config) = config.report.as_deref() else { return Ok(()); };
+    debug!(
+        ?config,
+        "Attempting to send alert to channel"
+    );
+    let Some(reporting_channel) = config.reporting_channel else { return Ok(()); };
+    let message_url = message.link();
+    let dashboard_url = format!("{}/dashboard/{guild_id}/report", domain);
+
+
+
+    reporting_channel.send_message(&http, CreateMessage::new()
+        .content(format!("Someone reported a message! Message located at {message_url}. Head to {dashboard_url} to resolve."))
+    ).await?;
+    Ok(())
 }
