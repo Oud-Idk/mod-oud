@@ -1,5 +1,4 @@
 use crate::core::config::message_layout::TogglableMessage;
-use crate::shared::string_i64;
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, GuildId, MessageId, UserId};
@@ -84,7 +83,6 @@ pub struct ReportConfig {
 pub struct DashboardCommand {
     #[serde(flatten)]
     pub action: DashboardAction,
-    #[serde(with = "string_i64")]
     pub report_id: i64,
     pub moderator_id: Option<UserId>,
     pub reason: Option<String>,
