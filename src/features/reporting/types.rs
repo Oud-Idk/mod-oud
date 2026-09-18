@@ -95,7 +95,6 @@ pub struct DashboardCommand {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportedMessagePayload {
     /// ID of the report row.
-    #[serde_as(as = "DisplayFromStr")]
     pub id: i64,
     /// ID of the guild the report belongs to.
     #[serde_as(as = "DisplayFromStr")]
