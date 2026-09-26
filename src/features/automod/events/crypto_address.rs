@@ -6,6 +6,7 @@ use base64::engine::general_purpose::STANDARD_NO_PAD;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bitcoin::Network;
 use bitcoin::{Address as BtcAddress, TestnetVersion, bech32};
+use ed25519_dalek::VerifyingKey;
 use regex::Regex;
 use serenity::all::Message;
 use std::borrow::Cow;
@@ -89,15 +90,49 @@ fn is_valid_btc_address(candidate: &str) -> bool {
         || address.is_valid_for_network(Network::Testnet(TestnetVersion::V4))
 }
 
-fn is_valid_sol_address(candidate: &str) -> bool {
-    let Ok(decoded) = bs58::decode(candidate).into_vec() else {
-        return false;
-    };
+/// Minimum Shannon entropy (bits per character) for a base58 candidate to be
+/// treated as a real Solana address rather than chat spam.
+const SOL_MIN_BASE58_ENTROPY: f64 = 3.0;
 
-    if decoded.len() == 32 {
+fn has_low_base58_entropy(candidate: &str) -> bool {
+    let mut counts = [0u32; 128];
+    let mut total = 0u32;
+
+    for byte in candidate.bytes() {
+        if let Some(count) = counts.get_mut(byte as usize) {
+            *count += 1;
+            total += 1;
+        }
+    }
+
+    if total == 0 {
         return true;
     }
-    false
+
+    let total = f64::from(total);
+    let entropy: f64 = counts
+        .iter()
+        .filter(|count| **count > 0)
+        .map(|count| {
+            let p = f64::from(*count) / total;
+            -p * p.log2()
+        })
+        .sum();
+
+    entropy < SOL_MIN_BASE58_ENTROPY
+}
+
+fn is_valid_sol_address(candidate: &str) -> bool {
+    if candidate.len() < 32 || candidate.len() > 44 {
+        return false;
+    }
+
+    if has_low_base58_entropy(candidate) {
+        return false;
+    }
+
+    let mut buf = [0u8; 32];
+    matches!(bs58::decode(candidate).onto(&mut buf), Ok(32))
 }
 
 fn is_valid_tron_address(candidate: &str) -> bool {
@@ -306,6 +341,27 @@ mod tests {
         assert!(scan_for_crypto("2NEpo7TZRRrLZSi2U").is_none());
     }
 
+    #[test]
+    fn sol_random_chat_spam() {
+        // This test was added in the memorial of a user's deleted message
+        // `grimaldo i love you sososoosososososososososososoosososoooooooo much`
+        let candidates = [
+            "hahahahahahahahahahahahahahahahahahahahaha",
+            "hahahahahahahahahahahahahahahahahahahahahah",
+            "lolololololololololololololololololololololo",
+            "lolololololololololololololololololololololol",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sooosoooosoooosoooosoooosoooosoooosoooosoooo",
+        ];
+
+        for text in candidates {
+            assert!(
+                !is_valid_sol_address(text),
+                "Gibberish '{text}' was recognized as a valid Solana address!"
+            );
+        }
+    }
+
     // COSMOS
     #[test]
     fn cosmos_bad_checksum_does_not_match() {
@@ -396,6 +452,10 @@ mod tests {
             "TGmUsMYB1oizxEoMbfPe2ZrZxfoHuadEUM",         // TRON
             "0xa6bb3e59f9826c3da28d700429acc5e5172ebf45c280c0f93b29bd40d96ca42a", // APT
             "CSAE3BmW3sju1Zu6ykfRZT97PEGU54VoyeY3r4ZDoGoP", // SOL
+            "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", // SOL / USDC mint
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // SOL / USDC
+            "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // SOL / USDT
+            "TokenkegQfeZyiNwAJbNb6KPqaCW4s57gYw6atkDnzr", // SOL / SPL Token program
             "UQDoFvHnw4x9R-aBx0d3oZNT8zHW-5NEDlLEIMEENTx0sOJ6", // TON
             "12VSGQQCRhw5Bah8qRkCBZFvWZsB15bDh7",         // Old BTC
         ];

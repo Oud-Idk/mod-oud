@@ -41,6 +41,7 @@ humantime = "2.1"
 alloy-primitives = "1.6.1"
 bitcoin = "0.33.0-beta"
 bs58 = "0.5.1"
+ed25519-dalek = { version = "2.2.0", default-features = false }
 base64 = "0.23.0"
 serde_path_to_error = "0.1.20"
 resvg = "0.48.1"

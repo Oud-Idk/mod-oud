@@ -3914,6 +3914,7 @@ dependencies = [
  "chrono-tz",
  "dotenvy",
  "duration-str",
+ "ed25519-dalek",
  "emojis",
  "feed-rs",
  "fred",
