@@ -11,6 +11,7 @@ use fred::interfaces::{
 };
 use fred::prelude::Expiration;
 use fred::types::SetOptions;
+use fred::types::sorted_sets::{ZRange, ZRangeBound, ZRangeKind};
 use serenity::all::{GuildId, UserId};
 use std::collections::HashMap;
 use tracing::info;
@@ -27,8 +28,17 @@ pub async fn record_join_event(
     let joins_key = keys::recent_join_hash_key(guild_id);
     let stats_key = keys::hourly_stats_hash_key(guild_id);
     let member_key = keys::member_key(user_id, now_ts);
-    // Use exclusive cutoff "(" so joins at exact cutoff timestamp are not prematurely deleted
-    let cutoff = format!("({}", now_ts - window_size_seconds);
+
+    // The upper bound is exclusive so joins at the exact cutoff timestamp are
+    // not prematurely deleted.
+    let cutoff = ZRange {
+        kind: ZRangeKind::Exclusive,
+        range: ZRangeBound::Score((now_ts - window_size_seconds) as f64),
+    };
+    let floor = ZRange {
+        kind: ZRangeKind::Inclusive,
+        range: ZRangeBound::NegInfiniteScore,
+    };
 
     let pipeline = redis.pipeline();
 
@@ -43,7 +53,7 @@ pub async fn record_join_event(
         )
         .await?;
     let _: () = pipeline
-        .zremrangebyscore(&joins_key, "-inf", cutoff)
+        .zremrangebyscore(&joins_key, floor, cutoff)
         .await?;
     let _: () = pipeline.zcard(&joins_key).await?;
     let _: () = pipeline
