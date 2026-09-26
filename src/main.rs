@@ -148,19 +148,36 @@ struct BotDeps {
     music_state: MusicState,
 }
 
+/// Log filter used when `RUST_LOG` is unset.
+///
+/// `EnvFilter::from_default_env()` hardcodes `ERROR` as its fallback directive,
+/// and the Docker image never sets `RUST_LOG` — so without this the deployed bot
+/// emits almost nothing and every `info!` is silently dropped. Override per
+/// environment by exporting `RUST_LOG`.
+const DEFAULT_LOG_FILTER: &str = "info,sqlx=warn,serenity=warn,poise=info";
+
 /// Installs the rustls crypto provider, loads `.env`, and initializes tracing.
 fn init_logging() {
     let _ = rustls::crypto::ring::default_provider().install_default();
+
+    // Must precede reading the filter, so a local `.env` still takes effect.
     dotenvy::dotenv().ok();
 
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(DEFAULT_LOG_FILTER));
+
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(filter.clone())
         .pretty()
         .with_target(true)
         .with_line_number(true)
         .with_file(true)
         .with_thread_names(true)
         .init();
+
+    // Log the effective filter, so the active verbosity is discoverable from the
+    // logs rather than inferred from what is missing in them.
+    tracing::info!(filter = %filter, "Tracing initialized");
 }
 
 /// Reads all environment configuration into an [`EnvConfig`].

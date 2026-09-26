@@ -5,7 +5,7 @@ use chrono::Utc;
 use feed_rs::parser;
 use serenity::all::{CreateMessage, Http};
 use sqlx::PgPool;
-use tracing::{error, info, warn};
+use tracing::{error, info, instrument, warn};
 use tracing::log::trace;
 use uuid::Uuid;
 use crate::features::social_notifications::database;
@@ -20,41 +20,58 @@ pub fn start_feed_polling_worker(
     http: Arc<Http>,
     redis_client: fred::clients::Client,
 ) {
-    tokio::spawn(async move {
-        let lock_key = "lock:feed_polling_worker";
-        let lock_value = format!("worker-polling-{}", chrono::Utc::now().timestamp_millis());
+    let worker_id = format!("worker-polling-{}", Utc::now().timestamp_millis());
 
-        info!(worker_id = %lock_value, "Starting RSS feed polling worker");
+    tokio::spawn(run_feed_polling_worker(
+        db,
+        http,
+        redis_client,
+        worker_id,
+    ));
+}
 
-        let http_client = reqwest::Client::builder()
-            .user_agent("Discord-RSS-Bot/1.0")
-            .timeout(Duration::from_secs(15))
-            .build()
-            .unwrap_or_default();
+/// The polling loop itself, spawned under a span so a panic carries the worker
+/// identity and whatever the loop was doing when it died.
+#[instrument(name = "feed_polling_worker", skip_all, fields(worker_id = %worker_id))]
+async fn run_feed_polling_worker(
+    db: PgPool,
+    http: Arc<Http>,
+    redis_client: fred::clients::Client,
+    worker_id: String,
+) {
+    let lock_key = "lock:feed_polling_worker";
+    let lock_value = &worker_id;
 
-        loop {
-            tokio::time::sleep(Duration::from_secs(30)).await;
+    info!("Starting RSS feed polling worker");
 
-            // Heartbeat = 5s (Watchdog auto-extends with 15s safety ceiling)
-            match acquire_lock(&redis_client, lock_key, &lock_value, 5).await {
-                Ok(Some(guard)) => {
-                    trace!("Lock acquired; polling due RSS feeds");
+    let http_client = reqwest::Client::builder()
+        .user_agent("Discord-RSS-Bot/1.0")
+        .timeout(Duration::from_secs(15))
+        .build()
+        .unwrap_or_default();
 
-                    if let Err(e) = poll_due_feeds(&db, &http, &http_client).await {
-                        error!(error = ?e, "Error during feed polling execution");
-                    }
+    loop {
+        tokio::time::sleep(Duration::from_secs(30)).await;
 
-                    match guard.release().await {
-                        Ok(true) => trace!("Polling lock released successfully"),
-                        Ok(false) => warn!("Polling lock lost during execution"),
-                        Err(e) => error!(error = ?e, "Failed to release polling lock"),
-                    }
+        // Heartbeat = 5s (Watchdog auto-extends with 15s safety ceiling)
+        match acquire_lock(&redis_client, lock_key, lock_value, 5).await {
+            Ok(Some(guard)) => {
+                trace!("Lock acquired; polling due RSS feeds");
+
+                if let Err(e) = poll_due_feeds(&db, &http, &http_client).await {
+                    error!(error = ?e, "Error during feed polling execution");
                 }
-                Ok(None) => trace!("Polling lock held by another instance; skipping"),
-                Err(e) => error!(error = ?e, "Failed to acquire feed polling lock"),
+
+                match guard.release().await {
+                    Ok(true) => trace!("Polling lock released successfully"),
+                    Ok(false) => warn!("Polling lock lost during execution"),
+                    Err(e) => error!(error = ?e, "Failed to release polling lock"),
+                }
             }
+            Ok(None) => trace!("Polling lock held by another instance; skipping"),
+            Err(e) => error!(error = ?e, "Failed to acquire feed polling lock"),
         }
-    });
+    }
 }
 
 /// Runs once every hour. Renews WebSub hub subscriptions expiring in the next 24h.
@@ -65,30 +82,57 @@ pub fn start_websub_renewal_worker(
     domain: String,
     internal_secret: Option<String>,
 ) {
-    tokio::spawn(async move {
-        let lock_key = "lock:websub_renewal_worker";
-        let lock_value = format!("worker-websub-{}", chrono::Utc::now().timestamp_millis());
+    let worker_id = format!("worker-websub-{}", Utc::now().timestamp_millis());
 
-        info!(worker_id = %lock_value, "Starting WebSub renewal worker");
+    tokio::spawn(run_websub_renewal_worker(
+        db,
+        redis_client,
+        reqwest_client,
+        domain,
+        internal_secret,
+        worker_id,
+    ));
+}
 
-        loop {
-            tokio::time::sleep(Duration::from_secs(3600)).await;
+/// The renewal loop itself, spawned under a span so a panic carries the worker
+/// identity and whatever the loop was doing when it died.
+#[instrument(name = "websub_renewal_worker", skip_all, fields(worker_id = %worker_id))]
+async fn run_websub_renewal_worker(
+    db: PgPool,
+    redis_client: fred::clients::Client,
+    reqwest_client: reqwest::Client,
+    domain: String,
+    internal_secret: Option<String>,
+    worker_id: String,
+) {
+    let lock_key = "lock:websub_renewal_worker";
+    let lock_value = &worker_id;
 
-            match acquire_lock(&redis_client, lock_key, &lock_value, 5).await {
-                Ok(Some(guard)) => {
-                    trace!("Lock acquired; renewing expiring WebSub leases");
+    info!("Starting WebSub renewal worker");
 
-                    if let Err(e) = renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()).await {
-                        error!(error = ?e, "Error renewing WebSub leases");
-                    }
+    loop {
+        tokio::time::sleep(Duration::from_secs(3600)).await;
 
-                    let _ = guard.release().await;
+        match acquire_lock(&redis_client, lock_key, lock_value, 5).await {
+            Ok(Some(guard)) => {
+                trace!("Lock acquired; renewing expiring WebSub leases");
+
+                if let Err(e) = renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()).await {
+                    error!(error = ?e, "Error renewing WebSub leases");
                 }
-                Ok(None) => trace!("WebSub renewal lock held by another instance; skipping"),
-                Err(e) => error!(error = ?e, "Failed to acquire WebSub renewal lock"),
+
+                // The poller logs release failures; a renewal that cannot hand
+                // the lock back is just as stuck and must not vanish.
+                match guard.release().await {
+                    Ok(true) => trace!("WebSub renewal lock released successfully"),
+                    Ok(false) => warn!("WebSub renewal lock lost during execution"),
+                    Err(e) => error!(error = ?e, "Failed to release WebSub renewal lock"),
+                }
             }
+            Ok(None) => trace!("WebSub renewal lock held by another instance; skipping"),
+            Err(e) => error!(error = ?e, "Failed to acquire WebSub renewal lock"),
         }
-    });
+    }
 }
 
 
