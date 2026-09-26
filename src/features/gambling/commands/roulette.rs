@@ -1,13 +1,17 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy;
+use crate::features::gambling::audit;
 use crate::features::gambling::database::get_gambling_config;
 use crate::features::gambling::games::roulette::{
-    parse_space, payout_for, pocket_color, pocket_emoji, spin,
+    RouletteBet, parse_space, payout_for, pocket_color, pocket_emoji, spin,
 };
 use crate::features::gambling::{release_gambling_cooldown, try_acquire_gambling_cooldown};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
+
+/// Recorded on every audit line for this game.
+const GAME: &str = "roulette";
 
 /// European wheel 0-36.
 #[poise::command(slash_command, guild_only)]
@@ -56,6 +60,7 @@ pub async fn roulette(
 
     let Some(mut balance) = economy::deduct_cash(db, guild_id, user_id, bet).await? else {
         release_gambling_cooldown(&ctx).await;
+        audit::bet_rejected(GAME, guild_id, user_id, bet, "insufficient_funds");
         send_ephemeral(
             &ctx,
             "You don't have enough cash in your wallet for this bet.",
@@ -65,11 +70,26 @@ pub async fn roulette(
     };
 
     let winning = spin();
-    let payout = payout_for(bet_kind, winning, bet).unwrap_or(0);
+    let detail = format!("space={} landed={}", bet_kind.display(), winning);
+    let Some(payout) = audit::resolve_payout(
+        payout_for(bet_kind, winning, bet),
+        GAME,
+        guild_id,
+        user_id,
+        bet,
+        &detail,
+    ) else {
+        release_gambling_cooldown(&ctx).await;
+        send_ephemeral(&ctx, audit::PAYOUT_OVERFLOW_MESSAGE).await?;
+        return Ok(());
+    };
+
+    audit::bet_placed(GAME, guild_id, user_id, bet, &detail);
 
     let (title, description) = if payout > 0 {
         let profit = payout - bet;
         balance = economy::add_cash(db, guild_id, user_id, payout).await?;
+        audit::bet_settled(GAME, guild_id, user_id, bet, "win", payout, &detail);
         (
             format!("🎉 {} You Won!", pocket_emoji(winning)),
             format!(
@@ -84,6 +104,7 @@ pub async fn roulette(
             ),
         )
     } else {
+        audit::bet_settled(GAME, guild_id, user_id, bet, "loss", 0, &detail);
         (
             format!("💀 {} You Lost!", pocket_emoji(winning)),
             format!(
@@ -98,10 +119,24 @@ pub async fn roulette(
         )
     };
 
-    let multiplier = bet_kind.payout_multiplier();
-    let embed = CreateEmbed::new()
-        .title(title)
-        .description(description)
+    let embed = render_embed(&title, &description, bet, bet_kind, winning);
+
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
+
+    Ok(())
+}
+
+/// Builds the result embed.
+fn render_embed(
+    title: &str,
+    description: &str,
+    bet: i64,
+    bet_kind: RouletteBet,
+    winning: u8,
+) -> CreateEmbed {
+    CreateEmbed::new()
+        .title(title.to_string())
+        .description(description.to_string())
         .color(BRAND_COLOR)
         .field(
             "Your Bet",
@@ -118,9 +153,5 @@ pub async fn roulette(
             ),
             true,
         )
-        .field("Payout", format!("{multiplier}x"), true);
-
-    ctx.send(poise::CreateReply::default().embed(embed)).await?;
-
-    Ok(())
+        .field("Payout", format!("{}x", bet_kind.payout_multiplier()), true)
 }

@@ -7,6 +7,7 @@ use crate::shared::permissions::HasRoles;
 use serenity::all::{GuildId, Member, RoleId, UserId};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use tracing::error;
 use uuid::Uuid;
 
 pub async fn resolve_item(
@@ -51,7 +52,21 @@ where
 {
     let user_id = ctx.author().id;
     let guild_id = ctx.guild_id().unwrap();
-    let requirements = item.parsed_requirements();
+
+    // An unreadable gate must refuse, not pass. Returning an empty list here would let a
+    // role-locked or balance-locked item through for free.
+    let requirements = item.parsed_requirements().map_err(|e| {
+        error!(
+            error = ?e,
+            error_chain = %format!("{e:#}"),
+            %guild_id,
+            %user_id,
+            item_id = %item.id,
+            item_name = %item.name,
+            "Item requirements could not be parsed; refusing to evaluate the gate"
+        );
+        anyhow::anyhow!("This item is misconfigured and cannot be used right now.")
+    })?;
 
     let member: Cow<'_, Member> = match ctx.author_member().await {
         Some(m) => m,

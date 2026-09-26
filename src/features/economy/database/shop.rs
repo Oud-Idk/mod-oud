@@ -1,8 +1,12 @@
-use crate::features::economy::types::{Balance, Item};
+use crate::features::economy::commands::items::actions::apply_db_actions;
+use crate::features::economy::database::balances::get_balance_tx;
+use crate::features::economy::database::inventory::remove_inventory_item_tx;
+use crate::features::economy::types::{Balance, Item, ItemDbActions};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use serenity::all::{GuildId, UserId};
 use sqlx::{PgConnection, PgPool};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 #[derive(sqlx::FromRow)]
@@ -78,13 +82,17 @@ pub enum PurchaseError {
     ItemNotFoundOrExpired,
 }
 
-/// Atomically purchase an item (deduct cash, decrease stock, add to inventory) in one transaction.
+/// Atomically purchase an item and apply its actions in one transaction.
+///
+/// `actions` is applied before the commit, so the cash, the stock and the item's balance or item
+/// effects either all land or none do. The Discord side of the actions runs after this returns.
 pub async fn purchase_item_tx(
     db: &PgPool,
     guild_id: GuildId,
     user_id: UserId,
     item_id: Uuid,
     quantity: i32,
+    actions: &ItemDbActions,
 ) -> Result<Result<(Item, Balance), PurchaseError>, sqlx::Error> {
     if quantity <= 0 {
         return Ok(Err(PurchaseError::InvalidQuantity));
@@ -98,6 +106,14 @@ pub async fn purchase_item_tx(
     };
 
     let Some(total_cost) = item.price.checked_mul(i64::from(quantity)) else {
+        warn!(
+            %guild_id,
+            %user_id,
+            item_id = %item_id,
+            unit_price = item.price,
+            quantity,
+            "Purchase rejected: price * quantity overflowed i64, so the cost is not representable"
+        );
         return Ok(Err(PurchaseError::InvalidQuantity));
     };
 
@@ -110,7 +126,24 @@ pub async fn purchase_item_tx(
         upsert_inventory_item(&mut tx, guild_id, user_id, item.id, quantity).await?;
     }
 
+    apply_db_actions(&mut tx, guild_id, user_id, &item, actions).await?;
+
     tx.commit().await?;
+
+    // Money is committed here. Buy-actions run in a separate transaction after this.
+    info!(
+        op = "purchase_item",
+        %guild_id,
+        %user_id,
+        item_id = %item.id,
+        item_name = %item.name,
+        quantity,
+        total_cost,
+        cash_after = balance.cash,
+        stock_after = item.stock_remaining,
+        "economy: item purchase committed"
+    );
+
     Ok(Ok((item, balance)))
 }
 
@@ -189,6 +222,7 @@ async fn deduct_user_balance(
     .await?;
 
     let Some(b) = balance_row else {
+        // The `?` above propagates real DB errors. `unwrap_or(0)` only means "no row".
         let current_cash = sqlx::query_scalar!(
             r#"SELECT cash FROM economy_balances WHERE guild_id = $1 AND user_id = $2"#,
             guild_id.get().cast_signed(),
@@ -267,6 +301,14 @@ pub async fn sell_item_tx(
 
     // Calculate refund
     let Some(total_refund) = item.price.checked_mul(i64::from(quantity)) else {
+        warn!(
+            %guild_id,
+            %user_id,
+            item_id = %item_id,
+            unit_price = item.price,
+            quantity,
+            "Sale rejected: price * quantity overflowed i64, so the refund is not representable"
+        );
         return Ok(Err(SellError::InvalidQuantity)); // Overflow protection
     };
 
@@ -279,7 +321,83 @@ pub async fn sell_item_tx(
 
     tx.commit().await?;
 
+    // Refund is committed here.
+    info!(
+        op = "sell_item",
+        %guild_id,
+        %user_id,
+        item_id = %item.id,
+        item_name = %item.name,
+        quantity,
+        total_refund,
+        cash_after = balance.cash,
+        "economy: item sale committed"
+    );
+
     Ok(Ok((item, balance)))
+}
+
+/// Why a use attempt was rejected.
+pub enum UseItemError {
+    NotOwned { owned: i32 },
+}
+
+/// Atomically consume an item from the inventory and apply its actions in one transaction.
+///
+/// The ownership check and the removal share one row lock, so two concurrent uses cannot both
+/// see enough stock and consume more than the user owns.
+pub async fn use_item_tx(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+    item: &Item,
+    quantity: i32,
+    actions: &ItemDbActions,
+) -> Result<Result<Balance, UseItemError>, sqlx::Error> {
+    if quantity <= 0 {
+        return Ok(Err(UseItemError::NotOwned { owned: 0 }));
+    }
+
+    let mut tx = db.begin().await?;
+
+    let owned = sqlx::query_scalar!(
+        r#"
+        SELECT quantity FROM economy_inventory
+        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3
+        FOR UPDATE
+        "#,
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+        item.id,
+    )
+    .fetch_optional(&mut *tx)
+    .await?
+    .unwrap_or(0);
+
+    if owned < quantity {
+        tx.rollback().await?;
+        return Ok(Err(UseItemError::NotOwned { owned }));
+    }
+
+    remove_inventory_item_tx(&mut tx, guild_id, user_id, item.id, quantity).await?;
+    apply_db_actions(&mut tx, guild_id, user_id, item, actions).await?;
+
+    let balance = get_balance_tx(&mut tx, guild_id, user_id).await?;
+
+    tx.commit().await?;
+
+    info!(
+        op = "use_item",
+        %guild_id,
+        %user_id,
+        item_id = %item.id,
+        item_name = %item.name,
+        quantity,
+        cash_after = balance.cash,
+        "economy: item consumed and its actions applied"
+    );
+
+    Ok(Ok(balance))
 }
 
 /// Fetches the item details needed for the sale.

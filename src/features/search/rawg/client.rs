@@ -1,5 +1,11 @@
 use super::models::RawgResponse;
 
+use crate::core::config::state::Error;
+use crate::features::search::http;
+
+/// Recorded on every upstream log line.
+const PROVIDER: &str = "rawg";
+
 #[derive(Clone)]
 pub struct RawgClient {
     http: reqwest::Client,
@@ -21,24 +27,23 @@ impl RawgClient {
         &self,
         query: &str,
         page_size: Option<usize>,
-    ) -> Result<RawgResponse, reqwest::Error> {
+    ) -> Result<RawgResponse, Error> {
         let size_str = page_size.unwrap_or(1).to_string();
+        let url = format!("{}/games", self.base_url);
 
-        let response = self
-            .http
-            .get(format!("{}/games", self.base_url))
-            .query(&[
+        // The key rides in the query string, so the URL must never be logged unredacted.
+        http::get_json(
+            PROVIDER,
+            "search",
+            &url,
+            &[],
+            self.http.get(&url).query(&[
                 ("key", self.api_key.as_str()),
                 ("search", query),
                 ("page_size", size_str.as_str()),
                 ("search_precise", "true"),
-            ])
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<RawgResponse>()
-            .await?;
-
-        Ok(response)
+            ]),
+        )
+        .await
     }
 }

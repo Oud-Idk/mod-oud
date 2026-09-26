@@ -1,5 +1,11 @@
 use crate::features::search::klipy::models::{KlipyMediaType, KlipyResponse};
 
+use crate::core::config::state::Error;
+use crate::features::search::http;
+
+/// Provider identifier recorded on every upstream log line.
+const PROVIDER: &str = "klipy";
+
 #[derive(Clone)]
 pub struct KlipyClient {
     http: reqwest::Client,
@@ -22,7 +28,7 @@ impl KlipyClient {
         media_type: KlipyMediaType,
         query: &str,
         per_page: usize,
-    ) -> Result<KlipyResponse, reqwest::Error> {
+    ) -> Result<KlipyResponse, Error> {
         let endpoint = format!(
             "{}/{}/{}/search",
             self.base_url,
@@ -32,20 +38,18 @@ impl KlipyClient {
 
         let per_page_str = per_page.to_string();
 
-        let response = self
-            .http
-            .get(endpoint)
-            .query(&[
+        // Klipy puts the app key in the path, so `redact_url` cannot match it by name.
+        http::get_json(
+            PROVIDER,
+            "search",
+            &endpoint,
+            &[self.app_key.as_str()],
+            self.http.get(&endpoint).query(&[
                 ("q", query),
                 ("per_page", per_page_str.as_str()),
                 ("page", "1"),
-            ])
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<KlipyResponse>()
-            .await?;
-
-        Ok(response)
+            ]),
+        )
+        .await
     }
 }

@@ -87,13 +87,22 @@ pub async fn process_celebrant_roles(
             continue;
         };
 
-        let Ok(()) = ctx
+        // The error is discarded and `save_user_with_birthday_role` is skipped, so the member
+        // gets no role and no cleanup row. This line is the only trace.
+        if let Err(e) = ctx
             .http
-            .add_member_role(guild_id, celebrant.user_id, role_id, Some("Birthday Role"))
+            .add_member_role(guild_id, user_id, role_id, Some("Birthday Role"))
             .await
-        else {
+        {
+            error!(
+                error = ?e,
+                %guild_id,
+                %user_id,
+                %role_id,
+                "Failed to add the birthday role; no cleanup row stored"
+            );
             continue;
-        };
+        }
 
         if let Err(e) = database::save_user_with_birthday_role(db, guild_id, user_id, role_id).await
         {

@@ -11,6 +11,7 @@ use crate::shared::messages::send_ephemeral;
 use anyhow::{Context as _, anyhow};
 use chrono::{Datelike, Utc};
 use poise::serenity_prelude as serenity;
+use tracing::info;
 
 /// Birthday management commands
 #[poise::command(
@@ -238,7 +239,11 @@ async fn force_remove(
     #[description = "User to remove birthday for"] user: serenity::User,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let birthday = database::get_user_birthday(&ctx.data().core.db, ctx.author().id).await?;
+    let guild_id = ctx.guild_id();
+    let actor_id = ctx.author().id;
+    let target_id = user.id;
+
+    let birthday = database::get_user_birthday(&ctx.data().core.db, target_id).await?;
 
     if birthday.is_none() {
         send_ephemeral(
@@ -249,7 +254,16 @@ async fn force_remove(
         return Ok(());
     }
 
-    database::remove_birthday(&ctx.data().core.db, ctx.author().id).await?;
+    database::remove_birthday(&ctx.data().core.db, target_id).await?;
+
+    // Audit trail for a force-remove, so it names both the target and the moderator.
+    info!(
+        guild_id = ?guild_id,
+        %target_id,
+        %actor_id,
+        "Removed birthday via force_remove"
+    );
+
     send_ephemeral(&ctx, format!("Removed birthday for **{}**.", user.name)).await?;
 
     Ok(())

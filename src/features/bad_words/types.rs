@@ -3,6 +3,7 @@ use aho_corasick::AhoCorasick;
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
+use tracing::{debug, error, warn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -104,7 +105,16 @@ impl CompiledRuleset {
 }
 
 impl From<BadWordRuleset> for CompiledRuleset {
+    /// Compiles a stored ruleset into its runtime matchers.
+    ///
+    /// Patterns that fail to compile are logged, not dropped. A pattern that never matches looks
+    /// exactly like a clean message stream.
     fn from(raw: BadWordRuleset) -> Self {
+        let ruleset_id = raw.id;
+        let guild_id = raw.guild_id;
+        let ruleset_name = raw.name.clone();
+        let pattern_count = raw.patterns.len();
+
         let mut lower_text_patterns = Vec::new();
         let mut compiled_text_patterns = Vec::new();
         let mut regexes = Vec::new();
@@ -132,22 +142,50 @@ impl From<BadWordRuleset> for CompiledRuleset {
                     }
                 }
                 MatchStrategy::Regex => {
-                    if let Ok(re) = RegexBuilder::new(&p.value).case_insensitive(true).build() {
-                        regexes.push((re, p.value));
+                    match RegexBuilder::new(&p.value).case_insensitive(true).build() {
+                        Ok(re) => regexes.push((re, p.value)),
+                        Err(e) => {
+                            // This pattern will never match. Nothing else reports it.
+                            error!(
+                                error = ?e,
+                                ruleset = %ruleset_name,
+                                %ruleset_id,
+                                %guild_id,
+                                pattern = %p.value,
+                                "Bad words ruleset has an invalid regex; this pattern will \
+                                 never match"
+                            );
+                        }
                     }
                 }
             }
         }
 
+        let text_pattern_count = lower_text_patterns.len();
+
         let text_matcher = if lower_text_patterns.is_empty() {
             None
         } else {
-            AhoCorasick::new(lower_text_patterns)
-                .ok()
-                .map(|ac| (ac, compiled_text_patterns))
+            match AhoCorasick::new(lower_text_patterns) {
+                Ok(ac) => Some((ac, compiled_text_patterns)),
+                Err(e) => {
+                    // `check_ruleset` skips the text phase entirely when this is `None`,
+                    // so every Exact and Substring pattern is now inactive.
+                    error!(
+                        error = ?e,
+                        ruleset = %ruleset_name,
+                        %ruleset_id,
+                        %guild_id,
+                        pattern_count = text_pattern_count,
+                        "Bad words ruleset failed to build its text matcher; all Exact and \
+                         Substring patterns are now inactive"
+                    );
+                    None
+                }
+            }
         };
 
-        Self {
+        let compiled = Self {
             id: raw.id,
             guild_id: raw.guild_id,
             name: raw.name,
@@ -157,7 +195,33 @@ impl From<BadWordRuleset> for CompiledRuleset {
             scope: raw.scope,
             text_matcher,
             regexes,
+        };
+
+        let usable_text_patterns = compiled.text_matcher.as_ref().map_or(0, |(_, p)| p.len());
+        let regex_patterns = compiled.regexes.len();
+
+        debug!(
+            ruleset = %ruleset_name,
+            %ruleset_id,
+            %guild_id,
+            pattern_count,
+            text_patterns = usable_text_patterns,
+            regex_patterns,
+            "Compiled bad words ruleset"
+        );
+
+        // Patterns exist but nothing compiled, so this ruleset can never match.
+        if pattern_count > 0 && usable_text_patterns == 0 && regex_patterns == 0 {
+            warn!(
+                ruleset = %ruleset_name,
+                %ruleset_id,
+                %guild_id,
+                pattern_count,
+                "Bad words ruleset has patterns but no usable matchers"
+            );
         }
+
+        compiled
     }
 }
 

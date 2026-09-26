@@ -18,6 +18,9 @@ const fn default_gambling_timeout_secs() -> u64 {
 const fn default_game_enabled() -> bool {
     true
 }
+const fn default_higherlower_max_streak() -> u32 {
+    10
+}
 
 /// Blackjack sub-config (Tier 1: enabled only; payout/math stays hardcoded for now).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -77,12 +80,32 @@ pub struct HigherLowerConfig {
     /// Whether higher/lower is enabled.
     #[serde(default = "default_game_enabled")]
     pub enabled: bool,
+
+    /// Correct guesses before the game pays out automatically.
+    ///
+    /// The payout is `bet * (streak + 1)` with no ceiling, so without a cap a long streak prints
+    /// unlimited money: the deck reshuffles when empty and the player can keep guessing.
+    #[serde(default = "default_higherlower_max_streak")]
+    pub max_streak: u32,
+}
+
+impl HigherLowerConfig {
+    /// The streak cap, never lower than 1 so the game can always reach an ending.
+    #[must_use]
+    pub const fn effective_max_streak(&self) -> u32 {
+        if self.max_streak == 0 {
+            1
+        } else {
+            self.max_streak
+        }
+    }
 }
 
 impl Default for HigherLowerConfig {
     fn default() -> Self {
         Self {
             enabled: default_game_enabled(),
+            max_streak: default_higherlower_max_streak(),
         }
     }
 }
@@ -228,6 +251,29 @@ mod tests {
         assert_eq!(cfg.timeout_secs, 60);
         assert!(cfg.blackjack.enabled);
         assert!(cfg.higherlower.enabled);
+        assert_eq!(cfg.higherlower.max_streak, 10);
+    }
+
+    #[test]
+    fn higherlower_max_streak_default_and_floor() {
+        let cfg = HigherLowerConfig::default();
+        assert_eq!(cfg.max_streak, 10);
+        assert_eq!(cfg.effective_max_streak(), 10);
+
+        // A cap of 0 would end the game on the first guess.
+        let floored = HigherLowerConfig {
+            max_streak: 0,
+            ..HigherLowerConfig::default()
+        };
+        assert_eq!(floored.effective_max_streak(), 1);
+    }
+
+    #[test]
+    fn higherlower_config_deserializes_without_max_streak() {
+        // Rows in the JSONB column predate the field.
+        let cfg: HigherLowerConfig = serde_json::from_str(r#"{"enabled":true}"#).unwrap();
+        assert!(cfg.enabled);
+        assert_eq!(cfg.max_streak, 10);
     }
 
     #[test]

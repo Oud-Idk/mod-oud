@@ -1,4 +1,9 @@
 use super::models::GiphyResponse;
+use crate::core::config::state::Error;
+use crate::features::search::http;
+
+/// Provider identifier recorded on every upstream log line.
+const PROVIDER: &str = "giphy";
 
 #[derive(Clone)]
 pub struct GiphyClient {
@@ -17,28 +22,30 @@ impl GiphyClient {
     }
 
     /// Search GIPHY with custom limit
+    ///
+    /// # Errors
+    /// Returns [`Err`] if Giphy is unreachable, rate-limits us, or changes its response schema.
     pub async fn search_gif(
         &self,
         query: &str,
         limit: Option<usize>,
-    ) -> Result<GiphyResponse, reqwest::Error> {
+    ) -> Result<GiphyResponse, Error> {
         let limit_str = limit.unwrap_or(1).to_string();
+        let url = format!("{}/search", self.base_url);
 
-        let response = self
-            .http
-            .get(format!("{}/search", self.base_url))
-            .query(&[
+        // `api_key` rides in the query string, so the URL must never be logged unredacted.
+        http::get_json(
+            PROVIDER,
+            "search",
+            &url,
+            &[],
+            self.http.get(&url).query(&[
                 ("api_key", self.api_key.as_str()),
                 ("q", query),
                 ("limit", limit_str.as_str()),
                 ("rating", "g"),
-            ])
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<GiphyResponse>()
-            .await?;
-
-        Ok(response)
+            ]),
+        )
+        .await
     }
 }

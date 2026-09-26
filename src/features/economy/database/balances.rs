@@ -1,6 +1,7 @@
 use crate::features::economy::types::Balance;
 use serenity::all::{GuildId, UserId};
 use sqlx::{PgPool, PgTransaction};
+use tracing::{debug, info, warn};
 
 #[derive(sqlx::FromRow)]
 struct RawBalance {
@@ -8,6 +9,53 @@ struct RawBalance {
     user_id: i64,
     cash: i64,
     bank: i64,
+}
+
+/// Records a mutation committed by the calling function. Every balance change in this file goes
+/// through one of these three helpers.
+fn log_committed(op: &'static str, balance: &Balance, amount: i64) {
+    info!(
+        op,
+        guild_id = %balance.guild_id,
+        user_id = %balance.user_id,
+        amount,
+        cash_after = balance.cash,
+        bank_after = balance.bank,
+        "economy: balance mutated"
+    );
+}
+
+/// Records a refused mutation. The `reason` matters because the guarded `UPDATE`s return `None`
+/// for both a non-positive amount and insufficient funds.
+fn log_rejected(
+    op: &'static str,
+    guild_id: GuildId,
+    user_id: UserId,
+    amount: i64,
+    reason: &'static str,
+) {
+    debug!(
+        op,
+        %guild_id,
+        %user_id,
+        amount,
+        reason,
+        "economy: balance mutation rejected"
+    );
+}
+
+/// Records a mutation inside a caller-owned transaction. `debug!` because the transaction may
+/// still roll back. The caller logs it for real once it commits.
+fn log_staged(op: &'static str, balance: &Balance, amount: i64) {
+    debug!(
+        op,
+        guild_id = %balance.guild_id,
+        user_id = %balance.user_id,
+        amount,
+        cash_after = balance.cash,
+        bank_after = balance.bank,
+        "economy: balance mutation staged (uncommitted)"
+    );
 }
 
 impl From<RawBalance> for Balance {
@@ -114,6 +162,15 @@ pub async fn upsert_balance(
     .execute(db)
     .await?;
 
+    // `warn!`: overwrites both wallets rather than moving a known amount.
+    warn!(
+        %guild_id,
+        %user_id,
+        cash,
+        bank,
+        "economy: balance overwritten (blind set of cash and bank)"
+    );
+
     Ok(())
 }
 
@@ -143,7 +200,9 @@ pub async fn add_cash(
     .fetch_one(db)
     .await?;
 
-    Ok(row.into())
+    let balance: Balance = row.into();
+    log_committed("add_cash", &balance, amount);
+    Ok(balance)
 }
 
 pub async fn transfer_cash_to_bank(
@@ -153,6 +212,13 @@ pub async fn transfer_cash_to_bank(
     amount: i64,
 ) -> Result<Option<Balance>, sqlx::Error> {
     if amount <= 0 {
+        log_rejected(
+            "transfer_cash_to_bank",
+            guild_id,
+            user_id,
+            amount,
+            "non_positive_amount",
+        );
         return Ok(None);
     }
 
@@ -171,7 +237,23 @@ pub async fn transfer_cash_to_bank(
     .fetch_optional(db)
     .await?;
 
-    Ok(row.map(Into::into))
+    Ok(row.map_or_else(
+        || {
+            log_rejected(
+                "transfer_cash_to_bank",
+                guild_id,
+                user_id,
+                amount,
+                "insufficient_cash",
+            );
+            None
+        },
+        |r| {
+            let balance: Balance = r.into();
+            log_committed("transfer_cash_to_bank", &balance, amount);
+            Some(balance)
+        },
+    ))
 }
 
 /// Deduct coins from a user's wallet. Returns the updated balance, or
@@ -186,6 +268,13 @@ pub async fn deduct_cash(
     amount: i64,
 ) -> Result<Option<Balance>, sqlx::Error> {
     if amount <= 0 {
+        log_rejected(
+            "deduct_cash",
+            guild_id,
+            user_id,
+            amount,
+            "non_positive_amount",
+        );
         return Ok(None);
     }
 
@@ -204,7 +293,23 @@ pub async fn deduct_cash(
     .fetch_optional(db)
     .await?;
 
-    Ok(row.map(Into::into))
+    Ok(row.map_or_else(
+        || {
+            log_rejected(
+                "deduct_cash",
+                guild_id,
+                user_id,
+                amount,
+                "insufficient_cash",
+            );
+            None
+        },
+        |r| {
+            let balance: Balance = r.into();
+            log_committed("deduct_cash", &balance, amount);
+            Some(balance)
+        },
+    ))
 }
 
 pub async fn transfer_bank_to_cash(
@@ -214,6 +319,13 @@ pub async fn transfer_bank_to_cash(
     amount: i64,
 ) -> Result<Option<Balance>, sqlx::Error> {
     if amount <= 0 {
+        log_rejected(
+            "transfer_bank_to_cash",
+            guild_id,
+            user_id,
+            amount,
+            "non_positive_amount",
+        );
         return Ok(None);
     }
 
@@ -232,7 +344,23 @@ pub async fn transfer_bank_to_cash(
     .fetch_optional(db)
     .await?;
 
-    Ok(row.map(Into::into))
+    Ok(row.map_or_else(
+        || {
+            log_rejected(
+                "transfer_bank_to_cash",
+                guild_id,
+                user_id,
+                amount,
+                "insufficient_bank",
+            );
+            None
+        },
+        |r| {
+            let balance: Balance = r.into();
+            log_committed("transfer_bank_to_cash", &balance, amount);
+            Some(balance)
+        },
+    ))
 }
 
 /// Set a user's wallet to an exact amount (admin). Preserves bank.
@@ -258,7 +386,17 @@ pub async fn set_cash(
     .fetch_one(db)
     .await?;
 
-    Ok(row.into())
+    let balance: Balance = row.into();
+    // `warn!`: an admin overwrite can erase the evidence of an exploit.
+    warn!(
+        op = "set_cash",
+        %guild_id,
+        %user_id,
+        amount,
+        cash_after = balance.cash,
+        "economy: cash balance overwritten"
+    );
+    Ok(balance)
 }
 
 pub async fn get_leaderboard(
@@ -320,6 +458,17 @@ pub async fn transfer_cash(
     amount: i64,
 ) -> Result<Option<(Balance, Balance)>, sqlx::Error> {
     if amount <= 0 || from_user == to_user {
+        log_rejected(
+            "transfer_cash",
+            guild_id,
+            from_user,
+            amount,
+            if amount <= 0 {
+                "non_positive_amount"
+            } else {
+                "self_transfer"
+            },
+        );
         return Ok(None);
     }
 
@@ -363,6 +512,13 @@ pub async fn transfer_cash(
 
     let Some(s) = sender_row else {
         tx.rollback().await?;
+        log_rejected(
+            "transfer_cash",
+            guild_id,
+            from_user,
+            amount,
+            "insufficient_cash",
+        );
         return Ok(None);
     };
 
@@ -384,7 +540,10 @@ pub async fn transfer_cash(
 
     tx.commit().await?;
 
-    Ok(Some((s.into(), receiver_row.into())))
+    let (sender, receiver) = (s.into(), receiver_row.into());
+    log_committed("transfer_cash_out", &sender, amount);
+    log_committed("transfer_cash_in", &receiver, amount);
+    Ok(Some((sender, receiver)))
 }
 
 /// Fetch balance within an active transaction / connection.
@@ -440,7 +599,9 @@ pub async fn add_cash_tx(
     .fetch_one(&mut **tx)
     .await?;
 
-    Ok(row.into())
+    let balance: Balance = row.into();
+    log_staged("add_cash_tx", &balance, amount);
+    Ok(balance)
 }
 
 /// Deduct cash within a transaction. Returns `None` if insufficient funds.
@@ -451,6 +612,13 @@ pub async fn deduct_cash_tx(
     amount: i64,
 ) -> Result<Option<Balance>, sqlx::Error> {
     if amount <= 0 {
+        log_rejected(
+            "deduct_cash_tx",
+            guild_id,
+            user_id,
+            amount,
+            "non_positive_amount",
+        );
         return Ok(None);
     }
 
@@ -469,7 +637,23 @@ pub async fn deduct_cash_tx(
     .fetch_optional(&mut **tx)
     .await?;
 
-    Ok(row.map(Into::into))
+    Ok(row.map_or_else(
+        || {
+            log_rejected(
+                "deduct_cash_tx",
+                guild_id,
+                user_id,
+                amount,
+                "insufficient_cash",
+            );
+            None
+        },
+        |r| {
+            let balance: Balance = r.into();
+            log_staged("deduct_cash_tx", &balance, amount);
+            Some(balance)
+        },
+    ))
 }
 
 /// Set a user's exact cash balance within a transaction.
@@ -495,5 +679,7 @@ pub async fn set_cash_tx(
     .fetch_one(&mut **tx)
     .await?;
 
-    Ok(row.into())
+    let balance: Balance = row.into();
+    log_staged("set_cash_tx", &balance, amount);
+    Ok(balance)
 }

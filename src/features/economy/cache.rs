@@ -4,7 +4,14 @@ use fred::interfaces::KeysInterface;
 use fred::prelude::{Expiration, SetOptions};
 use humantime::{FormattedDuration, format_duration};
 use std::time::Duration;
+use tracing::{error, warn};
 
+/// Claims a cooldown slot.
+///
+/// * `Ok(None)`: no cooldown configured, or the slot was acquired.
+/// * `Ok(Some(wait))`: the slot is held by someone else.
+///
+/// A Redis failure propagates rather than reporting a cooldown, so the two stay distinguishable.
 pub async fn check_cooldown(
     redis: &Client,
     key: &str,
@@ -23,13 +30,31 @@ pub async fn check_cooldown(
             false,
         )
         .await
-        .ok();
+        .inspect_err(|e| {
+            error!(
+                error = ?e,
+                cooldown_key = key,
+                cooldown_secs = secs,
+                "Cooldown SET failed; the cooldown is not being enforced"
+            );
+        })?;
 
-    if acquired.is_none() {
-        let remaining =
-            u64::try_from(redis.ttl::<i64, _>(key).await.unwrap_or(0).max(0)).unwrap_or(0);
-        return Ok(Some(format_duration(Duration::from_secs(remaining))));
+    if acquired.is_some() {
+        return Ok(None);
     }
 
-    Ok(None)
+    // `Ok(None)` from SET NX means the key exists, so this is a real cooldown.
+    let remaining = match redis.ttl::<i64, _>(key).await {
+        Ok(secs) => u64::try_from(secs.max(0)).unwrap_or(0),
+        Err(e) => {
+            warn!(
+                error = ?e,
+                cooldown_key = key,
+                "Cooldown TTL lookup failed; reporting a 0s wait"
+            );
+            0
+        }
+    };
+
+    Ok(Some(format_duration(Duration::from_secs(remaining))))
 }

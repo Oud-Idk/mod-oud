@@ -52,8 +52,13 @@ async fn async_main() -> Result<(), Error> {
     let pool = connect_database(&env_config.database_url, env_config.run_migrations).await?;
     let (redis_client, subscriber_client) = connect_redis(&env_config.redis_url).await?;
 
+    // This one client backs all 13 search providers. Without a timeout a hung upstream holds
+    // the task until Discord's interaction deadline, and nothing is logged because no error is
+    // ever returned.
     let reqwest_client = reqwest::Client::builder()
         .user_agent("Mod Oud/0.1.0")
+        .timeout(std::time::Duration::from_secs(10))
+        .connect_timeout(std::time::Duration::from_secs(5))
         .build()?;
 
     let http = Arc::new(serenity::Http::new(&env_config.token));

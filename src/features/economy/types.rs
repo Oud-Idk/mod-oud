@@ -194,6 +194,40 @@ impl Default for TriggerFlags {
     }
 }
 
+/// Which set of an item's actions to run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActionTrigger {
+    Buy,
+    Use,
+}
+
+impl ActionTrigger {
+    /// Whether `action` fires for this trigger.
+    #[must_use]
+    pub const fn matches(self, action: &ItemAction) -> bool {
+        match self {
+            Self::Buy => action.trigger_flags().triggers_on_buy(),
+            Self::Use => action.trigger_flags().triggers_on_use(),
+        }
+    }
+}
+
+/// The database-side effects of an item's actions, resolved before a transaction opens.
+///
+/// Roles and replies are absent on purpose. They are Discord calls that cannot be rolled back,
+/// so they run after the transaction commits rather than inside it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ItemDbActions {
+    /// Cash to credit the user.
+    pub add_cash: i64,
+    /// Cash to charge the user.
+    pub deduct_cash: i64,
+    /// Items to credit, as (`item_id`, `quantity`).
+    pub add_items: Vec<(Uuid, i32)>,
+    /// Items to charge, as (`item_id`, `quantity`).
+    pub remove_items: Vec<(Uuid, i32)>,
+}
+
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(
@@ -346,18 +380,23 @@ impl Item {
             .map(EmojiId::new)
     }
 
-    pub fn parsed_requirements(&self) -> Vec<ItemRequirement> {
-        serde_json::from_value(self.requirements.clone()).unwrap_or_else(|err| {
-            tracing::warn!("Failed to parse requirements for item {}: {err}", self.id);
-            Vec::new()
-        })
+    /// Parses this item's purchase and use gates.
+    ///
+    /// # Errors
+    /// Returns [`Err`] if the stored JSONB is malformed. Callers must refuse the operation: an
+    /// unparseable gate is not the same as no gate, and treating it as one lets a role-locked or
+    /// balance-locked item be used for free.
+    pub fn parsed_requirements(&self) -> Result<Vec<ItemRequirement>, serde_json::Error> {
+        serde_json::from_value(self.requirements.clone())
     }
 
-    pub fn parsed_actions(&self) -> Vec<ItemAction> {
-        serde_json::from_value(self.actions.clone()).unwrap_or_else(|err| {
-            tracing::warn!("Failed to parse actions for item {}: {err}", self.id);
-            Vec::new()
-        })
+    /// Parses this item's actions.
+    ///
+    /// # Errors
+    /// Returns [`Err`] if the stored JSONB is malformed. Callers must refuse the operation, or
+    /// the item is consumed and grants nothing.
+    pub fn parsed_actions(&self) -> Result<Vec<ItemAction>, serde_json::Error> {
+        serde_json::from_value(self.actions.clone())
     }
 
     #[must_use]

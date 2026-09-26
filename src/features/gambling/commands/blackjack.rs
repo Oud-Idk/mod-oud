@@ -1,6 +1,7 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy;
+use crate::features::gambling::audit;
 use crate::features::gambling::database::get_gambling_config;
 use crate::features::gambling::games::cards::{DEALER_LIMIT, Deck, Hand, Rank};
 use crate::features::gambling::validation::warn_non_player;
@@ -15,6 +16,9 @@ use serenity::all::{
 use std::time::Duration;
 use tokio_stream::StreamExt;
 use tracing::warn;
+
+/// Recorded on every audit line for this game.
+const GAME: &str = "blackjack";
 
 pub struct BlackjackGame {
     pub deck: Deck,
@@ -107,21 +111,11 @@ pub async fn blackjack(
     let player_bj = game.player_hands[0].is_natural_blackjack();
     let dealer_bj = game.dealer_hand.is_natural_blackjack();
 
-    if player_bj || dealer_bj {
-        let (outcome_text, payout) = match (player_bj, dealer_bj) {
-            (true, true) => ("Both hit Blackjack! It's a **Push**.", bet),
-            (true, false) => (
-                "**Natural Blackjack!** You won 3:2 payout!",
-                bet + (bet * 3 / 2),
-            ),
-            _ => ("Dealer hit Natural Blackjack. Better luck next time!", 0),
-        };
-
-        if payout > 0 {
-            game.user_cash = economy::add_cash(db, guild_id, user_id, payout).await?.cash;
-        }
-
-        let embed = render_game_embed(&ctx, &game, 0, Some(outcome_text), false);
+    if (player_bj || dealer_bj)
+        && let Some(outcome_text) =
+            settle_natural_blackjack(&ctx, &mut game, bet, player_bj, dealer_bj).await?
+    {
+        let embed = render_game_embed(&ctx, &game, 0, Some(&outcome_text), false);
         ctx.send(poise::CreateReply::default().embed(embed)).await?;
         return Ok(());
     }
@@ -137,6 +131,8 @@ pub async fn blackjack(
         )
         .await?;
 
+    audit::bet_placed(GAME, guild_id, user_id, bet, "initial two-card deal");
+
     let mut message = reply.into_message().await?;
     let completed =
         run_player_turns(&ctx, &message, &mut game, cfg.effective_timeout_secs()).await?;
@@ -148,8 +144,34 @@ pub async fn blackjack(
         if payout > 0 {
             game.user_cash = economy::add_cash(db, guild_id, user_id, payout).await?.cash;
         }
+        audit::bet_settled(
+            GAME,
+            guild_id,
+            user_id,
+            game.bet,
+            if payout == 0 { "loss" } else { "win" },
+            payout,
+            &format!(
+                "hands={} dealer_points={} player_cash={}",
+                game.player_hands.len(),
+                game.dealer_hand.points(),
+                game.user_cash
+            ),
+        );
         text
     } else {
+        audit::bet_forfeited(
+            GAME,
+            guild_id,
+            user_id,
+            game.bet,
+            "interaction_stream_ended",
+            &format!(
+                "hands={} player_cash={}",
+                game.player_hands.len(),
+                game.user_cash
+            ),
+        );
         "⏰ **Game timed out.** Your bet was forfeited!".to_string()
     };
 
@@ -206,6 +228,7 @@ async fn validate_and_start(
 
     let Some(user_balance) = economy::deduct_cash(db, guild_id, user_id, bet).await? else {
         release_gambling_cooldown(ctx).await;
+        audit::bet_rejected(GAME, guild_id, user_id, bet, "insufficient_funds");
         send_ephemeral(
             ctx,
             "You don't have enough cash in your wallet for this bet.",
@@ -224,9 +247,7 @@ async fn run_player_turns(
     game: &mut BlackjackGame,
     timeout_secs: u64,
 ) -> Result<bool, Error> {
-    let guild_id = ctx.guild_id().unwrap();
     let user_id = ctx.author().id;
-    let db = &ctx.data().core.db;
 
     let mut current_hand_idx = 0;
     let mut stream = message
@@ -235,7 +256,7 @@ async fn run_player_turns(
         .stream();
 
     while let Some(interaction) = stream.next().await {
-        if warn_non_player(ctx, &interaction, user_id).await? {
+        if warn_non_player(ctx, &interaction, user_id, GAME).await? {
             continue;
         }
 
@@ -252,11 +273,7 @@ async fn run_player_turns(
                 current_hand_idx += 1;
             }
             "bj_double" => {
-                if economy::deduct_cash(db, guild_id, user_id, game.bet)
-                    .await?
-                    .is_some()
-                {
-                    game.user_cash -= game.bet;
+                if try_charge_extra_bet(ctx, game, "double", current_hand_idx).await? {
                     let hand = &mut game.player_hands[current_hand_idx];
                     hand.is_doubled = true;
                     hand.cards.push(game.deck.draw());
@@ -264,21 +281,14 @@ async fn run_player_turns(
                 }
             }
             "bj_split" => {
-                if economy::deduct_cash(db, guild_id, user_id, game.bet)
-                    .await?
-                    .is_some()
-                {
-                    game.user_cash -= game.bet;
-                    let second_card = game.player_hands[0].cards.pop().unwrap();
-                    let mut new_hand = Hand::default();
-                    new_hand.cards.push(second_card);
-
-                    game.player_hands[0].cards.push(game.deck.draw());
-                    new_hand.cards.push(game.deck.draw());
-                    game.player_hands.push(new_hand);
-
+                if try_charge_extra_bet(ctx, game, "split", current_hand_idx).await? {
+                    split_first_hand(game, ctx);
                     // Special rule: Split aces only receive 1 card each
-                    if game.player_hands[0].cards[0].rank == Rank::Ace {
+                    if game.player_hands[0]
+                        .cards
+                        .first()
+                        .is_some_and(|c| c.rank == Rank::Ace)
+                    {
                         game.player_hands[0].is_stood = true;
                         game.player_hands[1].is_stood = true;
                         current_hand_idx = 2;
@@ -316,6 +326,114 @@ async fn run_player_turns(
     }
 
     Ok(false)
+}
+
+/// Settles a hand that ended on a natural blackjack. Returns the outcome line.
+async fn settle_natural_blackjack(
+    ctx: &Context<'_>,
+    game: &mut BlackjackGame,
+    bet: i64,
+    player_bj: bool,
+    dealer_bj: bool,
+) -> Result<Option<String>, Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let user_id = ctx.author().id;
+    let db = &ctx.data().core.db;
+
+    let (outcome_text, payout) = match (player_bj, dealer_bj) {
+        (true, true) => ("Both hit Blackjack! It's a **Push**.".to_string(), bet),
+        (true, false) => (
+            "**Natural Blackjack!** You won 3:2 payout!".to_string(),
+            bet + (bet * 3 / 2),
+        ),
+        _ => (
+            "Dealer hit Natural Blackjack. Better luck next time!".to_string(),
+            0,
+        ),
+    };
+
+    if payout > 0 {
+        game.user_cash = economy::add_cash(db, guild_id, user_id, payout).await?.cash;
+    }
+
+    audit::bet_settled(
+        GAME,
+        guild_id,
+        user_id,
+        bet,
+        if payout == 0 {
+            "loss"
+        } else if player_bj && dealer_bj {
+            "push"
+        } else {
+            "win"
+        },
+        payout,
+        &format!("player_natural={player_bj} dealer_natural={dealer_bj} immediate"),
+    );
+
+    Ok(Some(outcome_text))
+}
+
+/// Charges an extra wager for a double-down or a split. `false` means the player could not
+/// afford it, so the button press did nothing.
+async fn try_charge_extra_bet(
+    ctx: &Context<'_>,
+    game: &mut BlackjackGame,
+    action: &'static str,
+    hand_idx: usize,
+) -> Result<bool, Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let user_id = ctx.author().id;
+    let db = &ctx.data().core.db;
+
+    if economy::deduct_cash(db, guild_id, user_id, game.bet)
+        .await?
+        .is_none()
+    {
+        audit::bet_rejected(
+            GAME,
+            guild_id,
+            user_id,
+            game.bet,
+            if action == "double" {
+                "double_down_insufficient_funds"
+            } else {
+                "split_insufficient_funds"
+            },
+        );
+        return Ok(false);
+    }
+
+    game.user_cash -= game.bet;
+    audit::bet_placed(
+        GAME,
+        guild_id,
+        user_id,
+        game.bet,
+        &format!("action={action} hand={hand_idx}"),
+    );
+    Ok(true)
+}
+
+/// Moves the second card of the first hand into a brand new hand.
+fn split_first_hand(game: &mut BlackjackGame, ctx: &Context<'_>) {
+    let Some(second_card) = game.player_hands[0].cards.pop() else {
+        // The extra bet is already debited, so log rather than panic.
+        tracing::error!(
+            guild_id = ?ctx.guild_id(),
+            user_id = %ctx.author().id,
+            hand_len = game.player_hands[0].cards.len(),
+            "Split on a hand with no second card; the extra wager was already debited"
+        );
+        return;
+    };
+
+    let mut new_hand = Hand::default();
+    new_hand.cards.push(second_card);
+    game.player_hands[0].cards.push(game.deck.draw());
+    new_hand.cards.push(game.deck.draw());
+    game.player_hands.push(new_hand);
 }
 
 fn build_buttons(

@@ -1,11 +1,15 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy;
+use crate::features::gambling::audit;
 use crate::features::gambling::database::get_gambling_config;
 use crate::features::gambling::games::slots::{WinTier, evaluate, format_reels, payout_for, spin};
 use crate::features::gambling::{release_gambling_cooldown, try_acquire_gambling_cooldown};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
+
+/// Recorded on every audit line for this game.
+const GAME: &str = "slots";
 
 /// Spin the slot machine — match 3 to win big!
 #[poise::command(slash_command, guild_only)]
@@ -42,6 +46,7 @@ pub async fn slots(
 
     let Some(mut balance) = economy::deduct_cash(db, guild_id, user_id, bet).await? else {
         release_gambling_cooldown(&ctx).await;
+        audit::bet_rejected(GAME, guild_id, user_id, bet, "insufficient_funds");
         send_ephemeral(
             &ctx,
             "You don't have enough cash in your wallet for this bet.",
@@ -52,13 +57,28 @@ pub async fn slots(
 
     let reels = spin();
     let tier = evaluate(reels);
-    let payout = payout_for(reels, bet).unwrap_or(0);
-
     let reels_display = format_reels(reels);
+    let detail = format!("reels={reels_display} tier={}", tier.display());
+
+    let Some(payout) = audit::resolve_payout(
+        payout_for(reels, bet),
+        GAME,
+        guild_id,
+        user_id,
+        bet,
+        &detail,
+    ) else {
+        release_gambling_cooldown(&ctx).await;
+        send_ephemeral(&ctx, audit::PAYOUT_OVERFLOW_MESSAGE).await?;
+        return Ok(());
+    };
+
+    audit::bet_placed(GAME, guild_id, user_id, bet, &detail);
 
     let (title, description) = if payout > 0 {
         let profit = payout - bet;
         balance = economy::add_cash(db, guild_id, user_id, payout).await?;
+        audit::bet_settled(GAME, guild_id, user_id, bet, "win", payout, &detail);
         let tier_label = tier.display();
         (
             format!("🎰 {} Jackpot!", reels[0].emoji()),
@@ -68,6 +88,7 @@ pub async fn slots(
             ),
         )
     } else {
+        audit::bet_settled(GAME, guild_id, user_id, bet, "loss", 0, &detail);
         (
             "Try Again!".to_string(),
             format!(

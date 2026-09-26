@@ -7,6 +7,7 @@ use crate::features::economy::{commands, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
 use std::fmt::Write;
+use tracing::error;
 
 /// View detailed info on a store item
 #[poise::command(slash_command, guild_only)]
@@ -57,16 +58,44 @@ pub async fn info(
         embed = embed.field("Expires", format!("<t:{}:R>", expires.timestamp()), true);
     }
 
-    let requirements = item.parsed_requirements();
-    if !requirements.is_empty() {
-        let req_text = create_requirements_text(&requirements);
-        embed = embed.field("Requirements", req_text, false);
+    // A parse failure is shown, not hidden: an item that renders as having no requirements looks
+    // unrestricted even when the gate is the thing that is broken.
+    match item.parsed_requirements() {
+        Ok(requirements) if !requirements.is_empty() => {
+            let req_text = create_requirements_text(&requirements);
+            embed = embed.field("Requirements", req_text, false);
+        }
+        Ok(_) => {}
+        Err(e) => {
+            error!(
+                error = ?e,
+                error_chain = %format!("{e:#}"),
+                guild_id = ?ctx.guild_id(),
+                item_id = %item.id,
+                item_name = %item.name,
+                "Item requirements could not be parsed"
+            );
+            embed = embed.field("Requirements", "*Could not be read.*", false);
+        }
     }
 
-    let actions = item.parsed_actions();
-    if !actions.is_empty() {
-        let act_text = create_actions_text(&actions);
-        embed = embed.field("Actions", act_text, false);
+    match item.parsed_actions() {
+        Ok(actions) if !actions.is_empty() => {
+            let act_text = create_actions_text(&actions);
+            embed = embed.field("Actions", act_text, false);
+        }
+        Ok(_) => {}
+        Err(e) => {
+            error!(
+                error = ?e,
+                error_chain = %format!("{e:#}"),
+                guild_id = ?ctx.guild_id(),
+                item_id = %item.id,
+                item_name = %item.name,
+                "Item actions could not be parsed"
+            );
+            embed = embed.field("Actions", "*Could not be read.*", false);
+        }
     }
 
     ctx.send(poise::CreateReply::default().embed(embed).ephemeral(true))

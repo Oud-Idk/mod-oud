@@ -1,12 +1,16 @@
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy;
+use crate::features::gambling::audit;
 use crate::features::gambling::database::get_gambling_config;
 use crate::features::gambling::{release_gambling_cooldown, try_acquire_gambling_cooldown};
 use crate::shared::messages::send_ephemeral;
 use rand::rng;
 use rand::seq::IndexedRandom;
 use serenity::all::CreateEmbed;
+
+/// Recorded on every audit line for this game.
+const GAME: &str = "coinflip";
 
 /// The side of the coin to bet on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, poise::ChoiceParameter)]
@@ -37,9 +41,14 @@ impl CoinSide {
     #[must_use]
     pub fn flip() -> Self {
         let mut rng = rng();
-        *[Self::Heads, Self::Tails]
-            .choose(&mut rng)
-            .unwrap_or(&Self::Heads)
+        [Self::Heads, Self::Tails].choose(&mut rng).map_or_else(
+            || {
+                // Unreachable with two elements, but it would bias every flip to Heads.
+                tracing::error!("Coin flip RNG selection failed; falling back to Heads");
+                Self::Heads
+            },
+            |side| *side,
+        )
     }
 }
 
@@ -80,6 +89,7 @@ pub async fn coinflip(
     // Deduct bet up front
     let Some(mut balance) = economy::deduct_cash(db, guild_id, user_id, bet).await? else {
         release_gambling_cooldown(&ctx).await;
+        audit::bet_rejected(GAME, guild_id, user_id, bet, "insufficient_funds");
         send_ephemeral(
             &ctx,
             "You don't have enough cash in your wallet for this bet.",
@@ -91,9 +101,26 @@ pub async fn coinflip(
     let outcome = CoinSide::flip();
     let won = choice == outcome;
 
+    audit::bet_placed(
+        GAME,
+        guild_id,
+        user_id,
+        bet,
+        &format!("pick={} landed={}", choice.label(), outcome.label()),
+    );
+
     let (title, description) = if won {
         let payout = bet * 2; // 2x return (wager + winnings)
         balance = economy::add_cash(db, guild_id, user_id, payout).await?;
+        audit::bet_settled(
+            GAME,
+            guild_id,
+            user_id,
+            bet,
+            "win",
+            payout,
+            &format!("pick={} landed={}", choice.label(), outcome.label()),
+        );
         (
             format!("🎉 {} You Won!", outcome.emoji()),
             format!(
@@ -104,6 +131,15 @@ pub async fn coinflip(
             ),
         )
     } else {
+        audit::bet_settled(
+            GAME,
+            guild_id,
+            user_id,
+            bet,
+            "loss",
+            0,
+            &format!("pick={} landed={}", choice.label(), outcome.label()),
+        );
         (
             format!("💀 {} You Lost!", outcome.emoji()),
             format!(

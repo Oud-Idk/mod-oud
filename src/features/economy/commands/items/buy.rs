@@ -1,12 +1,11 @@
+use super::actions::{apply_discord_actions, parse_actions, resolve_db_actions};
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::economy::database::shop::{PurchaseError, purchase_item_tx};
+use crate::features::economy::types::ActionTrigger;
 use crate::features::economy::{commands, ensure_balance, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
-
-// Re-export for backwards compatibility if external code imported via buy module
-pub use super::actions::execute_buy_actions;
 
 /// Buy an item from the store
 #[poise::command(slash_command, guild_only)]
@@ -51,7 +50,12 @@ pub async fn buy(
         return Ok(());
     }
 
-    let result = purchase_item_tx(db, guild_id, user_id, item.id, qty).await?;
+    // Parse and resolve before opening the transaction, so a malformed action list refuses the
+    // purchase and the effects commit with it.
+    let parsed = parse_actions(&ctx, &item)?;
+    let actions = resolve_db_actions(&parsed, &item.name, qty, ActionTrigger::Buy)?;
+
+    let result = purchase_item_tx(db, guild_id, user_id, item.id, qty, &actions).await?;
 
     match result {
         Ok((bought_item, balance)) => {
@@ -59,8 +63,8 @@ pub async fn buy(
             let icon = bought_item.icon_str().unwrap_or_default();
             let total_cost = bought_item.price * i64::from(qty);
 
-            // Execute hooks/roles/actions tied to the item purchase
-            execute_buy_actions(&ctx, &bought_item, qty).await?;
+            // Roles and replies run after the commit: they cannot be rolled back.
+            apply_discord_actions(&ctx, &bought_item, &parsed, ActionTrigger::Buy).await;
 
             let mut embed = CreateEmbed::new()
                 .title(format!("{icon} Purchase Complete!").trim().to_string())

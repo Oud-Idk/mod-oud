@@ -98,4 +98,13 @@ mod tests {
     fn test_payout_overflow() {
         assert_eq!(payout_for_streak(i64::MAX, 1), None);
     }
+
+    #[test]
+    fn test_payout_is_bounded_by_the_streak_cap() {
+        let bet = 1_000;
+        for cap in 1..=25_u32 {
+            let payout = payout_for_streak(bet, cap).expect("no overflow at a sane cap");
+            assert_eq!(payout, bet * i64::from(cap) + bet);
+        }
+    }
 }

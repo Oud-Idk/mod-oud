@@ -1,7 +1,8 @@
-use super::actions::execute_use_actions;
+use super::actions::{apply_discord_actions, parse_actions, resolve_db_actions};
 use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
-use crate::features::economy::database::inventory::{get_inventory_item, remove_inventory_item};
+use crate::features::economy::database::shop::{UseItemError, use_item_tx};
+use crate::features::economy::types::ActionTrigger;
 use crate::features::economy::{commands, ensure_balance, validation};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::CreateEmbed;
@@ -42,35 +43,39 @@ pub async fn use_item(
         return Ok(());
     }
 
-    // Verify ownership
-    let inv_row = get_inventory_item(db, guild_id, user_id, item.id).await?;
-    let owned = inv_row.map_or(0, |r| r.quantity);
-    if owned < qty {
-        if owned == 0 {
-            send_ephemeral(&ctx, format!("You don't own **{}**.", item.name)).await?;
-        } else {
-            send_ephemeral(
-                &ctx,
-                format!(
-                    "You only have **{owned}x {}**, but tried to use **{qty}**.",
-                    item.name
-                ),
-            )
-            .await?;
-        }
-        return Ok(());
-    }
-
     if let Err(reason) = validation::validate_use_requirements(&ctx, &item, db).await? {
         send_ephemeral(&ctx, format!("**Cannot use:** {reason}")).await?;
         return Ok(());
     }
 
-    // Consume the item(s) from inventory
-    remove_inventory_item(db, guild_id, user_id, item.id, qty).await?;
+    // Parse and resolve before opening the transaction, so a malformed action list refuses the
+    // use and the effects commit with the consumption.
+    let parsed = parse_actions(&ctx, &item)?;
+    let actions = resolve_db_actions(&parsed, &item.name, qty, ActionTrigger::Use)?;
 
-    // Execute use-triggered actions (roles, balance, items, messages)
-    execute_use_actions(&ctx, &item, qty).await?;
+    // Ownership is checked under a row lock inside the transaction, so a concurrent second use
+    // cannot slip between the check and the removal.
+    match use_item_tx(db, guild_id, user_id, &item, qty, &actions).await? {
+        Ok(_balance) => {}
+        Err(UseItemError::NotOwned { owned }) => {
+            if owned == 0 {
+                send_ephemeral(&ctx, format!("You don't own **{}**.", item.name)).await?;
+            } else {
+                send_ephemeral(
+                    &ctx,
+                    format!(
+                        "You only have **{owned}x {}**, but tried to use **{qty}**.",
+                        item.name
+                    ),
+                )
+                .await?;
+            }
+            return Ok(());
+        }
+    }
+
+    // Roles and replies run after the commit: they cannot be rolled back.
+    apply_discord_actions(&ctx, &item, &parsed, ActionTrigger::Use).await;
 
     let icon = item.icon_str().unwrap_or_default();
     let mut embed = CreateEmbed::new()

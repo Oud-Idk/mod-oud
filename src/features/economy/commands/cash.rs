@@ -11,6 +11,7 @@ use fred::prelude::{Expiration, SetOptions};
 use humantime::format_duration;
 use serenity::all::{CreateEmbed, User};
 use std::time::Duration;
+use tracing::{error, warn};
 
 #[poise::command(
     slash_command,
@@ -89,12 +90,30 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
             false,
         )
         .await
-        .ok();
+        .inspect_err(|e| {
+            error!(
+                error = ?e,
+                cooldown_key = %cooldown_key,
+                cooldown_secs = config.work_cooldown_secs,
+                "Cooldown SET failed; the /work cooldown is not being enforced"
+            );
+        })?;
 
     if acquired.is_none() {
-        let remaining = redis.ttl::<i64, _>(&cooldown_key).await.unwrap_or(0);
+        // `Ok(None)` from SET NX means the key exists, so this is a real cooldown.
+        let wait_secs = match redis.ttl::<i64, _>(&cooldown_key).await {
+            Ok(remaining) => remaining.max(0),
+            Err(e) => {
+                warn!(
+                    error = ?e,
+                    cooldown_key = %cooldown_key,
+                    "Cooldown TTL lookup failed; reporting a 0s wait"
+                );
+                0
+            }
+        };
         #[allow(clippy::cast_sign_loss)]
-        let wait_secs = remaining.max(0) as u64;
+        let wait_secs = wait_secs as u64;
         let wait_time = format_duration(Duration::from_secs(wait_secs));
         send_ephemeral(
             &ctx,
