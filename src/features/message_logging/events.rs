@@ -279,6 +279,11 @@ pub async fn log_message_update(
         return Ok(());
     };
 
+    if details.old_content == details.new_content {
+        debug!("Message edit logging skipped due to identical old/new content.");
+        return Ok(());
+    }
+
     if filters::should_exclude_from_logging(
         logging_config,
         details.author_id,
