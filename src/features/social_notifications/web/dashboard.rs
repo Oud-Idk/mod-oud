@@ -1,7 +1,7 @@
 //! Dashboard-facing feed management, mounted under `/api` behind the internal secret.
 
 use crate::core::config::state::WebState;
-use crate::features::social_notifications::subscription::subscribe_feed;
+use crate::features::social_notifications::subscription::{SubscribeError, subscribe_feed};
 use crate::features::social_notifications::types::FeedKind;
 use axum::Json;
 use axum::extract::{Path, State};
@@ -74,7 +74,19 @@ pub async fn create_feed_subscription(
 
     let subscription = subscribe_feed(&state.core, url, channel_id, guild_id)
         .await
-        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+        .map_err(|e| {
+            // An unusable URL is the caller's mistake; anything we broke is not.
+            // The message is safe to show either way — `subscribe_feed` already
+            // replaced the cause with generic text.
+            let status = match e {
+                SubscribeError::UnusableFeed(_) => StatusCode::BAD_REQUEST,
+                SubscribeError::Misconfigured(_) | SubscribeError::Internal => {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            };
+
+            (status, e.to_string())
+        })?;
 
     let (delivery, interval_secs) = match subscription.kind {
         FeedKind::PubSubHubbub { .. } => (FeedDelivery::PubSubHubbub, None),

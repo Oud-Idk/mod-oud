@@ -92,8 +92,15 @@ export async function addFeedSubscription(
     });
 
     if (!res.ok) {
+        // A 4xx body is written for the user (bad URL, not a feed) and worth
+        // showing. A 5xx body is the bot's own phrasing about our internals, so
+        // show a message from here instead of echoing it back at the user.
+        if (res.status >= 500) {
+            throw new Error("Something went wrong on our end. Please try again.");
+        }
+
         const errorText = (await res.text()).trim();
-        throw new Error(errorText !== "" ? errorText : "Rust backend request failed.");
+        throw new Error(errorText !== "" ? errorText : "Could not subscribe to that feed.");
     }
 
     return subscribeFeedResponseSchema.parse(await res.json());
