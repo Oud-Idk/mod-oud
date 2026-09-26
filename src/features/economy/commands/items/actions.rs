@@ -86,13 +86,21 @@ where
                 message: Some(layout),
                 ..
             } => {
-                let _ = ctx
+                if let Err(e) = ctx
                     .send(
                         poise::CreateReply::default()
                             .content(layout.content)
                             .ephemeral(true),
                     )
-                    .await;
+                    .await
+                {
+                    tracing::error!(
+                        error = ?e,
+                        %guild_id,
+                        %user_id,
+                        "Failed to send item action response; user received no feedback"
+                    );
+                }
             }
             ItemAction::Respond { message: None, .. } => {}
         }

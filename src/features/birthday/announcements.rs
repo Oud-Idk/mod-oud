@@ -8,6 +8,7 @@ use serenity::all::{ChannelId, Context, GuildId};
 use serenity::model::channel::Message;
 use serenity::model::id::MessageId;
 use sqlx::PgPool;
+use tracing::error;
 
 pub async fn send_birthday_message(
     ctx: &Context,
@@ -64,7 +65,7 @@ pub async fn process_celebrant_roles(
     for celebrant in celebrants {
         let user_id = celebrant.user_id;
 
-        let _ = database::store_birthday_log(
+        if let Err(e) = database::store_birthday_log(
             db,
             current_year,
             guild_id,
@@ -72,7 +73,15 @@ pub async fn process_celebrant_roles(
             sent_msg_id,
             user_id,
         )
-        .await;
+        .await
+        {
+            error!(
+                error = ?e,
+                %guild_id,
+                %user_id,
+                "Failed to store birthday log; birthday history entry dropped"
+            );
+        }
 
         let Some(role_id) = birthday_role_id else {
             continue;
@@ -86,6 +95,14 @@ pub async fn process_celebrant_roles(
             continue;
         };
 
-        let _ = database::save_user_with_birthday_role(db, guild_id, user_id, role_id).await;
+        if let Err(e) = database::save_user_with_birthday_role(db, guild_id, user_id, role_id).await
+        {
+            error!(
+                error = ?e,
+                %guild_id,
+                %user_id,
+                "Failed to persist birthday role assignment; role will not be cleaned up on expiry"
+            );
+        }
     }
 }

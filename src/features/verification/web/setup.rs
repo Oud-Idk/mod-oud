@@ -13,7 +13,7 @@ use serenity::all::{
     Permissions, Role, RoleId,
 };
 use std::sync::Arc;
-use tracing::{trace, warn};
+use tracing::{debug, trace, warn};
 
 #[serde_as]
 #[derive(Serialize, Clone, Debug)]
@@ -197,7 +197,7 @@ async fn send_verification_panel(
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
         .ok_or_else(|| {
-            warn!(guild_id = verify_channel.guild_id.get(), payload = ?payload.embed, "Failed to build verification panel for guild. Check payload?");
+            debug!(guild_id = verify_channel.guild_id.get(), payload = ?payload.embed, "Rejected verification setup: panel payload renders to nothing");
             (StatusCode::BAD_REQUEST, "Invalid embed configuration".to_string())
         })?
         .components(vec![verify_row]);

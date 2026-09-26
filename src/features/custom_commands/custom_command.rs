@@ -7,6 +7,7 @@ use crate::features::custom_commands::types::{CommandAction, CooldownType, Custo
 use crate::shared::permissions::HasRoles;
 use fred::clients::Client;
 use serenity::all::{ChannelId, Context, GuildChannel, Message, RoleId};
+use tracing::{error, warn};
 
 pub async fn handle_custom_command(
     ctx: &Context,
@@ -59,7 +60,13 @@ pub async fn handle_custom_command(
     }
 
     if command.delete_trigger {
-        let _ = msg.delete(&ctx.http).await;
+        if let Err(e) = msg.delete(&ctx.http).await {
+            warn!(
+                error = ?e,
+                message_id = %msg.id,
+                "Failed to delete custom command trigger; trigger remains visible"
+            );
+        }
     }
 
     for action in command.actions.iter() {
@@ -109,7 +116,7 @@ async fn execute_payload(
         }
         CommandAction::AddRole { role_id } => {
             let role_id = RoleId::new(role_id.parse()?);
-            let _ = ctx
+            if let Err(e) = ctx
                 .http
                 .add_member_role(
                     msg.guild_id.unwrap(),
@@ -117,11 +124,20 @@ async fn execute_payload(
                     role_id,
                     Some("Custom Command Action"),
                 )
-                .await;
+                .await
+            {
+                error!(
+                    error = ?e,
+                    guild_id = %msg.guild_id.unwrap(),
+                    user_id = %msg.author.id,
+                    %role_id,
+                    "Failed to add role from custom command action"
+                );
+            }
         }
         CommandAction::RemoveRole { role_id } => {
             let role_id = RoleId::new(role_id.parse()?);
-            let _ = ctx
+            if let Err(e) = ctx
                 .http
                 .remove_member_role(
                     msg.guild_id.unwrap(),
@@ -129,7 +145,16 @@ async fn execute_payload(
                     role_id,
                     Some("Custom Command Action"),
                 )
-                .await;
+                .await
+            {
+                error!(
+                    error = ?e,
+                    guild_id = %msg.guild_id.unwrap(),
+                    user_id = %msg.author.id,
+                    %role_id,
+                    "Failed to remove role from custom command action"
+                );
+            }
         }
     }
     Ok(())

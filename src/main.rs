@@ -158,7 +158,11 @@ const DEFAULT_LOG_FILTER: &str = "info,sqlx=warn,serenity=warn,poise=info";
 
 /// Installs the rustls crypto provider, loads `.env`, and initializes tracing.
 fn init_logging() {
-    let _ = rustls::crypto::ring::default_provider().install_default();
+    // Only fails when a provider is already installed, which is a no-op success
+    // in practice; log it rather than swallowing so a real conflict is visible.
+    if let Err(e) = rustls::crypto::ring::default_provider().install_default() {
+        tracing::debug!(error = ?e, "rustls provider was already installed; reusing it");
+    }
 
     // Must precede reading the filter, so a local `.env` still takes effect.
     dotenvy::dotenv().ok();

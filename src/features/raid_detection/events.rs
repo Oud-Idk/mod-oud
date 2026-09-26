@@ -120,7 +120,14 @@ pub async fn handle_raid_detection(
         );
 
         // Keep the raid cooldown timer alive
-        let _ = detector.extend_raid_active(guild_id, 300).await;
+        if let Err(e) = detector.extend_raid_active(guild_id, 300).await {
+            warn!(
+                error = ?e,
+                %guild_id,
+                %user_id,
+                "Failed to extend raid cooldown; raid may be treated as resolved early"
+            );
+        }
 
         // Apply member-specific mitigations to this joiner as well!
         apply_member_mitigations(ctx, new_member, &raid_config.raid_actions, now).await?;
@@ -163,7 +170,13 @@ async fn handle_raid_lifecycle(
             %guild_id,
             "Failed to save pre-raid state snapshot; rolling back active raid flag"
         );
-        let _ = cache::clear_raid_active(&data.core.redis, guild_id).await;
+        if let Err(clear_err) = cache::clear_raid_active(&data.core.redis, guild_id).await {
+            error!(
+                error = ?clear_err,
+                %guild_id,
+                "Failed to clear raid active flag during rollback; raid may stay flagged active"
+            );
+        }
         return Err(e);
     }
 

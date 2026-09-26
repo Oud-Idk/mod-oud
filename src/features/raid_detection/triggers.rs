@@ -51,7 +51,13 @@ pub async fn trigger_raid_manual(
             mod_username,
             "Failed to save pre-raid state snapshot during manual raid trigger; rolling back active state"
         );
-        let _ = cache::clear_raid_active(&data.core.redis, guild_id).await;
+        if let Err(clear_err) = cache::clear_raid_active(&data.core.redis, guild_id).await {
+            error!(
+                error = ?clear_err,
+                %guild_id,
+                "Failed to clear raid active flag during rollback; raid mode may stay active"
+            );
+        }
         return Err(e);
     }
 

@@ -255,7 +255,13 @@ async fn debounced_starboard_sync(
                 }
 
                 debug!("Releasing lock");
-                let _ = guard.release().await;
+                if let Err(e) = guard.release().await {
+                    warn!(
+                        error = ?e,
+                        lock_key = %lock_key,
+                        "Failed to release starboard worker lock; lock will expire on its own"
+                    );
+                }
             }
             .instrument(worker_span),
         );

@@ -73,9 +73,9 @@ pub async fn handle_verify(
         .verification_settings()
         .filter(|v| v.captcha_type.as_ref() == Some(&payload.captcha_type))
         .ok_or_else(|| {
-            warn!(
-                "Captcha type mismatch or verification not configured for guild {}",
-                payload.guild_id
+            debug!(
+                guild_id = %payload.guild_id,
+                "Rejected verification: captcha type mismatch or verification not configured for guild"
             );
             (
                 StatusCode::BAD_REQUEST,
@@ -213,9 +213,10 @@ async fn verify_discord_oauth_identity(
             })?;
 
             if discord_user.id != payload.user_id {
-                warn!(
-                    "User ID mismatch! URL ID: {}, Auth ID: {}",
-                    payload.user_id, discord_user.id
+                debug!(
+                    user_id = %payload.user_id,
+                    auth_user_id = %discord_user.id,
+                    "Rejected verification: link and authenticated Discord account differ"
                 );
                 return Err((
                     StatusCode::FORBIDDEN,
@@ -224,10 +225,23 @@ async fn verify_discord_oauth_identity(
             }
             Ok(())
         }
-        _ => Err((
-            StatusCode::UNAUTHORIZED,
-            "Invalid or expired Discord session. Please log in again.".to_string(),
-        )),
+        Ok(resp) => {
+            debug!(
+                status = %resp.status(),
+                "Rejected verification: Discord refused the supplied access token"
+            );
+            Err((
+                StatusCode::UNAUTHORIZED,
+                "Invalid or expired Discord session. Please log in again.".to_string(),
+            ))
+        }
+        Err(e) => {
+            error!(error = ?e, "Failed to reach Discord to validate the access token");
+            Err((
+                StatusCode::UNAUTHORIZED,
+                "Invalid or expired Discord session. Please log in again.".to_string(),
+            ))
+        }
     }
 }
 

@@ -150,7 +150,13 @@ async fn validate_transfer_request(
             offered_channel = %channel_id.get(),
             "Acceptor now owns a different temp VC; refusing to complete transfer"
         );
-        let _ = cache::clear_pending_transfer(redis, channel_id).await;
+        if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
+            warn!(
+                "Failed to clear pending transfer for channel {}: {:?}",
+                channel_id.get(),
+                e
+            );
+        }
         interaction
             .create_response(
                 &ctx.http,
@@ -281,7 +287,13 @@ pub async fn handle_decline_transfer(
         "Deleting pending transfer key from Redis for channel {}",
         channel_id.get()
     );
-    let _ = cache::clear_pending_transfer(redis, channel_id).await;
+    if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
+        warn!(
+            "Failed to clear pending transfer for channel {}: {:?}",
+            channel_id.get(),
+            e
+        );
+    }
 
     info!(
         "Transfer request for channel {} was declined by user {}",

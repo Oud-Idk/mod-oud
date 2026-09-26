@@ -18,13 +18,18 @@ pub async fn store_username_relation(
     id: UserId,
     name: &str,
 ) -> anyhow::Result<()> {
-    let _ = buf
-        .send(UserUpdate {
-            id,
-            name: name.to_string(),
-        })
-        .await;
-    Ok(())
+    // Queuing is best-effort: a dropped update only means a later lookup falls
+    // back to Postgres. The previous `let _ =` made this function incapable of
+    // ever returning `Err`, so every `?` at the call sites was dead code.
+    buf.send(UserUpdate {
+        id,
+        name: name.to_string(),
+    })
+    .await
+    .inspect_err(|e| {
+        tracing::warn!(error = ?e, user_id = %id, "Username update channel closed; update dropped");
+    })
+    .map_err(|e| anyhow::anyhow!("Failed to queue username update: {e}"))
 }
 
 /// Fetches a username, checking Redis first, then Postgres.

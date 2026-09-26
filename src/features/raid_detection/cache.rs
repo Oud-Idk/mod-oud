@@ -14,7 +14,7 @@ use fred::types::SetOptions;
 use fred::types::sorted_sets::{ZRange, ZRangeBound, ZRangeKind};
 use serenity::all::{GuildId, UserId};
 use std::collections::HashMap;
-use tracing::info;
+use tracing::{info, warn};
 
 #[allow(clippy::cast_precision_loss)]
 pub async fn record_join_event(
@@ -121,7 +121,13 @@ pub async fn cache_calculated_stats(
         )
         .await?;
 
-    let _ = redis.hdel::<i64, _, _>(hash_key, old_field).await;
+    if let Err(e) = redis.hdel::<i64, _, _>(hash_key, old_field).await {
+        warn!(
+            error = ?e,
+            stats_cache_key,
+            "Failed to prune stale raid stats history field"
+        );
+    }
     Ok(())
 }
 

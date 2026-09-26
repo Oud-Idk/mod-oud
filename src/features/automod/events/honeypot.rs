@@ -10,7 +10,7 @@ use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 use serenity::all::{Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message};
 use std::time::Duration;
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 #[instrument(skip(ctx, data, message), fields(author_id = %message.author.id))]
 pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -> Result<bool> {
@@ -82,7 +82,14 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
                 &dm_config.message.embed,
                 |text| replace_system_ban_placeholders(text, &gctx, &message.author, duration),
             ) {
-                let _ = dm_channel.send_message(&ctx.http, msg_builder).await;
+                if let Err(e) = dm_channel.send_message(&ctx.http, msg_builder).await {
+                    error!(
+                        error = ?e,
+                        user_id = %message.author.id,
+                        %guild_id,
+                        "Failed to send honeypot ban DM; user was banned without notice"
+                    );
+                }
             }
         } else {
             let fallback_embed = CreateEmbed::new()
@@ -93,9 +100,17 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
                     "If you believe this was a mistake, please contact an administrator.",
                 ));
 
-            let _ = dm_channel
+            if let Err(e) = dm_channel
                 .send_message(&ctx.http, CreateMessage::new().embed(fallback_embed))
-                .await;
+                .await
+            {
+                error!(
+                    error = ?e,
+                    user_id = %message.author.id,
+                    %guild_id,
+                    "Failed to send fallback honeypot ban DM; user was banned without notice"
+                );
+            }
         }
     }
 

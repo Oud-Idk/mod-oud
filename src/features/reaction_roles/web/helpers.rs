@@ -7,7 +7,7 @@ use axum::http::StatusCode;
 use serenity::all::{ChannelId, CreateButton, MessageId};
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{error, warn};
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
@@ -59,7 +59,8 @@ pub fn build_custom_msg(
     content: &str,
     embed: &DiscordEmbed,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
-    build_custom_message(format, content, embed, std::string::ToString::to_string).map_err(|_e| {
+    build_custom_message(format, content, embed, std::string::ToString::to_string).map_err(|e| {
+        error!(error = ?e, "Failed to compile reaction roles message layout");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal Server Error".to_string(),
@@ -106,28 +107,44 @@ pub async fn edit_reactions(
 ) -> Result<(), (StatusCode, String)> {
     let reactions = fetch_active_reactions(&state.core.db, config_row.id).await?;
 
-    if let Ok(message) = channel_id.message(&state.serenity_http, message_id).await {
-        for existing_reaction in message.reactions {
-            let emoji_type = existing_reaction.reaction_type;
+    match channel_id.message(&state.serenity_http, message_id).await {
+        Ok(message) => {
+            for existing_reaction in message.reactions {
+                let emoji_type = existing_reaction.reaction_type;
 
-            let is_still_active = reactions.iter().any(|r| {
-                r.emoji
-                    .parse::<serenity::all::ReactionType>()
-                    .is_ok_and(|active_emoji| active_emoji == emoji_type)
-            });
+                let is_still_active = reactions.iter().any(|r| {
+                    r.emoji
+                        .parse::<serenity::all::ReactionType>()
+                        .is_ok_and(|active_emoji| active_emoji == emoji_type)
+                });
 
-            if !is_still_active
-                && state
-                    .serenity_http
-                    .delete_message_reaction_emoji(*channel_id, *message_id, &emoji_type)
-                    .await
-                    .is_err()
-            {
-                let _ = state
-                    .serenity_http
-                    .delete_reaction_me(*channel_id, *message_id, &emoji_type)
-                    .await;
+                if !is_still_active
+                    && state
+                        .serenity_http
+                        .delete_message_reaction_emoji(*channel_id, *message_id, &emoji_type)
+                        .await
+                        .is_err()
+                {
+                    // Bot-author reactions cannot be removed by the bot itself, so
+                    // fall back to deleting its own. Both attempts failing means the
+                    // stale reaction stays on the message.
+                    if let Err(e) = state
+                        .serenity_http
+                        .delete_reaction_me(*channel_id, *message_id, &emoji_type)
+                        .await
+                    {
+                        warn!(
+                            error = ?e,
+                            %channel_id,
+                            %message_id,
+                            "Failed to remove stale reaction; it remains on the message"
+                        );
+                    }
+                }
             }
+        }
+        Err(e) => {
+            warn!(error = ?e, %message_id, "Skipped stale reaction cleanup: failed to fetch the message");
         }
     }
 

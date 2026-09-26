@@ -116,11 +116,19 @@ async fn respond_ephemeral(
     Ok(())
 }
 
-/// Edits the deferred reply; failures are swallowed since the interaction is already acknowledged.
+/// Edits the already-acknowledged deferred reply; the error is logged since it
+/// cannot be propagated through the interaction.
 async fn edit_reply(ctx: &Context, component: &ComponentInteraction, content: &str) {
-    let _ = component
+    if let Err(e) = component
         .edit_response(&ctx.http, EditInteractionResponse::new().content(content))
-        .await;
+        .await
+    {
+        tracing::error!(
+            error = ?e,
+            user_id = %component.user.id,
+            "Failed to edit deferred search play reply; reply left stale"
+        );
+    }
 }
 
 /// Reports a successful queue/play outcome as an embed.
@@ -139,9 +147,16 @@ async fn report_outcome(ctx: &Context, component: &ComponentInteraction, outcome
         ),
     };
     let embed = build_track_embed(&component.user, title, thumbnail);
-    let _ = component
+    if let Err(e) = component
         .edit_response(&ctx.http, EditInteractionResponse::new().embed(embed))
-        .await;
+        .await
+    {
+        tracing::error!(
+            error = ?e,
+            user_id = %component.user.id,
+            "Failed to report search play outcome; reply left stale"
+        );
+    }
 }
 
 fn build_track_embed(author: &User, title: String, thumbnail: Option<String>) -> CreateEmbed {

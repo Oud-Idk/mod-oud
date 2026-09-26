@@ -65,16 +65,17 @@ pub async fn websub_notify(
         .and_then(|h| h.to_str().ok());
 
     let Some(signature) = signature_header else {
-        warn!(feed_id = %feed_id, "Rejecting WebSub POST: Missing X-Hub-Signature header");
+        debug!(feed_id = %feed_id, "Rejected WebSub POST: Missing X-Hub-Signature header");
         return Err((StatusCode::UNAUTHORIZED, "Missing signature header".into()));
     };
 
     if !verify_signature(&expected_secret, signature, &body) {
-        warn!(feed_id = %feed_id, "Rejecting WebSub POST: Invalid cryptographic signature!");
+        debug!(feed_id = %feed_id, "Rejected WebSub POST: Invalid cryptographic signature!");
         return Err((StatusCode::UNAUTHORIZED, "Invalid signature".into()));
     }
 
     let Ok(feed) = feed_rs::parser::parse(&body[..]) else {
+        debug!(feed_id = %feed_id, "Dropped WebSub POST: body is not a parseable feed");
         return Ok(StatusCode::OK);
     };
 
@@ -98,7 +99,9 @@ pub async fn websub_notify(
 
     for channel in subscribed_channels {
         let msg = CreateMessage::new().embed(embed.clone());
-        let _ = channel.send_message(&state.serenity_http, msg).await;
+        if let Err(e) = channel.send_message(&state.serenity_http, msg).await {
+            error!(error = ?e, %feed_id, %channel, "Failed to deliver WebSub entry to subscribed channel");
+        }
     }
 
     Ok(StatusCode::OK)
@@ -122,13 +125,13 @@ pub async fn websub_verify(
 
     // Must be a subscribe (or unsubscribe) request
     if params.mode != "subscribe" && params.mode != "unsubscribe" {
-        warn!(mode = %params.mode, "Unknown hub.mode received");
+        debug!(feed_id = %feed_id, mode = %params.mode, "Rejected WebSub verification: unknown hub.mode received");
         return Err((StatusCode::BAD_REQUEST, "Invalid hub.mode"));
     }
 
     // The challenge must be present
     let Some(challenge) = params.challenge else {
-        warn!("Missing hub.challenge in verification request");
+        debug!(feed_id = %feed_id, "Rejected WebSub verification: missing hub.challenge");
         return Err((StatusCode::BAD_REQUEST, "Missing hub.challenge"));
     };
 
@@ -140,7 +143,7 @@ pub async fn websub_verify(
         .unwrap_or(false);
 
     if !feed_exists {
-        warn!(feed_id = %feed_id, "Verification attempted for non-existent feed");
+        debug!(feed_id = %feed_id, "Rejected WebSub verification for non-existent feed");
         return Err((StatusCode::NOT_FOUND, "Feed not found"));
     }
 

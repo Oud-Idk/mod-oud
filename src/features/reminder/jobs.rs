@@ -95,7 +95,9 @@ async fn process_expired_reminders(
                         "Failed to generate reminder embed"
                     );
                     // Invalid template/embed -> advance state so it doesn't choke forever
-                    let _ = handle_post_execution(db_ref, &record).await;
+                    if let Err(e) = handle_post_execution(db_ref, &record).await {
+                        error!(error = ?e, reminder_id, "Failed to update reminder state in DB");
+                    }
                     return Err(reminder_id);
                 }
             };

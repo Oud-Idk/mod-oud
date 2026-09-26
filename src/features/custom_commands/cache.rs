@@ -2,6 +2,7 @@ use crate::features::custom_commands::types::CustomCommand;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::prelude::Expiration;
+use tracing::warn;
 
 pub async fn cache_command_to_redis(
     redis: &Client,
@@ -10,15 +11,29 @@ pub async fn cache_command_to_redis(
 ) {
     if let Some(cmd) = command {
         if let Ok(json_str) = serde_json::to_string(cmd) {
-            let _ = redis
+            if let Err(e) = redis
                 .set::<(), _, _>(cache_key, json_str, Some(Expiration::EX(300)), None, false)
-                .await;
+                .await
+            {
+                warn!(
+                    error = ?e,
+                    cache_key,
+                    "Failed to cache custom command; next lookup refetches from DB"
+                );
+            }
         }
     } else {
         // Negative cache for 30s to avoid DB spam for non-existent commands
-        let _ = redis
+        if let Err(e) = redis
             .set::<(), _, _>(cache_key, "none", Some(Expiration::EX(30)), None, false)
-            .await;
+            .await
+        {
+            warn!(
+                error = ?e,
+                cache_key,
+                "Failed to cache negative custom command lookup; DB may be hit more often"
+            );
+        }
     }
 }
 
@@ -52,9 +67,16 @@ pub async fn get_anywhere_names_from_redis(redis: &Client, cache_key: &str) -> O
 /// Caches anywhere-enabled command names (including the empty list) for 5 minutes.
 pub async fn cache_anywhere_names_to_redis(redis: &Client, cache_key: &str, names: &[String]) {
     if let Ok(json_str) = serde_json::to_string(names) {
-        let _ = redis
+        if let Err(e) = redis
             .set::<(), _, _>(cache_key, json_str, Some(Expiration::EX(300)), None, false)
-            .await;
+            .await
+        {
+            warn!(
+                error = ?e,
+                cache_key,
+                "Failed to cache anywhere command names; next lookup refetches from DB"
+            );
+        }
     }
 }
 

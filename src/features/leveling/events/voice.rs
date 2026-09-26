@@ -7,7 +7,7 @@ use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserL
 use anyhow::Result;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 /// Tracks voice sessions and awards voice XP when a user leaves an eligible channel.
 ///
@@ -294,13 +294,22 @@ async fn handle_level_up(
             .await?;
     }
 
-    let _ = rewards::apply_level_rewards(
+    if let Err(e) = rewards::apply_level_rewards(
         ctx,
         &data.core.db,
         event.guild_id,
         event.user_level.user_id,
         event.user_level.current_level,
     )
-        .await;
+    .await
+    {
+        error!(
+            error = ?e,
+            guild_id = %event.guild_id,
+            user_id = %event.user_level.user_id,
+            level = event.user_level.current_level,
+            "Failed to apply level-up rewards; reward roles skipped until next level"
+        );
+    }
     Ok(())
 }

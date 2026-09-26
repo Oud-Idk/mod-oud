@@ -7,6 +7,7 @@ use fred::types::ExpireOptions;
 use fred::types::sorted_sets::Ordering;
 use serenity::all::{Context, GuildId, Rule, RuleId};
 use std::time::Duration;
+use tracing::warn;
 
 /// Caches an `AutoMod` rule name in Redis with a 24-hour expiration time.
 ///
@@ -60,7 +61,14 @@ pub async fn get_rule_name(
 
     match guild_id.automod_rule(&ctx.http, rule_id).await {
         Ok(rule) => {
-            let _ = cache_automod_name(redis, rule_id, &rule).await;
+            if let Err(e) = cache_automod_name(redis, rule_id, &rule).await {
+                warn!(
+                    error = ?e,
+                    %guild_id,
+                    %rule_id,
+                    "Failed to cache automod rule name; falling back to uncached lookup"
+                );
+            }
             rule.name
         }
         Err(_) => {

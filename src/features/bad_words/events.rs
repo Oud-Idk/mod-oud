@@ -8,7 +8,7 @@ use serenity::all::Message;
 use serenity::model::id::GuildId;
 use std::borrow::Cow;
 use std::sync::Arc;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 /// Lazy container so we don't lowercase or allocate strings unless a rule needs it
 struct MessageContext<'a> {
@@ -178,7 +178,13 @@ async fn fetch_and_cache_from_db(
     debug!(%guild_id, "PostgreSQL Fetch for bad word rulesets");
 
     if let Ok(serialized) = serde_json::to_string(&db_rows) {
-        let _ = cache::cache_bad_word(cache_key, &data.core.redis, serialized).await;
+        if let Err(e) = cache::cache_bad_word(cache_key, &data.core.redis, serialized).await {
+            warn!(
+                error = ?e,
+                %guild_id,
+                "Failed to write bad word ruleset to cache; next lookup refetches from Postgres"
+            );
+        }
     }
 
     Ok(db_rows)

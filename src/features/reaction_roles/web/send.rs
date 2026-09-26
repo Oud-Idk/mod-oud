@@ -12,7 +12,7 @@ use serde::Serialize;
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::model::id::{GuildId, MessageId};
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 #[serde_as]
 #[derive(Serialize)]
@@ -80,7 +80,9 @@ pub async fn handle_send_reaction_role_message(
     }
 
     let message_id = message.id;
-    let _ = database::add_message_to_db(&state, &config_row, message_id).await;
+    if let Err(e) = database::add_message_to_db(&state, &config_row, message_id).await {
+        error!(error = ?e, config_id, %message_id, "Failed to record the reaction roles message id");
+    }
 
     info!(
         %guild_id,

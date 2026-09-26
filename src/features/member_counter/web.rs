@@ -10,7 +10,7 @@ use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -32,7 +32,7 @@ pub async fn handle_setup_member_counter(
     let Json(payload) = match payload {
         Ok(p) => p,
         Err(rejection) => {
-            error!(error = %rejection, "JSON Deserialization failed");
+            debug!(error = %rejection, "Rejected member counter setup: request body failed to deserialize");
             return Err((StatusCode::UNPROCESSABLE_ENTITY, rejection.body_text()));
         }
     };

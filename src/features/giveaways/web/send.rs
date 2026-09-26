@@ -9,7 +9,7 @@ use serde::Serialize;
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, GuildId, ReactionType, UserId};
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 #[serde_as]
 #[derive(Serialize)]
@@ -24,7 +24,7 @@ pub async fn handle_send_giveaway_message(
 ) -> Result<(StatusCode, Json<SendGiveawayResponse>), (StatusCode, String)> {
     let config_id = parse_config_id(&config_id_str)?;
     let guild_id: u64 = guild_id_str.parse().map_err(|e| {
-        warn!(error = ?e, guild_id_str, "Invalid guild_id format");
+        debug!(error = ?e, guild_id_str, "Rejected request with unparseable guild ID");
         (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
     })?;
 

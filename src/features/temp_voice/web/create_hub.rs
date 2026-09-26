@@ -38,7 +38,7 @@ pub async fn handle_create_temp_category_and_hub(
 
     let guild_id_u64 = guild_id_str
         .parse::<u64>()
-        .inspect_err(|e| warn!(error = ?e, guild_id_str = guild_id_str, "Failed to parse guild ID"))
+        .inspect_err(|e| debug!(error = ?e, guild_id_str = guild_id_str, "Rejected request with unparseable guild ID"))
         .map_err(|_| {
             (
                 StatusCode::BAD_REQUEST,

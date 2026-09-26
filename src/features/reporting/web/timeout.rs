@@ -7,7 +7,7 @@ use crate::features::reporting::web::user_lookup::{resolve_moderator_user, resol
 use axum::http::StatusCode;
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{error, info, instrument, warn};
+use tracing::{debug, error, info, instrument};
 
 #[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, user_id = %user_id
 ))]
@@ -20,7 +20,7 @@ pub async fn handle_timeout(
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
     let duration_mins = cmd.duration_mins.ok_or_else(|| {
-        warn!("Missing duration_mins parameter for timeout action");
+        debug!("Missing duration_mins parameter for timeout action");
         WebError::BadRequest("Missing duration_mins parameter".to_string())
     })?;
 
@@ -37,11 +37,13 @@ pub async fn handle_timeout(
         .unwrap_or("Timeout applied via Moderation Dashboard");
 
     let now_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
+        .duration_since(std::time::UNIX_EPOCH)
+        .inspect_err(|e| error!(error = ?e, "System clock is before the unix epoch"))
+        .map_err(|_| WebError::Internal)?
         .as_secs();
 
     let future_secs = now_secs.checked_add(duration_mins * 60).ok_or_else(|| {
-        error!("Duration calculation overflowed during timeout window generation");
+        debug!(duration_mins, "Duration calculation overflowed during timeout window generation");
         WebError::BadRequest("Duration calculation overflowed".to_string())
     })?;
 

@@ -113,7 +113,14 @@ async fn revert_actions(
                 let message = CreateMessage::new().content(
                     "**Raid Resolved**: Join rate has stabilized back to safe levels. Reverted incident actions and lockdown state."
                 );
-                let _ = channel.send_message(&ctx.http, message).await;
+                if let Err(e) = channel.send_message(&ctx.http, message).await {
+                    error!(
+                        error = ?e,
+                        %guild_id,
+                        channel_id = %channel,
+                        "Failed to send raid resolved alert; moderators were not notified"
+                    );
+                }
             }
             _ => {}
         }
@@ -181,9 +188,22 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                     }
                 };
 
-                let _ =
-                    cache::save_preraid_snapshot(&data.core.redis, guild_id, &snapshot_json).await;
-                let _ = cache::add_guild_to_raid(guild_id, &data.core.redis).await;
+                if let Err(e) =
+                    cache::save_preraid_snapshot(&data.core.redis, guild_id, &snapshot_json).await
+                {
+                    error!(
+                        error = ?e,
+                        %guild_id,
+                        "Failed to restore pre-raid snapshot in Redis during recovery"
+                    );
+                }
+                if let Err(e) = cache::add_guild_to_raid(guild_id, &data.core.redis).await {
+                    error!(
+                        error = ?e,
+                        %guild_id,
+                        "Failed to re-register guild in active raid set during recovery"
+                    );
+                }
 
                 // Try to set raid active; if it fails (e.g. another instance already has it), skip
                 match cache::try_set_raid_active(&data.core.redis, guild_id, 300).await {

@@ -2,6 +2,7 @@ use crate::features::starboard::types::SimpleStarboard;
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, GuildId, MessageId, UserId};
 use sqlx::PgPool;
+use tracing::error;
 
 #[derive(sqlx::FromRow)]
 struct SimpleStarboardRow {
@@ -49,9 +50,17 @@ pub async fn handle_starboard_demotion(
     orig_msg_id: MessageId,
     starboard_id: i64,
 ) -> Result<()> {
-    let _ = starboard_channel
+    if let Err(e) = starboard_channel
         .delete_message(&ctx.http, starboard_msg_id)
-        .await;
+        .await
+    {
+        error!(
+            error = ?e,
+            %starboard_channel,
+            starboard_msg_id = %starboard_msg_id,
+            "Failed to delete demoted starboard post; post stays in the channel"
+        );
+    }
 
     sqlx::query!(
         "DELETE FROM starred_messages WHERE original_message_id = $1 AND starboard_id = $2",

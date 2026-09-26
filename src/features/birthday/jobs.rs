@@ -38,7 +38,9 @@ async fn get_display_name(
         },
     };
 
-    let _ = store_username_relation(sender, user_id, &fetched_name).await;
+    if let Err(e) = store_username_relation(sender, user_id, &fetched_name).await {
+        warn!(error = ?e, %user_id, "Failed to queue username update for birthday announcement");
+    }
 
     fetched_name
 }
@@ -188,10 +190,18 @@ pub async fn cleanup_expired_birthday_roles(
             let user_id = record.user_id;
             let role_id = record.role_id;
 
-            let _ = ctx
+            if let Err(e) = ctx
                 .http
                 .remove_member_role(guild_id, user_id, role_id, Some("Birthday role expired"))
-                .await;
+                .await
+            {
+                error!(
+                    error = ?e,
+                    %guild_id,
+                    %user_id,
+                    "Failed to remove expired birthday role; member keeps the role"
+                );
+            }
         })
         .await;
 

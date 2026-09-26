@@ -18,7 +18,7 @@ use error::WebError;
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 async fn broadcast_report_update(
     pool: &PgPool,
@@ -42,11 +42,20 @@ pub async fn handle_dashboard_command(
         reporting::database::fetch_target_report(&state.core.db, cmd.report_id)
             .await
             .inspect_err(|(status, err_msg)| {
-                error!(
-                    status = %status,
-                    error = %err_msg,
-                    "Failed to fetch target report details from database"
-                );
+                // A miss is the caller's id being wrong (404); only our own failure is 5xx.
+                if status.is_client_error() {
+                    debug!(
+                        status = %status,
+                        error = %err_msg,
+                        "Rejected report lookup for the requested report id"
+                    );
+                } else {
+                    error!(
+                        status = %status,
+                        error = %err_msg,
+                        "Failed to fetch target report details from database"
+                    );
+                }
             })?;
 
     let redis_conn = state.core.redis.clone();

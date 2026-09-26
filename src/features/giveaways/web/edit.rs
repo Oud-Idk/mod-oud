@@ -10,7 +10,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serenity::all::{ChannelId, GuildId, MessageId, UserId};
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{debug, warn};
 
 pub async fn handle_edit_giveaway_message(
     State(state): State<Arc<WebState>>,
@@ -18,7 +18,7 @@ pub async fn handle_edit_giveaway_message(
 ) -> Result<(StatusCode, Json<SendGiveawayResponse>), (StatusCode, String)> {
     let config_id = parse_config_id(&config_id_str)?;
     let guild_id: u64 = guild_id_str.parse().map_err(|e| {
-        warn!(error = ?e, guild_id_str, "Invalid guild_id format");
+        debug!(error = ?e, guild_id_str, "Rejected request with unparseable guild ID");
         (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
     })?;
     let record = giveaways::database::fetch_giveaway(&state.core.db, config_id, guild_id).await?;

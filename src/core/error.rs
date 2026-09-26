@@ -12,13 +12,20 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
             error!("Error in command `{}`: {error:#}", ctx.command().name);
             error!("Full trace: {error:?}");
 
-            let _ = ctx
+            if let Err(reply_err) = ctx
                 .send(
                     poise::CreateReply::default()
                         .content(format!("Something went wrong: {error:#}"))
                         .ephemeral(true),
                 )
-                .await;
+                .await
+            {
+                error!(
+                    error = ?reply_err,
+                    command = %ctx.command().name,
+                    "Failed to deliver the error reply; the user saw nothing"
+                );
+            }
         }
         error => {
             if let Err(e) = poise::builtins::on_error(error).await {

@@ -407,7 +407,14 @@ pub async fn block_users_from_vc(
 
         channel_id.create_permission(http, overwrite).await?;
 
-        let _ = guild_id.disconnect_member(http, target_user_id).await;
+        if let Err(e) = guild_id.disconnect_member(http, target_user_id).await {
+            tracing::error!(
+                "Failed to disconnect blocked user {} from channel {}: {:?}",
+                target_user_id,
+                channel_id,
+                e
+            );
+        }
         blocked_mentions.push(format!("<@{target_user_id}>"));
     }
 

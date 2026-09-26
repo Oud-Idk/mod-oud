@@ -156,14 +156,37 @@ pub async fn poll_due_feeds(
             Ok(r) => r,
             Err(e) => {
                 warn!(feed_id = %feed_id, url = %feed_row.url, error = ?e, "Failed to fetch feed");
-                let _ = database::mark_feed_polled(db, feed_id).await;
+                if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
+                    warn!(
+                        error = ?mark_err,
+                        feed_id = %feed_id,
+                        "Failed to mark feed polled; feed will be retried immediately"
+                    );
+                }
                 continue;
             }
         };
 
         let body = match resp.bytes().await {
             Ok(b) => b,
-            Err(_) => continue,
+            Err(e) => {
+                // Same defect as `let _ =`, different syntax: a body that cannot be
+                // read silently skips the feed, which then re-polls immediately.
+                warn!(
+                    error = ?e,
+                    feed_id = %feed_id,
+                    url = %feed_row.url,
+                    "Failed to read feed body; skipping this cycle"
+                );
+                if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
+                    warn!(
+                        error = ?mark_err,
+                        feed_id = %feed_id,
+                        "Failed to mark feed polled; feed will be retried immediately"
+                    );
+                }
+                continue;
+            }
         };
 
         let Ok(parsed_feed) = parser::parse(&body[..]) else {
@@ -205,7 +228,14 @@ async fn dispatch_entry_to_discord(
 
     for channel in channels {
         let msg = CreateMessage::new().embed(embed.clone());
-        let _ = channel.send_message(serenity_http, msg).await;
+        if let Err(e) = channel.send_message(serenity_http, msg).await {
+            error!(
+                error = ?e,
+                feed_id = %feed_id,
+                channel_id = %channel,
+                "Failed to deliver feed entry; subscriber missed this post"
+            );
+        }
     }
 
     Ok(())

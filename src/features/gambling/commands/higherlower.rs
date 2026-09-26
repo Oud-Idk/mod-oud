@@ -111,14 +111,21 @@ pub async fn higherlower(
             Some("**Game timed out.** Your bet was forfeited!"),
         );
 
-        let _ = message
+        if let Err(e) = message
             .edit(
                 ctx.serenity_context(),
                 serenity::all::EditMessage::new()
                     .embed(timed_out_embed)
                     .components(vec![]),
             )
-            .await;
+            .await
+        {
+            tracing::error!(
+                error = ?e,
+                user_id = %ctx.author().id,
+                "Failed to finalise timed out higher/lower game; buttons remain active"
+            );
+        }
     }
 
     Ok(())

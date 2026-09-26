@@ -5,6 +5,7 @@ use crate::features::giveaways::placeholders;
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
 use serenity::all::{CreateEmbed, CreateMessage, EditMessage, Embed, User};
+use tracing::error;
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
@@ -41,7 +42,8 @@ pub fn build_giveaway_msg(
             )
         },
     )
-    .map_err(|_e| {
+    .map_err(|e| {
+        error!(error = ?e, "Failed to compile giveaway message layout");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal Server Error".to_string(),

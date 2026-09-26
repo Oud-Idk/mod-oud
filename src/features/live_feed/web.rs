@@ -49,7 +49,7 @@ pub async fn sse_handler(
         params.expires,
         params.sig.as_deref(),
     ) else {
-        warn!(guild_id = %params.guild_id, "Missing ticket for SSE");
+        debug!(guild_id = %params.guild_id, "Rejected SSE subscription: missing ticket");
         return Err(StatusCode::UNAUTHORIZED);
     };
     if !verify_ticket(
@@ -67,12 +67,12 @@ pub async fn sse_handler(
             "sse",
             secret.as_bytes(),
         );
-        warn!(
+        debug!(
             guild_id = %params.guild_id,
             user_id = %user_id,
             expires = expires,
             expected = %expected,
-            "Invalid SSE ticket — sig mismatch (check INTERNAL_API_SECRET sync & purpose)"
+            "Rejected SSE subscription: sig mismatch (check INTERNAL_API_SECRET sync & purpose)"
         );
         return Err(StatusCode::UNAUTHORIZED);
     }

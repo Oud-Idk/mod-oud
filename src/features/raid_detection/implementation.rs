@@ -149,7 +149,13 @@ impl DynamicRaidDetector {
             error!(%guild_id, error = %e, "Failed to recompute stats");
         }
 
-        let _ = lock_guard.release().await;
+        if let Err(e) = lock_guard.release().await {
+            warn!(
+                error = ?e,
+                %guild_id,
+                "Failed to release raid stats recompute lock; lock will expire on its own"
+            );
+        }
 
         stats_res
     }

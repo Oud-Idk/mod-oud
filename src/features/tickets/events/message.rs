@@ -10,7 +10,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, CreateMessage, Message, MessageId,
 };
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument, trace, warn};
 
 /// Intercepts messages in active ticket channels, logging them to the database and rotating the close button when activity thresholds are reached.
 ///
@@ -131,9 +131,17 @@ async fn rotate_close_button(
         && let Ok(old_id_u64) = old_id_str.parse::<u64>()
     {
         debug!(old_id = %old_id_u64, "Deleting deprecated close button message");
-        let _ = channel_id
+        if let Err(e) = channel_id
             .delete_message(&ctx.http, MessageId::new(old_id_u64))
-            .await;
+            .await
+        {
+            warn!(
+                error = ?e,
+                %channel_id,
+                old_id = %old_id_u64,
+                "Failed to delete deprecated close button; a stale close button may remain"
+            );
+        }
     }
 
     let close_button = vec![serenity::all::CreateActionRow::Buttons(vec![
