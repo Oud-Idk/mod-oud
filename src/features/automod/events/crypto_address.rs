@@ -6,7 +6,6 @@ use base64::engine::general_purpose::STANDARD_NO_PAD;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bitcoin::Network;
 use bitcoin::{Address as BtcAddress, TestnetVersion, bech32};
-use ed25519_dalek::VerifyingKey;
 use regex::Regex;
 use serenity::all::Message;
 use std::borrow::Cow;
