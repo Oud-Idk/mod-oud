@@ -3,14 +3,14 @@ use std::time::Duration;
 use anyhow::Context;
 use chrono::Utc;
 use feed_rs::parser;
-use serenity::all::{CreateEmbed, CreateMessage, Http};
+use serenity::all::{CreateMessage, Http};
 use sqlx::PgPool;
 use tracing::{error, info, warn};
 use tracing::log::trace;
 use uuid::Uuid;
-use crate::constants::BRAND_COLOR;
 use crate::features::social_notifications::database;
 use crate::features::social_notifications::discovery::{derive_feed_secret, request_hub_subscription};
+use crate::features::social_notifications::embed::build_entry_embed;
 use crate::shared::locking::acquire_lock;
 
 
@@ -155,17 +155,9 @@ async fn dispatch_entry_to_discord(
     serenity_http: &Arc<Http>,
     entry: &feed_rs::model::Entry,
 ) -> Result<(), anyhow::Error> {
-    let title = entry.title.as_ref().map_or("New Post", |t| &t.content);
-    let link = entry.links.first().map_or("", |l| &l.href);
-    let summary = entry.summary.as_ref().map_or("", |s| &s.content);
-
     let channels = database::get_subscribed_channels(db, feed_id).await?;
 
-    let embed = CreateEmbed::new()
-        .title(title)
-        .url(link)
-        .description(summary.chars().take(250).collect::<String>())
-        .color(BRAND_COLOR);
+    let embed = build_entry_embed(entry);
 
     for channel in channels {
         let msg = CreateMessage::new().embed(embed.clone());

@@ -4,18 +4,18 @@
 //! with a per-feed HMAC signature instead of the internal API secret. They are
 //! mounted at the site root (not under `/api`) to match `{DOMAIN}/websub/{feed_id}`.
 
-use crate::constants::BRAND_COLOR;
 use crate::core::config::state::WebState;
 use crate::features::social_notifications::database;
 use crate::features::social_notifications::database::get_subscribed_channels;
 use crate::features::social_notifications::discovery::{derive_feed_secret, verify_signature};
+use crate::features::social_notifications::embed::build_entry_embed;
 use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use chrono::{Duration, Utc};
 use reqwest::StatusCode;
 use serde::Deserialize;
-use serenity::all::{CreateEmbed, CreateMessage};
+use serenity::all::CreateMessage;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -83,9 +83,6 @@ pub async fn websub_notify(
         return Ok(StatusCode::OK);
     };
 
-    let title = entry.title.as_ref().map_or("New Post", |t| &t.content);
-    let link = entry.links.first().map_or("", |l| &l.href);
-
     let subscribed_channels = get_subscribed_channels(&state.core.db, feed_id)
         .await
         .inspect_err(|e| error!(error = ?e, "Error getting subscribed channels"))
@@ -97,7 +94,7 @@ pub async fn websub_notify(
         })?;
 
     // Build the embed once outside the loop, then clone it per channel!
-    let embed = CreateEmbed::new().title(title).url(link).color(BRAND_COLOR);
+    let embed = build_entry_embed(entry);
 
     for channel in subscribed_channels {
         let msg = CreateMessage::new().embed(embed.clone());

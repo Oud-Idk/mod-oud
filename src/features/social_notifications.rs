@@ -1,6 +1,7 @@
 mod commands;
 mod database;
 mod discovery;
+mod embed;
 mod jobs;
 mod subscription;
 mod types;
