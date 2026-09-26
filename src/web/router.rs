@@ -41,6 +41,7 @@ pub fn get_router(cors: CorsLayer, shared_state: Arc<WebState>) -> Router {
         .merge(automod::routes())
         .merge(member_counter::routes())
         .merge(giveaways::routes())
+        .merge(social_notifications::dashboard_routes())
         .route_layer(axum::middleware::from_fn_with_state(
             Arc::clone(&shared_state),
             require_internal_secret,
