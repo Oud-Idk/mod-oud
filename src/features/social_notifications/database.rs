@@ -228,13 +228,14 @@ pub struct ExpiringFeedRow {
     pub id: Uuid,
     pub hub_url: Option<String>,
     pub topic: Option<String>,
+    pub lease_expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 pub async fn fetch_expiring_feeds(db: &PgPool) -> sqlx::Result<Vec<ExpiringFeedRow>> {
     sqlx::query_as!(
         ExpiringFeedRow,
         r#"
-        SELECT id, hub_url, topic
+        SELECT id, hub_url, topic, lease_expires_at
         FROM feeds
         WHERE feed_type = 'PUBSUBHUBBUB'
           AND hub_url IS NOT NULL

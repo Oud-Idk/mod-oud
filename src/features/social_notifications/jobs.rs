@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use anyhow::Context;
+use chrono::Utc;
 use feed_rs::parser;
 use serenity::all::{CreateEmbed, CreateMessage, Http};
 use sqlx::PgPool;
@@ -188,17 +189,65 @@ pub async fn renew_expiring_leases(
 ) -> Result<(), anyhow::Error> {
     let expiring = database::fetch_expiring_feeds(db).await?;
 
+    if expiring.is_empty() {
+        return Ok(());
+    }
+
+    // Resolved once, up front: a missing secret fails every renewal equally, and
+    // there is nothing worth complaining about when no lease needs renewing.
+    let internal_api_secret = internal_api_secret.with_context(
+        || "Missing internal API secret. Please ask the bot's administrator to fix this."
+    )?;
+
+    let mut failed = 0_usize;
+    let total = expiring.len();
+
     for feed in expiring {
-        let hub_url = feed.hub_url.unwrap();
-        let topic = feed.topic.unwrap();
+        let (Some(hub_url), Some(topic)) = (feed.hub_url, feed.topic) else {
+            error!(
+                feed_id = %feed.id,
+                "Expiring WebSub feed has no hub or topic recorded; skipping renewal"
+            );
+            failed += 1;
+            continue;
+        };
+
         let callback_url = format!("{}/websub/{}", domain, feed.id);
-        let internal_api_secret = internal_api_secret.with_context(
-            || "Missing internal API secret. Please ask the bot's administrator to fix this."
-        )?;
         let secret = derive_feed_secret(internal_api_secret, &feed.id);
 
-        info!(feed_id = %feed.id, "Renewing expiring WebSub lease...");
-        let _ = request_hub_subscription(reqwest_client, &hub_url, &topic, &callback_url, &secret).await;
+        // An already-expired lease means the hub stopped delivering a while ago —
+        // a very different problem from one that is merely coming up for renewal.
+        if feed.lease_expires_at.is_some_and(|expires_at| expires_at <= Utc::now()) {
+            error!(
+                feed_id = %feed.id,
+                hub = %hub_url,
+                lease_expires_at = ?feed.lease_expires_at,
+                "WebSub lease already expired — no notifications have been arriving since then"
+            );
+        } else {
+            info!(
+                feed_id = %feed.id,
+                hub = %hub_url,
+                lease_expires_at = ?feed.lease_expires_at,
+                "Renewing WebSub lease..."
+            );
+        }
+
+        if let Err(e) =
+            request_hub_subscription(reqwest_client, &hub_url, &topic, &callback_url, &secret).await
+        {
+            error!(
+                error = ?e,
+                feed_id = %feed.id,
+                hub = %hub_url,
+                "Failed to renew WebSub lease; feed delivery stays broken until one succeeds"
+            );
+            failed += 1;
+        }
+    }
+
+    if failed > 0 {
+        error!(failed, total, "WebSub lease renewal finished with failures");
     }
 
     Ok(())

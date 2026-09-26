@@ -4,7 +4,7 @@ use quick_xml::Reader;
 use quick_xml::events::Event;
 use sha2::Sha256;
 use sha1::Sha1;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 use crate::features::social_notifications::types::FeedKind;
 
@@ -13,11 +13,18 @@ pub fn discover_feed_kind(feed_url: &str, xml: &str) -> FeedKind {
     let discovered = scan_xml_for_hub(&xml);
 
     if let Some(hub_url) = discovered.hub_url {
-        return FeedKind::PubSubHubbub {
-            hub_url,
-            topic: discovered.topic.unwrap_or_else(|| feed_url.to_string()),
-            lease_expires_at: None,
-        };
+        if is_secure_hub(&hub_url) {
+            return FeedKind::PubSubHubbub {
+                hub_url,
+                topic: discovered.topic.unwrap_or_else(|| feed_url.to_string()),
+                lease_expires_at: None,
+            };
+        }
+
+        warn!(
+            hub = %hub_url,
+            "Feed advertises a plaintext WebSub hub; ignoring it and falling back to polling"
+        );
     }
 
     if let Some(override_hub) = detect_known_hub(feed_url) {
@@ -32,6 +39,16 @@ pub fn discover_feed_kind(feed_url: &str, xml: &str) -> FeedKind {
         interval_secs: 600,
         last_polled_at: None,
     }
+}
+
+/// Whether a hub URL is safe to hand `hub.secret` to.
+///
+/// That secret is the key every `X-Hub-Signature` callback is verified against,
+/// so a plaintext hub would let anyone on the network path forge feed posts into
+/// the server. Discovery refuses such hubs, and [`request_hub_subscription`]
+/// re-checks so rows stored before this rule existed cannot leak either.
+fn is_secure_hub(hub_url: &str) -> bool {
+    reqwest::Url::parse(hub_url).is_ok_and(|url| url.scheme() == "https")
 }
 
 struct Discovered {
@@ -116,6 +133,15 @@ pub async fn request_hub_subscription(
     callback_url: &str,
     secret: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Guards hubs already stored in the database, which discovery would no longer
+    // classify as WebSub but which the renewal worker still tries to reach.
+    if !is_secure_hub(hub_url) {
+        return Err(format!(
+            "Refusing to send hub.secret over a plaintext connection to WebSub hub: {hub_url}"
+        )
+        .into());
+    }
+
     let form_params = [
         ("hub.callback", callback_url),
         ("hub.mode", "subscribe"),
@@ -172,5 +198,63 @@ pub fn verify_signature(secret: &str, header_val: &str, body: &[u8]) -> bool {
             mac.verify_slice(&expected_bytes).is_ok()
         }
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{discover_feed_kind, is_secure_hub};
+    use crate::features::social_notifications::types::FeedKind;
+
+    /// Mirrors the `rel="hub"` / `rel="self"` pair real feeds advertise.
+    fn feed_xml(hub: &str, topic: &str) -> String {
+        format!(
+            r#"<?xml version="1.0"?>
+               <feed xmlns="http://www.w3.org/2005/Atom">
+                 <link rel="hub" href="{hub}" />
+                 <link rel="self" href="{topic}" />
+                 <title>Example</title>
+               </feed>"#
+        )
+    }
+
+    #[test]
+    fn plaintext_hubs_are_never_trusted() {
+        assert!(!is_secure_hub("http://medium.superfeedr.com"));
+        assert!(!is_secure_hub("HTTP://medium.superfeedr.com"));
+        assert!(!is_secure_hub("ftp://example.com/hub"));
+        assert!(!is_secure_hub("not a url"));
+        assert!(!is_secure_hub(""));
+    }
+
+    #[test]
+    fn https_hubs_are_trusted() {
+        assert!(is_secure_hub("https://pubsubhubbub.appspot.com"));
+    }
+
+    #[test]
+    fn falls_back_to_polling_when_a_feed_advertises_a_plaintext_hub() {
+        let xml = feed_xml("http://medium.superfeedr.com", "https://medium.com/@blog/feed");
+
+        let kind = discover_feed_kind("https://medium.com/feed/@blog", &xml);
+
+        assert!(
+            matches!(kind, FeedKind::Polling { interval_secs: 600, .. }),
+            "expected polling fallback for a plaintext hub"
+        );
+    }
+
+    #[test]
+    fn still_uses_websub_when_the_advertised_hub_is_https() {
+        let xml = feed_xml("https://pubsubhubbub.appspot.com", "https://example.com/feed");
+
+        let FeedKind::PubSubHubbub { hub_url, topic, .. } =
+            discover_feed_kind("https://example.com/feed", &xml)
+        else {
+            panic!("expected WebSub for an https hub");
+        };
+
+        assert_eq!(hub_url, "https://pubsubhubbub.appspot.com");
+        assert_eq!(topic, "https://example.com/feed");
     }
 }
