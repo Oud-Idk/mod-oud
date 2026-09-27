@@ -8,6 +8,8 @@ pub mod command_context;
 pub mod embed;
 /// Shared error helpers.
 pub mod error;
+/// Credential-safe rendering for the third-party HTTP calls.
+pub mod http;
 /// Distributed Redis locking.
 pub mod locking;
 /// Global tracing subscriber setup.
