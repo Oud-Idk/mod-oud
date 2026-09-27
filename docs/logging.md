@@ -423,7 +423,7 @@ $ scripts/check-logging.sh
 logging checks passed
 ```
 
-Five rules, all currently at zero, and gating in CI. The rules are a floor: they cannot tell
+Six rules, all currently at zero, and gating in CI. The rules are a floor: they cannot tell
 whether a level is right, only whether the shape is. Step 2 in particular is a judgement the
 check will never revisit, so a re-level that undoes one of the 72 has to be argued for rather
 than waited for a red build.
@@ -433,8 +433,35 @@ than waited for a red build.
 | `error!` names a cause | 0 | |
 | No `{}` in the message string | 0 | Exempts the formatting macros, where the braces belong to the format specifier. |
 | No `#[instrument(err)]` | 0 | |
-| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 0 | `audit.rs` is exempt: every line in one is an action taken, which is what `info!` is for. |
+| `info!` budget per file (default 8, `INFO_BUDGET`) | 0 | `audit.rs` is exempt: every line in one is an action taken, which is what `info!` is for. |
+| `warn!` budget per file (default 15, `WARN_BUDGET`) | 0 | Same exemption. |
 | `level(` is not `level!(` | 0 | Not an awk rule: the extractor only matches `level!(`, so the mistake it catches is invisible to it by construction. |
+
+**The budgets are ratchets, not diagnoses, and the `warn!` one is weaker than it looks.** Count
+per file measures how chatty a file is, not how often it fires, and on this tree the two disagree
+sharply. Every file over the `warn!` budget is a worker on a timer or a rare-event handler:
+`social_notifications/jobs.rs` on a 30s loop, `raid_detection/raid_end.rs` on raid end,
+`verification/web/setup.rs` on panel setup. Meanwhile every handler that runs per message sits
+comfortably under it, at 5 or 6. So the rule pressures the files that fire least and would not
+notice a per-message flood. It is set to 15, the current maximum, so it is green today and catches
+a file roughly doubling; it is not set to 12 because that would fail on one file whose 15 are
+legitimate, and a gate that is red on arrival gets switched off.
+
+The budget would start to bite if the worker lock lifecycle were extracted. Every worker repeats
+the same four-outcome shape around `acquire_lock` / `release`, and those four lines are most of
+why the worker files are over budget: `social_notifications/jobs.rs` has eight of its fifteen
+from two copies of it. One helper would take that file to seven and the budget could come down.
+
+The rule that would actually catch a flood is not a count. It is that a `warn!` has to name
+something you can query, because a `warn!` with no field at all fails this doc's own test, which
+is whether someone will read the line and do something. There are 34 such `warn!` in the tree.
+About six are legitimate: they report a config fact at startup, where there is nothing to
+correlate and an id would be invented. The rest are missing an id that is in scope at the call
+site, `config_id` beside `giveaways/database.rs`, `cmd.report_id` beside
+`reporting/web/resolve.rs`, the redis key beside `tickets/jobs/ticket_sync.rs`. That rule cannot
+be enforced as written, because it would flag the six config warnings, and an exemption list is
+worse than the rule is worth. It is the more valuable of the two, though, and the 34 are a
+worklist rather than a permanent exemption.
 
 Rule 2's exemption has to name the formatting macros explicitly. Written as `[a-z_]+!` it also
 matches `trace!` and `info!`, which strips every single-literal log call before the brace check
