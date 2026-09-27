@@ -1,7 +1,8 @@
 # mod-oud
 
 Discord moderation bot (Rust/Serenity) with a Next.js dashboard. Conventions live in
-`CONVENTIONS.md` (Rust bot) and `dashboard/CONVENTIONS.md` (frontend).
+`CONVENTIONS.md` (Rust bot) and `dashboard/CONVENTIONS.md` (frontend). The longer Rust
+conventions are split out into `docs/`: `logging.md`, `structure.md`, `database.md`.
 
 ## Writing Comments and Docs
 
