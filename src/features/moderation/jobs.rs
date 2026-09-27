@@ -33,7 +33,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                 Ok(Some(guard)) => {
                     trace!("Acquired lock; processing expired temp bans");
                     if let Err(e) = process_expired_temp_bans(&db_pool, &http, now).await {
-                        error!(error = ?e, "expired temp bans");
+                        error!(error = ?e, "processing expired temp bans");
                     }
 
                     // Release lock

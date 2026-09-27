@@ -21,7 +21,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                         debug!(batch_size, "Interval tick hit; flushing ticket log buffer");
 
                         if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                            error!(error = ?e, batch_size, "ticket logs on interval tick");
+                            error!(error = ?e, batch_size, "flushing ticket logs on interval tick");
                         }
                     }
                 }
@@ -42,7 +42,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                             debug!(batch_size, "Buffer capacity limit reached; flushing immediately");
 
                             if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                                error!(error = ?e, batch_size, "ticket logs on buffer capacity limit");
+                                error!(error = ?e, batch_size, "flushing ticket logs on buffer capacity limit");
                             }
                             interval.reset(); // Reset the timer
                         }

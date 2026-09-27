@@ -34,7 +34,7 @@ pub fn start_reminder_worker(
                 Ok(Some(guard)) => {
                     trace!("Acquired lock; processing expired reminders");
                     if let Err(e) = process_expired_reminders(&db_pool, &http, now).await {
-                        error!(error = ?e, "expired reminders");
+                        error!(error = ?e, "processing expired reminders");
                     }
 
                     match guard.release().await {

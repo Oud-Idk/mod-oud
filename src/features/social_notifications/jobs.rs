@@ -59,7 +59,7 @@ async fn run_feed_polling_worker(
                 trace!("Lock acquired; polling due RSS feeds");
 
                 if let Err(e) = poll_due_feeds(&db, &http, &http_client).await {
-                    error!(error = ?e, "feed polling iteration");
+                    error!(error = ?e, "polling due rss feeds");
                 }
 
                 match guard.release().await {

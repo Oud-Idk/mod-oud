@@ -35,7 +35,7 @@ pub fn start_member_counter_job(
                 process_all_member_counters(&http, &serenity_cache, &db, &redis, &cache, &worker_id)
                     .await
             {
-                error!(error = ?e, "member counter job iteration");
+                error!(error = ?e, "processing member counters");
             }
         }
     });
