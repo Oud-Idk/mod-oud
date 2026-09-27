@@ -75,15 +75,14 @@ fn subject_of(event: &FullEvent) -> Subject {
         FullEvent::MessageUpdate {
             old_if_available,
             new,
-            ..
+            event: raw,
         } => {
-            // The new state is authoritative; the old one is only a fallback for a partial update.
-            let msg = new.as_ref().or(old_if_available.as_ref());
-            if let Some(msg) = msg {
-                s.guild_id = msg.guild_id;
-                s.channel_id = Some(msg.channel_id);
-                s.user_id = Some(msg.author.id);
-            }
+            s = message_update_subject(
+                new.as_ref().or(old_if_available.as_ref()),
+                raw.channel_id,
+                raw.guild_id,
+                raw.author.as_ref(),
+            );
         }
         FullEvent::MessageDelete {
             channel_id,
@@ -144,6 +143,68 @@ fn subject_of(event: &FullEvent) -> Subject {
         _ => {}
     }
     s
+}
+
+/// The ids for a `MessageUpdate`, from whichever source has them.
+///
+/// The raw gateway event is preferred throughout: for an update it is the freshest statement of
+/// what changed, where a completed `Message` may still be the cached pre-edit state. The full
+/// message is the fallback, and is the only source of an author when the gateway omitted one.
+///
+/// Reading the ids off the full message alone left the span empty for most edits, which is the
+/// one event type where the span is most worth having. The precedence only decides the case where
+/// both sources have the id, and there they agree, so this is uniformity rather than behaviour.
+fn message_update_subject(
+    full: Option<&serenity::all::Message>,
+    raw_channel_id: ChannelId,
+    raw_guild_id: Option<GuildId>,
+    raw_author: Option<&serenity::all::User>,
+) -> Subject {
+    Subject {
+        channel_id: Some(raw_channel_id),
+        guild_id: raw_guild_id.or_else(|| full.and_then(|m| m.guild_id)),
+        user_id: raw_author
+            .map(|a| a.id)
+            .or_else(|| full.map(|m| m.author.id)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::message_update_subject;
+    use serenity::all::{ChannelId, GuildId, User, UserId};
+
+    fn author(id: u64) -> User {
+        let mut user = User::default();
+        user.id = UserId::new(id);
+        user
+    }
+
+    /// The regression: a MESSAGE_UPDATE with no completed `Message` still has to produce a span
+    /// with ids, which is the case that was returning three `None`s.
+    #[test]
+    fn message_update_ids_survive_without_a_full_message() {
+        let subject = message_update_subject(
+            None,
+            ChannelId::new(456),
+            Some(GuildId::new(789)),
+            Some(&author(9)),
+        );
+
+        assert_eq!(subject.channel_id, Some(ChannelId::new(456)));
+        assert_eq!(subject.guild_id, Some(GuildId::new(789)));
+        assert_eq!(subject.user_id, Some(UserId::new(9)));
+    }
+
+    /// The gateway omitted the author, so there is no user to name. The channel is still there.
+    #[test]
+    fn message_update_keeps_the_channel_when_the_author_is_absent() {
+        let subject = message_update_subject(None, ChannelId::new(456), None, None);
+
+        assert_eq!(subject.channel_id, Some(ChannelId::new(456)));
+        assert_eq!(subject.guild_id, None);
+        assert_eq!(subject.user_id, None);
+    }
 }
 
 async fn dispatch_inner(ctx: &serenity::Context, event: &FullEvent, data: &BotData) -> Result<()> {
