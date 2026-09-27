@@ -74,10 +74,16 @@ fi
 
 # --- rule 4: info! budget per file --------------------------------------------
 # info! is the operator timeline. A file that logs it per message is a flood.
+# audit.rs is exempt: it holds one function per audited event and every one of
+# them is an action taken, which is what info! is for.
 budget="${INFO_BUDGET:-8}"
 noisy="$(extract_calls |
   awk -F'\t' -v b="$budget" '
-    $2 ~ /^info!/ { split($1, p, ":"); count[p[1]]++ }
+    $2 ~ /^info!/ {
+      split($1, p, ":")
+      if (p[1] ~ /audit\.rs$/) next
+      count[p[1]]++
+    }
     END { for (f in count) if (count[f] > b) print count[f] "\t" f }' |
   sort -rn)"
 if [[ -n "$noisy" ]]; then

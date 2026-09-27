@@ -27,6 +27,12 @@ Any feature that moves money, bans, or assigns roles gets an `audit.rs` shaped l
 `src/features/gambling/audit.rs`: one typed function per event, an `event = "..."` field on
 every line, and a comment on each function saying why that function logs at that level.
 
+The function is the log line, so the action site calls `audit::member_banned(...)` instead of
+writing one. That is what removes the duplicate: a kick used to log twice, once in the command
+handler and once in the issuing function, with different wording. Two consequences worth knowing:
+`audit.rs` is exempt from the per-file `info!` budget, and a worker that closes a ticket with
+nobody clicking anything reports `actor` or `closer_id = None` rather than a made-up moderator.
+
 ```rust
 // The canonical shape. Every field explicit, nothing inherited.
 info!(
@@ -287,8 +293,9 @@ In severity order, so each step is shippable on its own:
 3. **Done.** Per-event `info!` is now `debug!` in `reaction_roles/events.rs`, `leveling/`,
    `custom_commands/`. `reporting/web.rs` keeps `info!`, because a dashboard-issued ban or warn
    is an action taken.
-4. **To do.** Promote audit-worthy `debug!` to `info!` through a per-feature `audit.rs`:
-   `moderation`, `verification`, `tickets`, `temp_voice` transfers.
+4. **Done.** `moderation`, `verification`, `tickets` and `temp_voice` each have an `audit.rs`, and
+   the action sites call one typed function per event instead of writing a log line. `temp_voice`
+   covers transfers only: channel creation and teardown fire per voice event and stay at `debug!`.
 5. **Done.** Narration stripped and every interpolated message turned into fields.
 6. **To do.** Convert the remaining 42 spawns to `task::spawn`, then delete the `#[instrument]`s
    that are no longer needed.
@@ -324,7 +331,7 @@ than waited for a red build.
 | `error!` names a cause | 0 | |
 | No `{}` in the message string | 0 | Exempts the formatting macros, where the braces belong to the format specifier. |
 | No `#[instrument(err)]` | 0 | |
-| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 0 | |
+| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 0 | `audit.rs` is exempt: every line in one is an action taken, which is what `info!` is for. |
 
 Rule 2's exemption has to name the formatting macros explicitly. Written as `[a-z_]+!` it also
 matches `trace!` and `info!`, which strips every single-literal log call before the brace check

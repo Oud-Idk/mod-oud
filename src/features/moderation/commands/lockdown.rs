@@ -1,6 +1,6 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
-use crate::features::moderation::{ActionType, lockdown, log_moderation_action};
+use crate::features::moderation::{ActionType, audit, lockdown, log_moderation_action};
 use crate::shared::command_context::GuildMetadata;
 use serenity::all::{GuildChannel, GuildId, RoleId};
 use tracing::{info, trace};
@@ -49,7 +49,11 @@ pub async fn lock(
     )
     .await?;
 
-    info!(caller_id, target_channel_id, "Channel locked down");
+    audit::channel_locked(
+        meta.id,
+        serenity::all::ChannelId::new(target_channel_id),
+        serenity::all::UserId::new(caller_id),
+    );
     Ok(())
 }
 
@@ -83,7 +87,11 @@ pub async fn unlock(
 
     log_action(&ctx, meta.id, target_channel_id, ActionType::Unlock, None).await?;
 
-    info!(caller_id, target_channel_id, "Channel unlocked");
+    audit::channel_unlocked(
+        meta.id,
+        serenity::all::ChannelId::new(target_channel_id),
+        serenity::all::UserId::new(caller_id),
+    );
     Ok(())
 }
 
@@ -128,12 +136,11 @@ pub async fn global_lock(
         )
         .await?;
 
-        info!(
-            caller_id,
-            guild_id,
-            locked_count = report.succeeded,
-            failed_count = report.failed_channel_ids.len(),
-            "Global lockdown completed"
+        audit::guild_locked(
+            meta.id,
+            serenity::all::UserId::new(caller_id),
+            report.succeeded,
+            report.failed_channel_ids.len(),
         );
     } else {
         ctx.say("Global lockdown is already in progress. Please wait a moment and try again.")
@@ -177,12 +184,11 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
         )
         .await?;
 
-        info!(
-            caller_id,
-            guild_id,
-            unlocked_count = report.succeeded,
-            failed_count = report.failed_channel_ids.len(),
-            "Global unlock completed"
+        audit::guild_unlocked(
+            meta.id,
+            serenity::all::UserId::new(caller_id),
+            report.succeeded,
+            report.failed_channel_ids.len(),
         );
     } else {
         ctx.say("Global unlock is already in progress. Please wait a moment and try again.")

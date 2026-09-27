@@ -1,4 +1,5 @@
 use crate::core::config::state::{BotData, Error};
+use crate::features::temp_voice::audit;
 use crate::features::temp_voice::cache;
 use crate::features::temp_voice::interface::create_ephemeral_msg;
 use fred::clients::Client;
@@ -7,7 +8,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, GuildId, PermissionOverwrite, PermissionOverwriteType,
     Permissions, UserId,
 };
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(acceptor_id = %interaction.user.id.get()))]
 pub async fn handle_accept_transfer(
@@ -64,12 +65,16 @@ pub async fn handle_accept_transfer(
     cache::commit_transfer_to_redis(redis, guild_id, channel_id, &current_owner, &target_owner)
         .await?;
 
-    info!(
-        %channel_id,
-        from_owner = %current_owner,
-        to_owner = %target_owner,
-        "transferred temporary voice channel"
-    );
+    // The stored owner is a string; a parse failure means the cache row is malformed, and the
+    // ownership change above already committed.
+    if let Ok(from_owner) = current_owner.parse::<u64>() {
+        audit::transfer_accepted(
+            guild_id,
+            channel_id,
+            UserId::new(from_owner),
+            interaction.user.id,
+        );
+    }
 
     // Update the interaction message
     let updated_text = format!(
@@ -282,11 +287,9 @@ pub async fn handle_decline_transfer(
         warn!(%channel_id, error = ?e, "failed to clear pending transfer");
     }
 
-    info!(
-        %channel_id,
-        decliner_id = %interaction.user.id,
-        "temporary voice channel transfer declined"
-    );
+    if let Ok(target) = target_owner.parse::<u64>() {
+        audit::transfer_declined(guild_id, channel_id, UserId::new(target));
+    }
 
     let updated_text = format!(
         "❌ **Transfer Declined**\n<@{}> decided they didn't want the crown today.",

@@ -1,4 +1,5 @@
 use crate::core::config::state::{BotData, Error};
+use crate::features::temp_voice::audit;
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
 use crate::features::temp_voice::service;
 use poise::serenity_prelude as serenity;
@@ -7,7 +8,7 @@ use serenity::all::{
     CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, CreateSelectMenu,
     CreateSelectMenuKind, UserId,
 };
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(user_id = %interaction.user.id.get()))]
 pub async fn handle_transfer_temp_vc(
@@ -103,13 +104,7 @@ pub async fn handle_transfer_temp_vc_submit(
     let msg = CreateMessage::new()
         .content(message_content)
         .components(vec![row]);
-    info!(
-        %guild_id,
-        %channel_id,
-        from_owner = %current_owner_id,
-        to_owner = %new_owner_id,
-        "sending temporary voice channel transfer offer"
-    );
+    audit::transfer_offered(guild_id, channel_id, current_owner_id, new_owner_id);
 
     if let Err(e) = channel_id.send_message(&ctx.http, msg).await {
         warn!(%guild_id, %channel_id, error = ?e, "failed to send transfer offer message");

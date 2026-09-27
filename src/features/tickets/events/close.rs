@@ -1,5 +1,5 @@
 use crate::core::config::state::{BotData, Error};
-use crate::features::tickets::{cache, database};
+use crate::features::tickets::{audit, cache, database};
 use serenity::all::{
     ChannelId, ComponentInteraction, Context, CreateInteractionResponse,
     CreateInteractionResponseMessage, CreateMessage,
@@ -44,7 +44,10 @@ pub async fn on_close_ticket(
 
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    info!(channel_id = %channel_id, "Deleting ticket channel from guild");
+    if let Some(guild_id) = component.guild_id {
+        audit::ticket_closed(guild_id, channel_id, Some(component.user.id), "user_closed");
+    }
+
     if let Err(e) = channel_id.delete(&ctx.http).await {
         warn!(error = %e, "Could not delete channel from Discord; it might have been deleted manually");
     }

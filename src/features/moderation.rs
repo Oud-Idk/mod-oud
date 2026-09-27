@@ -1,3 +1,4 @@
+mod audit;
 mod cache;
 mod channels;
 mod commands;

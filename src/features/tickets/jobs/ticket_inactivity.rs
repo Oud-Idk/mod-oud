@@ -1,5 +1,6 @@
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
+use crate::features::tickets::audit;
 use crate::features::tickets::database;
 use crate::features::tickets::keys;
 use crate::shared::locking;
@@ -19,6 +20,7 @@ use std::time::Duration;
 use tracing::{debug, info, instrument, trace, warn};
 
 struct WarnTarget {
+    guild_id: GuildId,
     channel_id: ChannelId,
     remaining_minutes: i64,
 }
@@ -161,6 +163,7 @@ async fn warn_inactive_tickets(
         {
             let remaining_minutes = (delete_duration - warn_duration).num_minutes();
             tickets_to_warn.push(WarnTarget {
+                guild_id: row.guild_id,
                 channel_id: row.channel_id,
                 remaining_minutes: if remaining_minutes > 0 {
                     remaining_minutes
@@ -191,6 +194,7 @@ async fn warn_inactive_tickets(
 
     // Send warning messages
     for target in tickets_to_warn {
+        audit::ticket_warned_inactive(target.guild_id, target.channel_id);
         let message = format!(
             "This ticket has been inactive. It will close in {} minutes if there is no activity.",
             target.remaining_minutes
@@ -259,7 +263,7 @@ async fn close_abandoned_tickets(
         if let Some(last_activity) = row.last_activity
             && last_activity < now - delete_duration
         {
-            tickets_to_close.push(row.channel_id);
+            tickets_to_close.push((row.guild_id, row.channel_id));
         }
     }
 
@@ -272,17 +276,18 @@ async fn close_abandoned_tickets(
     info!(close_count, "Closing abandoned tickets");
 
     if !tickets_to_close.is_empty() {
-        database::mark_ticket_as_closed(pool, &tickets_to_close).await?;
+        let close_ids: Vec<ChannelId> = tickets_to_close.iter().map(|(_, c)| *c).collect();
+        database::mark_ticket_as_closed(pool, &close_ids).await?;
         debug!(
             updated_count = tickets_to_close.len(),
             "Set closed status in database for abandoned tickets"
         );
     }
 
-    for channel_id in tickets_to_close {
+    for (guild_id, channel_id) in tickets_to_close {
         match channel_id.delete(http).await {
             Ok(_) => {
-                info!(%channel_id, "deleted abandoned ticket channel");
+                audit::ticket_closed(guild_id, channel_id, None, "abandoned_closed");
             }
             Err(e) => {
                 // FIX 2: Gracefully handle manually deleted channels (Error 10003)

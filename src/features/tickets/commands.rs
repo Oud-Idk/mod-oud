@@ -1,6 +1,7 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::settings::{GuildSettings, get_settings, save_settings};
 use crate::core::config::state::{Context, Error};
+use crate::features::tickets::audit;
 use crate::features::tickets::panel::build_ticket_message_payload;
 use poise::{CreateReply, serenity_prelude as serenity};
 use serenity::all::{ChannelId, GuildChannel, GuildId, MessageId, Role, RoleId};
@@ -70,8 +71,9 @@ pub async fn setup_tickets(
     )
     .await?;
 
+    audit::panel_configured(guild_id, ctx.author().id, params.target_channel_id);
     info!(
-        %guild_id,
+        guild_id = %guild_id,
         caller_id = %ctx.author().id,
         target_channel_id = %params.target_channel_id,
         %message_id,

@@ -1,5 +1,6 @@
 use crate::core::config::settings::{GuildSettings, get_settings};
 use crate::core::config::state::WebState;
+use crate::features::verification::audit;
 use crate::features::verification::captcha::{verify_hcaptcha_token, verify_turnstile};
 use crate::features::verification::signing::verify_sig;
 use crate::features::verification::types::CaptchaType;
@@ -338,6 +339,6 @@ async fn assign_verified_role(
             )
         })?;
 
-    info!(%user_id, %role_id, "Added role to user");
+    audit::role_granted(guild_id, user_id, role_id);
     Ok(())
 }

@@ -1,3 +1,4 @@
+use crate::features::moderation::audit;
 use crate::features::moderation::database;
 use crate::shared::locking::acquire_lock;
 use anyhow::Result;
@@ -84,12 +85,7 @@ async fn process_expired_temp_bans(
 
             match guild_id.unban(http_ref, user_id).await {
                 Ok(()) => {
-                    debug!(
-                        %guild_id,
-                        user_id = %user_id,
-                        ban_id = record.id,
-                        "unbanned user"
-                    );
+                    audit::temp_ban_expired(guild_id, user_id, record.id);
                     Ok(record.id)
                 }
                 Err(e) => {

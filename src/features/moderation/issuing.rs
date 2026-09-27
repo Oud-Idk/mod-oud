@@ -3,6 +3,7 @@ use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::features::moderation::ActionType;
+use crate::features::moderation::audit;
 use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::placeholders::{
     replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder,
@@ -24,7 +25,7 @@ use serenity::all::{
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[instrument(
     skip(db, redis_conn, guild_configs, http),
@@ -125,7 +126,7 @@ pub async fn issue_kick(
     debug!("Executing kick via Discord HTTP API");
     guild_id.kick_with_reason(http, user.id, reason).await?;
 
-    info!("kicked user from guild");
+    audit::member_kicked(guild_id, user.id, moderator.id, reason);
     Ok(())
 }
 
@@ -205,7 +206,7 @@ pub async fn issue_ban(
     )
     .await?;
 
-    info!("banned user from guild");
+    audit::member_banned(guild_id, user.id, moderator.id, reason, duration);
     Ok(())
 }
 
@@ -302,7 +303,7 @@ pub async fn issue_mute(
     )
     .await?;
 
-    info!("muted user in guild");
+    audit::member_muted(guild_id, user.id, moderator.id, reason, *duration);
     Ok(())
 }
 
@@ -349,7 +350,7 @@ pub async fn issue_unmute(
     )
     .await?;
 
-    info!("unmuted user in guild");
+    audit::member_unmuted(guild_id, user.id, moderator.id);
     Ok(())
 }
 
@@ -419,6 +420,6 @@ pub async fn issue_softban(
     )
     .await?;
 
-    info!("soft-banned user from guild");
+    audit::member_softbanned(guild_id, user.id, moderator.id, reason);
     Ok(())
 }

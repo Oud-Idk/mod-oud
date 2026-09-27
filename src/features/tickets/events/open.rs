@@ -4,6 +4,7 @@ use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::tickets;
 use crate::features::tickets::TicketConfig;
+use crate::features::tickets::audit;
 use crate::features::tickets::cache::initialize_redis_state;
 use crate::features::tickets::database::save_ticket_to_db;
 use crate::features::tickets::events::message;
@@ -17,7 +18,7 @@ use serenity::all::{
 };
 use serenity::builder::CreateEmbed;
 use serenity::model::guild::Member;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, instrument, trace, warn};
 
 /// Handles the open-ticket button interaction by creating a private ticket channel and initializing its state.
 ///
@@ -140,7 +141,7 @@ pub async fn on_open_ticket(
         )
         .await?;
 
-    info!(channel_id = %ticket_channel.id, "Ticket channel created and initialized");
+    audit::ticket_opened(guild_id, ticket_channel.id, user_interact.id);
     Ok(())
 }
 

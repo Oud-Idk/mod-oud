@@ -1,6 +1,7 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::ActionType;
+use crate::features::moderation::audit;
 use crate::features::moderation::commands::helpers::parse_duration;
 use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::issuing::{
@@ -144,6 +145,7 @@ pub async fn purge(
     amount: u8,
 ) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
+    let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
     debug!(
         caller_id = ctx.author().id.get(),
         channel_id = channel_id.get(),
@@ -175,11 +177,14 @@ pub async fn purge(
             .delete_messages(&ctx.serenity_context().http, &message_ids)
             .await?;
         send_ephemeral(&ctx, format!("Deleted {} message(s).", message_ids.len())).await?;
-        info!(
-            channel_id = channel_id.get(),
-            deleted_count = message_ids.len(),
-            "bulk deleted messages"
-        );
+        if let Some(guild_id) = guild_id {
+            audit::messages_purged(
+                serenity::all::GuildId::new(guild_id),
+                channel_id,
+                ctx.author().id,
+                message_ids.len(),
+            );
+        }
     }
     Ok(())
 }
