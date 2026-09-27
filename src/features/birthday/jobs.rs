@@ -378,10 +378,14 @@ async fn run_birthday_worker(
                     warn!(error = ?e, "expired birthday role cleanup failed");
                 }
 
-                if let Err(e) = guard.release().await {
-                    warn!(error = ?e, "birthday worker lock not released");
-                } else {
-                    trace!("released birthday worker lock");
+                match guard.release().await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        warn!(%lock_key, "birthday worker lock no longer owned at release");
+                    }
+                    Err(e) => {
+                        warn!(error = ?e, "birthday worker lock not released");
+                    }
                 }
             }
             Ok(None) => {

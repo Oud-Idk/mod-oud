@@ -38,10 +38,7 @@ impl LockGuard {
             .client
             .eval(script, self.key.clone(), self.value.clone())
             .await?;
-        let success = res == 1;
-
-        trace!(success, "redis lock release attempt");
-        Ok(success)
+        Ok(res == 1)
     }
 }
 

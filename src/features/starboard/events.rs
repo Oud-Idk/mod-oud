@@ -243,12 +243,18 @@ async fn debounced_starboard_sync(
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 }
 
-                if let Err(e) = guard.release().await {
-                    warn!(
-                        error = ?e,
-                        lock_key = %lock_key,
-                        "starboard worker lock release failed; it will expire on its own"
-                    );
+                match guard.release().await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        warn!(lock_key = %lock_key, "starboard worker lock no longer owned at release");
+                    }
+                    Err(e) => {
+                        warn!(
+                            error = ?e,
+                            lock_key = %lock_key,
+                            "starboard worker lock release failed; it will expire on its own"
+                        );
+                    }
                 }
             }
             .instrument(ids_span),
