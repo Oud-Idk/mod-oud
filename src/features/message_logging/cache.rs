@@ -40,7 +40,7 @@ pub async fn spawn_cache_message_in_redis(data: &BotData, msg: &Message) -> Resu
 
     task::spawn("message_cache_write", async move {
         if let Err(e) = cache_message_in_redis(&redis_conn, &msg_clone).await {
-            warn!(message_id = %msg_clone.id, error = %e, "failed to cache message in redis");
+            warn!(message_id = %msg_clone.id, error = %e, "message cache write to redis failed");
         }
     });
 

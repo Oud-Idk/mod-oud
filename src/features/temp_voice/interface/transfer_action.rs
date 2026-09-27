@@ -151,7 +151,7 @@ async fn validate_transfer_request(
             "acceptor now owns a different temp vc, refusing to complete transfer"
         );
         if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
-            warn!(%channel_id, error = ?e, "failed to clear pending transfer");
+            warn!(%channel_id, error = ?e, "pending transfer not cleared");
         }
         interaction
             .create_response(
@@ -192,7 +192,7 @@ async fn apply_transfer_permissions(
             %channel_id,
             %new_owner_id,
             error = ?e,
-            "failed to apply permission override"
+            "permission override not applied"
         );
         return Ok(false);
     }
@@ -216,7 +216,7 @@ async fn apply_transfer_permissions(
                 %channel_id,
                 old_owner_id,
                 error = ?e,
-                "failed to demote old owner's permissions"
+                "old owner's permission demotion failed"
             );
         }
     }
@@ -284,7 +284,7 @@ pub async fn handle_decline_transfer(
 
     debug!(%channel_id, "deleting pending transfer key from redis");
     if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
-        warn!(%channel_id, error = ?e, "failed to clear pending transfer");
+        warn!(%channel_id, error = ?e, "pending transfer not cleared");
     }
 
     if let Ok(target) = target_owner.parse::<u64>() {

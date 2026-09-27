@@ -68,7 +68,7 @@ pub async fn kick_user_by_id(
             "Successfully kicked <@{target_user_id}> from the channel."
         )),
         Err(err) => {
-            tracing::warn!(%guild_id, %target_user_id, error = ?err, "failed to disconnect member");
+            tracing::warn!(%guild_id, %target_user_id, error = ?err, "member disconnect failed");
             Ok("Could not kick the user. Do I have the 'Move Members' permission?".to_string())
         }
     }
@@ -173,7 +173,7 @@ pub async fn set_temp_vc_limit(
             "Success! The voice channel limit is now set to {limit_parsed}."
         )),
         Err(err) => {
-            tracing::warn!(%channel_id, error = ?err, "failed to edit channel");
+            tracing::warn!(%channel_id, error = ?err, "channel edit failed");
             Ok("Uh oh, I couldn't update the limit. \
                 Do I have the 'Manage Channels' permission?"
                 .to_string())
@@ -204,7 +204,7 @@ pub async fn delete_temp_vc(
     );
 
     if let Err(e) = channel_id.delete(http).await {
-        tracing::warn!(%guild_id, %channel_id, error = ?e, "failed to delete temp vc");
+        tracing::warn!(%guild_id, %channel_id, error = ?e, "temp vc delete failed");
         return Ok(
             "Could not delete the channel. Do I have the 'Manage Channels' permission?".to_string(),
         );
@@ -405,7 +405,7 @@ pub async fn block_users_from_vc(
                 %channel_id,
                 %target_user_id,
                 error = ?e,
-                "failed to disconnect blocked user from channel"
+                "blocked user disconnect from channel failed"
             );
         }
         blocked_mentions.push(format!("<@{target_user_id}>"));

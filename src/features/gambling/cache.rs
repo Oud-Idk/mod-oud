@@ -98,7 +98,7 @@ pub async fn release_gambling_cooldown(ctx: &Context<'_>) {
             cooldown_key = %key,
             %guild_id,
             %user_id,
-            "failed to release gambling cooldown; the player may be throttled despite not being \
+            "gambling cooldown release failed; the player may be throttled despite not being \
              charged"
         );
     }

@@ -86,7 +86,7 @@ pub async fn websub_notify(
 
     let subscribed_channels = get_subscribed_channels(&state.core.db, feed_id)
         .await
-        .inspect_err(|e| warn!(%feed_id, error = ?e, "failed to get subscribed channels"))
+        .inspect_err(|e| warn!(%feed_id, error = ?e, "subscribed channel lookup failed"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

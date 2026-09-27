@@ -43,7 +43,7 @@ pub async fn get_hub_and_cache(
             .set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false)
             .await
         {
-            warn!(%guild_id, error = %e, "failed to write temp voice cache to redis");
+            warn!(%guild_id, error = %e, "temp voice cache write to redis failed");
         }
     }
     Ok(hub)
@@ -131,7 +131,7 @@ pub async fn get_hub_and_cache_by_category(
             .set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false)
             .await
         {
-            warn!(%guild_id, error = %e, "failed to write temp voice cache to redis");
+            warn!(%guild_id, error = %e, "temp voice cache write to redis failed");
         }
     }
     Ok(hub)

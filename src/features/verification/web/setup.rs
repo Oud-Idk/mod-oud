@@ -91,7 +91,6 @@ pub async fn handle_verification_setup(
         })?;
 
     let Some(everyone_role) = roles.get(&everyone_role_id) else {
-        warn!("cannot get @everyone from roles");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),

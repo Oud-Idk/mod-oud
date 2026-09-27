@@ -107,7 +107,7 @@ pub async fn handle_transfer_temp_vc_submit(
     audit::transfer_offered(guild_id, channel_id, current_owner_id, new_owner_id);
 
     if let Err(e) = channel_id.send_message(&ctx.http, msg).await {
-        warn!(%guild_id, %channel_id, error = ?e, "failed to send transfer offer message");
+        warn!(%guild_id, %channel_id, error = ?e, "transfer offer message delivery failed");
     }
 
     Ok(())

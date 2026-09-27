@@ -68,11 +68,6 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
 async fn flush_batch(db: &PgPool, buffer: &mut Vec<TicketLogPayload>) -> Result<(), sqlx::Error> {
     let records = std::mem::replace(buffer, Vec::with_capacity(100));
     let batch_size = records.len();
-
-    debug!(
-        batch_size,
-        "starting batch flush of ticket logs to database"
-    );
     database::flush_ticket_logs_to_db(db, &records).await?;
     debug!(batch_size, "committed ticket log batch to database");
 

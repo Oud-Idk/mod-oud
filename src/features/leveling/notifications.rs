@@ -87,7 +87,7 @@ pub async fn send_message(
             %guild_id,
             user_id = %user_id,
             fallback = "default layout",
-            "failed to compile custom level-up layout"
+            "custom level-up layout compilation failed"
         );
             None
         });
@@ -145,7 +145,7 @@ pub async fn send_voice_level_up_message(
             error = ?e,
             %guild_id,
             fallback = "default layout",
-            "failed to construct custom voice level-up layout"
+            "custom voice level-up layout construction failed"
         );
             None
         });

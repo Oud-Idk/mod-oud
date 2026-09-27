@@ -317,6 +317,14 @@ Afterwards, the `dispatch_events` span went in, closing the last gap in the tabl
 the guild, channel and user out of the gateway event into `subject_of`, so every line a feature
 emits inherits the ids without the feature repeating them.
 
+The banned openers went next, 55 messages that still began "failed to", "unable to", "cannot" or
+"starting", which step 5 had missed. Each became a noun-first clause, split by what the operation
+is: a discrete action takes "not Yed" (`reaction role not removed`), a noun-phrase operation takes
+"failed" (`message cache write to redis failed`). Two were deleted rather than reworded, because
+the doc already said not to log them: `ticket_logger` announced a flush that the line below it and
+the `#[instrument]` both already reported, and `verification/web/setup.rs` warned about an `Err`
+that reaches the axum boundary, which logs every 5xx on its own.
+
 The 15 sites that named a fallback in the message prose now carry a `fallback` field, valued so a
 query can tell the routes apart: `"db"` three times, `"default layout"` four, `"http"`,
 `"postgres"`, `"redis"`, `"defaults"`, `"bot id"`, and so on. Two sites that said "fallback" were

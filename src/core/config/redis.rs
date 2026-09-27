@@ -44,7 +44,7 @@ pub async fn set_setting_to_redis(
             warn!(
                 cache_key,
                 error = %err,
-                "failed to serialize settings, skipping cache write"
+                "settings serialization failed, cache write skipped"
             );
             Ok(())
         }

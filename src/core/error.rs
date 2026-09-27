@@ -65,7 +65,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
         // these well, and they are not internal faults.
         other => {
             if let Err(e) = poise::builtins::on_error(other).await {
-                error!(error = %e, "failed to handle a user-facing framework error");
+                error!(error = %e, "user-facing framework error not handled");
             }
         }
     }
@@ -79,7 +79,7 @@ async fn reply_internal_error(ctx: &Context<'_>) {
             guild_id = ?ctx.guild_id(),
             user_id = %ctx.author().id,
             error = ?reply_err,
-            "failed to deliver the error reply, the user saw nothing"
+            "error reply delivery failed, the user saw nothing"
         );
     }
 }

@@ -46,7 +46,7 @@ async fn decode_genius_json<T: serde::de::DeserializeOwned>(
                 url = %safe_url,
                 body_bytes = text.len(),
                 error = %err,
-                "failed to decode genius response"
+                "genius response decode failed"
             );
             Err(anyhow::anyhow!("Serde decode error at {safe_url}: {err}"))
         }

@@ -197,7 +197,7 @@ pub fn extract_edit_details(
         .or_else(|| old_if_available.map(|m| (m.author.id, &m.author.name)));
 
     let Some((author_id, author_name)) = author else {
-        warn!(%msg_id, "unable to resolve author for edit event");
+        warn!(%msg_id, "edit event author unresolved");
         return None;
     };
     let author_name = author_name.clone();

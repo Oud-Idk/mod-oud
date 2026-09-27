@@ -66,7 +66,7 @@ pub async fn apply_role_modifications(
             .add_member_role(guild_id, user_id, role_id, Some("Level reward granted"))
             .await
         {
-            warn!(%guild_id, %user_id, %role_id, error = %e, "failed to add level reward role");
+            warn!(%guild_id, %user_id, %role_id, error = %e, "level reward role not added");
             continue;
         }
         debug!(%guild_id, %user_id, %role_id, "added level reward role");
@@ -85,7 +85,7 @@ pub async fn apply_role_modifications(
             .remove_member_role(guild_id, user_id, role_id, Some("Level reward cleanup"))
             .await
         {
-            warn!(%guild_id, %user_id, %role_id, error = %e, "failed to remove level reward role");
+            warn!(%guild_id, %user_id, %role_id, error = %e, "level reward role not removed");
             continue;
         }
 

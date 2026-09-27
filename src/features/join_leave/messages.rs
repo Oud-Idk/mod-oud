@@ -130,7 +130,7 @@ pub async fn build_goodbye_message(
                     %guild_id,
                     user_id = user.id.get(),
                     fallback = "default layout",
-                    "failed to compile custom leave message template"
+                    "custom leave message template compilation failed"
                 );
                 None
             });

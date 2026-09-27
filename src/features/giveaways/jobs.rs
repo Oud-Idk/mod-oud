@@ -104,12 +104,12 @@ async fn process_expired_giveaways(
 
     for giveaway in expired_giveaways {
         if let Err(e) = mark_giveaway_finished(pool, giveaway.id).await {
-            error!(giveaway_id = %giveaway.id, error = ?e, "failed to mark giveaway finished in db");
+            error!(giveaway_id = %giveaway.id, error = ?e, "giveaway finished flag not set in db");
             continue;
         }
 
         if let Err(e) = end_giveaway(http, &giveaway).await {
-            warn!(giveaway_id = %giveaway.id, error = ?e, "failed to end giveaway on discord");
+            warn!(giveaway_id = %giveaway.id, error = ?e, "giveaway not ended on discord");
         }
     }
 
@@ -140,7 +140,9 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
         .collect();
 
     let winner_count = usize::try_from(giveaway.winner_count)
-        .inspect_err(|e| warn!(error = ?e, "cannot convert winner_count to usize"))
+        .inspect_err(
+            |e| warn!(error = ?e, fallback = "1 winner", "winner_count not convertible to usize"),
+        )
         .unwrap_or(1);
 
     let winners: Vec<UserId> = eligible_users

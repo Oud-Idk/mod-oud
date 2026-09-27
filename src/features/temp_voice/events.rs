@@ -50,12 +50,12 @@ pub async fn handle_join_hub_temp_vc(
     };
 
     let Some(target_channel_id) = new.channel_id else {
-        debug!("unable to get voice channel ID for some reason");
+        debug!("voice channel id unavailable");
         return Ok(());
     };
 
     let Some(member) = &new.member else {
-        debug!("unable to get member for some reason");
+        debug!("member unavailable");
         return Ok(());
     };
 
@@ -250,7 +250,7 @@ pub async fn handle_leave_temp_vc(
                     %guild_id,
                     %old_channel_id,
                     error = ?e,
-                    "failed to delete empty temp vc on discord"
+                    "empty temp vc not deleted on discord"
                 );
             } else {
                 debug!(%guild_id, %old_channel_id, "deleted empty temp vc");

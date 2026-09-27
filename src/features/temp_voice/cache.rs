@@ -72,7 +72,7 @@ pub async fn register_temp_vc(
     )
     .await?;
     if let Err(e) = pipe.all::<Vec<i64>>().await {
-        warn!(%guild_id, %channel_id, error = ?e, "failed to cache new temp vc");
+        warn!(%guild_id, %channel_id, error = ?e, "new temp vc cache write failed");
     }
     Ok(())
 }
@@ -92,7 +92,7 @@ pub async fn unregister_temp_vc(
     pipe.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await?;
     pipe.hdel::<(), _, _>(&owner_hash, &owner_field).await?;
     if let Err(e) = pipe.all::<Vec<i64>>().await {
-        warn!(%guild_id, %channel_id, error = ?e, "failed to clean up temp vc entries");
+        warn!(%guild_id, %channel_id, error = ?e, "temp vc entry cleanup failed");
     }
     Ok(())
 }
@@ -114,7 +114,7 @@ pub async fn cleanup_temp_vc_entries(
             pipe.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await?;
             pipe.hdel::<(), _, _>(&owner_hash, owner_id).await?;
             if let Err(e) = pipe.all::<Vec<i64>>().await {
-                warn!(%guild_id, %channel_id, error = ?e, "failed to clean up temp vc hash entries");
+                warn!(%guild_id, %channel_id, error = ?e, "temp vc hash entry cleanup failed");
             }
         } else {
             let _: Result<(), _> = redis.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await;
@@ -141,14 +141,14 @@ pub async fn delete_temp_vc_entries(
 
     let (r1, r2) = tokio::join!(del_vc_fut, del_owner_fut);
     if let Err(e) = r1 {
-        warn!(%guild_id, %channel_id, error = ?e, "failed to delete temp vc mapping from cache");
+        warn!(%guild_id, %channel_id, error = ?e, "temp vc mapping not deleted from cache");
     }
     if let Err(e) = r2 {
         warn!(
             %guild_id,
             %channel_id,
             error = ?e,
-            "failed to delete owner reverse index mapping from cache"
+            "owner reverse index mapping not deleted from cache"
         );
     }
 
@@ -214,7 +214,7 @@ pub async fn commit_transfer_to_redis(
     pipe.del::<(), _>(&pending_key).await?;
 
     if let Err(e) = pipe.all::<Vec<i64>>().await {
-        warn!(%guild_id, %channel_id, error = ?e, "failed to execute redis pipeline");
+        warn!(%guild_id, %channel_id, error = ?e, "redis pipeline execution failed");
         return Err(e.into());
     }
 

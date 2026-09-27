@@ -276,7 +276,7 @@ pub async fn log_message_update(
             fetch_dist_edit_details(redis, event).await?
         })
     else {
-        warn!("unable to retrieve message modification history; log action skipped");
+        warn!("message modification history unavailable; log action skipped");
         return Ok(());
     };
 

@@ -65,7 +65,7 @@ pub async fn issue_report(
         %guild_id,
         message_id = %reported_message.id,
         reporter_id = %reporter.id,
-        "starting issue_report process"
+        "issue report received"
     );
 
     let reported_author = &reported_message.author;

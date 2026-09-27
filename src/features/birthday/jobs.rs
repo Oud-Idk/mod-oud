@@ -248,7 +248,7 @@ async fn announce_celebrants(
                 %guild_id,
                 %channel_id,
                 celebrants = celebrants.len(),
-                "failed to send the birthday announcement, but the year is still marked \
+                "birthday announcement delivery failed, but the year is still marked \
                  announced for every celebrant"
             );
             None

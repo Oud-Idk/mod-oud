@@ -38,7 +38,7 @@ pub async fn handle_reaction_role_add(
                 %user_id,
                 %role_id,
                 error = %err,
-                "failed to add reaction role"
+                "reaction role not added"
             );
         } else {
             debug!(%guild_id, %user_id, %role_id, "assigned reaction role");
@@ -78,7 +78,7 @@ pub async fn handle_reaction_role_remove(
                 %user_id,
                 %role_id,
                 error = %err,
-                "failed to remove reaction role"
+                "reaction role not removed"
             );
         } else {
             debug!(%guild_id, %user_id, %role_id, "removed reaction role");
@@ -132,7 +132,7 @@ pub async fn handle_button_interaction(
                     %user_id,
                     %role_id,
                     error = %err,
-                    "failed to remove button role"
+                    "button role not removed"
                 );
                 "Failed to remove role. Please check my bot role permissions.".to_string()
             }
@@ -153,7 +153,7 @@ pub async fn handle_button_interaction(
                     %user_id,
                     %role_id,
                     error = %err,
-                    "failed to add button role"
+                    "button role not added"
                 );
                 "Failed to add role. Please check my bot role permissions.".to_string()
             }

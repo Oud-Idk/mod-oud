@@ -182,7 +182,7 @@ pub fn sync_tickets(
                 );
             }
             Err(e) => {
-                warn!(error = ?e, "failed to subscribe to ticket_updates");
+                warn!(error = ?e, "ticket update subscription failed");
             }
         }
     });

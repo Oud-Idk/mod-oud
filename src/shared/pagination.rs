@@ -148,11 +148,7 @@ pub async fn paginate<F>(ctx: Context<'_>, total_pages: usize, make_embed: F) ->
 where
     F: Fn(usize) -> serenity::all::CreateEmbed + Send + Sync,
 {
-    debug!(
-        total_pages,
-        ctx_id = ctx.id(),
-        "starting pagination handler"
-    );
+    debug!(total_pages, ctx_id = ctx.id(), "pagination requested");
 
     if total_pages == 0 {
         trace!("zero pages provided, skipping execution");

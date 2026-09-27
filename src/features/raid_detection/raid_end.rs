@@ -27,7 +27,7 @@ pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
             if !is_active {
                 info!(%guild_id, "raid ended, reverting actions");
                 if let Err(e) = handle_raid_end(&ctx, &data, guild_id).await {
-                    error!(%guild_id, error = ?e, "failed to execute raid end cleanup");
+                    error!(%guild_id, error = ?e, "raid end cleanup failed");
                 }
                 break; // Exit loop once raid end cleanup completes
             }
@@ -42,7 +42,7 @@ pub async fn handle_raid_end(
 ) -> Result<(), Error> {
     let restored = restore_preraid_state(ctx, data, guild_id)
         .await
-        .inspect_err(|e| error!(%guild_id, error = ?e, "failed to restore pre-raid state"))
+        .inspect_err(|e| error!(%guild_id, error = ?e, "pre-raid state restore failed"))
         .unwrap_or(false);
 
     if !restored {
@@ -149,7 +149,7 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
         } else {
             info!(%guild_id, "found stale raid tracking, reverting state");
             if let Err(e) = handle_raid_end(ctx, data, *guild_id).await {
-                error!(%guild_id, error = ?e, "failed to restore state during startup reconciliation");
+                error!(%guild_id, error = ?e, "state restore during startup reconciliation failed");
             }
         }
     }

@@ -128,7 +128,7 @@ pub async fn store_member_invite(
     }
 
     let current_invites = guild_id.invites(&ctx.http).await.inspect_err(|err| {
-        warn!(%guild_id, error = ?err, "failed to fetch invites");
+        warn!(%guild_id, error = ?err, "invite fetch failed");
     })?;
 
     let old_uses = get_invite_uses(redis, guild_id).await;
