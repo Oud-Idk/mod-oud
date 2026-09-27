@@ -43,14 +43,13 @@ pub async fn set_warning_active_status(
             target_user_id,
             set_active,
             action = action_past_tense,
-            "Warning active status successfully modified in the database"
+            "Warning active status modified in the database"
         );
     } else {
         let status_description = if set_active { "inactive" } else { "active" };
         debug!(
             warning_id = id,
-            set_active,
-            "Failed to change warning status: warning not found or already in target state"
+            set_active, "change warning status: warning not found or already in target state"
         );
 
         send_ephemeral(

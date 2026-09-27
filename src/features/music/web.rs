@@ -80,7 +80,7 @@ pub fn start_music_web_control_worker(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    warn!(error = ?e, "Failed to convert music web command payload");
+                    warn!(error = ?e, "convert music web command payload");
                     return Ok(());
                 }
             };
@@ -88,7 +88,7 @@ pub fn start_music_web_control_worker(
             let command: RemoteMusicCommand = match serde_json::from_str(&payload) {
                 Ok(command) => command,
                 Err(e) => {
-                    warn!(error = %e, payload = %payload, "Failed to parse music web command");
+                    warn!(error = %e, payload = %payload, "parse music web command");
                     return Ok(());
                 }
             };
@@ -119,7 +119,7 @@ pub fn start_music_web_control_worker(
             let reply = match serde_json::to_string(&result) {
                 Ok(reply) => reply,
                 Err(e) => {
-                    error!(error = %e, "Failed to serialize music command result");
+                    error!(error = %e, "serialize music command result");
                     return Ok(());
                 }
             };
@@ -132,7 +132,7 @@ pub fn start_music_web_control_worker(
                 warn!(
                     request_id = %result.request_id,
                     error = ?e,
-                    "Failed to publish music command result"
+                    "publish music command result"
                 );
             }
 
@@ -143,7 +143,7 @@ pub fn start_music_web_control_worker(
     tokio::spawn(async move {
         match subscriber_client.subscribe(keys::commands_channel()).await {
             Ok(()) => debug!("Subscribed to music web commands channel"),
-            Err(e) => error!(error = ?e, "Failed to subscribe to music web commands"),
+            Err(e) => error!(error = ?e, "subscribe to music web commands"),
         }
     });
 }
@@ -288,7 +288,7 @@ pub async fn ws_handler(
             user_id = %user_id,
             expires = expires,
             expected = %expected,
-            "Invalid WS ticket. Sig mismatch (check INTERNAL_API_SECRET sync & purpose)"
+            "invalid ws ticket, signature mismatch, check INTERNAL_API_SECRET sync and purpose"
         );
         return Err(axum::http::StatusCode::UNAUTHORIZED);
     }
@@ -347,7 +347,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<WebState>, guild_id: sereni
                         }
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                        warn!("Dropped {n} events due to slow socket");
+                        warn!(dropped = n, "dropped events due to slow socket");
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                         break;
@@ -369,7 +369,7 @@ async fn handle_text_message(
     let (request_id, action) = match message {
         Ok(ClientMessage::Music { request_id, action }) => (request_id, action),
         Err(e) => {
-            warn!(error = %e, "Failed to parse WebSocket control message");
+            warn!(error = %e, "parse WebSocket control message");
             let ack = ServerMessage::Ack {
                 request_id: None,
                 ok: false,

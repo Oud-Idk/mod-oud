@@ -13,9 +13,7 @@ pub async fn resolve_moderator_id(
             .get_current_user()
             .await
             .map(|u| u.id)
-            .inspect_err(
-                |e| warn!(error = %e, "Failed to fetch fallback bot details from Discord API"),
-            )
+            .inspect_err(|e| warn!(error = %e, "fetch fallback bot details from Discord API"))
             .map_err(|_| {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -34,8 +32,15 @@ pub async fn resolve_moderator_user(
     mod_id
         .to_user(http)
         .await
-        .inspect_err(|e| warn!(error = %e, %mod_id, "Failed to retrieve moderator user details from Discord API"))
-        .map_err(|_| (StatusCode::BAD_GATEWAY, "Failed to retrieve moderator details.".to_string()))
+        .inspect_err(
+            |e| warn!(error = %e, %mod_id, "retrieve moderator user details from Discord API"),
+        )
+        .map_err(|_| {
+            (
+                StatusCode::BAD_GATEWAY,
+                "Failed to retrieve moderator details.".to_string(),
+            )
+        })
 }
 
 #[instrument(skip(http))]
@@ -46,6 +51,13 @@ pub async fn resolve_target_user(
     user_id
         .to_user(http)
         .await
-        .inspect_err(|e| warn!(error = %e, %user_id, "Failed to retrieve target user details from Discord API"))
-        .map_err(|_| (StatusCode::BAD_GATEWAY, "Failed to retrieve target user".to_string()))
+        .inspect_err(
+            |e| warn!(error = %e, %user_id, "retrieve target user details from Discord API"),
+        )
+        .map_err(|_| {
+            (
+                StatusCode::BAD_GATEWAY,
+                "Failed to retrieve target user".to_string(),
+            )
+        })
 }

@@ -75,7 +75,7 @@ pub async fn handle_edit_giveaway_message(
         .edit_message(&state.serenity_http, message_id, edit_builder)
         .await
         .map_err(|e| {
-            warn!(error = ?e, "Failed to edit Discord giveaway message");
+            warn!(error = ?e, "edit Discord giveaway message");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),

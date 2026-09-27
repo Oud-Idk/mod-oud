@@ -221,7 +221,7 @@ pub fn start_music_event_bridge(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    warn!(error = ?e, "Failed to convert now-playing pub/sub payload");
+                    warn!(error = ?e, "convert now-playing pub/sub payload");
                     return Ok(());
                 }
             };
@@ -231,7 +231,7 @@ pub fn start_music_event_bridge(
                     let _ = tx.send((event.guild_id, event.now_playing));
                 }
                 Err(e) => {
-                    warn!(error = %e, payload = %payload, "Failed to parse now-playing event");
+                    warn!(error = %e, payload = %payload, "parse now-playing event");
                 }
             }
 
@@ -242,7 +242,7 @@ pub fn start_music_event_bridge(
     tokio::spawn(async move {
         match subscriber.subscribe(keys::events_channel()).await {
             Ok(()) => info!("Subscribed to music now-playing events"),
-            Err(e) => error!(error = ?e, "Failed to subscribe to music now-playing events"),
+            Err(e) => error!(error = ?e, "subscribe to music now-playing events"),
         }
     });
 }

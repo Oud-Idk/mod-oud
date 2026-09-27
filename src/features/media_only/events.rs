@@ -37,7 +37,7 @@ pub async fn handle_media_channel_message(
 
     for attachment in &message.attachments {
         let Some(mime) = attachment.content_type.as_deref() else {
-            trace!("Attachment missing content type.");
+            trace!("Attachment missing content type");
             violation::handle_violation(ctx, message, &config).await?;
             return Ok(());
         };
@@ -45,7 +45,7 @@ pub async fn handle_media_channel_message(
         let is_valid = attachment_is_valid(&config, mime);
 
         if !is_valid {
-            trace!("Attachment with mime '{mime}' is not allowed.");
+            trace!(mime = %mime, "attachment mime is not allowed");
             violation::handle_violation(ctx, message, &config).await?;
             return Ok(());
         }
@@ -81,27 +81,27 @@ async fn preflight_checks(
     data: &BotData,
 ) -> Result<Option<MediaOnlyChannel>> {
     if message.author.bot {
-        trace!("Author is a bot. Skipping");
+        trace!("author is a bot, skipping");
         return Ok(None);
     }
 
     let Some(config) = get_channel_media(data, channel_id).await? else {
-        trace!("Channel is not media channel. Skipping");
+        trace!("channel is not a media channel, skipping");
         return Ok(None);
     };
 
     if !config.enabled {
-        trace!("Media-only channel is disabled. Skipping");
+        trace!("media-only channel is disabled, skipping");
         return Ok(None);
     }
 
     let Some(member) = &message.member else {
-        trace!("Message has no member. Skipping");
+        trace!("message has no member, skipping");
         return Ok(None);
     };
 
     if has_matching_role(member, &config.exempt_role_ids()) {
-        trace!("Member has an exempt role. Skipping enforcement.");
+        trace!("member has an exempt role, skipping enforcement");
         return Ok(None);
     }
     Ok(Some(config))
@@ -122,13 +122,13 @@ fn analyze_initial_text(
 
     // Text is present but text isn't allowed
     if !text.is_empty() && !allow_text {
-        trace!("Text is not allowed in this channel.");
+        trace!("Text is not allowed in this channel");
         return true;
     }
 
     // Links are present but links aren't allowed
     if !urls.is_empty() && !allow_links {
-        trace!("Links are not allowed in this channel.");
+        trace!("Links are not allowed in this channel");
         return true;
     }
 
@@ -137,7 +137,7 @@ fn analyze_initial_text(
     let has_attachments = !message.attachments.is_empty();
 
     if !has_attachments && !has_allowed_links {
-        trace!("Message contains no media or allowed links.");
+        trace!("Message contains no media or allowed links");
         return true;
     }
 

@@ -42,7 +42,7 @@ async fn run_feed_polling_worker(
     let lock_key = "lock:feed_polling_worker";
     let lock_value = &worker_id;
 
-    info!("Starting RSS feed polling worker");
+    info!("rss feed polling worker started");
 
     let http_client = reqwest::Client::builder()
         .user_agent("Discord-RSS-Bot/1.0")
@@ -59,17 +59,17 @@ async fn run_feed_polling_worker(
                 trace!("Lock acquired; polling due RSS feeds");
 
                 if let Err(e) = poll_due_feeds(&db, &http, &http_client).await {
-                    error!(error = ?e, "Error during feed polling execution");
+                    error!(error = ?e, "feed polling iteration");
                 }
 
                 match guard.release().await {
-                    Ok(true) => trace!("Polling lock released successfully"),
+                    Ok(true) => trace!("Polling lock released"),
                     Ok(false) => warn!("Polling lock lost during execution"),
-                    Err(e) => error!(error = ?e, "Failed to release polling lock"),
+                    Err(e) => error!(error = ?e, "release polling lock"),
                 }
             }
             Ok(None) => trace!("Polling lock held by another instance; skipping"),
-            Err(e) => error!(error = ?e, "Failed to acquire feed polling lock"),
+            Err(e) => error!(error = ?e, "acquire feed polling lock"),
         }
     }
 }
@@ -108,7 +108,7 @@ async fn run_websub_renewal_worker(
     let lock_key = "lock:websub_renewal_worker";
     let lock_value = &worker_id;
 
-    info!("Starting WebSub renewal worker");
+    info!("websub renewal worker started");
 
     loop {
         tokio::time::sleep(Duration::from_secs(3600)).await;
@@ -118,19 +118,19 @@ async fn run_websub_renewal_worker(
                 trace!("Lock acquired; renewing expiring WebSub leases");
 
                 if let Err(e) = renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()).await {
-                    error!(error = ?e, "Error renewing WebSub leases");
+                    error!(error = ?e, "WebSub leases");
                 }
 
                 // The poller logs release failures; a renewal that cannot hand
                 // the lock back is just as stuck and must not vanish.
                 match guard.release().await {
-                    Ok(true) => trace!("WebSub renewal lock released successfully"),
+                    Ok(true) => trace!("WebSub renewal lock released"),
                     Ok(false) => warn!("WebSub renewal lock lost during execution"),
-                    Err(e) => error!(error = ?e, "Failed to release WebSub renewal lock"),
+                    Err(e) => error!(error = ?e, "release WebSub renewal lock"),
                 }
             }
             Ok(None) => trace!("WebSub renewal lock held by another instance; skipping"),
-            Err(e) => error!(error = ?e, "Failed to acquire WebSub renewal lock"),
+            Err(e) => error!(error = ?e, "acquire WebSub renewal lock"),
         }
     }
 }
@@ -155,12 +155,12 @@ pub async fn poll_due_feeds(
         let resp = match client.get(&feed_row.url).send().await {
             Ok(r) => r,
             Err(e) => {
-                warn!(feed_id = %feed_id, url = %feed_row.url, error = ?e, "Failed to fetch feed");
+                warn!(feed_id = %feed_id, url = %feed_row.url, error = ?e, "fetch feed");
                 if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
                     warn!(
                         error = ?mark_err,
                         feed_id = %feed_id,
-                        "Failed to mark feed polled; feed will be retried immediately"
+                        "mark feed polled; feed will be retried immediately"
                     );
                 }
                 continue;
@@ -176,13 +176,13 @@ pub async fn poll_due_feeds(
                     error = ?e,
                     feed_id = %feed_id,
                     url = %feed_row.url,
-                    "Failed to read feed body; skipping this cycle"
+                    "read feed body; skipping this cycle"
                 );
                 if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
                     warn!(
                         error = ?mark_err,
                         feed_id = %feed_id,
-                        "Failed to mark feed polled; feed will be retried immediately"
+                        "mark feed polled; feed will be retried immediately"
                     );
                 }
                 continue;
@@ -233,7 +233,7 @@ async fn dispatch_entry_to_discord(
                 error = ?e,
                 feed_id = %feed_id,
                 channel_id = %channel,
-                "Failed to deliver feed entry; subscriber missed this post"
+                "deliver feed entry; subscriber missed this post"
             );
         }
     }
@@ -295,7 +295,7 @@ pub async fn renew_expiring_leases(
                 feed_id = %feed.id,
                 hub = %hub_url,
                 lease_expires_at = ?feed.lease_expires_at,
-                "Renewing WebSub lease..."
+                "Renewing WebSub lease"
             );
         }
 
@@ -306,7 +306,7 @@ pub async fn renew_expiring_leases(
                 error = ?e,
                 feed_id = %feed.id,
                 hub = %hub_url,
-                "Failed to renew WebSub lease; feed delivery stays broken until one succeeds"
+                "renew WebSub lease; feed delivery stays broken until one succeeds"
             );
             failed += 1;
         }

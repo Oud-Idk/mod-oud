@@ -138,7 +138,7 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
         Ok(Some(wm)) => wm.render(reward, currency, &user_mention),
         Ok(None) => config.render_work_message_with_user(reward, currency, &user_mention),
         Err(e) => {
-            tracing::warn!(%guild_id, error = %e, "Failed to fetch random work message, falling back to config template");
+            tracing::warn!(%guild_id, error = %e, "fetch random work message, falling back to config template");
             config.render_work_message_with_user(reward, currency, &user_mention)
         }
     };

@@ -38,13 +38,17 @@ if [[ -n "$missing_cause" ]]; then
 fi
 
 # --- rule 2: no interpolation into the message --------------------------------
-# { } inside the message string defeats field queries. Exempt: format! and
-# friends, where the braces belong to the format specifier, not the message.
+# { } inside the message string defeats field queries. Exempt the formatting
+# macros, where the braces belong to the format specifier, not the message.
+#
+# The leading class is load-bearing. Without it `xformat!` matches, and with a bare
+# `[a-z_]+!` the exemption matches `trace!` and `info!` themselves, which drops
+# every single-literal log call and hides the violation this rule exists to catch.
 interpolated="$(extract_calls |
   awk -F'\t' '
     {
       body = $2
-      gsub(/[a-z_]+!\("[^"]*"\)/, "", body)      # format!(".."), panic!("..")
+      gsub(/(^|[^[:alnum:]_])(format|print|println|eprint|eprintln|panic|todo|unreachable|unimplemented|assert|assert_eq|assert_ne|debug_assert|debug_assert_eq|debug_assert_ne|write|writeln)!\("[^"]*"/, "\\1\\2!(", body)
       if (body ~ /"[^"]*\{[^"]*"/) print $1
     }')"
 

@@ -75,7 +75,7 @@ pub async fn should_exclude_from_logging(
                             error = ?err,
                             %author_id,
                             %guild_id,
-                            "Failed to fetch guild member metadata via HTTP for exclusion checks"
+                            "fetch guild member metadata via HTTP for exclusion checks"
                         );
                     }
                 }
@@ -130,7 +130,7 @@ pub fn fetch_cached_message(
 
     trace!(
         msg_id = %message.id,
-        "Successfully retrieved and parsed cached message"
+        "retrieved and parsed cached message"
     );
 
     Some(MessageDetails {
@@ -218,7 +218,7 @@ pub fn extract_edit_details(
     let old_content = old_text.map(ToOwned::to_owned);
     let new_content = new_text.map(ToOwned::to_owned);
 
-    trace!(%msg_id, %author_id, "Successfully resolved edit details");
+    trace!(%msg_id, %author_id, "resolved edit details");
 
     Some(EditDetails {
         msg_id,

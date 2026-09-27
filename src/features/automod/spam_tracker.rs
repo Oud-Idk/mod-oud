@@ -54,8 +54,7 @@ impl SpamTracker {
             %guild_id,
             user_id = %user_id,
             limit
-        ),
-        err
+        )
     )]
     pub async fn check_and_record_async(
         &self,
@@ -119,8 +118,7 @@ impl SpamTracker {
         fields(
             %guild_id,
             user_id = %user_id
-        ),
-        err
+        )
     )]
     pub async fn check_warning_cooldown_async(
         &self,

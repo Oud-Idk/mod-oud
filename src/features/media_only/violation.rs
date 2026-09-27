@@ -17,7 +17,7 @@ pub async fn handle_violation(
     let _ = message
         .delete(ctx)
         .await
-        .inspect_err(|e| warn!(error = ?e, "Couldn't delete message. Was it already deleted?"));
+        .inspect_err(|e| warn!(error = ?e, "could not delete message, it may already be deleted"));
 
     send_dm_for_content(ctx, message, original_content).await;
 
@@ -55,7 +55,7 @@ async fn send_dm_for_content(ctx: &Context, message: &Message, original_content:
         .author
         .dm(ctx, CreateMessage::new().content(original_dm_content))
         .await
-        .inspect_err(|e| debug!(error = ?e, "Couldn't resend message content to user."));
+        .inspect_err(|e| debug!(error = ?e, "Couldn't resend message content to user"));
 }
 
 async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> anyhow::Result<()> {
@@ -76,7 +76,7 @@ async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> any
         tokio::spawn(async move {
             time::sleep(Duration::from_secs(del_warning)).await;
             let _ = sent_message.delete(http_clone).await.inspect_err(
-                |e| warn!(error = ?e, "Couldn't delete warning message. Was it already deleted?"),
+                |e| warn!(error = ?e, "could not delete warning message, it may already be deleted"),
             );
         });
     }

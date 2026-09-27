@@ -117,7 +117,7 @@ pub async fn handle_text_leveling(
             %author_id,
             old_level = previous_level,
             new_level = user_level.current_level,
-            "User has leveled up!"
+            "User has leveled up"
         );
 
         let event = LevelUpEvent {
@@ -177,7 +177,7 @@ pub fn spawn_level_up_effects(
             );
 
             if let Err(e) = notifications::send_message(&ctx, &event, &config).await {
-                warn!(error = ?e, "Failed to send level-up notification");
+                warn!(error = ?e, "send level-up notification");
             }
         }
 
@@ -196,7 +196,7 @@ pub fn spawn_level_up_effects(
                 %guild_id,
                 %author_id,
                 level = current_level_val,
-                "Failed to apply leveling role rewards to member"
+                "apply leveling role rewards to member"
             );
         }
     });

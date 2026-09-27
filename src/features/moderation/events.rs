@@ -74,7 +74,7 @@ pub async fn handle_audit_log_entry(
                     if let Err(e) =
                         store_username_relation(&username_tx, user_id, &user.name).await
                     {
-                        warn!(error = %e, %user_id, "Failed to queue username for audit-synced log");
+                        warn!(error = %e, %user_id, "queue username for audit-synced log");
                     }
                 }
                 Err(e) => {

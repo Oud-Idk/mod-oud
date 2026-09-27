@@ -28,12 +28,9 @@ async fn apply_join_roles(ctx: &Context, member: &Member, role_ids: &[String]) -
         .edit_member(ctx, member.user.id, builder)
         .await
     {
-        warn!(error = ?e, guild_id, user_id, "Failed to apply automatic join roles to member");
+        warn!(error = ?e, guild_id, user_id, "apply automatic join roles to member");
     } else {
-        debug!(
-            guild_id,
-            user_id, "Successfully assigned automatic join roles to member"
-        );
+        debug!(guild_id, user_id, "assigned automatic join roles to member");
     }
     Ok(())
 }
@@ -63,7 +60,7 @@ pub async fn handle_member_welcome(ctx: &Context, member: &Member, data: &BotDat
     if let Some(ref role_ids) = config.join_role_ids
         && let Err(e) = apply_join_roles(ctx, member, role_ids).await
     {
-        warn!(error = ?e, %guild_id, %user_id, "Failed to completely apply automatic join roles");
+        warn!(error = ?e, %guild_id, %user_id, "completely apply automatic join roles");
     }
 
     send::send_public_welcome(ctx, member, &config, &context_channel, &gctx, &warning_text).await?;

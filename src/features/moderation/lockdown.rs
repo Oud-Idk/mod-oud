@@ -179,7 +179,7 @@ pub async fn apply_global_lock(
             warn!(
                 error = ?err,
                 channel_id,
-                "Failed to cache pre-lockdown state for channel; proceeding without it"
+                "cache pre-lockdown state for channel; proceeding without it"
             );
         }
 
@@ -193,7 +193,7 @@ pub async fn apply_global_lock(
                 warn!(
                     error = ?err,
                     channel_id,
-                    "Failed to apply lockdown permission overwrite to channel"
+                    "apply lockdown permission overwrite to channel"
                 );
                 report.failed_channel_ids.push(channel_id);
             }
@@ -203,7 +203,7 @@ pub async fn apply_global_lock(
     // Explicit release (rather than just letting the guard drop) so the lock frees up
     // immediately instead of waiting out its TTL if another sweep wants to run right after.
     if let Err(err) = guard.release().await {
-        warn!(error = ?err, %guild_id, "Failed to explicitly release sweep lock; it will still expire via TTL");
+        warn!(error = ?err, %guild_id, "explicitly release sweep lock; it will still expire via TTL");
     }
 
     Ok(Some(report))
@@ -261,7 +261,7 @@ pub async fn apply_global_unlock(
                 warn!(
                     error = ?err,
                     channel_id,
-                    "Failed to remove lockdown permission overwrite from channel"
+                    "remove lockdown permission overwrite from channel"
                 );
                 report.failed_channel_ids.push(channel_id);
             }
@@ -269,7 +269,7 @@ pub async fn apply_global_unlock(
     }
 
     if let Err(err) = guard.release().await {
-        warn!(error = ?err, %guild_id, "Failed to explicitly release sweep lock; it will still expire via TTL");
+        warn!(error = ?err, %guild_id, "explicitly release sweep lock; it will still expire via TTL");
     }
 
     Ok(Some(report))

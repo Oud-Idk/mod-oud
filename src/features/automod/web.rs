@@ -41,7 +41,7 @@ pub async fn setup_honeypot_channel(
     let channel = guild_id
         .create_channel(&state.serenity_http, channel_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create channel"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "create channel"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -49,7 +49,7 @@ pub async fn setup_honeypot_channel(
             )
         })?;
 
-    debug!("Created honeypot channel: {:?}", channel.id);
+    debug!(channel_id = %channel.id, "created honeypot channel");
 
     Ok((
         StatusCode::OK,

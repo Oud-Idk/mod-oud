@@ -61,7 +61,7 @@ pub async fn handle_send_reaction_role_message(
         .send_message(&state.serenity_http, message_builder)
         .await
         .map_err(|e| {
-            warn!(error = ?e, "Failed to send payload to Discord channel");
+            warn!(error = ?e, "send payload to Discord channel");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),
@@ -81,13 +81,13 @@ pub async fn handle_send_reaction_role_message(
 
     let message_id = message.id;
     if let Err(e) = database::add_message_to_db(&state, &config_row, message_id).await {
-        error!(error = ?e, config_id, %message_id, "Failed to record the reaction roles message id");
+        error!(error = ?e, config_id, %message_id, "record the reaction roles message id");
     }
 
     info!(
         %guild_id,
         %message_id,
-        "Reaction role layout successfully processed"
+        "Reaction role layout processed"
     );
 
     Ok((

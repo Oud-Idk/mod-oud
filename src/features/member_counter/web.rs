@@ -55,7 +55,7 @@ pub async fn handle_setup_member_counter(
     info!(
         %guild_id,
         category_id = %category_id.get(),
-        "Member counter category and channels setup successfully completed"
+        "Member counter category and channels setup completed"
     );
 
     Ok((
@@ -76,7 +76,7 @@ async fn get_or_create_counter_category(
         guild_id,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to get settings"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "get settings"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -98,10 +98,10 @@ async fn get_or_create_counter_category(
                 return Ok(saved_id);
             }
             Ok(_) => {
-                warn!(%guild_id, channel_id = %saved_id, "Saved category ID is not a category, recreating...");
+                warn!(%guild_id, channel_id = %saved_id, "Saved category ID is not a category, recreating");
             }
             Err(e) => {
-                warn!(error = ?e, %guild_id, channel_id = %saved_id, "Saved category ID no longer exists in Discord, recreating...");
+                warn!(error = ?e, %guild_id, channel_id = %saved_id, "Saved category ID no longer exists in Discord, recreating");
             }
         }
     }
@@ -115,7 +115,7 @@ async fn get_or_create_counter_category(
     let category = guild_id
         .create_channel(&state.serenity_http, category_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create category"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "create category"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -136,7 +136,7 @@ async fn get_or_create_counter_category(
         &guild_settings,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to save settings"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "save settings"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -172,7 +172,7 @@ async fn create_missing_counter_channels(
             let voice_channel = guild_id
                 .create_channel(&state.serenity_http, voice_builder)
                 .await
-                .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to create voice channel"))
+                .inspect_err(|e| warn!(error = ?e, %guild_id, "create voice channel"))
                 .map_err(|_| {
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,

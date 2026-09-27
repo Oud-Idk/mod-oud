@@ -79,7 +79,7 @@ pub async fn process_celebrant_roles(
                 error = ?e,
                 %guild_id,
                 %user_id,
-                "Failed to store birthday log; birthday history entry dropped"
+                "store birthday log; birthday history entry dropped"
             );
         }
 
@@ -99,7 +99,7 @@ pub async fn process_celebrant_roles(
                 %guild_id,
                 %user_id,
                 %role_id,
-                "Failed to add the birthday role; no cleanup row stored"
+                "add the birthday role; no cleanup row stored"
             );
             continue;
         }
@@ -110,7 +110,7 @@ pub async fn process_celebrant_roles(
                 error = ?e,
                 %guild_id,
                 %user_id,
-                "Failed to persist birthday role assignment; role will not be cleaned up on expiry"
+                "persist birthday role assignment; role will not be cleaned up on expiry"
             );
         }
     }

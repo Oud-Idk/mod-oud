@@ -73,7 +73,7 @@ pub async fn handle_send_giveaway_message(
     let message = channel_id
         .send_message(&state.serenity_http, message_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, "Failed to send giveaway message to Discord"))
+        .inspect_err(|e| warn!(error = ?e, "send giveaway message to Discord"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

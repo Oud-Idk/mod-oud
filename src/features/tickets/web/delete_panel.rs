@@ -29,7 +29,7 @@ pub async fn handle_delete_ticket_message(
         .await
     {
         Ok(()) => {
-            debug!("Discord message deleted successfully");
+            debug!("Discord message deleted");
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) if error::is_unknown_message_error(&e) => {
@@ -37,7 +37,7 @@ pub async fn handle_delete_ticket_message(
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
-            error!(error = ?e, "Failed to delete message via Discord API");
+            error!(error = ?e, "delete message via Discord API");
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error.".to_string(),

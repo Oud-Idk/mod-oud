@@ -297,7 +297,7 @@ async fn run_player_turns(
             }
             _ => warn!(
                 custom_id = interaction.data.custom_id,
-                "Unknown custom_id for blackjack!"
+                "Unknown custom_id for blackjack"
             ),
         }
 

@@ -52,7 +52,7 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
         return Ok(());
     }
 
-    debug!("Active ticket message intercepted. Evaluating staff roles.");
+    debug!("active ticket message intercepted, evaluating staff roles");
 
     // Avoid cloning full member structs out of cache; borrow directly where possible
     let has_role = if let Some(role_id) = ticket_config.ticket_role_id {
@@ -139,7 +139,7 @@ async fn rotate_close_button(
                 error = ?e,
                 %channel_id,
                 old_id = %old_id_u64,
-                "Failed to delete deprecated close button; a stale close button may remain"
+                "delete deprecated close button; a stale close button may remain"
             );
         }
     }
@@ -166,7 +166,7 @@ async fn rotate_close_button(
     let redis_update = tickets::cache::update_close_button_redis(redis, ticket_key, new_msg.id);
 
     tokio::try_join!(db_update, redis_update)?;
-    info!(new_msg_id = %new_msg.id, "Close button placement rotated successfully");
+    info!(new_msg_id = %new_msg.id, "Close button placement rotated");
 
     Ok(())
 }

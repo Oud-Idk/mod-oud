@@ -9,14 +9,11 @@ pub async fn fetch_member_roles(
 ) -> Option<Vec<RoleId>> {
     match ctx.http.get_member(guild_id, user_id).await {
         Ok(member) => {
-            debug!("Fetch {}'s roles", user_id);
+            debug!(%guild_id, %user_id, "fetching member roles");
             Some(member.roles)
         }
         Err(e) => {
-            warn!(
-                "Could not fetch roles for user {}: {}. Proceeding without cache.",
-                user_id, e
-            );
+            warn!(%guild_id, %user_id, error = ?e, "could not fetch roles, proceeding without cache");
             None
         }
     }
@@ -69,10 +66,10 @@ pub async fn apply_role_modifications(
             .add_member_role(guild_id, user_id, role_id, Some("Level reward granted"))
             .await
         {
-            warn!("Failed to add role {} to user {}: {}", role_id, user_id, e);
+            warn!(%guild_id, %user_id, %role_id, error = %e, "failed to add level reward role");
             continue;
         }
-        debug!("Added role {} to user {}", role_id, user_id);
+        debug!(%guild_id, %user_id, %role_id, "added level reward role");
     }
 
     for role_id in roles_to_remove {
@@ -88,13 +85,10 @@ pub async fn apply_role_modifications(
             .remove_member_role(guild_id, user_id, role_id, Some("Level reward cleanup"))
             .await
         {
-            warn!(
-                "Failed to remove role {} from user {}: {}",
-                role_id, user_id, e
-            );
+            warn!(%guild_id, %user_id, %role_id, error = %e, "failed to remove level reward role");
             continue;
         }
 
-        debug!("Removed role {} from user {}", role_id, user_id);
+        debug!(%guild_id, %user_id, %role_id, "removed level reward role");
     }
 }

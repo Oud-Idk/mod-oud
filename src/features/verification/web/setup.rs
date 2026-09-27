@@ -81,7 +81,7 @@ pub async fn handle_verification_setup(
     let roles = guild_id
         .roles(http)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to get roles for guild"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "get roles for guild"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -90,7 +90,7 @@ pub async fn handle_verification_setup(
         })?;
 
     let Some(everyone_role) = roles.get(&everyone_role_id) else {
-        warn!("Cannot get @everyone from roles.");
+        warn!("Cannot get @everyone from roles");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -118,7 +118,7 @@ async fn execute_setup(
     if let Err(e) =
         remove_perms_from_everyone(http, guild_id, everyone_role_id, everyone_role).await
     {
-        warn!(error = ?e, %guild_id, "Failed to remove perms from everyone for guild");
+        warn!(error = ?e, %guild_id, "remove perms from everyone for guild");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -130,7 +130,7 @@ async fn execute_setup(
     let verify_role = match create_verify_role(http, guild_id).await {
         Ok(role) => role,
         Err(e) => {
-            warn!(error = ?e, %guild_id, "Failed to create verify role for guild");
+            warn!(error = ?e, %guild_id, "create verify role for guild");
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error.".to_string(),
@@ -144,7 +144,7 @@ async fn execute_setup(
         match create_verify_channel(http, guild_id, everyone_role_id, verify_role.id).await {
             Ok(channel) => channel,
             Err(e) => {
-                warn!(error = ?e, %guild_id, "Failed to create verification channel for guild");
+                warn!(error = ?e, %guild_id, "create verification channel for guild");
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error.".to_string(),
@@ -193,7 +193,7 @@ async fn send_verification_panel(
         std::string::ToString::to_string,
     )
         .inspect_err(|e| {
-            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "Failed to build verification panel for guild");
+            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "build verification panel for guild");
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
         .ok_or_else(|| {
@@ -206,7 +206,7 @@ async fn send_verification_panel(
         .send_message(http, verify_panel_builder)
         .await
         .inspect_err(|e| {
-            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "Failed to send verification panel for guild");
+            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "send verification panel for guild");
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))
 }
@@ -297,18 +297,18 @@ async fn grant_role_to_existing_members(http: Arc<Http>, guild_id: GuildId, role
                         warn!(
                             error = ?e,
                             user_id = member.user.id.get(),
-                            "Failed to add verification role to existing user"
+                            "add verification role to existing user"
                         );
                     } else {
                         trace!(
                             user_id = member.user.id.get(),
-                            "Successfully added verification role to existing user"
+                            "added verification role to existing user"
                         );
                     }
                 }
             }
             Err(e) => {
-                warn!(error = ?e, %guild_id, "Failed to fetch chunk of members for role granting");
+                warn!(error = ?e, %guild_id, "fetch chunk of members for role granting");
                 break;
             }
         }

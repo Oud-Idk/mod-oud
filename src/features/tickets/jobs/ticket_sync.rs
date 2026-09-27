@@ -36,11 +36,11 @@ where
                         Err(_) => {
                             // T::Err has no trait bounds in std::str::FromStr,
                             // so we log the raw string instead of the error to guarantee compilation.
-                            warn!(raw_value = %key_str, "Failed to parse set member into target type");
+                            warn!(raw_value = %key_str, "parse set member into target type");
                         }
                     }
                 } else {
-                    warn!("Failed to convert Redis set value to String");
+                    warn!("convert Redis set value to String");
                 }
             }
         }
@@ -74,7 +74,7 @@ async fn hydrate_active_tickets(
 
     info!(
         hydrated_count = count,
-        "Successfully hydrated active tickets into local cache"
+        "hydrated active tickets into local cache"
     );
     Ok(())
 }
@@ -98,7 +98,7 @@ pub fn sync_tickets(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    warn!(error = ?e, "Failed to convert ticket pub/sub message value to String");
+                    warn!(error = ?e, "convert ticket pub/sub message value to String");
                     return Ok(());
                 }
             };
@@ -118,7 +118,7 @@ pub fn sync_tickets(
                     warn!(
                         channel_id_raw = %parts[1],
                         error = ?e,
-                        "Failed to parse channel ID from ticket pub/sub payload"
+                        "parse channel ID from ticket pub/sub payload"
                     );
                     return Ok(());
                 }
@@ -153,9 +153,9 @@ pub fn sync_tickets(
         let cache = cache_clone_reconnect.clone();
 
         async move {
-            info!(server = ?server, "Reconnected to Redis server. Re-hydrating active tickets");
+            info!(server = ?server, "reconnected to redis server, re-hydrating active tickets");
             if let Err(e) = hydrate_active_tickets(&redis, &cache).await {
-                error!(error = ?e, "Failed to re-hydrate tickets on reconnect");
+                error!(error = ?e, "re-hydrate tickets on reconnect");
             }
             Ok(())
         }
@@ -167,7 +167,7 @@ pub fn sync_tickets(
     tokio::spawn(async move {
         debug!("Performing initial ticket cache hydration on startup");
         if let Err(e) = hydrate_active_tickets(&redis_clone_startup, &cache_clone_startup).await {
-            error!(error = ?e, "Failed to initially hydrate active tickets on startup");
+            error!(error = ?e, "initially hydrate active tickets on startup");
         }
 
         debug!("Subscribing to 'ticket_updates' pub/sub channel");
@@ -177,11 +177,11 @@ pub fn sync_tickets(
         {
             Ok(()) => {
                 info!(
-                    "Subscribed to 'ticket_updates' channel. Auto-reconnect and re-hydration active"
+                    "subscribed to ticket_updates channel, auto-reconnect and re-hydration active"
                 );
             }
             Err(e) => {
-                error!(error = ?e, "Failed to subscribe to 'ticket_updates'");
+                error!(error = ?e, "failed to subscribe to ticket_updates");
             }
         }
     });

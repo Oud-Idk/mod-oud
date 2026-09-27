@@ -49,13 +49,13 @@ pub async fn trigger_raid_manual(
             error = %e,
             %guild_id,
             mod_username,
-            "Failed to save pre-raid state snapshot during manual raid trigger; rolling back active state"
+            "save pre-raid state snapshot during manual raid trigger; rolling back active state"
         );
         if let Err(clear_err) = cache::clear_raid_active(&data.core.redis, guild_id).await {
             error!(
                 error = ?clear_err,
                 %guild_id,
-                "Failed to clear raid active flag during rollback; raid mode may stay active"
+                "clear raid active flag during rollback; raid mode may stay active"
             );
         }
         return Err(e);
@@ -72,7 +72,7 @@ pub async fn trigger_raid_manual(
     )
     .await
     {
-        error!(error = ?e, %guild_id, "Failed to log manual raid trigger event");
+        error!(error = ?e, %guild_id, "log manual raid trigger event");
     }
 
     spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
@@ -98,7 +98,7 @@ pub async fn trigger_raid_manual(
     info!(
         %guild_id,
         mod_username,
-        "Manual raid mode successfully activated"
+        "Manual raid mode activated"
     );
 
     Ok(true)
@@ -119,7 +119,7 @@ async fn invoke_actions(
                 let data = (*data).clone();
                 tokio::spawn(async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        error!(error = ?e, %guild_id, "Failed to lock server during manual trigger");
+                        error!(error = ?e, %guild_id, "lock server during manual trigger");
                     }
                 });
             }
@@ -144,7 +144,7 @@ async fn invoke_actions(
                 );
                 let message = CreateMessage::new().content(message_content);
                 if let Err(e) = channel.send_message(&ctx.http, message).await {
-                    error!(error = %e, channel_id, %guild_id, "Failed to send manual raid alert message");
+                    error!(error = %e, channel_id, %guild_id, "send manual raid alert message");
                 }
             }
             _ => {}
@@ -182,13 +182,13 @@ pub async fn resolve_raid_manual(
     if let Err(e) =
         database::log_raid_event(&data.core.db, guild_id, RaidEventType::Resolved, None).await
     {
-        error!(error = ?e, %guild_id, "Failed to log raid resolve event");
+        error!(error = ?e, %guild_id, "log raid resolve event");
     }
 
     info!(%guild_id, "Cleared active raid flag; initiating raid cleanup");
     handle_raid_end(ctx, data, guild_id).await?;
 
-    info!(%guild_id, "Manual raid resolution completed successfully");
+    info!(%guild_id, "Manual raid resolution completed");
 
     Ok(true)
 }

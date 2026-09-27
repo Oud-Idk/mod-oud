@@ -122,7 +122,7 @@ async fn flush_updates(db: &PgPool, updates: &mut HashMap<UserId, String>) {
     .await;
 
     if let Err(e) = result {
-        tracing::error!(error = %e, "Failed to flush username batch to DB");
+        tracing::error!(error = %e, "flush username batch to DB");
     }
 }
 

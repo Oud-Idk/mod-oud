@@ -55,7 +55,7 @@ pub async fn on_close_ticket(
 #[instrument(skip(data))]
 async fn cleanup_ticket_records(data: &BotData, channel_id: ChannelId) -> Result<(), Error> {
     let channel_id_str = channel_id.get().to_string();
-    debug!("Starting database and cache cleanup for ticket channel");
+    debug!(%channel_id, "cleaning up closed ticket channel records");
 
     database::mark_ticket_as_closed_db(data, channel_id).await?;
     debug!("Database status updated to CLOSED");
@@ -67,6 +67,6 @@ async fn cleanup_ticket_records(data: &BotData, channel_id: ChannelId) -> Result
     debug!("Evicting ticket from local active cache");
     data.caches.active_tickets.remove(&channel_id).await;
 
-    info!("Database and cache records cleaned up successfully");
+    info!("Database and cache records cleaned up");
     Ok(())
 }

@@ -31,7 +31,7 @@ pub async fn on_open_ticket(
     component: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("Opening ticket event received.");
+    trace!("Opening ticket event received");
 
     let redis = &data.core.redis;
     let db = &data.core.db;
@@ -140,7 +140,7 @@ pub async fn on_open_ticket(
         )
         .await?;
 
-    info!(channel_id = %ticket_channel.id, "Ticket channel created and initialized successfully");
+    info!(channel_id = %ticket_channel.id, "Ticket channel created and initialized");
     Ok(())
 }
 

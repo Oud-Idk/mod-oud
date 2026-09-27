@@ -38,10 +38,7 @@ pub async fn pre_flight_check(
         return Ok(None);
     }
 
-    trace!(
-        target_id,
-        "Moderation pre-flight checks completed successfully"
-    );
+    trace!(target_id, "Moderation pre-flight checks completed");
     Ok(Some(GuildMetadata::extract(&ctx)?))
 }
 
@@ -133,7 +130,7 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
         .inspect_err(|_a| {
             warn!(
                 %target_id,
-                "Failed to resolve executor member details from context"
+                "resolve executor member details from context"
             );
         })?;
 

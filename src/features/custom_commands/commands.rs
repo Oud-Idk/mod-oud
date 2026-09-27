@@ -22,7 +22,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     let commands = match database::get_custom_command(pool, guild_id).await {
         Ok(cmds) => cmds,
         Err(e) => {
-            error!(error = ?e, %guild_id, "Failed to fetch custom commands");
+            error!(error = ?e, %guild_id, "fetch custom commands");
             ctx.say("Failed to fetch custom commands from database.")
                 .await?;
             return Ok(());
@@ -39,7 +39,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     {
         Ok(settings) => resolve_prefix(&settings).to_string(),
         Err(e) => {
-            error!(error = ?e, %guild_id, "Failed to load prefix for list");
+            error!(error = ?e, %guild_id, "load prefix for list");
             DEFAULT_PREFIX.to_string()
         }
     };
@@ -141,7 +141,7 @@ pub async fn set_prefix(
     )
     .await
     {
-        error!(error = ?e, %guild_id, "Failed to save custom prefix");
+        error!(error = ?e, %guild_id, "save custom prefix");
         send_ephemeral(&ctx, "Something went wrong on our end.").await?;
         return Ok(());
     }
@@ -197,7 +197,7 @@ pub async fn reset_prefix(ctx: Context<'_>) -> Result<(), Error> {
     )
     .await
     {
-        error!(error = ?e, %guild_id, "Failed to reset custom prefix");
+        error!(error = ?e, %guild_id, "reset custom prefix");
         send_ephemeral(&ctx, "Something went wrong on our end.").await?;
         return Ok(());
     }

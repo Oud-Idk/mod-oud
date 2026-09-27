@@ -32,7 +32,7 @@ pub async fn send_according_to_config(
                 error!(
                     error = ?e,
                     user_id = %author.id,
-                    "Failed to send level-up DM; notification dropped"
+                    "send level-up DM; notification dropped"
                 );
             }
         }
@@ -86,7 +86,7 @@ pub async fn send_message(
             error = ?e,
             %guild_id,
             user_id = %user_id,
-            "Failed to compile custom level-up layout; using standard fallback"
+            "compile custom level-up layout; using standard fallback"
         );
             None
         });
@@ -142,7 +142,7 @@ pub async fn send_voice_level_up_message(
             warn!(
             error = ?e,
             %guild_id,
-            "Failed to construct custom VC level-up layout; using standard fallback"
+            "construct custom VC level-up layout; using standard fallback"
         );
             None
         });

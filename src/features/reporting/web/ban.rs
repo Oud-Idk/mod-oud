@@ -44,7 +44,7 @@ pub async fn handle_ban_user(
         duration,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "Failed to complete ban operation"))
+    .inspect_err(|e| error!(error = %e, "complete ban operation"))
     .map_err(|_e| WebError::Internal)?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserBanned).await?;

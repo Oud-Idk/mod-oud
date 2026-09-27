@@ -166,7 +166,7 @@ where
         return Ok(());
     };
 
-    debug!("Starting interactive loop for pagination stream");
+    debug!("entering pagination stream loop");
     let mut collector = get_stream_collector(&ctx);
 
     while let Some(press) = collector.next().await {
@@ -202,9 +202,9 @@ where
         )
         .await
     {
-        warn!(error = ?err, "Failed to disable pagination components after timeout");
+        warn!(error = ?err, "disable pagination components after timeout");
     } else {
-        trace!("Pagination components successfully disabled");
+        trace!("Pagination components disabled");
     }
 
     Ok(())

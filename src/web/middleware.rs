@@ -38,7 +38,7 @@ pub async fn require_internal_secret(
         return Ok(next.run(request).await);
     }
 
-    trace!("Received request with path: {path}");
+    trace!(path = %path, "received request");
 
     // Also allow nested /api prefix check for exempt subpaths
     if path.starts_with("/verify")
@@ -50,8 +50,9 @@ pub async fn require_internal_secret(
 
     let Some(expected) = state.core.config.internal_api_secret.as_deref() else {
         warn!(
-            "INTERNAL_API_SECRET not set. Rejecting protected route {}",
-            path
+            path = %path,
+            fault = "INTERNAL_API_SECRET is not set",
+            "rejecting protected route, server misconfigured"
         );
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,

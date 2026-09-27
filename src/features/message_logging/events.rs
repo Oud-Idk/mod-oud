@@ -33,7 +33,7 @@ async fn determine_deleter(
         debug!("Using cached audit logs for deleter lookup");
         data
     } else {
-        debug!("Audit logs cache miss. Sleeping 800ms before querying Discord API...");
+        debug!("audit logs cache miss, sleeping 800ms before querying discord api");
         tokio::time::sleep(std::time::Duration::from_millis(800)).await;
 
         debug!("Requesting message delete audit logs from Discord API");
@@ -49,7 +49,7 @@ async fn determine_deleter(
         {
             Ok(logs) => logs,
             Err(e) => {
-                warn!(error = %e, "Failed to retrieve audit logs from Discord API");
+                warn!(error = %e, "retrieve audit logs from Discord API");
                 return None;
             }
         };
@@ -113,7 +113,7 @@ pub async fn message_log_delete(
     guild_id: Option<&GuildId>,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("Received message delete event.");
+    trace!("Received message delete event");
     let Some(guild_id) = guild_id else {
         return Ok(());
     };
@@ -192,7 +192,7 @@ pub async fn message_log_delete(
         .await;
 
         if let Err(e) = db_res {
-            error!(error = %e, "Failed to insert deleted message log into database");
+            error!(error = %e, "insert deleted message log into database");
         }
 
         let payload = DeletedMessagePayload {
@@ -213,7 +213,7 @@ pub async fn message_log_delete(
             let res: FredResult<()> =
                 features::message_logging::cache::publish_delete_event(redis, payload_json).await;
             if let Err(err) = res {
-                warn!(error = %err, "Failed to publish delete message event!");
+                warn!(error = %err, "publish delete message event");
             }
         }
     });
@@ -241,7 +241,7 @@ pub async fn log_message_update(
     event: &serenity::all::MessageUpdateEvent,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("Received message update event.");
+    trace!("Received message update event");
 
     let redis = &data.core.redis;
     let db = &data.core.db;
@@ -280,7 +280,7 @@ pub async fn log_message_update(
     };
 
     if details.old_content == details.new_content {
-        debug!("Message edit logging skipped due to identical old/new content.");
+        debug!("Message edit logging skipped due to identical old/new content");
         return Ok(());
     }
 
@@ -320,11 +320,11 @@ pub async fn log_message_update(
                 features::message_logging::cache::publish_edit_event(redis, payload_json).await;
 
             if let Err(e) = pub_res {
-                error!(error = %e, "Failed to publish update event payload to Redis channel");
+                error!(error = %e, "publish update event payload to Redis channel");
             }
         }
         Err(e) => {
-            error!(error = %e, "Failed to serialize updated message payload for Redis publication");
+            error!(error = %e, "serialize updated message payload for Redis publication");
         }
     }
 

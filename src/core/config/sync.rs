@@ -34,7 +34,7 @@ pub fn sync_configs(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    tracing::warn!(error = ?e, "Failed to convert config pub/sub message value to String");
+                    tracing::warn!(error = ?e, "convert config pub/sub message value to String");
                     return Ok(());
                 }
             };
@@ -58,7 +58,7 @@ pub fn sync_configs(
                 tracing::warn!(
                     guild_id_raw = %parts[1],
                     error = ?e,
-                    "Failed to parse guild ID into u64 from config update payload"
+                    "parse guild ID into u64 from config update payload"
                 );
             }) else {
                 return Ok(());
@@ -95,10 +95,10 @@ pub fn sync_configs(
 
         match client_clone.subscribe("config_updates").await {
             Ok(()) => {
-                tracing::info!("Subscribed to 'config_updates' channel. Listener active!");
+                tracing::info!("subscribed to config_updates channel, listener active");
             }
             Err(e) => {
-                tracing::error!(error = ?e, "Failed to subscribe to 'config_updates' channel");
+                tracing::error!(error = ?e, "subscribe to 'config_updates' channel");
             }
         }
     });

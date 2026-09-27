@@ -72,7 +72,7 @@ pub async fn register_temp_vc(
     )
     .await?;
     if let Err(e) = pipe.all::<Vec<i64>>().await {
-        warn!("Failed to cache new temp VC in redis: {:?}", e);
+        warn!(%guild_id, %channel_id, error = ?e, "failed to cache new temp vc");
     }
     Ok(())
 }
@@ -92,7 +92,7 @@ pub async fn unregister_temp_vc(
     pipe.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await?;
     pipe.hdel::<(), _, _>(&owner_hash, &owner_field).await?;
     if let Err(e) = pipe.all::<Vec<i64>>().await {
-        warn!("Failed to clean up temp VC entries: {:?}", e);
+        warn!(%guild_id, %channel_id, error = ?e, "failed to clean up temp vc entries");
     }
     Ok(())
 }
@@ -114,7 +114,7 @@ pub async fn cleanup_temp_vc_entries(
             pipe.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await?;
             pipe.hdel::<(), _, _>(&owner_hash, owner_id).await?;
             if let Err(e) = pipe.all::<Vec<i64>>().await {
-                warn!("Failed to clean up temp VC hash entries: {:?}", e);
+                warn!(%guild_id, %channel_id, error = ?e, "failed to clean up temp vc hash entries");
             }
         } else {
             let _: Result<(), _> = redis.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await;
@@ -141,12 +141,14 @@ pub async fn delete_temp_vc_entries(
 
     let (r1, r2) = tokio::join!(del_vc_fut, del_owner_fut);
     if let Err(e) = r1 {
-        warn!("Failed to delete temp VC mapping from cache: {:?}", e);
+        warn!(%guild_id, %channel_id, error = ?e, "failed to delete temp vc mapping from cache");
     }
     if let Err(e) = r2 {
         warn!(
-            "Failed to delete owner reverse index mapping from cache: {:?}",
-            e
+            %guild_id,
+            %channel_id,
+            error = ?e,
+            "failed to delete owner reverse index mapping from cache"
         );
     }
 
@@ -212,7 +214,7 @@ pub async fn commit_transfer_to_redis(
     pipe.del::<(), _>(&pending_key).await?;
 
     if let Err(e) = pipe.all::<Vec<i64>>().await {
-        error!("Failed to execute Redis pipeline: {:?}", e);
+        error!(%guild_id, %channel_id, error = ?e, "failed to execute redis pipeline");
         return Err(e.into());
     }
 

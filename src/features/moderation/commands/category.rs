@@ -21,7 +21,7 @@ pub async fn delete_category(
     let Some(guild_id) = ctx.guild_id() else {
         ctx.say("This command can only be used inside a server.")
             .await?;
-        debug!("Command ran in a server.");
+        debug!("Command ran in a server");
         return Ok(());
     };
 

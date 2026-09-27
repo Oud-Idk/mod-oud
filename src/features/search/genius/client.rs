@@ -1,6 +1,7 @@
 use crate::features::search::genius::models::{
     DomChild, GeniusSongLookupResult, GeniusSongSearchResponse, Hit, Song,
 };
+use crate::features::search::http::redact_url;
 use scraper::{ElementRef, Html, Node, Selector};
 use std::sync::LazyLock;
 use tracing::error;
@@ -38,13 +39,16 @@ async fn decode_genius_json<T: serde::de::DeserializeOwned>(
     match serde_json::from_str::<T>(&text) {
         Ok(parsed) => Ok(parsed),
         Err(err) => {
+            // Neither the body nor the query string: the Genius token rides in the query, and a
+            // body from a keyed endpoint can echo the key back.
+            let safe_url = redact_url(url.as_str(), &[]);
             error!(
-                "JSON Deserialization FAILED for [{url}]!\n\
-                 Serde Error: {err}\n\
-                 Raw Body (First 1000 chars):\n{}",
-                &text.chars().take(1000).collect::<String>()
+                url = %safe_url,
+                body_bytes = text.len(),
+                error = %err,
+                "failed to decode genius response"
             );
-            Err(anyhow::anyhow!("Serde decode error at {url}: {err}"))
+            Err(anyhow::anyhow!("Serde decode error at {safe_url}: {err}"))
         }
     }
 }

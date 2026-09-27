@@ -131,7 +131,7 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
         .await?;
     } else {
         warn!(
-            "Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional."
+            "bot gateway client is disabled, web server running exclusively; ignore this warning if intentional"
         );
         tokio::signal::ctrl_c().await?;
     }
@@ -209,9 +209,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_bot {
-        debug!("Since RUN_BOT is true, running discord bot.");
+        debug!("Since RUN_BOT is true, running discord bot");
     } else {
-        debug!("Since RUN_BOT is false, not running discord bot.");
+        debug!("Since RUN_BOT is false, not running discord bot");
     }
 
     let run_web: bool = env::var("RUN_WEB")
@@ -220,9 +220,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_web {
-        debug!("Since RUN_WEB is true, running REST API.");
+        debug!("Since RUN_WEB is true, running REST API");
     } else {
-        debug!("Since RUN_WEB is false, not running REST API.");
+        debug!("Since RUN_WEB is false, not running REST API");
     }
 
     let run_migrations = env::var("RUN_MIGRATIONS")
@@ -282,12 +282,12 @@ async fn connect_redis(redis_url: &str) -> Result<(Client, SubscriberClient), Er
         .build()?;
     redis_client.init().await?;
     debug!(
-        "Connected to Redis as {}.",
-        redis_client
+        user = redis_client
             .client_config()
             .username
             .as_deref()
-            .unwrap_or("default")
+            .unwrap_or("default"),
+        "connected to redis"
     );
 
     let subscriber_config = Config::from_url(redis_url)?;
@@ -300,12 +300,12 @@ async fn connect_redis(redis_url: &str) -> Result<(Client, SubscriberClient), Er
     subscriber_client.init().await?;
     subscriber_client.manage_subscriptions();
     debug!(
-        "Connected to Redis with Subscriber as {}.",
-        subscriber_client
+        user = subscriber_client
             .client_config()
             .username
             .as_deref()
-            .unwrap_or("default")
+            .unwrap_or("default"),
+        "connected to redis with subscriber"
     );
 
     Ok((redis_client, subscriber_client))
@@ -364,7 +364,10 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
 
     let commands_to_register = build_commands();
 
-    info!("Registered {} commands", commands_to_register.len());
+    info!(
+        commands = commands_to_register.len(),
+        "registered application commands"
+    );
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -445,7 +448,7 @@ fn dynamic_prefix(
                 mod_oud::features::custom_commands::resolve_prefix(&settings).to_string(),
             )),
             Err(e) => {
-                warn!(error = ?e, %guild_id, "Failed to load prefix; falling back to default");
+                warn!(error = ?e, %guild_id, "load prefix; falling back to default");
                 Ok(Some("!".to_string()))
             }
         }

@@ -52,7 +52,7 @@ pub async fn kick(
     )
     .await?;
 
-    info!(target_id, "User successfully kicked");
+    info!(target_id, "User kicked");
     Ok(())
 }
 
@@ -126,7 +126,7 @@ pub async fn ban(
     );
     send_ephemeral(&ctx, conf_msg).await?;
 
-    info!(target_id, "User successfully banned");
+    info!(target_id, "User banned");
     Ok(())
 }
 
@@ -178,7 +178,7 @@ pub async fn purge(
         info!(
             channel_id = channel_id.get(),
             deleted_count = message_ids.len(),
-            "Successfully bulk deleted messages"
+            "bulk deleted messages"
         );
     }
     Ok(())
@@ -261,7 +261,7 @@ pub async fn mute(
     )
     .await?;
 
-    info!(target_id, duration = %duration, "User successfully muted");
+    info!(target_id, duration = %duration, "User muted");
     Ok(())
 }
 
@@ -319,7 +319,7 @@ pub async fn unmute(
     )
     .await?;
 
-    info!(target_id, "User successfully unmuted");
+    info!(target_id, "User unmuted");
     Ok(())
 }
 
@@ -368,7 +368,7 @@ pub async fn softban(
     )
     .await?;
 
-    info!(target_id, "User successfully soft-banned");
+    info!(target_id, "User soft-banned");
     Ok(())
 }
 
@@ -410,10 +410,10 @@ pub async fn unban(
             ))
             .await?;
 
-            info!(target_id, "User successfully unbanned");
+            info!(target_id, "User unbanned");
         }
         Err(err) => {
-            warn!(error = ?err, target_id, "Failed to execute unban operation via serenity API");
+            warn!(error = ?err, target_id, "execute unban operation via serenity API");
             ctx.say(format!("Failed to unban user: {err}")).await?;
         }
     }

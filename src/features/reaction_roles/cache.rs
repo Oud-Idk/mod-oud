@@ -15,18 +15,22 @@ pub async fn get_cached_role(redis: &Client, cache_key: &str) -> Option<Option<R
             }
             cached_val.parse::<u64>().map_or_else(
                 |_| {
-                    error!("Invalid role ID format in Redis cache: {}", cached_val);
+                    error!(
+                        cache_key,
+                        fault = "cached role id is not a u64",
+                        "invalid role id in redis cache"
+                    );
                     None
                 },
                 |role_id_u64| Some(Some(RoleId::new(role_id_u64))),
             )
         }
         Ok(None) => {
-            trace!("Cache miss when finding role. Querying from database.");
+            trace!("cache miss when finding role, querying from database");
             None
         }
         Err(e) => {
-            warn!("Redis read error (falling back to database): {}", e);
+            warn!(cache_key, error = ?e, "redis read failed, falling back to database");
             None
         }
     }
@@ -38,7 +42,7 @@ pub async fn cache_role(redis: &Client, cache_key: &str, role_id: RoleId) {
         .set::<(), _, _>(cache_key, role_id.get(), None, None, false)
         .await
     {
-        warn!("Failed to write role to Redis: {}", e);
+        warn!(cache_key, %role_id, error = %e, "failed to write role to redis");
     }
 }
 
@@ -49,6 +53,6 @@ pub async fn cache_role_none(redis: &Client, cache_key: &str) {
         .set::<(), _, _>(cache_key, "none", Some(expiration), None, false)
         .await
     {
-        warn!("Failed to write negative cache result to Redis: {}", e);
+        warn!(cache_key, error = %e, "failed to write negative cache result to redis");
     }
 }

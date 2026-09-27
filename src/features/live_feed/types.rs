@@ -14,23 +14,17 @@ impl LogEvent {
     pub fn from_redis(channel: &str, payload: &str) -> Option<Self> {
         match channel {
             "discord:deletes" => serde_json::from_str::<DeletedMessagePayload>(payload)
-                .inspect_err(
-                    |e| warn!(error = %e, %channel, "Failed to deserialize DeletedMessagePayload"),
-                )
+                .inspect_err(|e| warn!(error = %e, %channel, "deserialize DeletedMessagePayload"))
                 .ok()
                 .map(Self::MessageDelete),
 
             "discord:updates" => serde_json::from_str::<ModifiedMessagePayload>(payload)
-                .inspect_err(
-                    |e| warn!(error = %e, %channel, "Failed to deserialize ModifiedMessagePayload"),
-                )
+                .inspect_err(|e| warn!(error = %e, %channel, "deserialize ModifiedMessagePayload"))
                 .ok()
                 .map(Self::MessageEdit),
 
             "discord:reports" => serde_json::from_str::<ReportedMessagePayload>(payload)
-                .inspect_err(
-                    |e| warn!(error = %e, %channel, "Failed to deserialize ReportedMessagePayload"),
-                )
+                .inspect_err(|e| warn!(error = %e, %channel, "deserialize ReportedMessagePayload"))
                 .ok()
                 .map(Self::MessageReport),
 

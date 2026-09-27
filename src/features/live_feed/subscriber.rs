@@ -19,7 +19,7 @@ pub async fn start_live_feed_subscriber(
             let channel = msg.channel.to_string();
 
             let Ok(payload_str) = msg.value.convert::<String>() else {
-                warn!(channel = %channel, "Failed to convert Redis message value to String");
+                warn!(channel = %channel, "convert Redis message value to String");
                 return Ok(());
             };
 
@@ -32,10 +32,10 @@ pub async fn start_live_feed_subscriber(
             if LogEvent::REDIS_CHANNELS.contains(&channel.as_str()) {
                 if let Some(event) = LogEvent::from_redis(&channel, &payload_str) {
                     if let Err(e) = tx.send(event) {
-                        error!(error = %e, "Failed to send LogEvent to broadcast channel");
+                        error!(error = %e, "send LogEvent to broadcast channel");
                     }
                 } else {
-                    warn!(channel = %channel, "Failed to parse LogEvent from Redis payload");
+                    warn!(channel = %channel, "parse LogEvent from Redis payload");
                 }
             } else {
                 trace!(channel = %channel, "Received irrelevant payload; skipping");
@@ -49,9 +49,9 @@ pub async fn start_live_feed_subscriber(
         .map(|&c| Key::from(c))
         .collect();
 
-    info!(channels = ?LogEvent::REDIS_CHANNELS, "Subscribing to Redis channels...");
+    info!(channels = ?LogEvent::REDIS_CHANNELS, "Subscribing to Redis channels");
     subscriber_client.subscribe(channels).await?;
-    info!("Successfully subscribed to Redis channels");
+    info!("subscribed to Redis channels");
 
     Ok(())
 }

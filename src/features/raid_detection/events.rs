@@ -64,7 +64,7 @@ pub async fn handle_raid_detection(
     let hour_str = now.format("%Y%m%d%H").to_string();
     if let Err(e) = cache::increment_hourly_accumulator(&data.core.redis, guild_id, &hour_str).await
     {
-        warn!(error = ?e, %guild_id, "Failed to increment hourly stats accumulator");
+        warn!(error = ?e, %guild_id, "increment hourly stats accumulator");
     }
 
     // Spike detected (Starts raid OR spikes during ongoing raid)
@@ -116,7 +116,7 @@ pub async fn handle_raid_detection(
         debug!(
             %guild_id,
             %user_id,
-            "Join occurred during active raid session. Applying member mitigations."
+            "join occurred during an active raid session, applying member mitigations"
         );
 
         // Keep the raid cooldown timer alive
@@ -125,7 +125,7 @@ pub async fn handle_raid_detection(
                 error = ?e,
                 %guild_id,
                 %user_id,
-                "Failed to extend raid cooldown; raid may be treated as resolved early"
+                "extend raid cooldown; raid may be treated as resolved early"
             );
         }
 
@@ -168,13 +168,13 @@ async fn handle_raid_lifecycle(
         error!(
             error = %e,
             %guild_id,
-            "Failed to save pre-raid state snapshot; rolling back active raid flag"
+            "save pre-raid state snapshot; rolling back active raid flag"
         );
         if let Err(clear_err) = cache::clear_raid_active(&data.core.redis, guild_id).await {
             error!(
                 error = ?clear_err,
                 %guild_id,
-                "Failed to clear raid active flag during rollback; raid may stay flagged active"
+                "clear raid active flag during rollback; raid may stay flagged active"
             );
         }
         return Err(e);
@@ -191,7 +191,7 @@ async fn handle_raid_lifecycle(
     )
     .await
     {
-        error!(error = ?e, %guild_id, "Failed to log raid trigger event");
+        error!(error = ?e, %guild_id, "log raid trigger event");
     }
 
     spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
@@ -217,7 +217,7 @@ async fn apply_guild_mitigations(
                 let data = (*data).clone();
                 tokio::spawn(async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        error!(error = ?e, %guild_id, "Failed to lock server in background task");
+                        error!(error = ?e, %guild_id, "lock server in background task");
                     }
                 });
             }
@@ -241,7 +241,7 @@ async fn apply_guild_mitigations(
                 let message = CreateMessage::new().content(alert_message);
 
                 if let Err(e) = channel.send_message(&ctx.http, message).await {
-                    error!(error = %e, channel_id, %guild_id, "Failed to send raid alert message");
+                    error!(error = %e, channel_id, %guild_id, "send raid alert message");
                 }
             }
             _ => {}

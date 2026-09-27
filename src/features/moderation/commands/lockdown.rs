@@ -49,10 +49,7 @@ pub async fn lock(
     )
     .await?;
 
-    info!(
-        caller_id,
-        target_channel_id, "Channel locked down successfully"
-    );
+    info!(caller_id, target_channel_id, "Channel locked down");
     Ok(())
 }
 
@@ -86,10 +83,7 @@ pub async fn unlock(
 
     log_action(&ctx, meta.id, target_channel_id, ActionType::Unlock, None).await?;
 
-    info!(
-        caller_id,
-        target_channel_id, "Channel unlocked successfully"
-    );
+    info!(caller_id, target_channel_id, "Channel unlocked");
     Ok(())
 }
 
@@ -139,7 +133,7 @@ pub async fn global_lock(
             guild_id,
             locked_count = report.succeeded,
             failed_count = report.failed_channel_ids.len(),
-            "Global lockdown completed successfully"
+            "Global lockdown completed"
         );
     } else {
         ctx.say("Global lockdown is already in progress. Please wait a moment and try again.")
@@ -188,7 +182,7 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
             guild_id,
             unlocked_count = report.succeeded,
             failed_count = report.failed_channel_ids.len(),
-            "Global unlock completed successfully"
+            "Global unlock completed"
         );
     } else {
         ctx.say("Global unlock is already in progress. Please wait a moment and try again.")

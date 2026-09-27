@@ -96,7 +96,7 @@ pub async fn issue_warning(
 
     thresholds::apply_threshold_actions(http, db, &mut member, &applicable_thresholds).await?;
 
-    info!(warn_id, "Successfully issued warning to user");
+    info!(warn_id, "issued warning to user");
     Ok(warn_id)
 }
 
@@ -188,7 +188,7 @@ pub async fn issue_warning_status_change(
     info!(
         target_user_id,
         action = action_past_tense,
-        "Successfully processed warning status update"
+        "processed warning status update"
     );
     Ok(Some((target_user_id, reason)))
 }
@@ -255,6 +255,6 @@ pub async fn issue_delete_warning(
         }
     );
 
-    info!(target_user_id, "Successfully processed warning deletion");
+    info!(target_user_id, "processed warning deletion");
     Ok(Some((target_user_id, reason)))
 }

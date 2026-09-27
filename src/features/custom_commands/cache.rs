@@ -18,7 +18,7 @@ pub async fn cache_command_to_redis(
                 warn!(
                     error = ?e,
                     cache_key,
-                    "Failed to cache custom command; next lookup refetches from DB"
+                    "cache custom command; next lookup refetches from DB"
                 );
             }
         }
@@ -31,7 +31,7 @@ pub async fn cache_command_to_redis(
             warn!(
                 error = ?e,
                 cache_key,
-                "Failed to cache negative custom command lookup; DB may be hit more often"
+                "cache negative custom command lookup; DB may be hit more often"
             );
         }
     }
@@ -74,7 +74,7 @@ pub async fn cache_anywhere_names_to_redis(redis: &Client, cache_key: &str, name
             warn!(
                 error = ?e,
                 cache_key,
-                "Failed to cache anywhere command names; next lookup refetches from DB"
+                "cache anywhere command names; next lookup refetches from DB"
             );
         }
     }

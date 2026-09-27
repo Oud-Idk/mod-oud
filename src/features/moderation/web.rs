@@ -52,7 +52,7 @@ pub async fn handle_delete_entire_category(
 
     let deleted_count = delete_entire_category(&state.serenity_http, guild_id, category_id)
         .await
-        .inspect_err(|e| warn!(error = ?e, "Failed to delete category through API"))
+        .inspect_err(|e| warn!(error = ?e, "delete category through API"))
         .map_err(|_e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -64,7 +64,7 @@ pub async fn handle_delete_entire_category(
         %guild_id,
         category_id = payload.category_id,
         deleted_children = deleted_count,
-        "Successfully deleted category and nested channels via API"
+        "deleted category and nested channels via API"
     );
 
     Ok((
