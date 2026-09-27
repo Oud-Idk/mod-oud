@@ -53,7 +53,7 @@ pub async fn handle_dashboard_command(
                     warn!(
                         status = %status,
                         error = %err_msg,
-                        "fetch target report details from database"
+                        "target report lookup failed"
                     );
                 }
             })?;
@@ -61,11 +61,6 @@ pub async fn handle_dashboard_command(
     let redis_conn = state.core.redis.clone();
     let moderator_name = cmd.name.as_deref().unwrap_or("Web Dashboard");
     let moderator_id = cmd.moderator_id;
-
-    info!(
-        moderator_name = moderator_name,
-        "processing dashboard moderation command"
-    );
 
     match &cmd.action {
         DashboardAction::ResolveReport { status } => {
@@ -103,11 +98,16 @@ pub async fn handle_dashboard_command(
     }
 
     if let Err(e) = broadcast_report_update(&state.core.db, &redis_conn, cmd.report_id).await {
-        warn!(error = ?e, "broadcast report update after moderation action");
+        warn!(error = ?e, "dashboard report update broadcast failed");
         return Err(WebError::Internal);
     }
 
-    info!("dashboard moderation command executed");
+    info!(
+        report_id = cmd.report_id,
+        moderator_id = ?moderator_id,
+        action = ?cmd.action,
+        "dashboard moderation command applied and broadcast"
+    );
     Ok(StatusCode::OK)
 }
 

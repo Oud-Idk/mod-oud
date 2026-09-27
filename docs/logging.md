@@ -331,6 +331,18 @@ name, `config_id` and `giveaway_id` after the variable they came from, and `raw_
 unparsed text a dashboard row held. `key` and `value` in `locking.rs` are left alone, because there
 `value` is the lock's own fencing token and the pair is the domain.
 
+Reporting then got the same treatment, 30 lines of it, since it had the most: gerunds announcing
+the next line, and `info!` on the dashboard's four moderation actions written *before* the action
+with no ids at all. The doc puts `info!` at "actions taken", so each of those moved to after the
+action and gained `report_id`, `guild_id`, `user_id` and `moderator_id`. Four were `info!` with an
+empty field list, which is the worst case: an operator-timeline line that cannot be tied to
+anything.
+
+**One thing left deliberately.** Nine `#[instrument]` functions also contain `error!`, which the
+letter of the "log a failure once" rule rejects. A plain `#[instrument]` does not log the error, so
+there is no duplicated line, only a rejected shape. The decision is to leave them, on the grounds
+that the rule's reasoning beats its letter.
+
 The 15 sites that named a fallback in the message prose now carry a `fallback` field, valued so a
 query can tell the routes apart: `"db"` three times, `"default layout"` four, `"http"`,
 `"postgres"`, `"redis"`, `"defaults"`, `"bot id"`, and so on. Two sites that said "fallback" were

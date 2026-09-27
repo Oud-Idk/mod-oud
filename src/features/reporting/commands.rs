@@ -31,31 +31,27 @@ pub async fn report_message(
     let Context::Application(app_ctx) = ctx else {
         warn!(
             reporter_id = %reporter.id,
-            "report_message command triggered with a non-application context"
+            "report modal needs an application context"
         );
         return Ok(());
     };
 
     info!(
         reporter_id = %reporter.id,
-        reported_message_id = %reported_message.id, %guild_id, "invoked report_message context menu command"
+        reported_message_id = %reported_message.id, %guild_id, "report context menu invoked"
     );
 
     let db = &ctx.data().core.db;
     let redis = ctx.data().core.redis.clone();
     let guild_configs = &ctx.data().core.guild_configs_cache;
 
-    trace!(
-        %guild_id,
-        "fetching server settings for report configuration check"
-    );
     let config = get_settings(db, &redis, guild_configs, guild_id).await?;
     let report_enabled = config.report.as_ref().is_some_and(|r| r.enabled);
 
     if !report_enabled {
         debug!(
             %guild_id,
-            "report command execution cancelled: report feature is disabled in this guild"
+            "report command cancelled; the feature is disabled for this guild"
         );
         ctx.send(
             poise::CreateReply::default()
@@ -66,13 +62,13 @@ pub async fn report_message(
         return Ok(());
     }
 
-    trace!(reporter_id = %reporter.id, "executing report modal prompt");
+    trace!(reporter_id = %reporter.id, "report modal shown");
     let modal_data = ReportModal::execute(app_ctx).await?;
 
     if let Some(modal) = modal_data {
         debug!(
             reporter_id = %reporter.id,
-            reported_message_id = %reported_message.id, "report modal submitted; issuing report"
+            reported_message_id = %reported_message.id, "report modal submitted"
         );
         let metadata = ReportMetadata {
             guild_id,
@@ -101,7 +97,7 @@ pub async fn report_message(
             debug!(
                 reporter_id = %ctx.author().id,
                 reported_message_id = %reported_message.id,
-                "duplicate report rejected: this message was already reported by this user"
+                "duplicate report rejected; this user already reported this message"
             );
             "Someone has already reported this message."
         };

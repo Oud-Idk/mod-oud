@@ -24,8 +24,6 @@ pub async fn handle_timeout(
         WebError::BadRequest("Missing duration_mins parameter".to_string())
     })?;
 
-    info!(duration_minutes = duration_mins, "issuing timeout to user");
-
     let (user, moderator) = tokio::try_join!(
         resolve_target_user(&state.serenity_http, user_id),
         resolve_moderator_user(&state.serenity_http, mod_id)
@@ -43,14 +41,17 @@ pub async fn handle_timeout(
         .as_secs();
 
     let future_secs = now_secs.checked_add(duration_mins * 60).ok_or_else(|| {
-        debug!(duration_mins, "duration calculation overflowed during timeout window generation");
+        debug!(
+            duration_mins,
+            "timeout window duration calculation overflowed"
+        );
         WebError::BadRequest("Duration calculation overflowed".to_string())
     })?;
 
     let timestamp = poise::serenity_prelude::Timestamp::from_unix_timestamp(
         i64::try_from(future_secs).unwrap_or(i64::MAX),
     )
-    .inspect_err(|e| warn!(error = %e, "construct valid serenity Timestamp"))
+    .inspect_err(|e| warn!(error = %e, "timeout timestamp unavailable"))
     .map_err(|_e| WebError::Internal)?;
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
@@ -68,8 +69,16 @@ pub async fn handle_timeout(
         timestamp,
     )
     .await
-    .inspect_err(|e| warn!(error = %e, "issue mute inside core utilities"))
+    .inspect_err(|e| warn!(error = %e, "mute not issued"))
     .map_err(|_e| WebError::Internal)?;
+
+    info!(
+        report_id = cmd.report_id,
+        %guild_id,
+        %user_id,
+        duration_minutes = duration_mins,
+        "dashboard timeout applied"
+    );
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserTimedOut).await?;
     Ok(StatusCode::OK)

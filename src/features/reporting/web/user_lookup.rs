@@ -34,9 +34,7 @@ pub async fn resolve_moderator_user(
     mod_id
         .to_user(http)
         .await
-        .inspect_err(
-            |e| warn!(error = %e, %mod_id, "retrieve moderator user details from Discord API"),
-        )
+        .inspect_err(|e| warn!(error = %e, %mod_id, "moderator user lookup from discord failed"))
         .map_err(|_| {
             (
                 StatusCode::BAD_GATEWAY,
@@ -53,9 +51,7 @@ pub async fn resolve_target_user(
     user_id
         .to_user(http)
         .await
-        .inspect_err(
-            |e| warn!(error = %e, %user_id, "retrieve target user details from Discord API"),
-        )
+        .inspect_err(|e| warn!(error = %e, %user_id, "target user lookup from discord failed"))
         .map_err(|_| {
             (
                 StatusCode::BAD_GATEWAY,
