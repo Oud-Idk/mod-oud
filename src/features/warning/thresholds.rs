@@ -5,7 +5,6 @@ use serenity::all::{Http, Member, Timestamp};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::debug;
-use tracing::field::debug;
 
 pub async fn apply_threshold_actions(
     http: &Arc<Http>,
@@ -21,22 +20,21 @@ pub async fn apply_threshold_actions(
         for action in &threshold.action_type {
             match action {
                 WarnAction::Ban => {
-                    debug!("Executing auto-ban");
                     member
                         .ban_with_reason(http, 7, "Reached warning threshold")
                         .await?;
+                    debug!("auto-ban applied at the warning threshold");
                     actions.push("BAN");
                 }
                 WarnAction::Kick => {
-                    debug!("Executing auto-kick");
                     member
                         .kick_with_reason(http, "Reached warning threshold")
                         .await?;
+                    debug!("auto-kick applied at the warning threshold");
                     actions.push("KICK");
                 }
                 WarnAction::Timeout => {
                     if let Some(secs) = threshold.duration {
-                        debug!(secs, "Executing auto-timeout");
                         let until = Timestamp::from_unix_timestamp(
                             chrono::Utc::now().timestamp() + i64::from(secs),
                         )?;
@@ -44,14 +42,15 @@ pub async fn apply_threshold_actions(
                         let mut builder = serenity::builder::EditMember::new();
                         builder = builder.disable_communication_until(until.to_string());
                         member.edit(http, builder).await?;
+                        debug!(secs, "auto-timeout applied at the warning threshold");
                     }
                     actions.push("MUTE");
                 }
                 WarnAction::RoleAdd => {
                     if let Some(ref roles) = threshold.roles_to_add {
                         for role_id in roles {
-                            debug!(%role_id, "Adding role from threshold");
                             member.add_role(http, *role_id).await?;
+                            debug!(%role_id, "threshold role added");
                         }
                     }
                     actions.push("ROLE_ADD");
@@ -59,17 +58,17 @@ pub async fn apply_threshold_actions(
                 WarnAction::RoleRemove => {
                     if let Some(ref roles) = threshold.roles_to_remove {
                         for role_id in roles {
-                            debug!(%role_id, "Removing role from threshold");
                             member.remove_role(http, *role_id).await?;
+                            debug!(%role_id, "threshold role removed");
                         }
                     }
                     actions.push("ROLE_REMOVE");
                 }
                 WarnAction::RoleRemoveAll => {
-                    debug!("Removing all roles from member");
                     for role in &member.roles {
                         member.remove_role(http, *role).await?;
                     }
+                    debug!("every role removed from the member at the warning threshold");
                     actions.push("ROLE_REMOVE_ALL");
                 }
             }
@@ -88,8 +87,6 @@ async fn insert_threshold_automod_log(
     warn_count: i32,
     actions_taken: &[&str],
 ) -> Result<(), Error> {
-    debug("Inserting automod-log for threshold");
-
     let entry = AutomodEntryRow {
         guild_id: member.guild_id,
         user_id: member.user.id,
@@ -102,5 +99,6 @@ async fn insert_threshold_automod_log(
     };
 
     insert_automod_row(db, entry).await?;
+    debug!("warn threshold automod log stored");
     Ok(())
 }

@@ -43,7 +43,7 @@ pub async fn get_hub_and_cache(
             .set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false)
             .await
         {
-            warn!(%guild_id, error = %e, "failed to write temp voice cache to redis");
+            warn!(%guild_id, error = %e, "temp voice cache write to redis failed");
         }
     }
     Ok(hub)
@@ -84,7 +84,12 @@ pub async fn get_hub_info(
             Ok(hub) => hub, // valid cache hit
             Err(e) => {
                 // malformed body, then we refetch and invalidate and stuff
-                warn!(error = %e, cache_key = %cache_key, "Corrupt cache entry, falling back to DB");
+                warn!(
+                    error = %e,
+                    cache_key = %cache_key,
+                    fallback = "db",
+                    "temp voice cache entry parse failed"
+                );
                 get_hub_and_cache(guild_id, redis, db, target_channel_id, cache_key).await?
             }
         },
@@ -131,7 +136,7 @@ pub async fn get_hub_and_cache_by_category(
             .set::<(), _, _>(cache_key, &json_str, Some(Expiration::EX(ttl)), None, false)
             .await
         {
-            warn!(%guild_id, error = %e, "failed to write temp voice cache to redis");
+            warn!(%guild_id, error = %e, "temp voice cache write to redis failed");
         }
     }
     Ok(hub)
@@ -150,7 +155,12 @@ pub async fn get_hub_info_by_category(
             Ok(hub) => hub, // valid cache hit
             Err(e) => {
                 // malformed body, then we refetch and invalidate
-                warn!(error = %e, cache_key = %cache_key, "Corrupt cache entry, falling back to DB");
+                warn!(
+                    error = %e,
+                    cache_key = %cache_key,
+                    fallback = "db",
+                    "temp voice cache entry parse failed"
+                );
                 get_hub_and_cache_by_category(guild_id, redis, db, category_id, cache_key).await?
             }
         },

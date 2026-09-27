@@ -31,14 +31,9 @@ pub async fn handle_create_temp_category_and_hub(
     Path(guild_id_str): Path<String>,
     Json(payload): Json<CreateTempHubPayload>,
 ) -> Result<(StatusCode, Json<CreateTempHubResponse>), (StatusCode, String)> {
-    debug!(
-        guild_id = guild_id_str,
-        "Received request to create temp category and voice hub"
-    );
-
     let guild_id_u64 = guild_id_str
         .parse::<u64>()
-        .inspect_err(|e| debug!(error = ?e, guild_id_str = guild_id_str, "Rejected request with unparseable guild ID"))
+        .inspect_err(|e| debug!(error = ?e, guild_id_str = guild_id_str, "rejected request with unparseable guild ID"))
         .map_err(|_| {
             (
                 StatusCode::BAD_REQUEST,
@@ -50,18 +45,23 @@ pub async fn handle_create_temp_category_and_hub(
     let category_builder = serenity::all::CreateChannel::new(&payload.category_name)
         .kind(serenity::all::ChannelType::Category);
 
-    info!(%guild_id, name = %payload.category_name, "Creating temporary category");
-
     let category = guild_id
         .create_channel(&state.serenity_http, category_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "create category"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "temporary category creation failed"))
         .map_err(|_e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error.".to_string(),
             )
         })?;
+
+    info!(
+        %guild_id,
+        category_id = %category.id,
+        name = %payload.category_name,
+        "temporary category created"
+    );
 
     let interface_builder = serenity::all::CreateChannel::new("Interface")
         .kind(serenity::all::ChannelType::Text)
@@ -70,7 +70,7 @@ pub async fn handle_create_temp_category_and_hub(
     let interface_channel = guild_id
         .create_channel(&state.serenity_http, interface_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "create interface channel"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "interface channel creation failed"))
         .map_err(|_e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -81,7 +81,7 @@ pub async fn handle_create_temp_category_and_hub(
     info!(
         %guild_id,
         channel_id = interface_channel.id.get(),
-        "Created interface channel"
+        "interface channel created"
     );
 
     let voice_builder = serenity::all::CreateChannel::new(&payload.hub_channel_name)
@@ -91,7 +91,7 @@ pub async fn handle_create_temp_category_and_hub(
     let voice_channel = guild_id
         .create_channel(&state.serenity_http, voice_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "create voice hub channel"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "voice hub channel creation failed"))
         .map_err(|_e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -104,7 +104,7 @@ pub async fn handle_create_temp_category_and_hub(
         category_id = %category.id,
         interface_channel_id = %interface_channel.id.get(),
         voice_channel_id = %voice_channel.id,
-        "Temp category and voice hub created"
+        "temp category and voice hub created"
     );
 
     Ok((

@@ -9,11 +9,17 @@ pub async fn fetch_member_roles(
 ) -> Option<Vec<RoleId>> {
     match ctx.http.get_member(guild_id, user_id).await {
         Ok(member) => {
-            debug!(%guild_id, %user_id, "fetching member roles");
+            debug!(%guild_id, %user_id, "member roles fetched");
             Some(member.roles)
         }
         Err(e) => {
-            warn!(%guild_id, %user_id, error = ?e, "could not fetch roles, proceeding without cache");
+            warn!(
+                %guild_id,
+                %user_id,
+                error = ?e,
+                fallback = "no member roles",
+                "member role lookup failed"
+            );
             None
         }
     }
@@ -57,7 +63,7 @@ pub async fn apply_role_modifications(
         if let Some(current_roles) = member_roles
             && current_roles.contains(&role_id)
         {
-            trace!(%role_id, "User already contains role");
+            trace!(%role_id, "user already holds the role");
             continue;
         }
 
@@ -66,7 +72,7 @@ pub async fn apply_role_modifications(
             .add_member_role(guild_id, user_id, role_id, Some("Level reward granted"))
             .await
         {
-            warn!(%guild_id, %user_id, %role_id, error = %e, "failed to add level reward role");
+            warn!(%guild_id, %user_id, %role_id, error = %e, "level reward role not added");
             continue;
         }
         debug!(%guild_id, %user_id, %role_id, "added level reward role");
@@ -76,7 +82,7 @@ pub async fn apply_role_modifications(
         if let Some(current_roles) = member_roles
             && !current_roles.contains(&role_id)
         {
-            trace!(%role_id, "User already doesn't contains role");
+            trace!(%role_id, "user does not hold the role");
             continue;
         }
 
@@ -85,7 +91,7 @@ pub async fn apply_role_modifications(
             .remove_member_role(guild_id, user_id, role_id, Some("Level reward cleanup"))
             .await
         {
-            warn!(%guild_id, %user_id, %role_id, error = %e, "failed to remove level reward role");
+            warn!(%guild_id, %user_id, %role_id, error = %e, "level reward role not removed");
             continue;
         }
 

@@ -7,6 +7,7 @@ use crate::features::raid_detection::implementation::DynamicRaidDetector;
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
+use crate::shared::task;
 use chrono::{DateTime, Utc};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, EditMember, GuildId, Member,
@@ -44,7 +45,7 @@ pub async fn handle_raid_detection(
     .await?
     .raid_detection
     else {
-        trace!(%guild_id, "Raid detection is disabled or unconfigured");
+        trace!(%guild_id, "raid detection disabled or unconfigured");
         return Ok(());
     };
 
@@ -64,21 +65,11 @@ pub async fn handle_raid_detection(
     let hour_str = now.format("%Y%m%d%H").to_string();
     if let Err(e) = cache::increment_hourly_accumulator(&data.core.redis, guild_id, &hour_str).await
     {
-        warn!(error = ?e, %guild_id, "increment hourly stats accumulator");
+        warn!(error = ?e, %guild_id, "hourly stats accumulator not incremented");
     }
 
     // Spike detected (Starts raid OR spikes during ongoing raid)
     if result.is_anomaly {
-        info!(
-            %guild_id,
-            %user_id,
-            current_joins = result.current_joins_in_window,
-            threshold = result.calculated_threshold,
-            avg_joins_per_min = result.avg_joins_per_min,
-            std_dev_per_min = result.std_dev_per_min,
-            "Raid anomaly detected! Executing mitigation actions"
-        );
-
         let alert_message = format!(
             "# Raid detected! Statistics\n\
             - Current joins in the past minute: {}\n\
@@ -108,29 +99,39 @@ pub async fn handle_raid_detection(
 
         // Apply member-specific mitigations (timeouts, auto-bans)
         apply_member_mitigations(ctx, new_member, &raid_config.raid_actions, now).await?;
+
+        info!(
+            %guild_id,
+            %user_id,
+            current_joins = result.current_joins_in_window,
+            threshold = result.calculated_threshold,
+            avg_joins_per_min = result.avg_joins_per_min,
+            std_dev_per_min = result.std_dev_per_min,
+            "raid anomaly detected; mitigation applied"
+        );
         return Ok(());
     }
 
     // Raid is active, even if this single join isn't a spike
     if is_already_active {
-        debug!(
-            %guild_id,
-            %user_id,
-            "join occurred during an active raid session, applying member mitigations"
-        );
-
         // Keep the raid cooldown timer alive
         if let Err(e) = detector.extend_raid_active(guild_id, 300).await {
             warn!(
                 error = ?e,
                 %guild_id,
                 %user_id,
-                "extend raid cooldown; raid may be treated as resolved early"
+                "raid cooldown not extended; raid may be treated as resolved early"
             );
         }
 
         // Apply member-specific mitigations to this joiner as well!
         apply_member_mitigations(ctx, new_member, &raid_config.raid_actions, now).await?;
+
+        debug!(
+            %guild_id,
+            %user_id,
+            "member mitigations applied during an active raid session"
+        );
         return Ok(());
     }
 
@@ -140,7 +141,7 @@ pub async fn handle_raid_detection(
         window_seconds = raid_config.window_size_seconds,
         current_joins = result.current_joins_in_window,
         threshold = result.calculated_threshold,
-        "Member join recorded within safety limits"
+        "member join recorded within safety limits"
     );
 
     Ok(())
@@ -157,24 +158,23 @@ async fn handle_raid_lifecycle(
     alert_message: &str,
 ) -> Result<(), Error> {
     if !is_first_trigger {
-        debug!(%guild_id, "Raid active state already present; extending TTL");
         detector.extend_raid_active(guild_id, 300).await?;
         return Ok(());
     }
 
-    info!(%guild_id, "First raid trigger recorded; initializing server snapshot and monitors");
+    info!(%guild_id, "first raid trigger recorded");
 
     if let Err(e) = ensure_preraid_state_saved(ctx, data, guild_id).await {
         error!(
             error = %e,
             %guild_id,
-            "save pre-raid state snapshot; rolling back active raid flag"
+            "pre-raid state snapshot save failed; rolling back active raid flag"
         );
         if let Err(clear_err) = cache::clear_raid_active(&data.core.redis, guild_id).await {
             error!(
                 error = ?clear_err,
                 %guild_id,
-                "clear raid active flag during rollback; raid may stay flagged active"
+                "raid active flag not cleared during rollback; raid may stay flagged active"
             );
         }
         return Err(e);
@@ -191,7 +191,7 @@ async fn handle_raid_lifecycle(
     )
     .await
     {
-        error!(error = ?e, %guild_id, "log raid trigger event");
+        error!(error = ?e, %guild_id, "raid trigger event log write failed");
     }
 
     spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
@@ -212,21 +212,19 @@ async fn apply_guild_mitigations(
     for action in actions {
         match action {
             RaidAction::LockdownServer => {
-                info!(%guild_id, "Spawning global server lockdown background task");
                 let ctx = ctx.clone();
                 let data = (*data).clone();
-                tokio::spawn(async move {
+                task::spawn("raid_global_lock", async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        error!(error = ?e, %guild_id, "lock server in background task");
+                        warn!(error = ?e, %guild_id, "global server lockdown not applied");
                     }
                 });
             }
             RaidAction::BumpVerification => {
-                info!(%guild_id, "Bumping server verification requirement to hCaptcha");
                 database::bump_verification_to_max(&data.core.db, guild_id).await?;
+                info!(%guild_id, "server verification requirement set to hCaptcha");
             }
             RaidAction::PauseInvites { hours } => {
-                info!(%guild_id, hours, "Pausing server invites");
                 let until = Utc::now() + chrono::Duration::hours(*hours);
                 let timestamp = Timestamp::from_unix_timestamp(until.timestamp())?;
                 let builder = EditGuildIncidentActions::new().invites_disabled_until(timestamp);
@@ -234,14 +232,22 @@ async fn apply_guild_mitigations(
                 guild_id
                     .edit_guild_incident_actions(&ctx.http, guild_id, builder)
                     .await?;
+
+                info!(%guild_id, hours, "server invites paused");
             }
             RaidAction::Alert { channel_id } => {
-                info!(%guild_id, channel_id, "Sending raid notification alert to channel");
                 let channel = ChannelId::new(*channel_id);
                 let message = CreateMessage::new().content(alert_message);
 
                 if let Err(e) = channel.send_message(&ctx.http, message).await {
-                    error!(error = %e, channel_id, %guild_id, "send raid alert message");
+                    warn!(
+                        error = %e,
+                        channel_id,
+                        %guild_id,
+                        "raid alert message delivery failed"
+                    );
+                } else {
+                    info!(%guild_id, channel_id, "raid alert sent to the configured channel");
                 }
             }
             _ => {}
@@ -272,7 +278,7 @@ async fn apply_member_mitigations(
                         %user_id,
                         account_age_hours = age.num_hours(),
                         max_age_hours,
-                        "Auto-banning account created too recently during active raid"
+                        "account age below the auto-ban threshold during an active raid"
                     );
                     member
                         .ban_with_reason(
@@ -284,17 +290,18 @@ async fn apply_member_mitigations(
                 }
             }
             RaidAction::TimeoutNewJoins { mins } => {
-                warn!(
-                    %guild_id,
-                    %user_id,
-                    timeout_mins = mins,
-                    "Applying communication timeout to new join during active raid"
-                );
                 let timeout_until = Utc::now() + chrono::Duration::minutes(i64::from(*mins));
                 let timestamp = Timestamp::from_unix_timestamp(timeout_until.timestamp())?;
                 let builder = EditMember::new().disable_communication_until_datetime(timestamp);
 
                 guild_id.edit_member(&ctx.http, user_id, builder).await?;
+
+                warn!(
+                    %guild_id,
+                    %user_id,
+                    timeout_mins = mins,
+                    "communication timeout applied to a new join during an active raid"
+                );
             }
             _ => {}
         }

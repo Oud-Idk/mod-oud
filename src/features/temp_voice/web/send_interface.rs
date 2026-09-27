@@ -34,7 +34,7 @@ pub async fn handle_send_temp_voice_interface(
 ) -> Result<(StatusCode, Json<SendTempVoiceInterfaceResponse>), (StatusCode, String)> {
     debug!(
         guild_id = guild_id_str,
-        "Received request to dispatch generic embed"
+        "temp voice interface delivery requested"
     );
 
     let target_channel = serenity::all::ChannelId::new(payload.channel_id);
@@ -96,7 +96,13 @@ pub async fn handle_send_temp_voice_interface(
     let message = target_channel
         .send_message(&state.serenity_http, message_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "deliver interface"))
+        .inspect_err(|e| {
+            warn!(
+                error = ?e,
+                channel_id = payload.channel_id,
+                "interface delivery failed"
+            );
+        })
         .map_err(|_e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -107,7 +113,7 @@ pub async fn handle_send_temp_voice_interface(
     info!(
         channel_id = payload.channel_id,
         message_id = %message.id,
-        "Interface delivered"
+        "interface message sent"
     );
 
     Ok((

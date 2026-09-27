@@ -21,7 +21,7 @@ static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 #[instrument]
 async fn health_check() -> &'static str {
-    debug!("Health check endpoint called");
+    debug!("health check endpoint called");
     "OK"
 }
 

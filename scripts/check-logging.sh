@@ -74,16 +74,39 @@ fi
 
 # --- rule 4: info! budget per file --------------------------------------------
 # info! is the operator timeline. A file that logs it per message is a flood.
+# audit.rs is exempt: it holds one function per audited event and every one of
+# them is an action taken, which is what info! is for.
 budget="${INFO_BUDGET:-8}"
 noisy="$(extract_calls |
   awk -F'\t' -v b="$budget" '
-    $2 ~ /^info!/ { split($1, p, ":"); count[p[1]]++ }
+    $2 ~ /^info!/ {
+      split($1, p, ":")
+      if (p[1] ~ /audit\.rs$/) next
+      count[p[1]]++
+    }
     END { for (f in count) if (count[f] > b) print count[f] "\t" f }' |
   sort -rn)"
 if [[ -n "$noisy" ]]; then
   while IFS= read -r line; do
     red "over info! budget ($budget): ${line#*$'\t'}"
   done <<< "$noisy"
+  fail=1
+fi
+
+# --- rule 5: level( is not level!( ----------------------------------------------
+# `debug("x")` binds to `tracing::field::debug`, the field constructor, not the macro. It
+# compiles to a discarded expression and logs nothing, so the line reads as correct and is not.
+# The awk extractor only matches `level!(`, so without this rule the mistake is invisible.
+# `pub async fn info(` and friends are not calls, so a definition is not a hit.
+not_macro="$(rg -n --no-heading -P '(?<![\w:!.])(trace|debug|info|warn|error)\(' \
+  -g '*.rs' "$target" |
+  rg -v -P '^\S+:\d+:\s*(pub |pub\(crate\) |pub\(super\) )?(async )?fn \w' |
+  rg -v -P '\b(warn|error|info|debug|trace)_(span|event|level)\b' || true)"
+if [[ -n "$not_macro" ]]; then
+  while IFS= read -r line; do
+    red "level( is not level!( : ${line#*:}"
+  done <<< "$not_macro"
+  note "  a bare level( binds to tracing::field::level and logs nothing."
   fail=1
 fi
 

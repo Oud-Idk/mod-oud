@@ -53,16 +53,12 @@ pub async fn save_pre_lockdown_state(
         });
 
     let json = serde_json::to_string(&state)?;
-    trace!(
-        channel_id = channel.id.get(),
-        "Attempting write-once cache of pre-lockdown overwrite state"
-    );
     let wrote = cache::set_pre_lockdown_state(&data.core.redis, key, json).await?;
 
     if !wrote {
         trace!(
             channel_id = channel.id.get(),
-            "Pre-lockdown state already cached; leaving existing snapshot untouched"
+            "pre-lockdown state already cached; the existing snapshot is kept"
         );
     }
 
@@ -93,16 +89,12 @@ pub async fn restore_pre_lockdown_state(
                     deny: Permissions::from_bits_truncate(deny),
                     kind: PermissionOverwriteType::Role(everyone_role_id),
                 };
-                trace!(
-                    channel_id = channel_id.get(),
-                    "Restoring cached pre-lockdown overwrite"
-                );
                 channel_id.create_permission(&ctx.http, overwrite).await?;
             }
             StoredOverwriteState::NoOverwrite => {
                 trace!(
                     channel_id = channel_id.get(),
-                    "Cached state shows no prior overwrite; deleting overwrite entirely"
+                    "cached state shows no prior overwrite; deleting the overwrite entirely"
                 );
                 channel_id
                     .delete_permission(&ctx.http, PermissionOverwriteType::Role(everyone_role_id))
@@ -113,7 +105,7 @@ pub async fn restore_pre_lockdown_state(
     } else {
         trace!(
             channel_id = channel_id.get(),
-            "No cached state found; deleting overwrite entirely"
+            "no cached state found; deleting the overwrite entirely"
         );
         channel_id
             .delete_permission(&ctx.http, PermissionOverwriteType::Role(everyone_role_id))
@@ -157,7 +149,7 @@ pub async fn apply_global_lock(
     else {
         debug!(
             %guild_id,
-            "Global lock sweep already in progress for this guild; skipping"
+            "global lock sweep already in progress for this guild; skipping"
         );
         return Ok(None);
     };
@@ -179,7 +171,8 @@ pub async fn apply_global_lock(
             warn!(
                 error = ?err,
                 channel_id,
-                "cache pre-lockdown state for channel; proceeding without it"
+                fallback = "no snapshot",
+                "pre-lockdown state cache for the channel failed; the lockdown continues without it"
             );
         }
 
@@ -187,13 +180,13 @@ pub async fn apply_global_lock(
         match channel.id.create_permission(&ctx.http, overwrite).await {
             Ok(()) => {
                 report.succeeded += 1;
-                trace!(channel_id, "Lockdown applied to channel");
+                trace!(channel_id, "lockdown applied to channel");
             }
             Err(err) => {
                 warn!(
                     error = ?err,
                     channel_id,
-                    "apply lockdown permission overwrite to channel"
+                    "lockdown permission overwrite not applied to the channel"
                 );
                 report.failed_channel_ids.push(channel_id);
             }
@@ -203,7 +196,11 @@ pub async fn apply_global_lock(
     // Explicit release (rather than just letting the guard drop) so the lock frees up
     // immediately instead of waiting out its TTL if another sweep wants to run right after.
     if let Err(err) = guard.release().await {
-        warn!(error = ?err, %guild_id, "explicitly release sweep lock; it will still expire via TTL");
+        warn!(
+            error = ?err,
+            %guild_id,
+            "sweep lock release failed; the TTL will still expire it"
+        );
     }
 
     Ok(Some(report))
@@ -235,7 +232,7 @@ pub async fn apply_global_unlock(
     else {
         debug!(
             %guild_id,
-            "Global lock sweep already in progress for this guild; skipping"
+            "global lock sweep already in progress for this guild; skipping"
         );
         return Ok(None);
     };
@@ -255,13 +252,13 @@ pub async fn apply_global_unlock(
         match restore_pre_lockdown_state(ctx, data, guild_id, channel.id, everyone_role_id).await {
             Ok(()) => {
                 report.succeeded += 1;
-                trace!(channel_id, "Lockdown removed from channel");
+                trace!(channel_id, "lockdown removed from channel");
             }
             Err(err) => {
                 warn!(
                     error = ?err,
                     channel_id,
-                    "remove lockdown permission overwrite from channel"
+                    "lockdown permission overwrite not removed from the channel"
                 );
                 report.failed_channel_ids.push(channel_id);
             }
@@ -269,7 +266,11 @@ pub async fn apply_global_unlock(
     }
 
     if let Err(err) = guard.release().await {
-        warn!(error = ?err, %guild_id, "explicitly release sweep lock; it will still expire via TTL");
+        warn!(
+            error = ?err,
+            %guild_id,
+            "sweep lock release failed; the TTL will still expire it"
+        );
     }
 
     Ok(Some(report))
@@ -280,12 +281,9 @@ pub async fn resolve_target_channel(
     ctx: &Context<'_>,
     channel: Option<GuildChannel>,
 ) -> Result<GuildChannel> {
-    trace!("Resolving target channel for lockdown operation");
     if let Some(ch) = channel {
-        trace!(channel_id = ch.id.get(), "Using provided target channel");
         Ok(ch)
     } else {
-        trace!("No channel provided; falling back to the current context channel");
         let guild_channel = ctx
             .channel_id()
             .to_channel(ctx.http())
@@ -303,11 +301,6 @@ pub fn calculate_lockdown_overwrite(
     channel: &GuildChannel,
     everyone_role_id: RoleId,
 ) -> PermissionOverwrite {
-    trace!(
-        channel_id = channel.id.get(),
-        "Calculating permission overwrite for lockdown"
-    );
-
     let mut lockdown_deny = Permissions::SEND_MESSAGES
         | Permissions::SEND_MESSAGES_IN_THREADS
         | Permissions::ADD_REACTIONS;

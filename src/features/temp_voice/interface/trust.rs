@@ -16,8 +16,6 @@ pub async fn handle_trust_temp_vc(
         return Ok(());
     };
 
-    debug!("Showing user select menu for Trust");
-
     let select_menu = CreateSelectMenu::new(
         "temp_voice_trust_select",
         CreateSelectMenuKind::User {
@@ -38,6 +36,8 @@ pub async fn handle_trust_temp_vc(
     interaction
         .create_response(&ctx.http, CreateInteractionResponse::Message(response))
         .await?;
+
+    debug!("user select menu sent for trust");
 
     Ok(())
 }

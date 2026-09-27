@@ -4,7 +4,7 @@ use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserL
 use crate::shared::embed::build_custom_message;
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User};
-use tracing::{debug, error, trace, warn};
+use tracing::{warn, debug, trace};
 
 pub async fn send_according_to_config(
     ctx: &Context,
@@ -13,12 +13,6 @@ pub async fn send_according_to_config(
     author: &User,
     msg: CreateMessage,
 ) -> Result<()> {
-    trace!(
-        current_channel_id = current_channel_id.get(),
-        author_id = author.id.get(),
-        "Sending announcement message according to notification scope configuration"
-    );
-
     match config.notify.target {
         NotificationTarget::CurrentChannel => {
             current_channel_id.send_message(&ctx.http, msg).await?;
@@ -29,10 +23,10 @@ pub async fn send_according_to_config(
         }
         NotificationTarget::Dm => {
             if let Err(e) = author.dm(&ctx.http, msg).await {
-                error!(
+                warn!(
                     error = ?e,
                     user_id = %author.id,
-                    "send level-up DM; notification dropped"
+                    "level-up DM not sent; notification dropped"
                 );
             }
         }
@@ -58,13 +52,6 @@ pub async fn send_message(
     let user_id = event.user_level.user_id;
     let current_level = event.user_level.current_level;
 
-    trace!(
-        %guild_id,
-        user_id = %user_id,
-        current_level,
-        "Initiating level up notification sequence"
-    );
-
     let gctx = get_guild_ctx(guild_id, ctx.http.as_ref()).await?;
 
     let custom_message_opt = build_custom_message(
@@ -86,7 +73,8 @@ pub async fn send_message(
             error = ?e,
             %guild_id,
             user_id = %user_id,
-            "compile custom level-up layout; using standard fallback"
+            fallback = "default layout",
+            "custom level-up layout compilation failed"
         );
             None
         });
@@ -95,7 +83,8 @@ pub async fn send_message(
         debug!(
             %guild_id,
             user_id = %user_id,
-            "Using fallback level-up announcement string"
+            fallback = "default announcement",
+            "level-up announcement"
         );
         let content = format!(
             "Congratulations, <@{user_id}>. You have leveled up to **level {current_level}**",
@@ -104,6 +93,13 @@ pub async fn send_message(
     });
 
     send_according_to_config(ctx, event.channel_id, config, &event.author, msg).await?;
+
+    trace!(
+        %guild_id,
+        user_id = %user_id,
+        current_level,
+        "level-up notification sent"
+    );
 
     Ok(())
 }
@@ -117,11 +113,6 @@ pub async fn send_voice_level_up_message(
     voice_channel_id: ChannelId,
     previous_level: u32,
 ) -> Result<()> {
-    trace!(
-        %guild_id,
-        "Compiling custom voice level up message"
-    );
-
     let gctx = get_guild_ctx(guild_id, ctx.http.as_ref()).await?;
 
     let custom_message_opt = build_custom_message(
@@ -142,7 +133,8 @@ pub async fn send_voice_level_up_message(
             warn!(
             error = ?e,
             %guild_id,
-            "construct custom VC level-up layout; using standard fallback"
+            fallback = "default layout",
+            "custom voice level-up layout construction failed"
         );
             None
         });
@@ -150,7 +142,8 @@ pub async fn send_voice_level_up_message(
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(
             %guild_id,
-            "Using fallback default voice level-up message"
+            fallback = "default announcement",
+            "voice level-up announcement"
         );
         let content = format!(
             "Congratulations, <@{}>. You have leveled up to **level {}**",
@@ -160,6 +153,13 @@ pub async fn send_voice_level_up_message(
     });
 
     send_according_to_config(ctx, voice_channel_id, config, user, msg).await?;
+
+    trace!(
+        %guild_id,
+        user_id = %user.id,
+        current_level = user_level.current_level,
+        "voice level-up notification sent"
+    );
 
     Ok(())
 }

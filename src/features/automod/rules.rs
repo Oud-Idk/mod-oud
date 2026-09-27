@@ -23,21 +23,21 @@ pub fn should_skip_scope(message: &Message, scope: &RuleScope) -> bool {
     match scope.mode {
         ScopeMode::Exempt => {
             if scope.channels.contains(&channel_id) {
-                trace!("Skipping rule check: target channel is exempt");
+                trace!("rule check skipped: the target channel is exempt");
                 return true;
             }
             if has_matching_role() {
-                trace!("Skipping rule check: user possesses an exempt role");
+                trace!("rule check skipped: the user holds an exempt role");
                 return true;
             }
         }
         ScopeMode::Enforced => {
             if !scope.channels.contains(&channel_id) {
-                trace!("Skipping rule check: target channel is not enforced");
+                trace!("rule check skipped: the target channel is not enforced");
                 return true;
             }
             if !scope.roles.is_empty() && !has_matching_role() {
-                trace!("Skipping rule check: user lacks required enforced role");
+                trace!("rule check skipped: the user lacks the required enforced role");
                 return true;
             }
         }

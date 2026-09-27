@@ -21,7 +21,7 @@ pub async fn delete_category(
     let Some(guild_id) = ctx.guild_id() else {
         ctx.say("This command can only be used inside a server.")
             .await?;
-        debug!("Command ran in a server");
+        debug!("guild context unavailable for the command");
         return Ok(());
     };
 
@@ -29,7 +29,7 @@ pub async fn delete_category(
 
     let deleted_count = delete_entire_category(ctx.http(), guild_id, category.id).await?;
 
-    debug!(category_name, deleted_count, "Purged channels and category");
+    debug!(category_name, deleted_count, "purged channels and category");
     let success_msg = format!(
         "**Category Purged!**\nSuccessfully deleted **{category_name}** along with all `{deleted_count}` nested channels."
     );

@@ -44,17 +44,12 @@ pub async fn issue_warning(
     moderator_username: &str,
     target_username: &str,
 ) -> Result<i64, Error> {
-    debug!("Inserting warning record into database");
     store_username_relation(username_buf, user_id, target_username).await?;
     store_username_relation(username_buf, moderator_id, moderator_username).await?;
 
     let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason).await?;
 
-    debug!(
-        warn_id,
-        warn_count, "Warning record inserted; logging action in moderation_logs"
-    );
-    debug!(warn_id, "Retrieving moderation context");
+    debug!(warn_id, warn_count, "warning record inserted");
     let (gctx, mut member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
     let moderator_user = http
@@ -96,7 +91,7 @@ pub async fn issue_warning(
 
     thresholds::apply_threshold_actions(http, db, &mut member, &applicable_thresholds).await?;
 
-    info!(warn_id, "issued warning to user");
+    info!(warn_id, "warning issued");
     Ok(warn_id)
 }
 
@@ -120,9 +115,8 @@ pub async fn issue_warning_status_change(
     let guild_id = guild_id_raw.get();
     let expected_current_state = !set_active;
 
-    debug!("Updating warning status in database");
     let Some(row) = update_warn(db, set_active, id, guild_id, expected_current_state).await? else {
-        debug!("Warning record not found; skipping update");
+        debug!("warning record not found; skipping update");
         return Ok(None);
     };
 
@@ -132,7 +126,7 @@ pub async fn issue_warning_status_change(
         .reason
         .unwrap_or_else(|| "No reason specified.".to_string());
 
-    debug!(target_user_id, "Warning updated; retrieving context for DM");
+    debug!(target_user_id, "warning active status updated");
 
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);
@@ -186,9 +180,11 @@ pub async fn issue_warning_status_change(
     );
 
     info!(
+        warning_id = id,
         target_user_id,
+        set_active,
         action = action_past_tense,
-        "processed warning status update"
+        "warning active status updated"
     );
     Ok(Some((target_user_id, reason)))
 }
@@ -208,9 +204,8 @@ pub async fn issue_delete_warning(
 ) -> Result<Option<(u64, String)>, Error> {
     let guild_id = guild_id_raw.get();
 
-    debug!("Deleting warning record from database");
     let Some(row) = delete_warn(db, id, guild_id).await? else {
-        debug!("Warning record not found; skipping deletion");
+        debug!("warning record not found; skipping deletion");
         return Ok(None);
     };
 
@@ -220,10 +215,7 @@ pub async fn issue_delete_warning(
         .reason
         .unwrap_or_else(|| "No reason specified.".to_string());
 
-    debug!(
-        target_user_id,
-        "Record deleted; retrieving context for warning deletion message"
-    );
+    debug!(target_user_id, "warning record deleted");
 
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);
@@ -255,6 +247,6 @@ pub async fn issue_delete_warning(
         }
     );
 
-    info!(target_user_id, "processed warning deletion");
+    info!(warning_id = id, target_user_id, "warning record deleted");
     Ok(Some((target_user_id, reason)))
 }

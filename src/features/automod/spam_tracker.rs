@@ -77,8 +77,6 @@ impl SpamTracker {
         // Unique member entry for Redis ZSET
         let member_key = member_key(now);
 
-        trace!("Executing atomic spam validation transaction in Redis");
-
         // Start atomic MULTI transaction
         let tx = cache::begin_spam_transaction(&self.redis_conn);
 
@@ -90,12 +88,12 @@ impl SpamTracker {
         if is_spamming {
             debug!(
                 window_message_count = count,
-                limit, "User exceeded the message limit; flagging as spam"
+                limit, "user exceeded the message limit"
             );
         } else {
             trace!(
                 window_message_count = count,
-                limit, "User checked; message count is within acceptable threshold"
+                limit, "message count within the limit"
             );
         }
 
@@ -126,7 +124,6 @@ impl SpamTracker {
         user_id: UserId,
         cooldown: Duration,
     ) -> Result<bool> {
-        trace!("Checking warning cooldown status in Redis");
         let key = keys::spam_warned_key(guild_id, user_id);
         let cooldown = i64::try_from(cooldown.as_millis())?;
 
@@ -139,9 +136,9 @@ impl SpamTracker {
             cache::set_warning_cooldown(&self.redis_conn, &key, cooldown).await?;
 
         if cooldown_elapsed {
-            debug!("Warning cooldown has elapsed; user can be notified again");
+            debug!("warning cooldown has elapsed; user can be notified again");
         } else {
-            trace!("Warning cooldown is still active; silencing potential notification");
+            trace!("warning cooldown is still active; silencing potential notification");
         }
 
         Ok(cooldown_elapsed)

@@ -37,7 +37,7 @@ pub async fn handle_media_channel_message(
 
     for attachment in &message.attachments {
         let Some(mime) = attachment.content_type.as_deref() else {
-            trace!("Attachment missing content type");
+            trace!("attachment missing content type");
             violation::handle_violation(ctx, message, &config).await?;
             return Ok(());
         };
@@ -51,7 +51,7 @@ pub async fn handle_media_channel_message(
         }
     }
 
-    trace!("Processing valid media-only channel message");
+    trace!("message passed the media-only checks");
 
     if let Some(thread_name_template) = config.thread_name_template {
         if !config.auto_thread {
@@ -122,13 +122,13 @@ fn analyze_initial_text(
 
     // Text is present but text isn't allowed
     if !text.is_empty() && !allow_text {
-        trace!("Text is not allowed in this channel");
+        trace!("text is not allowed in this channel");
         return true;
     }
 
     // Links are present but links aren't allowed
     if !urls.is_empty() && !allow_links {
-        trace!("Links are not allowed in this channel");
+        trace!("links are not allowed in this channel");
         return true;
     }
 
@@ -137,7 +137,7 @@ fn analyze_initial_text(
     let has_attachments = !message.attachments.is_empty();
 
     if !has_attachments && !has_allowed_links {
-        trace!("Message contains no media or allowed links");
+        trace!("message contains no media or allowed links");
         return true;
     }
 

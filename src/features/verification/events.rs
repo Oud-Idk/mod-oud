@@ -15,7 +15,7 @@ pub async fn send_verification_link(
         return Ok(());
     };
     let Some(shared_secret) = data.core.config.shared_secret.as_deref() else {
-        warn!("Shared secret not set up for verification");
+        warn!("shared secret not set up for verification");
         return Ok(());
     };
     let verification_link = generate_verification_link(

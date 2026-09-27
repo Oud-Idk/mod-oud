@@ -1,9 +1,9 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
-use crate::features::moderation::{ActionType, lockdown, log_moderation_action};
+use crate::features::moderation::{ActionType, audit, lockdown, log_moderation_action};
 use crate::shared::command_context::GuildMetadata;
 use serenity::all::{GuildChannel, GuildId, RoleId};
-use tracing::{info, trace};
+use tracing::trace;
 
 /// Lock down a text channel, preventing members from sending messages.
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
@@ -15,7 +15,6 @@ pub async fn lock(
     #[description = "Reason for the lockdown"] reason: Option<String>,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    info!(caller_id, "Invoked lock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = lockdown::resolve_target_channel(&ctx, channel).await?;
@@ -49,7 +48,11 @@ pub async fn lock(
     )
     .await?;
 
-    info!(caller_id, target_channel_id, "Channel locked down");
+    audit::channel_locked(
+        meta.id,
+        serenity::all::ChannelId::new(target_channel_id),
+        serenity::all::UserId::new(caller_id),
+    );
     Ok(())
 }
 
@@ -62,7 +65,6 @@ pub async fn unlock(
     >,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    info!(caller_id, "Invoked unlock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = lockdown::resolve_target_channel(&ctx, channel).await?;
@@ -83,7 +85,11 @@ pub async fn unlock(
 
     log_action(&ctx, meta.id, target_channel_id, ActionType::Unlock, None).await?;
 
-    info!(caller_id, target_channel_id, "Channel unlocked");
+    audit::channel_unlocked(
+        meta.id,
+        serenity::all::ChannelId::new(target_channel_id),
+        serenity::all::UserId::new(caller_id),
+    );
     Ok(())
 }
 
@@ -94,8 +100,6 @@ pub async fn global_lock(
     #[description = "Reason for the server-wide lockdown"] reason: Option<String>,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
-    info!(caller_id, guild_id, "Invoked global_lock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
 
@@ -128,12 +132,11 @@ pub async fn global_lock(
         )
         .await?;
 
-        info!(
-            caller_id,
-            guild_id,
-            locked_count = report.succeeded,
-            failed_count = report.failed_channel_ids.len(),
-            "Global lockdown completed"
+        audit::guild_locked(
+            meta.id,
+            serenity::all::UserId::new(caller_id),
+            report.succeeded,
+            report.failed_channel_ids.len(),
         );
     } else {
         ctx.say("Global lockdown is already in progress. Please wait a moment and try again.")
@@ -146,8 +149,6 @@ pub async fn global_lock(
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
 pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
-    info!(caller_id, guild_id, "Invoked global_unlock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
 
@@ -177,12 +178,11 @@ pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
         )
         .await?;
 
-        info!(
-            caller_id,
-            guild_id,
-            unlocked_count = report.succeeded,
-            failed_count = report.failed_channel_ids.len(),
-            "Global unlock completed"
+        audit::guild_unlocked(
+            meta.id,
+            serenity::all::UserId::new(caller_id),
+            report.succeeded,
+            report.failed_channel_ids.len(),
         );
     } else {
         ctx.say("Global unlock is already in progress. Please wait a moment and try again.")
@@ -199,12 +199,6 @@ pub async fn log_action(
     action: ActionType,
     reason: Option<&str>,
 ) -> Result<(), Error> {
-    trace!(
-        %guild_id,
-        target_id,
-        action = ?action,
-        "Dispatching moderation log to database and Discord integration"
-    );
     log_moderation_action(
         &ctx.data().core.db,
         guild_id,
@@ -215,5 +209,11 @@ pub async fn log_action(
         None,
     )
     .await?;
+    trace!(
+        %guild_id,
+        target_id,
+        action = ?action,
+        "moderation action logged to the database"
+    );
     Ok(())
 }

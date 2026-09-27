@@ -18,8 +18,6 @@ pub async fn handle_kick_temp_vc(
         return Ok(());
     }; // Verify the user is in the guild and in a voice channel
 
-    debug!("Showing kick modal");
-
     let input = CreateInputText::new(InputTextStyle::Short, "User to kick", "user_to_kick")
         .placeholder("Enter username, nickname, or User ID")
         .required(true);
@@ -30,6 +28,8 @@ pub async fn handle_kick_temp_vc(
     interaction
         .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
         .await?;
+
+    debug!("kick modal sent");
     Ok(())
 }
 pub async fn handle_kick_temp_vc_submit(

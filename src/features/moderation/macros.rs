@@ -59,10 +59,11 @@ macro_rules! send_mod_dm {
                     $replace_closure,
                 )
                 .unwrap_or_else(|e| {
-                    tracing::error!(
+                    tracing::warn!(
                         error = %e,
                         action = action_name,
-                        "build custom moderation DM"
+                        fallback = "default embed",
+                        "custom moderation DM build failed"
                     );
                     None
                 });
@@ -87,7 +88,7 @@ macro_rules! send_mod_dm {
                     %user_id,
                     action = action_name,
                     error = ?e,
-                    "send moderation DM to user, DMs may be closed"
+                    "moderation DM not sent; the user may have DMs closed"
                 );
             }
         }

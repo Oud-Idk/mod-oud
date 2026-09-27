@@ -18,7 +18,7 @@ use error::WebError;
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{debug, error, info, instrument};
+use tracing::{warn, info, debug, instrument};
 
 async fn broadcast_report_update(
     pool: &PgPool,
@@ -47,13 +47,13 @@ pub async fn handle_dashboard_command(
                     debug!(
                         status = %status,
                         error = %err_msg,
-                        "Rejected report lookup for the requested report id"
+                        "rejected report lookup for the requested report id"
                     );
                 } else {
-                    error!(
+                    warn!(
                         status = %status,
                         error = %err_msg,
-                        "fetch target report details from database"
+                        "target report lookup failed"
                     );
                 }
             })?;
@@ -61,11 +61,6 @@ pub async fn handle_dashboard_command(
     let redis_conn = state.core.redis.clone();
     let moderator_name = cmd.name.as_deref().unwrap_or("Web Dashboard");
     let moderator_id = cmd.moderator_id;
-
-    info!(
-        moderator_name = moderator_name,
-        "Processing dashboard moderation command"
-    );
 
     match &cmd.action {
         DashboardAction::ResolveReport { status } => {
@@ -103,11 +98,16 @@ pub async fn handle_dashboard_command(
     }
 
     if let Err(e) = broadcast_report_update(&state.core.db, &redis_conn, cmd.report_id).await {
-        error!(error = ?e, "broadcast report update after moderation action");
+        warn!(error = ?e, "dashboard report update broadcast failed");
         return Err(WebError::Internal);
     }
 
-    info!("Dashboard moderation command executed");
+    info!(
+        report_id = cmd.report_id,
+        moderator_id = ?moderator_id,
+        action = ?cmd.action,
+        "dashboard moderation command applied and broadcast"
+    );
     Ok(StatusCode::OK)
 }
 

@@ -7,7 +7,7 @@ use std::fmt;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::{ProcessesToUpdate, System};
-use tracing::{debug, trace, warn};
+use tracing::{trace, warn};
 
 /// Holds all gathered diagnostic metrics to separate data collection from presentation.
 struct DiagnosticReport<'a> {
@@ -54,11 +54,6 @@ impl fmt::Display for DiagnosticReport<'_> {
 /// Pong!
 #[poise::command(slash_command)]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
-    debug!(
-        caller_id = ctx.author().id.get(),
-        "Invoked ping diagnostic command"
-    );
-
     let gateway_latency = fetch_shard_latency(&ctx).await?;
     let pool = &ctx.data().core.db;
     let redis = &ctx.data().core.redis;
@@ -77,12 +72,12 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
         gateway_latency,
     };
 
+    ctx.say(report.to_string()).await?;
+
     trace!(
         latency_ms = gateway_latency.map(|l| l.as_millis()),
-        "Responding to ping command"
+        "ping reply sent"
     );
-
-    ctx.say(report.to_string()).await?;
     Ok(())
 }
 

@@ -7,7 +7,7 @@ use serenity::all::{
     ComponentInteraction, Context, CreateActionRow, CreateInputText, CreateInteractionResponse,
     CreateModal, InputTextStyle, ModalInteraction,
 };
-use tracing::{debug, trace};
+use tracing::debug;
 
 pub async fn handle_set_limit_vc(
     ctx: &Context,
@@ -17,8 +17,6 @@ pub async fn handle_set_limit_vc(
     let Ok(Some((_, _))) = preflight_button_check(ctx, interaction, data).await else {
         return Ok(());
     }; // same deal here. Preflight so the user doesn't rename when disconnected.
-
-    debug!("Showing limit modal");
 
     let input = CreateInputText::new(
         InputTextStyle::Short,
@@ -34,6 +32,8 @@ pub async fn handle_set_limit_vc(
     interaction
         .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
         .await?;
+
+    debug!("limit modal sent");
     Ok(())
 }
 
@@ -45,8 +45,6 @@ pub async fn handle_set_limit_vc_submit(
     let Some((channel_id, _)) = preflight_modal_check(ctx, interaction, data).await? else {
         return Ok(());
     };
-
-    trace!("Handling limit submit");
 
     let limit_raw =
         crate::features::temp_voice::interface::get_input_value(interaction, "new_limit").unwrap();

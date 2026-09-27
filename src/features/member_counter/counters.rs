@@ -82,7 +82,7 @@ pub async fn update_guild_counters(
         let current_channel = match channel_id.to_channel(http).await {
             Ok(c) => c,
             Err(e) => {
-                warn!(%guild_id, %channel_id, error = ?e, "fetch counter channel");
+                warn!(%guild_id, %channel_id, error = ?e, "counter channel lookup failed");
                 continue;
             }
         };
@@ -93,25 +93,25 @@ pub async fn update_guild_counters(
                 trace!(
                     %guild_id,
                     %channel_id,
-                    "Channel name is already up to date"
+                    "channel name is already up to date"
                 );
             } else {
                 name_changed = true;
-                info!(
-                    %guild_id,
-                    %channel_id,
-                    old_name = %guild_channel.name,
-                    new_name = %target_name,
-                    "Updating member counter channel name"
-                );
-
                 let edit_builder = serenity::all::EditChannel::new().name(&target_name);
                 if let Err(e) = channel_id.edit(http, edit_builder).await {
                     warn!(
                         %guild_id,
                         %channel_id,
                         error = ?e,
-                        "update channel name on Discord"
+                        "member counter channel not renamed"
+                    );
+                } else {
+                    info!(
+                        %guild_id,
+                        %channel_id,
+                        old_name = %guild_channel.name,
+                        new_name = %target_name,
+                        "member counter channel renamed"
                     );
                 }
             }

@@ -1,3 +1,4 @@
+use crate::shared::task;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::database::log_external_moderation_action;
 use crate::features::moderation::types::ActionType;
@@ -39,12 +40,12 @@ pub async fn handle_audit_log_entry(
     };
 
     if entry.user_id == ctx.cache.current_user().id {
-        debug!("Skipping audit log entry created by the bot itself");
+        debug!("skipping audit log entry created by the bot itself");
         return Ok(());
     }
 
     let Some(target_generic_id) = entry.target_id else {
-        warn!("Audit log entry has no target; skipping moderation sync");
+        warn!("audit log entry has no target; skipping moderation sync");
         return Ok(());
     };
     let target_id = target_generic_id.get().into();
@@ -62,23 +63,22 @@ pub async fn handle_audit_log_entry(
     )
     .await?;
 
-    debug!(?action, "Synced native moderation action to database");
+    debug!(?action, "synced native moderation action to database");
 
     // Best-effort username enrichment for the dashboard join. Never fails sync.
     let http = ctx.http.clone();
     let username_tx = data.core.username_tx.clone();
-    tokio::spawn(async move {
+    task::spawn("audit_log_user_resolve", async move {
         for user_id in [target_id, moderator_id] {
             match user_id.to_user(&http).await {
                 Ok(user) => {
-                    if let Err(e) =
-                        store_username_relation(&username_tx, user_id, &user.name).await
-                    {
-                        warn!(error = %e, %user_id, "queue username for audit-synced log");
-                    }
+                    // The failure is logged where it is swallowed, in store_username_relation.
+                    store_username_relation(&username_tx, user_id, &user.name)
+                        .await
+                        .ok();
                 }
                 Err(e) => {
-                    debug!(error = %e, %user_id, "Could not resolve user for audit-synced log");
+                    debug!(error = %e, %user_id, "user lookup for the audit-synced log failed");
                 }
             }
         }

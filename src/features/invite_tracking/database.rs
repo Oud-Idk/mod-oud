@@ -99,7 +99,7 @@ pub async fn get_inviter_details(
     )
     .fetch_optional(db)
     .await
-    .context("Failed to fetch inviter details")
+    .context("inviter details lookup failed")
 }
 
 pub struct InviterLeaderboardEntry {

@@ -5,6 +5,7 @@ use crate::features::music::state::{MusicState, PlayOutcome};
 use crate::features::music::web_command::{
     ClientMessage, MusicAction, RemoteMusicCommand, RemoteMusicResult, ServerMessage,
 };
+use crate::shared::task;
 use axum::Router;
 use axum::extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
@@ -20,7 +21,7 @@ use serde_with::{DisplayFromStr, serde_as};
 use songbird::Songbird;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -80,7 +81,7 @@ pub fn start_music_web_control_worker(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    warn!(error = ?e, "convert music web command payload");
+                    warn!(error = ?e, "music web command payload conversion failed");
                     return Ok(());
                 }
             };
@@ -88,18 +89,16 @@ pub fn start_music_web_control_worker(
             let command: RemoteMusicCommand = match serde_json::from_str(&payload) {
                 Ok(command) => command,
                 Err(e) => {
-                    warn!(error = %e, payload = %payload, "parse music web command");
+                    warn!(error = %e, payload = %payload, "music web command parse failed");
                     return Ok(());
                 }
             };
 
             let guild_id = serenity::GuildId::new(command.guild_id);
             if !owns_guild(guild_id, params.shard_index, params.total_shards) {
-                debug!(%guild_id, "Music command for a guild on another shard; ignoring");
+                debug!(%guild_id, "music command for a guild on another shard; ignoring");
                 return Ok(());
             }
-
-            debug!(%guild_id, request_id = %command.request_id, "Executing dashboard music command");
 
             let outcome = handle_music_command(
                 &params.music_state,
@@ -109,7 +108,7 @@ pub fn start_music_web_control_worker(
                 guild_id,
                 command.action,
             )
-                .await;
+            .await;
 
             let result = match outcome {
                 Ok(data) => RemoteMusicResult::success(command.request_id.clone(), data),
@@ -119,7 +118,7 @@ pub fn start_music_web_control_worker(
             let reply = match serde_json::to_string(&result) {
                 Ok(reply) => reply,
                 Err(e) => {
-                    error!(error = %e, "serialize music command result");
+                    warn!(error = %e, "music command result serialization failed");
                     return Ok(());
                 }
             };
@@ -132,7 +131,13 @@ pub fn start_music_web_control_worker(
                 warn!(
                     request_id = %result.request_id,
                     error = ?e,
-                    "publish music command result"
+                    "music command result publish to redis failed"
+                );
+            } else {
+                debug!(
+                    %guild_id,
+                    request_id = %command.request_id,
+                    "dashboard music command applied"
                 );
             }
 
@@ -140,10 +145,10 @@ pub fn start_music_web_control_worker(
         }
     });
 
-    tokio::spawn(async move {
+    task::spawn("music_web_control_worker", async move {
         match subscriber_client.subscribe(keys::commands_channel()).await {
-            Ok(()) => debug!("Subscribed to music web commands channel"),
-            Err(e) => error!(error = ?e, "subscribe to music web commands"),
+            Ok(()) => debug!("subscribed to music web commands channel"),
+            Err(e) => warn!(error = ?e, "music web commands subscription failed"),
         }
     });
 }
@@ -265,7 +270,7 @@ pub async fn ws_handler(
         params.expires,
         params.sig.as_deref(),
     ) else {
-        warn!(guild_id = params.guild_id, "Missing ticket for WS");
+        warn!(guild_id = params.guild_id, "missing ticket for WS");
         return Err(axum::http::StatusCode::UNAUTHORIZED);
     };
     if !crate::web::ticket::verify_ticket(
@@ -276,19 +281,13 @@ pub async fn ws_handler(
         "ws",
         secret.as_bytes(),
     ) {
-        let expected = crate::web::ticket::sign_ticket(
-            &params.guild_id.to_string(),
-            user_id,
-            expires,
-            "ws",
-            secret.as_bytes(),
-        );
+        // Not the expected signature: it is a live credential, since verify_ticket accepts it.
         warn!(
             guild_id = params.guild_id,
             user_id = %user_id,
             expires = expires,
-            expected = %expected,
-            "invalid ws ticket, signature mismatch, check INTERNAL_API_SECRET sync and purpose"
+            purpose = "ws",
+            "ws ticket signature mismatch, check INTERNAL_API_SECRET sync and purpose"
         );
         return Err(axum::http::StatusCode::UNAUTHORIZED);
     }
@@ -296,7 +295,7 @@ pub async fn ws_handler(
     debug!(
         guild_id = params.guild_id,
         user_id = %user_id,
-        "New WebSocket control connection"
+        "new WebSocket control connection"
     );
     Ok(ws.on_upgrade(move |socket| {
         handle_socket(socket, state, serenity::GuildId::from(params.guild_id))
@@ -369,7 +368,7 @@ async fn handle_text_message(
     let (request_id, action) = match message {
         Ok(ClientMessage::Music { request_id, action }) => (request_id, action),
         Err(e) => {
-            warn!(error = %e, "parse WebSocket control message");
+            warn!(error = %e, "WebSocket control message parse failed");
             let ack = ServerMessage::Ack {
                 request_id: None,
                 ok: false,

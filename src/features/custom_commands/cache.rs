@@ -10,17 +10,17 @@ pub async fn cache_command_to_redis(
     command: Option<&CustomCommand>,
 ) {
     if let Some(cmd) = command {
-        if let Ok(json_str) = serde_json::to_string(cmd) {
-            if let Err(e) = redis
+        if let Ok(json_str) = serde_json::to_string(cmd)
+            && let Err(e) = redis
                 .set::<(), _, _>(cache_key, json_str, Some(Expiration::EX(300)), None, false)
                 .await
-            {
-                warn!(
-                    error = ?e,
-                    cache_key,
-                    "cache custom command; next lookup refetches from DB"
-                );
-            }
+        {
+            warn!(
+                error = ?e,
+                cache_key,
+                fallback = "db",
+                "custom command not cached"
+            );
         }
     } else {
         // Negative cache for 30s to avoid DB spam for non-existent commands
@@ -31,7 +31,8 @@ pub async fn cache_command_to_redis(
             warn!(
                 error = ?e,
                 cache_key,
-                "cache negative custom command lookup; DB may be hit more often"
+                fallback = "db",
+                "negative custom command lookup not cached"
             );
         }
     }
@@ -66,17 +67,17 @@ pub async fn get_anywhere_names_from_redis(redis: &Client, cache_key: &str) -> O
 
 /// Caches anywhere-enabled command names (including the empty list) for 5 minutes.
 pub async fn cache_anywhere_names_to_redis(redis: &Client, cache_key: &str, names: &[String]) {
-    if let Ok(json_str) = serde_json::to_string(names) {
-        if let Err(e) = redis
+    if let Ok(json_str) = serde_json::to_string(names)
+        && let Err(e) = redis
             .set::<(), _, _>(cache_key, json_str, Some(Expiration::EX(300)), None, false)
             .await
-        {
-            warn!(
-                error = ?e,
-                cache_key,
-                "cache anywhere command names; next lookup refetches from DB"
-            );
-        }
+    {
+        warn!(
+            error = ?e,
+            cache_key,
+            fallback = "db",
+            "anywhere command names not cached"
+        );
     }
 }
 

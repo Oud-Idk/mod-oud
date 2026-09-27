@@ -23,11 +23,6 @@ pub fn build_welcome_message(
 ) -> Result<CreateMessage, Error> {
     let user_id = member.user.id.get();
     let guild_id = member.guild_id.get();
-    trace!(
-        guild_id,
-        user_id, is_dm, "Compiling welcome notification message template"
-    );
-
     let custom_msg_opt = build_custom_message(
         settings.message.format,
         &settings.message.content,
@@ -47,7 +42,10 @@ pub fn build_welcome_message(
     Ok(custom_msg_opt.unwrap_or_else(|| {
         debug!(
             guild_id,
-            user_id, is_dm, "No custom welcome template found; rendering standard layout"
+            user_id,
+            is_dm,
+            fallback = "default layout",
+            "no custom welcome template found"
         );
         let base_msg = if is_dm {
             format!(
@@ -92,7 +90,8 @@ pub async fn build_goodbye_message(
         debug!(
             %guild_id,
             user_id = user.id.get(),
-            "No member metadata available in cache; constructing default fallback layout"
+            fallback = "default layout",
+            "no member metadata available in cache"
         );
         return build_fallback_message(user, None);
     };
@@ -100,7 +99,7 @@ pub async fn build_goodbye_message(
     trace!(
         %guild_id,
         user_id = user.id.get(),
-        "Cached member details available; resolving context details for goodbye message"
+        "cached member details available"
     );
 
     let gctx_res = get_guild_ctx(guild_id, ctx).await;
@@ -128,7 +127,8 @@ pub async fn build_goodbye_message(
                     error = ?e,
                     %guild_id,
                     user_id = user.id.get(),
-                    "compile custom leave message template; using fallback layout"
+                    fallback = "default layout",
+                    "custom leave message template compilation failed"
                 );
                 None
             });
@@ -141,7 +141,8 @@ pub async fn build_goodbye_message(
                 context_error = ?context_err.err(),
                 %guild_id,
                 user_id = user.id.get(),
-                "resolve rendering context for leave notification; falling back to default layout"
+                fallback = "default layout",
+                "leave notification rendering context unavailable"
             );
             build_fallback_message(user, member_data_if_available)
         }
@@ -171,26 +172,24 @@ pub async fn get_context_channel(
     public_channel_id: Option<ChannelId>,
 ) -> Result<GuildChannel, Error> {
     let guild_id = member.guild_id;
-    trace!(%guild_id, "Resolving text channel context for placeholder evaluation");
-
     if let Some(ch_id) = public_channel_id
         && let Ok(channel) = ch_id.to_channel(ctx).await
         && let Some(guild_ch) = channel.guild()
     {
-        trace!(%guild_id, channel_id = %ch_id, "Resolved configured target channel context");
+        trace!(%guild_id, channel_id = %ch_id, "resolved configured target channel context");
         return Ok(guild_ch);
     }
 
-    debug!(%guild_id, "No valid public welcome channel provided; scanning for any standard text channel context");
+    debug!(%guild_id, "no valid public welcome channel configured");
     let channels = member.guild_id.channels(&ctx.http).await?;
     for (_, channel) in channels {
         if channel.kind == ChannelType::Text {
-            trace!(%guild_id, fallback_channel_id = channel.id.get(), "Fallback text channel context resolved");
+            trace!(%guild_id, fallback_channel_id = channel.id.get(), "fallback text channel context resolved");
             return Ok(channel);
         }
     }
 
-    warn!(%guild_id, "resolve any valid text channel context in guild");
+    warn!(%guild_id, "text channel context unavailable in the guild");
     Err(std::io::Error::other("Could not resolve a suitable text channel context.").into())
 }
 
@@ -206,7 +205,7 @@ pub async fn send_leave_message(
     data: &BotData,
 ) -> anyhow::Result<()> {
     let user_id = user.id;
-    info!(%guild_id, %user_id, user_name = %user.name, "Member left the guild");
+    info!(%guild_id, %user_id, user_name = %user.name, "member left the guild");
 
     let settings = get_settings(
         &data.core.db,
@@ -223,7 +222,7 @@ pub async fn send_leave_message(
     else {
         trace!(
             %guild_id,
-            %user_id, "Leave notifications are disabled; logging departure directly to DB"
+            %user_id, "leave notifications disabled; the departure is only written to the database"
         );
         return database::log_leave_to_db(user_id, guild_id, &data.core.db).await;
     };
@@ -231,7 +230,7 @@ pub async fn send_leave_message(
     let Some(channel_id) = leave_cfg.message.channel_id else {
         warn!(
             %guild_id,
-            %user_id, "Leave notifications are enabled, but target channel ID is missing or invalid"
+            %user_id, "leave notifications are enabled, but target channel ID is missing or invalid"
         );
         return database::log_leave_to_db(user_id, guild_id, &data.core.db).await;
     };
@@ -260,17 +259,17 @@ pub async fn send_leave_message(
         }
     }
 
-    debug!(
-        %guild_id,
-        %user_id,
-        target_channel = channel_id.get(),
-        "Dispatching goodbye notification message"
-    );
     if let Err(e) = channel_id.send_message(&ctx.http, msg_payload).await {
-        warn!(error = ?e, %guild_id, %user_id, target_channel = channel_id.get(), "send goodbye notification to channel");
+        warn!(error = ?e, %guild_id, %user_id, target_channel = channel_id.get(), "goodbye notification not sent");
+    } else {
+        debug!(
+            %guild_id,
+            %user_id,
+            target_channel = channel_id.get(),
+            "goodbye notification sent"
+        );
     }
 
-    trace!(%guild_id, %user_id, "Logging member leave record to database");
     database::log_leave_to_db(user_id, guild_id, &data.core.db).await?;
     Ok(())
 }

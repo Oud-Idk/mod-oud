@@ -1,4 +1,5 @@
 use crate::core::config::state::{BotData, Error};
+use crate::features::temp_voice::audit;
 use crate::features::temp_voice::cache;
 use crate::features::temp_voice::interface::create_ephemeral_msg;
 use fred::clients::Client;
@@ -7,7 +8,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, GuildId, PermissionOverwrite, PermissionOverwriteType,
     Permissions, UserId,
 };
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(acceptor_id = %interaction.user.id.get()))]
 pub async fn handle_accept_transfer(
@@ -64,12 +65,16 @@ pub async fn handle_accept_transfer(
     cache::commit_transfer_to_redis(redis, guild_id, channel_id, &current_owner, &target_owner)
         .await?;
 
-    info!(
-        %channel_id,
-        from_owner = %current_owner,
-        to_owner = %target_owner,
-        "transferred temporary voice channel"
-    );
+    // The stored owner is a string; a parse failure means the cache row is malformed, and the
+    // ownership change above already committed.
+    if let Ok(from_owner) = current_owner.parse::<u64>() {
+        audit::transfer_accepted(
+            guild_id,
+            channel_id,
+            UserId::new(from_owner),
+            interaction.user.id,
+        );
+    }
 
     // Update the interaction message
     let updated_text = format!(
@@ -146,7 +151,7 @@ async fn validate_transfer_request(
             "acceptor now owns a different temp vc, refusing to complete transfer"
         );
         if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
-            warn!(%channel_id, error = ?e, "failed to clear pending transfer");
+            warn!(%channel_id, error = ?e, "pending transfer not cleared during validation");
         }
         interaction
             .create_response(
@@ -181,16 +186,17 @@ async fn apply_transfer_permissions(
         kind: PermissionOverwriteType::Member(new_owner_id),
     };
 
-    debug!(%channel_id, %new_owner_id, "applying new channel permissions");
     if let Err(e) = channel_id.create_permission(&ctx.http, new_overwrite).await {
-        error!(
+        warn!(
             %channel_id,
             %new_owner_id,
             error = ?e,
-            "failed to apply permission override"
+            "new owner channel permission not applied"
         );
         return Ok(false);
     }
+
+    debug!(%channel_id, %new_owner_id, "new owner channel permission applied");
 
     if let Ok(old_owner_id) = current_owner_str.parse::<u64>() {
         let old_owner_overwrite = PermissionOverwrite {
@@ -198,11 +204,6 @@ async fn apply_transfer_permissions(
             deny: Permissions::empty(),
             kind: PermissionOverwriteType::Member(UserId::new(old_owner_id)),
         };
-        debug!(
-            %channel_id,
-            old_owner_id,
-            "demoting old owner to member-level permissions"
-        );
         if let Err(e) = channel_id
             .create_permission(&ctx.http, old_owner_overwrite)
             .await
@@ -211,7 +212,13 @@ async fn apply_transfer_permissions(
                 %channel_id,
                 old_owner_id,
                 error = ?e,
-                "failed to demote old owner's permissions"
+                "old owner's permission demotion failed"
+            );
+        } else {
+            debug!(
+                %channel_id,
+                old_owner_id,
+                "old owner demoted to member-level permissions"
             );
         }
     }
@@ -277,16 +284,13 @@ pub async fn handle_decline_transfer(
         return Ok(());
     }
 
-    debug!(%channel_id, "deleting pending transfer key from redis");
     if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
-        warn!(%channel_id, error = ?e, "failed to clear pending transfer");
+        warn!(%channel_id, error = ?e, "pending transfer not cleared on decline");
     }
 
-    info!(
-        %channel_id,
-        decliner_id = %interaction.user.id,
-        "temporary voice channel transfer declined"
-    );
+    if let Ok(target) = target_owner.parse::<u64>() {
+        audit::transfer_declined(guild_id, channel_id, UserId::new(target));
+    }
 
     let updated_text = format!(
         "❌ **Transfer Declined**\n<@{}> decided they didn't want the crown today.",

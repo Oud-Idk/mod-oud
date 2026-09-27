@@ -10,11 +10,6 @@ use tracing::{debug, trace, warn};
 async fn apply_join_roles(ctx: &Context, member: &Member, role_ids: &[String]) -> Result<()> {
     let guild_id = member.guild_id.get();
     let user_id = member.user.id.get();
-    trace!(
-        guild_id,
-        user_id, "Evaluating and preparing automatic join roles for member"
-    );
-
     let mut role_set: HashSet<RoleId> = member.roles.iter().copied().collect();
     for role_id in role_ids {
         role_set.insert(RoleId::from(role_id.parse::<u64>()?));
@@ -28,7 +23,7 @@ async fn apply_join_roles(ctx: &Context, member: &Member, role_ids: &[String]) -
         .edit_member(ctx, member.user.id, builder)
         .await
     {
-        warn!(error = ?e, guild_id, user_id, "apply automatic join roles to member");
+        warn!(error = ?e, guild_id, user_id, "automatic join roles not applied to the member");
     } else {
         debug!(guild_id, user_id, "assigned automatic join roles to member");
     }
@@ -38,8 +33,6 @@ async fn apply_join_roles(ctx: &Context, member: &Member, role_ids: &[String]) -
 pub async fn handle_member_welcome(ctx: &Context, member: &Member, data: &BotData) -> Result<()> {
     let guild_id = member.guild_id;
     let user_id = member.user.id;
-    trace!(%guild_id, %user_id, "Executing welcome handler tasks");
-
     let settings = get_settings(
         &data.core.db,
         &data.core.redis,
@@ -60,7 +53,12 @@ pub async fn handle_member_welcome(ctx: &Context, member: &Member, data: &BotDat
     if let Some(ref role_ids) = config.join_role_ids
         && let Err(e) = apply_join_roles(ctx, member, role_ids).await
     {
-        warn!(error = ?e, %guild_id, %user_id, "completely apply automatic join roles");
+        warn!(
+            error = ?e,
+            %guild_id,
+            %user_id,
+            "automatic join roles not applied; a configured role id did not parse"
+        );
     }
 
     send::send_public_welcome(ctx, member, &config, &context_channel, &gctx, &warning_text).await?;
@@ -72,7 +70,6 @@ pub async fn handle_member_welcome(ctx: &Context, member: &Member, data: &BotDat
 
 pub fn check_alt_status(user: &User) -> String {
     let user_id = user.id.get();
-    trace!(user_id, "Evaluating account age for alt-status tracking");
     let created_timestamp = user.id.created_at().unix_timestamp();
     let now_timestamp = serenity::all::Timestamp::now().unix_timestamp();
     let age_in_days = (now_timestamp - created_timestamp) / 86400;
@@ -80,11 +77,11 @@ pub fn check_alt_status(user: &User) -> String {
     if age_in_days < 3 {
         debug!(
             user_id,
-            age_in_days, "New account detected (less than 3 days old); creating alert text"
+            age_in_days, "new account detected; alt warning added to the welcome message"
         );
         format!("\n\n⚠️ **WARNING:** This account is very new! Created {age_in_days} days ago.")
     } else {
-        trace!(user_id, age_in_days, "Account age is normal");
+        trace!(user_id, age_in_days, "account age is normal");
         String::new()
     }
 }

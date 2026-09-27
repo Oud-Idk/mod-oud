@@ -285,7 +285,7 @@ where
             "Cannot send an empty message. Please provide either text content or a populated embed.".to_string(),
         )),
         Err(e) => {
-            warn!(error = ?e, "parse custom embed format");
+            warn!(error = ?e, "custom embed layout compilation failed");
             Err((
                 StatusCode::BAD_REQUEST,
                 format!("Failed to compile embed: {e}"),

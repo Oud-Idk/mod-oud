@@ -128,7 +128,7 @@ pub async fn higherlower(
                     error_chain = %format!("{e:#}"),
                     %guild_id,
                     %user_id,
-                    "finalise a timed out higher/lower game; the buttons stay active"
+                    "timed out higher/lower game not finalised; the buttons stay active"
                 );
             }
         }
@@ -242,7 +242,7 @@ async fn run_game_loop(
                 warn!(
                     %user_id,
                     custom_id = other,
-                    "Unknown custom_id for higher/lower"
+                    "unknown custom_id for higher/lower"
                 );
                 continue;
             }

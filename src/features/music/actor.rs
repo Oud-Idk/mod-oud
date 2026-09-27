@@ -11,6 +11,7 @@ use crate::features::music::state::{
 use crate::features::music::stats::{StatsTx, record_track_end, record_track_start};
 use crate::features::music::youtube::{resolve_youtube_playlist, resolve_youtube_video};
 use crate::shared::spotify_auth::SpotifyAuthCache;
+use crate::shared::task;
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use core::time::Duration;
@@ -74,8 +75,6 @@ async fn build_query_url(
     query: &str,
     youtube_api_key: &str,
 ) -> String {
-    debug!(query = %query, "Resolving query URL");
-
     // Try resolving Spotify track into ytsearch string
     if let Some(spotify_query) = resolve_spotify_track(client, spotify_auth, query).await {
         return spotify_query;
@@ -87,11 +86,11 @@ async fn build_query_url(
     }
 
     if query.starts_with("http://") || query.starts_with("https://") {
-        debug!(query = %query, "Query detected as direct URL");
+        debug!(query = %query, "query detected as direct URL");
         query.to_string()
     } else {
         let search_query = format!("ytsearch:{query}");
-        debug!(query = %query, search_query = %search_query, "Constructed ytsearch query");
+        debug!(query = %query, search_query = %search_query, "constructed ytsearch query");
         search_query
     }
 }
@@ -377,7 +376,7 @@ impl GuildActor {
             rx,
         );
 
-        tokio::spawn(async move {
+        task::spawn("music_actor", async move {
             actor.run().await;
         });
 
@@ -865,7 +864,7 @@ impl GuildActor {
             .as_ref()
             .context("Nothing is currently playing.")?;
 
-        handle.pause().context("Failed to pause audio stream")?;
+        handle.pause().context("audio stream pause failed")?;
 
         if self.state.current_paused_at.is_none() {
             self.state.current_paused_at = Some(Instant::now());
@@ -882,7 +881,7 @@ impl GuildActor {
             .as_ref()
             .context("Nothing is currently playing.")?;
 
-        handle.play().context("Failed to resume audio stream")?;
+        handle.play().context("audio stream resume failed")?;
 
         if let Some(paused_at) = self.state.current_paused_at.take() {
             self.state.current_paused_total += paused_at.elapsed();
@@ -1007,7 +1006,7 @@ impl GuildActor {
         if let Some(last) = self.last_live_reconnect_at
             && last.elapsed() < MIN_RECONNECT_INTERVAL
         {
-            warn!(guild_id = %self.guild_id, "Live stream dropped again too quickly; advancing the queue");
+            warn!(guild_id = %self.guild_id, "live stream dropped again too quickly; advancing the queue");
             return false;
         }
 
@@ -1056,7 +1055,7 @@ impl GuildActor {
                 true
             }
             Err(e) => {
-                warn!(error = ?e, guild_id = %self.guild_id, "reconnect live stream");
+                warn!(error = ?e, guild_id = %self.guild_id, "live stream reconnect failed");
                 self.broadcast_state().await;
                 false
             }
@@ -1261,14 +1260,22 @@ impl GuildActor {
         let payload = match serde_json::to_string(&event) {
             Ok(payload) => payload,
             Err(e) => {
-                warn!(guild_id = %self.guild_id, error = %e, "serialize now-playing event");
+                warn!(
+                    guild_id = %self.guild_id,
+                    error = %e,
+                    "now-playing event serialization failed"
+                );
                 return;
             }
         };
 
         let published: Result<i64, _> = self.redis.publish(keys::events_channel(), payload).await;
         if let Err(e) = published {
-            debug!(guild_id = %self.guild_id, error = ?e, "publish now-playing event");
+            debug!(
+                guild_id = %self.guild_id,
+                error = ?e,
+                "now-playing event publish to redis failed"
+            );
         }
     }
 

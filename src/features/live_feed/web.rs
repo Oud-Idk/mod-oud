@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -41,7 +41,10 @@ pub async fn sse_handler(
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
     // Ticket verification for real-time endpoint (signed ticket system).
     let Some(secret) = state.core.config.internal_api_secret.as_deref() else {
-        warn!("INTERNAL_API_SECRET not set — rejecting SSE");
+        warn!(
+            fault = "INTERNAL_API_SECRET is not set",
+            "SSE verification unavailable"
+        );
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     };
     let (Some(user_id), Some(expires), Some(sig)) = (
@@ -49,7 +52,7 @@ pub async fn sse_handler(
         params.expires,
         params.sig.as_deref(),
     ) else {
-        debug!(guild_id = %params.guild_id, "Rejected SSE subscription: missing ticket");
+        debug!(guild_id = %params.guild_id, "rejected SSE subscription: missing ticket");
         return Err(StatusCode::UNAUTHORIZED);
     };
     if !verify_ticket(
@@ -72,12 +75,12 @@ pub async fn sse_handler(
             user_id = %user_id,
             expires = expires,
             expected = %expected,
-            "Rejected SSE subscription: sig mismatch (check INTERNAL_API_SECRET sync & purpose)"
+            "rejected SSE subscription: sig mismatch (check INTERNAL_API_SECRET sync & purpose)"
         );
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    debug!("New SSE subscription request received");
+    debug!("new SSE subscription request received");
 
     let rx = state.message_event_tx.subscribe();
 
@@ -92,7 +95,7 @@ pub async fn sse_handler(
             msg.guild_id().is_some_and(|g_id| {
                 let is_match = g_id == params.guild_id;
                 if is_match {
-                    debug!(guild_id = %g_id, "Routing matching event to client");
+                    debug!(guild_id = %g_id, "routing matching event to client");
                 }
                 is_match
             })
@@ -100,7 +103,9 @@ pub async fn sse_handler(
         .map(|msg| {
             let event = msg
                 .to_sse_event()
-                .inspect_err(|e| error!(error = %e, "serialize event payload to SSE"))
+                .inspect_err(
+                    |e| warn!(error = %e, fallback = "error event", "SSE event payload serialization failed")
+                )
                 .unwrap_or_else(|_| Event::default().data("serialization error"));
             Ok(event)
         });

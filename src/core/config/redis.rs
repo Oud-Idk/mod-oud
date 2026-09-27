@@ -9,14 +9,15 @@ pub async fn get_settings_from_redis(redis: &Client, cache_key: &str) -> Option<
 
     match serde_json::from_str::<GuildSettings>(&cached_string) {
         Ok(settings) => {
-            trace!(key = %cache_key, "Retrieved settings from Redis cache");
+            trace!(key = %cache_key, "retrieved settings from Redis cache");
             Some(settings)
         }
         Err(e) => {
             warn!(
                 error = ?e,
                 key = %cache_key,
-                "parse settings from Redis; falling back to DB"
+                fallback = "db",
+                "settings deserialize from the redis cache failed"
             );
             None
         }
@@ -44,7 +45,7 @@ pub async fn set_setting_to_redis(
             warn!(
                 cache_key,
                 error = %err,
-                "failed to serialize settings, skipping cache write"
+                "settings serialization failed, cache write skipped"
             );
             Ok(())
         }

@@ -315,6 +315,7 @@ impl PlaybackHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shared::task;
     use serenity::all::UserId;
     use std::sync::Arc;
     use tokio::task::JoinHandle;
@@ -325,7 +326,7 @@ mod tests {
     /// handle-method → mailbox variant → typed reply.
     fn spawn_fake(mut handler: impl FnMut(GuildCommand) + Send + 'static) -> PlaybackHandle {
         let (tx, mut rx) = mpsc::channel(16);
-        tokio::spawn(async move {
+        task::spawn("music_command_loop", async move {
             while let Some(cmd) = rx.recv().await {
                 handler(cmd);
             }
@@ -338,7 +339,7 @@ mod tests {
         mut handler: impl FnMut(GuildCommand) + Send + 'static,
     ) -> (PlaybackHandle, JoinHandle<()>) {
         let (tx, mut rx) = mpsc::channel(16);
-        let join = tokio::spawn(async move {
+        let join = task::spawn("music_command_loop_alt", async move {
             while let Some(cmd) = rx.recv().await {
                 handler(cmd);
             }
@@ -716,13 +717,13 @@ mod tests {
     async fn slow_resolution_ignores_ordinary_timeout() {
         let handle = spawn_fake(move |cmd| match cmd {
             GuildCommand::Play(payload) => {
-                tokio::spawn(async move {
+                task::spawn("music_respond_single", async move {
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     let _ = payload.respond.send(Ok(PlayOutcome::Single(track_info())));
                 });
             }
             GuildCommand::QueueAdd(payload) => {
-                tokio::spawn(async move {
+                task::spawn("music_respond_queued", async move {
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     let _ = payload
                         .respond
@@ -760,7 +761,7 @@ mod tests {
         let (probe_tx, probe_rx) = oneshot::channel();
         let mut probe_tx = Some(probe_tx);
         let (tx, mut rx) = mpsc::channel::<GuildCommand>(16);
-        tokio::spawn(async move {
+        task::spawn("music_probe_loop", async move {
             let mut held = Vec::new();
             while let Some(cmd) = rx.recv().await {
                 if held.is_empty() {
@@ -775,7 +776,7 @@ mod tests {
         });
 
         let handle = PlaybackHandle::new(tx).with_ordinary_timeout(Duration::from_secs(30));
-        let stalled = tokio::spawn({
+        let stalled = task::spawn("music_pause", {
             let handle = handle.clone();
             async move { handle.pause().await }
         });

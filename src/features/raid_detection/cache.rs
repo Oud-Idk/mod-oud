@@ -125,7 +125,7 @@ pub async fn cache_calculated_stats(
         warn!(
             error = ?e,
             stats_cache_key,
-            "prune stale raid stats history field"
+            "stale raid stats history field not pruned"
         );
     }
     Ok(())
@@ -172,7 +172,7 @@ pub async fn extend_raid_active(
 pub async fn clear_raid_active(redis: &Client, guild_id: GuildId) -> Result<(), Error> {
     let active_key = keys::raid_active_key(guild_id);
     let _: () = redis.del(active_key).await?;
-    info!(%guild_id, "Cleared raid active state");
+    info!(%guild_id, "cleared raid active state");
     Ok(())
 }
 

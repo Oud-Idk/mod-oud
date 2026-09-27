@@ -3,6 +3,7 @@ use crate::core::config::state::Error;
 use crate::features::birthday::announcements::BirthdayAnnouncement;
 use crate::features::birthday::types::{BirthdayMember, UserBirthdayRecord};
 use crate::features::birthday::{BirthdayConfig, announcements, database};
+use crate::shared::task;
 use crate::shared::username_cache::UserUpdate;
 use crate::shared::{get_username, store_username_relation};
 use chrono::{DateTime, Datelike, Timelike, Utc};
@@ -39,8 +40,8 @@ async fn get_display_name(
                     %guild_id,
                     %user_id,
                     error = ?member_err,
-                    "Guild member lookup failed for a birthday celebrant; falling back to the \
-                     account username"
+                    fallback = "account username",
+                    "guild member lookup failed for a birthday celebrant"
                 );
                 user.name
             }
@@ -51,7 +52,8 @@ async fn get_display_name(
                     %user_id,
                     error = ?user_err,
                     member_error = ?member_err,
-                    "User lookup failed for a birthday celebrant; announcing the raw id placeholder"
+                    fallback = "raw id placeholder",
+                    "user lookup failed for a birthday celebrant"
                 );
                 format!("User ({user_id})")
             }
@@ -59,7 +61,7 @@ async fn get_display_name(
     };
 
     if let Err(e) = store_username_relation(sender, user_id, &fetched_name).await {
-        warn!(error = ?e, %user_id, "queue username update for birthday announcement");
+        warn!(error = ?e, %user_id, "username update not queued for the announcement");
     }
 
     fetched_name
@@ -123,7 +125,7 @@ async fn announce_for_guild(
     let settings = match get_settings(db, redis, guild_configs, guild_id).await {
         Ok(s) => s,
         Err(e) => {
-            error!(%guild_id, error = %e, "fetch settings for birthday job");
+            warn!(%guild_id, error = %e, "guild settings lookup failed");
             return;
         }
     };
@@ -138,7 +140,8 @@ async fn announce_for_guild(
         warn!(
             %guild_id,
             tz = %birthday_cfg.timezone,
-            "Invalid timezone in config, falling back to UTC"
+            fallback = "utc",
+            "invalid timezone in the birthday config"
         );
         chrono_tz::UTC
     });
@@ -151,7 +154,7 @@ async fn announce_for_guild(
         warn!(
             %guild_id,
             tz = %birthday_cfg.timezone,
-            "Birthday announcement channel is not configured for this guild; nothing is \
+            "birthday announcement channel is not configured for this guild; nothing is \
              announced on any run"
         );
         return;
@@ -197,7 +200,7 @@ async fn unannounced_celebrants(
         {
             Ok(records) => records,
             Err(e) => {
-                error!(%guild_id, error = %e, "get unannounced birthdays");
+                warn!(%guild_id, error = %e, "unannounced birthday lookup failed");
                 return None;
             }
         };
@@ -208,7 +211,7 @@ async fn unannounced_celebrants(
         month = guild_month,
         day = guild_day,
         candidates = birthday_records.len(),
-        "Found unannounced birthday candidates"
+        "found unannounced birthday candidates"
     );
 
     if birthday_records.is_empty() {
@@ -237,7 +240,16 @@ async fn announce_celebrants(
     )
     .await
     {
-        Ok(m) => Some(m.id),
+        Ok(m) => {
+            info!(
+                %guild_id,
+                %channel_id,
+                sent_msg_id = %m.id,
+                celebrants = celebrants.len(),
+                "birthday announcement sent"
+            );
+            Some(m.id)
+        }
         Err(e) => {
             // The log rows are still written with a null `sent_msg_id`, so these celebrants are
             // marked announced for the year even though nobody saw the message.
@@ -247,21 +259,12 @@ async fn announce_celebrants(
                 %guild_id,
                 %channel_id,
                 celebrants = celebrants.len(),
-                "Failed to send the birthday announcement, but the year is still marked \
+                "birthday announcement delivery failed, but the year is still marked \
                  announced for every celebrant"
             );
             None
         }
     };
-
-    info!(
-        %guild_id,
-        %channel_id,
-        celebrants = celebrants.len(),
-        sent_msg_id = ?sent_msg_id,
-        "Finished birthday announcement processing; a null sent_msg_id means the send failed and \
-         the celebrants are now marked announced for the year anyway"
-    );
 
     let payload = BirthdayAnnouncement {
         guild_id,
@@ -301,11 +304,11 @@ pub async fn cleanup_expired_birthday_roles(
                 .remove_member_role(guild_id, user_id, role_id, Some("Birthday role expired"))
                 .await
             {
-                error!(
+                warn!(
                     error = ?e,
                     %guild_id,
                     %user_id,
-                    "remove expired birthday role; member keeps the role"
+                    "expired birthday role not removed; the member keeps the role"
                 );
             }
         })
@@ -326,14 +329,17 @@ pub fn start_birthday_worker(
 ) {
     let worker_id = format!("worker-{}", Utc::now().timestamp_millis());
 
-    tokio::spawn(run_birthday_worker(
-        pool,
-        redis_client,
-        guild_configs,
-        username_tx,
-        ctx,
-        worker_id,
-    ));
+    task::spawn(
+        "birthday_worker",
+        run_birthday_worker(
+            pool,
+            redis_client,
+            guild_configs,
+            username_tx,
+            ctx,
+            worker_id,
+        ),
+    );
 }
 
 /// The worker loop. Runs under a span so a panic carries the worker id.
@@ -354,8 +360,6 @@ async fn run_birthday_worker(
     loop {
         tokio::time::sleep(Duration::from_mins(2)).await;
 
-        trace!("Attempting to acquire lock for birthday tasks");
-
         match crate::shared::locking::acquire_lock(&redis_client, lock_key, lock_value, 3).await {
             Ok(Some(guard)) => {
                 if let Err(e) = run_birthday_announcements(
@@ -367,24 +371,24 @@ async fn run_birthday_worker(
                 )
                 .await
                 {
-                    error!(error = ?e, "running birthday announcements");
+                    warn!(error = ?e, "birthday announcement run failed");
                 }
 
                 if let Err(e) = cleanup_expired_birthday_roles(&pool, &ctx).await {
-                    error!(error = ?e, "cleaning up expired birthday roles");
+                    warn!(error = ?e, "expired birthday role cleanup failed");
                 }
 
                 if let Err(e) = guard.release().await {
-                    warn!(error = ?e, "release birthday worker lock");
+                    warn!(error = ?e, "birthday worker lock not released");
                 } else {
-                    trace!("Released birthday worker lock");
+                    trace!("released birthday worker lock");
                 }
             }
             Ok(None) => {
-                trace!("Lock busy; skipping this iteration");
+                trace!("lock busy; skipping this iteration");
             }
             Err(e) => {
-                error!(error = ?e, "coordinate Redis lock for birthday worker");
+                warn!(error = ?e, "birthday worker lock coordination failed");
             }
         }
     }

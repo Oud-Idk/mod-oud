@@ -95,7 +95,7 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
                 error = ?e,
                 cooldown_key = %cooldown_key,
                 cooldown_secs = config.work_cooldown_secs,
-                "Cooldown SET failed; the /work cooldown is not being enforced"
+                "cooldown SET failed; the /work cooldown is not being enforced"
             );
         })?;
 
@@ -107,7 +107,8 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
                 warn!(
                     error = ?e,
                     cooldown_key = %cooldown_key,
-                    "Cooldown TTL lookup failed; reporting a 0s wait"
+                    fallback = "0s wait",
+                    "cooldown TTL lookup failed"
                 );
                 0
             }
@@ -138,7 +139,12 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
         Ok(Some(wm)) => wm.render(reward, currency, &user_mention),
         Ok(None) => config.render_work_message_with_user(reward, currency, &user_mention),
         Err(e) => {
-            tracing::warn!(%guild_id, error = %e, "fetch random work message, falling back to config template");
+            tracing::warn!(
+                %guild_id,
+                error = %e,
+                fallback = "config template",
+                "work message lookup failed"
+            );
             config.render_work_message_with_user(reward, currency, &user_mention)
         }
     };

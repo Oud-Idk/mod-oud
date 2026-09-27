@@ -11,7 +11,7 @@ use crate::core::config::state::Error;
 use reqwest::{RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use std::time::Instant;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
 /// Query-string parameter names that carry a credential.
 const SECRET_QUERY_PARAMS: &[&str] = &[
@@ -80,12 +80,12 @@ pub async fn get_json<T: DeserializeOwned>(
     let safe_url = redact_url(url, path_secrets);
 
     let response = request.send().await.map_err(|e| {
-        error!(
+        warn!(
             provider,
             op,
             url = %safe_url,
             error = ?e,
-            "Upstream provider request failed before a response was received"
+            "upstream provider request failed before a response was received"
         );
         anyhow::anyhow!("{provider} is unavailable right now.")
     })?;
@@ -102,16 +102,16 @@ pub async fn get_json<T: DeserializeOwned>(
                 status = status.as_u16(),
                 url = %safe_url,
                 body = %snippet,
-                "Upstream provider rate limited us, usually quota exhaustion"
+                "upstream provider rate limited us, usually quota exhaustion"
             );
         } else {
-            error!(
+            warn!(
                 provider,
                 op,
                 reason = status.as_u16(),
                 url = %safe_url,
                 body = %snippet,
-                "Upstream provider returned a non-success status"
+                "upstream provider returned a non-success status"
             );
         }
 
@@ -119,13 +119,13 @@ pub async fn get_json<T: DeserializeOwned>(
     }
 
     let payload = response.json::<T>().await.map_err(|e| {
-        error!(
+        warn!(
             provider,
             op,
             status = status.as_u16(),
             url = %safe_url,
             error = ?e,
-            "Upstream provider succeeded but the body did not decode, so their schema changed"
+            "upstream provider succeeded but the body did not decode, so their schema changed"
         );
         anyhow::anyhow!("{provider} returned an unexpected response.")
     })?;
@@ -136,7 +136,7 @@ pub async fn get_json<T: DeserializeOwned>(
         status = status.as_u16(),
         url = %safe_url,
         latency_ms = started.elapsed().as_millis(),
-        "Upstream provider request succeeded"
+        "upstream provider request succeeded"
     );
 
     Ok(payload)

@@ -1,3 +1,4 @@
+use crate::features::search::redact_url;
 use serde::Deserialize;
 use std::fmt::Write;
 use tracing::{debug, warn};
@@ -95,8 +96,6 @@ pub async fn resolve_youtube_playlist(
     let mut page_token: Option<String> = None;
     let max_results = 50; // YouTube Data API v3 limit per page
 
-    debug!(playlist_id = %playlist_id, "Fetching YouTube playlist tracks via Data API v3");
-
     loop {
         let mut api_url = format!(
             "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults={max_results}&playlistId={playlist_id}&key={api_key}"
@@ -109,7 +108,7 @@ pub async fn resolve_youtube_playlist(
         let res = match client.get(&api_url).send().await {
             Ok(r) => r,
             Err(e) => {
-                warn!(error = %e, "Network error while fetching YouTube playlist page");
+                warn!(error = %e, "youtube playlist page fetch failed");
                 break;
             }
         };
@@ -123,16 +122,25 @@ pub async fn resolve_youtube_playlist(
         let body_text = match res.text().await {
             Ok(t) => t,
             Err(e) => {
-                warn!(error = %e, "read response body text from YouTube API");
+                warn!(error = %e, "youtube response body read failed");
                 break;
             }
         };
+
+        let safe_url = redact_url(&api_url, &[]);
 
         // Safely deserialize
         let data: PlaylistItemListResponse = match serde_json::from_str(&body_text) {
             Ok(d) => d,
             Err(e) => {
-                warn!(error = %e, raw_body = %body_text, "deserialize YouTube playlist JSON");
+                // The body, not the message: an error body from a keyed endpoint can echo the
+                // request url, and this one carries `key=` in its query string.
+                warn!(
+                    url = %safe_url,
+                    body_bytes = body_text.len(),
+                    error = %e,
+                    "youtube playlist deserialization failed"
+                );
                 break;
             }
         };
@@ -160,10 +168,11 @@ pub async fn resolve_youtube_playlist(
     }
 
     if video_urls.is_empty() {
-        warn!(url = %url, "fetch videos from YouTube API or playlist was empty");
+        warn!(url = %url, "youtube playlist resolved to no videos");
         None
     } else {
         debug!(
+            playlist_id = %playlist_id,
             count = video_urls.len(),
             "fetched all YouTube playlist tracks"
         );
@@ -197,6 +206,6 @@ pub async fn resolve_youtube_video(
 
     let watch_url = format!("https://www.youtube.com/watch?v={video_id}");
 
-    debug!(url = %url, watch_url = %watch_url, "Resolved YouTube video via Data API v3");
+    debug!(url = %url, watch_url = %watch_url, "resolved YouTube video via Data API v3");
     Some(watch_url)
 }

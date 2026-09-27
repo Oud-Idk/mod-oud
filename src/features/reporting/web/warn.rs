@@ -7,7 +7,7 @@ use crate::features::warning::issue_warning;
 use axum::http::StatusCode;
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{error, info, instrument};
+use tracing::{info, instrument, warn};
 
 pub struct WarnContext<'a> {
     pub mod_id: Option<UserId>,
@@ -30,8 +30,6 @@ pub async fn handle_warn(
     let moderator_id = user_lookup::resolve_moderator_id(&state.serenity_http, ctx.mod_id).await?;
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
 
-    info!(moderator_id = %moderator_id, "Issuing warning to user");
-
     issue_warning(
         &state.core.db,
         ctx.redis,
@@ -46,8 +44,16 @@ pub async fn handle_warn(
         ctx.target_username,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "execute warning issuance"))
+    .inspect_err(|e| warn!(error = %e, "warning not issued"))
     .map_err(|_e| WebError::Internal)?;
+
+    info!(
+        report_id = cmd.report_id,
+        guild_id = %ctx.guild_id,
+        user_id = %ctx.user_id,
+        %moderator_id,
+        "dashboard warning applied"
+    );
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserWarned).await?;
     Ok(StatusCode::OK)

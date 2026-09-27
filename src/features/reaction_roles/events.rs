@@ -5,7 +5,7 @@ use serenity::all::{
     ComponentInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
     Reaction,
 };
-use tracing::{info, warn};
+use tracing::{debug, warn};
 
 /// Assigns the configured role when a user reacts to a reaction role message.
 ///
@@ -38,10 +38,10 @@ pub async fn handle_reaction_role_add(
                 %user_id,
                 %role_id,
                 error = %err,
-                "failed to add reaction role"
+                "reaction role not added"
             );
         } else {
-            info!(%guild_id, %user_id, %role_id, "assigned reaction role");
+            debug!(%guild_id, %user_id, %role_id, "assigned reaction role");
         }
     }
     Ok(())
@@ -78,10 +78,10 @@ pub async fn handle_reaction_role_remove(
                 %user_id,
                 %role_id,
                 error = %err,
-                "failed to remove reaction role"
+                "reaction role not removed"
             );
         } else {
-            info!(%guild_id, %user_id, %role_id, "removed reaction role");
+            debug!(%guild_id, %user_id, %role_id, "removed reaction role");
         }
     }
     Ok(())
@@ -123,7 +123,7 @@ pub async fn handle_button_interaction(
             .await
         {
             Ok(()) => {
-                info!(%guild_id, %user_id, %role_id, "removed button role");
+                debug!(%guild_id, %user_id, %role_id, "removed button role");
                 format!("Removed the <@&{role_id}> role from you.")
             }
             Err(err) => {
@@ -132,7 +132,7 @@ pub async fn handle_button_interaction(
                     %user_id,
                     %role_id,
                     error = %err,
-                    "failed to remove button role"
+                    "button role not removed"
                 );
                 "Failed to remove role. Please check my bot role permissions.".to_string()
             }
@@ -144,7 +144,7 @@ pub async fn handle_button_interaction(
             .await
         {
             Ok(()) => {
-                info!(%guild_id, %user_id, %role_id, "assigned button role");
+                debug!(%guild_id, %user_id, %role_id, "assigned button role");
                 format!("Gave you the <@&{role_id}> role!")
             }
             Err(err) => {
@@ -153,7 +153,7 @@ pub async fn handle_button_interaction(
                     %user_id,
                     %role_id,
                     error = %err,
-                    "failed to add button role"
+                    "button role not added"
                 );
                 "Failed to add role. Please check my bot role permissions.".to_string()
             }

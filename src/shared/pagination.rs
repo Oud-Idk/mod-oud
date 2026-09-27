@@ -15,8 +15,8 @@ pub struct PaginationState {
 
 impl PaginationState {
     /// Creates a new pagination state.
+    #[must_use]
     pub fn new(ctx_id: u64, total_pages: usize) -> Self {
-        trace!(ctx_id, total_pages, "Initializing pagination state");
         Self {
             current_page: 0,
             total_pages,
@@ -35,7 +35,7 @@ impl PaginationState {
     pub fn create_components(&self) -> Vec<serenity::all::CreateActionRow> {
         trace!(
             current_page = self.current_page,
-            "Generating active button components"
+            "active button components built"
         );
         let prev_btn = serenity::all::CreateButton::new(&self.prev_id)
             .label("◀")
@@ -53,8 +53,8 @@ impl PaginationState {
     }
 
     /// Generates disabled buttons for the final inactive message state.
+    #[must_use]
     pub fn create_disabled_components(&self) -> Vec<serenity::all::CreateActionRow> {
-        trace!("Generating disabled button components");
         let prev_btn = serenity::all::CreateButton::new(&self.prev_id)
             .label("◀")
             .style(serenity::all::ButtonStyle::Primary)
@@ -76,21 +76,21 @@ impl PaginationState {
         trace!(
             custom_id,
             current_page = self.current_page,
-            "Evaluating received button interaction ID"
+            "button interaction received"
         );
 
         if custom_id == self.prev_id && self.current_page > 0 {
             self.current_page -= 1;
-            debug!(new_page = self.current_page, "Page decremented");
+            debug!(new_page = self.current_page, "page decremented");
             true
         } else if custom_id == self.next_id && self.current_page < self.total_pages - 1 {
             self.current_page += 1;
-            debug!(new_page = self.current_page, "Page incremented");
+            debug!(new_page = self.current_page, "page incremented");
             true
         } else {
             trace!(
                 custom_id,
-                "Interaction ignored (does not match expected active IDs)"
+                "interaction ignored (does not match expected active IDs)"
             );
             false
         }
@@ -106,7 +106,6 @@ where
     F: Fn(usize) -> serenity::all::CreateEmbed + Send + Sync,
 {
     if pagination_state.total_pages > 1 {
-        trace!("Sending initial multi-page reply with components");
         let handle = ctx
             .send(
                 poise::CreateReply::default()
@@ -117,7 +116,6 @@ where
             .await?;
         Ok(Some(handle))
     } else {
-        trace!("Sending single-page reply without components");
         ctx.send(
             poise::CreateReply::default()
                 .embed(make_embed(pagination_state.current_page()))
@@ -129,10 +127,6 @@ where
 }
 
 fn get_stream_collector(ctx: &Context<'_>) -> impl Stream<Item = ComponentInteraction> {
-    trace!(
-        author_id = ctx.author().id.get(),
-        "Initializing component interaction collector"
-    );
     serenity::all::ComponentInteractionCollector::new(ctx.serenity_context())
         .author_id(ctx.author().id)
         .timeout(std::time::Duration::from_mins(2))
@@ -148,37 +142,27 @@ pub async fn paginate<F>(ctx: Context<'_>, total_pages: usize, make_embed: F) ->
 where
     F: Fn(usize) -> serenity::all::CreateEmbed + Send + Sync,
 {
-    debug!(
-        total_pages,
-        ctx_id = ctx.id(),
-        "Starting pagination handler"
-    );
+    debug!(total_pages, ctx_id = ctx.id(), "pagination requested");
 
     if total_pages == 0 {
-        trace!("Zero pages provided, skipping execution");
+        trace!("zero pages provided, skipping execution");
         return Ok(());
     }
 
     let mut state = PaginationState::new(ctx.id(), total_pages);
 
     let Some(reply) = send_initial_reply(ctx, &make_embed, &state).await? else {
-        debug!("Only single page detected; skipping interaction loop");
+        debug!("only single page detected; skipping interaction loop");
         return Ok(());
     };
 
-    debug!("entering pagination stream loop");
+    debug!("pagination stream loop open");
     let mut collector = get_stream_collector(&ctx);
 
     while let Some(press) = collector.next().await {
         if !state.handle_interaction(&press.data.custom_id) {
             continue;
         }
-
-        trace!(
-            custom_id = press.data.custom_id,
-            target_page = state.current_page(),
-            "Sending message update response"
-        );
 
         press
             .create_response(
@@ -192,7 +176,7 @@ where
             .await?;
     }
 
-    debug!("Pagination stream ended (timeout); disabling button components");
+    debug!("pagination stream ended on timeout");
 
     // Disable the buttons after timeout to indicate they are no longer active
     if let Err(err) = reply
@@ -202,9 +186,9 @@ where
         )
         .await
     {
-        warn!(error = ?err, "disable pagination components after timeout");
+        warn!(error = ?err, "pagination components not disabled after timeout");
     } else {
-        trace!("Pagination components disabled");
+        trace!("pagination components disabled");
     }
 
     Ok(())

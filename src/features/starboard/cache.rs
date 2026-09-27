@@ -106,7 +106,7 @@ pub async fn get_starboards(guild_id: u64, db: &PgPool, redis: &Client) -> Resul
     )
     .fetch_all(db)
     .await
-    .context("Failed to query starboard configurations from Postgres")?;
+    .context("starboard configuration lookup from postgres failed")?;
 
     let starboards: Vec<Starboard> = rows.into_iter().map(Starboard::from).collect();
 

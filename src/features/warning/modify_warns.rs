@@ -2,7 +2,7 @@ use crate::core::config::state::{Context, Error};
 use crate::features::warning::issuing::issue_warning_status_change;
 use crate::shared::command_context::GuildMetadata;
 use crate::shared::messages::send_ephemeral;
-use tracing::{debug, info, trace};
+use tracing::debug;
 
 /// Helper function to handle both pardoning and unpardoning warnings.
 pub async fn set_warning_active_status(
@@ -10,11 +10,6 @@ pub async fn set_warning_active_status(
     id: i64,
     set_active: bool,
 ) -> Result<(), Error> {
-    trace!(
-        warning_id = id,
-        set_active, "Initiating warning active status adjustment"
-    );
-
     let meta = GuildMetadata::extract(&ctx)?;
 
     let result = issue_warning_status_change(
@@ -37,19 +32,11 @@ pub async fn set_warning_active_status(
             format!("Successfully {action_past_tense} warning **#{id}** for <@{target_user_id}>."),
         )
         .await?;
-
-        info!(
-            warning_id = id,
-            target_user_id,
-            set_active,
-            action = action_past_tense,
-            "Warning active status modified in the database"
-        );
     } else {
         let status_description = if set_active { "inactive" } else { "active" };
         debug!(
             warning_id = id,
-            set_active, "change warning status: warning not found or already in target state"
+            set_active, "warning not found or already in the target state"
         );
 
         send_ephemeral(

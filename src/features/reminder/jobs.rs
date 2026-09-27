@@ -5,6 +5,7 @@ use crate::features::reminder::timings::{RecurrenceRule, calculate_next_trigger}
 use crate::features::reminder::types::{ReminderRecord, ReminderType};
 use crate::shared::embed::create_basic_embed;
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use chrono::{DateTime, Utc};
 use fred::prelude::*;
 use futures_util::StreamExt;
@@ -18,7 +19,7 @@ pub fn start_reminder_worker(
     http: Arc<serenity::Http>,
     redis_client: Client,
 ) {
-    tokio::spawn(async move {
+    task::spawn("reminder_worker", async move {
         let lock_key = "lock:reminder_worker";
         let lock_value = format!("worker-{}", Utc::now().timestamp_millis());
 
@@ -28,30 +29,28 @@ pub fn start_reminder_worker(
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
             let now = Utc::now();
-            trace!("Attempting to acquire lock for reminder processing");
-
             match acquire_lock(&redis_client, lock_key, &lock_value, 30).await {
                 Ok(Some(guard)) => {
-                    trace!("Acquired lock; processing expired reminders");
+                    trace!(%lock_value, "reminder worker lock acquired");
                     if let Err(e) = process_expired_reminders(&db_pool, &http, now).await {
-                        error!(error = ?e, "processing expired reminders");
+                        warn!(error = ?e, "expired reminder processing failed");
                     }
 
                     match guard.release().await {
-                        Ok(true) => trace!("Released lock"),
+                        Ok(true) => trace!("released lock"),
                         Ok(false) => {
-                            warn!("Attempted to release reminder lock, but we no longer owned it");
+                            warn!(%lock_value, "reminder worker lock no longer held at release");
                         }
                         Err(e) => {
-                            error!(error = ?e, "release reminder lock due to Redis error");
+                            warn!(error = ?e, "reminder worker lock not released");
                         }
                     }
                 }
                 Ok(None) => {
-                    trace!("Lock busy; skipping this iteration");
+                    trace!("lock busy; skipping this iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate Redis lock for reminders");
+                    warn!(error = ?e, "reminder worker lock coordination failed");
                 }
             }
         }
@@ -71,12 +70,12 @@ async fn process_expired_reminders(
     let expired_reminders = fetch_due_reminders(db_pool, now, BATCH_SIZE).await?;
 
     if expired_reminders.is_empty() {
-        trace!("No expired reminders to process");
+        trace!("no expired reminders to process");
         return Ok(());
     }
 
     let reminders_count = expired_reminders.len();
-    info!(reminders_count, "Found expired reminders to process");
+    info!(reminders_count, "found expired reminders to process");
 
     let reminder_futures = expired_reminders.into_iter().map(|record| {
         let http_ref = http;
@@ -88,15 +87,15 @@ async fn process_expired_reminders(
             let content_opt = match create_basic_embed(&record.message, ToString::to_string) {
                 Ok(c) => c,
                 Err(e) => {
-                    error!(
+                    warn!(
                         %channel_id,
                         reminder_id,
                         error = ?e,
-                        "generate reminder embed"
+                        "reminder embed generation failed"
                     );
                     // Invalid template/embed -> advance state so it doesn't choke forever
                     if let Err(e) = handle_post_execution(db_ref, &record).await {
-                        error!(error = ?e, reminder_id, "update reminder state in DB");
+                        error!(error = ?e, reminder_id, "reminder state update failed");
                     }
                     return Err(reminder_id);
                 }
@@ -107,12 +106,12 @@ async fn process_expired_reminders(
                     Ok(_) => {
                         debug!(reminder_id, "sent reminder");
                         if let Err(e) = handle_post_execution(db_ref, &record).await {
-                            error!(error = ?e, reminder_id, "update reminder state in DB");
+                            error!(error = ?e, reminder_id, "reminder state update failed");
                         }
                         Ok(reminder_id)
                     }
                     Err(e) => {
-                        error!(error = ?e, reminder_id, "send reminder to Discord");
+                        warn!(error = ?e, reminder_id, "reminder not sent to discord");
                         // We do NOT update DB here so it can retry on the next tick!
                         Err(reminder_id)
                     }
@@ -120,11 +119,11 @@ async fn process_expired_reminders(
             } else {
                 debug!(
                     reminder_id,
-                    "No content to send (empty message). Updating state"
+                    "reminder message is empty; the state is still advanced"
                 );
 
                 if let Err(e) = handle_post_execution(db_ref, &record).await {
-                    error!(error = ?e, reminder_id, "update reminder state in DB");
+                    error!(error = ?e, reminder_id, "reminder state update failed");
                 }
 
                 Ok(reminder_id)
@@ -142,7 +141,7 @@ async fn process_expired_reminders(
     if successful_count < reminders_count {
         warn!(
             failed_count = reminders_count - successful_count,
-            "Some reminders failed to send and will be retried on the next iteration"
+            "some reminders not sent; they retry on the next tick"
         );
     }
 
@@ -170,12 +169,12 @@ async fn handle_post_execution(
             debug!(
                 reminder_id = record.id,
                 ?next_run,
-                "Rescheduled recurring reminder"
+                "rescheduled recurring reminder"
             );
         }
         ReminderType::Single => {
             deactivate_reminder(db, record.id).await?;
-            debug!(reminder_id = record.id, "Deactivated single-run reminder");
+            debug!(reminder_id = record.id, "deactivated single-run reminder");
         }
     }
 

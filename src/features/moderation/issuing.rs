@@ -3,6 +3,7 @@ use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::features::moderation::ActionType;
+use crate::features::moderation::audit;
 use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::placeholders::{
     replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder,
@@ -24,7 +25,7 @@ use serenity::all::{
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[instrument(
     skip(db, redis_conn, guild_configs, http),
@@ -42,7 +43,6 @@ pub async fn issue_kick(
     moderator: User,
     reason: &str,
 ) -> Result<()> {
-    debug!("Retrieving moderation context for kick");
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -66,7 +66,6 @@ pub async fn issue_kick(
                 .is_some_and(|t| t.contains("invite.url"));
 
         if contains_invite {
-            debug!("Generating transient invite URL for kick DM fallback");
             let builder = CreateInvite::default()
                 .max_age(86400) // 24 hrs
                 .max_uses(1)
@@ -74,10 +73,15 @@ pub async fn issue_kick(
 
             match channel_id.create_invite(http, builder).await {
                 Ok(invite) => {
+                    debug!(
+                        %channel_id,
+                        user_id = %user.id,
+                        "transient invite url generated for the kick dm"
+                    );
                     invite_url = Some(format!("https://discord.gg/{}", invite.code));
                 }
                 Err(e) => {
-                    warn!(error = ?e, "create Discord invite for kick DM");
+                    warn!(error = ?e, "kick dm invite creation failed");
                 }
             }
         }
@@ -122,10 +126,9 @@ pub async fn issue_kick(
     )
     .await?;
 
-    debug!("Executing kick via Discord HTTP API");
     guild_id.kick_with_reason(http, user.id, reason).await?;
 
-    info!("kicked user from guild");
+    audit::member_kicked(guild_id, user.id, moderator.id, reason);
     Ok(())
 }
 
@@ -151,7 +154,6 @@ pub async fn issue_ban(
     dmd_time: u8,
     duration: Option<Duration>,
 ) -> Result<()> {
-    debug!("Retrieving moderation context for ban");
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
     let ban_dm_settings_opt = settings.moderation_dms.and_then(|m| m.ban);
@@ -182,14 +184,17 @@ pub async fn issue_ban(
         }
     );
 
-    debug!("Executing ban via Discord HTTP API");
     guild_id
         .ban_with_reason(http, user.id, dmd_time, reason)
         .await?;
 
     let dur: Option<TimeDelta> = if let Some(duration) = duration {
-        debug!("Ban is scheduled; registering unban timeout in database");
-        Some(schedule_unban(db, guild_id, &user, duration).await?)
+        let chrono_dur = schedule_unban(db, guild_id, &user, duration).await?;
+        debug!(
+            duration_secs = chrono_dur.num_seconds(),
+            "temporary unban scheduled in the database"
+        );
+        Some(chrono_dur)
     } else {
         None
     };
@@ -205,7 +210,7 @@ pub async fn issue_ban(
     )
     .await?;
 
-    info!("banned user from guild");
+    audit::member_banned(guild_id, user.id, moderator.id, reason, duration);
     Ok(())
 }
 
@@ -256,7 +261,6 @@ pub async fn issue_mute(
     duration: &Duration,
     timestamp: Timestamp,
 ) -> Result<()> {
-    debug!("Retrieving moderation context for timeout");
     let (gctx, mut member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -284,7 +288,6 @@ pub async fn issue_mute(
         }
     );
 
-    debug!(until = %timestamp, "Applying timeout via Discord HTTP API");
     member
         .disable_communication_until_datetime(http, timestamp)
         .await?;
@@ -302,7 +305,7 @@ pub async fn issue_mute(
     )
     .await?;
 
-    info!("muted user in guild");
+    audit::member_muted(guild_id, user.id, moderator.id, reason, *duration);
     Ok(())
 }
 
@@ -317,7 +320,6 @@ pub async fn issue_unmute(
     user: User,
     moderator: User,
 ) -> Result<()> {
-    debug!("Retrieving moderation context for unmute");
     let (gctx, mut member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -335,7 +337,6 @@ pub async fn issue_unmute(
             .footer(CreateEmbedFooter::new(MODERATION_FOOTER))
     );
 
-    debug!("Removing timeout via Discord HTTP API");
     member.enable_communication(http).await?;
 
     log_moderation_action(
@@ -349,7 +350,7 @@ pub async fn issue_unmute(
     )
     .await?;
 
-    info!("unmuted user in guild");
+    audit::member_unmuted(guild_id, user.id, moderator.id);
     Ok(())
 }
 
@@ -370,7 +371,6 @@ pub async fn issue_softban(
     reason: &str,
     dmd: u8,
 ) -> Result<()> {
-    debug!("Retrieving moderation context for softban");
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user.id);
 
@@ -402,10 +402,8 @@ pub async fn issue_softban(
         }
     );
 
-    debug!("Executing temporary ban for softban via Discord HTTP API");
     guild_id.ban_with_reason(http, user.id, dmd, reason).await?;
 
-    debug!("Executing immediate unban for softban via Discord HTTP API");
     guild_id.unban(http, user.id).await?;
 
     log_moderation_action(
@@ -419,6 +417,6 @@ pub async fn issue_softban(
     )
     .await?;
 
-    info!("soft-banned user from guild");
+    audit::member_softbanned(guild_id, user.id, moderator.id, reason);
     Ok(())
 }

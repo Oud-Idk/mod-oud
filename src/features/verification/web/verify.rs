@@ -1,5 +1,6 @@
 use crate::core::config::settings::{GuildSettings, get_settings};
 use crate::core::config::state::WebState;
+use crate::features::verification::audit;
 use crate::features::verification::captcha::{verify_hcaptcha_token, verify_turnstile};
 use crate::features::verification::signing::verify_sig;
 use crate::features::verification::types::CaptchaType;
@@ -67,7 +68,7 @@ pub async fn handle_verify(
         &payload.sig,
         secrets.shared_secret.as_bytes(),
     ) {
-        info!(user_id = %payload.user_id, "User failed to verify: Invalid or expired link");
+        info!(user_id = %payload.user_id, "verification link invalid or expired");
         return Err((
             StatusCode::BAD_REQUEST,
             "Invalid or expired link.".to_string(),
@@ -82,7 +83,7 @@ pub async fn handle_verify(
         .ok_or_else(|| {
             debug!(
                 guild_id = %payload.guild_id,
-                "Rejected verification: captcha type mismatch or verification not configured for guild"
+                "rejected verification: captcha type mismatch or verification not configured for guild"
             );
             (
                 StatusCode::BAD_REQUEST,
@@ -98,11 +99,15 @@ pub async fn handle_verify(
     // Validate Captcha (Turnstile / hCaptcha)
     validate_captcha(&state, &payload, &secrets, &client_ip).await?;
 
-    info!(user_id = %payload.user_id, "User passed all verification checks");
+    info!(
+        guild_id = %payload.guild_id,
+        user_id = %payload.user_id,
+        "verification checks passed"
+    );
 
     // Assign verified role to the user
     let role_id = verification_cfg.verification_role_id.ok_or_else(|| {
-        warn!("Endpoint is fetched, but verification Role ID is empty");
+        warn!(guild_id = %payload.guild_id, "verification role id not configured");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error".to_string(),
@@ -191,7 +196,7 @@ async fn fetch_guild_settings(
         guild_id,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, "get settings"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "guild settings lookup failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -206,7 +211,7 @@ async fn verify_discord_oauth_identity(
     payload: &VerifyRequestPayload,
 ) -> WebResult<()> {
     let Some(token) = &payload.access_token else {
-        debug!(user_id = %payload.user_id, "User tried to verify without authentication");
+        debug!(user_id = %payload.user_id, "verification attempted without an access token");
         return Err((
             StatusCode::UNAUTHORIZED,
             "Discord authentication required.".to_string(),
@@ -224,7 +229,7 @@ async fn verify_discord_oauth_identity(
     match response {
         Ok(resp) if resp.status().is_success() => {
             let discord_user: DiscordUser = resp.json().await.map_err(|e| {
-                warn!(error = ?e, "parse Discord user JSON");
+                warn!(error = ?e, %payload.user_id, "discord user json parse failed");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error.".to_string(),
@@ -235,7 +240,7 @@ async fn verify_discord_oauth_identity(
                 debug!(
                     user_id = %payload.user_id,
                     auth_user_id = %discord_user.id,
-                    "Rejected verification: link and authenticated Discord account differ"
+                    "rejected verification: link and authenticated Discord account differ"
                 );
                 return Err((
                     StatusCode::FORBIDDEN,
@@ -247,7 +252,7 @@ async fn verify_discord_oauth_identity(
         Ok(resp) => {
             debug!(
                 status = %resp.status(),
-                "Rejected verification: Discord refused the supplied access token"
+                "rejected verification: Discord refused the supplied access token"
             );
             Err((
                 StatusCode::UNAUTHORIZED,
@@ -255,7 +260,11 @@ async fn verify_discord_oauth_identity(
             ))
         }
         Err(e) => {
-            error!(error = ?e, "reach Discord to validate the access token");
+            warn!(
+                error = ?e,
+                %payload.user_id,
+                "access token validation request to discord failed"
+            );
             Err((
                 StatusCode::UNAUTHORIZED,
                 "Invalid or expired Discord session. Please log in again.".to_string(),
@@ -278,7 +287,7 @@ async fn validate_captcha(
             &payload.captcha_token,
         )
         .await
-        .inspect_err(|e| warn!(error = ?e, "verify using Turnstile"))
+        .inspect_err(|e| warn!(error = ?e, %payload.user_id, "turnstile verification failed"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -294,7 +303,7 @@ async fn validate_captcha(
             secrets.hc_site_key,
         )
         .await
-        .inspect_err(|e| warn!(error = ?e, "verify using hCaptcha"))
+        .inspect_err(|e| warn!(error = ?e, %payload.user_id, "hcaptcha verification failed"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -304,7 +313,7 @@ async fn validate_captcha(
     };
 
     if !verified {
-        debug!(user_id = %payload.user_id, reject_reasons = ?reject_reasons, "Captcha failed");
+        debug!(user_id = %payload.user_id, reject_reasons = ?reject_reasons, "captcha failed");
         return Err((
             StatusCode::BAD_REQUEST,
             "Captcha verification failed.".to_string(),
@@ -330,7 +339,7 @@ async fn assign_verified_role(
             Some("User successfully completed verification"),
         )
         .await
-        .inspect_err(|e| error!(error = ?e, "add role to user"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, %user_id, "verification role not added"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -338,6 +347,6 @@ async fn assign_verified_role(
             )
         })?;
 
-    info!(%user_id, %role_id, "Added role to user");
+    audit::role_granted(guild_id, user_id, role_id);
     Ok(())
 }

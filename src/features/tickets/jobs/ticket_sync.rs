@@ -1,12 +1,13 @@
 use crate::core::config::state::Error;
 use crate::features::tickets::keys;
+use crate::shared::task;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use fred::types::scan::Scanner;
 use futures_util::{StreamExt, pin_mut};
 use moka::future::Cache;
 use serenity::all::ChannelId;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 #[instrument(skip(redis), fields(set_key = %set_key))]
 pub async fn scan_all_set_members<T>(
@@ -36,11 +37,11 @@ where
                         Err(_) => {
                             // T::Err has no trait bounds in std::str::FromStr,
                             // so we log the raw string instead of the error to guarantee compilation.
-                            warn!(raw_value = %key_str, "parse set member into target type");
+                            warn!(raw_value = %key_str, "set member parse failed");
                         }
                     }
                 } else {
-                    warn!("convert Redis set value to String");
+                    warn!("redis set value to string conversion failed");
                 }
             }
         }
@@ -50,7 +51,8 @@ where
 
     debug!(
         total_elements = all_members.len(),
-        pages_scanned, "Completed set scan"
+        pages_scanned,
+        "redis set scan finished"
     );
     Ok(all_members)
 }
@@ -60,7 +62,6 @@ async fn hydrate_active_tickets(
     redis_client: &Client,
     cache: &Cache<ChannelId, ()>,
 ) -> Result<(), Error> {
-    debug!("Invalidating local ticket cache before hydration");
     cache.invalidate_all();
 
     // Serenity's ChannelId implements std::str::FromStr, so scan_all_set_members parses directly into ChannelId
@@ -98,16 +99,14 @@ pub fn sync_tickets(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    warn!(error = ?e, "convert ticket pub/sub message value to String");
+                    warn!(error = ?e, "ticket pub/sub value to string conversion failed");
                     return Ok(());
                 }
             };
 
-            debug!(payload = %payload, "Processing ticket update pub/sub event");
-
             let parts: Vec<&str> = payload.split(':').collect();
             if parts.len() != 2 {
-                warn!(payload = %payload, "Invalid ticket pub/sub payload format; expected 'action:channel_id'");
+                warn!(payload = %payload, "invalid ticket pub/sub payload format; expected 'action:channel_id'");
                 return Ok(());
             }
 
@@ -118,7 +117,7 @@ pub fn sync_tickets(
                     warn!(
                         channel_id_raw = %parts[1],
                         error = ?e,
-                        "parse channel ID from ticket pub/sub payload"
+                        "ticket pub/sub channel id parse failed"
                     );
                     return Ok(());
                 }
@@ -127,17 +126,17 @@ pub fn sync_tickets(
             match action {
                 "open" => {
                     cache.insert(channel_id, ()).await;
-                    debug!(channel_id = %channel_id, "Ticket marked as open in cache");
+                    debug!(channel_id = %channel_id, "ticket marked as open in cache");
                 }
                 "close" => {
                     cache.invalidate(&channel_id).await;
-                    debug!(channel_id = %channel_id, "Ticket marked as closed and removed from cache");
+                    debug!(channel_id = %channel_id, "ticket marked as closed and removed from cache");
                 }
                 unknown => {
                     warn!(
                         action = %unknown,
                         channel_id = %channel_id,
-                        "Received unknown ticket action"
+                        "received unknown ticket action"
                     );
                 }
             }
@@ -153,9 +152,9 @@ pub fn sync_tickets(
         let cache = cache_clone_reconnect.clone();
 
         async move {
-            info!(server = ?server, "reconnected to redis server, re-hydrating active tickets");
+            info!(server = ?server, "redis server reconnected");
             if let Err(e) = hydrate_active_tickets(&redis, &cache).await {
-                error!(error = ?e, "re-hydrate tickets on reconnect");
+                warn!(error = ?e, "active ticket cache re-hydration after reconnect failed");
             }
             Ok(())
         }
@@ -164,24 +163,23 @@ pub fn sync_tickets(
     let redis_clone_startup = redis_client.clone();
     let subscriber_clone_startup = subscriber_client.clone();
     let cache_clone_startup = active_tickets_cache.clone();
-    tokio::spawn(async move {
-        debug!("Performing initial ticket cache hydration on startup");
+    task::spawn("ticket_cache_hydration", async move {
         if let Err(e) = hydrate_active_tickets(&redis_clone_startup, &cache_clone_startup).await {
-            error!(error = ?e, "initially hydrate active tickets on startup");
+            warn!(error = ?e, "initial active ticket cache hydration failed");
         }
 
-        debug!("Subscribing to 'ticket_updates' pub/sub channel");
         match subscriber_clone_startup
             .subscribe(keys::ticket_updates_channel())
             .await
         {
             Ok(()) => {
                 info!(
-                    "subscribed to ticket_updates channel, auto-reconnect and re-hydration active"
+                    channel = keys::ticket_updates_channel(),
+                    "ticket updates subscription established"
                 );
             }
             Err(e) => {
-                error!(error = ?e, "failed to subscribe to ticket_updates");
+                warn!(error = ?e, "ticket update subscription failed");
             }
         }
     });

@@ -27,6 +27,12 @@ Any feature that moves money, bans, or assigns roles gets an `audit.rs` shaped l
 `src/features/gambling/audit.rs`: one typed function per event, an `event = "..."` field on
 every line, and a comment on each function saying why that function logs at that level.
 
+The function is the log line, so the action site calls `audit::member_banned(...)` instead of
+writing one. That is what removes the duplicate: a kick used to log twice, once in the command
+handler and once in the issuing function, with different wording. Two consequences worth knowing:
+`audit.rs` is exempt from the per-file `info!` budget, and a worker that closes a ticket with
+nobody clicking anything reports `actor` or `closer_id = None` rather than a made-up moderator.
+
 ```rust
 // The canonical shape. Every field explicit, nothing inherited.
 info!(
@@ -80,6 +86,8 @@ tracing::error!("Failed to disconnect member {}: {:?}", target_user_id, err);
 
 - The message is a lowercase clause. No trailing period, no "Failed to", no "Error", no
   "Successfully", no `{}` interpolation, no "Starting X" or "Cleanup completed" narration.
+  Product names, acronyms and env vars keep their capitals, and so do the lifecycle lines printed
+  above: `Tracing initialized`, `TCP listener bound`, `Draining`. There are 41 like that.
 - Everything else is a field. The message stays one short sentence.
 - Field names are domain names: `guild_id`, `channel_id`, `user_id`, `message_id`, `command`,
   `job`, `event`, `outcome`, `duration_ms`. Never `id`, `e`, `ctx`, `data`, `thing`.
@@ -160,19 +168,36 @@ boundary.
 
 ## Spans go at the boundary, not the leaf
 
-Ten spans, opened where work is admitted. Everything downstream inherits them for free.
+Six spans, opened where work is admitted. Everything downstream inherits them for free.
 
 | Span | Fields |
 |---|---|
 | `process` (root, in `main`) | `shard_id`, `shard_count`, `log_filter` |
 | `dispatch_events` | `event`, `guild_id`, `channel_id`, `user_id` |
-| poise command | `command`, `guild_id`, `user_id` |
 | each worker | `job` |
-| each worker iteration | `duration_ms` |
 | each HTTP request | `request_id`, `method`, `path` |
+
+Two rows this table used to claim are not here, and the reason is worth keeping:
+
+- **There is no poise command span.** Poise 0.6 creates none and nothing here wraps a command
+  either. What carries `command`, `guild_id` and `user_id` is `core::error::on_error`, the command
+  boundary, as fields on the lines it logs. Adding a real span means configuring the framework.
+- **There is no per-worker-iteration span.** `shared/task.rs` opens one `job` span for the whole
+  future, and `duration_ms` is a field on the outcome line it logs at the end. The "acquiring lock"
+  and "lock acquired" pairs those workers used to log were standing in for the missing iteration
+  marker, which is why deleting them lost a little.
+
+Both are worth adding eventually. Until then, a line about a command carries its ids from
+`on_error`, not from an enclosing span.
 
 The root span matters more than it looks: it is the only way to tell which shard a line came
 from.
+
+`dispatch_events` is the one boundary span at `debug`, because it is the only one that fires per
+event rather than per unit of work. Serenity dispatches 79 variants and the dispatcher handles 16,
+so the rest would each print an empty enter and exit pair. A disabled span is free: the per-event
+lines inside it are dropped with it, and an operator who wants to tie a line to its event is doing
+per-event diagnosis anyway.
 
 Do not instrument leaf helpers. A span on `get_multiplier` is a span that appears 40 times per
 message and teaches nobody anything. If a leaf genuinely needs one extra field, use
@@ -196,8 +221,8 @@ is to put the attribute on a named `async fn` and spawn the call, which is what 
 worker and the two WebSub workers do, and what `fcbebd2` introduced deliberately. Both work;
 what does not work is the attribute on the block.
 
-Those 4 are the only instrumented spawns of 43. The other 39 cannot be tied back to the event
-that caused them, which is why a panic in a worker loop surfaces with no indication of which
+Those 4 were the only instrumented spawns of 43; the other 39 could not be tied back to the event
+that caused them, which is why a panic in a worker loop surfaced with no indication of which
 worker died.
 
 Do not hand-roll it. One helper, in `shared/task.rs`, next to `logger.rs`:
@@ -210,8 +235,9 @@ where
 ```
 
 It opens `info_span!("job", job = name)`, attaches it, and logs exit with outcome and
-duration. Then every background task is named, has an outcome, and reports how long it ran.
-The web server task is the first caller; converting the rest is step 6.
+duration. Every background task goes through it, so each is named, has an outcome, and reports
+how long it ran. `starboard/events.rs` nests its own span inside so its per-iteration lines keep
+`starboard_id` and `msg_id`.
 
 ---
 
@@ -269,33 +295,100 @@ a convention, and it would not fix a single one of the problems above.
 
 ## Migration
 
-Current state, for sizing the work: 1293 log calls (`debug` 394, `warn` 300, `error` 211,
-`trace` 213, `info` 175), 0 of them interpolating into the message string, 2 starting with
-"Failed to", 0 "Successfully", 0 trailing periods, 796 still starting with a capital, 84
-`inspect_err` sites, 100 `#[instrument]` attributes, 5 explicit spans, and 43 `tokio::spawn`
-calls of which 1 goes through `task::spawn`.
+Current state, for sizing the work: 1294 log calls (`warn` 440, `debug` 413, `trace` 213,
+`info` 156, `error` 72), 0 of them interpolating into the message string, 0 starting with
+"Failed to", 0 "Successfully", 0 trailing periods, 41 starting with a capital, 84
+`inspect_err` sites, 100 `#[instrument]` attributes, 6 explicit spans, and 42 `task::spawn`
+call sites. The only `tokio::spawn` left is the one inside the helper.
 
 In severity order, so each step is shippable on its own:
 
 1. **Done.** `shared/logger.rs` with `init` and `task::spawn`, the `process` root span, and the
    per-request `http_request` span in `web/router.rs`.
-2. **Half done.** Every `error!` now names a cause, so the check is satisfied. The re-levelling is
-   not: 211 `error!` calls are still `error!` that are really expected Discord or Redis
-   outcomes. Largest remaining win, and mechanical. Start with `temp_voice/service.rs`,
-   `starboard/events.rs`, `message_logging/events.rs`, `moderation/`.
-3. **Half done.** The two files that were over the per-file `info!` budget are under it, so the
-   check is satisfied. The broader volume pass is not: `reaction_roles/events.rs`, `leveling/`,
-   `custom_commands/`, `reporting/web.rs` still log per-event at `info!`.
-4. **To do.** Promote audit-worthy `debug!` to `info!` through a per-feature `audit.rs`:
-   `moderation`, `verification`, `tickets`, `temp_voice` transfers.
+2. **Done.** 140 of the 212 `error!` calls were expected Discord or Redis outcomes and are now
+   `warn!`. The 72 that remain are the ones a human has to fix: the boundaries in
+   `core/error.rs`, the `fault` cases, Postgres writes to authoritative tables, audit-trail
+   inserts, and the raid rollback and snapshot paths, where a failure leaves a guild stuck in
+   raid mode.
+3. **Done.** Per-event `info!` is now `debug!` in `reaction_roles/events.rs`, `leveling/`,
+   `custom_commands/`. `reporting/web.rs` keeps `info!`, because a dashboard-issued ban or warn
+   is an action taken.
+4. **Done.** `moderation`, `verification`, `tickets` and `temp_voice` each have an `audit.rs`, and
+   the action sites call one typed function per event instead of writing a log line. `temp_voice`
+   covers transfers only: channel creation and teardown fire per voice event and stay at `debug!`.
 5. **Done.** Narration stripped and every interpolated message turned into fields.
-6. **To do.** Convert the remaining 42 spawns to `task::spawn`, then delete the `#[instrument]`s
-   that are no longer needed.
+6. **Done.** All 41 background tasks go through `task::spawn`, so each has a name, an outcome and
+   a duration. Nothing was deleted for it: the `#[instrument]`s were never on the spawned
+   functions, they sit on the feature entry points, and they carry the ids (`orig_msg_id`,
+   `reaction`) their inner lines rely on. `starboard/events.rs` had hand-rolled its own span and
+   now nests a `starboard` span under the `job` one, so it keeps its ids and gains an exit line.
 7. **Done.** The drain and stop lines.
 
-Two pieces of the line-shape rule are still outstanding: 796 messages start with a capital, and
-the fallback taken is still often named in the message rather than in a field. Both are
-cosmetic, and nothing in the check enforces either.
+Afterwards, the `dispatch_events` span went in, closing the last gap in the table above. It pulls
+the guild, channel and user out of the gateway event into `subject_of`, so every line a feature
+emits inherits the ids without the feature repeating them.
+
+The banned openers went next, 55 messages that still began "failed to", "unable to", "cannot" or
+"starting", which step 5 had missed. Each became a noun-first clause, split by what the operation
+is: a discrete action takes "not Yed" (`reaction role not removed`), a noun-phrase operation takes
+"failed" (`message cache write to redis failed`). Two were deleted rather than reworded, because
+the doc already said not to log them: `ticket_logger` announced a flush that the line below it and
+the `#[instrument]` both already reported, and `verification/web/setup.rs` warned about an `Err`
+that reaches the axum boundary, which logs every 5xx on its own.
+
+The last placeholder field names went with them, seven `id =` and one `value =`. Every one had a
+domain name in scope at the call site: `bot_id` beside `bot`, `custom_id` beside a local of the same
+name, `config_id` and `giveaway_id` after the variable they came from, and `raw_value` for the
+unparsed text a dashboard row held. `key` and `value` in `locking.rs` are left alone, because there
+`value` is the lock's own fencing token and the pair is the domain.
+
+Reporting then got the same treatment, 30 lines of it, since it had the most: gerunds announcing
+the next line, and `info!` on the dashboard's four moderation actions written *before* the action
+with no ids at all. The doc puts `info!` at "actions taken", so each of those moved to after the
+action and gained `report_id`, `guild_id`, `user_id` and `moderator_id`. Four were `info!` with an
+empty field list, which is the worst case: an operator-timeline line that cannot be tied to
+anything.
+
+**One thing left deliberately.** Nine `#[instrument]` functions also contain `error!`, which the
+letter of the "log a failure once" rule rejects. A plain `#[instrument]` does not log the error, so
+there is no duplicated line, only a rejected shape. The decision is to leave them, on the grounds
+that the rule's reasoning beats its letter.
+
+The 15 sites that named a fallback in the message prose now carry a `fallback` field, valued so a
+query can tell the routes apart: `"db"` three times, `"default layout"` four, `"http"`,
+`"postgres"`, `"redis"`, `"defaults"`, `"bot id"`, and so on. Two sites that said "fallback" were
+not one: `join_leave/messages.rs` already had `fallback_channel_id` as a field, and
+`moderation/issuing.rs` names an invite's purpose rather than a path it took. Honeypot's ban notice
+was the opposite case, two parallel branches failing to send with no fallback in sight, so it takes
+a `notice` field naming whose template failed. Nothing in the check enforces any of this.
+
+Then the rest of the tree, which is where the bulk of it was. 1292 calls went to 1052 across 30
+features. The two shapes were a present participle announcing work not yet done (`fetching X`,
+`attempting to X`, `invoked X command`) and a bare infinitive naming an operation on a `warn!` or
+`error!` (`write settings to Redis cache`). A sentence-initial participle is announcing by
+construction, so the judgement each time was delete, move, or restate: delete where a specific line
+already covered the step or the enclosing `#[instrument]` reported the entry, move where an `info!`
+announced an action the doc wants logged after it taking, restate where the line was the only
+record of that step. No level changed anywhere in the sweep, checked by comparing each message's
+level set before and after rather than by reading the diff.
+
+Four things came out of it that were not narration at all:
+
+- `warning/thresholds.rs` had `debug("Inserting automod-log for threshold")` next to
+  `use tracing::field::debug`. That binds to the field constructor, not the macro, so it compiled
+  to a discarded expression and had never logged anything. Rule 5 exists because of it.
+- `moderation/commands/category.rs` logged "command ran in a server" from inside the
+  `guild_id.is_none()` branch, so it said the opposite of what happened.
+- `music/web.rs` logged `expected = %expected` on a failed ticket check. That is a valid HMAC for
+  `(guild_id, user_id, expires, purpose)`, which is exactly what `verify_ticket` accepts, so it was
+  a replayable credential in the log.
+- `spotify.rs` and `youtube.rs` logged whole response bodies, and the YouTube call carries `key=`
+  in its query string. They now log `body_bytes` and a `redact_url`, which is the shape
+  `search/genius/client.rs` already used.
+
+The `anyhow` context strings were swept at the same time, since they reach the log through
+`error_chain` at every boundary. The two user-facing item strings in `economy` were left alone:
+they are shown to a user, not logged.
 
 ## Keeping it that way
 
@@ -305,26 +398,36 @@ for log levels, and a rule nobody runs decays.
 A plain `rg` for `error!` on one line gets this wrong: 61 of the 211 calls wrap across several
 lines, so a line-based pattern cannot see whether `error` is on the next line. `log_calls.awk`
 extracts each invocation whole, balancing parens and skipping string literals, so a ten-line
-call is judged as one call. It emits 1293 records for the 1293 calls in `src/`, and the
-per-level counts match a separate `rg -c` tally exactly.
+call is judged as one call. It emits records for every call in `src/`, and the per-level counts
+match a separate `rg -c` tally exactly.
 
 ```console
 $ scripts/check-logging.sh
 logging checks passed
 ```
 
-Four rules, all currently at zero, and gating in CI:
+Five rules, all currently at zero, and gating in CI. The rules are a floor: they cannot tell
+whether a level is right, only whether the shape is. Step 2 in particular is a judgement the
+check will never revisit, so a re-level that undoes one of the 72 has to be argued for rather
+than waited for a red build.
 
 | Rule | Finds | Notes |
 |---|---|---|
 | `error!` names a cause | 0 | |
 | No `{}` in the message string | 0 | Exempts the formatting macros, where the braces belong to the format specifier. |
 | No `#[instrument(err)]` | 0 | |
-| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 0 | |
+| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 0 | `audit.rs` is exempt: every line in one is an action taken, which is what `info!` is for. |
+| `level(` is not `level!(` | 0 | Not an awk rule: the extractor only matches `level!(`, so the mistake it catches is invisible to it by construction. |
 
 Rule 2's exemption has to name the formatting macros explicitly. Written as `[a-z_]+!` it also
 matches `trace!` and `info!`, which strips every single-literal log call before the brace check
 runs, and hides the violations it exists to catch.
+
+Rule 5 exists because a line can be a log call, look like one, compile clean and log nothing:
+`debug("x")` binds to `tracing::field::debug`, the field constructor. It has to skip `fn` headers,
+since poise's command handlers are literally `pub async fn info(`, or the rule fires on the whole
+tree.
+
 
 The check is a floor, not the convention. It cannot tell a `debug!` that is useful from one
 that is noise, and it will never know whether an `info!` is justified. It catches the mechanical

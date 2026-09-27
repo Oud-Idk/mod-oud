@@ -7,7 +7,7 @@ use crate::features::custom_commands::types::{CommandAction, CooldownType, Custo
 use crate::shared::permissions::HasRoles;
 use fred::clients::Client;
 use serenity::all::{ChannelId, Context, GuildChannel, GuildId, Message, RoleId};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, warn};
 
 pub async fn handle_custom_command(
     ctx: &Context,
@@ -59,14 +59,14 @@ pub async fn handle_custom_command(
         }
     }
 
-    if command.delete_trigger {
-        if let Err(e) = msg.delete(&ctx.http).await {
-            warn!(
-                error = ?e,
-                message_id = %msg.id,
-                "delete custom command trigger; trigger remains visible"
-            );
-        }
+    if command.delete_trigger
+        && let Err(e) = msg.delete(&ctx.http).await
+    {
+        warn!(
+            error = ?e,
+            message_id = %msg.id,
+            "custom command trigger not deleted; the trigger stays visible"
+        );
     }
 
     for (action_index, action) in command.actions.iter().enumerate() {
@@ -99,13 +99,13 @@ fn parse_action_snowflake(
         Ok(snowflake) => Some(snowflake),
         Err(e) => {
             // The action is dropped, so this line is the only trace of a bad dashboard row.
-            error!(
+            warn!(
                 error = ?e,
                 %command_id,
                 action_index,
                 field,
-                value = raw,
-                "Custom command action has a non-numeric snowflake; skipping it"
+                raw_value = raw,
+                "custom command action has a non-numeric snowflake; skipping it"
             );
             None
         }
@@ -127,7 +127,7 @@ async fn execute_payload(
             %command_id,
             action_index,
             user_id = %msg.author.id,
-            "Custom command action ran outside a guild; nothing to execute"
+            "custom command action ran outside a guild; nothing to execute"
         );
         return Ok(());
     };
@@ -204,20 +204,20 @@ async fn add_role_action(
         )
         .await
     {
-        error!(
+        warn!(
             error = ?e,
             %guild_id,
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "add role from custom command action; member did not receive it"
+            "custom command role not added; the member did not receive it"
         );
-        info!(
+        debug!(
             %guild_id,
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "Custom command executed partially; the add-role action failed"
+            "custom command executed partially"
         );
     }
 }
@@ -248,20 +248,20 @@ async fn remove_role_action(
         )
         .await
     {
-        error!(
+        warn!(
             error = ?e,
             %guild_id,
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "remove role from custom command action; member kept the role"
+            "custom command role not removed; the member kept the role"
         );
-        info!(
+        debug!(
             %guild_id,
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "Custom command executed partially; the remove-role action failed"
+            "custom command executed partially"
         );
     }
 }

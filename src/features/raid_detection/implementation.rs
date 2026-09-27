@@ -5,7 +5,7 @@ use crate::shared::locking::acquire_lock;
 use chrono::{DateTime, Utc};
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -26,7 +26,7 @@ impl DynamicRaidDetector {
     ) -> Self {
         debug!(
             window_size_seconds,
-            z_score_multiplier, min_safe_limit, "Initializing DynamicRaidDetector"
+            z_score_multiplier, min_safe_limit, "dynamic raid detector initialized"
         );
         Self {
             redis,
@@ -45,9 +45,9 @@ impl DynamicRaidDetector {
         let set_success = cache::try_set_raid_active(&self.redis, guild_id, ttl_seconds).await?;
 
         if set_success {
-            info!(%guild_id, ttl_seconds, "Set raid active flag for guild");
+            info!(%guild_id, ttl_seconds, "raid active flag set");
         } else {
-            debug!(%guild_id, "Raid active flag already set for guild");
+            debug!(%guild_id, "raid active flag already set");
         }
 
         Ok(set_success)
@@ -65,7 +65,6 @@ impl DynamicRaidDetector {
         let now_ts = now.timestamp();
         let hour_str = now.format("%Y%m%d%H").to_string();
 
-        trace!(%guild_id, %user_id, "Fetching or updating threshold stats");
         let stats = self.get_or_update_threshold(guild_id, now).await?;
 
         let current_joins_in_window = cache::record_join_event(
@@ -98,7 +97,7 @@ impl DynamicRaidDetector {
                 current_joins_in_window,
                 threshold,
                 avg_joins_per_min = result.avg_joins_per_min,
-                "Raid anomaly detected"
+                "raid anomaly detected"
             );
         } else {
             debug!(
@@ -106,7 +105,7 @@ impl DynamicRaidDetector {
                 %user_id,
                 current_joins_in_window,
                 threshold,
-                "Join recorded within normal thresholds"
+                "join recorded within normal thresholds"
             );
         }
 
@@ -122,11 +121,11 @@ impl DynamicRaidDetector {
         let stats_cache_key = keys::stats_cache_key(guild_id);
 
         if let Ok(Some(stats)) = cache::get_threshold(&self.redis, &stats_cache_key).await {
-            trace!(%guild_id, "Retrieved stats threshold from cache");
+            trace!(%guild_id, "retrieved stats threshold from cache");
             return Ok(stats);
         }
 
-        debug!(%guild_id, "Stats cache miss, acquiring recompute lock");
+        debug!(%guild_id, "stats cache miss");
         let lock_key = keys::lock_key(&stats_cache_key);
         let lock_value = Uuid::new_v4().to_string();
 
@@ -134,7 +133,8 @@ impl DynamicRaidDetector {
             warn!(
                 %guild_id,
                 min_safe_limit = self.min_safe_limit,
-                "Could not acquire lock to recompute threshold; falling back to min_safe_limit"
+                fallback = "min_safe_limit",
+                "stats recompute lock not acquired"
             );
             return Ok(Stats {
                 threshold: self.min_safe_limit,
@@ -145,15 +145,11 @@ impl DynamicRaidDetector {
 
         let stats_res = self.recompute_stats(guild_id, now, &stats_cache_key).await;
 
-        if let Err(ref e) = stats_res {
-            error!(%guild_id, error = %e, "recompute stats");
-        }
-
         if let Err(e) = lock_guard.release().await {
             warn!(
                 error = ?e,
                 %guild_id,
-                "release raid stats recompute lock; lock will expire on its own"
+                "stats recompute lock release failed; lock will expire on its own"
             );
         }
 
@@ -170,11 +166,6 @@ impl DynamicRaidDetector {
         let hash_key = keys::hourly_stats_hash_key(guild_id);
         let history = cache::get_history_from_cache(&self.redis, now, &hash_key).await?;
 
-        debug!(
-            %guild_id,
-            history_points = history.len(),
-            "Calculating threshold from historical data"
-        );
         let stats = calculate_threshold(
             self.z_score_multiplier,
             self.min_safe_limit,
@@ -202,7 +193,7 @@ impl DynamicRaidDetector {
         ttl_seconds: i64,
     ) -> Result<(), Error> {
         cache::extend_raid_active(&self.redis, guild_id, ttl_seconds).await?;
-        debug!(%guild_id, ttl_seconds, "Extended raid active TTL");
+        debug!(%guild_id, ttl_seconds, "extended raid active TTL");
         Ok(())
     }
 }
@@ -237,7 +228,7 @@ fn calculate_threshold(
         std_dev_window,
         dynamic_threshold,
         final_threshold,
-        "Calculated dynamic threshold values"
+        "calculated dynamic threshold values"
     );
 
     Stats {

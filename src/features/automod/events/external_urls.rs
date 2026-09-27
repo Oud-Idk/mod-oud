@@ -7,7 +7,7 @@ use crate::features::automod::types::{
 use crate::shared::messages;
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, instrument, trace, warn};
 
 pub fn filter_external_urls<'a>(
     message: &'a Message,
@@ -17,14 +17,13 @@ pub fn filter_external_urls<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'External URLs' filter rule");
     let (_, urls) = messages::remove_urls(&message.content);
     if urls.is_empty() {
         return FilterVerdict::Pass;
     }
 
     if external_links.block_only_malicious {
-        trace!("External URLs verification deferred for external API evaluation");
+        trace!("external URLs verification deferred for external API evaluation");
         return FilterVerdict::RequiresSafeBrowsingCheck {
             urls: urls.into_iter().map(String::from).collect(),
             external_links,
@@ -43,7 +42,7 @@ pub fn filter_external_urls<'a>(
 
     debug!(
         url,
-        rule_name, "Message flagged by External URLs domain list filters"
+        rule_name, "message flagged by External URLs domain list filters"
     );
     FilterVerdict::Block {
         rule_name: rule_name.into(),
@@ -153,10 +152,6 @@ pub async fn resolve_safe_browsing<'a>(
 
     let url_refs: Vec<&str> = urls.iter().map(String::as_str).collect();
 
-    trace!(
-        ?url_refs,
-        "Requesting threat analysis from Safe Browsing API"
-    );
     match client.check_urls(&url_refs).await {
         Ok(threats_int) if !threats_int.is_empty() => {
             let threats_str = threats_int
@@ -167,7 +162,7 @@ pub async fn resolve_safe_browsing<'a>(
 
             debug!(
                 threats = %threats_str,
-                "Malicious URL threat confirmed by Safe Browsing API check"
+                "malicious URL threat confirmed by Safe Browsing API check"
             );
 
             FilterVerdict::Block {
@@ -184,9 +179,10 @@ pub async fn resolve_safe_browsing<'a>(
             FilterVerdict::Pass
         }
         Err(e) => {
-            error!(
+            warn!(
                 error = %e,
-                "Safe Browsing API validation request failed; falling back to Pass"
+                fallback = "pass",
+                "Safe Browsing API validation request failed"
             );
             FilterVerdict::Pass
         }

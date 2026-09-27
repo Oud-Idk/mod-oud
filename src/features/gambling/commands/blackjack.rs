@@ -297,7 +297,7 @@ async fn run_player_turns(
             }
             _ => warn!(
                 custom_id = interaction.data.custom_id,
-                "Unknown custom_id for blackjack"
+                "unknown custom_id for blackjack"
             ),
         }
 
@@ -425,7 +425,7 @@ fn split_first_hand(game: &mut BlackjackGame, ctx: &Context<'_>) {
             guild_id = ?ctx.guild_id(),
             user_id = %ctx.author().id,
             hand_len = game.player_hands[0].cards.len(),
-            "Split on a hand with no second card; the extra wager was already debited"
+            "split not performed; the extra wager was already debited"
         );
         return;
     };

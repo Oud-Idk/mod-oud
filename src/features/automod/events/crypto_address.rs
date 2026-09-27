@@ -51,7 +51,7 @@ pub fn filter_crypto_addresses<'a>(
         return FilterVerdict::Pass;
     };
 
-    debug!("Message flagged by Crypto Address filter");
+    debug!("message flagged by Crypto Address filter");
 
     FilterVerdict::Block {
         rule_name: "Crypto Address".into(),

@@ -1,3 +1,4 @@
+use crate::features::search::redact_url;
 use crate::shared::spotify_auth::SpotifyAuthCache;
 use serde::Deserialize;
 use tracing::{debug, warn};
@@ -37,17 +38,13 @@ pub async fn resolve_spotify_playlist(
     let playlist_id = url.split("/playlist/").nth(1)?.split('?').next()?;
 
     let Some(token) = spotify_auth.get_token(client).await else {
-        warn!(
-            "could not retrieve spotify api token, check SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET"
-        );
+        warn!("spotify api token unavailable; check SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET");
         return None;
     };
 
     let mut search_terms = Vec::new();
     let mut offset = 0;
     let limit = 100;
-
-    debug!(playlist_id = %playlist_id, "Fetching Spotify playlist tracks via Web API");
 
     loop {
         let api_url = format!(
@@ -57,7 +54,7 @@ pub async fn resolve_spotify_playlist(
         let res = match client.get(&api_url).bearer_auth(&token).send().await {
             Ok(r) => r,
             Err(e) => {
-                warn!(error = %e, "Network error while fetching playlist tracks page");
+                warn!(error = %e, "spotify playlist page fetch failed");
                 break;
             }
         };
@@ -71,16 +68,24 @@ pub async fn resolve_spotify_playlist(
         let body_text = match res.text().await {
             Ok(t) => t,
             Err(e) => {
-                warn!(error = %e, "read response body text from Spotify");
+                warn!(error = %e, "spotify response body read failed");
                 break;
             }
         };
 
         // Deserialize safely
+        let safe_url = redact_url(&api_url, &[]);
         let data: PlaylistTracksResponse = match serde_json::from_str(&body_text) {
             Ok(d) => d,
             Err(e) => {
-                warn!(error = %e, raw_body = %body_text, "deserialize Spotify playlist tracks JSON");
+                // The body, not the message: it can carry track metadata the response did not
+                // parse, and the query string rides in the request url.
+                warn!(
+                    url = %safe_url,
+                    body_bytes = body_text.len(),
+                    error = %e,
+                    "spotify playlist tracks deserialization failed"
+                );
                 break;
             }
         };
@@ -124,10 +129,14 @@ pub async fn resolve_spotify_playlist(
     }
 
     if search_terms.is_empty() {
-        warn!(url = %url, "fetch tracks from Spotify API or playlist was empty");
+        warn!(url = %url, "spotify playlist resolved to no tracks");
         None
     } else {
-        debug!(count = search_terms.len(), "fetched all playlist tracks");
+        debug!(
+            playlist_id = %playlist_id,
+            count = search_terms.len(),
+            "fetched all playlist tracks"
+        );
         Some(search_terms)
     }
 }
@@ -156,7 +165,7 @@ pub async fn resolve_spotify_track(
     };
 
     let Some(token) = spotify_auth.get_token(client).await else {
-        warn!("Could not retrieve Spotify API token for track resolution");
+        warn!("spotify api token unavailable for track resolution");
         return None;
     };
 
@@ -184,6 +193,6 @@ pub async fn resolve_spotify_track(
         .trim()
         .to_string();
 
-    debug!(url = %url, search_term = %search_term, "Resolved Spotify track via Web API");
+    debug!(url = %url, search_term = %search_term, "resolved Spotify track via Web API");
     Some(search_term)
 }

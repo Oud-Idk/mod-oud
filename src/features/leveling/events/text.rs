@@ -1,3 +1,4 @@
+use crate::shared::task;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::leveling;
@@ -10,7 +11,7 @@ use crate::features::leveling::rules::get_multiplier;
 use crate::features::leveling::types::{LevelingConfig, NotificationTarget};
 use crate::features::leveling::{cache, keys, notifications, rewards, rules};
 use serenity::all::{Context, Message, RoleId};
-use tracing::{debug, info, trace, warn};
+use tracing::{warn, debug, trace};
 
 /// Grants text chat XP for a message, applying cooldowns, multipliers, and level-ups.
 ///
@@ -31,7 +32,7 @@ pub async fn handle_text_leveling(
     };
 
     if data.caches.active_tickets.contains_key(&message.channel_id) {
-        trace!(%guild_id, channel_id = %message.channel_id, "Skipping leveling XP: channel is marked as a ticket");
+        trace!(%guild_id, channel_id = %message.channel_id, "skipping leveling XP: channel is marked as a ticket");
         return Ok(());
     }
 
@@ -65,7 +66,7 @@ pub async fn handle_text_leveling(
     if !set_cooldown {
         trace!(
             %guild_id,
-            %author_id, "Skipping leveling XP: user is on XP cooldown"
+            %author_id, "skipping leveling XP: user is on XP cooldown"
         );
         return Ok(());
     }
@@ -97,7 +98,7 @@ pub async fn handle_text_leveling(
     if should_be_clamped {
         debug!(
             %guild_id,
-            %author_id, "Skipping leveling XP: user has already reached the leveling cap"
+            %author_id, "skipping leveling XP: user has already reached the leveling cap"
         );
         return Ok(());
     }
@@ -112,12 +113,12 @@ pub async fn handle_text_leveling(
     let leveled_up = process_level_ups(&mut user_level, leveling_config.level_cap);
 
     if leveled_up {
-        info!(
+        debug!(
             %guild_id,
             %author_id,
             old_level = previous_level,
             new_level = user_level.current_level,
-            "User has leveled up"
+            "user has leveled up"
         );
 
         let event = LevelUpEvent {
@@ -148,7 +149,7 @@ pub fn should_skip_leveling(message: &Message, config: &LevelingConfig) -> bool 
         trace!(
             guild_id,
             author_id = message.author.id.get(),
-            "Skipping leveling XP: member or channel is excluded"
+            "skipping leveling XP: member or channel is excluded"
         );
         return true;
     }
@@ -168,25 +169,13 @@ pub fn spawn_level_up_effects(
     let current_level_val = event.user_level.current_level;
     let db_lvl_up = db.clone();
 
-    tokio::spawn(async move {
-        if !matches!(config.notify.target, NotificationTarget::None) {
-            trace!(
-                %guild_id,
-                %author_id,
-                "Initiating level-up notification"
-            );
-
-            if let Err(e) = notifications::send_message(&ctx, &event, &config).await {
-                warn!(error = ?e, "send level-up notification");
-            }
+    task::spawn("level_up_notification", async move {
+        if !matches!(config.notify.target, NotificationTarget::None)
+            && let Err(e) = notifications::send_message(&ctx, &event, &config).await
+        {
+            warn!(error = ?e, "level-up notification not sent");
         }
 
-        trace!(
-            %guild_id,
-            %author_id,
-            level = current_level_val,
-            "Evaluating reward assignments"
-        );
         if let Err(e) =
             rewards::apply_level_rewards(&ctx, &db_lvl_up, guild_id, author_id, current_level_val)
                 .await
@@ -196,7 +185,7 @@ pub fn spawn_level_up_effects(
                 %guild_id,
                 %author_id,
                 level = current_level_val,
-                "apply leveling role rewards to member"
+                "level reward roles not applied; skipped until the next level"
             );
         }
     });

@@ -38,7 +38,7 @@ pub async fn view(
         %caller_id,
         %target_id,
         %guild_id,
-        "Invoked level view slash command"
+        "level view command invoked"
     );
 
     let redis = &ctx.data().core.redis;

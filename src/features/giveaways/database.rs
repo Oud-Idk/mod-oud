@@ -31,7 +31,7 @@ pub async fn fetch_giveaway(
     )
     .fetch_optional(pool)
     .await
-    .inspect_err(|e| warn!(error = ?e, "load giveaway database record"))
+    .inspect_err(|e| warn!(error = ?e, "giveaway database record lookup failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -39,7 +39,7 @@ pub async fn fetch_giveaway(
         )
     })?
     .ok_or_else(|| {
-        warn!(id = config_id, "Giveaway configuration not found");
+        warn!(config_id, "giveaway configuration not found");
         (
             StatusCode::NOT_FOUND,
             "Giveaway configuration not found".to_string(),
@@ -73,7 +73,7 @@ pub async fn clear_giveaway_message_id(
     )
     .execute(pool)
     .await
-    .inspect_err(|e| warn!(error = ?e, "clear giveaway message ID in database"))
+    .inspect_err(|e| warn!(error = ?e, "giveaway message id not cleared in the database"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

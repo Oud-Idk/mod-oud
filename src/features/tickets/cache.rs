@@ -8,7 +8,6 @@ use fred::interfaces::{
 };
 use serenity::all::{ChannelId, GuildChannel};
 use serenity::model::id::MessageId;
-use tracing::debug;
 
 pub fn is_ticket_active(data: &BotData, channel_id: ChannelId) -> bool {
     data.caches.active_tickets.contains_key(&channel_id)
@@ -19,7 +18,6 @@ pub async fn mark_ticket_as_closed_redis(
     channel_id_str: &str,
     redis: &Client,
 ) -> Result<(), Error> {
-    debug!("Running Redis pipeline to remove ticket keys and publish close event");
     let pipeline = redis.pipeline();
 
     let _: () = pipeline

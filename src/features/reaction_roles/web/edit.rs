@@ -28,7 +28,7 @@ pub async fn handle_edit_reaction_role_message(
     debug!(
         %guild_id,
         config_id = config_id_str,
-        "Editing existing reaction roles message"
+        "reaction roles message edit requested"
     );
 
     let config_id = parse_config_id(&config_id_str)?;
@@ -71,7 +71,7 @@ pub async fn handle_edit_reaction_role_message(
         .edit_message(&state.serenity_http, message_id, edit_builder)
         .await
         .map_err(|e| {
-            warn!(error = ?e, "edit Discord message");
+            warn!(error = ?e, "reaction roles message not edited on discord");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),
@@ -85,7 +85,7 @@ pub async fn handle_edit_reaction_role_message(
     info!(
         %guild_id,
         %message_id,
-        "Reaction role layout edited"
+        "reaction role layout edited"
     );
 
     Ok((

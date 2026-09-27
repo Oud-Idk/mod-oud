@@ -152,7 +152,7 @@ impl From<BadWordRuleset> for CompiledRuleset {
                                 %ruleset_id,
                                 %guild_id,
                                 pattern = %p.value,
-                                "Bad words ruleset has an invalid regex; this pattern will \
+                                "bad words ruleset has an invalid regex; this pattern will \
                                  never match"
                             );
                         }
@@ -177,7 +177,7 @@ impl From<BadWordRuleset> for CompiledRuleset {
                         %ruleset_id,
                         %guild_id,
                         pattern_count = text_pattern_count,
-                        "Bad words ruleset failed to build its text matcher; all Exact and \
+                        "bad words ruleset failed to build its text matcher; all Exact and \
                          Substring patterns are now inactive"
                     );
                     None
@@ -207,7 +207,7 @@ impl From<BadWordRuleset> for CompiledRuleset {
             pattern_count,
             text_patterns = usable_text_patterns,
             regex_patterns,
-            "Compiled bad words ruleset"
+            "compiled bad words ruleset"
         );
 
         // Patterns exist but nothing compiled, so this ruleset can never match.
@@ -217,7 +217,7 @@ impl From<BadWordRuleset> for CompiledRuleset {
                 %ruleset_id,
                 %guild_id,
                 pattern_count,
-                "Bad words ruleset has patterns but no usable matchers"
+                "bad words ruleset has patterns but no usable matchers"
             );
         }
 

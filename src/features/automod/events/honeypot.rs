@@ -1,6 +1,6 @@
 use crate::constants::BRAND_COLOR;
-use crate::core::config::guild_ctx::get_guild_ctx;
-use crate::core::config::settings::get_settings;
+use crate::core::config::guild_ctx::{GuildCtx, get_guild_ctx};
+use crate::core::config::settings::{GuildSettings, get_settings};
 use crate::core::config::state::BotData;
 use crate::features::automod::database::log_automod_event;
 use crate::features::moderation::{replace_system_ban_placeholders, schedule_unban};
@@ -10,7 +10,7 @@ use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 use serenity::all::{Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message};
 use std::time::Duration;
-use tracing::{error, info, instrument};
+use tracing::{info, instrument, warn};
 
 #[instrument(skip(ctx, data, message), fields(author_id = %message.author.id))]
 pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -> Result<bool> {
@@ -67,64 +67,78 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         &["BAN"],
     )
     .await
-    .context("Failed to log honeypot automod action")?;
+    .context("honeypot automod event log write failed")?;
 
-    if let Ok(dm_channel) = message.author.create_dm_channel(&ctx.http).await {
-        let honeypot_dm_settings = config
-            .moderation_dms
-            .as_ref()
-            .and_then(|m| m.honeypot.as_ref());
-
-        if let Some(dm_config) = honeypot_dm_settings {
-            if let Ok(Some(msg_builder)) = build_custom_message(
-                dm_config.message.format,
-                &dm_config.message.content,
-                &dm_config.message.embed,
-                |text| replace_system_ban_placeholders(text, &gctx, &message.author, duration),
-            ) {
-                if let Err(e) = dm_channel.send_message(&ctx.http, msg_builder).await {
-                    error!(
-                        error = ?e,
-                        user_id = %message.author.id,
-                        %guild_id,
-                        "send honeypot ban DM; user was banned without notice"
-                    );
-                }
-            }
-        } else {
-            let fallback_embed = CreateEmbed::new()
-                .title(format!("You have been banned from {}", gctx.name))
-                .color(BRAND_COLOR)
-                .field("Reason", reason, false)
-                .footer(CreateEmbedFooter::new(
-                    "If you believe this was a mistake, please contact an administrator.",
-                ));
-
-            if let Err(e) = dm_channel
-                .send_message(&ctx.http, CreateMessage::new().embed(fallback_embed))
-                .await
-            {
-                error!(
-                    error = ?e,
-                    user_id = %message.author.id,
-                    %guild_id,
-                    "send fallback honeypot ban DM; user was banned without notice"
-                );
-            }
-        }
-    }
+    notify_banned(ctx, message, guild_id, &gctx, reason, duration, &config).await;
 
     guild_id
         .ban_with_reason(&ctx.http, message.author.id, dmd, reason)
         .await
-        .context("Failed to ban honeypot offender")?;
+        .context("honeypot offender ban failed")?;
 
     if let Some(dur) = duration {
         schedule_unban(&data.core.db, guild_id, &message.author, dur)
             .await
-            .context("Failed to schedule temp unban for honeypot offender")?;
+            .context("temporary unban scheduling for a honeypot offender failed")?;
     }
 
-    info!(user_id = %message.author.id, %guild_id, "Honeypot offender banished");
+    info!(user_id = %message.author.id, %guild_id, "honeypot offender banished");
     Ok(true)
+}
+
+/// Tells a honeypot offender they were banned, by DM, using the guild's own message when it has
+/// one. A failure here does not stop the ban, so it is warned rather than propagated.
+async fn notify_banned(
+    ctx: &Context,
+    message: &Message,
+    guild_id: serenity::GuildId,
+    gctx: &GuildCtx,
+    reason: &str,
+    duration: Option<Duration>,
+    config: &GuildSettings,
+) {
+    let Ok(dm_channel) = message.author.create_dm_channel(&ctx.http).await else {
+        return;
+    };
+
+    let dm_config = config
+        .moderation_dms
+        .as_ref()
+        .and_then(|m| m.honeypot.as_ref());
+
+    let (notice, body) = match dm_config {
+        Some(dm_config) => {
+            let Ok(Some(body)) = build_custom_message(
+                dm_config.message.format,
+                &dm_config.message.content,
+                &dm_config.message.embed,
+                |text| replace_system_ban_placeholders(text, gctx, &message.author, duration),
+            ) else {
+                return;
+            };
+            ("guild message", body)
+        }
+        None => (
+            "built-in message",
+            CreateMessage::new().embed(
+                CreateEmbed::new()
+                    .title(format!("You have been banned from {}", gctx.name))
+                    .color(BRAND_COLOR)
+                    .field("Reason", reason, false)
+                    .footer(CreateEmbedFooter::new(
+                        "If you believe this was a mistake, please contact an administrator.",
+                    )),
+            ),
+        ),
+    };
+
+    if let Err(e) = dm_channel.send_message(&ctx.http, body).await {
+        warn!(
+            error = ?e,
+            user_id = %message.author.id,
+            %guild_id,
+            notice,
+            "ban notice DM failed; user was banned without notice"
+        );
+    }
 }

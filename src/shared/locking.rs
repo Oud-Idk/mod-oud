@@ -1,3 +1,4 @@
+use crate::shared::task;
 use fred::prelude::*;
 use fred::types::{Expiration, SetOptions};
 use tokio::sync::oneshot;
@@ -39,7 +40,7 @@ impl LockGuard {
             .await?;
         let success = res == 1;
 
-        trace!(success, "Attempted to release Redis lock via guard");
+        trace!(success, "redis lock release via guard evaluated");
         Ok(success)
     }
 }
@@ -91,7 +92,7 @@ pub async fn acquire_lock(
     let key_string = key.to_string();
     let value_string = value.to_string();
 
-    tokio::spawn(async move {
+    task::spawn("lock_heartbeat", async move {
         let mut interval = time::interval(Duration::from_secs(heartbeat_interval_secs));
         // Skip the immediate first tick, as `time::interval` fires instantly on creation.
         interval.tick().await;
@@ -119,14 +120,14 @@ pub async fn acquire_lock(
 
                     match res {
                         Ok(1) => {
-                            trace!(key = %key_string, "Lock TTL extended");
+                            trace!(key = %key_string, "lock TTL extended");
                         }
                         Ok(_) => {
-                            warn!(key = %key_string, "failed to renew lock, ownership may have been lost");
+                            warn!(key = %key_string, "lock renewal failed; ownership may have been lost");
                             break;
                         }
                         Err(err) => {
-                            warn!(key = %key_string, ?err, "renewing lock");
+                            warn!(key = %key_string, ?err, "lock renewal to redis failed");
                         }
                     }
                 }

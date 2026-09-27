@@ -30,11 +30,6 @@ pub async fn handle_send_ticket_message(
     Path(guild_id): Path<GuildId>, // Directly extracts into GuildId
     Json(payload): Json<SendTicketMessagePayload>,
 ) -> Result<(StatusCode, Json<SendTicketMessageResponse>), (StatusCode, String)> {
-    debug!(
-        %guild_id,
-        "Axum ticket panel dispatch endpoint triggered"
-    );
-
     let settings = get_settings(
         &state.core.db,
         &state.core.redis,
@@ -42,7 +37,7 @@ pub async fn handle_send_ticket_message(
         guild_id,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "load guild configuration settings"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "guild settings load failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -51,7 +46,7 @@ pub async fn handle_send_ticket_message(
     })?;
 
     let ticket_cfg = settings.tickets.ok_or_else(|| {
-        debug!(%guild_id, "Ticket dispatch failed: system is unconfigured");
+        debug!(%guild_id, "ticket panel not sent; the ticket system is unconfigured");
         (
             StatusCode::BAD_REQUEST,
             "Ticket system is not configured yet.".to_string(),
@@ -61,7 +56,7 @@ pub async fn handle_send_ticket_message(
     let Some(ticket_role_id) = ticket_cfg.ticket_role_id else {
         debug!(
             %guild_id,
-            "Ticket dispatch failed: support staff role is unconfigured"
+            "ticket panel not sent; the support staff role is unconfigured"
         );
         return Err((
             StatusCode::BAD_REQUEST,
@@ -78,7 +73,7 @@ pub async fn handle_send_ticket_message(
         &ticket_cfg.panel_message.message.embed,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "compile custom ticket layout payload"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "custom ticket layout compilation failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -90,14 +85,14 @@ pub async fn handle_send_ticket_message(
         .channel_id
         .send_message(&state.serenity_http, message_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, channel_id = %payload.channel_id, "send Discord panel message"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, channel_id = %payload.channel_id, "panel message send via discord failed"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()))?;
 
     info!(
         %guild_id,
         channel_id = %payload.channel_id,
         message_id = %message.id,
-        "Ticket panel message dispatched via Web API"
+        "ticket panel message dispatched via Web API"
     );
 
     Ok((

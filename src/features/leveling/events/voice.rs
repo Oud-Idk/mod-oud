@@ -7,7 +7,7 @@ use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserL
 use anyhow::Result;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
-use tracing::{debug, error, trace};
+use tracing::{warn, debug, trace};
 
 /// Tracks voice sessions and awards voice XP when a user leaves an eligible channel.
 ///
@@ -55,12 +55,6 @@ pub async fn handle_voice_leveling(
     }
 
     if old_eligible && let Some(old_ch) = old_channel {
-        debug!(
-            %guild_id,
-            user_id = user_id.get(),
-            "Closing voice session"
-        );
-
         if let Some(session) = cache::consume_session(redis, &session_key, now).await? {
             let eligible_secs = session.accumulated_secs;
 
@@ -79,7 +73,7 @@ pub async fn handle_voice_leveling(
                 debug!(
                     %guild_id,
                     user_id = user_id.get(),
-                    "Discarded brief voice session (<10s)"
+                    "discarded brief voice session (<10s)"
                 );
             }
         }
@@ -88,6 +82,8 @@ pub async fn handle_voice_leveling(
         if remaining < 2 {
             cache::pause_channel_clocks(redis, guild_id, old_ch, now).await?;
         }
+
+        debug!(%guild_id, user_id = user_id.get(), "voice session closed");
     }
 
     // MEMBER JOINED VC AND IS ELIGIBLE
@@ -149,7 +145,7 @@ async fn award_vc_xp_for_session(
     if rules::should_exclude_from_level_up(leveling_config, &member.roles, channel_id) {
         trace!(
             %guild_id,
-            "Skipping voice XP: channel/user is excluded"
+            "skipping voice XP: channel/user is excluded"
         );
         return Ok(());
     }
@@ -303,12 +299,12 @@ async fn handle_level_up(
     )
     .await
     {
-        error!(
+        warn!(
             error = ?e,
             guild_id = %event.guild_id,
             user_id = %event.user_level.user_id,
             level = event.user_level.current_level,
-            "apply level-up rewards; reward roles skipped until next level"
+            "level-up reward roles not applied; skipped until the next level"
         );
     }
     Ok(())

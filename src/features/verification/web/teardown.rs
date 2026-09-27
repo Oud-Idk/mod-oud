@@ -32,14 +32,14 @@ pub async fn handle_verification_teardown(
     if let Err(e) = channel_id.delete(http).await
         && !is_not_found_error(&e)
     {
-        warn!(error = ?e, %channel_id, "delete channel during teardown");
+        warn!(error = ?e, %channel_id, "verification channel not deleted during teardown");
         execution_errors.push("Failed to delete verification channel".to_string());
     }
 
     if let Err(e) = guild_id.delete_role(http, role_id).await
         && !is_not_found_error(&e)
     {
-        warn!(error = ?e, %role_id, "delete role during teardown");
+        warn!(error = ?e, %role_id, "verification role not deleted during teardown");
         execution_errors.push("Failed to delete verification role".to_string());
     }
 
@@ -55,16 +55,20 @@ pub async fn handle_verification_teardown(
                     .edit_role(http, everyone_role_id, edit_builder)
                     .await
                 {
-                    warn!(error = ?e, "restore @everyone permissions during teardown");
+                    warn!(
+                        error = ?e,
+                        %everyone_role_id,
+                        "@everyone permissions not restored during teardown"
+                    );
                     execution_errors.push("Failed to restore @everyone permissions".to_string());
                 }
             } else {
-                warn!("Could not find @everyone role during teardown");
+                warn!(%everyone_role_id, "@everyone role unavailable during teardown");
                 execution_errors.push("Could not locate @everyone role".to_string());
             }
         }
         Err(e) => {
-            warn!(error = ?e, "fetch roles during teardown");
+            warn!(error = ?e, %guild_id, "guild roles lookup failed during teardown");
             execution_errors.push("Failed to fetch guild roles to restore permissions".to_string());
         }
     }

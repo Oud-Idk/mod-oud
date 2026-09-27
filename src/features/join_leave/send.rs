@@ -4,7 +4,7 @@ use crate::features::join_leave::image::generate_welcome_card;
 use crate::features::join_leave::messages;
 use crate::features::join_leave::types::{WelcomeConfig, WelcomeImageStyle};
 use serenity::all::{Context, CreateAttachment, CreateMessage, GuildChannel, Member};
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 /// Attaches the generated welcome card when `send_image` is on.
 async fn maybe_attach_welcome_card(
@@ -36,7 +36,7 @@ async fn maybe_attach_welcome_card(
     if let Some(bytes) = bytes {
         builder.add_file(CreateAttachment::bytes(bytes, "welcome.png"))
     } else {
-        warn!("Skipping welcome image attachment; sending text/embed only");
+        warn!("skipping welcome image attachment; sending text/embed only");
         builder
     }
 }
@@ -62,11 +62,9 @@ pub async fn send_public_welcome(
     };
 
     let Some(channel_id) = public.channel_id else {
-        warn!("Channel ID for welcome is somehow empty");
+        warn!(%guild_id, "welcome channel id not configured");
         return Ok(());
     };
-
-    trace!(%guild_id, %user_id, %channel_id, "Assembling public welcome message layout");
 
     let builder = match messages::build_welcome_message(
         public,
@@ -78,7 +76,7 @@ pub async fn send_public_welcome(
     ) {
         Ok(b) => b,
         Err(e) => {
-            warn!(error = ?e, %guild_id, %user_id, "compile public welcome layout template");
+            warn!(error = ?e, %guild_id, %user_id, "public welcome layout compilation failed");
             return Ok(());
         }
     };
@@ -93,9 +91,9 @@ pub async fn send_public_welcome(
     .await;
 
     if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
-        warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "send public welcome message to channel");
+        warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "public welcome message not sent");
     } else {
-        debug!(%guild_id, %user_id, target_channel = %channel_id, "Public welcome message sent");
+        debug!(%guild_id, %user_id, target_channel = %channel_id, "public welcome message sent");
     }
 
     Ok(())
@@ -121,15 +119,10 @@ pub async fn send_private_welcome(
         return Ok(());
     };
 
-    trace!(
-        guild_id,
-        user_id, "Establishing private DM context for welcome message"
-    );
-
     let dm_channel = match member.user.create_dm_channel(&ctx.http).await {
         Ok(ch) => ch,
         Err(e) => {
-            warn!(error = ?e, guild_id, user_id, "establish DM channel with newly joined user");
+            warn!(error = ?e, guild_id, user_id, "welcome DM channel not opened");
             return Ok(());
         }
     };
@@ -144,7 +137,7 @@ pub async fn send_private_welcome(
     ) {
         Ok(b) => b,
         Err(e) => {
-            warn!(error = ?e, guild_id, user_id, "compile private DM welcome layout template");
+            warn!(error = ?e, guild_id, user_id, "private DM welcome layout compilation failed");
             return Ok(());
         }
     };
@@ -159,9 +152,9 @@ pub async fn send_private_welcome(
     .await;
 
     if let Err(e) = dm_channel.send_message(&ctx.http, builder).await {
-        warn!(error = ?e, guild_id, user_id, "send private DM welcome message to user");
+        warn!(error = ?e, guild_id, user_id, "private DM welcome message not sent");
     } else {
-        debug!(guild_id, user_id, "Private DM welcome message sent");
+        debug!(guild_id, user_id, "private DM welcome message sent");
     }
 
     Ok(())

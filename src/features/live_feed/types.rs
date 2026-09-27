@@ -14,22 +14,28 @@ impl LogEvent {
     pub fn from_redis(channel: &str, payload: &str) -> Option<Self> {
         match channel {
             "discord:deletes" => serde_json::from_str::<DeletedMessagePayload>(payload)
-                .inspect_err(|e| warn!(error = %e, %channel, "deserialize DeletedMessagePayload"))
+                .inspect_err(
+                    |e| warn!(error = %e, %channel, "DeletedMessagePayload deserialization failed")
+                )
                 .ok()
                 .map(Self::MessageDelete),
 
             "discord:updates" => serde_json::from_str::<ModifiedMessagePayload>(payload)
-                .inspect_err(|e| warn!(error = %e, %channel, "deserialize ModifiedMessagePayload"))
+                .inspect_err(
+                    |e| warn!(error = %e, %channel, "ModifiedMessagePayload deserialization failed")
+                )
                 .ok()
                 .map(Self::MessageEdit),
 
             "discord:reports" => serde_json::from_str::<ReportedMessagePayload>(payload)
-                .inspect_err(|e| warn!(error = %e, %channel, "deserialize ReportedMessagePayload"))
+                .inspect_err(
+                    |e| warn!(error = %e, %channel, "ReportedMessagePayload deserialization failed")
+                )
                 .ok()
                 .map(Self::MessageReport),
 
             _ => {
-                warn!(%channel, "Received subscription data from an unexpected channel");
+                warn!(%channel, "received subscription data from an unexpected channel");
                 None
             }
         }

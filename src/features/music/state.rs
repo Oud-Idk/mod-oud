@@ -3,6 +3,7 @@ use crate::features::music::actor::{GuildActor, Requester};
 use crate::features::music::keys;
 use crate::features::music::stats::StatsTx;
 use crate::shared::spotify_auth::SpotifyAuthCache;
+use crate::shared::task;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use serde;
@@ -18,7 +19,7 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::sync::{Mutex, mpsc};
 use tokio::time::Instant;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 #[derive(Debug, Serialize)]
 pub struct StartedTrackInfo {
@@ -221,7 +222,7 @@ pub fn start_music_event_bridge(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    warn!(error = ?e, "convert now-playing pub/sub payload");
+                    warn!(error = ?e, "now-playing payload conversion failed");
                     return Ok(());
                 }
             };
@@ -231,7 +232,7 @@ pub fn start_music_event_bridge(
                     let _ = tx.send((event.guild_id, event.now_playing));
                 }
                 Err(e) => {
-                    warn!(error = %e, payload = %payload, "parse now-playing event");
+                    warn!(error = %e, payload = %payload, "now-playing event parse failed");
                 }
             }
 
@@ -239,10 +240,10 @@ pub fn start_music_event_bridge(
         }
     });
 
-    tokio::spawn(async move {
+    task::spawn("music_events_subscriber", async move {
         match subscriber.subscribe(keys::events_channel()).await {
-            Ok(()) => info!("Subscribed to music now-playing events"),
-            Err(e) => error!(error = ?e, "subscribe to music now-playing events"),
+            Ok(()) => info!("subscribed to music now-playing events"),
+            Err(e) => warn!(error = ?e, "music now-playing events subscription failed"),
         }
     });
 }

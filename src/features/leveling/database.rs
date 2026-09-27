@@ -221,7 +221,7 @@ pub async fn load_leveling_config(
     let Some(leveling_config) = config.leveling else {
         trace!(
             %guild_id,
-            "Skipping XP reward: leveling system is unconfigured"
+            "skipping XP reward: leveling system is unconfigured"
         );
         return Ok(None);
     };
@@ -229,7 +229,7 @@ pub async fn load_leveling_config(
     if !leveling_config.voice.enabled {
         trace!(
             %guild_id,
-            "Skipping XP reward: voice leveling is disabled"
+            "skipping XP reward: voice leveling is disabled"
         );
         return Ok(None);
     }

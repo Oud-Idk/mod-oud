@@ -1,6 +1,7 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::core::config::state::{Context, Error};
 use crate::features::moderation::ActionType;
+use crate::features::moderation::audit;
 use crate::features::moderation::commands::helpers::parse_duration;
 use crate::features::moderation::database::log_moderation_action;
 use crate::features::moderation::issuing::{
@@ -20,15 +21,8 @@ pub async fn kick(
     #[description = "The user to kick"] user: User,
     #[description = "The reason"] reason: Option<String>,
 ) -> Result<(), Error> {
-    let target_id = user.id.get();
-    debug!(
-        caller_id = ctx.author().id.get(),
-        target_id, "Invoked kick command"
-    );
-
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, user.id, "kick").await? else {
-        debug!(target_id, "Kick pre-flight permissions check failed");
         return Ok(());
     };
     let reason_str = reason.as_deref().unwrap_or("No reason provided");
@@ -52,7 +46,6 @@ pub async fn kick(
     )
     .await?;
 
-    info!(target_id, "User kicked");
     Ok(())
 }
 
@@ -69,16 +62,9 @@ pub async fn ban(
     dmd: Option<u8>,
 ) -> Result<(), Error> {
     let target_id = user.id.get();
-    debug!(
-        caller_id = ctx.author().id.get(),
-        target_id,
-        duration = ?duration,
-        "Invoked ban command"
-    );
 
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, user.id, "ban").await? else {
-        debug!(target_id, "Ban pre-flight permissions check failed");
         return Ok(());
     };
 
@@ -90,11 +76,7 @@ pub async fn ban(
     let parsed_duration = match &duration {
         Some(ds) => {
             let Some(dur) = parse_duration(&ctx, ds).await? else {
-                debug!(
-                    target_id,
-                    duration_str = ds,
-                    "Ban duration parsing returned empty (aborted)"
-                );
+                debug!(target_id, duration_str = ds, "ban duration unresolved");
                 return Ok(());
             };
             Some(dur)
@@ -126,7 +108,6 @@ pub async fn ban(
     );
     send_ephemeral(&ctx, conf_msg).await?;
 
-    info!(target_id, "User banned");
     Ok(())
 }
 
@@ -144,12 +125,7 @@ pub async fn purge(
     amount: u8,
 ) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
-    debug!(
-        caller_id = ctx.author().id.get(),
-        channel_id = channel_id.get(),
-        amount,
-        "Invoked purge command"
-    );
+    let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
 
     ctx.defer_ephemeral().await?;
 
@@ -159,15 +135,16 @@ pub async fn purge(
         .await?;
 
     trace!(
+        %channel_id,
         fetched_count = messages.len(),
-        "Retrieved messages from channel for purging"
+        "messages retrieved from the channel for purging"
     );
     let message_ids: Vec<MessageId> = get_to_be_deleted_message_ids(&messages);
 
     if message_ids.is_empty() {
         debug!(
             channel_id = channel_id.get(),
-            "Purge skipped: no deletable message IDs returned (potentially all older than 14 days)"
+            "purge skipped; every fetched message fell outside the 14 day window"
         );
         send_ephemeral(&ctx, "Seems like I can't delete any messages. Perhaps those messages are older than 14 days?").await?;
     } else {
@@ -175,11 +152,14 @@ pub async fn purge(
             .delete_messages(&ctx.serenity_context().http, &message_ids)
             .await?;
         send_ephemeral(&ctx, format!("Deleted {} message(s).", message_ids.len())).await?;
-        info!(
-            channel_id = channel_id.get(),
-            deleted_count = message_ids.len(),
-            "bulk deleted messages"
-        );
+        if let Some(guild_id) = guild_id {
+            audit::messages_purged(
+                serenity::all::GuildId::new(guild_id),
+                channel_id,
+                ctx.author().id,
+                message_ids.len(),
+            );
+        }
     }
     Ok(())
 }
@@ -197,22 +177,15 @@ pub async fn mute(
     #[description = "The reason."] reason: Option<String>,
 ) -> Result<(), Error> {
     let target_id = member.user.id.get();
-    debug!(
-        caller_id = ctx.author().id.get(),
-        target_id,
-        duration = %duration,
-        "Invoked mute command"
-    );
 
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, member.user.id, "mute").await? else {
-        debug!(target_id, "Mute pre-flight permissions check failed");
         return Ok(());
     };
     let reason_str = reason.as_deref().unwrap_or("No reason specified");
 
     let Some(dur) = parse_duration(&ctx, &duration).await? else {
-        debug!(target_id, "Mute duration parsing returned empty (aborted)");
+        debug!(target_id, "mute duration unresolved");
         return Ok(());
     };
 
@@ -220,7 +193,7 @@ pub async fn mute(
         debug!(
             target_id,
             duration_secs = dur.as_secs(),
-            "Mute aborted: duration lies outside Discord bounds (60s - 28d)"
+            "mute aborted; the duration is outside the discord bounds of 60s to 28d"
         );
         send_ephemeral(
             &ctx,
@@ -261,7 +234,6 @@ pub async fn mute(
     )
     .await?;
 
-    info!(target_id, duration = %duration, "User muted");
     Ok(())
 }
 
@@ -276,19 +248,17 @@ pub async fn unmute(
     #[description = "The member to unmute"] member: Member,
 ) -> Result<(), Error> {
     let target_id = member.user.id.get();
-    debug!(
-        caller_id = ctx.author().id.get(),
-        target_id, "Invoked unmute command"
-    );
 
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, member.user.id, "unmute").await? else {
-        debug!(target_id, "Unmute pre-flight permissions check failed");
         return Ok(());
     };
 
     if member.communication_disabled_until.is_none() {
-        debug!(target_id, "Unmute aborted: member is not currently muted");
+        debug!(
+            target_id,
+            "unmute aborted; the member is not currently muted"
+        );
         send_ephemeral(
             &ctx,
             format!(
@@ -319,7 +289,6 @@ pub async fn unmute(
     )
     .await?;
 
-    info!(target_id, "User unmuted");
     Ok(())
 }
 
@@ -334,15 +303,8 @@ pub async fn softban(
     #[max = 7]
     dmd: u8,
 ) -> Result<(), Error> {
-    let target_id = member.user.id.get();
-    debug!(
-        caller_id = ctx.author().id.get(),
-        target_id, dmd, "Invoked softban command"
-    );
-
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, member.user.id, "softban").await? else {
-        debug!(target_id, "Softban pre-flight permissions check failed");
         return Ok(());
     };
     let reason_str = reason.as_deref().unwrap_or("No reason specified");
@@ -368,7 +330,6 @@ pub async fn softban(
     )
     .await?;
 
-    info!(target_id, "User soft-banned");
     Ok(())
 }
 
@@ -380,10 +341,6 @@ pub async fn unban(
     #[description = "The reason for the unban"] reason: Option<String>,
 ) -> Result<(), Error> {
     let target_id = user.id.get();
-    debug!(
-        caller_id = ctx.author().id.get(),
-        target_id, "Invoked unban command"
-    );
 
     ctx.defer_ephemeral().await?;
     let meta = GuildMetadata::extract(&ctx)?;
@@ -410,10 +367,15 @@ pub async fn unban(
             ))
             .await?;
 
-            info!(target_id, "User unbanned");
+            info!(
+                %meta.id,
+                target_id,
+                moderator_id = %ctx.author().id.get(),
+                "user unbanned"
+            );
         }
         Err(err) => {
-            warn!(error = ?err, target_id, "execute unban operation via serenity API");
+            warn!(error = ?err, target_id, "unban via discord failed");
             ctx.say(format!("Failed to unban user: {err}")).await?;
         }
     }

@@ -6,7 +6,7 @@ use crate::shared::messages;
 use rustrict::{Censor, Type};
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, trace};
+use tracing::debug;
 
 pub fn filter_offensive_messages<'a>(
     message: &Message,
@@ -16,7 +16,6 @@ pub fn filter_offensive_messages<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'Offensive Messages' filter rule");
     let cleaned_content = clean_message_content(&message.content);
     let analysis = Censor::from_str(&cleaned_content).analyze();
 
@@ -32,7 +31,7 @@ pub fn filter_offensive_messages<'a>(
         Some(Cow::Owned(categories.join(", ")))
     };
 
-    debug!(?categories, "Message flagged by Offensive Messages filter");
+    debug!(?categories, "message flagged by Offensive Messages filter");
     FilterVerdict::Block {
         rule_name: "Offensive Message".into(),
         base_rule: Cow::Borrowed(&offensive_rule.base),

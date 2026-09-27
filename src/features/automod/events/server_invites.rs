@@ -4,7 +4,7 @@ use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::{HasBaseRule, MessageFilteringConfig};
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, trace};
+use tracing::debug;
 
 pub fn filter_server_invites<'a>(
     message: &'a Message,
@@ -14,11 +14,10 @@ pub fn filter_server_invites<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'Server Invites' filter rule");
     if let Some(captures) = INVITE_REGEX.captures(&message.content) {
         let matched_link = captures.get(0).map(|m| Cow::Borrowed(m.as_str()));
 
-        debug!(matched_link = ?matched_link, "Message flagged by Server Invites filter");
+        debug!(matched_link = ?matched_link, "message flagged by Server Invites filter");
         return FilterVerdict::Block {
             rule_name: "Server Invites".into(),
             base_rule: Cow::Borrowed(server_invites.base()),

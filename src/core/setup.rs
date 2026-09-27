@@ -116,7 +116,7 @@ pub fn setup<'a>(
             total_shards,
         } = params;
 
-        info!(bot = %ready.user.name, id = %ready.user.id, "gateway logged in");
+        info!(bot = %ready.user.name, bot_id = %ready.user.id, "gateway logged in");
 
         let active_tickets_cache = hydrate_active_tickets_cache(&redis_client).await;
 
@@ -188,7 +188,7 @@ pub fn setup<'a>(
         };
 
         if let Err(e) = reconcile_active_raids(ctx, &data).await {
-            error!(error = ?e, "reconciling active raids on startup");
+            error!(error = ?e, "startup raid reconciliation failed");
         }
 
         Ok(data)

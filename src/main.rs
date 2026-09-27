@@ -22,6 +22,7 @@ use mod_oud::features::{
 };
 use mod_oud::shared::logger;
 use mod_oud::shared::spotify_auth::SpotifyAuthCache;
+use mod_oud::shared::task;
 use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::{WebServerDeps, start_web_server};
 use poise::serenity_prelude as serenity;
@@ -164,7 +165,7 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
             .await
             .is_err()
         {
-            warn!("Drain timed out, exiting with the gateway still connected");
+            warn!("drain timed out, exiting with the gateway still connected");
         }
     } else {
         warn!(
@@ -270,9 +271,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_bot {
-        debug!("Since RUN_BOT is true, running discord bot");
+        debug!("discord bot enabled by RUN_BOT");
     } else {
-        debug!("Since RUN_BOT is false, not running discord bot");
+        debug!("discord bot disabled by RUN_BOT");
     }
 
     let run_web: bool = env::var("RUN_WEB")
@@ -281,9 +282,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_web {
-        debug!("Since RUN_WEB is true, running REST API");
+        debug!("REST API enabled by RUN_WEB");
     } else {
-        debug!("Since RUN_WEB is false, not running REST API");
+        debug!("REST API disabled by RUN_WEB");
     }
 
     let run_migrations = env::var("RUN_MIGRATIONS")
@@ -410,7 +411,7 @@ async fn start_bot(
         cache_channels = cache_settings.cache_channels,
         cache_guilds = cache_settings.cache_guilds,
         ttl = cache_settings.time_to_live.as_secs(),
-        "Setting up cache",
+        "cache settings applied",
     );
 
     let commands_to_register = build_commands();
@@ -473,7 +474,7 @@ async fn start_bot(
     // `start_shard` blocks for the life of the gateway, so it runs as a task the caller selects
     // on. A drain reaches the shards through `ShardManager`, which is why it is returned.
     let shard_manager = Arc::clone(&client.shard_manager);
-    let gateway = tokio::spawn(async move {
+    let gateway = task::spawn("gateway", async move {
         client
             .start_shard(deps.shard_index, deps.total_shards)
             .await
@@ -507,7 +508,12 @@ fn dynamic_prefix(
                 mod_oud::features::custom_commands::resolve_prefix(&settings).to_string(),
             )),
             Err(e) => {
-                warn!(error = ?e, %guild_id, "load prefix; falling back to default");
+                warn!(
+                    error = ?e,
+                    %guild_id,
+                    fallback = "!",
+                    "command prefix resolution failed"
+                );
                 Ok(Some("!".to_string()))
             }
         }

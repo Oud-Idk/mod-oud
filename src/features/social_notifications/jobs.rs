@@ -8,6 +8,7 @@ use sqlx::PgPool;
 use tracing::{error, info, instrument, warn};
 use tracing::log::trace;
 use uuid::Uuid;
+use crate::shared::task;
 use crate::features::social_notifications::database;
 use crate::features::social_notifications::discovery::{derive_feed_secret, request_hub_subscription};
 use crate::features::social_notifications::embed::build_entry_embed;
@@ -22,7 +23,7 @@ pub fn start_feed_polling_worker(
 ) {
     let worker_id = format!("worker-polling-{}", Utc::now().timestamp_millis());
 
-    tokio::spawn(run_feed_polling_worker(
+    task::spawn("feed_polling_worker", run_feed_polling_worker(
         db,
         http,
         redis_client,
@@ -56,20 +57,20 @@ async fn run_feed_polling_worker(
         // Heartbeat = 5s (Watchdog auto-extends with 15s safety ceiling)
         match acquire_lock(&redis_client, lock_key, lock_value, 5).await {
             Ok(Some(guard)) => {
-                trace!("Lock acquired; polling due RSS feeds");
+                trace!("polling lock acquired");
 
                 if let Err(e) = poll_due_feeds(&db, &http, &http_client).await {
-                    error!(error = ?e, "polling due rss feeds");
+                    warn!(error = ?e, "due rss feed poll failed");
                 }
 
                 match guard.release().await {
-                    Ok(true) => trace!("Polling lock released"),
-                    Ok(false) => warn!("Polling lock lost during execution"),
-                    Err(e) => error!(error = ?e, "release polling lock"),
+                    Ok(true) => trace!("polling lock released"),
+                    Ok(false) => warn!("polling lock lost during execution"),
+                    Err(e) => warn!(error = ?e, "polling lock release failed"),
                 }
             }
-            Ok(None) => trace!("Polling lock held by another instance; skipping"),
-            Err(e) => error!(error = ?e, "acquire feed polling lock"),
+            Ok(None) => trace!("polling lock held by another instance"),
+            Err(e) => warn!(error = ?e, "feed polling lock acquisition failed"),
         }
     }
 }
@@ -84,7 +85,7 @@ pub fn start_websub_renewal_worker(
 ) {
     let worker_id = format!("worker-websub-{}", Utc::now().timestamp_millis());
 
-    tokio::spawn(run_websub_renewal_worker(
+    task::spawn("websub_renewal_worker", run_websub_renewal_worker(
         db,
         redis_client,
         reqwest_client,
@@ -115,10 +116,10 @@ async fn run_websub_renewal_worker(
 
         match acquire_lock(&redis_client, lock_key, lock_value, 5).await {
             Ok(Some(guard)) => {
-                trace!("Lock acquired; renewing expiring WebSub leases");
+                trace!("WebSub renewal lock acquired");
 
                 if let Err(e) = renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()).await {
-                    error!(error = ?e, "renewing WebSub leases");
+                    warn!(error = ?e, "WebSub lease renewal failed");
                 }
 
                 // The poller logs release failures; a renewal that cannot hand
@@ -126,11 +127,11 @@ async fn run_websub_renewal_worker(
                 match guard.release().await {
                     Ok(true) => trace!("WebSub renewal lock released"),
                     Ok(false) => warn!("WebSub renewal lock lost during execution"),
-                    Err(e) => error!(error = ?e, "release WebSub renewal lock"),
+                    Err(e) => warn!(error = ?e, "WebSub renewal lock release failed"),
                 }
             }
-            Ok(None) => trace!("WebSub renewal lock held by another instance; skipping"),
-            Err(e) => error!(error = ?e, "acquire WebSub renewal lock"),
+            Ok(None) => trace!("WebSub renewal lock held by another instance"),
+            Err(e) => warn!(error = ?e, "WebSub renewal lock acquisition failed"),
         }
     }
 }
@@ -155,12 +156,12 @@ pub async fn poll_due_feeds(
         let resp = match client.get(&feed_row.url).send().await {
             Ok(r) => r,
             Err(e) => {
-                warn!(feed_id = %feed_id, url = %feed_row.url, error = ?e, "fetch feed");
+                warn!(feed_id = %feed_id, url = %feed_row.url, error = ?e, "feed fetch failed");
                 if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
                     warn!(
                         error = ?mark_err,
                         feed_id = %feed_id,
-                        "mark feed polled; feed will be retried immediately"
+                        "feed poll marker write failed; the feed is retried immediately"
                     );
                 }
                 continue;
@@ -176,13 +177,13 @@ pub async fn poll_due_feeds(
                     error = ?e,
                     feed_id = %feed_id,
                     url = %feed_row.url,
-                    "read feed body; skipping this cycle"
+                    "feed body read failed; this poll cycle is skipped"
                 );
                 if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
                     warn!(
                         error = ?mark_err,
                         feed_id = %feed_id,
-                        "mark feed polled; feed will be retried immediately"
+                        "feed poll marker write failed; the feed is retried immediately"
                     );
                 }
                 continue;
@@ -190,7 +191,7 @@ pub async fn poll_due_feeds(
         };
 
         let Ok(parsed_feed) = parser::parse(&body[..]) else {
-            warn!(feed_id = %feed_id, "Malformed XML during polling");
+            warn!(feed_id = %feed_id, "malformed XML during polling");
             continue;
         };
 
@@ -229,11 +230,11 @@ async fn dispatch_entry_to_discord(
     for channel in channels {
         let msg = CreateMessage::new().embed(embed.clone());
         if let Err(e) = channel.send_message(serenity_http, msg).await {
-            error!(
+            warn!(
                 error = ?e,
                 feed_id = %feed_id,
                 channel_id = %channel,
-                "deliver feed entry; subscriber missed this post"
+                "feed entry delivery failed; the subscriber missed this post"
             );
         }
     }
@@ -273,7 +274,7 @@ pub async fn renew_expiring_leases(
             error!(
                 fault = "feed has no hub or topic recorded",
                 feed_id = %feed.id,
-                "Expiring WebSub feed has no hub or topic recorded; skipping renewal"
+                "expiring WebSub feed has no hub or topic recorded"
             );
             failed += 1;
             continue;
@@ -284,33 +285,32 @@ pub async fn renew_expiring_leases(
 
         // An already-expired lease means the hub stopped delivering a while ago —
         // a very different problem from one that is merely coming up for renewal.
-        if feed.lease_expires_at.is_some_and(|expires_at| expires_at <= Utc::now()) {
+        let lease_expired = feed
+            .lease_expires_at
+            .is_some_and(|expires_at| expires_at <= Utc::now());
+
+        if lease_expired {
             error!(
                 reason = "lease already expired",
                 feed_id = %feed.id,
                 hub = %hub_url,
                 lease_expires_at = ?feed.lease_expires_at,
-                "WebSub lease already expired — no notifications have been arriving since then"
-            );
-        } else {
-            info!(
-                feed_id = %feed.id,
-                hub = %hub_url,
-                lease_expires_at = ?feed.lease_expires_at,
-                "Renewing WebSub lease"
+                "no notifications have been arriving since then"
             );
         }
 
         if let Err(e) =
             request_hub_subscription(reqwest_client, &hub_url, &topic, &callback_url, &secret).await
         {
-            error!(
+            warn!(
                 error = ?e,
                 feed_id = %feed.id,
                 hub = %hub_url,
-                "renew WebSub lease; feed delivery stays broken until one succeeds"
+                "WebSub lease renewal failed; feed delivery stays broken until one succeeds"
             );
             failed += 1;
+        } else if !lease_expired {
+            info!(feed_id = %feed.id, hub = %hub_url, "WebSub lease renewed");
         }
     }
 

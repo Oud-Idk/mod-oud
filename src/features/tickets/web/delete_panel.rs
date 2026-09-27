@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, MessageId};
 use std::sync::Arc;
-use tracing::{debug, error, instrument};
+use tracing::{debug, instrument, warn};
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -29,15 +29,20 @@ pub async fn handle_delete_ticket_message(
         .await
     {
         Ok(()) => {
-            debug!("Discord message deleted");
+            debug!(%payload.channel_id, %payload.message_id, "ticket panel message deleted via discord");
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) if error::is_unknown_message_error(&e) => {
-            debug!(error = ?e, "Discord message already deleted or unknown; returning success");
+            debug!(%payload.channel_id, %payload.message_id, "ticket panel message already gone per discord");
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
-            error!(error = ?e, "delete message via Discord API");
+            warn!(
+                error = ?e,
+                %payload.channel_id,
+                %payload.message_id,
+                "ticket panel message delete via discord failed"
+            );
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error.".to_string(),

@@ -8,7 +8,7 @@ use serenity::all::Message;
 use serenity::model::id::GuildId;
 use std::borrow::Cow;
 use std::sync::Arc;
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 /// Lazy container so we don't lowercase or allocate strings unless a rule needs it
 struct MessageContext<'a> {
@@ -31,6 +31,7 @@ impl<'a> MessageContext<'a> {
 }
 
 /// Evaluates active, custom database-driven bad word rulesets
+#[must_use]
 pub fn filter_bad_words<'a>(
     message: &Message,
     rulesets: &'a [CompiledRuleset],
@@ -41,8 +42,6 @@ pub fn filter_bad_words<'a>(
         if !ruleset.enabled || should_be_skipped_ruleset(message, ruleset) {
             continue;
         }
-
-        trace!(ruleset_name = %ruleset.name, "Checking custom database bad words ruleset");
 
         if let Some(verdict) = check_ruleset(&mut ctx, ruleset) {
             return verdict;
@@ -107,7 +106,7 @@ fn block_verdict<'a>(ruleset: &'a CompiledRuleset, trigger: &str) -> FilterVerdi
     debug!(
         ruleset = %ruleset.name,
         trigger = %trigger,
-        "Message flagged by dynamic Bad Words ruleset"
+        "message flagged by dynamic Bad Words ruleset"
     );
     FilterVerdict::Block {
         rule_name: Cow::Borrowed(&ruleset.name),
@@ -177,14 +176,15 @@ async fn fetch_and_cache_from_db(
     let db_rows = database::fetch_bad_word_rows(&data.core.db, guild_id).await?;
     debug!(%guild_id, "PostgreSQL Fetch for bad word rulesets");
 
-    if let Ok(serialized) = serde_json::to_string(&db_rows) {
-        if let Err(e) = cache::cache_bad_word(cache_key, &data.core.redis, serialized).await {
-            warn!(
-                error = ?e,
-                %guild_id,
-                "write bad word ruleset to cache; next lookup refetches from Postgres"
-            );
-        }
+    if let Ok(serialized) = serde_json::to_string(&db_rows)
+        && let Err(e) = cache::cache_bad_word(cache_key, &data.core.redis, serialized).await
+    {
+        warn!(
+            error = ?e,
+            %guild_id,
+            fallback = "postgres",
+            "wrote bad word ruleset to cache"
+        );
     }
 
     Ok(db_rows)

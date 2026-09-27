@@ -19,8 +19,6 @@ pub async fn handle_resolve_report(
     guild_id: GuildId,
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
-    info!("Resolving report status and notifying reporter");
-
     let config = get_settings(
         &state.core.db,
         redis,
@@ -28,11 +26,11 @@ pub async fn handle_resolve_report(
         guild_id,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "resolve guild config"))
+    .inspect_err(|e| warn!(error = %e, "guild settings unavailable"))
     .map_err(|_| WebError::Internal)?;
 
     let Some(report_config) = config.report else {
-        warn!("Report config was missing for target guild during report resolution");
+        warn!("report config missing for the target guild");
         return Ok(StatusCode::BAD_REQUEST);
     };
 
@@ -40,14 +38,21 @@ pub async fn handle_resolve_report(
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::Status(*status))
         .await
-        .inspect_err(|e| error!(error = ?e, "Database report status update failed"))
+        .inspect_err(|e| error!(error = ?e, "database report status update failed"))
         .map_err(|_| WebError::Internal)?;
+
+    info!(
+        report_id = cmd.report_id,
+        %reporter_id,
+        status = ?status,
+        "dashboard report status changed"
+    );
 
     let dm_channel = reporter_id
         .create_dm_channel(&state.serenity_http)
         .await
         .map_err(|e| {
-            error!(error = %e, "open direct message channel to the reporter");
+            warn!(error = %e, "reporter DM channel unavailable");
             WebError::BadGateway(format!("Failed to open DM channel: {e}"))
         })?;
 
@@ -58,9 +63,7 @@ pub async fn handle_resolve_report(
     };
 
     if layout_opt.is_none_or(|l| !l.enabled) {
-        info!(
-            "Report status resolved; skipping DM layout dispatch since configurations are disabled"
-        );
+        info!("report status resolved; DM layout dispatch skipped, the configuration is disabled");
         return Ok(StatusCode::OK);
     }
 
@@ -73,7 +76,7 @@ pub async fn handle_resolve_report(
             &layout.message.embed,
             replace_fn,
         )
-        .inspect_err(|e| error!(error = %e, "generate custom messaging content layout"))
+        .inspect_err(|e| warn!(error = %e, "resolution DM layout compilation failed"))
         .map_err(|_e| WebError::Internal)?
     } else {
         None
@@ -95,9 +98,9 @@ pub async fn handle_resolve_report(
     };
 
     if let Err(e) = send_result {
-        warn!(error = %e, %reporter_id, "Could not send resolution DM to reporter");
+        warn!(error = %e, %reporter_id, "resolution DM to reporter not sent");
     } else {
-        info!(%reporter_id, "Resolution DM sent to reporter");
+        info!(%reporter_id, "resolution DM sent to reporter");
     }
 
     Ok(StatusCode::OK)

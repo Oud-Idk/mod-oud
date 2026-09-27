@@ -106,7 +106,7 @@ pub async fn check_if_enabled(
     get_settings(db, redis, cache, guild_id)
         .await
         .map(|s| s.invite_tracker.and_then(|s| s.enabled).unwrap_or(false))
-        .context("Failed to get settings to check whether invite tracking is enabled")
+        .context("settings lookup for the invite tracking feature check failed")
 }
 
 /// Attributes a member join to the inviter whose invite use count incremented.
@@ -128,7 +128,7 @@ pub async fn store_member_invite(
     }
 
     let current_invites = guild_id.invites(&ctx.http).await.inspect_err(|err| {
-        warn!(%guild_id, error = ?err, "failed to fetch invites");
+        warn!(%guild_id, error = ?err, "invite fetch failed");
     })?;
 
     let old_uses = get_invite_uses(redis, guild_id).await;
@@ -166,13 +166,13 @@ pub async fn store_member_invite(
         debug!(
             %guild_id,
             member_id = new_member.user.id.get(),
-            "Could not determine which invite was used (vanity URL, oauth join, or bot invite?)"
+            "used invite unresolved (vanity URL, OAuth join, or bot invite)"
         );
         return Ok(());
     };
 
     let Some(inviter_id) = get_cached_inviter(redis, guild_id, &code).await else {
-        debug!(%guild_id, %code, "No cached inviter for this code");
+        debug!(%guild_id, %code, "no cached inviter for this code");
         return Ok(());
     };
 
@@ -194,6 +194,6 @@ pub async fn store_member_invite(
     )
     .await?;
 
-    debug!(%guild_id, member_id = %new_member.user.id, inviter_id, %code, "Attributed join to inviter");
+    debug!(%guild_id, member_id = %new_member.user.id, inviter_id, %code, "attributed join to inviter");
     Ok(())
 }

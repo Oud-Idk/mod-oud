@@ -1,3 +1,4 @@
+use crate::shared::task;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::{cache, database, keys};
 use crate::shared::locking::acquire_lock;
@@ -6,11 +7,11 @@ use futures_util::StreamExt;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Duration;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{warn, info, debug, trace, instrument};
 
 /// Spawns a background worker that periodically flushes pending user levels from Redis to the database.
 pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
-    tokio::spawn(async move {
+    task::spawn("level_flush_worker", async move {
         let lock_key = "lock:level_flush_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
@@ -19,27 +20,25 @@ pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
         loop {
             tokio::time::sleep(Duration::from_secs(15)).await;
 
-            trace!("Attempting to acquire lock for level flushing");
-
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
-                    trace!("Lock acquired; starting pending level flush");
+                    trace!("level flush lock acquired");
 
                     if let Err(e) = flush_pending_levels(&db_pool, &redis_client).await {
-                        error!(error = ?e, "flushing levels to database");
+                        warn!(error = ?e, "level flush to database failed");
                     }
 
                     match guard.release().await {
-                        Ok(true) => trace!("Lock released"),
-                        Ok(false) => warn!("Attempted to release lock, but we no longer owned it"),
-                        Err(e) => error!(error = ?e, "release lock due to a Redis error"),
+                        Ok(true) => trace!("level flush lock released"),
+                        Ok(false) => warn!("level flush lock release skipped, no longer owned"),
+                        Err(e) => warn!(error = ?e, "level flush lock release failed"),
                     }
                 }
                 Ok(None) => {
-                    trace!("Lock already held by another worker; skipping this iteration");
+                    trace!("level flush lock held by another worker; skipping this iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate Redis lock for level flushing");
+                    warn!(error = ?e, "level flush lock acquisition failed");
                 }
             }
         }
@@ -52,17 +51,16 @@ async fn process_flushing_key(
     redis: &Client,
     db: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    debug!("Retrieving records for flushing key");
     let records: HashMap<String, String> = cache::get_flushing_records(redis, flushing_key).await?;
 
     if records.is_empty() {
-        debug!("Flushing key was empty; removing key");
         cache::delete_levels_flush_key(redis, flushing_key).await?;
+        debug!("empty flushing key removed from redis");
         return Ok(());
     }
 
     let records_count = records.len();
-    debug!(records_count, "Found records to process");
+    debug!(records_count, "found records to process");
 
     let mut guild_ids = Vec::with_capacity(records_count);
     let mut user_ids = Vec::with_capacity(records_count);
@@ -83,7 +81,7 @@ async fn process_flushing_key(
                 warn!(
                     field = %field,
                     error = ?e,
-                    "deserialize UserLevel from flushing map field"
+                    "pending level record deserialization failed"
                 );
             }
         }
@@ -91,8 +89,6 @@ async fn process_flushing_key(
 
     if !guild_ids.is_empty() {
         let records_to_upsert = guild_ids.len();
-        debug!(records_to_upsert, "Upserting user levels to database");
-
         database::upsert_level(
             db,
             &guild_ids,
@@ -103,7 +99,7 @@ async fn process_flushing_key(
         )
             .await?;
 
-        debug!(records_to_upsert, "Database upsert complete");
+        debug!(records_to_upsert, "user levels upserted to database");
     }
 
     cache::delete_levels_flush_key(redis, flushing_key).await?;
@@ -124,21 +120,21 @@ async fn flush_guild(
     let stale_exists: bool = cache::flushing_key_exists(redis, &flushing_key).await?;
 
     if stale_exists {
-        warn!("Found stale flushing key; processing outstanding records");
+        warn!("stale flushing key found; its records are replayed");
         process_flushing_key(&flushing_key, redis, db).await?;
     }
 
     let claimed = cache::claim_pending_levels(redis, &pending_key, &flushing_key).await?;
 
     if claimed {
-        debug!("Pending records claimed; processing batch");
+        debug!("pending records claimed");
         process_flushing_key(&flushing_key, redis, db).await?;
     } else {
-        trace!("No pending records to claim");
+        trace!("no pending records to claim");
     }
 
     cache::remove_dirty_guild(redis, guild_id_str).await?;
-    debug!("Guild removed from dirty guilds list");
+    debug!("guild removed from dirty guilds list");
 
     Ok(())
 }
@@ -151,12 +147,11 @@ async fn flush_pending_levels(
     let dirty_guilds: Vec<String> = cache::get_dirty_guilds(redis).await?;
 
     if dirty_guilds.is_empty() {
-        trace!("No dirty guilds found to flush");
+        trace!("no dirty guilds found to flush");
         return Ok(());
     }
 
     let guilds_count = dirty_guilds.len();
-    info!(guilds_count, "Flushing levels for dirty guilds");
 
     let flush_futures = dirty_guilds.into_iter().map(|guild_id_str| {
         let redis_clone = redis.clone();
@@ -164,7 +159,7 @@ async fn flush_pending_levels(
 
         async move {
             if let Err(e) = flush_guild(&guild_id_str, &redis_clone, db_pool).await {
-                error!(%guild_id_str, error = ?e, "flush levels for guild");
+                warn!(%guild_id_str, error = ?e, "level flush for guild failed");
             }
         }
     });
@@ -174,6 +169,6 @@ async fn flush_pending_levels(
         .collect::<Vec<()>>()
         .await;
 
-    trace!("Finished processing current batch of dirty guilds");
+    debug!(guilds_count, "dirty guild levels flushed");
     Ok(())
 }

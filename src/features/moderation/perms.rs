@@ -17,11 +17,6 @@ pub async fn pre_flight_check(
     action_name: &str,
 ) -> Result<Option<GuildMetadata>, Error> {
     let target_id = user_id.get();
-    trace!(
-        target_id,
-        action = action_name,
-        "Initiating moderation pre-flight checks"
-    );
 
     if check_self_moderation(ctx, user_id, action_name).await? {
         return Ok(None);
@@ -32,13 +27,13 @@ pub async fn pre_flight_check(
             target_id,
             error = %err_msg,
             action = action_name,
-            "Moderation action blocked by role hierarchy validation"
+            "moderation action blocked by role hierarchy validation"
         );
         ctx.say(format!("❌ Action Denied: {err_msg}")).await?;
         return Ok(None);
     }
 
-    trace!(target_id, "Moderation pre-flight checks completed");
+    trace!(target_id, "moderation pre-flight checks completed");
     Ok(Some(GuildMetadata::extract(&ctx)?))
 }
 
@@ -52,7 +47,7 @@ pub async fn check_self_moderation(
     if ctx.author().id == target_id {
         debug!(
             author_id = ctx.author().id.get(),
-            action, "Self-moderation attempt detected and blocked"
+            action, "self-moderation attempt detected and blocked"
         );
         ctx.send(
             poise::CreateReply::default()
@@ -67,8 +62,6 @@ pub async fn check_self_moderation(
 
 /// Main entry point to perform Discord hierarchy validation checks.
 pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), Error> {
-    trace!(%target_id, "Evaluating role hierarchy permissions");
-
     let guild_id = ctx
         .guild_id()
         .with_context(|| "This command must be run in a server.")?;
@@ -120,18 +113,15 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
     let Ok(target_member) = target_res else {
         debug!(
             %target_id,
-            "Target is not a member of the guild; skipping role hierarchy checks"
+            "target is not a member of the guild; skipping role hierarchy checks"
         );
         return Ok(());
     };
 
     let executor_member = executor_res
         .with_context(|| "Failed to fetch executor member details.")
-        .inspect_err(|_a| {
-            warn!(
-                %target_id,
-                "resolve executor member details from context"
-            );
+        .inspect_err(|a| {
+            warn!(%target_id, error = %a, "executor member resolution failed");
         })?;
 
     let bot_member = bot_res.with_context(|| "Failed to fetch bot member details.")?;
@@ -142,7 +132,7 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
 
     trace!(
         %target_id,
-        executor_pos, target_pos, bot_pos, "Comparing highest role positions"
+        executor_pos, target_pos, bot_pos, "highest role positions compared"
     );
 
     validate_hierarchy(ctx.author().id, owner_id, executor_pos, target_pos, bot_pos).inspect_err(
@@ -153,7 +143,7 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
                 executor_pos,
                 target_pos,
                 bot_pos,
-                "Hierarchy validation rule violated"
+                "hierarchy validation rule violated"
             );
         },
     )

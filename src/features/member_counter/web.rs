@@ -32,12 +32,10 @@ pub async fn handle_setup_member_counter(
     let Json(payload) = match payload {
         Ok(p) => p,
         Err(rejection) => {
-            debug!(error = %rejection, "Rejected member counter setup: request body failed to deserialize");
+            debug!(error = %rejection, "rejected member counter setup; the body did not deserialize");
             return Err((StatusCode::UNPROCESSABLE_ENTITY, rejection.body_text()));
         }
     };
-
-    debug!(%guild_id, "Received request to setup member counter channels");
 
     let mut counters = payload.counters;
 
@@ -55,7 +53,7 @@ pub async fn handle_setup_member_counter(
     info!(
         %guild_id,
         category_id = %category_id.get(),
-        "Member counter category and channels setup completed"
+        "member counter category and channels created"
     );
 
     Ok((
@@ -76,7 +74,7 @@ async fn get_or_create_counter_category(
         guild_id,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "get settings"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "guild settings lookup failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -94,34 +92,34 @@ async fn get_or_create_counter_category(
             Ok(serenity::Channel::Guild(channel))
                 if channel.kind == serenity::ChannelType::Category =>
             {
-                debug!(category_id = saved_id.get(), "Reusing existing category");
+                debug!(category_id = saved_id.get(), "reusing existing category");
                 return Ok(saved_id);
             }
             Ok(_) => {
-                warn!(%guild_id, channel_id = %saved_id, "Saved category ID is not a category, recreating");
+                warn!(%guild_id, channel_id = %saved_id, "saved category id is not a category");
             }
             Err(e) => {
-                warn!(error = ?e, %guild_id, channel_id = %saved_id, "Saved category ID no longer exists in Discord, recreating");
+                warn!(error = ?e, %guild_id, channel_id = %saved_id, "saved category id no longer exists on discord");
             }
         }
     }
 
     // Category is missing or invalid -> Create a new one
-    info!(%guild_id, "Creating 'Server Stats' category for member counters");
-
     let category_builder =
         serenity::CreateChannel::new("Server Stats").kind(serenity::ChannelType::Category);
 
     let category = guild_id
         .create_channel(&state.serenity_http, category_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "create category"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "member counter category not created"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error".to_string(),
             )
         })?;
+
+    info!(%guild_id, channel_id = %category.id, "member counter category created");
 
     guild_settings
         .member_counter
@@ -136,7 +134,7 @@ async fn get_or_create_counter_category(
         &guild_settings,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "save settings"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "guild settings save failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -162,23 +160,24 @@ async fn create_missing_counter_channels(
                 .kind(serenity::ChannelType::Voice)
                 .category(category_id);
 
-            info!(
-                %guild_id,
-                channel_name = %channel_name,
-                counter_id = %counter.id,
-                "Creating voice channel for counter"
-            );
-
             let voice_channel = guild_id
                 .create_channel(&state.serenity_http, voice_builder)
                 .await
-                .inspect_err(|e| warn!(error = ?e, %guild_id, "create voice channel"))
+                .inspect_err(|e| warn!(error = ?e, %guild_id, "counter voice channel not created"))
                 .map_err(|_| {
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "Internal server error".to_string(),
                     )
                 })?;
+
+            info!(
+                %guild_id,
+                channel_id = %voice_channel.id,
+                channel_name = %channel_name,
+                counter_id = %counter.id,
+                "counter voice channel created"
+            );
 
             counter.channel_id = Some(voice_channel.id);
         }

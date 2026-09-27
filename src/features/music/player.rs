@@ -6,7 +6,7 @@ use songbird::{Call, Event, EventContext, EventHandler as VoiceEventHandler, Tra
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, mpsc};
-use tracing::{debug, error};
+use tracing::debug;
 use uuid::Uuid;
 
 use crate::features::music::actor::{GuildCommand, Requester};
@@ -56,11 +56,11 @@ impl VoiceEventHandler for TrackEndHandler {
                 debug!(
                     uuid = %self.expected_uuid,
                     played_secs = state.play_time.as_secs_f64(),
-                    "Track end/error event received, notifying GuildActor"
+                    "track end/error event received"
                 );
             }
         } else {
-            debug!(uuid = %self.expected_uuid, "Track end/error event received, notifying GuildActor");
+            debug!(uuid = %self.expected_uuid, "track end/error event received");
         }
         let _ = self
             .command_tx
@@ -77,13 +77,10 @@ pub async fn fetch_metadata(services: PlaybackServices<'_>, query: &str) -> Resu
     let mut src = YoutubeDl::new(services.reqwest_client.clone(), query.to_string());
     match src.aux_metadata().await {
         Ok(metadata) => {
-            debug!(guild_id = %services.guild_id, title = ?metadata.title, "Aux metadata fetched");
+            debug!(guild_id = %services.guild_id, title = ?metadata.title, "aux metadata fetched");
             Ok(metadata)
         }
-        Err(e) => {
-            error!(guild_id = %services.guild_id, error = ?e, "fetching track metadata");
-            Err(e.into())
-        }
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -112,7 +109,7 @@ pub async fn start_streaming(
         handler.play_input(source)
     };
     let handle_uuid = handle.uuid();
-    debug!(guild_id = %services.guild_id, uuid = %handle_uuid, "Started playing track input");
+    debug!(guild_id = %services.guild_id, uuid = %handle_uuid, "started playing track input");
 
     let handler = TrackEndHandler {
         command_tx: services.command_tx.clone(),

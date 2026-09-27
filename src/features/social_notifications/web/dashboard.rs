@@ -98,7 +98,7 @@ pub async fn create_feed_subscription(
         %channel_id,
         feed_id = %subscription.feed_id,
         already_subscribed = subscription.already_subscribed,
-        "Dashboard feed subscription created"
+        "dashboard feed subscription created"
     );
 
     Ok((
@@ -123,14 +123,14 @@ async fn ensure_channel_in_guild(
     match state.serenity_http.get_channel(channel_id).await {
         Ok(Channel::Guild(channel)) if channel.guild_id == guild_id => Ok(()),
         Ok(_) => {
-            debug!(%guild_id, %channel_id, "Rejected feed subscription: channel does not belong to this guild");
+            debug!(%guild_id, %channel_id, "rejected feed subscription: channel does not belong to this guild");
             Err((
                 StatusCode::BAD_REQUEST,
                 "That channel does not belong to this server".to_string(),
             ))
         }
         Err(e) => {
-            debug!(error = ?e, %guild_id, %channel_id, "Rejected feed subscription: could not resolve channel");
+            debug!(error = ?e, %guild_id, %channel_id, "feed subscription rejected: channel not resolved");
             Err((
                 StatusCode::BAD_REQUEST,
                 "Could not find that channel in this server".to_string(),

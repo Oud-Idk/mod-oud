@@ -3,7 +3,7 @@ use crate::features::live_feed::LogEvent;
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
 use tokio::sync::broadcast;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, info, trace, warn};
 
 /// Subscribes to Redis log channels and forwards parsed events to the broadcast sender.
 ///
@@ -19,26 +19,26 @@ pub async fn start_live_feed_subscriber(
             let channel = msg.channel.to_string();
 
             let Ok(payload_str) = msg.value.convert::<String>() else {
-                warn!(channel = %channel, "convert Redis message value to String");
+                warn!(channel = %channel, "redis payload conversion failed");
                 return Ok(());
             };
 
             debug!(
                 channel = %channel,
                 payload_len = payload_str.len(),
-                "Received Redis subscription message"
+                "received Redis subscription message"
             );
 
             if LogEvent::REDIS_CHANNELS.contains(&channel.as_str()) {
                 if let Some(event) = LogEvent::from_redis(&channel, &payload_str) {
                     if let Err(e) = tx.send(event) {
-                        error!(error = %e, "send LogEvent to broadcast channel");
+                        warn!(error = %e, "LogEvent not sent to the broadcast channel");
                     }
                 } else {
-                    warn!(channel = %channel, "parse LogEvent from Redis payload");
+                    warn!(channel = %channel, "LogEvent parse from the redis payload failed");
                 }
             } else {
-                trace!(channel = %channel, "Received irrelevant payload; skipping");
+                trace!(channel = %channel, "received irrelevant payload; skipping");
             }
             Ok(())
         }
@@ -49,9 +49,8 @@ pub async fn start_live_feed_subscriber(
         .map(|&c| Key::from(c))
         .collect();
 
-    info!(channels = ?LogEvent::REDIS_CHANNELS, "Subscribing to Redis channels");
     subscriber_client.subscribe(channels).await?;
-    info!("subscribed to Redis channels");
+    info!(channels = ?LogEvent::REDIS_CHANNELS, "subscribed to redis channels");
 
     Ok(())
 }

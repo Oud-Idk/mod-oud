@@ -17,32 +17,33 @@ folder. never `foo/mod.rs`.
 ```
 src/
 ├── main.rs               # Wiring only: build Config, register features, start bot + web
-├── core.rs               # `mod config; mod setup;` — re-exports only
+├── core.rs               # `mod config; mod error; mod setup;`, no re-exports
 ├── core/                 # Framework/bootstrapping glue — NOT feature logic
 │   ├── config.rs         # The AppState/Config struct, DB pool setup
-│   └── setup.rs
-├── events.rs             # `mod dispatch;`
+│   │   └── config/       # settings, state, cache sync, and the DB/Redis handles
+│   ├── error.rs          # The poise error boundary: `on_error`
+│   └── setup.rs          # Gateway login: state, caches, worker startup
+├── events.rs             # `mod dispatch; mod interact;`
 ├── events/
-│   └── dispatch.rs       # Fan-out: raw serenity event -> feature::handle_event()
-├── shared.rs             # `mod error; mod locking; mod logger; mod placeholders; mod embed;`
+│   ├── dispatch.rs       # Fan-out: raw serenity event -> feature::handle_event()
+│   └── interact.rs       # Fan-out for button and modal interactions
+├── shared.rs             # One `mod` per file in shared/, plus a few `pub use` re-exports
 ├── shared/               # Cross-cutting utilities used by 3+ features
-│   ├── error.rs
-│   ├── locking.rs
-│   ├── logger.rs
-│   ├── placeholders.rs
-│   └── embed.rs
+│   ├── locking.rs        # Distributed Redis locks
+│   ├── logger.rs         # tracing setup: subscriber, filter, JSON switch
+│   ├── task.rs           # Background task spawning, so every job reports its outcome
+│   └── ...               # and others; `src/shared.rs` is the index
 ├── features.rs           # `mod <feature_name>;` for every feature
 ├── features/
 │   └── <feature_name>.rs # Everything about one specific feature — see below!
 │   └── <feature_name>/   # The feature's supporting files
-├── web.rs                # `mod server;`
+├── web.rs                # `mod router; mod server; mod middleware; mod ticket;`
 └── web/
-    ├── routes.rs         # Collect all routes from features
-    └── server.rs         # Startup, CORS, listener, and shared states
+    ├── router.rs         # Collects every feature's routes into one Router
+    ├── middleware.rs     # Internal-secret auth for backend routes
+    ├── server.rs         # Startup, CORS, listener, and shared states
+    └── ticket.rs         # Signed ticket verification for real-time endpoints
 ```
-
-`shared/logger.rs` is in this tree as the target state and does not exist yet. It is step 1 of
-[`logging.md`](logging.md).
 
 ---
 

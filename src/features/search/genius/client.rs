@@ -4,7 +4,7 @@ use crate::features::search::genius::models::{
 use crate::features::search::http::redact_url;
 use scraper::{ElementRef, Html, Node, Selector};
 use std::sync::LazyLock;
-use tracing::error;
+use tracing::warn;
 
 #[derive(Clone)]
 struct RawFetched {
@@ -42,11 +42,11 @@ async fn decode_genius_json<T: serde::de::DeserializeOwned>(
             // Neither the body nor the query string: the Genius token rides in the query, and a
             // body from a keyed endpoint can echo the key back.
             let safe_url = redact_url(url.as_str(), &[]);
-            error!(
+            warn!(
                 url = %safe_url,
                 body_bytes = text.len(),
                 error = %err,
-                "failed to decode genius response"
+                "genius response decode failed"
             );
             Err(anyhow::anyhow!("Serde decode error at {safe_url}: {err}"))
         }

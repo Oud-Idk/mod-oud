@@ -6,6 +6,7 @@
 
 use crate::features::music::actor::Requester;
 use crate::features::music::keys;
+use crate::shared::task;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::oneshot;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 /// How long the web server waits for an owning bot instance to answer.
@@ -185,7 +186,7 @@ impl WebCommandBus {
                 let payload = match msg.value.convert::<String>() {
                     Ok(val) => val,
                     Err(e) => {
-                        warn!(error = ?e, "convert music command reply payload");
+                        warn!(error = ?e, "music command reply payload conversion failed");
                         return Ok(());
                     }
                 };
@@ -193,7 +194,7 @@ impl WebCommandBus {
                 let result: RemoteMusicResult = match serde_json::from_str(&payload) {
                     Ok(result) => result,
                     Err(e) => {
-                        warn!(error = %e, payload = %payload, "parse music command reply");
+                        warn!(error = %e, payload = %payload, "music command reply parse failed");
                         return Ok(());
                     }
                 };
@@ -201,10 +202,10 @@ impl WebCommandBus {
                 if let Ok(mut pending) = pending.lock()
                     && let Some(reply_tx) = pending.remove(&result.request_id)
                 {
-                    debug!(request_id = %result.request_id, "Matched music command reply");
+                    debug!(request_id = %result.request_id, "matched music command reply");
                     let _ = reply_tx.send(result);
                 } else {
-                    debug!(request_id = %result.request_id, "Reply arrived for unknown or expired request");
+                    debug!(request_id = %result.request_id, "reply arrived for unknown or expired request");
                 }
 
                 Ok(())
@@ -213,13 +214,13 @@ impl WebCommandBus {
 
         let subscriber_for_subscribe = subscriber;
         let subscribe_channel = reply_channel.clone();
-        tokio::spawn(async move {
+        task::spawn("music_web_reply_worker", async move {
             match subscriber_for_subscribe
                 .subscribe(subscribe_channel.as_str())
                 .await
             {
-                Ok(()) => debug!("Subscribed to music web reply channel"),
-                Err(e) => error!(error = ?e, "subscribe to music web reply channel"),
+                Ok(()) => debug!("subscribed to music web reply channel"),
+                Err(e) => warn!(error = ?e, "music web reply channel subscription failed"),
             }
         });
 
@@ -268,7 +269,7 @@ impl WebCommandBus {
 
         match tokio::time::timeout(Duration::from_secs(COMMAND_TIMEOUT_SECS), reply_rx).await {
             Ok(Ok(result)) => {
-                debug!(request_id = %request_id, "Music command completed");
+                debug!(request_id = %request_id, "music command completed");
                 result.into_inner()
             }
             Ok(Err(_)) => Err("Music command reply channel closed".to_string()),

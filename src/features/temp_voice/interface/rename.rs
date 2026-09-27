@@ -20,8 +20,6 @@ pub async fn handle_rename_temp_vc(
         return Ok(());
     }; // To make sure user is in a guild and in a voice chat
 
-    debug!("Showing rename modal");
-
     let input = CreateInputText::new(InputTextStyle::Short, "New channel name", "new_name")
         .placeholder("e.g. Late Night Grind. Leave blank to reset.")
         .max_length(100)
@@ -33,6 +31,8 @@ pub async fn handle_rename_temp_vc(
     interaction
         .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
         .await?;
+
+    debug!("rename modal sent");
     Ok(())
 }
 

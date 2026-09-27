@@ -8,7 +8,7 @@ use serenity::all::{ChannelId, Context, GuildId};
 use serenity::model::channel::Message;
 use serenity::model::id::MessageId;
 use sqlx::PgPool;
-use tracing::error;
+use tracing::{error, warn};
 
 pub async fn send_birthday_message(
     ctx: &Context,
@@ -30,7 +30,7 @@ pub async fn send_birthday_message(
     channel_id
         .send_message(&ctx.http, msg)
         .await
-        .context("Failed to send message")
+        .context("birthday announcement send failed")
 }
 
 pub struct BirthdayAnnouncement<'a> {
@@ -79,7 +79,7 @@ pub async fn process_celebrant_roles(
                 error = ?e,
                 %guild_id,
                 %user_id,
-                "store birthday log; birthday history entry dropped"
+                "birthday history entry not stored"
             );
         }
 
@@ -94,12 +94,12 @@ pub async fn process_celebrant_roles(
             .add_member_role(guild_id, user_id, role_id, Some("Birthday Role"))
             .await
         {
-            error!(
+            warn!(
                 error = ?e,
                 %guild_id,
                 %user_id,
                 %role_id,
-                "add the birthday role; no cleanup row stored"
+                "birthday role not added; no cleanup row stored"
             );
             continue;
         }
@@ -110,7 +110,7 @@ pub async fn process_celebrant_roles(
                 error = ?e,
                 %guild_id,
                 %user_id,
-                "persist birthday role assignment; role will not be cleaned up on expiry"
+                "birthday role assignment not stored; the role is not cleaned up on expiry"
             );
         }
     }

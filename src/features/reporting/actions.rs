@@ -65,7 +65,7 @@ pub async fn issue_report(
         %guild_id,
         message_id = %reported_message.id,
         reporter_id = %reporter.id,
-        "Starting issue_report process"
+        "issue report received"
     );
 
     let reported_author = &reported_message.author;
@@ -75,7 +75,6 @@ pub async fn issue_report(
     let content = reported_message.content.clone();
     let attachment_url = extract_image_urls(reported_message).join(",");
 
-    trace!("Attempting to insert reported message into the database");
     let Some(row) = insert_reported_message(
         db,
         guild_id,
@@ -90,7 +89,7 @@ pub async fn issue_report(
         debug!(
             message_id = reported_message.id.get(),
             reporter_id = reporter.id.get(),
-            "Report creation skipped: message was already reported by this user"
+            "report creation skipped: message was already reported by this user"
         );
         return Ok(None);
     };
@@ -120,47 +119,40 @@ pub async fn issue_report(
         reporter_name: reporter.name.clone(),
     };
 
-    trace!(report_id = id, "Serializing report payload to JSON");
     let payload_str = serde_json::to_string(&payload).map_err(|err| {
-        warn!(error = ?err, report_id = id, "serialize report payload to JSON");
+        warn!(error = ?err, report_id = id, "report payload serialization failed");
         err
     })?;
 
-    debug!(
-        report_id = id,
-        "Publishing report payload to Redis 'discord:reports' channel"
-    );
+    debug!(report_id = id, "report payload published to redis");
 
     cache::publish_report(redis, &payload_str)
         .map_err(|err| {
-            warn!(error = ?err, report_id = id, "publish report to Redis Pub/Sub");
+            warn!(error = ?err, report_id = id, "report publish to redis failed");
             err
         })
         .await?;
 
     send_message_to_channel(http, &config, reported_message, guild_id, domain).await?;
 
-    debug!(
-        report_id = id,
-        "completed report processing and transmission"
-    );
     Ok(Some(row.id))
 }
 
 async fn send_message_to_channel(http: Arc<Http>, config: &GuildSettings, message: &Message, guild_id: GuildId, domain: &str) -> Result<()> {
     let Some(config) = config.report.as_deref() else { return Ok(()); };
-    debug!(
-        ?config,
-        "Attempting to send alert to channel"
-    );
     let Some(reporting_channel) = config.reporting_channel else { return Ok(()); };
     let message_url = message.link();
     let dashboard_url = format!("{}/dashboard/{guild_id}/report", domain);
 
-
-
     reporting_channel.send_message(&http, CreateMessage::new()
         .content(format!("Someone reported a message! Message located at {message_url}. Head to {dashboard_url} to resolve."))
     ).await?;
+
+    debug!(
+        %guild_id,
+        %reporting_channel,
+        message_id = %message.id,
+        "report alert sent to the reporting channel"
+    );
     Ok(())
 }

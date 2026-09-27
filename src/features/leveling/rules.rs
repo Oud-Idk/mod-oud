@@ -4,7 +4,7 @@ use anyhow::Result;
 use fred::clients::Client;
 use serenity::all::{ChannelId, GuildId, Message, RoleId};
 use sqlx::PgPool;
-use tracing::{debug, error, instrument, trace};
+use tracing::{warn, debug, trace, instrument};
 
 pub fn should_exclude_from_level_up(
     config: &LevelingConfig,
@@ -49,7 +49,7 @@ fn calculate_multiplier(
                 trace!(
                     %target_id,
                     multiplier = mult.multiplier,
-                    "Channel-specific XP multiplier applied"
+                    "channel-specific XP multiplier applied"
                 );
                 applied_multiplier = applied_multiplier.max(mult.multiplier);
             }
@@ -57,7 +57,7 @@ fn calculate_multiplier(
                 trace!(
                     %target_id,
                     multiplier = mult.multiplier,
-                    "Role-specific XP multiplier applied"
+                    "role-specific XP multiplier applied"
                 );
                 applied_multiplier = applied_multiplier.max(mult.multiplier);
             }
@@ -83,11 +83,10 @@ pub async fn get_multiplier(
     guild_id: GuildId,
     message: &Message,
 ) -> Result<f32> {
-    trace!("Fetching multipliers");
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .inspect_err(|err| {
-            error!(error = %err, "retrieve XP multipliers from cache/database");
+            warn!(error = %err, "XP multiplier lookup failed");
         })?;
 
     let channel_id = message.channel_id;
@@ -98,7 +97,7 @@ pub async fn get_multiplier(
         .unwrap_or_default();
 
     let multiplier = calculate_multiplier(multipliers, channel_id, roles);
-    debug!(multiplier, "determined message multiplier");
+    debug!(multiplier, "message multiplier resolved");
     Ok(multiplier)
 }
 
@@ -118,14 +117,13 @@ pub async fn get_voice_multiplier(
     channel_id: ChannelId,
     member_roles: &[RoleId],
 ) -> Result<f32> {
-    trace!("Fetching voice multipliers");
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .inspect_err(|err| {
-            error!(error = %err, "retrieve voice XP multipliers from cache/database");
+            warn!(error = %err, "voice XP multiplier lookup failed");
         })?;
 
     let multiplier = calculate_multiplier(multipliers, channel_id, member_roles);
-    debug!(multiplier, "determined voice multiplier");
+    debug!(multiplier, "voice multiplier resolved");
     Ok(multiplier)
 }

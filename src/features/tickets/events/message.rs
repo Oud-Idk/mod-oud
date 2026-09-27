@@ -10,7 +10,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, CreateMessage, Message, MessageId,
 };
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{info, instrument, trace, warn};
 
 /// Intercepts messages in active ticket channels, logging them to the database and rotating the close button when activity thresholds are reached.
 ///
@@ -48,11 +48,9 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
     };
 
     if !is_ticket_active(data, channel_id) {
-        trace!("Message is not in an active ticket channel; skipping ticket logic");
+        trace!("message is not in an active ticket channel; skipping ticket logic");
         return Ok(());
     }
-
-    debug!("active ticket message intercepted, evaluating staff roles");
 
     // Avoid cloning full member structs out of cache; borrow directly where possible
     let has_role = if let Some(role_id) = ticket_config.ticket_role_id {
@@ -65,26 +63,24 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
         }) {
             has_role
         } else {
-            trace!("Cache miss for member roles; executing HTTP request to verify");
+            trace!(fallback = "http", "member roles not in the local cache");
             message.author.has_role(ctx, guild_id, role_id).await?
         }
     } else {
         false
     };
 
-    trace!(has_role, "Logging message payload to database queue");
+    trace!(has_role, "ticket message staff role evaluated");
     log_message_to_db(&data.ticket_log_tx, channel_id, message, has_role);
 
     // Single format allocation instead of intermediate channel_id_str String
     let ticket_key = keys::ticket_key(channel_id);
 
-    trace!("Updating Redis ticket activity tracking");
     // Directly pass the message count threshold (no Duration minutes division)
     let (should_rotate, last_button_id_str) =
         update_activity_redis(&data.core.redis, &ticket_key, ticket_config.bump_every).await?;
 
     if should_rotate {
-        info!("Message threshold reached; rotating close button placement");
         rotate_close_button(
             ctx,
             data,
@@ -114,7 +110,6 @@ fn log_message_to_db(
         is_ticket_manager,
     };
 
-    trace!("Sending ticket log payload to channels queue");
     let _ = tx.send(payload);
 }
 
@@ -129,19 +124,16 @@ async fn rotate_close_button(
 ) -> Result<(), anyhow::Error> {
     if let Some(old_id_str) = old_button_id
         && let Ok(old_id_u64) = old_id_str.parse::<u64>()
-    {
-        debug!(old_id = %old_id_u64, "Deleting deprecated close button message");
-        if let Err(e) = channel_id
+        && let Err(e) = channel_id
             .delete_message(&ctx.http, MessageId::new(old_id_u64))
             .await
-        {
-            warn!(
-                error = ?e,
-                %channel_id,
-                old_id = %old_id_u64,
-                "delete deprecated close button; a stale close button may remain"
-            );
-        }
+    {
+        warn!(
+            error = ?e,
+            %channel_id,
+            old_id = %old_id_u64,
+            "deprecated close button not deleted; a stale close button may remain"
+        );
     }
 
     let close_button = vec![serenity::all::CreateActionRow::Buttons(vec![
@@ -151,7 +143,6 @@ async fn rotate_close_button(
             .emoji('🔒'),
     ])];
 
-    debug!("Sending new close button dialog");
     let new_msg = channel_id
         .send_message(
             &ctx.http,
@@ -161,12 +152,15 @@ async fn rotate_close_button(
         )
         .await?;
 
-    debug!("Updating message database and Redis states with new close button position");
     let db_update = tickets::database::update_close_button_db(data, channel_id, new_msg.id);
     let redis_update = tickets::cache::update_close_button_redis(redis, ticket_key, new_msg.id);
 
     tokio::try_join!(db_update, redis_update)?;
-    info!(new_msg_id = %new_msg.id, "Close button placement rotated");
+    info!(
+        %channel_id,
+        new_msg_id = %new_msg.id,
+        "close button placement rotated"
+    );
 
     Ok(())
 }

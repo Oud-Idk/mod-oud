@@ -44,7 +44,7 @@ pub async fn check_for_filter(
     }
 
     let Some(guild_id) = message.guild_id else {
-        trace!("Message does not belong to a guild; skipping filter evaluation");
+        trace!("message does not belong to a guild; skipping filter evaluation");
         return Ok(false);
     };
 
@@ -71,7 +71,7 @@ pub async fn check_for_filter(
     });
 
     if !should_apply {
-        trace!("Filter evaluation bypassed by global settings");
+        trace!("filter evaluation bypassed by global settings");
         return Ok(false);
     }
 
@@ -84,7 +84,7 @@ pub async fn check_for_filter(
                 handle_spam_prevention(ctx, message, data, filtering, guild_id, author_id).await?;
 
             if was_spam {
-                debug!("Message blocked by spam prevention system");
+                debug!("message blocked by spam prevention system");
                 return Ok(true);
             }
 
@@ -99,7 +99,7 @@ pub async fn check_for_filter(
                 .or_else(|| zalgo::filter_zalgo(message, filtering))
                 .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
         } else {
-            trace!("Message filtering config not found; skipping built-in static filters");
+            trace!("message filtering config not found; skipping built-in static filters");
         }
     }
 
@@ -108,20 +108,16 @@ pub async fn check_for_filter(
         external_links,
     } = verdict
     {
-        trace!("Verifying potentially unsafe external URLs via Safe Browsing API");
         verdict = external_urls::resolve_safe_browsing(data, external_links, &urls).await;
     }
 
     if !verdict.is_pass() {
-        debug!(
-            ?verdict,
-            "Message flag matched; executing filter verdict actions"
-        );
+        debug!("message flag matched");
         execute_verdict(ctx, data, message, verdict).await?;
         return Ok(true);
     }
 
-    trace!("Message passed all active filters");
+    trace!("message passed all active filters");
     Ok(false)
 }
 

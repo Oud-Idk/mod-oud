@@ -26,11 +26,11 @@ pub async fn get_cached_role(redis: &Client, cache_key: &str) -> Option<Option<R
             )
         }
         Ok(None) => {
-            trace!("cache miss when finding role, querying from database");
+            trace!(cache_key, fallback = "db", "role cache miss");
             None
         }
         Err(e) => {
-            warn!(cache_key, error = ?e, "redis read failed, falling back to database");
+            warn!(cache_key, error = ?e, fallback = "db", "role cache read from redis failed");
             None
         }
     }
@@ -42,7 +42,7 @@ pub async fn cache_role(redis: &Client, cache_key: &str, role_id: RoleId) {
         .set::<(), _, _>(cache_key, role_id.get(), None, None, false)
         .await
     {
-        warn!(cache_key, %role_id, error = %e, "failed to write role to redis");
+        warn!(cache_key, %role_id, error = %e, "role cache write to redis failed");
     }
 }
 
@@ -53,6 +53,6 @@ pub async fn cache_role_none(redis: &Client, cache_key: &str) {
         .set::<(), _, _>(cache_key, "none", Some(expiration), None, false)
         .await
     {
-        warn!(cache_key, error = %e, "failed to write negative cache result to redis");
+        warn!(cache_key, error = %e, "negative cache write to redis failed");
     }
 }

@@ -19,8 +19,8 @@ pub async fn on_interact(
     match interaction {
         Interaction::Component(component) => {
             debug!(
-                id = component.data.custom_id.as_str(),
-                "Got component interaction"
+                custom_id = component.data.custom_id.as_str(),
+                "got component interaction"
             );
 
             let custom_id = component.data.custom_id.as_str();
@@ -50,7 +50,10 @@ pub async fn on_interact(
             }
         }
         Interaction::Modal(modal) => {
-            debug!(id = modal.data.custom_id.as_str(), "Got modal interaction");
+            debug!(
+                custom_id = modal.data.custom_id.as_str(),
+                "got modal interaction"
+            );
             let custom_id = modal.data.custom_id.as_str();
 
             if custom_id.starts_with("temp_voice_") {

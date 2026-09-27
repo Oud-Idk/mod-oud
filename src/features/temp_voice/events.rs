@@ -20,8 +20,6 @@ pub async fn handle_log_user_join(data: &BotData, new: &VoiceState) -> Result<()
     };
     let user_id = new.user_id;
 
-    debug!(user_id = user_id.get(), channel_id = ?new.channel_id, "Logging user VC join/leave");
-
     match new.channel_id {
         Some(channel_id) => {
             // User joined a voice channel
@@ -50,16 +48,14 @@ pub async fn handle_join_hub_temp_vc(
     };
 
     let Some(target_channel_id) = new.channel_id else {
-        debug!("Unable to get voice channel ID for some reason");
+        debug!("voice channel id unavailable");
         return Ok(());
     };
 
     let Some(member) = &new.member else {
-        debug!("Unable to get member for some reason");
+        debug!("member unavailable");
         return Ok(());
     };
-
-    trace!("Handling temp voice channel");
 
     let cache_key = format!("temp_voice_hub:{guild_id}:{target_channel_id}");
     let cached_json = cache::get_hub_cache(redis, &cache_key).await?;
@@ -109,11 +105,6 @@ async fn try_handle_existing_vc(
             .is_some_and(|g| g.channels.contains_key(&existing_channel_id));
 
         if still_exists {
-            debug!(
-                user_id = user_id.get(),
-                channel_id = existing_channel_id.get(),
-                "User already owns a temp VC; moving them there instead of creating a new one"
-            );
             if let Err(e) = guild_id
                 .move_member(&ctx, user_id, existing_channel_id)
                 .await
@@ -122,17 +113,23 @@ async fn try_handle_existing_vc(
                     user_id = user_id.get(),
                     channel_id = existing_channel_id.get(),
                     error = %e,
-                    "move member into their existing temp VC",
+                    "member not moved into their existing temp VC",
                 );
                 return Err(e.into());
             }
+
+            debug!(
+                user_id = user_id.get(),
+                channel_id = existing_channel_id.get(),
+                "member moved into their existing temp VC"
+            );
             return Ok(true);
         }
 
         warn!(
             user_id = user_id.get(),
             channel_id = existing_channel_id.get(),
-            "Owner hash pointed at a channel that no longer exists; clearing stale entry"
+            "stale owner hash entry: the channel it points at no longer exists"
         );
         cache::unregister_temp_vc(&data.core.redis, guild_id, existing_channel_id, user_id).await?;
     }
@@ -150,10 +147,6 @@ async fn create_and_setup_temp_vc(
     hub_info: &TempVoiceHub,
 ) -> Result<(), Error> {
     let new_channel = create_temp_vc(ctx, &guild_id, member, hub_info).await?;
-    debug!(
-        new_channel_id = new_channel.id.get(),
-        "Created temp voice channel"
-    );
 
     cache::register_temp_vc(&data.core.redis, guild_id, new_channel.id, user_id).await?;
 
@@ -163,7 +156,7 @@ async fn create_and_setup_temp_vc(
         warn!(
             user_id = user_id.get(),
             new_channel_id = new_channel.id.get(),
-            "Couldn't move member to new channel",
+            "member not moved into the new channel",
         );
 
         return Err(e.into());
@@ -172,7 +165,7 @@ async fn create_and_setup_temp_vc(
     debug!(
         user_id = user_id.get(),
         new_channel_id = new_channel.id.get(),
-        "Moved member into voice channel"
+        "member moved into the new temp VC"
     );
 
     Ok(())
@@ -192,7 +185,7 @@ async fn rollback_temp_vc(
         warn!(
             new_channel_id = new_channel_id.get(),
             error = %cleanup_err,
-            "clean up orphaned temp voice channel",
+            "orphaned temp voice channel not deleted",
         );
     }
 
@@ -215,12 +208,12 @@ pub async fn handle_leave_temp_vc(
     };
 
     let Some(old_state) = old else {
-        trace!("Old VC state unavailable, skipping");
+        trace!("old VC state unavailable, skipping");
         return Ok(());
     };
 
     let Some(old_channel_id) = old_state.channel_id else {
-        debug!("Old VC channel ID is missing, skipping");
+        debug!("old VC channel ID is missing, skipping");
         return Ok(());
     };
 
@@ -240,17 +233,12 @@ pub async fn handle_leave_temp_vc(
         };
 
         if is_empty {
-            debug!(
-                channel_id = old_channel_id.get(),
-                "temp vc is empty, cleaning up"
-            );
-
             if let Err(e) = old_channel_id.delete(&ctx.http).await {
                 warn!(
                     %guild_id,
                     %old_channel_id,
                     error = ?e,
-                    "failed to delete empty temp vc on discord"
+                    "empty temp vc not deleted on discord"
                 );
             } else {
                 debug!(%guild_id, %old_channel_id, "deleted empty temp vc");
@@ -292,9 +280,11 @@ pub async fn create_temp_vc(
     }
 
     let new_channel = guild_id.create_channel(&ctx, channel_builder).await?;
+
     debug!(
-        new_channel_id = new_channel.id.get(),
-        "Created temp voice channel"
+        %guild_id,
+        new_channel_id = %new_channel.id,
+        "temp voice channel created"
     );
     Ok(new_channel)
 }

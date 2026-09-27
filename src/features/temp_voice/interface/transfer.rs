@@ -1,4 +1,5 @@
 use crate::core::config::state::{BotData, Error};
+use crate::features::temp_voice::audit;
 use crate::features::temp_voice::interface::{create_ephemeral_msg, preflight_button_check};
 use crate::features::temp_voice::service;
 use poise::serenity_prelude as serenity;
@@ -7,7 +8,7 @@ use serenity::all::{
     CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, CreateSelectMenu,
     CreateSelectMenuKind, UserId,
 };
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(user_id = %interaction.user.id.get()))]
 pub async fn handle_transfer_temp_vc(
@@ -15,10 +16,8 @@ pub async fn handle_transfer_temp_vc(
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    debug!(%interaction.user.id, "handling voice channel transfer");
-
     let Ok(Some(_)) = preflight_button_check(ctx, interaction, data).await else {
-        debug!("Preflight check failed or returned no channel information");
+        debug!("preflight check failed or returned no channel information");
         return Ok(());
     };
 
@@ -43,7 +42,7 @@ pub async fn handle_transfer_temp_vc(
         .create_response(&ctx.http, CreateInteractionResponse::Message(response))
         .await?;
 
-    debug!("Transfer selection menu sent to user");
+    debug!("transfer selection menu sent to user");
     Ok(())
 }
 
@@ -62,12 +61,12 @@ pub async fn handle_transfer_temp_vc_submit(
 ) -> Result<(), Error> {
     let Ok(Some((channel_id, guild_id))) = preflight_button_check(ctx, interaction, data).await
     else {
-        debug!("Preflight check failed during target user submission");
+        debug!("preflight check failed during target user submission");
         return Ok(());
     };
 
     let Some(&new_owner_id) = target_user_ids.first() else {
-        warn!("Target user submission empty");
+        warn!("target user submission empty");
         return Ok(());
     };
 
@@ -103,16 +102,10 @@ pub async fn handle_transfer_temp_vc_submit(
     let msg = CreateMessage::new()
         .content(message_content)
         .components(vec![row]);
-    info!(
-        %guild_id,
-        %channel_id,
-        from_owner = %current_owner_id,
-        to_owner = %new_owner_id,
-        "sending temporary voice channel transfer offer"
-    );
+    audit::transfer_offered(guild_id, channel_id, current_owner_id, new_owner_id);
 
     if let Err(e) = channel_id.send_message(&ctx.http, msg).await {
-        warn!(%guild_id, %channel_id, error = ?e, "failed to send transfer offer message");
+        warn!(%guild_id, %channel_id, error = ?e, "transfer offer message delivery failed");
     }
 
     Ok(())

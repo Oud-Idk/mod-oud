@@ -6,7 +6,7 @@ use serenity::all::{ChannelId, GuildId, UserId};
 use serenity::model::id::MessageId;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::result;
-use tracing::{instrument, trace};
+use tracing::instrument;
 
 #[derive(sqlx::FromRow)]
 struct RawInactiveTicket {
@@ -67,7 +67,6 @@ pub async fn save_ticket_to_db(
     welcome_msg_id: MessageId,
     username: &str,
 ) -> Result<(), Error> {
-    trace!("Executing database write for ticket registration");
     sqlx::query!(
         r#"
         INSERT INTO tickets (guild_id, channel_id, opener_id, last_button_message_id)

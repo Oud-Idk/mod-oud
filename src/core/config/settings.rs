@@ -21,7 +21,7 @@ use fred::clients::Client;
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
 use sqlx::PgPool;
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, trace, warn};
 
 /// Configuration settings for a Discord server (guild).
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -146,16 +146,17 @@ impl GuildSettings {
 fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> GuildSettings {
     match serde_path_to_error::deserialize(raw_json) {
         Ok(s) => {
-            debug!(%guild_id, "Found config from DB");
+            debug!(%guild_id, "found config from DB");
             s
         }
         Err(err) => {
-            error!(
+            warn!(
                 error = %err.inner(),
                 field_path = %err.path(),
                 %guild_id,
                 raw_json = %raw_json,
-                "deserialize database JSON; falling back to default settings"
+                fallback = "default settings",
+                "settings deserialize from the database row failed"
             );
             GuildSettings::default()
         }
@@ -187,7 +188,7 @@ pub async fn get_settings_inner(
 ) -> Result<GuildSettings> {
     // Get from Moka
     if let Some(settings) = cache.get(&guild_id).await {
-        trace!(%guild_id, "Retrieved settings from memory cache");
+        trace!(%guild_id, "retrieved settings from memory cache");
         return Ok(settings);
     }
 
@@ -198,7 +199,7 @@ pub async fn get_settings_inner(
         return Ok(settings);
     }
 
-    debug!(%guild_id, key = %cache_key, "Settings cache miss; querying DB");
+    debug!(%guild_id, key = %cache_key, fallback = "db", "settings cache miss");
 
     // Get from DB
     let settings_db = database::get_settings_from_database(db, guild_id)
@@ -208,10 +209,7 @@ pub async fn get_settings_inner(
     // Parses settings, return empty if not exist.
     let settings = settings_db.map_or_else(
         || {
-            trace!(
-                %guild_id,
-                "No config found in database; using default settings"
-            );
+            trace!(%guild_id, fallback = "defaults", "no config found in database");
             GuildSettings::default()
         },
         |raw| parse_guild_settings(&raw, guild_id),
@@ -223,7 +221,7 @@ pub async fn get_settings_inner(
             error = %e,
             %guild_id,
             key = %cache_key,
-            "write settings to Redis cache"
+            "settings cache write to redis failed"
         );
     }
 
@@ -253,7 +251,7 @@ pub async fn save_settings(
             error = %e,
             %guild_id,
             key = %cache_key,
-            "write updated settings to Redis cache"
+            "settings cache update to redis failed"
         );
     }
 
@@ -263,7 +261,7 @@ pub async fn save_settings(
         warn!(
             error = %e,
             %guild_id,
-            "publish config invalidation event to Redis Pub/Sub"
+            "config invalidation publish to redis failed"
         );
     }
 

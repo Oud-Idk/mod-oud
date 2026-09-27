@@ -86,12 +86,12 @@ pub async fn fetch_reaction_message(
     )
     .fetch_optional(pool)
     .await
-    .inspect_err(|e| warn!(error = ?e, "load reaction roles database record"))
+    .inspect_err(|e| warn!(error = ?e, "reaction roles database record lookup failed"))
     .map_err(|_e| {
         (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())
     })?
     .ok_or_else(|| {
-        warn!(id = config_id, "Reaction message not found");
+        warn!(config_id, "reaction message not found");
         (StatusCode::NOT_FOUND, "Reaction configuration not found".to_string())
     })?;
 
@@ -114,7 +114,7 @@ pub async fn fetch_active_reactions(
     )
     .fetch_all(pool)
     .await
-    .inspect_err(|e| warn!(error = ?e, "Failed fetching reaction list"))
+    .inspect_err(|e| warn!(error = ?e, "reaction role list lookup failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -138,7 +138,7 @@ pub async fn fetch_buttons(
     )
     .fetch_all(pool)
     .await
-    .inspect_err(|e| warn!(error = ?e, "fetch button details"))
+    .inspect_err(|e| warn!(error = ?e, "button details lookup failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -157,7 +157,7 @@ pub async fn delete_message_from_db(
     )
     .execute(&state.core.db)
     .await
-    .inspect_err(|e| warn!(error = ?e, "clear message ID in database"))
+    .inspect_err(|e| warn!(error = ?e, "message id not cleared in the database"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

@@ -2,7 +2,7 @@ use crate::features::reporting::types::{ReportStatus, ReportUpdate, ReportedMess
 use axum::http::StatusCode;
 use serenity::all::{ChannelId, GuildId, Message, MessageId, User, UserId};
 use sqlx::PgPool;
-use tracing::{error, warn};
+use tracing::warn;
 
 #[derive(sqlx::FromRow)]
 struct RawReportedMessage {
@@ -127,7 +127,7 @@ pub async fn fetch_target_report(
     )
     .fetch_optional(pool)
     .await
-    .inspect_err(|e| error!(error = ?e, report_id, "fetch reported message by ID"))
+    .inspect_err(|e| warn!(error = ?e, report_id, "reported message lookup failed"))
     .map_err(|_e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -152,7 +152,7 @@ pub async fn fetch_reporter_id(
     )
     .fetch_optional(pool)
     .await
-    .inspect_err(|e| error!(error = ?e, report_id, "fetch reporter ID for report"))
+    .inspect_err(|e| warn!(error = ?e, report_id, "reporter id lookup failed"))
     .map_err(|_e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -220,7 +220,7 @@ pub async fn update_reported_message(
 
     result
         .map(|_| ())
-        .inspect_err(|e| warn!(error = ?e, "update reported message"))
+        .inspect_err(|e| warn!(error = ?e, "reported message update failed"))
         .map_err(|_e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

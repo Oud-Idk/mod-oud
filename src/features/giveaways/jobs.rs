@@ -1,6 +1,7 @@
 use crate::features::giveaways::database::{fetch_expired_giveaways, mark_giveaway_finished};
 use crate::features::giveaways::types::Giveaway;
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use fred::clients::Client;
 use rand::prelude::IndexedRandom;
 use serenity::all::{ChannelId, Http, MessageId, ReactionType, User, UserId};
@@ -47,8 +48,8 @@ pub async fn get_all_reaction_users(
 
 /// Spawns the background task loop that periodically checks for expired giveaways.
 pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client) {
-    tokio::spawn(async move {
-        info!("Giveaway background worker started");
+    task::spawn("giveaway_worker", async move {
+        info!("giveaway background worker started");
 
         let lock_key = "lock:giveaway_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
@@ -60,24 +61,24 @@ pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
                     if let Err(e) = process_expired_giveaways(&pool, &http).await {
-                        error!(error = ?e, "processing expired giveaways");
+                        warn!(error = ?e, "expired giveaway processing failed");
                     }
 
                     match guard.release().await {
-                        Ok(true) => trace!("Released giveaway lock"),
+                        Ok(true) => trace!("released giveaway lock"),
                         Ok(false) => {
-                            warn!("Attempted to release giveaway lock, but ownership was lost");
+                            warn!("giveaway lock release found the lock held elsewhere");
                         }
                         Err(e) => {
-                            error!(error = ?e, "release giveaway lock due to Redis error");
+                            warn!(error = ?e, "giveaway lock release failed");
                         }
                     }
                 }
                 Ok(None) => {
-                    trace!("Lock busy; skipping iteration");
+                    trace!("lock busy; skipping iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate Redis lock for giveaways");
+                    warn!(error = ?e, "giveaway worker lock acquisition failed");
                 }
             }
         }
@@ -92,23 +93,20 @@ async fn process_expired_giveaways(
     let expired_giveaways = fetch_expired_giveaways(pool).await?;
 
     if expired_giveaways.is_empty() {
-        trace!("No giveaways have expired yet");
+        trace!("no giveaways have expired yet");
         return Ok(());
     }
 
-    info!(
-        expired = expired_giveaways.len(),
-        "found expired giveaways to resolve"
-    );
+    info!(expired = expired_giveaways.len(), "expired giveaways found");
 
     for giveaway in expired_giveaways {
         if let Err(e) = mark_giveaway_finished(pool, giveaway.id).await {
-            error!(giveaway_id = %giveaway.id, error = ?e, "failed to mark giveaway finished in db");
+            error!(giveaway_id = %giveaway.id, error = ?e, "giveaway finished flag not set in db");
             continue;
         }
 
         if let Err(e) = end_giveaway(http, &giveaway).await {
-            error!(giveaway_id = %giveaway.id, error = ?e, "failed to end giveaway on discord");
+            warn!(giveaway_id = %giveaway.id, error = ?e, "giveaway not ended on discord");
         }
     }
 
@@ -139,7 +137,9 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
         .collect();
 
     let winner_count = usize::try_from(giveaway.winner_count)
-        .inspect_err(|e| warn!(error = ?e, "Cannot convert winner_count to usize"))
+        .inspect_err(
+            |e| warn!(error = ?e, fallback = "1 winner", "winner_count not convertible to usize"),
+        )
         .unwrap_or(1);
 
     let winners: Vec<UserId> = eligible_users
@@ -153,7 +153,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
             giveaway.prize
         );
         channel_id.say(http, no_winners_msg).await?;
-        info!(id = giveaway.id, "Giveaway ended with 0 winners");
+        info!(giveaway_id = %giveaway.id, "giveaway ended with 0 winners");
     } else {
         let winner_mentions: Vec<String> = winners.iter().map(|u| format!("<@{u}>")).collect();
         let announcement = format!(
@@ -163,7 +163,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
         );
 
         channel_id.say(http, announcement).await?;
-        info!(id = giveaway.id, winners = ?winners, "Giveaway resolved");
+        info!(giveaway_id = %giveaway.id, winners = ?winners, "giveaway resolved");
     }
 
     Ok(())

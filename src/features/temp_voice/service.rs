@@ -68,7 +68,7 @@ pub async fn kick_user_by_id(
             "Successfully kicked <@{target_user_id}> from the channel."
         )),
         Err(err) => {
-            tracing::error!(%guild_id, %target_user_id, error = ?err, "failed to disconnect member");
+            tracing::warn!(%guild_id, %target_user_id, error = ?err, "member disconnect failed");
             Ok("Could not kick the user. Do I have the 'Move Members' permission?".to_string())
         }
     }
@@ -173,7 +173,7 @@ pub async fn set_temp_vc_limit(
             "Success! The voice channel limit is now set to {limit_parsed}."
         )),
         Err(err) => {
-            tracing::error!(%channel_id, error = ?err, "failed to edit channel");
+            tracing::warn!(%channel_id, error = ?err, "channel edit failed");
             Ok("Uh oh, I couldn't update the limit. \
                 Do I have the 'Manage Channels' permission?"
                 .to_string())
@@ -199,12 +199,14 @@ pub async fn delete_temp_vc(
     }
 
     tracing::debug!(
-        channel_id = channel_id.get(),
-        "Owner requested manual deletion of temp VC. Cleaning up"
+        %guild_id,
+        %channel_id,
+        %user_id,
+        "owner requested manual deletion of the temp VC"
     );
 
     if let Err(e) = channel_id.delete(http).await {
-        tracing::error!(%guild_id, %channel_id, error = ?e, "failed to delete temp vc");
+        tracing::warn!(%guild_id, %channel_id, error = ?e, "temp vc delete failed");
         return Ok(
             "Could not delete the channel. Do I have the 'Manage Channels' permission?".to_string(),
         );
@@ -240,13 +242,13 @@ pub async fn initiate_temp_vc_transfer(
 
     let target_existing_vc = cache::get_user_owned_channel(redis, guild_id, new_owner_id).await?;
     if target_existing_vc.is_some() {
-        tracing::debug!("Transfer rejected: Target user already owns a temporary voice channel");
+        tracing::debug!("transfer rejected: target user already owns a temporary voice channel");
         return Ok("That user already owns a temporary voice channel!".to_string());
     }
 
     cache::store_pending_transfer(redis, channel_id, new_owner_id).await?;
 
-    tracing::debug!("Pending transfer state written to Redis with 90s TTL");
+    tracing::debug!("pending transfer state written to Redis with 90s TTL");
 
     Ok("Transfer offer sent! Waiting for them to accept...".to_string())
 }
@@ -257,8 +259,6 @@ pub async fn lock_temp_vc(
     guild_id: GuildId,
     channel_id: ChannelId,
 ) -> Result<String, Error> {
-    tracing::debug!(%guild_id, %channel_id, "locking voice channel");
-
     let overwrite = PermissionOverwrite {
         allow: Permissions::empty(),
         deny: Permissions::CONNECT,
@@ -266,6 +266,8 @@ pub async fn lock_temp_vc(
     };
 
     channel_id.create_permission(http, overwrite).await?;
+
+    tracing::debug!(%guild_id, %channel_id, "voice channel locked");
 
     Ok(
         "This channel is now **locked**. Members will no longer be able to join unless trusted."
@@ -279,8 +281,6 @@ pub async fn unlock_temp_vc(
     guild_id: GuildId,
     channel_id: ChannelId,
 ) -> Result<String, Error> {
-    tracing::debug!(%guild_id, %channel_id, "unlocking voice channel");
-
     let target = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
 
     if let Err(e) = channel_id.delete_permission(http, target).await {
@@ -293,6 +293,8 @@ pub async fn unlock_temp_vc(
             _ => return Err(e.into()),
         }
     }
+
+    tracing::debug!(%guild_id, %channel_id, "voice channel unlocked");
 
     Ok("This channel is now **unlocked** and open for everyone to join.".to_string())
 }
@@ -316,8 +318,6 @@ pub async fn trust_users_in_vc(
     let mut trusted_mentions = Vec::new();
 
     for target_user_id in filtered_ids {
-        tracing::debug!(%channel_id, %target_user_id, "trusting user in channel");
-
         let overwrite = PermissionOverwrite {
             allow: Permissions::VIEW_CHANNEL | Permissions::CONNECT,
             deny: Permissions::empty(),
@@ -325,6 +325,7 @@ pub async fn trust_users_in_vc(
         };
 
         channel_id.create_permission(http, overwrite).await?;
+        tracing::debug!(%channel_id, %target_user_id, "user trusted in the channel");
         trusted_mentions.push(format!("<@{target_user_id}>"));
     }
 
@@ -347,7 +348,6 @@ pub async fn untrust_users_in_vc(
     let mut untrusted_mentions = Vec::new();
 
     for target_user_id in target_user_ids {
-        tracing::debug!(%channel_id, %target_user_id, "untrusting user in channel");
         let target = PermissionOverwriteType::Member(target_user_id);
 
         if let Err(e) = channel_id.delete_permission(http, target).await {
@@ -360,6 +360,7 @@ pub async fn untrust_users_in_vc(
                 _ => return Err(e.into()),
             }
         }
+        tracing::debug!(%channel_id, %target_user_id, "user untrusted in the channel");
         untrusted_mentions.push(format!("<@{target_user_id}>"));
     }
 
@@ -389,8 +390,6 @@ pub async fn block_users_from_vc(
     let mut blocked_mentions = Vec::new();
 
     for target_user_id in filtered_ids {
-        tracing::debug!(%guild_id, %channel_id, %target_user_id, "blocking user in channel");
-
         let overwrite = PermissionOverwrite {
             allow: Permissions::empty(),
             deny: Permissions::VIEW_CHANNEL | Permissions::CONNECT,
@@ -399,13 +398,15 @@ pub async fn block_users_from_vc(
 
         channel_id.create_permission(http, overwrite).await?;
 
+        tracing::debug!(%guild_id, %channel_id, %target_user_id, "user blocked in the channel");
+
         if let Err(e) = guild_id.disconnect_member(http, target_user_id).await {
-            tracing::error!(
+            tracing::warn!(
                 %guild_id,
                 %channel_id,
                 %target_user_id,
                 error = ?e,
-                "failed to disconnect blocked user from channel"
+                "blocked user disconnect from channel failed"
             );
         }
         blocked_mentions.push(format!("<@{target_user_id}>"));
@@ -430,7 +431,6 @@ pub async fn unblock_users_from_vc(
     let mut unblocked_mentions = Vec::new();
 
     for target_user_id in target_user_ids {
-        tracing::debug!(%channel_id, %target_user_id, "unblocking user in channel");
         let target = PermissionOverwriteType::Member(target_user_id);
 
         if let Err(e) = channel_id.delete_permission(http, target).await {
@@ -443,6 +443,7 @@ pub async fn unblock_users_from_vc(
                 _ => return Err(e.into()),
             }
         }
+        tracing::debug!(%channel_id, %target_user_id, "user unblocked in the channel");
         unblocked_mentions.push(format!("<@{target_user_id}>"));
     }
 

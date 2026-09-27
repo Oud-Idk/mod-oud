@@ -1,14 +1,15 @@
 use crate::features::raid_detection::{cache, database};
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::time::Duration;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 /// Spawns a background worker that periodically flushes accumulated hourly raid join stats
 /// from Redis to PostgreSQL. Uses a distributed lock to avoid duplicate writes across instances.
 pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
-    tokio::spawn(async move {
+    task::spawn("raid_stats_flush_worker", async move {
         let lock_key = "lock:raid_stats_flush_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
@@ -19,23 +20,21 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
 
             match acquire_lock(&redis_client, lock_key, &lock_value, 5).await {
                 Ok(Some(guard)) => {
-                    trace!("Lock acquired; flushing raid hourly stats");
-
                     if let Err(e) = flush_pending_stats(&db_pool, &redis_client).await {
-                        error!(error = ?e, "flushing raid stats to database");
+                        warn!(error = ?e, "raid stats flush to database failed");
                     }
 
                     match guard.release().await {
-                        Ok(true) => trace!("Lock released"),
-                        Ok(false) => warn!("Lock already lost during flush"),
-                        Err(e) => error!(error = ?e, "release flush lock"),
+                        Ok(true) => trace!("lock released"),
+                        Ok(false) => warn!("lock already lost during flush"),
+                        Err(e) => warn!(error = ?e, "flush lock release failed"),
                     }
                 }
                 Ok(None) => {
-                    trace!("Lock held by another worker; skipping flush");
+                    trace!("lock held by another worker; skipping flush");
                 }
                 Err(e) => {
-                    error!(error = ?e, "acquire flush lock");
+                    warn!(error = ?e, "flush lock acquire failed");
                 }
             }
         }
@@ -50,20 +49,19 @@ async fn flush_pending_stats(
     let dirty_guilds = cache::get_dirty_raid_guilds(redis).await?;
 
     if dirty_guilds.is_empty() {
-        trace!("No dirty guilds to flush");
+        trace!("no dirty guilds to flush");
         return Ok(());
     }
 
     let count = dirty_guilds.len();
-    info!(count, "Flushing raid stats for dirty guilds");
 
     for guild_id in dirty_guilds {
         if let Err(e) = flush_guild(guild_id, redis, db).await {
-            error!(%guild_id, error = ?e, "flush raid stats for guild");
+            warn!(%guild_id, error = ?e, "raid stats flush for guild failed");
         }
     }
 
-    trace!("Finished flushing raid stats batch");
+    info!(count, "raid stats flushed for dirty guilds");
     Ok(())
 }
 
@@ -76,13 +74,12 @@ async fn flush_guild(
     let records = cache::claim_accumulator(redis, guild_id).await?;
 
     if records.is_empty() {
-        debug!("No accumulated records to flush");
+        debug!("no accumulated records to flush");
         cache::remove_dirty_raid_guild(redis, guild_id).await?;
         return Ok(());
     }
 
     let count = records.len();
-    debug!(count, "Flushing accumulated hourly stats");
 
     let hour_keys: Vec<String> = records.keys().cloned().collect();
     let join_counts: Vec<i64> = records.values().copied().collect();

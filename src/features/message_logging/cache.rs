@@ -3,11 +3,12 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::message_logging::types::{
     DistributedCachedMessage, EditDetails, MessageDetails,
 };
+use crate::shared::task;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface, PubsubInterface};
 use fred::prelude::Expiration;
 use serenity::all::{ChannelId, Message, MessageId};
-use tracing::{debug, error, instrument};
+use tracing::{debug, instrument, warn};
 
 /// Spawns a background task to cache a message in Redis when message logging is enabled.
 ///
@@ -37,9 +38,9 @@ pub async fn spawn_cache_message_in_redis(data: &BotData, msg: &Message) -> Resu
     let redis_conn = data.core.redis.clone();
     let msg_clone = msg.clone();
 
-    tokio::spawn(async move {
+    task::spawn("message_cache_write", async move {
         if let Err(e) = cache_message_in_redis(&redis_conn, &msg_clone).await {
-            error!(message_id = %msg_clone.id, error = %e, "failed to cache message in redis");
+            warn!(message_id = %msg_clone.id, error = %e, "message cache write failed");
         }
     });
 
@@ -65,10 +66,7 @@ pub async fn cache_message_in_redis(redis: &Client, msg: &Message) -> Result<(),
 
     let serialized = match serde_json::to_string(&cached) {
         Ok(s) => s,
-        Err(e) => {
-            error!(error = %e, "serialize message for Redis caching");
-            return Err(e.into());
-        }
+        Err(e) => return Err(e.into()),
     };
 
     let key = format!("msg:{}:{}", msg.channel_id.get(), msg.id.get());
@@ -76,7 +74,7 @@ pub async fn cache_message_in_redis(redis: &Client, msg: &Message) -> Result<(),
         .set(&key, &serialized, Some(Expiration::EX(18000)), None, false)
         .await?;
 
-    debug!(key = %key, "Message cached in Redis");
+    debug!(key = %key, "message cached in redis");
     Ok(())
 }
 
@@ -95,7 +93,6 @@ pub async fn fetch_dist_cached_message(
 ) -> Result<Option<MessageDetails>, Error> {
     let key = format!("msg:{}:{}", channel_id.get(), message_id.get());
 
-    debug!(key = %key, "Fetching message from Redis distributed cache");
     let val: Option<String> = redis.get(&key).await?;
 
     if let Some(raw) = val {
@@ -103,7 +100,7 @@ pub async fn fetch_dist_cached_message(
         let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
             Ok(c) => c,
             Err(e) => {
-                error!(error = %e, key = %key, "deserialize cached message JSON");
+                warn!(error = %e, key = %key, "cached message deserialization failed");
                 return Err(e.into());
             }
         };
@@ -136,8 +133,6 @@ pub async fn fetch_dist_edit_details(
 ) -> Result<Option<EditDetails>, Error> {
     let key = format!("msg:{}:{}", event.channel_id.get(), event.id.get());
 
-    debug!(key = %key, "Fetching pre-edit message details from Redis");
-
     let val: Option<String> = redis.get(&key).await?;
 
     if let Some(raw) = val {
@@ -145,7 +140,7 @@ pub async fn fetch_dist_edit_details(
         let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
             Ok(c) => c,
             Err(e) => {
-                error!(error = %e, key = %key, "deserialize cached message JSON during edit");
+                warn!(error = %e, key = %key, "cached message deserialization failed during edit");
                 return Err(e.into());
             }
         };
@@ -154,14 +149,13 @@ pub async fn fetch_dist_edit_details(
         let new_content = event.content.clone();
 
         if let Some(ref content) = new_content {
-            debug!(key = %key, "Updating cached content and resetting TTL in Redis");
             let mut updated = cached.clone();
             updated.content = content.clone();
 
             let serialized = match serde_json::to_string(&updated) {
                 Ok(s) => s,
                 Err(e) => {
-                    error!(error = %e, "serialize updated message details");
+                    warn!(error = %e, "updated message details serialization failed");
                     return Err(e.into());
                 }
             };
@@ -169,6 +163,8 @@ pub async fn fetch_dist_edit_details(
             let _: () = redis
                 .set(&key, serialized, Some(Expiration::EX(18000)), None, false)
                 .await?;
+
+            debug!(key = %key, "cached content updated and TTL reset in redis");
         }
 
         Ok(Some(EditDetails {

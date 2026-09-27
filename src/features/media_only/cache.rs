@@ -22,7 +22,7 @@ pub async fn store_media_only_channel_redis(
     redis
         .set(&key, payload_ser, Some(Expiration::EX(3600)), None, false)
         .await
-        .context("Failed to store media channel in cache")
+        .context("media channel cache write failed")
 }
 
 pub async fn store_negative_media_channel(redis: &Client, channel_id: ChannelId) -> Result<()> {
@@ -30,7 +30,7 @@ pub async fn store_negative_media_channel(redis: &Client, channel_id: ChannelId)
     redis
         .set(&key, "null", Some(Expiration::EX(60)), None, false)
         .await
-        .context("Failed to store media channel in cache")
+        .context("media channel cache write failed")
 }
 
 pub async fn get_channel_media(
@@ -40,27 +40,36 @@ pub async fn get_channel_media(
     let redis = &data.core.redis;
     let key = keys::media_channel_key(channel_id);
 
-    trace!("Getting media channel from cache");
     let media_channel: Option<String> = redis.get(&key).await?;
     if let Some(payload) = media_channel {
         let media_channel = serde_json::from_str::<Option<MediaOnlyChannel>>(&payload)
-            .context("Failed to deserialize media only channel")?;
+            .context("media only channel deserialization failed")?;
         return Ok(media_channel);
     }
 
     // Not found in Redis
-    trace!("Cache miss; getting from DB");
+    trace!(fallback = "db", "media channel cache miss");
     let media_channel_from_db = fetch_media_only_from_db(&data.core.db, channel_id).await?;
     if let Some(media_channel_from_db) = media_channel_from_db {
+        // Redis is not too important, ignore Err
         let _ = store_media_only_channel_redis(redis, &media_channel_from_db)
             .await
-            .inspect_err(|e| warn!(error = ?e, "store media only channel in redis")); // Redis is not too important, ignore Err
+            .inspect_err(
+                |e| warn!(error = ?e, fallback = "db", "media only channel cache write failed"),
+            );
         return Ok(Some(media_channel_from_db));
     }
 
+    // Same for here
     let _ = store_negative_media_channel(redis, channel_id)
         .await
-        .inspect_err(|e| warn!(error = ?e, "store negative media only channel in redis")); // Same for here
+        .inspect_err(|e| {
+            warn!(
+                error = ?e,
+                fallback = "db",
+                "negative media only channel cache write failed"
+            );
+        });
 
     Ok(None)
 }
@@ -76,8 +85,13 @@ pub async fn delete_media_only_channel(data: &BotData, channel_id: ChannelId) ->
 
     let _ = store_negative_media_channel(redis, channel_id)
         .await
-        .inspect_err(|e| warn!(error = ?e, "delete media channel from cache"))
-        .inspect_err(|e| warn!(error = ?e, "store media only channel in redis"));
+        .inspect_err(|e| {
+            warn!(
+                error = ?e,
+                fallback = "stale cache entry",
+                "negative media only channel cache write failed"
+            );
+        });
 
     Ok(true)
 }
@@ -90,7 +104,9 @@ pub async fn store_media_only_channel(
     store_media_only_in_db(db, &payload).await?;
     let _ = store_media_only_channel_redis(redis, &payload)
         .await
-        .inspect_err(|e| warn!(error = ?e, "store media only channel in redis"));
+        .inspect_err(
+            |e| warn!(error = ?e, fallback = "db", "media only channel cache write failed"),
+        );
 
     Ok(())
 }

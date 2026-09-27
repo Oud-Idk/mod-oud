@@ -35,7 +35,7 @@ pub async fn check_cooldown(
                 error = ?e,
                 cooldown_key = key,
                 cooldown_secs = secs,
-                "Cooldown SET failed; the cooldown is not being enforced"
+                "cooldown SET failed; the cooldown is not being enforced"
             );
         })?;
 
@@ -50,7 +50,8 @@ pub async fn check_cooldown(
             warn!(
                 error = ?e,
                 cooldown_key = key,
-                "Cooldown TTL lookup failed; reporting a 0s wait"
+                fallback = "0s wait",
+                "cooldown TTL lookup failed"
             );
             0
         }

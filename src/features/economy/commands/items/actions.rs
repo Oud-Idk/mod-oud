@@ -23,7 +23,7 @@ pub fn parse_actions(ctx: &Context<'_>, item: &Item) -> Result<Vec<ItemAction>, 
             user_id = %ctx.author().id,
             item_id = %item.id,
             item_name = %item.name,
-            "Item actions could not be parsed; refusing the operation"
+            "item actions could not be parsed; refusing the operation"
         );
         anyhow::anyhow!("This item is misconfigured and cannot be used right now.")
     })
@@ -126,7 +126,7 @@ pub async fn apply_db_actions(
             item_id = %item.id,
             item_name = %item.name,
             deduction = actions.deduct_cash,
-            "Item RemoveBalance could not charge the user; the item was still consumed"
+            "item RemoveBalance could not charge the user; the item was still consumed"
         );
     }
 
@@ -176,13 +176,13 @@ pub async fn apply_discord_actions(
                     )
                     .await
                 {
-                    error!(
+                    warn!(
                         error = ?e,
                         error_chain = %format!("{e:#}"),
                         %guild_id,
                         %user_id,
                         item_id = %item.id,
-                        "send an item action response; the user received no feedback"
+                        "item action response not sent; the user received no feedback"
                     );
                 }
             }
@@ -226,7 +226,7 @@ async fn modify_roles(
                 %role_id,
                 item_name,
                 action,
-                "Item role action failed after the item was paid for and consumed"
+                "item role action failed after the item was paid for and consumed"
             );
         }
     }

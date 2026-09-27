@@ -4,6 +4,9 @@ mod events;
 mod genius;
 mod giphy;
 mod http;
+// Two features now hold a keyed API token and log request urls, so the redactor is shared rather
+// than reached into through a private module.
+pub use http::redact_url;
 mod kitsu;
 mod klipy;
 mod open_meteo;

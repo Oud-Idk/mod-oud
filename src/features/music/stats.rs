@@ -1,5 +1,6 @@
 use crate::features::music::actor::Requester;
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use anyhow::Result;
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
@@ -7,7 +8,7 @@ use songbird::input::AuxMetadata;
 use sqlx::PgPool;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{error, trace, warn};
+use tracing::{trace, warn};
 use uuid::Uuid;
 
 /// How long play events are kept before being pruned (rolling window).
@@ -89,7 +90,7 @@ pub fn record_track_end(tx: &StatsTx, handle_uuid: Uuid, listened_ms: i64) {
 /// playback from database latency. Runs in every bot process; writes are
 /// append-only so processes never contend on the same rows.
 pub fn start_music_stats_worker(db: PgPool, mut rx: mpsc::UnboundedReceiver<StatsEvent>) {
-    tokio::spawn(async move {
+    task::spawn("music_stats_worker", async move {
         let mut buffer: Vec<StatsEvent> = Vec::with_capacity(FLUSH_BATCH);
         let mut interval = tokio::time::interval(FLUSH_INTERVAL);
 
@@ -128,7 +129,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
     let mut tx = match db.begin().await {
         Ok(tx) => tx,
         Err(e) => {
-            warn!(error = ?e, "begin music stats batch; requeueing");
+            warn!(error = ?e, "music stats transaction begin failed; events requeued");
             *buffer = events;
             return;
         }
@@ -180,7 +181,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
         };
 
         if let Err(e) = result {
-            warn!(error = ?e, "write music stats event; requeueing batch");
+            warn!(error = ?e, "music stats event write failed; batch requeued");
             ok = false;
             break;
         }
@@ -188,7 +189,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
 
     if ok {
         if let Err(e) = tx.commit().await {
-            warn!(error = ?e, "commit music stats batch; requeueing");
+            warn!(error = ?e, "music stats batch commit failed; events requeued");
             *buffer = events;
         }
     } else {
@@ -200,7 +201,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
 /// Periodically prunes play events older than the rolling retention window.
 /// Uses a Redis lock so only one bot process performs the prune at a time.
 pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
-    tokio::spawn(async move {
+    task::spawn("music_stats_prune_worker", async move {
         let lock_key = "lock:music_stats_prune_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
@@ -209,25 +210,25 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
 
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
-                    trace!("Music stats prune lock acquired; pruning old play events");
+                    trace!("music stats prune lock acquired");
                     if let Err(e) = prune_play_events(&db).await {
-                        error!(error = ?e, "pruning old music play events");
+                        warn!(error = ?e, "old music play events not pruned");
                     }
                     match guard.release().await {
-                        Ok(true) => trace!("Music stats prune lock released"),
-                        Ok(false) => warn!(
-                            "Attempted to release music stats prune lock, but we no longer owned it"
-                        ),
+                        Ok(true) => trace!("music stats prune lock released"),
+                        Ok(false) => {
+                            warn!("music stats prune lock release skipped, no longer owned");
+                        }
                         Err(e) => {
-                            error!(error = ?e, "release music stats prune lock due to a Redis error");
+                            warn!(error = ?e, "music stats prune lock release failed");
                         }
                     }
                 }
                 Ok(None) => {
-                    trace!("Music stats prune lock already held by another worker; skipping");
+                    trace!("music stats prune lock already held by another worker; skipping");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate music stats prune lock");
+                    warn!(error = ?e, "music stats prune lock acquisition failed");
                 }
             }
         }

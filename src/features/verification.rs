@@ -1,3 +1,4 @@
+mod audit;
 mod captcha;
 mod events;
 mod signing;

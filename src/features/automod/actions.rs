@@ -4,6 +4,7 @@ use crate::core::config::state::BotData;
 use crate::features::automod::types::{BaseRule, RuleAction};
 use crate::features::moderation::issue_mute;
 use crate::features::warning::issue_warning;
+use crate::shared::task;
 use crate::shared::username_cache::UserUpdate;
 use fred::clients::Client;
 use moka::future::Cache;
@@ -12,7 +13,7 @@ use serenity::all::{
 };
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, instrument, trace, warn};
 
 pub struct RuleActionPayload<'a> {
     pub base: &'a BaseRule,
@@ -50,10 +51,7 @@ pub async fn execute_rule_actions(
         .map(super::types::RuleAction::as_str)
         .collect();
 
-    debug!(
-        ?actions_taken,
-        "Executing configured actions for matched rule"
-    );
+    debug!(?actions_taken, "configured actions for the matched rule");
 
     if should_warn.unwrap_or(true)
         && let Err(e) = log_automod_event(
@@ -65,7 +63,7 @@ pub async fn execute_rule_actions(
         )
         .await
     {
-        error!(error = %e, "log automod event");
+        error!(error = %e, "automod event log write failed");
     } // This if statement is to prevent spamming the shit out of my poor database
 
     handle_automod(
@@ -92,11 +90,10 @@ async fn handle_automod(
     let warn_enabled = should_warn.unwrap_or(true);
 
     for action in &base.action {
-        trace!(?action, "Applying target configuration action");
         match action {
             RuleAction::Delete => {
                 if let Err(err) = message.delete(&ctx.http).await {
-                    warn!(error = %err, "Could not delete flagged message");
+                    warn!(error = %err, "flagged message not deleted");
                 }
             }
             RuleAction::Warn => {
@@ -149,7 +146,7 @@ async fn apply_warning(
     username_buf_tx: &mpsc::Sender<UserUpdate>,
 ) {
     let Some(guild_id) = message.guild_id else {
-        trace!("Skipping automated warning: Message was not sent in a guild");
+        trace!("automated warning not applied; the message has no guild");
         return;
     };
 
@@ -162,7 +159,7 @@ async fn apply_warning(
     let reason_str = format!("Automated Filter: {rule_name}");
     let http = ctx.http.clone();
 
-    match issue_warning(
+    if let Err(err) = issue_warning(
         db,
         redis_conn,
         guild_configs,
@@ -177,11 +174,7 @@ async fn apply_warning(
     )
     .await
     {
-        Ok(warn_id) => info!(
-            warn_id,
-            "Automated filter issued warning and executed threshold actions"
-        ),
-        Err(err) => error!(error = %err, "apply automated warning via issue_warning"),
+        warn!(error = %err, "automated warning not issued");
     }
 }
 
@@ -212,7 +205,7 @@ async fn apply_mute(
     else {
         error!(
             fault = "mute timestamp is out of range",
-            "Could not calculate a valid mute timestamp"
+            "mute timeout timestamp unresolved"
         );
         return;
     };
@@ -222,7 +215,7 @@ async fn apply_mute(
     let reason_str = format!("Automated Filter: {rule_name}");
     let http = ctx.http.clone();
 
-    match issue_mute(
+    if let Err(err) = issue_mute(
         db,
         redis_conn,
         guild_configs,
@@ -236,8 +229,7 @@ async fn apply_mute(
     )
     .await
     {
-        Ok(()) => info!(duration_secs, "timed out user via automated mute"),
-        Err(err) => error!(error = %err, "apply automated timeout"),
+        warn!(error = %err, "automated timeout not applied");
     }
 }
 
@@ -246,7 +238,6 @@ async fn apply_mute(
     fields(user_id = %message.author.id.get(), channel_id = %message.channel_id.get()),
 )]
 async fn apply_public_reminder(ctx: &serenity::all::Context, message: &Message, rule_name: &str) {
-    trace!("Sending public automod violation warning");
     send_temp_warning(
         ctx,
         message.channel_id,
@@ -275,9 +266,8 @@ async fn apply_private_reminder(
         },
         |custom| CreateMessage::new().content(custom),
     );
-    trace!("Sending private direct message automod warning");
     if let Err(err) = message.author.dm(&ctx.http, builder).await {
-        warn!(error = %err, "Direct message reminder delivery failed");
+        warn!(error = %err, "direct message reminder delivery failed");
     }
 }
 
@@ -289,18 +279,22 @@ async fn send_temp_warning(
     content: String,
     duration: Duration,
 ) {
-    if let Ok(temp_msg) = channel_id.say(&ctx.http, content).await {
-        let http = ctx.http.clone();
-        let temp_msg_id = temp_msg.id;
-        tokio::spawn(async move {
-            tokio::time::sleep(duration).await;
-            if let Err(err) = temp_msg.delete(&http).await {
-                warn!(error = %err, message_id = %temp_msg_id.get(), "remove temporary warning message");
-            } else {
-                trace!(message_id = %temp_msg_id.get(), "Cleaned up temporary warning message");
-            }
-        });
-    } else {
-        warn!("dispatch temporary channel warning message");
+    match channel_id.say(&ctx.http, content).await {
+        Ok(temp_msg) => {
+            let http = ctx.http.clone();
+            let temp_msg_id = temp_msg.id;
+            task::spawn("automod_temp_message_cleanup", async move {
+                tokio::time::sleep(duration).await;
+                if let Err(err) = temp_msg.delete(&http).await {
+                    warn!(error = %err, message_id = %temp_msg_id.get(), "temporary warning message not removed");
+                } else {
+                    trace!(message_id = %temp_msg_id.get(), "temporary warning message deleted");
+                }
+            });
+        }
+        // The Err used to be dropped here, leaving a warn with no cause at all.
+        Err(err) => {
+            warn!(error = %err, %channel_id, "temporary warning message not sent");
+        }
     }
 }

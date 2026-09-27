@@ -261,7 +261,7 @@ async fn force_remove(
         guild_id = ?guild_id,
         %target_id,
         %actor_id,
-        "Removed birthday via force_remove"
+        "removed birthday via force_remove"
     );
 
     send_ephemeral(&ctx, format!("Removed birthday for **{}**.", user.name)).await?;

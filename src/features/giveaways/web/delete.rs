@@ -6,7 +6,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serenity::all::{ChannelId, MessageId};
 use std::sync::Arc;
-use tracing::{debug, error};
+use tracing::{debug, warn};
 
 pub async fn handle_delete_giveaway_message(
     State(state): State<Arc<WebState>>,
@@ -14,7 +14,7 @@ pub async fn handle_delete_giveaway_message(
 ) -> Result<StatusCode, (StatusCode, String)> {
     let config_id = parse_config_id(&config_id_str)?;
     let guild_id: u64 = guild_id_str.parse().map_err(|e| {
-        debug!(error = ?e, guild_id_str, "Rejected request with unparseable guild ID");
+        debug!(error = ?e, guild_id_str, "rejected request with unparseable guild ID");
         (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
     })?;
     let record = database::fetch_giveaway(&state.core.db, config_id, guild_id).await?;
@@ -40,12 +40,16 @@ pub async fn handle_delete_giveaway_message(
         .delete_message(&state.serenity_http, message_id)
         .await
     {
-        Ok(()) => debug!("Discord giveaway message deleted"),
+        Ok(()) => debug!(
+            channel_id = %channel_id,
+            message_id = %message_id,
+            "giveaway message deleted via discord"
+        ),
         Err(e) => {
             if is_unknown_message_error(&e) {
                 debug!("Discord message already deleted; proceeding with DB cleanup");
             } else {
-                error!(error = ?e, "delete message via Discord API");
+                warn!(error = ?e, "message delete via discord failed");
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error.".to_string(),

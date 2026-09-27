@@ -3,7 +3,7 @@ use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::MessageFilteringConfig;
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, trace};
+use tracing::debug;
 
 pub fn filter_excessive_spoilers<'a>(
     message: &Message,
@@ -14,13 +14,12 @@ pub fn filter_excessive_spoilers<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'Excessive Spoilers' filter rule");
     let amount = calculate_spoiler_amount(&message.content);
     if amount > excessive_spoilers.threshold {
         debug!(
             spoiler_count = amount,
             threshold = excessive_spoilers.threshold,
-            "Message flagged by Excessive Spoilers filter"
+            "message flagged by Excessive Spoilers filter"
         );
         return FilterVerdict::Block {
             rule_name: "Excessive Spoiler".into(),

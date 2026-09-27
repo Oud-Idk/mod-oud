@@ -1,4 +1,5 @@
 use crate::core::config::state::Error;
+use crate::shared::task;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::prelude::Expiration;
@@ -27,9 +28,9 @@ pub async fn store_username_relation(
     })
     .await
     .inspect_err(|e| {
-        tracing::warn!(error = ?e, user_id = %id, "Username update channel closed; update dropped");
+        tracing::warn!(error = ?e, user_id = %id, "username update channel closed; update dropped");
     })
-    .map_err(|e| anyhow::anyhow!("Failed to queue username update: {e}"))
+    .map_err(|e| anyhow::anyhow!("username update queueing failed: {e}"))
 }
 
 /// Fetches a username, checking Redis first, then Postgres.
@@ -73,7 +74,7 @@ pub async fn get_username(
 
 /// Queues a username update to be written to Postgres in batches.
 pub fn start_username_batch_worker(db: PgPool, rx: mpsc::Receiver<UserUpdate>) {
-    tokio::spawn(async move {
+    task::spawn("username_batch_worker", async move {
         run_username_batch_worker(db, rx).await;
     });
 }
@@ -122,7 +123,7 @@ async fn flush_updates(db: &PgPool, updates: &mut HashMap<UserId, String>) {
     .await;
 
     if let Err(e) = result {
-        tracing::error!(error = %e, "flush username batch to DB");
+        tracing::error!(error = %e, "username batch flush to db failed");
     }
 }
 

@@ -7,7 +7,7 @@ use axum::http::StatusCode;
 use serenity::all::{ChannelId, CreateButton, MessageId};
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{error, warn};
+use tracing::warn;
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
@@ -60,7 +60,7 @@ pub fn build_custom_msg(
     embed: &DiscordEmbed,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
     build_custom_message(format, content, embed, std::string::ToString::to_string).map_err(|e| {
-        error!(error = ?e, "compile reaction roles message layout");
+        warn!(error = ?e, "reaction roles message layout compilation failed");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal Server Error".to_string(),
@@ -137,14 +137,14 @@ pub async fn edit_reactions(
                             error = ?e,
                             %channel_id,
                             %message_id,
-                            "remove stale reaction; it remains on the message"
+                            "stale reaction not removed; it remains on the message"
                         );
                     }
                 }
             }
         }
         Err(e) => {
-            warn!(error = ?e, %message_id, "Skipped stale reaction cleanup: failed to fetch the message");
+            warn!(error = ?e, %message_id, "message fetch failed; stale reaction cleanup skipped");
         }
     }
 
@@ -155,7 +155,7 @@ pub async fn edit_reactions(
                 .create_reaction(*channel_id, *message_id, &emoji)
                 .await
         {
-            warn!(error = ?err, "Failed applying reaction emoji to edited post");
+            warn!(error = ?err, "reaction emoji not applied to the edited post");
         }
     }
     Ok(())

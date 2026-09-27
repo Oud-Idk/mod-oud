@@ -3,6 +3,7 @@ use crate::core::config::settings::get_settings;
 use crate::features::member_counter::counters::update_guild_counters;
 use crate::features::member_counter::database::any_guild_ids_with_member_counters;
 use crate::features::member_counter::keys;
+use crate::shared::task;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::types::{Expiration, SetOptions};
@@ -12,7 +13,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
-use tracing::{error, info, trace, warn};
+use tracing::{info, trace, warn};
 
 /// Starts the member counter background task loop.
 pub fn start_member_counter_job(
@@ -22,10 +23,10 @@ pub fn start_member_counter_job(
     redis: Client,
     cache: Cache<GuildId, GuildSettings>,
 ) {
-    tokio::spawn(async move {
-        info!("Member counter background job started");
-
+    task::spawn("member_counter_worker", async move {
         let worker_id = format!("worker-{}", chrono::Utc::now().timestamp_millis());
+        info!(worker_id = %worker_id, "member counter worker started");
+
         let mut timer = interval(Duration::from_mins(1));
 
         loop {
@@ -35,7 +36,7 @@ pub fn start_member_counter_job(
                 process_all_member_counters(&http, &serenity_cache, &db, &redis, &cache, &worker_id)
                     .await
             {
-                error!(error = ?e, "processing member counters");
+                warn!(error = ?e, "member counter processing failed");
             }
         }
     });
@@ -53,7 +54,7 @@ async fn process_all_member_counters(
     let guild_ids = any_guild_ids_with_member_counters(db).await;
 
     if guild_ids.is_empty() {
-        trace!("No active member counters to process");
+        trace!("no active member counters to process");
         return Ok(());
     }
 
@@ -62,7 +63,7 @@ async fn process_all_member_counters(
         let settings = match get_settings(db, redis, cache, guild_id).await {
             Ok(s) => s,
             Err(e) => {
-                warn!(%guild_id, error = ?e, "fetch settings for guild");
+                warn!(%guild_id, error = ?e, "guild settings lookup failed");
                 continue;
             }
         };
@@ -93,20 +94,20 @@ async fn process_all_member_counters(
             .await?;
 
         if claimed.is_none() {
-            trace!(%guild_id, "Update claim held; skipping until interval elapses");
+            trace!(%guild_id, "update claim held; skipping until interval elapses");
             continue;
         }
 
         // Process counters for this guild
         if let Err(e) = update_guild_counters(http, serenity_cache, guild_id, counter_config).await
         {
-            warn!(%guild_id, error = ?e, "update member counter channels for guild");
+            warn!(%guild_id, error = ?e, "member counter channel update failed");
 
             if let Err(del_err) = redis.del::<i64, _>(&claim_key).await {
                 warn!(
                     %guild_id,
                     error = ?del_err,
-                    "release member counter claim after failed update"
+                    "member counter claim not released after the failed update"
                 );
             }
         }

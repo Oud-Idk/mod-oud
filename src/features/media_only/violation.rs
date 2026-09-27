@@ -1,4 +1,5 @@
 use crate::features::media_only::types::MediaOnlyChannel;
+use crate::shared::task;
 use anyhow::Context as _;
 use serenity::all::{Context, CreateMessage, Mentionable, Message};
 use std::fmt::Write;
@@ -17,13 +18,13 @@ pub async fn handle_violation(
     let _ = message
         .delete(ctx)
         .await
-        .inspect_err(|e| warn!(error = ?e, "could not delete message, it may already be deleted"));
+        .inspect_err(|e| warn!(error = ?e, "message not deleted; it may already be gone"));
 
     send_dm_for_content(ctx, message, original_content).await;
 
     // if delete_warning_after_secs is somehow negative
     let del_warning = u64::try_from(config.delete_warning_after_secs)
-        .context("Cannot cast i16 to u64. Is it negative?")?;
+        .context("delete_warning_after_secs is negative, so it has no u64 duration")?;
     send_warning(ctx, message, del_warning).await?;
 
     Ok(())
@@ -55,7 +56,7 @@ async fn send_dm_for_content(ctx: &Context, message: &Message, original_content:
         .author
         .dm(ctx, CreateMessage::new().content(original_dm_content))
         .await
-        .inspect_err(|e| debug!(error = ?e, "Couldn't resend message content to user"));
+        .inspect_err(|e| debug!(error = ?e, "message content DM not sent to the user"));
 }
 
 async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> anyhow::Result<()> {
@@ -73,10 +74,10 @@ async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> any
             )
             .await?;
 
-        tokio::spawn(async move {
+        task::spawn("media_only_warning_cleanup", async move {
             time::sleep(Duration::from_secs(del_warning)).await;
             let _ = sent_message.delete(http_clone).await.inspect_err(
-                |e| warn!(error = ?e, "could not delete warning message, it may already be deleted"),
+                |e| warn!(error = ?e, "warning message not deleted; it may already be gone"),
             );
         });
     }

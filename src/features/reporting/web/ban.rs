@@ -7,7 +7,7 @@ use crate::features::reporting::web::user_lookup::{resolve_moderator_user, resol
 use axum::http::StatusCode;
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{error, info, instrument};
+use tracing::{info, instrument, warn};
 
 #[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, user_id = %user_id
 ))]
@@ -19,12 +19,11 @@ pub async fn handle_ban_user(
     user_id: UserId,
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
-    info!("Issuing ban to user");
-
     let (user, moderator) = tokio::try_join!(
         resolve_target_user(&state.serenity_http, user_id),
         resolve_moderator_user(&state.serenity_http, mod_id)
     )?;
+    let moderator_id = moderator.id;
 
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
     let duration = cmd
@@ -44,8 +43,16 @@ pub async fn handle_ban_user(
         duration,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "complete ban operation"))
+    .inspect_err(|e| warn!(error = %e, "user ban not applied"))
     .map_err(|_e| WebError::Internal)?;
+
+    info!(
+        report_id = cmd.report_id,
+        %guild_id,
+        %user_id,
+        moderator_id = %moderator_id,
+        "dashboard ban applied"
+    );
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserBanned).await?;
     Ok(StatusCode::OK)
