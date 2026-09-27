@@ -93,6 +93,23 @@ if [[ -n "$noisy" ]]; then
   fail=1
 fi
 
+# --- rule 5: level( is not level!( ----------------------------------------------
+# `debug("x")` binds to `tracing::field::debug`, the field constructor, not the macro. It
+# compiles to a discarded expression and logs nothing, so the line reads as correct and is not.
+# The awk extractor only matches `level!(`, so without this rule the mistake is invisible.
+# `pub async fn info(` and friends are not calls, so a definition is not a hit.
+not_macro="$(rg -n --no-heading -P '(?<![\w:!.])(trace|debug|info|warn|error)\(' \
+  -g '*.rs' "$target" |
+  rg -v -P '^\S+:\d+:\s*(pub |pub\(crate\) |pub\(super\) )?(async )?fn \w' |
+  rg -v -P '\b(warn|error|info|debug|trace)_(span|event|level)\b' || true)"
+if [[ -n "$not_macro" ]]; then
+  while IFS= read -r line; do
+    red "level( is not level!( : ${line#*:}"
+  done <<< "$not_macro"
+  note "  a bare level( binds to tracing::field::level and logs nothing."
+  fail=1
+fi
+
 if [[ $fail -eq 0 ]]; then
   note "logging checks passed"
 fi
