@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
-use tracing::{trace, warn};
+use tracing::{debug, error, warn};
 
 /// Paths that bypass the internal secret check (public or ticket-authenticated).
 const EXEMPT_PATHS: &[&str] = &[
@@ -38,7 +38,7 @@ pub async fn require_internal_secret(
         return Ok(next.run(request).await);
     }
 
-    trace!(path = %path, "received request");
+    debug!(path = %path, "received request");
 
     // Also allow nested /api prefix check for exempt subpaths
     if path.starts_with("/verify")
@@ -49,7 +49,7 @@ pub async fn require_internal_secret(
     }
 
     let Some(expected) = state.core.config.internal_api_secret.as_deref() else {
-        warn!(
+        error!(
             path = %path,
             fault = "INTERNAL_API_SECRET is not set",
             "rejecting protected route, server misconfigured"

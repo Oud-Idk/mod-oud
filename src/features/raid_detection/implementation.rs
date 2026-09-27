@@ -5,7 +5,7 @@ use crate::shared::locking::acquire_lock;
 use chrono::{DateTime, Utc};
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -121,7 +121,7 @@ impl DynamicRaidDetector {
         let stats_cache_key = keys::stats_cache_key(guild_id);
 
         if let Ok(Some(stats)) = cache::get_threshold(&self.redis, &stats_cache_key).await {
-            trace!(%guild_id, "retrieved stats threshold from cache");
+            debug!(%guild_id, "retrieved stats threshold from cache");
             return Ok(stats);
         }
 
@@ -181,7 +181,7 @@ impl DynamicRaidDetector {
 
         cache::cache_calculated_stats(&self.redis, now, stats_cache_key, &hash_key, &stats).await?;
 
-        info!(
+        debug!(
             %guild_id,
             threshold = stats.threshold,
             mean_window = stats.mean_window,
@@ -227,7 +227,7 @@ fn calculate_threshold(
     let dynamic_threshold = z_score_multiplier.mul_add(std_dev_window, mean_window);
     let final_threshold = (dynamic_threshold.ceil() as i64).max(min_safe_limit);
 
-    trace!(
+    debug!(
         mean_hour,
         std_dev_hour,
         mean_window,

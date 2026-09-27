@@ -11,7 +11,7 @@ use serde::Deserialize;
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{GuildId, RoleId, UserId};
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 type WebResult<T = StatusCode> = Result<T, (StatusCode, String)>;
 
@@ -68,7 +68,7 @@ pub async fn handle_verify(
         &payload.sig,
         secrets.shared_secret.as_bytes(),
     ) {
-        info!(user_id = %payload.user_id, "verification link invalid or expired");
+        debug!(user_id = %payload.user_id, "verification link invalid or expired");
         return Err((
             StatusCode::BAD_REQUEST,
             "Invalid or expired link.".to_string(),
@@ -99,7 +99,7 @@ pub async fn handle_verify(
     // Validate Captcha (Turnstile / hCaptcha)
     validate_captcha(&state, &payload, &secrets, &client_ip).await?;
 
-    info!(
+    debug!(
         guild_id = %payload.guild_id,
         user_id = %payload.user_id,
         "verification checks passed"
@@ -107,7 +107,11 @@ pub async fn handle_verify(
 
     // Assign verified role to the user
     let role_id = verification_cfg.verification_role_id.ok_or_else(|| {
-        warn!(guild_id = %payload.guild_id, "verification role id not configured");
+        error!(
+            fault = "verification role id is not configured for this guild",
+            guild_id = %payload.guild_id,
+            "verification role id not configured"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error".to_string(),

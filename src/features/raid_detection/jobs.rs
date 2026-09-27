@@ -4,7 +4,7 @@ use crate::shared::task;
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::time::Duration;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 /// Spawns a background worker that periodically flushes accumulated hourly raid join stats
 /// from Redis to PostgreSQL. Uses a distributed lock to avoid duplicate writes across instances.
@@ -26,7 +26,7 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
 
                     match guard.release().await {
                         Ok(true) => trace!("lock released"),
-                        Ok(false) => warn!("lock already lost during flush"),
+                        Ok(false) => warn!(%lock_key, "lock already lost during flush"),
                         Err(e) => warn!(error = ?e, "flush lock release failed"),
                     }
                 }
@@ -57,11 +57,11 @@ async fn flush_pending_stats(
 
     for guild_id in dirty_guilds {
         if let Err(e) = flush_guild(guild_id, redis, db).await {
-            warn!(%guild_id, error = ?e, "raid stats flush for guild failed");
+            error!(%guild_id, error = ?e, "raid stats flush for guild failed");
         }
     }
 
-    info!(count, "raid stats flushed for dirty guilds");
+    debug!(count, "raid stats flushed for dirty guilds");
     Ok(())
 }
 
@@ -71,7 +71,7 @@ async fn flush_guild(
     redis: &Client,
     db: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let records = cache::claim_accumulator(redis, guild_id).await?;
+    let records = cache::read_accumulator(redis, guild_id).await?;
 
     if records.is_empty() {
         debug!("no accumulated records to flush");
@@ -87,6 +87,9 @@ async fn flush_guild(
 
     database::upsert_hourly_stats(db, &guild_ids, &hour_keys, &join_counts).await?;
 
+    // Cleared after the write, not before, so a failed upsert leaves the counts to be retried.
+    // The upsert is idempotent, so a clear that fails just costs a repeat.
+    cache::clear_accumulator(redis, guild_id).await?;
     cache::remove_dirty_raid_guild(redis, guild_id).await?;
     debug!(count, "flushed hourly stats to database");
 

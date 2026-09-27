@@ -1,5 +1,6 @@
 use crate::core::config::state::Error;
 use crate::features::automod::{AutomodEntryRow, insert_automod_row};
+use crate::features::warning::audit;
 use crate::features::warning::types::{WarnAction, WarnThreshold};
 use serenity::all::{Http, Member, Timestamp};
 use sqlx::PgPool;
@@ -23,14 +24,22 @@ pub async fn apply_threshold_actions(
                     member
                         .ban_with_reason(http, 7, "Reached warning threshold")
                         .await?;
-                    debug!("auto-ban applied at the warning threshold");
+                    audit::auto_ban_applied(
+                        threshold.guild_id,
+                        member.user.id,
+                        threshold.warn_count,
+                    );
                     actions.push("BAN");
                 }
                 WarnAction::Kick => {
                     member
                         .kick_with_reason(http, "Reached warning threshold")
                         .await?;
-                    debug!("auto-kick applied at the warning threshold");
+                    audit::auto_kick_applied(
+                        threshold.guild_id,
+                        member.user.id,
+                        threshold.warn_count,
+                    );
                     actions.push("KICK");
                 }
                 WarnAction::Timeout => {
@@ -42,7 +51,12 @@ pub async fn apply_threshold_actions(
                         let mut builder = serenity::builder::EditMember::new();
                         builder = builder.disable_communication_until(until.to_string());
                         member.edit(http, builder).await?;
-                        debug!(secs, "auto-timeout applied at the warning threshold");
+                        audit::auto_timeout_applied(
+                            threshold.guild_id,
+                            member.user.id,
+                            threshold.warn_count,
+                            secs,
+                        );
                     }
                     actions.push("MUTE");
                 }
@@ -50,7 +64,12 @@ pub async fn apply_threshold_actions(
                     if let Some(ref roles) = threshold.roles_to_add {
                         for role_id in roles {
                             member.add_role(http, *role_id).await?;
-                            debug!(%role_id, "threshold role added");
+                            audit::threshold_role_added(
+                                threshold.guild_id,
+                                member.user.id,
+                                *role_id,
+                                threshold.warn_count,
+                            );
                         }
                     }
                     actions.push("ROLE_ADD");
@@ -59,16 +78,27 @@ pub async fn apply_threshold_actions(
                     if let Some(ref roles) = threshold.roles_to_remove {
                         for role_id in roles {
                             member.remove_role(http, *role_id).await?;
-                            debug!(%role_id, "threshold role removed");
+                            audit::threshold_role_removed(
+                                threshold.guild_id,
+                                member.user.id,
+                                *role_id,
+                                threshold.warn_count,
+                            );
                         }
                     }
                     actions.push("ROLE_REMOVE");
                 }
                 WarnAction::RoleRemoveAll => {
+                    let removed = member.roles.len();
                     for role in &member.roles {
                         member.remove_role(http, *role).await?;
                     }
-                    debug!("every role removed from the member at the warning threshold");
+                    audit::all_roles_removed(
+                        threshold.guild_id,
+                        member.user.id,
+                        threshold.warn_count,
+                        removed,
+                    );
                     actions.push("ROLE_REMOVE_ALL");
                 }
             }

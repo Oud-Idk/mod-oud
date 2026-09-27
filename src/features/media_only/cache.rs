@@ -11,7 +11,7 @@ use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
 use serenity::all::ChannelId;
 use sqlx::PgPool;
-use tracing::{trace, warn};
+use tracing::{debug, warn};
 
 pub async fn store_media_only_channel_redis(
     redis: &Client,
@@ -48,7 +48,7 @@ pub async fn get_channel_media(
     }
 
     // Not found in Redis
-    trace!(fallback = "db", "media channel cache miss");
+    debug!(fallback = "db", "media channel cache miss");
     let media_channel_from_db = fetch_media_only_from_db(&data.core.db, channel_id).await?;
     if let Some(media_channel_from_db) = media_channel_from_db {
         // Redis is not too important, ignore Err

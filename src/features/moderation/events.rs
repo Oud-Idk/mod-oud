@@ -45,7 +45,7 @@ pub async fn handle_audit_log_entry(
     }
 
     let Some(target_generic_id) = entry.target_id else {
-        warn!("audit log entry has no target; skipping moderation sync");
+        warn!(entry_id = %entry.id, "audit log entry has no target; skipping moderation sync");
         return Ok(());
     };
     let target_id = target_generic_id.get().into();
@@ -78,7 +78,7 @@ pub async fn handle_audit_log_entry(
                         .ok();
                 }
                 Err(e) => {
-                    debug!(error = %e, %user_id, "user lookup for the audit-synced log failed");
+                    warn!(error = %e, %user_id, "user lookup for the audit-synced log failed");
                 }
             }
         }

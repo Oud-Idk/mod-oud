@@ -2,7 +2,7 @@ use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
 use serenity::all::RoleId;
-use tracing::{error, trace, warn};
+use tracing::{debug, error, warn};
 
 /// Reads the cached role for a key.
 /// Returns `Some(Some(role))` on a positive hit, `Some(None)` for a cached
@@ -26,7 +26,7 @@ pub async fn get_cached_role(redis: &Client, cache_key: &str) -> Option<Option<R
             )
         }
         Ok(None) => {
-            trace!(cache_key, fallback = "db", "role cache miss");
+            debug!(cache_key, fallback = "db", "role cache miss");
             None
         }
         Err(e) => {

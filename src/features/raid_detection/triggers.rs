@@ -1,6 +1,7 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_lock;
+use crate::features::raid_detection::audit;
 use crate::features::raid_detection::database;
 use crate::features::raid_detection::implementation::DynamicRaidDetector;
 use crate::features::raid_detection::raid_end::handle_raid_end;
@@ -12,7 +13,7 @@ use crate::shared::task;
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
-use tracing::{error, info, instrument, warn};
+use tracing::{error, instrument, warn};
 
 #[instrument(
     skip(ctx, data),
@@ -81,7 +82,8 @@ pub async fn trigger_raid_manual(
     .await?
     .raid_detection
     else {
-        warn!(
+        error!(
+            fault = "raid detection is not configured for this guild",
             %guild_id,
             "raid mode set active manually, but no raid configuration found for mitigation actions"
         );
@@ -90,11 +92,7 @@ pub async fn trigger_raid_manual(
 
     invoke_actions(ctx, data, guild_id, mod_username, &raid_config).await?;
 
-    info!(
-        %guild_id,
-        mod_username,
-        "manual raid mode activated"
-    );
+    audit::manual_raid_activated(guild_id, mod_username);
 
     Ok(true)
 }
@@ -111,19 +109,24 @@ async fn invoke_actions(
             RaidAction::LockdownServer => {
                 let ctx = ctx.clone();
                 let data = (*data).clone();
+                // mod_username is captured by the closure so the success line can name who asked.
+                let moderator = mod_username.to_string();
                 task::spawn("raid_manual_lock", async move {
-                    if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        warn!(
-                            error = ?e,
-                            %guild_id,
-                            "global server lockdown not applied for a manual trigger"
-                        );
+                    match apply_global_lock(&ctx, &data, guild_id).await {
+                        Ok(_) => audit::global_lockdown_applied(guild_id, Some(&moderator)),
+                        Err(e) => {
+                            error!(
+                                error = ?e,
+                                %guild_id,
+                                "global server lockdown not applied for a manual trigger"
+                            );
+                        }
                     }
                 });
             }
             RaidAction::BumpVerification => {
                 database::bump_verification_to_max(&data.core.db, guild_id).await?;
-                info!(%guild_id, "server verification bumped to hCaptcha for a manual trigger");
+                audit::verification_bumped(guild_id, Some(mod_username));
             }
             RaidAction::PauseInvites { hours } => {
                 let until = chrono::Utc::now() + chrono::Duration::hours(*hours);
@@ -133,7 +136,7 @@ async fn invoke_actions(
                     .edit_guild_incident_actions(&ctx.http, guild_id, builder)
                     .await?;
 
-                info!(%guild_id, hours, "server invites paused for a manual trigger");
+                audit::invites_paused(guild_id, Some(mod_username), *hours);
             }
             RaidAction::Alert { channel_id } => {
                 let channel = ChannelId::new(*channel_id);
@@ -149,11 +152,7 @@ async fn invoke_actions(
                         "manual raid alert message delivery failed"
                     );
                 } else {
-                    info!(
-                        %guild_id,
-                        channel_id,
-                        "manual raid alert sent to the configured channel"
-                    );
+                    audit::alert_sent(guild_id, Some(mod_username), channel);
                 }
             }
             _ => {}
@@ -167,6 +166,7 @@ pub async fn resolve_raid_manual(
     ctx: &Context,
     data: &BotData,
     guild_id: GuildId,
+    mod_username: &str,
 ) -> Result<bool, Error> {
     let is_active = cache::check_raid_active(&data.core.redis, guild_id)
         .await
@@ -194,7 +194,7 @@ pub async fn resolve_raid_manual(
 
     handle_raid_end(ctx, data, guild_id).await?;
 
-    info!(%guild_id, "manual raid resolution completed");
+    audit::manual_raid_resolved(guild_id, mod_username);
 
     Ok(true)
 }

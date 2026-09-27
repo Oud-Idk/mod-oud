@@ -11,7 +11,7 @@ use serenity::all::{
     ChannelId, ChannelType, Color, Context, CreateAttachment, CreateEmbed, CreateMessage,
     GuildChannel, GuildId, Member, Mentionable, Timestamp, User,
 };
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, warn};
 
 pub fn build_welcome_message(
     settings: &MessageSettings,
@@ -96,7 +96,7 @@ pub async fn build_goodbye_message(
         return build_fallback_message(user, None);
     };
 
-    trace!(
+    debug!(
         %guild_id,
         user_id = user.id.get(),
         "cached member details available"
@@ -176,7 +176,7 @@ pub async fn get_context_channel(
         && let Ok(channel) = ch_id.to_channel(ctx).await
         && let Some(guild_ch) = channel.guild()
     {
-        trace!(%guild_id, channel_id = %ch_id, "resolved configured target channel context");
+        debug!(%guild_id, channel_id = %ch_id, "resolved configured target channel context");
         return Ok(guild_ch);
     }
 
@@ -184,7 +184,7 @@ pub async fn get_context_channel(
     let channels = member.guild_id.channels(&ctx.http).await?;
     for (_, channel) in channels {
         if channel.kind == ChannelType::Text {
-            trace!(%guild_id, fallback_channel_id = channel.id.get(), "fallback text channel context resolved");
+            debug!(%guild_id, fallback_channel_id = channel.id.get(), "fallback text channel context resolved");
             return Ok(channel);
         }
     }
@@ -205,7 +205,7 @@ pub async fn send_leave_message(
     data: &BotData,
 ) -> anyhow::Result<()> {
     let user_id = user.id;
-    info!(%guild_id, %user_id, user_name = %user.name, "member left the guild");
+    debug!(%guild_id, %user_id, user_name = %user.name, "member left the guild");
 
     let settings = get_settings(
         &data.core.db,
@@ -220,7 +220,7 @@ pub async fn send_leave_message(
         .as_ref()
         .filter(|cfg| cfg.message.enabled.unwrap_or(false))
     else {
-        trace!(
+        debug!(
             %guild_id,
             %user_id, "leave notifications disabled; the departure is only written to the database"
         );

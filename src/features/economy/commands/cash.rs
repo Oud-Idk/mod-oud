@@ -11,7 +11,7 @@ use fred::prelude::{Expiration, SetOptions};
 use humantime::format_duration;
 use serenity::all::{CreateEmbed, User};
 use std::time::Duration;
-use tracing::{error, warn};
+use tracing::warn;
 
 #[poise::command(
     slash_command,
@@ -91,7 +91,7 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
         )
         .await
         .inspect_err(|e| {
-            error!(
+            warn!(
                 error = ?e,
                 cooldown_key = %cooldown_key,
                 cooldown_secs = config.work_cooldown_secs,

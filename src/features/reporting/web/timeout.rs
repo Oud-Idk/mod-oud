@@ -40,10 +40,12 @@ pub async fn handle_timeout(
         .map_err(|_| WebError::Internal)?
         .as_secs();
 
-    let future_secs = now_secs.checked_add(duration_mins * 60).ok_or_else(|| {
+    let duration_secs = super::duration_secs(duration_mins)?;
+
+    let future_secs = now_secs.checked_add(duration_secs).ok_or_else(|| {
         debug!(
             duration_mins,
-            "timeout window duration calculation overflowed"
+            "timeout window expiry calculation overflowed"
         );
         WebError::BadRequest("Duration calculation overflowed".to_string())
     })?;
@@ -54,7 +56,7 @@ pub async fn handle_timeout(
     .inspect_err(|e| warn!(error = %e, "timeout timestamp unavailable"))
     .map_err(|_e| WebError::Internal)?;
 
-    let duration = std::time::Duration::from_secs(duration_mins * 60);
+    let duration = std::time::Duration::from_secs(duration_secs);
 
     issue_mute(
         &state.core.db,

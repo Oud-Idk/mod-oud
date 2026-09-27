@@ -3,7 +3,7 @@ use futures::Stream;
 use futures_util::StreamExt;
 use poise::ReplyHandle;
 use serenity::all::ComponentInteraction;
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 /// Manages the state and UI layouts for paginated embeds.
 pub struct PaginationState {
@@ -33,7 +33,7 @@ impl PaginationState {
 
     /// Generates button components based on the current page.
     pub fn create_components(&self) -> Vec<serenity::all::CreateActionRow> {
-        trace!(
+        debug!(
             current_page = self.current_page,
             "active button components built"
         );
@@ -73,7 +73,7 @@ impl PaginationState {
     /// Handles an incoming button interaction ID.
     /// Returns `true` if the page index changed, and `false` otherwise.
     pub fn handle_interaction(&mut self, custom_id: &str) -> bool {
-        trace!(
+        debug!(
             custom_id,
             current_page = self.current_page,
             "button interaction received"
@@ -88,7 +88,7 @@ impl PaginationState {
             debug!(new_page = self.current_page, "page incremented");
             true
         } else {
-            trace!(
+            debug!(
                 custom_id,
                 "interaction ignored (does not match expected active IDs)"
             );
@@ -145,7 +145,7 @@ where
     debug!(total_pages, ctx_id = ctx.id(), "pagination requested");
 
     if total_pages == 0 {
-        trace!("zero pages provided, skipping execution");
+        debug!("zero pages provided, skipping execution");
         return Ok(());
     }
 
@@ -188,7 +188,7 @@ where
     {
         warn!(error = ?err, "pagination components not disabled after timeout");
     } else {
-        trace!("pagination components disabled");
+        debug!("pagination components disabled");
     }
 
     Ok(())

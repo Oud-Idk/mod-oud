@@ -11,7 +11,7 @@ use crate::features::leveling::rules::get_multiplier;
 use crate::features::leveling::types::{LevelingConfig, NotificationTarget};
 use crate::features::leveling::{cache, keys, notifications, rewards, rules};
 use serenity::all::{Context, Message, RoleId};
-use tracing::{warn, debug, trace};
+use tracing::{warn, debug};
 
 /// Grants text chat XP for a message, applying cooldowns, multipliers, and level-ups.
 ///
@@ -32,7 +32,7 @@ pub async fn handle_text_leveling(
     };
 
     if data.caches.active_tickets.contains_key(&message.channel_id) {
-        trace!(%guild_id, channel_id = %message.channel_id, "skipping leveling XP: channel is marked as a ticket");
+        debug!(%guild_id, channel_id = %message.channel_id, "skipping leveling XP: channel is marked as a ticket");
         return Ok(());
     }
 
@@ -64,7 +64,7 @@ pub async fn handle_text_leveling(
     let set_cooldown = cache::create_redis_cooldown(&cooldown_key, &leveling_config, redis).await?;
 
     if !set_cooldown {
-        trace!(
+        debug!(
             %guild_id,
             %author_id, "skipping leveling XP: user is on XP cooldown"
         );
@@ -146,7 +146,7 @@ pub fn should_skip_leveling(message: &Message, config: &LevelingConfig) -> bool 
     let user_roles: &[RoleId] = message.member.as_ref().map_or(&[], |m| m.roles.as_slice());
 
     if rules::should_exclude_from_level_up(config, user_roles, channel_id_u64) {
-        trace!(
+        debug!(
             guild_id,
             author_id = message.author.id.get(),
             "skipping leveling XP: member or channel is excluded"

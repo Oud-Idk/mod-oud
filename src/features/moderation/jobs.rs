@@ -40,7 +40,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                     match guard.release().await {
                         Ok(true) => {}
                         Ok(false) => {
-                            warn!("temp ban lock not released; ownership was lost");
+                            warn!(%lock_key, "temp ban lock not released; ownership was lost");
                         }
                         Err(e) => {
                             warn!(error = ?e, "temp ban lock release failed");
@@ -73,7 +73,7 @@ async fn process_expired_temp_bans(
     }
 
     let bans_count = expired_bans.len();
-    info!(bans_count, "expired temp bans found");
+    debug!(bans_count, "expired temp bans found");
 
     let unban_futures = expired_bans.into_iter().map(|record| {
         let http_ref = http;

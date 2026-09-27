@@ -84,32 +84,36 @@ pub fn start_username_batch_worker(db: PgPool, rx: mpsc::Receiver<UserUpdate>) {
 pub async fn run_username_batch_worker(db: PgPool, mut rx: mpsc::Receiver<UserUpdate>) {
     let mut ticker = interval(Duration::from_secs(5));
     let mut pending_updates: HashMap<UserId, String> = HashMap::new();
+    let mut flush_failed = false;
 
     loop {
         tokio::select! {
             Some(update) = rx.recv() => {
                 pending_updates.insert(update.id, update.name);
 
-                // flush early if batch gets too large
-                if pending_updates.len() >= 500 {
-                    flush_updates(&db, &mut pending_updates).await;
+                // A failed batch leaves the map large, so without this gate every incoming update
+                // would attempt another write until Postgres returned. The ticker retries.
+                if pending_updates.len() >= 500 && !flush_failed {
+                    flush_failed = flush_updates(&db, &mut pending_updates).await;
                 }
             }
             // Flush whatever we've collected so far
             _ = ticker.tick() => {
                 if !pending_updates.is_empty() {
-                    flush_updates(&db, &mut pending_updates).await;
+                    flush_failed = flush_updates(&db, &mut pending_updates).await;
                 }
             }
         }
     }
 }
 
-async fn flush_updates(db: &PgPool, updates: &mut HashMap<UserId, String>) {
-    let (ids, names): (Vec<i64>, Vec<String>) = updates
-        .drain()
-        .map(|(id, name)| (id.get().cast_signed(), name))
-        .unzip();
+/// Writes the batch and clears it only once it is durable. Returns true when the write failed, so
+/// the caller knows the map is still holding it.
+async fn flush_updates(db: &PgPool, updates: &mut HashMap<UserId, String>) -> bool {
+    // Read without draining: the batch is cleared only once it is in the database, so a failure
+    // leaves it for the next tick instead of losing the names outright.
+    let ids: Vec<i64> = updates.keys().map(|id| id.get().cast_signed()).collect();
+    let names: Vec<String> = updates.values().cloned().collect();
 
     let result = sqlx::query!(
         "INSERT INTO discord_users (user_id, username, updated_at) \
@@ -122,8 +126,19 @@ async fn flush_updates(db: &PgPool, updates: &mut HashMap<UserId, String>) {
     .execute(db)
     .await;
 
-    if let Err(e) = result {
-        tracing::error!(error = %e, "username batch flush to db failed");
+    match result {
+        Ok(_) => {
+            updates.clear();
+            false
+        }
+        Err(e) => {
+            tracing::error!(
+                error = %e,
+                pending = updates.len(),
+                "username batch flush to db failed; the batch is retried"
+            );
+            true
+        }
     }
 }
 

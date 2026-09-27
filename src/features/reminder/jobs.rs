@@ -75,7 +75,7 @@ async fn process_expired_reminders(
     }
 
     let reminders_count = expired_reminders.len();
-    info!(reminders_count, "found expired reminders to process");
+    debug!(reminders_count, "found expired reminders to process");
 
     let reminder_futures = expired_reminders.into_iter().map(|record| {
         let http_ref = http;

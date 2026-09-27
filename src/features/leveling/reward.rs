@@ -1,6 +1,6 @@
 use crate::features::leveling::types::LevelReward;
 use serenity::all::{Context, GuildId, RoleId, UserId};
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 pub async fn fetch_member_roles(
     ctx: &Context,
@@ -63,7 +63,7 @@ pub async fn apply_role_modifications(
         if let Some(current_roles) = member_roles
             && current_roles.contains(&role_id)
         {
-            trace!(%role_id, "user already holds the role");
+            debug!(%role_id, "user already holds the role");
             continue;
         }
 
@@ -82,7 +82,7 @@ pub async fn apply_role_modifications(
         if let Some(current_roles) = member_roles
             && !current_roles.contains(&role_id)
         {
-            trace!(%role_id, "user does not hold the role");
+            debug!(%role_id, "user does not hold the role");
             continue;
         }
 

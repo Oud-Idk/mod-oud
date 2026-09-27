@@ -21,7 +21,7 @@ use serde_with::{DisplayFromStr, serde_as};
 use songbird::Songbird;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, error, instrument, warn};
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -262,7 +262,10 @@ pub async fn ws_handler(
 ) -> Result<Response, axum::http::StatusCode> {
     // Ticket verification for WS (signed ticket system).
     let Some(secret) = state.core.config.internal_api_secret.as_deref() else {
-        warn!("INTERNAL_API_SECRET not set");
+        error!(
+            fault = "INTERNAL_API_SECRET is not set",
+            "ws verification unavailable"
+        );
         return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     };
     let (Some(user_id), Some(expires), Some(sig)) = (
@@ -368,7 +371,7 @@ async fn handle_text_message(
     let (request_id, action) = match message {
         Ok(ClientMessage::Music { request_id, action }) => (request_id, action),
         Err(e) => {
-            warn!(error = %e, "WebSocket control message parse failed");
+            debug!(error = %e, "WebSocket control message parse failed");
             let ack = ServerMessage::Ack {
                 request_id: None,
                 ok: false,

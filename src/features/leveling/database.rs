@@ -9,7 +9,7 @@ use fred::clients::Client;
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
-use tracing::trace;
+use tracing::debug;
 
 #[derive(sqlx::FromRow)]
 struct RawUserLevel {
@@ -219,7 +219,7 @@ pub async fn load_leveling_config(
         .await?;
 
     let Some(leveling_config) = config.leveling else {
-        trace!(
+        debug!(
             %guild_id,
             "skipping XP reward: leveling system is unconfigured"
         );
@@ -227,7 +227,7 @@ pub async fn load_leveling_config(
     };
 
     if !leveling_config.voice.enabled {
-        trace!(
+        debug!(
             %guild_id,
             "skipping XP reward: voice leveling is disabled"
         );

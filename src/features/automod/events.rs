@@ -22,7 +22,7 @@ use anyhow::Result;
 pub use honeypot::handle_honeypot;
 pub use native_rules::store_automod;
 use poise::serenity_prelude::{Context, Message};
-use tracing::{debug, instrument, trace};
+use tracing::{debug, instrument};
 
 #[instrument(
     name = "handle_filtering",
@@ -44,7 +44,7 @@ pub async fn check_for_filter(
     }
 
     let Some(guild_id) = message.guild_id else {
-        trace!("message does not belong to a guild; skipping filter evaluation");
+        debug!("message does not belong to a guild; skipping filter evaluation");
         return Ok(false);
     };
 
@@ -71,7 +71,7 @@ pub async fn check_for_filter(
     });
 
     if !should_apply {
-        trace!("filter evaluation bypassed by global settings");
+        debug!("filter evaluation bypassed by global settings");
         return Ok(false);
     }
 
@@ -99,7 +99,7 @@ pub async fn check_for_filter(
                 .or_else(|| zalgo::filter_zalgo(message, filtering))
                 .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
         } else {
-            trace!("message filtering config not found; skipping built-in static filters");
+            debug!("message filtering config not found; skipping built-in static filters");
         }
     }
 
@@ -117,7 +117,7 @@ pub async fn check_for_filter(
         return Ok(true);
     }
 
-    trace!("message passed all active filters");
+    debug!("message passed all active filters");
     Ok(false)
 }
 

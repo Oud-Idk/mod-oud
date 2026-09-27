@@ -5,7 +5,7 @@ use crate::shared::messages::remove_urls;
 use crate::{core::config::state::BotData, features::media_only::types::MediaType};
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, CreateThread, Message, PartialMember, RoleId};
-use tracing::trace;
+use tracing::debug;
 
 fn has_matching_role(member: &PartialMember, roles: &[RoleId]) -> bool {
     member.roles.iter().any(|role_id| roles.contains(role_id))
@@ -37,7 +37,7 @@ pub async fn handle_media_channel_message(
 
     for attachment in &message.attachments {
         let Some(mime) = attachment.content_type.as_deref() else {
-            trace!("attachment missing content type");
+            debug!("attachment missing content type");
             violation::handle_violation(ctx, message, &config).await?;
             return Ok(());
         };
@@ -45,13 +45,13 @@ pub async fn handle_media_channel_message(
         let is_valid = attachment_is_valid(&config, mime);
 
         if !is_valid {
-            trace!(mime = %mime, "attachment mime is not allowed");
+            debug!(mime = %mime, "attachment mime is not allowed");
             violation::handle_violation(ctx, message, &config).await?;
             return Ok(());
         }
     }
 
-    trace!("message passed the media-only checks");
+    debug!("message passed the media-only checks");
 
     if let Some(thread_name_template) = config.thread_name_template {
         if !config.auto_thread {
@@ -81,27 +81,27 @@ async fn preflight_checks(
     data: &BotData,
 ) -> Result<Option<MediaOnlyChannel>> {
     if message.author.bot {
-        trace!("author is a bot, skipping");
+        debug!("author is a bot, skipping");
         return Ok(None);
     }
 
     let Some(config) = get_channel_media(data, channel_id).await? else {
-        trace!("channel is not a media channel, skipping");
+        debug!("channel is not a media channel, skipping");
         return Ok(None);
     };
 
     if !config.enabled {
-        trace!("media-only channel is disabled, skipping");
+        debug!("media-only channel is disabled, skipping");
         return Ok(None);
     }
 
     let Some(member) = &message.member else {
-        trace!("message has no member, skipping");
+        debug!("message has no member, skipping");
         return Ok(None);
     };
 
     if has_matching_role(member, &config.exempt_role_ids()) {
-        trace!("member has an exempt role, skipping enforcement");
+        debug!("member has an exempt role, skipping enforcement");
         return Ok(None);
     }
     Ok(Some(config))
@@ -122,13 +122,13 @@ fn analyze_initial_text(
 
     // Text is present but text isn't allowed
     if !text.is_empty() && !allow_text {
-        trace!("text is not allowed in this channel");
+        debug!("text is not allowed in this channel");
         return true;
     }
 
     // Links are present but links aren't allowed
     if !urls.is_empty() && !allow_links {
-        trace!("links are not allowed in this channel");
+        debug!("links are not allowed in this channel");
         return true;
     }
 
@@ -137,7 +137,7 @@ fn analyze_initial_text(
     let has_attachments = !message.attachments.is_empty();
 
     if !has_attachments && !has_allowed_links {
-        trace!("message contains no media or allowed links");
+        debug!("message contains no media or allowed links");
         return true;
     }
 

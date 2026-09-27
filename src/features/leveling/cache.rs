@@ -12,7 +12,7 @@ use fred::types::SetOptions;
 use serenity::all::{ChannelId, GuildId, UserId};
 use sqlx::PgPool;
 use std::collections::HashMap;
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, instrument, warn};
 
 #[instrument(skip(redis, db), fields(%guild_id))]
 pub async fn cache_aside_multipliers(
@@ -238,7 +238,7 @@ pub async fn open_session(
     };
     set_session(redis, &key, &session).await?;
 
-    trace!(
+    debug!(
         %guild_id,
         %user_id,
         %channel_id,
@@ -262,7 +262,7 @@ pub async fn resume_clock(
     {
         s.clock_started_at = Some(now);
         set_session(redis, &key, &s).await?;
-        trace!(%guild_id, user_id = user_id.get(), "voice XP clock resumed");
+        debug!(%guild_id, user_id = user_id.get(), "voice XP clock resumed");
     }
     Ok(())
 }
@@ -281,7 +281,7 @@ pub async fn pause_clock(
     {
         s.accumulated_secs += (now - started).max(0);
         set_session(redis, &key, &s).await?;
-        trace!(
+        debug!(
             %guild_id,
             user_id = user_id.get(),
             "voice XP clock paused; the user is alone in the channel"

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serenity::all::{CacheHttp, GuildId, VerificationLevel};
-use tracing::{debug, trace};
+use tracing::debug;
 
 /// Contextual details for a Discord Guild (Server).
 #[derive(Debug, Clone)]
@@ -42,7 +42,7 @@ pub struct GuildCtx {
 /// Returns an `Err` if the HTTP fallback fails to retrieve guild data from Discord API.
 pub async fn get_guild_ctx(guild_id: GuildId, cache_http: impl CacheHttp) -> Result<GuildCtx> {
     if let Some(g) = cache_http.cache().and_then(|c| guild_id.to_guild_cached(c)) {
-        trace!(%guild_id, "retrieved guild context from local cache");
+        debug!(%guild_id, "retrieved guild context from local cache");
 
         return Ok(GuildCtx {
             name: g.name.clone(),

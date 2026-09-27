@@ -7,7 +7,7 @@ use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserL
 use anyhow::Result;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
-use tracing::{warn, debug, trace};
+use tracing::{warn, debug};
 
 /// Tracks voice sessions and awards voice XP when a user leaves an eligible channel.
 ///
@@ -143,7 +143,7 @@ async fn award_vc_xp_for_session(
     let member = &resolve_member(ctx, guild_id, user_id, member).await?;
 
     if rules::should_exclude_from_level_up(leveling_config, &member.roles, channel_id) {
-        trace!(
+        debug!(
             %guild_id,
             "skipping voice XP: channel/user is excluded"
         );

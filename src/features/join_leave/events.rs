@@ -5,7 +5,7 @@ use crate::features::join_leave::{log_join_to_db, messages, send};
 use anyhow::Result;
 use serenity::all::{Context, EditMember, Member, RoleId, User};
 use std::collections::HashSet;
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 async fn apply_join_roles(ctx: &Context, member: &Member, role_ids: &[String]) -> Result<()> {
     let guild_id = member.guild_id.get();
@@ -81,7 +81,7 @@ pub fn check_alt_status(user: &User) -> String {
         );
         format!("\n\n⚠️ **WARNING:** This account is very new! Created {age_in_days} days ago.")
     } else {
-        trace!(user_id, age_in_days, "account age is normal");
+        debug!(user_id, age_in_days, "account age is normal");
         String::new()
     }
 }

@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use sqlx::types::Json;
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{error, warn};
 
 #[derive(sqlx::FromRow)]
 struct RawReactionMessage {
@@ -157,7 +157,7 @@ pub async fn delete_message_from_db(
     )
     .execute(&state.core.db)
     .await
-    .inspect_err(|e| warn!(error = ?e, "message id not cleared in the database"))
+    .inspect_err(|e| error!(error = ?e, "message id not cleared in the database"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

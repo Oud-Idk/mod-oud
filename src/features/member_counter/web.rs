@@ -10,7 +10,7 @@ use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -134,7 +134,7 @@ async fn get_or_create_counter_category(
         &guild_settings,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "guild settings save failed"))
+    .inspect_err(|e| error!(error = %e, %guild_id, "guild settings save failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

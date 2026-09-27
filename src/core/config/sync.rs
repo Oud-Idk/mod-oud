@@ -97,7 +97,7 @@ pub fn sync_configs(
                 tracing::info!("subscribed to config_updates channel, listener active");
             }
             Err(e) => {
-                tracing::warn!(error = ?e, "config_updates subscription failed");
+                tracing::error!(error = ?e, "config_updates subscription failed");
             }
         }
     });

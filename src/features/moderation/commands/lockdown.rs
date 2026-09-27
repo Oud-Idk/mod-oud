@@ -3,7 +3,7 @@ use crate::core::config::state::{Context, Error};
 use crate::features::moderation::{ActionType, audit, lockdown, log_moderation_action};
 use crate::shared::command_context::GuildMetadata;
 use serenity::all::{GuildChannel, GuildId, RoleId};
-use tracing::trace;
+use tracing::debug;
 
 /// Lock down a text channel, preventing members from sending messages.
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
@@ -209,7 +209,7 @@ pub async fn log_action(
         None,
     )
     .await?;
-    trace!(
+    debug!(
         %guild_id,
         target_id,
         action = ?action,

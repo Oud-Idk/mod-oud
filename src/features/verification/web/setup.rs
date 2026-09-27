@@ -14,7 +14,7 @@ use serenity::all::{
     Permissions, Role, RoleId,
 };
 use std::sync::Arc;
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 #[serde_as]
 #[derive(Serialize, Clone, Debug)]
@@ -311,7 +311,7 @@ async fn grant_role_to_existing_members(http: Arc<Http>, guild_id: GuildId, role
                             "verification role not added to existing member"
                         );
                     } else {
-                        trace!(
+                        debug!(
                             user_id = member.user.id.get(),
                             "verification role added to existing member"
                         );

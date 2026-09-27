@@ -4,7 +4,7 @@ use fred::interfaces::KeysInterface;
 use fred::prelude::{Expiration, SetOptions};
 use humantime::{FormattedDuration, format_duration};
 use std::time::Duration;
-use tracing::{error, warn};
+use tracing::warn;
 
 /// Claims a cooldown slot.
 ///
@@ -31,7 +31,7 @@ pub async fn check_cooldown(
         )
         .await
         .inspect_err(|e| {
-            error!(
+            warn!(
                 error = ?e,
                 cooldown_key = key,
                 cooldown_secs = secs,

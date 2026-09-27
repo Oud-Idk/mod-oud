@@ -20,6 +20,16 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{warn, info, debug, instrument};
 
+/// Converts a dashboard-supplied minute count to seconds. The value arrives as JSON, so the
+/// multiply is checked: unchecked it wraps in release, which would put a timeout's expiry in the
+/// past and lift the timeout the moment it was applied.
+fn duration_secs(mins: u64) -> Result<u64, WebError> {
+    mins.checked_mul(60).ok_or_else(|| {
+        debug!(mins, "dashboard duration out of range; rejecting the command");
+        WebError::BadRequest("Duration calculation overflowed".to_string())
+    })
+}
+
 async fn broadcast_report_update(
     pool: &PgPool,
     redis_conn: &Client,
@@ -114,4 +124,28 @@ pub async fn handle_dashboard_command(
 /// Registers the reporting web route for dashboard moderation commands.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new().route("/commands", post(handle_dashboard_command))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::duration_secs;
+
+    /// A minute count whose unchecked multiply wraps to 44 seconds, so a timeout would have
+    /// expired almost as soon as it was applied.
+    const WRAPPING_MINS: u64 = 307_445_734_561_825_861;
+
+    #[test]
+    fn rejects_a_duration_whose_multiply_would_wrap() {
+        assert_eq!(WRAPPING_MINS.wrapping_mul(60), 44);
+        assert!(duration_secs(WRAPPING_MINS).is_err());
+        assert!(duration_secs(u64::MAX).is_err());
+    }
+
+    #[test]
+    fn converts_durations_a_moderator_would_actually_send() {
+        assert_eq!(duration_secs(0).ok(), Some(0));
+        assert_eq!(duration_secs(10).ok(), Some(600));
+        // Discord's longest timeout is 28 days.
+        assert_eq!(duration_secs(28 * 24 * 60).ok(), Some(2_419_200));
+    }
 }

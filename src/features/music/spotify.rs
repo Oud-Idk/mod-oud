@@ -38,7 +38,10 @@ pub async fn resolve_spotify_playlist(
     let playlist_id = url.split("/playlist/").nth(1)?.split('?').next()?;
 
     let Some(token) = spotify_auth.get_token(client).await else {
-        warn!("spotify api token unavailable; check SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET");
+        warn!(
+            op = "resolve_playlist",
+            "spotify api token unavailable; check SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET"
+        );
         return None;
     };
 
@@ -165,7 +168,7 @@ pub async fn resolve_spotify_track(
     };
 
     let Some(token) = spotify_auth.get_token(client).await else {
-        warn!("spotify api token unavailable for track resolution");
+        warn!(op = "resolve_track", "spotify api token unavailable for track resolution");
         return None;
     };
 

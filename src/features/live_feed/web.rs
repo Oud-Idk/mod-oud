@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, error, instrument, warn};
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -41,7 +41,7 @@ pub async fn sse_handler(
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
     // Ticket verification for real-time endpoint (signed ticket system).
     let Some(secret) = state.core.config.internal_api_secret.as_deref() else {
-        warn!(
+        error!(
             fault = "INTERNAL_API_SECRET is not set",
             "SSE verification unavailable"
         );

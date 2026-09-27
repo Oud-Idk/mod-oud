@@ -13,7 +13,7 @@ use serenity::all::{
     Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction,
 };
 use sqlx::PgPool;
-use tracing::{Instrument, debug, error, info, instrument, trace, warn};
+use tracing::{Instrument, debug, error, info, instrument, warn};
 
 /// Deletes linked starboard messages when the original message is removed,
 /// unless the starboard is configured to keep deleted messages.
@@ -116,14 +116,14 @@ async fn handle_starboard_reaction(
         let _enter = span.enter();
 
         if !perms::is_event_allowed(&starboard, reaction, &message, &member, user_id) {
-            trace!("event not allowed under starboard permissions");
+            debug!("event not allowed under starboard permissions");
             continue;
         }
 
         let emojis = &starboard.emojis;
         let emoji_string = reaction.emoji.to_string();
         if !emojis.contains(&emoji_string) {
-            trace!(emoji = %emoji_string, "emoji does not match starboard configured emojis");
+            debug!(emoji = %emoji_string, "emoji does not match starboard configured emojis");
             continue;
         }
 
@@ -260,13 +260,13 @@ async fn debounced_starboard_sync(
             .instrument(ids_span),
         );
 
-        info!(
+        debug!(
             starboard_id = starboard.id,
             message_id = %reaction.message_id,
             "starboard worker spawned under the lock"
         );
     } else {
-        debug!("lock busy, skipping spawn");
+        warn!(lock_key = %lock_key, "lock busy, skipping spawn");
     }
 
     Ok(())

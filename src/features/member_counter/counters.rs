@@ -1,6 +1,6 @@
 use crate::features::member_counter::types::{CounterType, MemberCounterConfig};
 use serenity::all::{Cache, ChannelId, GuildId, Http, RoleId};
-use tracing::{info, trace, warn};
+use tracing::{debug, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct CounterResult {
@@ -90,7 +90,7 @@ pub async fn update_guild_counters(
         if let Some(guild_channel) = current_channel.guild() {
             // ONLY send request to Discord if the channel name has changed (avoids rate limits)
             if guild_channel.name == target_name {
-                trace!(
+                debug!(
                     %guild_id,
                     %channel_id,
                     "channel name is already up to date"

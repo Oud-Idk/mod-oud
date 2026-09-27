@@ -12,7 +12,7 @@ use crate::shared::command_context::GuildMetadata;
 use crate::shared::messages::send_ephemeral;
 use serenity::all::{GetMessages, Member, Message, MessageId, User};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, warn};
 
 /// Kicks a user with an optional specified reason.
 #[poise::command(slash_command, default_member_permissions = "KICK_MEMBERS", guild_only)]
@@ -134,7 +134,7 @@ pub async fn purge(
         .messages(&ctx.serenity_context().http, builder)
         .await?;
 
-    trace!(
+    debug!(
         %channel_id,
         fetched_count = messages.len(),
         "messages retrieved from the channel for purging"
@@ -367,12 +367,7 @@ pub async fn unban(
             ))
             .await?;
 
-            info!(
-                %meta.id,
-                target_id,
-                moderator_id = %ctx.author().id.get(),
-                "user unbanned"
-            );
+            audit::member_unbanned(meta.id, user.id, ctx.author().id, &reason_str);
         }
         Err(err) => {
             warn!(error = ?err, target_id, "unban via discord failed");

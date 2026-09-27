@@ -3,7 +3,7 @@ use crate::shared::command_context::GuildMetadata;
 use anyhow::{Context as _, Result, bail};
 use serenity::all::{Member, Role, RoleId, UserId};
 use std::collections::HashMap;
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 /// Runs pre-flight permission checks (self-moderation, role hierarchy) before
 /// a moderation action and returns the guild metadata on success.
@@ -33,7 +33,7 @@ pub async fn pre_flight_check(
         return Ok(None);
     }
 
-    trace!(target_id, "moderation pre-flight checks completed");
+    debug!(target_id, "moderation pre-flight checks completed");
     Ok(Some(GuildMetadata::extract(&ctx)?))
 }
 
@@ -130,7 +130,7 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
     let target_pos = get_highest_role_pos(&target_member, &roles);
     let bot_pos = get_highest_role_pos(&bot_member, &roles);
 
-    trace!(
+    debug!(
         %target_id,
         executor_pos, target_pos, bot_pos, "highest role positions compared"
     );

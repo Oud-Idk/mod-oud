@@ -9,7 +9,7 @@ use serde::Serialize;
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, GuildId, ReactionType, UserId};
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 #[serde_as]
 #[derive(Serialize)]
@@ -89,7 +89,7 @@ pub async fn handle_send_giveaway_message(
 
     database::update_giveaway_message_id(&state.core.db, config_id, message.id)
         .await
-        .inspect_err(|e| warn!(error = ?e, "giveaway message id not updated in the database"))
+        .inspect_err(|e| error!(error = ?e, "giveaway message id not updated in the database"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
