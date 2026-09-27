@@ -7,7 +7,7 @@ use crate::features::warning::issue_warning;
 use axum::http::StatusCode;
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{error, info, instrument};
+use tracing::{info, instrument, warn};
 
 pub struct WarnContext<'a> {
     pub mod_id: Option<UserId>,
@@ -46,7 +46,7 @@ pub async fn handle_warn(
         ctx.target_username,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "execute warning issuance"))
+    .inspect_err(|e| warn!(error = %e, "execute warning issuance"))
     .map_err(|_e| WebError::Internal)?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserWarned).await?;

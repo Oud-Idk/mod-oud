@@ -7,7 +7,7 @@ use songbird::input::AuxMetadata;
 use sqlx::PgPool;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{error, trace, warn};
+use tracing::{trace, warn};
 use uuid::Uuid;
 
 /// How long play events are kept before being pruned (rolling window).
@@ -211,7 +211,7 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                 Ok(Some(guard)) => {
                     trace!("Music stats prune lock acquired; pruning old play events");
                     if let Err(e) = prune_play_events(&db).await {
-                        error!(error = ?e, "pruning old music play events");
+                        warn!(error = ?e, "pruning old music play events");
                     }
                     match guard.release().await {
                         Ok(true) => trace!("Music stats prune lock released"),
@@ -219,7 +219,7 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                             "Attempted to release music stats prune lock, but we no longer owned it"
                         ),
                         Err(e) => {
-                            error!(error = ?e, "release music stats prune lock due to a Redis error");
+                            warn!(error = ?e, "release music stats prune lock due to a Redis error");
                         }
                     }
                 }
@@ -227,7 +227,7 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                     trace!("Music stats prune lock already held by another worker; skipping");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate music stats prune lock");
+                    warn!(error = ?e, "coordinate music stats prune lock");
                 }
             }
         }

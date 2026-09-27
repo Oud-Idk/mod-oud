@@ -18,7 +18,7 @@ use error::WebError;
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{debug, error, info, instrument};
+use tracing::{warn, info, debug, instrument};
 
 async fn broadcast_report_update(
     pool: &PgPool,
@@ -50,7 +50,7 @@ pub async fn handle_dashboard_command(
                         "Rejected report lookup for the requested report id"
                     );
                 } else {
-                    error!(
+                    warn!(
                         status = %status,
                         error = %err_msg,
                         "fetch target report details from database"
@@ -103,7 +103,7 @@ pub async fn handle_dashboard_command(
     }
 
     if let Err(e) = broadcast_report_update(&state.core.db, &redis_conn, cmd.report_id).await {
-        error!(error = ?e, "broadcast report update after moderation action");
+        warn!(error = ?e, "broadcast report update after moderation action");
         return Err(WebError::Internal);
     }
 

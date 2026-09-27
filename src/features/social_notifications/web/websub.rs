@@ -86,7 +86,7 @@ pub async fn websub_notify(
 
     let subscribed_channels = get_subscribed_channels(&state.core.db, feed_id)
         .await
-        .inspect_err(|e| error!(%feed_id, error = ?e, "failed to get subscribed channels"))
+        .inspect_err(|e| warn!(%feed_id, error = ?e, "failed to get subscribed channels"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -100,7 +100,7 @@ pub async fn websub_notify(
     for channel in subscribed_channels {
         let msg = CreateMessage::new().embed(embed.clone());
         if let Err(e) = channel.send_message(&state.serenity_http, msg).await {
-            error!(error = ?e, %feed_id, %channel, "deliver WebSub entry to subscribed channel");
+            warn!(error = ?e, %feed_id, %channel, "deliver WebSub entry to subscribed channel");
         }
     }
 
@@ -138,7 +138,7 @@ pub async fn websub_verify(
     let feed_exists = database::check_if_feed_exists(feed_id, &state.core.db).await;
 
     let feed_exists = feed_exists
-        .inspect_err(|e| error!(error = ?e, "Failed checking feed existence"))
+        .inspect_err(|e| warn!(error = ?e, "Failed checking feed existence"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"))?
         .unwrap_or(false);
 

@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, MessageId};
 use std::sync::Arc;
-use tracing::{debug, error, instrument};
+use tracing::{debug, instrument, warn};
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -37,7 +37,7 @@ pub async fn handle_delete_ticket_message(
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
-            error!(error = ?e, "delete message via Discord API");
+            warn!(error = ?e, "delete message via Discord API");
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error.".to_string(),

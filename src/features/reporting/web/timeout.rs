@@ -7,7 +7,7 @@ use crate::features::reporting::web::user_lookup::{resolve_moderator_user, resol
 use axum::http::StatusCode;
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{debug, error, info, instrument};
+use tracing::{error, warn, info, debug, instrument};
 
 #[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, user_id = %user_id
 ))]
@@ -50,7 +50,7 @@ pub async fn handle_timeout(
     let timestamp = poise::serenity_prelude::Timestamp::from_unix_timestamp(
         i64::try_from(future_secs).unwrap_or(i64::MAX),
     )
-    .inspect_err(|e| error!(error = %e, "construct valid serenity Timestamp"))
+    .inspect_err(|e| warn!(error = %e, "construct valid serenity Timestamp"))
     .map_err(|_e| WebError::Internal)?;
 
     let duration = std::time::Duration::from_secs(duration_mins * 60);
@@ -68,7 +68,7 @@ pub async fn handle_timeout(
         timestamp,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "issue mute inside core utilities"))
+    .inspect_err(|e| warn!(error = %e, "issue mute inside core utilities"))
     .map_err(|_e| WebError::Internal)?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserTimedOut).await?;

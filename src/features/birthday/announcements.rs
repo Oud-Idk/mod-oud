@@ -8,7 +8,7 @@ use serenity::all::{ChannelId, Context, GuildId};
 use serenity::model::channel::Message;
 use serenity::model::id::MessageId;
 use sqlx::PgPool;
-use tracing::error;
+use tracing::{error, warn};
 
 pub async fn send_birthday_message(
     ctx: &Context,
@@ -94,7 +94,7 @@ pub async fn process_celebrant_roles(
             .add_member_role(guild_id, user_id, role_id, Some("Birthday Role"))
             .await
         {
-            error!(
+            warn!(
                 error = ?e,
                 %guild_id,
                 %user_id,

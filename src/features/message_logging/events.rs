@@ -320,11 +320,11 @@ pub async fn log_message_update(
                 features::message_logging::cache::publish_edit_event(redis, payload_json).await;
 
             if let Err(e) = pub_res {
-                error!(error = %e, "publish update event payload to Redis channel");
+                warn!(error = %e, "publish update event payload to Redis channel");
             }
         }
         Err(e) => {
-            error!(error = %e, "serialize updated message payload for Redis publication");
+            warn!(error = %e, "serialize updated message payload for Redis publication");
         }
     }
 

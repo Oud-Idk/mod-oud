@@ -176,7 +176,7 @@ pub async fn apply_discord_actions(
                     )
                     .await
                 {
-                    error!(
+                    warn!(
                         error = ?e,
                         error_chain = %format!("{e:#}"),
                         %guild_id,

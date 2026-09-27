@@ -7,7 +7,7 @@ use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface, PubsubInterface};
 use fred::prelude::Expiration;
 use serenity::all::{ChannelId, Message, MessageId};
-use tracing::{debug, error, instrument};
+use tracing::{debug, instrument, warn};
 
 /// Spawns a background task to cache a message in Redis when message logging is enabled.
 ///
@@ -39,7 +39,7 @@ pub async fn spawn_cache_message_in_redis(data: &BotData, msg: &Message) -> Resu
 
     tokio::spawn(async move {
         if let Err(e) = cache_message_in_redis(&redis_conn, &msg_clone).await {
-            error!(message_id = %msg_clone.id, error = %e, "failed to cache message in redis");
+            warn!(message_id = %msg_clone.id, error = %e, "failed to cache message in redis");
         }
     });
 
@@ -66,7 +66,7 @@ pub async fn cache_message_in_redis(redis: &Client, msg: &Message) -> Result<(),
     let serialized = match serde_json::to_string(&cached) {
         Ok(s) => s,
         Err(e) => {
-            error!(error = %e, "serialize message for Redis caching");
+            warn!(error = %e, "serialize message for Redis caching");
             return Err(e.into());
         }
     };
@@ -103,7 +103,7 @@ pub async fn fetch_dist_cached_message(
         let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
             Ok(c) => c,
             Err(e) => {
-                error!(error = %e, key = %key, "deserialize cached message JSON");
+                warn!(error = %e, key = %key, "deserialize cached message JSON");
                 return Err(e.into());
             }
         };
@@ -145,7 +145,7 @@ pub async fn fetch_dist_edit_details(
         let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
             Ok(c) => c,
             Err(e) => {
-                error!(error = %e, key = %key, "deserialize cached message JSON during edit");
+                warn!(error = %e, key = %key, "deserialize cached message JSON during edit");
                 return Err(e.into());
             }
         };
@@ -161,7 +161,7 @@ pub async fn fetch_dist_edit_details(
             let serialized = match serde_json::to_string(&updated) {
                 Ok(s) => s,
                 Err(e) => {
-                    error!(error = %e, "serialize updated message details");
+                    warn!(error = %e, "serialize updated message details");
                     return Err(e.into());
                 }
             };

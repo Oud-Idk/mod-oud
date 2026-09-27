@@ -59,17 +59,17 @@ async fn run_feed_polling_worker(
                 trace!("Lock acquired; polling due RSS feeds");
 
                 if let Err(e) = poll_due_feeds(&db, &http, &http_client).await {
-                    error!(error = ?e, "polling due rss feeds");
+                    warn!(error = ?e, "polling due rss feeds");
                 }
 
                 match guard.release().await {
                     Ok(true) => trace!("Polling lock released"),
                     Ok(false) => warn!("Polling lock lost during execution"),
-                    Err(e) => error!(error = ?e, "release polling lock"),
+                    Err(e) => warn!(error = ?e, "release polling lock"),
                 }
             }
             Ok(None) => trace!("Polling lock held by another instance; skipping"),
-            Err(e) => error!(error = ?e, "acquire feed polling lock"),
+            Err(e) => warn!(error = ?e, "acquire feed polling lock"),
         }
     }
 }
@@ -118,7 +118,7 @@ async fn run_websub_renewal_worker(
                 trace!("Lock acquired; renewing expiring WebSub leases");
 
                 if let Err(e) = renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()).await {
-                    error!(error = ?e, "renewing WebSub leases");
+                    warn!(error = ?e, "renewing WebSub leases");
                 }
 
                 // The poller logs release failures; a renewal that cannot hand
@@ -126,11 +126,11 @@ async fn run_websub_renewal_worker(
                 match guard.release().await {
                     Ok(true) => trace!("WebSub renewal lock released"),
                     Ok(false) => warn!("WebSub renewal lock lost during execution"),
-                    Err(e) => error!(error = ?e, "release WebSub renewal lock"),
+                    Err(e) => warn!(error = ?e, "release WebSub renewal lock"),
                 }
             }
             Ok(None) => trace!("WebSub renewal lock held by another instance; skipping"),
-            Err(e) => error!(error = ?e, "acquire WebSub renewal lock"),
+            Err(e) => warn!(error = ?e, "acquire WebSub renewal lock"),
         }
     }
 }
@@ -229,7 +229,7 @@ async fn dispatch_entry_to_discord(
     for channel in channels {
         let msg = CreateMessage::new().embed(embed.clone());
         if let Err(e) = channel.send_message(serenity_http, msg).await {
-            error!(
+            warn!(
                 error = ?e,
                 feed_id = %feed_id,
                 channel_id = %channel,
@@ -304,7 +304,7 @@ pub async fn renew_expiring_leases(
         if let Err(e) =
             request_hub_subscription(reqwest_client, &hub_url, &topic, &callback_url, &secret).await
         {
-            error!(
+            warn!(
                 error = ?e,
                 feed_id = %feed.id,
                 hub = %hub_url,

@@ -217,7 +217,7 @@ async fn apply_guild_mitigations(
                 let data = (*data).clone();
                 tokio::spawn(async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        error!(error = ?e, %guild_id, "lock server in background task");
+                        warn!(error = ?e, %guild_id, "lock server in background task");
                     }
                 });
             }
@@ -241,7 +241,7 @@ async fn apply_guild_mitigations(
                 let message = CreateMessage::new().content(alert_message);
 
                 if let Err(e) = channel.send_message(&ctx.http, message).await {
-                    error!(error = %e, channel_id, %guild_id, "send raid alert message");
+                    warn!(error = %e, channel_id, %guild_id, "send raid alert message");
                 }
             }
             _ => {}

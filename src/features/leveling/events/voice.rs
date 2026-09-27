@@ -7,7 +7,7 @@ use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserL
 use anyhow::Result;
 use poise::serenity_prelude as serenity;
 use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
-use tracing::{debug, error, trace};
+use tracing::{warn, debug, trace};
 
 /// Tracks voice sessions and awards voice XP when a user leaves an eligible channel.
 ///
@@ -303,7 +303,7 @@ async fn handle_level_up(
     )
     .await
     {
-        error!(
+        warn!(
             error = ?e,
             guild_id = %event.guild_id,
             user_id = %event.user_level.user_id,

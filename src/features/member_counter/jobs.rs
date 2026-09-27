@@ -12,7 +12,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
-use tracing::{error, info, trace, warn};
+use tracing::{info, trace, warn};
 
 /// Starts the member counter background task loop.
 pub fn start_member_counter_job(
@@ -35,7 +35,7 @@ pub fn start_member_counter_job(
                 process_all_member_counters(&http, &serenity_cache, &db, &redis, &cache, &worker_id)
                     .await
             {
-                error!(error = ?e, "processing member counters");
+                warn!(error = ?e, "processing member counters");
             }
         }
     });

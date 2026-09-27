@@ -5,7 +5,7 @@ use crate::shared::locking::acquire_lock;
 use chrono::{DateTime, Utc};
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -146,7 +146,7 @@ impl DynamicRaidDetector {
         let stats_res = self.recompute_stats(guild_id, now, &stats_cache_key).await;
 
         if let Err(ref e) = stats_res {
-            error!(%guild_id, error = %e, "recompute stats");
+            warn!(%guild_id, error = %e, "recompute stats");
         }
 
         if let Err(e) = lock_guard.release().await {

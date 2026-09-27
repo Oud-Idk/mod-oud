@@ -7,7 +7,7 @@ use axum::http::StatusCode;
 use serenity::all::{ChannelId, CreateButton, MessageId};
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{error, warn};
+use tracing::warn;
 
 pub fn parse_config_id(config_id_str: &str) -> Result<i64, (StatusCode, String)> {
     config_id_str.parse::<i64>().map_err(|_| {
@@ -60,7 +60,7 @@ pub fn build_custom_msg(
     embed: &DiscordEmbed,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
     build_custom_message(format, content, embed, std::string::ToString::to_string).map_err(|e| {
-        error!(error = ?e, "compile reaction roles message layout");
+        warn!(error = ?e, "compile reaction roles message layout");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal Server Error".to_string(),

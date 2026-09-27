@@ -10,7 +10,7 @@ use crate::features::leveling::rules::get_multiplier;
 use crate::features::leveling::types::{LevelingConfig, NotificationTarget};
 use crate::features::leveling::{cache, keys, notifications, rewards, rules};
 use serenity::all::{Context, Message, RoleId};
-use tracing::{debug, info, trace, warn};
+use tracing::{warn, debug, trace};
 
 /// Grants text chat XP for a message, applying cooldowns, multipliers, and level-ups.
 ///
@@ -112,7 +112,7 @@ pub async fn handle_text_leveling(
     let leveled_up = process_level_ups(&mut user_level, leveling_config.level_cap);
 
     if leveled_up {
-        info!(
+        debug!(
             %guild_id,
             %author_id,
             old_level = previous_level,

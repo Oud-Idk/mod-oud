@@ -4,7 +4,7 @@ use crate::features::reporting::types::{DashboardCommand, ReportUpdate};
 use crate::features::reporting::web::error::WebError;
 use axum::http::StatusCode;
 use serenity::all::{ChannelId, MessageId};
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 
 #[instrument(skip(state), fields(report_id = cmd.report_id))]
 pub async fn handle_delete_message(
@@ -31,12 +31,12 @@ pub async fn handle_delete_message(
             if http_err.status_code().map(|s| s.as_u16()) == Some(404) {
                 warn!("Message already deleted (404) returned from Discord API");
             } else {
-                error!(error = %http_err, "delete message via HTTP");
+                warn!(error = %http_err, "delete message via HTTP");
                 return Err(WebError::BadGateway("Message already deleted.".to_string()));
             }
         }
         Err(e) => {
-            error!(error = %e, "Unexpected error deleting message");
+            warn!(error = %e, "Unexpected error deleting message");
             return Err(WebError::Internal);
         }
     }

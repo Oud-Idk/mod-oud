@@ -6,7 +6,7 @@ use songbird::{Call, Event, EventContext, EventHandler as VoiceEventHandler, Tra
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, mpsc};
-use tracing::{debug, error};
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::features::music::actor::{GuildCommand, Requester};
@@ -81,7 +81,7 @@ pub async fn fetch_metadata(services: PlaybackServices<'_>, query: &str) -> Resu
             Ok(metadata)
         }
         Err(e) => {
-            error!(guild_id = %services.guild_id, error = ?e, "fetching track metadata");
+            warn!(guild_id = %services.guild_id, error = ?e, "fetching track metadata");
             Err(e.into())
         }
     }

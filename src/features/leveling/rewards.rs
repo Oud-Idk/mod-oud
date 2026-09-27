@@ -6,7 +6,7 @@ use crate::features::leveling::reward::{
 use crate::features::leveling::types::LevelReward;
 use serenity::all::{Context, GuildId, UserId};
 use sqlx::PgPool;
-use tracing::{debug, info, instrument};
+use tracing::{debug, instrument};
 
 /// Main entry point to evaluate and update level-based rewards.
 #[instrument(
@@ -51,7 +51,7 @@ pub async fn apply_level_rewards(
     debug!("Fetching current roles for member");
     let member_roles = fetch_member_roles(ctx, guild_id, user_id).await;
 
-    info!(
+    debug!(
         %guild_id,
         %user_id,
         adding = ?roles_to_add,

@@ -21,7 +21,7 @@ use fred::clients::Client;
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
 use sqlx::PgPool;
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, trace, warn};
 
 /// Configuration settings for a Discord server (guild).
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -150,7 +150,7 @@ fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> Guil
             s
         }
         Err(err) => {
-            error!(
+            warn!(
                 error = %err.inner(),
                 field_path = %err.path(),
                 %guild_id,

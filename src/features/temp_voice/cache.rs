@@ -4,7 +4,7 @@ use fred::clients::Client;
 use fred::interfaces::{HashesInterface, KeysInterface};
 use fred::prelude::Expiration;
 use serenity::all::{ChannelId, GuildId, UserId};
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
 pub async fn get_owned_temp_vc(
     data: &BotData,
@@ -214,7 +214,7 @@ pub async fn commit_transfer_to_redis(
     pipe.del::<(), _>(&pending_key).await?;
 
     if let Err(e) = pipe.all::<Vec<i64>>().await {
-        error!(%guild_id, %channel_id, error = ?e, "failed to execute redis pipeline");
+        warn!(%guild_id, %channel_id, error = ?e, "failed to execute redis pipeline");
         return Err(e.into());
     }
 

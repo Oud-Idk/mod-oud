@@ -10,7 +10,7 @@ use crate::shared::messages::send_ephemeral;
 use anyhow::Context as _;
 use poise::CreateReply;
 use serenity::all::CreateEmbed;
-use tracing::error;
+use tracing::{error, warn};
 
 /// List all custom commands available in this server
 #[poise::command(slash_command, guild_only)]
@@ -22,7 +22,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     let commands = match database::get_custom_command(pool, guild_id).await {
         Ok(cmds) => cmds,
         Err(e) => {
-            error!(error = ?e, %guild_id, "fetch custom commands");
+            warn!(error = ?e, %guild_id, "fetch custom commands");
             ctx.say("Failed to fetch custom commands from database.")
                 .await?;
             return Ok(());
@@ -39,7 +39,7 @@ pub async fn custom_commands(ctx: Context<'_>) -> Result<(), Error> {
     {
         Ok(settings) => resolve_prefix(&settings).to_string(),
         Err(e) => {
-            error!(error = ?e, %guild_id, "load prefix for list");
+            warn!(error = ?e, %guild_id, "load prefix for list");
             DEFAULT_PREFIX.to_string()
         }
     };

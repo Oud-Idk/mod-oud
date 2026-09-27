@@ -5,7 +5,7 @@ use crate::features::verification::CaptchaType;
 use serde::{Deserialize, Serialize};
 use serenity::all::Context;
 use serenity::all::{EditRole, GuildId, Permissions, RoleId};
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreRaidState {
@@ -111,7 +111,7 @@ pub async fn restore_preraid_state(
         .edit_role(&ctx.http, everyone_role_id, role_builder)
         .await
     {
-        error!(
+        warn!(
             error = ?e,
             %guild_id,
             "restore @everyone role permissions"
@@ -135,7 +135,7 @@ pub async fn restore_preraid_state(
 
     // Delete persisted state from Postgres
     if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
-        error!(error = ?e, %guild_id, "delete active raid state from database");
+        warn!(error = ?e, %guild_id, "delete active raid state from database");
     }
 
     info!(%guild_id, "claimed and restored pre-raid state");

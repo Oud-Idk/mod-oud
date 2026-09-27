@@ -20,7 +20,7 @@ use serde_with::{DisplayFromStr, serde_as};
 use songbird::Songbird;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -119,7 +119,7 @@ pub fn start_music_web_control_worker(
             let reply = match serde_json::to_string(&result) {
                 Ok(reply) => reply,
                 Err(e) => {
-                    error!(error = %e, "serialize music command result");
+                    warn!(error = %e, "serialize music command result");
                     return Ok(());
                 }
             };
@@ -143,7 +143,7 @@ pub fn start_music_web_control_worker(
     tokio::spawn(async move {
         match subscriber_client.subscribe(keys::commands_channel()).await {
             Ok(()) => debug!("Subscribed to music web commands channel"),
-            Err(e) => error!(error = ?e, "subscribe to music web commands"),
+            Err(e) => warn!(error = ?e, "subscribe to music web commands"),
         }
     });
 }

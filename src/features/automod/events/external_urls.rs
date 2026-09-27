@@ -7,7 +7,7 @@ use crate::features::automod::types::{
 use crate::shared::messages;
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, instrument, trace, warn};
 
 pub fn filter_external_urls<'a>(
     message: &'a Message,
@@ -184,7 +184,7 @@ pub async fn resolve_safe_browsing<'a>(
             FilterVerdict::Pass
         }
         Err(e) => {
-            error!(
+            warn!(
                 error = %e,
                 "Safe Browsing API validation request failed; falling back to Pass"
             );

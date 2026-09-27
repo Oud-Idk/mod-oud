@@ -11,7 +11,7 @@ use crate::core::config::state::Error;
 use reqwest::{RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use std::time::Instant;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
 /// Query-string parameter names that carry a credential.
 const SECRET_QUERY_PARAMS: &[&str] = &[
@@ -80,7 +80,7 @@ pub async fn get_json<T: DeserializeOwned>(
     let safe_url = redact_url(url, path_secrets);
 
     let response = request.send().await.map_err(|e| {
-        error!(
+        warn!(
             provider,
             op,
             url = %safe_url,
@@ -105,7 +105,7 @@ pub async fn get_json<T: DeserializeOwned>(
                 "Upstream provider rate limited us, usually quota exhaustion"
             );
         } else {
-            error!(
+            warn!(
                 provider,
                 op,
                 reason = status.as_u16(),
@@ -119,7 +119,7 @@ pub async fn get_json<T: DeserializeOwned>(
     }
 
     let payload = response.json::<T>().await.map_err(|e| {
-        error!(
+        warn!(
             provider,
             op,
             status = status.as_u16(),

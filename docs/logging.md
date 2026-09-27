@@ -269,9 +269,9 @@ a convention, and it would not fix a single one of the problems above.
 
 ## Migration
 
-Current state, for sizing the work: 1293 log calls (`debug` 394, `warn` 300, `error` 211,
-`trace` 213, `info` 175), 0 of them interpolating into the message string, 2 starting with
-"Failed to", 0 "Successfully", 0 trailing periods, 796 still starting with a capital, 84
+Current state, for sizing the work: 1294 log calls (`warn` 440, `debug` 413, `trace` 213,
+`info` 156, `error` 72), 0 of them interpolating into the message string, 0 starting with
+"Failed to", 0 "Successfully", 0 trailing periods, 790 still starting with a capital, 84
 `inspect_err` sites, 100 `#[instrument]` attributes, 5 explicit spans, and 43 `tokio::spawn`
 calls of which 1 goes through `task::spawn`.
 
@@ -279,13 +279,14 @@ In severity order, so each step is shippable on its own:
 
 1. **Done.** `shared/logger.rs` with `init` and `task::spawn`, the `process` root span, and the
    per-request `http_request` span in `web/router.rs`.
-2. **Half done.** Every `error!` now names a cause, so the check is satisfied. The re-levelling is
-   not: 211 `error!` calls are still `error!` that are really expected Discord or Redis
-   outcomes. Largest remaining win, and mechanical. Start with `temp_voice/service.rs`,
-   `starboard/events.rs`, `message_logging/events.rs`, `moderation/`.
-3. **Half done.** The two files that were over the per-file `info!` budget are under it, so the
-   check is satisfied. The broader volume pass is not: `reaction_roles/events.rs`, `leveling/`,
-   `custom_commands/`, `reporting/web.rs` still log per-event at `info!`.
+2. **Done.** 140 of the 212 `error!` calls were expected Discord or Redis outcomes and are now
+   `warn!`. The 72 that remain are the ones a human has to fix: the boundaries in
+   `core/error.rs`, the `fault` cases, Postgres writes to authoritative tables, audit-trail
+   inserts, and the raid rollback and snapshot paths, where a failure leaves a guild stuck in
+   raid mode.
+3. **Done.** Per-event `info!` is now `debug!` in `reaction_roles/events.rs`, `leveling/`,
+   `custom_commands/`. `reporting/web.rs` keeps `info!`, because a dashboard-issued ban or warn
+   is an action taken.
 4. **To do.** Promote audit-worthy `debug!` to `info!` through a per-feature `audit.rs`:
    `moderation`, `verification`, `tickets`, `temp_voice` transfers.
 5. **Done.** Narration stripped and every interpolated message turned into fields.
@@ -293,7 +294,7 @@ In severity order, so each step is shippable on its own:
    that are no longer needed.
 7. **Done.** The drain and stop lines.
 
-Two pieces of the line-shape rule are still outstanding: 796 messages start with a capital, and
+Two pieces of the line-shape rule are still outstanding: 790 messages start with a capital, and
 the fallback taken is still often named in the message rather than in a field. Both are
 cosmetic, and nothing in the check enforces either.
 
@@ -313,7 +314,10 @@ $ scripts/check-logging.sh
 logging checks passed
 ```
 
-Four rules, all currently at zero, and gating in CI:
+Four rules, all currently at zero, and gating in CI. The rules are a floor: they cannot tell
+whether a level is right, only whether the shape is. Step 2 in particular is a judgement the
+check will never revisit, so a re-level that undoes one of the 72 has to be argued for rather
+than waited for a red build.
 
 | Rule | Finds | Notes |
 |---|---|---|

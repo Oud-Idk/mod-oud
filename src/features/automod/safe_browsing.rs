@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use prost::Message;
 use std::time::Duration;
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, instrument, trace, warn};
 
 /// A client for interacting with the Google Safe Browsing API (v5).
 #[derive(Debug, Clone)]
@@ -60,7 +60,7 @@ impl SafeBrowsingClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unreadable body".to_string());
-            error!(
+            warn!(
                 reason = status.as_u16(),
                 error_body = %err_text,
                 "Safe Browsing API returned an error status"
@@ -73,7 +73,7 @@ impl SafeBrowsingClient {
 
         trace!("Decoding Protobuf response payload");
         let search_response = SearchUrlsResponse::decode(bytes).map_err(|e| {
-            error!(error = %e, "deserialize Safe Browsing Protobuf response");
+            warn!(error = %e, "deserialize Safe Browsing Protobuf response");
             e
         })?;
 

@@ -6,7 +6,7 @@ use futures_util::StreamExt;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Duration;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{warn, info, debug, trace, instrument};
 
 /// Spawns a background worker that periodically flushes pending user levels from Redis to the database.
 pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
@@ -26,20 +26,20 @@ pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
                     trace!("Lock acquired; starting pending level flush");
 
                     if let Err(e) = flush_pending_levels(&db_pool, &redis_client).await {
-                        error!(error = ?e, "flushing levels to database");
+                        warn!(error = ?e, "flushing levels to database");
                     }
 
                     match guard.release().await {
                         Ok(true) => trace!("Lock released"),
                         Ok(false) => warn!("Attempted to release lock, but we no longer owned it"),
-                        Err(e) => error!(error = ?e, "release lock due to a Redis error"),
+                        Err(e) => warn!(error = ?e, "release lock due to a Redis error"),
                     }
                 }
                 Ok(None) => {
                     trace!("Lock already held by another worker; skipping this iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate Redis lock for level flushing");
+                    warn!(error = ?e, "coordinate Redis lock for level flushing");
                 }
             }
         }
@@ -156,7 +156,7 @@ async fn flush_pending_levels(
     }
 
     let guilds_count = dirty_guilds.len();
-    info!(guilds_count, "Flushing levels for dirty guilds");
+    debug!(guilds_count, "Flushing levels for dirty guilds");
 
     let flush_futures = dirty_guilds.into_iter().map(|guild_id_str| {
         let redis_clone = redis.clone();
@@ -164,7 +164,7 @@ async fn flush_pending_levels(
 
         async move {
             if let Err(e) = flush_guild(&guild_id_str, &redis_clone, db_pool).await {
-                error!(%guild_id_str, error = ?e, "flush levels for guild");
+                warn!(%guild_id_str, error = ?e, "flush levels for guild");
             }
         }
     });

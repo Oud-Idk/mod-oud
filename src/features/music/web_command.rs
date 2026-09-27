@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::oneshot;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 /// How long the web server waits for an owning bot instance to answer.
@@ -219,7 +219,7 @@ impl WebCommandBus {
                 .await
             {
                 Ok(()) => debug!("Subscribed to music web reply channel"),
-                Err(e) => error!(error = ?e, "subscribe to music web reply channel"),
+                Err(e) => warn!(error = ?e, "subscribe to music web reply channel"),
             }
         });
 

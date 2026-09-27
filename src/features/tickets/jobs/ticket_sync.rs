@@ -6,7 +6,7 @@ use fred::types::scan::Scanner;
 use futures_util::{StreamExt, pin_mut};
 use moka::future::Cache;
 use serenity::all::ChannelId;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 #[instrument(skip(redis), fields(set_key = %set_key))]
 pub async fn scan_all_set_members<T>(
@@ -155,7 +155,7 @@ pub fn sync_tickets(
         async move {
             info!(server = ?server, "reconnected to redis server, re-hydrating active tickets");
             if let Err(e) = hydrate_active_tickets(&redis, &cache).await {
-                error!(error = ?e, "re-hydrate tickets on reconnect");
+                warn!(error = ?e, "re-hydrate tickets on reconnect");
             }
             Ok(())
         }
@@ -167,7 +167,7 @@ pub fn sync_tickets(
     tokio::spawn(async move {
         debug!("Performing initial ticket cache hydration on startup");
         if let Err(e) = hydrate_active_tickets(&redis_clone_startup, &cache_clone_startup).await {
-            error!(error = ?e, "initially hydrate active tickets on startup");
+            warn!(error = ?e, "initially hydrate active tickets on startup");
         }
 
         debug!("Subscribing to 'ticket_updates' pub/sub channel");
@@ -181,7 +181,7 @@ pub fn sync_tickets(
                 );
             }
             Err(e) => {
-                error!(error = ?e, "failed to subscribe to ticket_updates");
+                warn!(error = ?e, "failed to subscribe to ticket_updates");
             }
         }
     });

@@ -6,7 +6,7 @@ use futures_util::StreamExt;
 use poise::serenity_prelude as serenity;
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 const fn is_unknown_ban_error(err: &serenity::Error) -> bool {
     if let serenity::Error::Http(serenity::HttpError::UnsuccessfulRequest(resp)) = err {
@@ -33,7 +33,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                 Ok(Some(guard)) => {
                     trace!("Acquired lock; processing expired temp bans");
                     if let Err(e) = process_expired_temp_bans(&db_pool, &http, now).await {
-                        error!(error = ?e, "processing expired temp bans");
+                        warn!(error = ?e, "processing expired temp bans");
                     }
 
                     // Release lock
@@ -43,7 +43,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                             warn!("Attempted to release temp ban lock, but ownership was lost");
                         }
                         Err(e) => {
-                            error!(error = ?e, "release temp ban lock due to Redis error");
+                            warn!(error = ?e, "release temp ban lock due to Redis error");
                         }
                     }
                 }
@@ -51,7 +51,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                     trace!("Lock busy; skipping iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate Redis lock for temp bans");
+                    warn!(error = ?e, "coordinate Redis lock for temp bans");
                 }
             }
         }
@@ -102,7 +102,7 @@ async fn process_expired_temp_bans(
                         );
                         Ok(record.id)
                     } else {
-                        error!(
+                        warn!(
                             %guild_id,
                             user_id = %user_id,
                             ban_id = record.id,

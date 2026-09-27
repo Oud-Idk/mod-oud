@@ -18,7 +18,7 @@ pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
             let is_active: bool = match cache::check_raid_active(&data.core.redis, guild_id).await {
                 Ok(active) => active,
                 Err(e) => {
-                    error!(error = ?e, "check raid status in Redis");
+                    warn!(error = ?e, "check raid status in Redis");
                     continue;
                 }
             };
@@ -50,7 +50,7 @@ pub async fn handle_raid_end(
 
     // Delete persisted active raid state from Postgres
     if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
-        error!(error = ?e, %guild_id, "delete active raid state from database");
+        warn!(error = ?e, %guild_id, "delete active raid state from database");
     }
 
     // Log the resolve event
@@ -90,7 +90,7 @@ async fn revert_actions(
                 let data = (*data).clone();
                 tokio::spawn(async move {
                     if let Err(e) = apply_global_unlock(&ctx, &data, guild_id).await {
-                        error!(error = ?e, "lift global lock on raid end");
+                        warn!(error = ?e, "lift global lock on raid end");
                     }
                 });
             }
@@ -103,7 +103,7 @@ async fn revert_actions(
                     .edit_guild_incident_actions(&ctx.http, guild_id, builder)
                     .await
                 {
-                    error!(error = ?e, "unpause invites on raid end");
+                    warn!(error = ?e, "unpause invites on raid end");
                 }
             }
             RaidAction::Alert { channel_id } => {
@@ -112,7 +112,7 @@ async fn revert_actions(
                     "**Raid Resolved**: Join rate has stabilized back to safe levels. Reverted incident actions and lockdown state."
                 );
                 if let Err(e) = channel.send_message(&ctx.http, message).await {
-                    error!(
+                    warn!(
                         error = ?e,
                         %guild_id,
                         channel_id = %channel,
@@ -186,14 +186,14 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                 if let Err(e) =
                     cache::save_preraid_snapshot(&data.core.redis, guild_id, &snapshot_json).await
                 {
-                    error!(
+                    warn!(
                         error = ?e,
                         %guild_id,
                         "restore pre-raid snapshot in Redis during recovery"
                     );
                 }
                 if let Err(e) = cache::add_guild_to_raid(guild_id, &data.core.redis).await {
-                    error!(
+                    warn!(
                         error = ?e,
                         %guild_id,
                         "re-register guild in active raid set during recovery"
@@ -209,13 +209,13 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                         info!(%guild_id, "Raid already tracked by another instance; skipping");
                     }
                     Err(e) => {
-                        error!(error = ?e, %guild_id, "set raid active during recovery");
+                        warn!(error = ?e, %guild_id, "set raid active during recovery");
                     }
                 }
             } else {
                 warn!(%guild_id, "Active raid in database but no snapshot found; cleaning up");
                 if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
-                    error!(error = ?e, %guild_id, "clean up orphaned raid state");
+                    warn!(error = ?e, %guild_id, "clean up orphaned raid state");
                 }
             }
         }

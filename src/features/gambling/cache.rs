@@ -5,7 +5,7 @@ use fred::interfaces::KeysInterface;
 use fred::prelude::{Expiration, SetOptions};
 use humantime::format_duration;
 use std::time::Duration;
-use tracing::{error, warn};
+use tracing::warn;
 
 /// Shown when the cooldown cannot be read, so the player is not actually on cooldown.
 const COOLDOWN_UNAVAILABLE_MESSAGE: &str =
@@ -45,7 +45,7 @@ pub async fn try_acquire_gambling_cooldown(
     let acquired: Option<String> = match set_result {
         Ok(acquired) => acquired,
         Err(e) => {
-            error!(
+            warn!(
                 error = ?e,
                 cooldown_key = %key,
                 cooldown_secs = secs,

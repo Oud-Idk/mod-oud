@@ -18,7 +18,7 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::sync::{Mutex, mpsc};
 use tokio::time::Instant;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 #[derive(Debug, Serialize)]
 pub struct StartedTrackInfo {
@@ -242,7 +242,7 @@ pub fn start_music_event_bridge(
     tokio::spawn(async move {
         match subscriber.subscribe(keys::events_channel()).await {
             Ok(()) => info!("Subscribed to music now-playing events"),
-            Err(e) => error!(error = ?e, "subscribe to music now-playing events"),
+            Err(e) => warn!(error = ?e, "subscribe to music now-playing events"),
         }
     });
 }

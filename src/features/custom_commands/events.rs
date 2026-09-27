@@ -9,7 +9,7 @@ use crate::features::custom_commands::types::{
     CustomCommand, DEFAULT_PREFIX, find_anywhere_matches, resolve_prefix, strip_custom_prefix,
 };
 use serenity::all::{Context, GuildId, Message};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, warn};
 
 /// Handles a message and executes a custom command if the content matches one.
 ///
@@ -48,7 +48,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
             return Ok(());
         };
 
-        info!(raw_cmd_name, "Executing command");
+        debug!(raw_cmd_name, "Executing command");
 
         let cmd_name = raw_cmd_name.to_ascii_lowercase();
 
@@ -73,7 +73,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
         return Ok(());
     }
 
-    info!(commands = ?matched, "Executing anywhere commands");
+    debug!(commands = ?matched, "Executing anywhere commands");
 
     for cmd_name in &matched {
         let Some(cmd) =
@@ -107,7 +107,7 @@ async fn execute_matched(
 
     handle_custom_command(ctx, msg, cmd, &data.core.redis, &gctx, channel.as_ref())
         .await
-        .inspect_err(|e| error!(error = ?e, command = %cmd_name, "execute custom command"))?;
+        .inspect_err(|e| warn!(error = ?e, command = %cmd_name, "execute custom command"))?;
 
     Ok(())
 }

@@ -123,7 +123,7 @@ async fn announce_for_guild(
     let settings = match get_settings(db, redis, guild_configs, guild_id).await {
         Ok(s) => s,
         Err(e) => {
-            error!(%guild_id, error = %e, "fetch settings for birthday job");
+            warn!(%guild_id, error = %e, "fetch settings for birthday job");
             return;
         }
     };
@@ -197,7 +197,7 @@ async fn unannounced_celebrants(
         {
             Ok(records) => records,
             Err(e) => {
-                error!(%guild_id, error = %e, "get unannounced birthdays");
+                warn!(%guild_id, error = %e, "get unannounced birthdays");
                 return None;
             }
         };
@@ -301,7 +301,7 @@ pub async fn cleanup_expired_birthday_roles(
                 .remove_member_role(guild_id, user_id, role_id, Some("Birthday role expired"))
                 .await
             {
-                error!(
+                warn!(
                     error = ?e,
                     %guild_id,
                     %user_id,
@@ -367,11 +367,11 @@ async fn run_birthday_worker(
                 )
                 .await
                 {
-                    error!(error = ?e, "running birthday announcements");
+                    warn!(error = ?e, "running birthday announcements");
                 }
 
                 if let Err(e) = cleanup_expired_birthday_roles(&pool, &ctx).await {
-                    error!(error = ?e, "cleaning up expired birthday roles");
+                    warn!(error = ?e, "cleaning up expired birthday roles");
                 }
 
                 if let Err(e) = guard.release().await {
@@ -384,7 +384,7 @@ async fn run_birthday_worker(
                 trace!("Lock busy; skipping this iteration");
             }
             Err(e) => {
-                error!(error = ?e, "coordinate Redis lock for birthday worker");
+                warn!(error = ?e, "coordinate Redis lock for birthday worker");
             }
         }
     }

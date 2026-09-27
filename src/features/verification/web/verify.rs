@@ -255,7 +255,7 @@ async fn verify_discord_oauth_identity(
             ))
         }
         Err(e) => {
-            error!(error = ?e, "reach Discord to validate the access token");
+            warn!(error = ?e, "reach Discord to validate the access token");
             Err((
                 StatusCode::UNAUTHORIZED,
                 "Invalid or expired Discord session. Please log in again.".to_string(),
@@ -330,7 +330,7 @@ async fn assign_verified_role(
             Some("User successfully completed verification"),
         )
         .await
-        .inspect_err(|e| error!(error = ?e, "add role to user"))
+        .inspect_err(|e| warn!(error = ?e, "add role to user"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

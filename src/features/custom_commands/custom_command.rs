@@ -7,7 +7,7 @@ use crate::features::custom_commands::types::{CommandAction, CooldownType, Custo
 use crate::shared::permissions::HasRoles;
 use fred::clients::Client;
 use serenity::all::{ChannelId, Context, GuildChannel, GuildId, Message, RoleId};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, warn};
 
 pub async fn handle_custom_command(
     ctx: &Context,
@@ -99,7 +99,7 @@ fn parse_action_snowflake(
         Ok(snowflake) => Some(snowflake),
         Err(e) => {
             // The action is dropped, so this line is the only trace of a bad dashboard row.
-            error!(
+            warn!(
                 error = ?e,
                 %command_id,
                 action_index,
@@ -204,7 +204,7 @@ async fn add_role_action(
         )
         .await
     {
-        error!(
+        warn!(
             error = ?e,
             %guild_id,
             %command_id,
@@ -212,7 +212,7 @@ async fn add_role_action(
             %role_id,
             "add role from custom command action; member did not receive it"
         );
-        info!(
+        debug!(
             %guild_id,
             %command_id,
             user_id = %msg.author.id,
@@ -248,7 +248,7 @@ async fn remove_role_action(
         )
         .await
     {
-        error!(
+        warn!(
             error = ?e,
             %guild_id,
             %command_id,
@@ -256,7 +256,7 @@ async fn remove_role_action(
             %role_id,
             "remove role from custom command action; member kept the role"
         );
-        info!(
+        debug!(
             %guild_id,
             %command_id,
             user_id = %msg.author.id,

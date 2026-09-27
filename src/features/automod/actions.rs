@@ -181,7 +181,7 @@ async fn apply_warning(
             warn_id,
             "Automated filter issued warning and executed threshold actions"
         ),
-        Err(err) => error!(error = %err, "apply automated warning via issue_warning"),
+        Err(err) => warn!(error = %err, "apply automated warning via issue_warning"),
     }
 }
 
@@ -237,7 +237,7 @@ async fn apply_mute(
     .await
     {
         Ok(()) => info!(duration_secs, "timed out user via automated mute"),
-        Err(err) => error!(error = %err, "apply automated timeout"),
+        Err(err) => warn!(error = %err, "apply automated timeout"),
     }
 }
 

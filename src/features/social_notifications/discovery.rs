@@ -4,7 +4,7 @@ use quick_xml::Reader;
 use quick_xml::events::Event;
 use sha2::Sha256;
 use sha1::Sha1;
-use tracing::{error, info, warn};
+use tracing::{warn, info};
 use uuid::Uuid;
 use crate::features::social_notifications::types::FeedKind;
 
@@ -164,7 +164,7 @@ pub async fn request_hub_subscription(
     } else {
         let status = resp.status();
         let err_text = resp.text().await.unwrap_or_default();
-        error!(status = %status, error = %err_text, "WebSub Hub rejected subscription request");
+        warn!(status = %status, error = %err_text, "WebSub Hub rejected subscription request");
         Err(format!("Hub returned {status}: {err_text}").into())
     }
 }

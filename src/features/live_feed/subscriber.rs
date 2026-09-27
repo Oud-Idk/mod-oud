@@ -3,7 +3,7 @@ use crate::features::live_feed::LogEvent;
 use fred::clients::SubscriberClient;
 use fred::prelude::*;
 use tokio::sync::broadcast;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, info, trace, warn};
 
 /// Subscribes to Redis log channels and forwards parsed events to the broadcast sender.
 ///
@@ -32,7 +32,7 @@ pub async fn start_live_feed_subscriber(
             if LogEvent::REDIS_CHANNELS.contains(&channel.as_str()) {
                 if let Some(event) = LogEvent::from_redis(&channel, &payload_str) {
                     if let Err(e) = tx.send(event) {
-                        error!(error = %e, "send LogEvent to broadcast channel");
+                        warn!(error = %e, "send LogEvent to broadcast channel");
                     }
                 } else {
                     warn!(channel = %channel, "parse LogEvent from Redis payload");

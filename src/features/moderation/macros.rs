@@ -59,7 +59,7 @@ macro_rules! send_mod_dm {
                     $replace_closure,
                 )
                 .unwrap_or_else(|e| {
-                    tracing::error!(
+                    tracing::warn!(
                         error = %e,
                         action = action_name,
                         "build custom moderation DM"

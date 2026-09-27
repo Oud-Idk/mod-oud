@@ -34,7 +34,7 @@ pub fn start_reminder_worker(
                 Ok(Some(guard)) => {
                     trace!("Acquired lock; processing expired reminders");
                     if let Err(e) = process_expired_reminders(&db_pool, &http, now).await {
-                        error!(error = ?e, "processing expired reminders");
+                        warn!(error = ?e, "processing expired reminders");
                     }
 
                     match guard.release().await {
@@ -43,7 +43,7 @@ pub fn start_reminder_worker(
                             warn!("Attempted to release reminder lock, but we no longer owned it");
                         }
                         Err(e) => {
-                            error!(error = ?e, "release reminder lock due to Redis error");
+                            warn!(error = ?e, "release reminder lock due to Redis error");
                         }
                     }
                 }
@@ -51,7 +51,7 @@ pub fn start_reminder_worker(
                     trace!("Lock busy; skipping this iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate Redis lock for reminders");
+                    warn!(error = ?e, "coordinate Redis lock for reminders");
                 }
             }
         }
@@ -88,7 +88,7 @@ async fn process_expired_reminders(
             let content_opt = match create_basic_embed(&record.message, ToString::to_string) {
                 Ok(c) => c,
                 Err(e) => {
-                    error!(
+                    warn!(
                         %channel_id,
                         reminder_id,
                         error = ?e,
@@ -112,7 +112,7 @@ async fn process_expired_reminders(
                         Ok(reminder_id)
                     }
                     Err(e) => {
-                        error!(error = ?e, reminder_id, "send reminder to Discord");
+                        warn!(error = ?e, reminder_id, "send reminder to Discord");
                         // We do NOT update DB here so it can retry on the next tick!
                         Err(reminder_id)
                     }

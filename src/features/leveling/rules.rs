@@ -4,7 +4,7 @@ use anyhow::Result;
 use fred::clients::Client;
 use serenity::all::{ChannelId, GuildId, Message, RoleId};
 use sqlx::PgPool;
-use tracing::{debug, error, instrument, trace};
+use tracing::{warn, debug, trace, instrument};
 
 pub fn should_exclude_from_level_up(
     config: &LevelingConfig,
@@ -87,7 +87,7 @@ pub async fn get_multiplier(
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .inspect_err(|err| {
-            error!(error = %err, "retrieve XP multipliers from cache/database");
+            warn!(error = %err, "retrieve XP multipliers from cache/database");
         })?;
 
     let channel_id = message.channel_id;
@@ -122,7 +122,7 @@ pub async fn get_voice_multiplier(
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .inspect_err(|err| {
-            error!(error = %err, "retrieve voice XP multipliers from cache/database");
+            warn!(error = %err, "retrieve voice XP multipliers from cache/database");
         })?;
 
     let multiplier = calculate_multiplier(multipliers, channel_id, member_roles);

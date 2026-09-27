@@ -6,7 +6,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serenity::all::{ChannelId, MessageId};
 use std::sync::Arc;
-use tracing::{debug, error};
+use tracing::{debug, warn};
 
 pub async fn handle_delete_giveaway_message(
     State(state): State<Arc<WebState>>,
@@ -45,7 +45,7 @@ pub async fn handle_delete_giveaway_message(
             if is_unknown_message_error(&e) {
                 debug!("Discord message already deleted; proceeding with DB cleanup");
             } else {
-                error!(error = ?e, "delete message via Discord API");
+                warn!(error = ?e, "delete message via Discord API");
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error.".to_string(),

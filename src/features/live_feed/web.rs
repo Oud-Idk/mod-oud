@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -100,7 +100,7 @@ pub async fn sse_handler(
         .map(|msg| {
             let event = msg
                 .to_sse_event()
-                .inspect_err(|e| error!(error = %e, "serialize event payload to SSE"))
+                .inspect_err(|e| warn!(error = %e, "serialize event payload to SSE"))
                 .unwrap_or_else(|_| Event::default().data("serialization error"));
             Ok(event)
         });

@@ -3,7 +3,7 @@ use crate::shared::locking::acquire_lock;
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::time::Duration;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 /// Spawns a background worker that periodically flushes accumulated hourly raid join stats
 /// from Redis to PostgreSQL. Uses a distributed lock to avoid duplicate writes across instances.
@@ -22,20 +22,20 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
                     trace!("Lock acquired; flushing raid hourly stats");
 
                     if let Err(e) = flush_pending_stats(&db_pool, &redis_client).await {
-                        error!(error = ?e, "flushing raid stats to database");
+                        warn!(error = ?e, "flushing raid stats to database");
                     }
 
                     match guard.release().await {
                         Ok(true) => trace!("Lock released"),
                         Ok(false) => warn!("Lock already lost during flush"),
-                        Err(e) => error!(error = ?e, "release flush lock"),
+                        Err(e) => warn!(error = ?e, "release flush lock"),
                     }
                 }
                 Ok(None) => {
                     trace!("Lock held by another worker; skipping flush");
                 }
                 Err(e) => {
-                    error!(error = ?e, "acquire flush lock");
+                    warn!(error = ?e, "acquire flush lock");
                 }
             }
         }
@@ -59,7 +59,7 @@ async fn flush_pending_stats(
 
     for guild_id in dirty_guilds {
         if let Err(e) = flush_guild(guild_id, redis, db).await {
-            error!(%guild_id, error = ?e, "flush raid stats for guild");
+            warn!(%guild_id, error = ?e, "flush raid stats for guild");
         }
     }
 

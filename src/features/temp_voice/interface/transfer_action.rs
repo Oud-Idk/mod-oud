@@ -7,7 +7,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, GuildId, PermissionOverwrite, PermissionOverwriteType,
     Permissions, UserId,
 };
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(acceptor_id = %interaction.user.id.get()))]
 pub async fn handle_accept_transfer(
@@ -183,7 +183,7 @@ async fn apply_transfer_permissions(
 
     debug!(%channel_id, %new_owner_id, "applying new channel permissions");
     if let Err(e) = channel_id.create_permission(&ctx.http, new_overwrite).await {
-        error!(
+        warn!(
             %channel_id,
             %new_owner_id,
             error = ?e,

@@ -10,7 +10,7 @@ use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 use serenity::all::{Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message};
 use std::time::Duration;
-use tracing::{error, info, instrument};
+use tracing::{info, instrument, warn};
 
 #[instrument(skip(ctx, data, message), fields(author_id = %message.author.id))]
 pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -> Result<bool> {
@@ -83,7 +83,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
                 |text| replace_system_ban_placeholders(text, &gctx, &message.author, duration),
             ) {
                 if let Err(e) = dm_channel.send_message(&ctx.http, msg_builder).await {
-                    error!(
+                    warn!(
                         error = ?e,
                         user_id = %message.author.id,
                         %guild_id,
@@ -104,7 +104,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
                 .send_message(&ctx.http, CreateMessage::new().embed(fallback_embed))
                 .await
             {
-                error!(
+                warn!(
                     error = ?e,
                     user_id = %message.author.id,
                     %guild_id,

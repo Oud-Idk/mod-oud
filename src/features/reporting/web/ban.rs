@@ -7,7 +7,7 @@ use crate::features::reporting::web::user_lookup::{resolve_moderator_user, resol
 use axum::http::StatusCode;
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
-use tracing::{error, info, instrument};
+use tracing::{info, instrument, warn};
 
 #[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, user_id = %user_id
 ))]
@@ -44,7 +44,7 @@ pub async fn handle_ban_user(
         duration,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "complete ban operation"))
+    .inspect_err(|e| warn!(error = %e, "complete ban operation"))
     .map_err(|_e| WebError::Internal)?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserBanned).await?;

@@ -4,7 +4,7 @@ use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserL
 use crate::shared::embed::build_custom_message;
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User};
-use tracing::{debug, error, trace, warn};
+use tracing::{warn, debug, trace};
 
 pub async fn send_according_to_config(
     ctx: &Context,
@@ -29,7 +29,7 @@ pub async fn send_according_to_config(
         }
         NotificationTarget::Dm => {
             if let Err(e) = author.dm(&ctx.http, msg).await {
-                error!(
+                warn!(
                     error = ?e,
                     user_id = %author.id,
                     "send level-up DM; notification dropped"

@@ -7,7 +7,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serenity::model::id::GuildId;
 use std::sync::Arc;
-use tracing::{debug, error, instrument};
+use tracing::{debug, instrument, warn};
 
 #[instrument(skip(state))]
 pub async fn handle_delete_reaction_role_message(
@@ -33,7 +33,7 @@ pub async fn handle_delete_reaction_role_message(
             if is_unknown_message_error(&e) {
                 debug!(error = ?e, "Discord message already deleted; proceeding with cleanup");
             } else {
-                error!(error = ?e, "delete message via Discord API");
+                warn!(error = ?e, "delete message via Discord API");
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal Server Error".to_string(),

@@ -119,7 +119,7 @@ async fn invoke_actions(
                 let data = (*data).clone();
                 tokio::spawn(async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        error!(error = ?e, %guild_id, "lock server during manual trigger");
+                        warn!(error = ?e, %guild_id, "lock server during manual trigger");
                     }
                 });
             }
@@ -144,7 +144,7 @@ async fn invoke_actions(
                 );
                 let message = CreateMessage::new().content(message_content);
                 if let Err(e) = channel.send_message(&ctx.http, message).await {
-                    error!(error = %e, channel_id, %guild_id, "send manual raid alert message");
+                    warn!(error = %e, channel_id, %guild_id, "send manual raid alert message");
                 }
             }
             _ => {}

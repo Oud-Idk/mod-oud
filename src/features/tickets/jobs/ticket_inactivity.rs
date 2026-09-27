@@ -16,7 +16,7 @@ use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 struct WarnTarget {
     channel_id: ChannelId,
@@ -48,13 +48,13 @@ pub fn start_ticket_inactivity_worker(
                     if let Err(e) =
                         warn_inactive_tickets(&pool, &redis_client, &http, &guild_config).await
                     {
-                        error!(error = ?e, "warning inactive tickets");
+                        warn!(error = ?e, "warning inactive tickets");
                     }
 
                     if let Err(e) =
                         close_abandoned_tickets(&pool, &redis_client, &http, &guild_config).await
                     {
-                        error!(error = ?e, "closing abandoned tickets");
+                        warn!(error = ?e, "closing abandoned tickets");
                     }
 
                     // Release using the guard
@@ -68,7 +68,7 @@ pub fn start_ticket_inactivity_worker(
                     trace!("Lock busy; skipping this iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "coordinate Redis lock for ticket inactivity worker");
+                    warn!(error = ?e, "coordinate Redis lock for ticket inactivity worker");
                 }
             }
         }
