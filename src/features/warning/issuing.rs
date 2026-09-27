@@ -6,6 +6,7 @@ use crate::core::config::state::Error;
 use crate::features::moderation::{
     ActionType, log_moderation_action, replace_basic_placeholder, replace_reason_placeholders,
 };
+use crate::features::warning::audit;
 use crate::features::warning::database::{
     delete_warn, fetch_warn_thresholds, insert_warn, log_warning, update_warn,
 };
@@ -19,7 +20,7 @@ use fred::clients::Client;
 use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, Http, User, UserId};
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{debug, info, instrument};
+use tracing::{debug, instrument};
 
 /// Issues a warning to a user, sending a DM and logging the action.
 ///
@@ -49,7 +50,7 @@ pub async fn issue_warning(
 
     let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason).await?;
 
-    debug!(warn_id, warn_count, "warning record inserted");
+    audit::warning_issued(guild_id, user_id, moderator_id, warn_id, warn_count);
     let (gctx, mut member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
     let moderator_user = http
@@ -91,7 +92,6 @@ pub async fn issue_warning(
 
     thresholds::apply_threshold_actions(http, db, &mut member, &applicable_thresholds).await?;
 
-    info!(warn_id, "warning issued");
     Ok(warn_id)
 }
 
@@ -126,7 +126,6 @@ pub async fn issue_warning_status_change(
         .reason
         .unwrap_or_else(|| "No reason specified.".to_string());
 
-    debug!(target_user_id, "warning active status updated");
 
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);
@@ -179,13 +178,7 @@ pub async fn issue_warning_status_change(
         }
     );
 
-    info!(
-        warning_id = id,
-        target_user_id,
-        set_active,
-        action = action_past_tense,
-        "warning active status updated"
-    );
+    audit::warning_status_changed(guild_id_raw, user_id, author.id, id, set_active);
     Ok(Some((target_user_id, reason)))
 }
 
@@ -215,7 +208,6 @@ pub async fn issue_delete_warning(
         .reason
         .unwrap_or_else(|| "No reason specified.".to_string());
 
-    debug!(target_user_id, "warning record deleted");
 
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);
@@ -247,6 +239,6 @@ pub async fn issue_delete_warning(
         }
     );
 
-    info!(warning_id = id, target_user_id, "warning record deleted");
+    audit::warning_deleted(guild_id_raw, user_id, author.id, id);
     Ok(Some((target_user_id, reason)))
 }
