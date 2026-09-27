@@ -65,7 +65,7 @@ async fn run_feed_polling_worker(
 
                 match guard.release().await {
                     Ok(true) => trace!("polling lock released"),
-                    Ok(false) => warn!("polling lock lost during execution"),
+                    Ok(false) => warn!(%lock_key, "polling lock lost during execution"),
                     Err(e) => warn!(error = ?e, "polling lock release failed"),
                 }
             }
@@ -126,7 +126,7 @@ async fn run_websub_renewal_worker(
                 // the lock back is just as stuck and must not vanish.
                 match guard.release().await {
                     Ok(true) => trace!("WebSub renewal lock released"),
-                    Ok(false) => warn!("WebSub renewal lock lost during execution"),
+                    Ok(false) => warn!(%lock_key, "WebSub renewal lock lost during execution"),
                     Err(e) => warn!(error = ?e, "WebSub renewal lock release failed"),
                 }
             }
