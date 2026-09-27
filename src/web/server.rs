@@ -6,6 +6,7 @@ use crate::features::live_feed;
 use crate::features::live_feed::LogEvent;
 use crate::features::music::MusicState;
 use crate::features::music::WebCommandBus;
+use crate::shared::task;
 use crate::shared::username_cache::UserUpdate;
 use crate::web::router::get_router;
 use axum::http::{HeaderName, HeaderValue, Method};
@@ -18,7 +19,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
-use tracing::{error, info, instrument};
+use tracing::{error, info};
 
 /// Dependencies required to bootstrap the axum dashboard server.
 pub struct WebServerDeps {
@@ -50,12 +51,15 @@ pub struct WebServerDeps {
 /// # Errors
 /// Returns an error if the CORS origin fails to parse or the HTTP server fails
 /// to bind and serve.
-#[instrument(skip_all)]
 pub async fn start_web_server(deps: WebServerDeps) -> Result<(), Error> {
     if let Err(e) =
         live_feed::start_live_feed_subscriber(deps.subscriber_client, deps.tx.clone()).await
     {
-        error!(error = ?e, "Failed to start live feed subscriber");
+        // Swallowed: the server still serves, it just stops pushing live updates.
+        error!(
+            error = %e,
+            "live feed subscriber failed to start; continuing without live updates"
+        );
     }
 
     // Comma-separated list of browser origins allowed to call this API
@@ -110,10 +114,9 @@ pub async fn start_web_server(deps: WebServerDeps) -> Result<(), Error> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!(address = %addr, "TCP listener bound");
 
-    tokio::spawn(async move {
-        info!("Web server task started");
+    task::spawn("web_server", async move {
         if let Err(e) = axum::serve(listener, app).await {
-            error!(error = %e, "Web server encountered a fatal runtime error");
+            error!(error = %e, "web server stopped serving");
         }
     });
 

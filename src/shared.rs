@@ -10,6 +10,8 @@ pub mod embed;
 pub mod error;
 /// Distributed Redis locking.
 pub mod locking;
+/// Global tracing subscriber setup.
+pub mod logger;
 /// Shared message helpers.
 pub mod messages;
 /// Paginated embed UI.
@@ -22,6 +24,8 @@ pub mod placeholders;
 mod serde_helpers;
 /// `Spotify` Client Credentials token cache (global auth state).
 pub mod spotify_auth;
+/// Background task spawning, so every job is named and reports its outcome.
+pub mod task;
 /// Username caching and batching.
 pub mod username_cache;
 /// Voice state caching.

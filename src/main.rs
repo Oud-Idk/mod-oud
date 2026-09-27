@@ -20,6 +20,7 @@ use mod_oud::features::{
     leveling, media_only, member_counter, moderation, music, raid_detection, reporting, search,
     social_notifications, temp_voice, tickets, warning,
 };
+use mod_oud::shared::logger;
 use mod_oud::shared::spotify_auth::SpotifyAuthCache;
 use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::{WebServerDeps, start_web_server};
@@ -34,7 +35,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tracing::log::LevelFilter;
-use tracing::{debug, info, trace, warn};
+use tracing::{Instrument, debug, info, info_span, warn};
 
 fn main() -> Result<(), Error> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -42,13 +43,22 @@ fn main() -> Result<(), Error> {
         .thread_stack_size(4 * 1024 * 1024)
         .build()?;
 
-    runtime.block_on(async_main())
+    // Before `load_env`, so a local `.env` reaches both.
+    let filter = logger::init();
+    install_crypto_provider();
+    let env_config = load_env();
+
+    // The root span is the only way to tell which shard a line came from.
+    let process = info_span!(
+        "process",
+        shard_id = env_config.shard_index,
+        shard_count = env_config.total_shards,
+        log_filter = %filter,
+    );
+    runtime.block_on(async_main(env_config).instrument(process))
 }
 
-async fn async_main() -> Result<(), Error> {
-    init_logging();
-
-    let env_config = load_env();
+async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
     let pool = connect_database(&env_config.database_url, env_config.run_migrations).await?;
     let (redis_client, subscriber_client) = connect_redis(&env_config.redis_url).await?;
 
@@ -106,6 +116,8 @@ async fn async_main() -> Result<(), Error> {
         start_bot(BotDeps {
             token: env_config.token,
             google_cloud_api_key: env_config.google_cloud_api_key,
+            shard_index: env_config.shard_index,
+            total_shards: env_config.total_shards,
             pool,
             redis_client,
             subscriber_client,
@@ -133,6 +145,8 @@ struct EnvConfig {
     database_url: String,
     redis_url: String,
     google_cloud_api_key: String,
+    shard_index: u32,
+    total_shards: u32,
     run_bot: bool,
     run_web: bool,
     run_migrations: bool,
@@ -142,6 +156,8 @@ struct EnvConfig {
 struct BotDeps {
     token: String,
     google_cloud_api_key: String,
+    shard_index: u32,
+    total_shards: u32,
     pool: sqlx::PgPool,
     redis_client: Client,
     subscriber_client: SubscriberClient,
@@ -153,59 +169,39 @@ struct BotDeps {
     music_state: MusicState,
 }
 
-/// Log filter used when `RUST_LOG` is unset.
+/// Installs the rustls crypto provider before any TLS client is built.
 ///
-/// `EnvFilter::from_default_env()` hardcodes `ERROR` as its fallback directive,
-/// and the Docker image never sets `RUST_LOG` — so without this the deployed bot
-/// emits almost nothing and every `info!` is silently dropped. Override per
-/// environment by exporting `RUST_LOG`.
-const DEFAULT_LOG_FILTER: &str = "info,sqlx=warn,serenity=warn,poise=info";
-
-/// Installs the rustls crypto provider, loads `.env`, and initializes tracing.
-fn init_logging() {
-    // Only fails when a provider is already installed, which is a no-op success
-    // in practice; log it rather than swallowing so a real conflict is visible.
+/// Fails only when a provider is already installed, which is a no-op in practice.
+fn install_crypto_provider() {
     if let Err(e) = rustls::crypto::ring::default_provider().install_default() {
-        tracing::debug!(error = ?e, "rustls provider was already installed; reusing it");
+        debug!(error = ?e, "rustls provider was already installed; reusing it");
     }
-
-    // Must precede reading the filter, so a local `.env` still takes effect.
-    dotenvy::dotenv().ok();
-
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(DEFAULT_LOG_FILTER));
-
-    tracing_subscriber::fmt()
-        .with_env_filter(filter.clone())
-        .pretty()
-        .with_target(true)
-        .with_line_number(true)
-        .with_file(true)
-        .with_thread_names(true)
-        .init();
-
-    // Log the effective filter, so the active verbosity is discoverable from the
-    // logs rather than inferred from what is missing in them.
-    tracing::info!(filter = %filter, "Tracing initialized");
 }
 
 /// Reads all environment configuration into an [`EnvConfig`].
 fn load_env() -> EnvConfig {
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment table, `DISCORD_TOKEN`");
-    trace!("Discord token loaded successfully.");
 
     let database_url = env::var("DATABASE_URL")
         .expect("Expected a database URL in the environment table, `DATABASE_URL`");
-    trace!("Database URL loaded successfully.");
 
     let redis_url =
         env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
-    trace!("Redis URL loaded successfully.");
 
     let google_cloud_api_key = env::var("GOOGLE_CLOUD_API_KEY")
         .expect("Expected a Google Cloud API key in the environment table, `GOOGLE_CLOUD_API_KEY`");
-    trace!("Google Cloud API Key loaded successfully.");
+
+    // Read here rather than per consumer, so the root span can name the shard.
+    let shard_index: u32 = env::var("SHARD_INDEX")
+        .unwrap_or_else(|_| "0".to_string())
+        .parse()
+        .expect("SHARD_INDEX must be a valid u32");
+
+    let total_shards: u32 = env::var("TOTAL_SHARDS")
+        .unwrap_or_else(|_| "1".to_string())
+        .parse()
+        .expect("TOTAL_SHARDS must be a valid u32");
 
     let run_bot: bool = env::var("RUN_BOT")
         .unwrap_or_else(|_| "true".to_string())
@@ -239,6 +235,8 @@ fn load_env() -> EnvConfig {
         database_url,
         redis_url,
         google_cloud_api_key,
+        shard_index,
+        total_shards,
         run_bot,
         run_web,
         run_migrations,
@@ -260,15 +258,14 @@ async fn connect_database(database_url: &str, run_migrations: bool) -> Result<sq
         .await?;
 
     info!(
-        "Database connection established! Pool size: {}, Idle: {}",
-        pool.size(),
-        pool.num_idle()
+        pool_size = pool.size(),
+        pool_idle = pool.num_idle(),
+        "database pool connected"
     );
 
     if run_migrations {
-        info!("Running database migrations...");
         sqlx::migrate!().run(&pool).await?;
-        info!("Database migrated successfully.");
+        info!("Migrations applied");
     }
 
     Ok(pool)
@@ -316,6 +313,22 @@ async fn connect_redis(redis_url: &str) -> Result<(Client, SubscriberClient), Er
 
 /// Builds and starts the Discord bot gateway client.
 async fn start_bot(deps: BotDeps) -> Result<(), Error> {
+    let BotDeps {
+        token,
+        google_cloud_api_key,
+        shard_index,
+        total_shards,
+        pool,
+        redis_client,
+        subscriber_client,
+        guild_configs,
+        bad_words_cache,
+        username_tx,
+        username_rx,
+        reqwest_client,
+        music_state,
+    } = deps;
+
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -327,7 +340,12 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
 
     let active_names: Vec<&str> = intents.iter_names().map(|(name, _flag)| name).collect();
 
-    info!("Selected intents: {:?}", active_names);
+    info!(
+        shard = shard_index + 1,
+        shard_count = total_shards,
+        intents = ?active_names,
+        "shard selected intents"
+    );
 
     let mut cache_settings = serenity::cache::Settings::default();
     cache_settings.max_messages = 5;
@@ -347,9 +365,6 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
     let commands_to_register = build_commands();
 
     info!("Registered {} commands", commands_to_register.len());
-
-    let guild_configs_for_setup = deps.guild_configs.clone();
-    let bad_words_cache_for_setup = deps.bad_words_cache.clone();
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -372,23 +387,25 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
         })
         .setup(move |ctx, ready, _framework| {
             setup(SetupParams {
-                google_cloud_api_key: deps.google_cloud_api_key,
-                pool: deps.pool,
-                redis_client: deps.redis_client.clone(),
-                subscriber_client: deps.subscriber_client.clone(),
-                guild_configs_cache: guild_configs_for_setup.clone(),
-                bad_words_cache: bad_words_cache_for_setup.clone(),
+                google_cloud_api_key,
+                shard_index,
+                total_shards,
+                pool,
+                redis_client: redis_client.clone(),
+                subscriber_client: subscriber_client.clone(),
+                guild_configs_cache: guild_configs.clone(),
+                bad_words_cache: bad_words_cache.clone(),
                 ctx,
-                username_tx: deps.username_tx.clone(),
-                username_rx: deps.username_rx,
-                reqwest_client: deps.reqwest_client.clone(),
-                music_state: deps.music_state,
+                username_tx: username_tx.clone(),
+                username_rx,
+                reqwest_client: reqwest_client.clone(),
+                music_state,
                 ready,
             })
         })
         .build();
 
-    let mut client = serenity::Client::builder(deps.token, intents)
+    let mut client = serenity::Client::builder(token, intents)
         .framework(framework)
         .cache_settings(cache_settings)
         .register_songbird()
@@ -398,18 +415,6 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
         let mut data = client.data.write().await;
         data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
     }
-
-    let shard_index: u32 = env::var("SHARD_INDEX")
-        .unwrap_or_else(|_| "0".to_string())
-        .parse()
-        .expect("SHARD_INDEX must be a valid u32");
-
-    let total_shards: u32 = env::var("TOTAL_SHARDS")
-        .unwrap_or_else(|_| "1".to_string())
-        .parse()
-        .expect("TOTAL_SHARDS must be a valid u32");
-
-    info!("Starting Shard {} of {}...", shard_index + 1, total_shards);
 
     client.start_shard(shard_index, total_shards).await?;
 
