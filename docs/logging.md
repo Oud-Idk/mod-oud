@@ -312,8 +312,8 @@ a convention, and it would not fix a single one of the problems above.
 
 ## Migration
 
-Current state, for sizing the work: 1294 log calls (`warn` 440, `debug` 413, `trace` 213,
-`info` 156, `error` 72), 0 of them interpolating into the message string, 0 starting with
+Current state, for sizing the work: 1080 log calls (`debug` 426, `warn` 412, `trace` 30,
+`info` 116, `error` 96), 0 of them interpolating into the message string, 0 starting with
 "Failed to", 0 "Successfully", 0 trailing periods, 41 starting with a capital, 84
 `inspect_err` sites, 100 `#[instrument]` attributes, 6 explicit spans, and 42 `task::spawn`
 call sites. The only `tokio::spawn` left is the one inside the helper.
@@ -434,7 +434,7 @@ than waited for a red build.
 | No `{}` in the message string | 0 | Exempts the formatting macros, where the braces belong to the format specifier. |
 | No `#[instrument(err)]` | 0 | |
 | `info!` budget per file (default 8, `INFO_BUDGET`) | 0 | `audit.rs` is exempt: every line in one is an action taken, which is what `info!` is for. |
-| `warn!` budget per file (default 15, `WARN_BUDGET`) | 0 | Same exemption. |
+| `warn!` budget per file (default 13, `WARN_BUDGET`) | 0 | Same exemption. |
 | `level(` is not `level!(` | 0 | Not an awk rule: the extractor only matches `level!(`, so the mistake it catches is invisible to it by construction. |
 
 **The budgets are ratchets, not diagnoses, and the `warn!` one is weaker than it looks.** Count
@@ -443,18 +443,19 @@ sharply. Every file over the `warn!` budget is a worker on a timer or a rare-eve
 `social_notifications/jobs.rs` on a 30s loop, `raid_detection/raid_end.rs` on raid end,
 `verification/web/setup.rs` on panel setup. Meanwhile every handler that runs per message sits
 comfortably under it, at 5 or 6. So the rule pressures the files that fire least and would not
-notice a per-message flood. It is set to 15, the current maximum, so it is green today and catches
-a file roughly doubling; it is not set to 12 because that would fail on one file whose 15 are
-legitimate, and a gate that is red on arrival gets switched off.
+notice a per-message flood. It is set to 13, the current maximum and therefore green today: a gate
+that is red on arrival gets switched off.
 
-The budget would start to bite if the worker lock lifecycle were extracted. Every worker repeats
-the same four-outcome shape around `acquire_lock` / `release`, and those four lines are most of
-why the worker files are over budget: `social_notifications/jobs.rs` has eight of its fifteen
-from two copies of it. One helper would take that file to seven and the budget could come down.
+It was 15 until the level audit demoted a batch summary in `social_notifications/jobs.rs` to
+`warn!`, pushing that file to 16 and turning the gate red. The fix was not to raise the budget,
+which is how a ratchet dies, but to do the extraction this section used to recommend. Both workers
+in that file repeated the same four-outcome shape around `acquire_lock` / `release`, so
+`run_under_lock` owns it now, which took the file to 13 and the budget down with it. The other
+workers still repeat the shape, and are why two files sit at the maximum.
 
 The rule that would actually catch a flood is not a count. It is that a `warn!` has to name
 something you can query, because a `warn!` with no field at all fails this doc's own test, which
-is whether someone will read the line and do something. There are 34 such `warn!` in the tree.
+is whether someone will read the line and do something. There are 28 such `warn!` in the tree.
 About six are legitimate: they report a config fact at startup, where there is nothing to
 correlate and an id would be invented. The rest are missing an id that is in scope at the call
 site, `config_id` beside `giveaways/database.rs`, `cmd.report_id` beside

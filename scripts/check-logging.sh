@@ -96,7 +96,7 @@ budget_over() {
     sort -rn
 }
 
-for spec in "info:${INFO_BUDGET:-8}" "warn:${WARN_BUDGET:-15}"; do
+for spec in "info:${INFO_BUDGET:-8}" "warn:${WARN_BUDGET:-13}"; do
   level="${spec%%:*}"
   limit="${spec##*:}"
   over="$(budget_over "$level" "$limit")"
