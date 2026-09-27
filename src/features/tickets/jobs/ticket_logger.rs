@@ -1,5 +1,6 @@
 use crate::features::tickets::database;
 use crate::features::tickets::types::TicketLogPayload;
+use crate::shared::task;
 use sqlx::PgPool;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -7,7 +8,7 @@ use tracing::{debug, error, info, instrument, trace};
 
 /// Starts the background worker that batches ticket message logs and flushes them to the database.
 pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: PgPool) {
-    tokio::spawn(async move {
+    task::spawn("ticket_logger_worker", async move {
         let mut buffer = Vec::with_capacity(100);
         let mut interval = tokio::time::interval(Duration::from_secs(2));
 

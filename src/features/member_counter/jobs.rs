@@ -3,6 +3,7 @@ use crate::core::config::settings::get_settings;
 use crate::features::member_counter::counters::update_guild_counters;
 use crate::features::member_counter::database::any_guild_ids_with_member_counters;
 use crate::features::member_counter::keys;
+use crate::shared::task;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::types::{Expiration, SetOptions};
@@ -22,7 +23,7 @@ pub fn start_member_counter_job(
     redis: Client,
     cache: Cache<GuildId, GuildSettings>,
 ) {
-    tokio::spawn(async move {
+    task::spawn("member_counter_worker", async move {
         info!("Member counter background job started");
 
         let worker_id = format!("worker-{}", chrono::Utc::now().timestamp_millis());

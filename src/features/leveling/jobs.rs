@@ -1,3 +1,4 @@
+use crate::shared::task;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::{cache, database, keys};
 use crate::shared::locking::acquire_lock;
@@ -10,7 +11,7 @@ use tracing::{warn, info, debug, trace, instrument};
 
 /// Spawns a background worker that periodically flushes pending user levels from Redis to the database.
 pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
-    tokio::spawn(async move {
+    task::spawn("level_flush_worker", async move {
         let lock_key = "lock:level_flush_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 

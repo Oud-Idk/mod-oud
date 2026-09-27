@@ -11,6 +11,7 @@ use crate::features::music::state::{
 use crate::features::music::stats::{StatsTx, record_track_end, record_track_start};
 use crate::features::music::youtube::{resolve_youtube_playlist, resolve_youtube_video};
 use crate::shared::spotify_auth::SpotifyAuthCache;
+use crate::shared::task;
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use core::time::Duration;
@@ -377,7 +378,7 @@ impl GuildActor {
             rx,
         );
 
-        tokio::spawn(async move {
+        task::spawn("music_actor", async move {
             actor.run().await;
         });
 

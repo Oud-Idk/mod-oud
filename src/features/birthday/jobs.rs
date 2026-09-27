@@ -3,6 +3,7 @@ use crate::core::config::state::Error;
 use crate::features::birthday::announcements::BirthdayAnnouncement;
 use crate::features::birthday::types::{BirthdayMember, UserBirthdayRecord};
 use crate::features::birthday::{BirthdayConfig, announcements, database};
+use crate::shared::task;
 use crate::shared::username_cache::UserUpdate;
 use crate::shared::{get_username, store_username_relation};
 use chrono::{DateTime, Datelike, Timelike, Utc};
@@ -326,14 +327,17 @@ pub fn start_birthday_worker(
 ) {
     let worker_id = format!("worker-{}", Utc::now().timestamp_millis());
 
-    tokio::spawn(run_birthday_worker(
-        pool,
-        redis_client,
-        guild_configs,
-        username_tx,
-        ctx,
-        worker_id,
-    ));
+    task::spawn(
+        "birthday_worker",
+        run_birthday_worker(
+            pool,
+            redis_client,
+            guild_configs,
+            username_tx,
+            ctx,
+            worker_id,
+        ),
+    );
 }
 
 /// The worker loop. Runs under a span so a panic carries the worker id.

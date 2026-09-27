@@ -1,5 +1,6 @@
 use crate::features::raid_detection::{cache, database};
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::time::Duration;
@@ -8,7 +9,7 @@ use tracing::{debug, info, instrument, trace, warn};
 /// Spawns a background worker that periodically flushes accumulated hourly raid join stats
 /// from Redis to PostgreSQL. Uses a distributed lock to avoid duplicate writes across instances.
 pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
-    tokio::spawn(async move {
+    task::spawn("raid_stats_flush_worker", async move {
         let lock_key = "lock:raid_stats_flush_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 

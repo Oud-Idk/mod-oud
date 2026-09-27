@@ -8,6 +8,7 @@ use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
 use crate::features::raid_detection::{RaidDetectionConfig, cache};
+use crate::shared::task;
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
@@ -117,7 +118,7 @@ async fn invoke_actions(
                 debug!(%guild_id, "Spawning global server lockdown background task (manual trigger)");
                 let ctx = ctx.clone();
                 let data = (*data).clone();
-                tokio::spawn(async move {
+                task::spawn("raid_manual_lock", async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
                         warn!(error = ?e, %guild_id, "lock server during manual trigger");
                     }

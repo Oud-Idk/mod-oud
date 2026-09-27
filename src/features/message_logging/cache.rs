@@ -3,6 +3,7 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::message_logging::types::{
     DistributedCachedMessage, EditDetails, MessageDetails,
 };
+use crate::shared::task;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface, PubsubInterface};
 use fred::prelude::Expiration;
@@ -37,7 +38,7 @@ pub async fn spawn_cache_message_in_redis(data: &BotData, msg: &Message) -> Resu
     let redis_conn = data.core.redis.clone();
     let msg_clone = msg.clone();
 
-    tokio::spawn(async move {
+    task::spawn("message_cache_write", async move {
         if let Err(e) = cache_message_in_redis(&redis_conn, &msg_clone).await {
             warn!(message_id = %msg_clone.id, error = %e, "failed to cache message in redis");
         }

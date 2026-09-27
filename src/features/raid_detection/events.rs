@@ -7,6 +7,7 @@ use crate::features::raid_detection::implementation::DynamicRaidDetector;
 use crate::features::raid_detection::raid_end::spawn_raid_end_monitor;
 use crate::features::raid_detection::snapshot::ensure_preraid_state_saved;
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
+use crate::shared::task;
 use chrono::{DateTime, Utc};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, EditMember, GuildId, Member,
@@ -215,7 +216,7 @@ async fn apply_guild_mitigations(
                 info!(%guild_id, "Spawning global server lockdown background task");
                 let ctx = ctx.clone();
                 let data = (*data).clone();
-                tokio::spawn(async move {
+                task::spawn("raid_global_lock", async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
                         warn!(error = ?e, %guild_id, "lock server in background task");
                     }

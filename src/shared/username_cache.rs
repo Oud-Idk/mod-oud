@@ -1,4 +1,5 @@
 use crate::core::config::state::Error;
+use crate::shared::task;
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::prelude::Expiration;
@@ -73,7 +74,7 @@ pub async fn get_username(
 
 /// Queues a username update to be written to Postgres in batches.
 pub fn start_username_batch_worker(db: PgPool, rx: mpsc::Receiver<UserUpdate>) {
-    tokio::spawn(async move {
+    task::spawn("username_batch_worker", async move {
         run_username_batch_worker(db, rx).await;
     });
 }

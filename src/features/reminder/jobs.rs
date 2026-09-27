@@ -5,6 +5,7 @@ use crate::features::reminder::timings::{RecurrenceRule, calculate_next_trigger}
 use crate::features::reminder::types::{ReminderRecord, ReminderType};
 use crate::shared::embed::create_basic_embed;
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use chrono::{DateTime, Utc};
 use fred::prelude::*;
 use futures_util::StreamExt;
@@ -18,7 +19,7 @@ pub fn start_reminder_worker(
     http: Arc<serenity::Http>,
     redis_client: Client,
 ) {
-    tokio::spawn(async move {
+    task::spawn("reminder_worker", async move {
         let lock_key = "lock:reminder_worker";
         let lock_value = format!("worker-{}", Utc::now().timestamp_millis());
 

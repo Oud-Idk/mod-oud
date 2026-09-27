@@ -5,13 +5,14 @@ use crate::features::raid_detection::database;
 use crate::features::raid_detection::snapshot::restore_preraid_state;
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
 use crate::features::raid_detection::{RaidDetectionConfig, cache};
+use crate::shared::task;
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
 use tracing::{error, info, warn};
 
 pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
-    tokio::spawn(async move {
+    task::spawn("raid_end_monitor", async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
@@ -88,7 +89,7 @@ async fn revert_actions(
             RaidAction::LockdownServer => {
                 let ctx = ctx.clone();
                 let data = (*data).clone();
-                tokio::spawn(async move {
+                task::spawn("raid_global_unlock", async move {
                     if let Err(e) = apply_global_unlock(&ctx, &data, guild_id).await {
                         warn!(error = ?e, "lift global lock on raid end");
                     }

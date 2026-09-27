@@ -8,6 +8,7 @@ use sqlx::PgPool;
 use tracing::{error, info, instrument, warn};
 use tracing::log::trace;
 use uuid::Uuid;
+use crate::shared::task;
 use crate::features::social_notifications::database;
 use crate::features::social_notifications::discovery::{derive_feed_secret, request_hub_subscription};
 use crate::features::social_notifications::embed::build_entry_embed;
@@ -22,7 +23,7 @@ pub fn start_feed_polling_worker(
 ) {
     let worker_id = format!("worker-polling-{}", Utc::now().timestamp_millis());
 
-    tokio::spawn(run_feed_polling_worker(
+    task::spawn("feed_polling_worker", run_feed_polling_worker(
         db,
         http,
         redis_client,
@@ -84,7 +85,7 @@ pub fn start_websub_renewal_worker(
 ) {
     let worker_id = format!("worker-websub-{}", Utc::now().timestamp_millis());
 
-    tokio::spawn(run_websub_renewal_worker(
+    task::spawn("websub_renewal_worker", run_websub_renewal_worker(
         db,
         redis_client,
         reqwest_client,

@@ -1,3 +1,4 @@
+use crate::shared::task;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::database::log_external_moderation_action;
 use crate::features::moderation::types::ActionType;
@@ -67,7 +68,7 @@ pub async fn handle_audit_log_entry(
     // Best-effort username enrichment for the dashboard join. Never fails sync.
     let http = ctx.http.clone();
     let username_tx = data.core.username_tx.clone();
-    tokio::spawn(async move {
+    task::spawn("audit_log_user_resolve", async move {
         for user_id in [target_id, moderator_id] {
             match user_id.to_user(&http).await {
                 Ok(user) => {

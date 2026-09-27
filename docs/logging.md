@@ -202,8 +202,8 @@ is to put the attribute on a named `async fn` and spawn the call, which is what 
 worker and the two WebSub workers do, and what `fcbebd2` introduced deliberately. Both work;
 what does not work is the attribute on the block.
 
-Those 4 are the only instrumented spawns of 43. The other 39 cannot be tied back to the event
-that caused them, which is why a panic in a worker loop surfaces with no indication of which
+Those 4 were the only instrumented spawns of 43; the other 39 could not be tied back to the event
+that caused them, which is why a panic in a worker loop surfaced with no indication of which
 worker died.
 
 Do not hand-roll it. One helper, in `shared/task.rs`, next to `logger.rs`:
@@ -216,8 +216,9 @@ where
 ```
 
 It opens `info_span!("job", job = name)`, attaches it, and logs exit with outcome and
-duration. Then every background task is named, has an outcome, and reports how long it ran.
-The web server task is the first caller; converting the rest is step 6.
+duration. Every background task goes through it, so each is named, has an outcome, and reports
+how long it ran. `starboard/events.rs` nests its own span inside so its per-iteration lines keep
+`starboard_id` and `msg_id`.
 
 ---
 
@@ -278,8 +279,8 @@ a convention, and it would not fix a single one of the problems above.
 Current state, for sizing the work: 1294 log calls (`warn` 440, `debug` 413, `trace` 213,
 `info` 156, `error` 72), 0 of them interpolating into the message string, 0 starting with
 "Failed to", 0 "Successfully", 0 trailing periods, 790 still starting with a capital, 84
-`inspect_err` sites, 100 `#[instrument]` attributes, 5 explicit spans, and 43 `tokio::spawn`
-calls of which 1 goes through `task::spawn`.
+`inspect_err` sites, 100 `#[instrument]` attributes, 6 explicit spans, and 42 `task::spawn`
+call sites. The only `tokio::spawn` left is the one inside the helper.
 
 In severity order, so each step is shippable on its own:
 
@@ -297,8 +298,11 @@ In severity order, so each step is shippable on its own:
    the action sites call one typed function per event instead of writing a log line. `temp_voice`
    covers transfers only: channel creation and teardown fire per voice event and stay at `debug!`.
 5. **Done.** Narration stripped and every interpolated message turned into fields.
-6. **To do.** Convert the remaining 42 spawns to `task::spawn`, then delete the `#[instrument]`s
-   that are no longer needed.
+6. **Done.** All 41 background tasks go through `task::spawn`, so each has a name, an outcome and
+   a duration. Nothing was deleted for it: the `#[instrument]`s were never on the spawned
+   functions, they sit on the feature entry points, and they carry the ids (`orig_msg_id`,
+   `reaction`) their inner lines rely on. `starboard/events.rs` had hand-rolled its own span and
+   now nests a `starboard` span under the `job` one, so it keeps its ids and gains an exit line.
 7. **Done.** The drain and stop lines.
 
 Two pieces of the line-shape rule are still outstanding: 790 messages start with a capital, and

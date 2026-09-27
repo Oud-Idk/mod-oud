@@ -1,5 +1,6 @@
 use crate::core::config::state::Error;
 use crate::features::tickets::keys;
+use crate::shared::task;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use fred::types::scan::Scanner;
@@ -164,7 +165,7 @@ pub fn sync_tickets(
     let redis_clone_startup = redis_client.clone();
     let subscriber_clone_startup = subscriber_client.clone();
     let cache_clone_startup = active_tickets_cache.clone();
-    tokio::spawn(async move {
+    task::spawn("ticket_cache_hydration", async move {
         debug!("Performing initial ticket cache hydration on startup");
         if let Err(e) = hydrate_active_tickets(&redis_clone_startup, &cache_clone_startup).await {
             warn!(error = ?e, "initially hydrate active tickets on startup");

@@ -6,6 +6,7 @@ use crate::features::message_logging::types::{
     CachedAuditLogs, DeletedMessagePayload, ModifiedMessagePayload,
 };
 use crate::features::message_logging::{database, filters};
+use crate::shared::task;
 use fred::interfaces::FredResult;
 use moka::future::Cache;
 use serenity::all::{ChannelId, Context, GuildId, MessageAction, MessageId, UserId, audit_log};
@@ -167,7 +168,7 @@ pub async fn message_log_delete(
     let msg_clone = msg;
     let channel_id_val = channel_id;
 
-    tokio::spawn(async move {
+    task::spawn("message_delete_audit", async move {
         debug!("Spawning background task to match deletion audit logs and insert record");
 
         let deleted_by = determine_deleter(

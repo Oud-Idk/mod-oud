@@ -3,6 +3,7 @@ use crate::features::music::actor::{GuildActor, Requester};
 use crate::features::music::keys;
 use crate::features::music::stats::StatsTx;
 use crate::shared::spotify_auth::SpotifyAuthCache;
+use crate::shared::task;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use serde;
@@ -239,7 +240,7 @@ pub fn start_music_event_bridge(
         }
     });
 
-    tokio::spawn(async move {
+    task::spawn("music_events_subscriber", async move {
         match subscriber.subscribe(keys::events_channel()).await {
             Ok(()) => info!("Subscribed to music now-playing events"),
             Err(e) => warn!(error = ?e, "subscribe to music now-playing events"),

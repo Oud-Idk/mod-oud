@@ -2,6 +2,7 @@ use crate::core::config::message_layout::MessageLayout;
 use crate::core::config::state::Error;
 use crate::core::config::state::WebState;
 use crate::shared::embed::build_custom_message;
+use crate::shared::task;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -164,7 +165,7 @@ async fn execute_setup(
     let http_clone = Arc::clone(http);
     let role_id_to_grant = verify_role.id;
 
-    tokio::spawn(async move {
+    task::spawn("verification_backfill", async move {
         grant_role_to_existing_members(http_clone, guild_id, role_id_to_grant).await;
     });
 

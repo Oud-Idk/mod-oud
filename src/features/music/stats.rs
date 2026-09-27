@@ -1,5 +1,6 @@
 use crate::features::music::actor::Requester;
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use anyhow::Result;
 use fred::clients::Client;
 use serenity::all::{GuildId, UserId};
@@ -89,7 +90,7 @@ pub fn record_track_end(tx: &StatsTx, handle_uuid: Uuid, listened_ms: i64) {
 /// playback from database latency. Runs in every bot process; writes are
 /// append-only so processes never contend on the same rows.
 pub fn start_music_stats_worker(db: PgPool, mut rx: mpsc::UnboundedReceiver<StatsEvent>) {
-    tokio::spawn(async move {
+    task::spawn("music_stats_worker", async move {
         let mut buffer: Vec<StatsEvent> = Vec::with_capacity(FLUSH_BATCH);
         let mut interval = tokio::time::interval(FLUSH_INTERVAL);
 
@@ -200,7 +201,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
 /// Periodically prunes play events older than the rolling retention window.
 /// Uses a Redis lock so only one bot process performs the prune at a time.
 pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
-    tokio::spawn(async move {
+    task::spawn("music_stats_prune_worker", async move {
         let lock_key = "lock:music_stats_prune_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 

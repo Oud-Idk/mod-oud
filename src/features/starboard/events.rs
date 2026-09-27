@@ -7,6 +7,7 @@ use crate::features::starboard::database::StarboardPayload;
 use crate::features::starboard::types::{Starboard, StarboardOp};
 use crate::features::starboard::{builder, database, perms};
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use anyhow::Result;
 use serenity::all::{
     Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction,
@@ -198,13 +199,16 @@ async fn debounced_starboard_sync(
         let member_clone = member.clone();
         let cached_key_clone = cached_key.to_string();
 
-        let worker_span = tracing::info_span!(
-            "starboard_worker_loop",
+        // The job span carries the name and the exit line; this one carries which starboard, so
+        // the per-iteration lines below stay attributable.
+        let ids_span = tracing::info_span!(
+            "starboard",
             starboard_id = starboard_clone.id,
             msg_id = %reaction_clone.message_id
         );
 
-        tokio::spawn(
+        task::spawn(
+            "starboard_worker_loop",
             async move {
                 tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
 
@@ -263,7 +267,7 @@ async fn debounced_starboard_sync(
                     );
                 }
             }
-            .instrument(worker_span),
+            .instrument(ids_span),
         );
     } else {
         debug!("Lock busy, skipping spawn");

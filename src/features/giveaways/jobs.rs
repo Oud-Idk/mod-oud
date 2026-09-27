@@ -1,6 +1,7 @@
 use crate::features::giveaways::database::{fetch_expired_giveaways, mark_giveaway_finished};
 use crate::features::giveaways::types::Giveaway;
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use fred::clients::Client;
 use rand::prelude::IndexedRandom;
 use serenity::all::{ChannelId, Http, MessageId, ReactionType, User, UserId};
@@ -47,7 +48,7 @@ pub async fn get_all_reaction_users(
 
 /// Spawns the background task loop that periodically checks for expired giveaways.
 pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client) {
-    tokio::spawn(async move {
+    task::spawn("giveaway_worker", async move {
         info!("Giveaway background worker started");
 
         let lock_key = "lock:giveaway_worker";

@@ -22,6 +22,7 @@ use mod_oud::features::{
 };
 use mod_oud::shared::logger;
 use mod_oud::shared::spotify_auth::SpotifyAuthCache;
+use mod_oud::shared::task;
 use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::{WebServerDeps, start_web_server};
 use poise::serenity_prelude as serenity;
@@ -473,7 +474,7 @@ async fn start_bot(
     // `start_shard` blocks for the life of the gateway, so it runs as a task the caller selects
     // on. A drain reaches the shards through `ShardManager`, which is why it is returned.
     let shard_manager = Arc::clone(&client.shard_manager);
-    let gateway = tokio::spawn(async move {
+    let gateway = task::spawn("gateway", async move {
         client
             .start_shard(deps.shard_index, deps.total_shards)
             .await

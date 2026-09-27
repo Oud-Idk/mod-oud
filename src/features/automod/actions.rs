@@ -4,6 +4,7 @@ use crate::core::config::state::BotData;
 use crate::features::automod::types::{BaseRule, RuleAction};
 use crate::features::moderation::issue_mute;
 use crate::features::warning::issue_warning;
+use crate::shared::task;
 use crate::shared::username_cache::UserUpdate;
 use fred::clients::Client;
 use moka::future::Cache;
@@ -292,7 +293,7 @@ async fn send_temp_warning(
     if let Ok(temp_msg) = channel_id.say(&ctx.http, content).await {
         let http = ctx.http.clone();
         let temp_msg_id = temp_msg.id;
-        tokio::spawn(async move {
+        task::spawn("automod_temp_message_cleanup", async move {
             tokio::time::sleep(duration).await;
             if let Err(err) = temp_msg.delete(&http).await {
                 warn!(error = %err, message_id = %temp_msg_id.get(), "remove temporary warning message");

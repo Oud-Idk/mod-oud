@@ -1,3 +1,4 @@
+use crate::shared::task;
 use songbird::input::{
     AsyncAdapterStream, AsyncReadOnlySource, AudioStream, AudioStreamError, Compose, Input,
     RawAdapter,
@@ -109,7 +110,7 @@ impl FfmpegLiveInput {
         })?;
 
         // Reap ffmpeg once it exits (e.g. SIGPIPE when songbird stops the track).
-        tokio::spawn(async move {
+        task::spawn("ffmpeg_stream_reap", async move {
             let mut child = child;
             let _ = child.wait().await;
         });

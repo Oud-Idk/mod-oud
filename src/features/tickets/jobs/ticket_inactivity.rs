@@ -4,6 +4,7 @@ use crate::features::tickets::audit;
 use crate::features::tickets::database;
 use crate::features::tickets::keys;
 use crate::shared::locking;
+use crate::shared::task;
 use anyhow::Result;
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
@@ -32,7 +33,7 @@ pub fn start_ticket_inactivity_worker(
     redis_client: Client,
     guild_config: Cache<GuildId, GuildSettings>,
 ) {
-    tokio::spawn(async move {
+    task::spawn("ticket_inactivity_worker", async move {
         let lock_key = keys::ticket_inactivity_lock_key();
         let lock_value = format!("worker-{}", Utc::now().timestamp_millis());
 

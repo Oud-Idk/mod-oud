@@ -1,3 +1,4 @@
+use crate::shared::task;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::leveling;
@@ -168,7 +169,7 @@ pub fn spawn_level_up_effects(
     let current_level_val = event.user_level.current_level;
     let db_lvl_up = db.clone();
 
-    tokio::spawn(async move {
+    task::spawn("level_up_notification", async move {
         if !matches!(config.notify.target, NotificationTarget::None) {
             trace!(
                 %guild_id,

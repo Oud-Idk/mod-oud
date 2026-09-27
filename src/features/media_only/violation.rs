@@ -1,4 +1,5 @@
 use crate::features::media_only::types::MediaOnlyChannel;
+use crate::shared::task;
 use anyhow::Context as _;
 use serenity::all::{Context, CreateMessage, Mentionable, Message};
 use std::fmt::Write;
@@ -73,7 +74,7 @@ async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> any
             )
             .await?;
 
-        tokio::spawn(async move {
+        task::spawn("media_only_warning_cleanup", async move {
             time::sleep(Duration::from_secs(del_warning)).await;
             let _ = sent_message.delete(http_clone).await.inspect_err(
                 |e| warn!(error = ?e, "could not delete warning message, it may already be deleted"),

@@ -1,6 +1,7 @@
 use crate::features::moderation::audit;
 use crate::features::moderation::database;
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use anyhow::Result;
 use fred::prelude::*;
 use futures_util::StreamExt;
@@ -18,7 +19,7 @@ const fn is_unknown_ban_error(err: &serenity::Error) -> bool {
 
 /// Starts the background task for processing expired temporary bans.
 pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_client: Client) {
-    tokio::spawn(async move {
+    task::spawn("temp_ban_worker", async move {
         let lock_key = "lock:temp_ban_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 

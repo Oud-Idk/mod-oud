@@ -1,5 +1,6 @@
 use crate::core::config::settings::GuildSettings;
 use crate::features::bad_words::CompiledRuleset;
+use crate::shared::task;
 use fred::clients::SubscriberClient;
 use fred::prelude::{EventInterface, PubsubInterface};
 use moka::future::Cache;
@@ -90,7 +91,7 @@ pub fn sync_configs(
 
     // Starts the worker
     let client_clone = subscriber.clone();
-    tokio::spawn(async move {
+    task::spawn("config_sync_subscriber", async move {
         tracing::debug!("Attempting to register subscriber on 'config_updates' channel");
 
         match client_clone.subscribe("config_updates").await {

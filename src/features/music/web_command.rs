@@ -6,6 +6,7 @@
 
 use crate::features::music::actor::Requester;
 use crate::features::music::keys;
+use crate::shared::task;
 use fred::clients::{Client, SubscriberClient};
 use fred::interfaces::{EventInterface, PubsubInterface};
 use serde::{Deserialize, Serialize};
@@ -213,7 +214,7 @@ impl WebCommandBus {
 
         let subscriber_for_subscribe = subscriber;
         let subscribe_channel = reply_channel.clone();
-        tokio::spawn(async move {
+        task::spawn("music_web_reply_worker", async move {
             match subscriber_for_subscribe
                 .subscribe(subscribe_channel.as_str())
                 .await

@@ -5,6 +5,7 @@ use crate::features::music::state::{MusicState, PlayOutcome};
 use crate::features::music::web_command::{
     ClientMessage, MusicAction, RemoteMusicCommand, RemoteMusicResult, ServerMessage,
 };
+use crate::shared::task;
 use axum::Router;
 use axum::extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
@@ -140,7 +141,7 @@ pub fn start_music_web_control_worker(
         }
     });
 
-    tokio::spawn(async move {
+    task::spawn("music_web_control_worker", async move {
         match subscriber_client.subscribe(keys::commands_channel()).await {
             Ok(()) => debug!("Subscribed to music web commands channel"),
             Err(e) => warn!(error = ?e, "subscribe to music web commands"),
