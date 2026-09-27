@@ -92,8 +92,12 @@ tracing::error!("Failed to disconnect member {}: {:?}", target_user_id, err);
 - Field names are domain names: `guild_id`, `channel_id`, `user_id`, `message_id`, `command`,
   `job`, `event`, `outcome`, `duration_ms`. Never `id`, `e`, `ctx`, `data`, `thing`.
 - Never log message content, tokens, or a response body from an authenticated API. A body from
-  a keyed endpoint can echo the key back, and `reqwest` errors include the full URL with its
-  query string.
+  a keyed endpoint can echo the key back, and a `reqwest::Error` embeds the full request URL in
+  **both** its `Display` and its `Debug`, so `error = %e` and `error = ?e` are both a way to print
+  a key. `shared::http` is the tool for this and the test is the reason to believe it:
+  `redact_url` for the URL, `safe_reqwest_error` for the error, `body_bytes` for the body. Worse,
+  a keyed `reqwest::Error` must never enter an `anyhow` chain, because anything above that prints
+  the chain prints the key. Map it at the HTTP call, as `automod/safe_browsing.rs` does.
 - `error = ?e` prints only the outermost context of an `anyhow::Error`. At a boundary, add the
   chain: `error_chain = %format!("{e:#}")`. `core/error.rs` is the reference.
 
@@ -155,6 +159,19 @@ Two real sites in this repo are the `fault` case today, and neither is a missing
 
 So: log inside `inspect_err` only if the error is swallowed, or transformed into a generic
 error where the original context would otherwise be lost.
+
+The second clause is doing more work than it looks. A web handler that answers a bare
+`500 Internal server error` has destroyed the cause: the axum boundary logs
+`error!(reason = 500, "http request failed")` and the status is all that survives. So a handler
+that collapses its error to a generic one **must** say which call failed, and that is not a second
+log of the same failure, it is the only record of it. `verification/web` collects its errors into
+the response instead, which is a third fate and the same rule: the fate is decided there, so it
+logs there.
+
+The line that is actually banned is the duplicate: the same `Err` printed once at the site and
+again at the boundary. `search/http.rs` is the shape to copy, where `get_json` logs the provider,
+the redacted url and a described error, then returns a generic one so the raw error reaches
+neither the log nor a user.
 
 The boundaries are `core::error::on_error`, the top-level `match` in each worker loop, the axum
 error path, and the fallible functions in `main.rs`. Nothing else logs a propagated error.
