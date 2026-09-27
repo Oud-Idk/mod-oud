@@ -196,11 +196,11 @@ is to put the attribute on a named `async fn` and spawn the call, which is what 
 worker and the two WebSub workers do, and what `fcbebd2` introduced deliberately. Both work;
 what does not work is the attribute on the block.
 
-Those 4 are the only instrumented spawns of 41. The other 37 cannot be tied back to the event
-that caused them, which is why a panic in a worker loop currently surfaces with no indication of
-which worker died.
+Those 4 are the only instrumented spawns of 43. The other 39 cannot be tied back to the event
+that caused them, which is why a panic in a worker loop surfaces with no indication of which
+worker died.
 
-Do not hand-roll it 41 times. One helper, in `shared/task.rs`, next to `logger.rs`:
+Do not hand-roll it. One helper, in `shared/task.rs`, next to `logger.rs`:
 
 ```rust
 pub fn spawn<F>(name: &'static str, fut: F) -> JoinHandle<F::Output>
@@ -211,6 +211,7 @@ where
 
 It opens `info_span!("job", job = name)`, attaches it, and logs exit with outcome and
 duration. Then every background task is named, has an outcome, and reports how long it ran.
+The web server task is the first caller; converting the rest is step 6.
 
 ---
 
@@ -221,13 +222,15 @@ Under the default filter (`info,sqlx=warn,serenity=warn,poise=info`) that means 
 request logs its error with no request line above it, and a successful one is invisible. You
 cannot tell whether the WebSub hub called us at all.
 
-Configure it explicitly in `web/router.rs`: `INFO` span, `request_id` from the inbound
-`x-request-id` or a counter, the route pattern rather than the raw URI (feed ids would blow up
-cardinality), `method`, `path`, `status`, `duration_ms`, and `on_failure` at `ERROR`. No
-bodies, no headers.
+So `web/router.rs` uses a `route_layer` middleware instead of `TraceLayer`: `INFO` span,
+`request_id` from the inbound `x-request-id` or a counter, the route pattern rather than the raw
+URI (feed ids would blow up cardinality), `method`, `path`, `status`, `duration_ms`, and the
+5xx case at `ERROR`. No bodies, no headers. `route_layer` rather than `layer` because only the
+former runs once routing has matched, which is what makes `MatchedPath` readable; the 404
+fallback is not a match and keeps its own line.
 
 A 401 from `require_internal_secret` is a real signal: a deploy or a dashboard is holding the
-wrong secret. It is currently silent, and it is one of the few 4xx worth a line.
+wrong secret. It is one of the few 4xx worth a line, and it is logged.
 
 ---
 
@@ -247,12 +250,12 @@ Draining
 Stopped
 ```
 
-Today the process logs its filter, intents, shard count, login and listen address, and then
-nothing. There is no drain and no stop line, so a restart is indistinguishable from a crash.
+All nine are emitted. The signal is a field rather than a line of its own, so
+`signal="SIGTERM"` is queryable.
 
 `pretty` locally, JSON when `LOG_FORMAT=json`, since multiline pretty output breaks anything
 line-oriented downstream. Neither `RUST_LOG` nor `LOG_FORMAT` is set by any compose file or the
-Dockerfile today, so the defaults in `main.rs` are what production actually runs.
+Dockerfile today, so the defaults in `shared/logger.rs` are what production actually runs.
 
 ---
 
@@ -266,46 +269,48 @@ a convention, and it would not fix a single one of the problems above.
 
 ## Migration
 
-Current state, for sizing the work: 1287 log calls (`debug` 394, `warn` 298, `error` 207,
-`trace` 217, `info` 171), 43 of them interpolating into the message string, 375 starting with
-"Failed to", 84 `inspect_err` sites, 100 `#[instrument]` attributes, 2 explicit spans, and 41
-`tokio::spawn` calls of which 1 is instrumented.
+Current state, for sizing the work: 1293 log calls (`debug` 394, `warn` 300, `error` 211,
+`trace` 213, `info` 175), 0 of them interpolating into the message string, 2 starting with
+"Failed to", 0 "Successfully", 0 trailing periods, 796 still starting with a capital, 84
+`inspect_err` sites, 100 `#[instrument]` attributes, 5 explicit spans, and 43 `tokio::spawn`
+calls of which 1 goes through `task::spawn`.
 
 In severity order, so each step is shippable on its own:
 
-1. **Add `shared/logger.rs`** with `init`, `task::spawn`, and the `TraceLayer` config. Add the
-   `process` root span in `main.rs`.
-2. **Re-level the 207 `error!` calls** that are really expected Discord or Redis outcomes, down
-   to `warn!`. Largest single win, and purely mechanical. Start with `temp_voice/service.rs`,
-   `starboard/events.rs`, `message_logging/events.rs`, `moderation/`.
-3. **Demote per-event `info!` to `debug!`.** `reaction_roles/events.rs`, `leveling/`,
+1. **Done.** `shared/logger.rs` with `init` and `task::spawn`, the `process` root span, and the
+   per-request `http_request` span in `web/router.rs`.
+2. **To do.** Re-level the 211 `error!` calls that are really expected Discord or Redis
+   outcomes, down to `warn!`. Largest single win, and purely mechanical. Start with
+   `temp_voice/service.rs`, `starboard/events.rs`, `message_logging/events.rs`, `moderation/`.
+3. **To do.** Demote per-event `info!` to `debug!`. `reaction_roles/events.rs`, `leveling/`,
    `custom_commands/`, `reporting/web.rs`.
-4. **Promote audit-worthy `debug!` to `info!`** through a per-feature `audit.rs`:
+4. **To do.** Promote audit-worthy `debug!` to `info!` through a per-feature `audit.rs`:
    `moderation`, `verification`, `tickets`, `temp_voice` transfers.
-5. **Strip narration** and the 43 interpolating messages.
-6. **Convert the 41 spawns** to `task::spawn`, then delete the `#[instrument]`s that are no
-   longer needed.
-7. **Add the drain and stop lines.**
+5. **Done.** Narration stripped and every interpolated message turned into fields.
+6. **To do.** Convert the remaining 42 spawns to `task::spawn`, then delete the `#[instrument]`s
+   that are no longer needed.
+7. **Done.** The drain and stop lines.
+
+Two pieces of the line-shape rule are still outstanding: 796 messages start with a capital, and
+the fallback taken is still often named in the message rather than in a field. Both are
+cosmetic, and nothing in the check enforces either.
 
 ## Keeping it that way
 
 `scripts/check-logging.sh`, a grep-based check rather than a clippy lint. Clippy has no rule
 for log levels, and a rule nobody runs decays.
 
-A plain `rg` for `error!` on one line gets this wrong: 61 of the 207 calls wrap across several
+A plain `rg` for `error!` on one line gets this wrong: 61 of the 211 calls wrap across several
 lines, so a line-based pattern cannot see whether `error` is on the next line. `log_calls.awk`
 extracts each invocation whole, balancing parens and skipping string literals, so a ten-line
-call is judged as one call. It emits 1287 records for the 1287 calls in `src/`, and the
+call is judged as one call. It emits 1293 records for the 1293 calls in `src/`, and the
 per-level counts match a separate `rg -c` tally exactly.
 
 ```console
 $ scripts/check-logging.sh
-error! without a cause: src/features/verification/web/verify.rs:124
+error! without a cause: src/features/verification/web/verify.rs:131
   add error = (a value), reason = (known cause), or fault = (broken invariant).
   Do not invent an io::Error to pass this.
-interpolation in message: src/features/temp_voice/service.rs:71
-  move the value into a field, see docs/logging.md
-#[instrument(err)] double-logs: src/features/automod/safe_browsing.rs:37: #[instrument(
 over info! budget (8): src/features/moderation/commands/actions.rs
 ```
 
@@ -313,33 +318,21 @@ Four rules, and what they currently find:
 
 | Rule | Finds | Notes |
 |---|---|---|
-| `error!` names a cause | 26 | 11 interpolate the error into the message instead of using a field. 15 name no cause, and most of those are the `fault` case. |
-| No `{}` in the message string | 78 | Exempts `format!`/`panic!`, where the braces belong to the format specifier. |
-| No `#[instrument(err)]` | 3 | `automod/spam_tracker.rs` twice, `automod/safe_browsing.rs` once. |
-| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 2 | `moderation/commands/actions.rs` and `raid_detection/triggers.rs`. |
+| `error!` names a cause | 15 | Step 2. Most are the `fault` case. |
+| No `{}` in the message string | 0 | Exempts the formatting macros, where the braces belong to the format specifier. |
+| No `#[instrument(err)]` | 0 | |
+| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 2 | `moderation/commands/actions.rs` and `raid_detection/triggers.rs`. Step 3. |
 
-Of the 15 that name no cause, 9 are the `fault` case the table above exists for: four missing
-captcha or verification env vars in `verification/web/verify.rs`, the missing
-`INTERNAL_API_SECRET` in `social_notifications/subscription.rs`, the `CommandPanic` payload in
-`core/error.rs`, the `i64` payout overflow in `gambling/audit.rs`, an uncomputable mute timestamp
-in `automod/actions.rs`, and a blackjack split with no second card.
-
-The other 6 already carry the cause under a name the check cannot see: `status = %status` on the
-two upstream non-success responses, and `failed, total` on the WebSub renewal summary. Those are
-still violations, because a reader cannot query them without knowing which field name each site
-picked. The point of the three reserved names is predictability, not the presence of some field.
+Rule 2's exemption has to name the formatting macros explicitly. Written as `[a-z_]+!` it also
+matches `trace!` and `info!`, which strips every single-literal log call before the brace check
+runs, and hides the violations it exists to catch.
 
 The check is a floor, not the convention. It cannot tell a `debug!` that is useful from one
 that is noise, and it will never know whether an `info!` is justified. It catches the mechanical
 drift; the level table above is what you still have to read.
 
-Two known limits:
+One known limit: it reads Rust, so a log line built through a helper macro or a `format!` into a
+string is invisible to it.
 
-- It reads Rust, so a log line built through a helper macro or a `format!` into a string is
-  invisible to it.
-- `.github/workflows/deploy.yml` runs `on: push: main` with no `pull_request` trigger, so a
-  check wired in there fires after merge rather than on the branch. Worth adding a `pull_request`
-  trigger, or at least a `just` target, so the gate lands before the code does.
-
-`trace!` deserves a fifth rule: 217 of them, and the default filter drops every one. Delete the
+`trace!` deserves a fifth rule: 213 of them, and the default filter drops every one. Delete the
 ones nobody turns on.

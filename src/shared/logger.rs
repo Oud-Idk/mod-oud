@@ -34,6 +34,8 @@ pub fn init() -> EnvFilter {
             .with_span_list(true)
             .init();
     } else {
+        // `pretty` renders the enclosing span and its fields itself, on a line of its own, so the
+        // `process` span's shard_id reaches every line that inherits it.
         builder.pretty().init();
     }
 
@@ -41,8 +43,8 @@ pub fn init() -> EnvFilter {
     let format = if json { "json" } else { "pretty" };
     info!(
         filter = %filter,
-        format,
-        version = env!("CARGO_PKG_VERSION"),
+        format = %format,
+        version = %env!("CARGO_PKG_VERSION"),
         "Tracing initialized"
     );
     filter

@@ -57,7 +57,17 @@ fn main() -> Result<(), Error> {
         shard_count = env_config.total_shards,
         log_filter = %filter,
     );
-    runtime.block_on(async_main(env_config).instrument(process))
+    // `main` is the boundary for everything below it, so its error is logged here. Without this
+    // the only record is the bare `Error:` that `Termination` prints on the way out.
+    runtime
+        .block_on(async_main(env_config).instrument(process))
+        .inspect_err(|e| {
+            error!(
+                error = ?e,
+                error_chain = %format!("{e:#}"),
+                "process exited with an error"
+            );
+        })
 }
 
 async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
