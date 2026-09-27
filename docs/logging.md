@@ -168,16 +168,27 @@ boundary.
 
 ## Spans go at the boundary, not the leaf
 
-Ten spans, opened where work is admitted. Everything downstream inherits them for free.
+Six spans, opened where work is admitted. Everything downstream inherits them for free.
 
 | Span | Fields |
 |---|---|
 | `process` (root, in `main`) | `shard_id`, `shard_count`, `log_filter` |
 | `dispatch_events` | `event`, `guild_id`, `channel_id`, `user_id` |
-| poise command | `command`, `guild_id`, `user_id` |
 | each worker | `job` |
-| each worker iteration | `duration_ms` |
 | each HTTP request | `request_id`, `method`, `path` |
+
+Two rows this table used to claim are not here, and the reason is worth keeping:
+
+- **There is no poise command span.** Poise 0.6 creates none and nothing here wraps a command
+  either. What carries `command`, `guild_id` and `user_id` is `core::error::on_error`, the command
+  boundary, as fields on the lines it logs. Adding a real span means configuring the framework.
+- **There is no per-worker-iteration span.** `shared/task.rs` opens one `job` span for the whole
+  future, and `duration_ms` is a field on the outcome line it logs at the end. The "acquiring lock"
+  and "lock acquired" pairs those workers used to log were standing in for the missing iteration
+  marker, which is why deleting them lost a little.
+
+Both are worth adding eventually. Until then, a line about a command carries its ids from
+`on_error`, not from an enclosing span.
 
 The root span matters more than it looks: it is the only way to tell which shard a line came
 from.
@@ -351,6 +362,34 @@ not one: `join_leave/messages.rs` already had `fallback_channel_id` as a field, 
 was the opposite case, two parallel branches failing to send with no fallback in sight, so it takes
 a `notice` field naming whose template failed. Nothing in the check enforces any of this.
 
+Then the rest of the tree, which is where the bulk of it was. 1292 calls went to 1052 across 30
+features. The two shapes were a present participle announcing work not yet done (`fetching X`,
+`attempting to X`, `invoked X command`) and a bare infinitive naming an operation on a `warn!` or
+`error!` (`write settings to Redis cache`). A sentence-initial participle is announcing by
+construction, so the judgement each time was delete, move, or restate: delete where a specific line
+already covered the step or the enclosing `#[instrument]` reported the entry, move where an `info!`
+announced an action the doc wants logged after it taking, restate where the line was the only
+record of that step. No level changed anywhere in the sweep, checked by comparing each message's
+level set before and after rather than by reading the diff.
+
+Four things came out of it that were not narration at all:
+
+- `warning/thresholds.rs` had `debug("Inserting automod-log for threshold")` next to
+  `use tracing::field::debug`. That binds to the field constructor, not the macro, so it compiled
+  to a discarded expression and had never logged anything. Rule 5 exists because of it.
+- `moderation/commands/category.rs` logged "command ran in a server" from inside the
+  `guild_id.is_none()` branch, so it said the opposite of what happened.
+- `music/web.rs` logged `expected = %expected` on a failed ticket check. That is a valid HMAC for
+  `(guild_id, user_id, expires, purpose)`, which is exactly what `verify_ticket` accepts, so it was
+  a replayable credential in the log.
+- `spotify.rs` and `youtube.rs` logged whole response bodies, and the YouTube call carries `key=`
+  in its query string. They now log `body_bytes` and a `redact_url`, which is the shape
+  `search/genius/client.rs` already used.
+
+The `anyhow` context strings were swept at the same time, since they reach the log through
+`error_chain` at every boundary. The two user-facing item strings in `economy` were left alone:
+they are shown to a user, not logged.
+
 ## Keeping it that way
 
 `scripts/check-logging.sh`, a grep-based check rather than a clippy lint. Clippy has no rule
@@ -359,15 +398,15 @@ for log levels, and a rule nobody runs decays.
 A plain `rg` for `error!` on one line gets this wrong: 61 of the 211 calls wrap across several
 lines, so a line-based pattern cannot see whether `error` is on the next line. `log_calls.awk`
 extracts each invocation whole, balancing parens and skipping string literals, so a ten-line
-call is judged as one call. It emits 1293 records for the 1293 calls in `src/`, and the
-per-level counts match a separate `rg -c` tally exactly.
+call is judged as one call. It emits records for every call in `src/`, and the per-level counts
+match a separate `rg -c` tally exactly.
 
 ```console
 $ scripts/check-logging.sh
 logging checks passed
 ```
 
-Four rules, all currently at zero, and gating in CI. The rules are a floor: they cannot tell
+Five rules, all currently at zero, and gating in CI. The rules are a floor: they cannot tell
 whether a level is right, only whether the shape is. Step 2 in particular is a judgement the
 check will never revisit, so a re-level that undoes one of the 72 has to be argued for rather
 than waited for a red build.
@@ -378,10 +417,17 @@ than waited for a red build.
 | No `{}` in the message string | 0 | Exempts the formatting macros, where the braces belong to the format specifier. |
 | No `#[instrument(err)]` | 0 | |
 | `info!` budget per file (default 8, `INFO_BUDGET` to change) | 0 | `audit.rs` is exempt: every line in one is an action taken, which is what `info!` is for. |
+| `level(` is not `level!(` | 0 | Not an awk rule: the extractor only matches `level!(`, so the mistake it catches is invisible to it by construction. |
 
 Rule 2's exemption has to name the formatting macros explicitly. Written as `[a-z_]+!` it also
 matches `trace!` and `info!`, which strips every single-literal log call before the brace check
 runs, and hides the violations it exists to catch.
+
+Rule 5 exists because a line can be a log call, look like one, compile clean and log nothing:
+`debug("x")` binds to `tracing::field::debug`, the field constructor. It has to skip `fn` headers,
+since poise's command handlers are literally `pub async fn info(`, or the rule fires on the whole
+tree.
+
 
 The check is a floor, not the convention. It cannot tell a `debug!` that is useful from one
 that is noise, and it will never know whether an `info!` is justified. It catches the mechanical
