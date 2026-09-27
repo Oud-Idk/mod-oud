@@ -25,6 +25,7 @@ use mod_oud::shared::spotify_auth::SpotifyAuthCache;
 use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::{WebServerDeps, start_web_server};
 use poise::serenity_prelude as serenity;
+use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
 use songbird::SerenityInit;
 use sqlx::ConnectOptions;
@@ -34,8 +35,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
+use tokio::task::JoinHandle;
 use tracing::log::LevelFilter;
-use tracing::{Instrument, debug, info, info_span, warn};
+use tracing::{Instrument, debug, error, info, info_span, warn};
 
 fn main() -> Result<(), Error> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -113,7 +115,7 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
     }
 
     if env_config.run_bot {
-        start_bot(BotDeps {
+        let (shard_manager, mut gateway) = start_bot(BotDeps {
             token: env_config.token,
             google_cloud_api_key: env_config.google_cloud_api_key,
             shard_index: env_config.shard_index,
@@ -129,14 +131,63 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
             music_state,
         })
         .await?;
+
+        // Without this a deploy kills the process mid-connection and the log ends mid-sentence,
+        // so a restart is indistinguishable from a crash.
+        tokio::select! {
+            result = &mut gateway => {
+                match result {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => error!(error = ?e, "gateway stopped on its own"),
+                    Err(e) => error!(error = ?e, "gateway task ended abnormally"),
+                }
+            }
+            signal = shutdown_signal() => {
+                info!(signal, "shutdown signal received");
+            }
+        }
+
+        info!("Draining");
+        shard_manager.shutdown_all().await;
+        // Bounded, so a shard that will not close cannot hang the deploy.
+        if tokio::time::timeout(DRAIN_TIMEOUT, &mut gateway)
+            .await
+            .is_err()
+        {
+            warn!("Drain timed out, exiting with the gateway still connected");
+        }
     } else {
         warn!(
             "bot gateway client is disabled, web server running exclusively; ignore this warning if intentional"
         );
-        tokio::signal::ctrl_c().await?;
+        let signal = shutdown_signal().await;
+        info!(signal, "shutdown signal received");
     }
 
+    info!("Stopped");
+
     Ok(())
+}
+
+/// How long the drain waits for the gateway to finish before the process exits anyway.
+const DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Resolves on the first SIGTERM or SIGINT, naming which one arrived.
+async fn shutdown_signal() -> &'static str {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        if let Ok(mut terminate) = signal(SignalKind::terminate()) {
+            return tokio::select! {
+                _ = terminate.recv() => "SIGTERM",
+                _ = tokio::signal::ctrl_c() => "SIGINT",
+            };
+        }
+    }
+
+    let _ = tokio::signal::ctrl_c().await;
+    "SIGINT"
 }
 
 /// Environment variables parsed at startup.
@@ -312,23 +363,13 @@ async fn connect_redis(redis_url: &str) -> Result<(Client, SubscriberClient), Er
 }
 
 /// Builds and starts the Discord bot gateway client.
-async fn start_bot(deps: BotDeps) -> Result<(), Error> {
-    let BotDeps {
-        token,
-        google_cloud_api_key,
-        shard_index,
-        total_shards,
-        pool,
-        redis_client,
-        subscriber_client,
-        guild_configs,
-        bad_words_cache,
-        username_tx,
-        username_rx,
-        reqwest_client,
-        music_state,
-    } = deps;
-
+///
+/// Returns the shard manager, which is what a graceful shutdown goes through, and a handle to the
+/// gateway task. The handle is needed because `start_shard` does not return until every shard has
+/// shut down.
+async fn start_bot(
+    deps: BotDeps,
+) -> Result<(Arc<ShardManager>, JoinHandle<Result<(), Error>>), Error> {
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -341,8 +382,8 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
     let active_names: Vec<&str> = intents.iter_names().map(|(name, _flag)| name).collect();
 
     info!(
-        shard = shard_index + 1,
-        shard_count = total_shards,
+        shard = deps.shard_index + 1,
+        shard_count = deps.total_shards,
         intents = ?active_names,
         "shard selected intents"
     );
@@ -390,25 +431,25 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
         })
         .setup(move |ctx, ready, _framework| {
             setup(SetupParams {
-                google_cloud_api_key,
-                shard_index,
-                total_shards,
-                pool,
-                redis_client: redis_client.clone(),
-                subscriber_client: subscriber_client.clone(),
-                guild_configs_cache: guild_configs.clone(),
-                bad_words_cache: bad_words_cache.clone(),
+                google_cloud_api_key: deps.google_cloud_api_key,
+                shard_index: deps.shard_index,
+                total_shards: deps.total_shards,
+                pool: deps.pool,
+                redis_client: deps.redis_client.clone(),
+                subscriber_client: deps.subscriber_client.clone(),
+                guild_configs_cache: deps.guild_configs.clone(),
+                bad_words_cache: deps.bad_words_cache.clone(),
                 ctx,
-                username_tx: username_tx.clone(),
-                username_rx,
-                reqwest_client: reqwest_client.clone(),
-                music_state,
+                username_tx: deps.username_tx.clone(),
+                username_rx: deps.username_rx,
+                reqwest_client: deps.reqwest_client.clone(),
+                music_state: deps.music_state,
                 ready,
             })
         })
         .build();
 
-    let mut client = serenity::Client::builder(token, intents)
+    let mut client = serenity::Client::builder(deps.token, intents)
         .framework(framework)
         .cache_settings(cache_settings)
         .register_songbird()
@@ -419,9 +460,17 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
         data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
     }
 
-    client.start_shard(shard_index, total_shards).await?;
+    // `start_shard` blocks for the life of the gateway, so it runs as a task the caller selects
+    // on. A drain reaches the shards through `ShardManager`, which is why it is returned.
+    let shard_manager = Arc::clone(&client.shard_manager);
+    let gateway = tokio::spawn(async move {
+        client
+            .start_shard(deps.shard_index, deps.total_shards)
+            .await
+            .map_err(Error::from)
+    });
 
-    Ok(())
+    Ok((shard_manager, gateway))
 }
 
 /// Resolves the per-guild command prefix for poise prefix commands.
