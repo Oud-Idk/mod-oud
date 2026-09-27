@@ -145,12 +145,18 @@ impl DynamicRaidDetector {
 
         let stats_res = self.recompute_stats(guild_id, now, &stats_cache_key).await;
 
-        if let Err(e) = lock_guard.release().await {
-            warn!(
-                error = ?e,
-                %guild_id,
-                "stats recompute lock release failed; lock will expire on its own"
-            );
+        match lock_guard.release().await {
+            Ok(true) => {}
+            Ok(false) => {
+                warn!(%guild_id, "stats recompute lock no longer owned at release");
+            }
+            Err(e) => {
+                warn!(
+                    error = ?e,
+                    %guild_id,
+                    "stats recompute lock release failed; lock will expire on its own"
+                );
+            }
         }
 
         stats_res

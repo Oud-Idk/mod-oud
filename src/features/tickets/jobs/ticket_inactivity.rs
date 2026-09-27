@@ -56,9 +56,14 @@ pub fn start_ticket_inactivity_worker(
                         warn!(error = ?e, "abandoned ticket closure sweep failed");
                     }
 
-                    // Release using the guard
-                    if let Err(e) = guard.release().await {
-                        warn!(error = ?e, "inactivity lock release failed");
+                    match guard.release().await {
+                        Ok(true) => {}
+                        Ok(false) => {
+                            warn!(%lock_key, "inactivity lock no longer owned at release");
+                        }
+                        Err(e) => {
+                            warn!(error = ?e, "inactivity lock release failed");
+                        }
                     }
                 }
                 Ok(None) => {

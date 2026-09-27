@@ -63,19 +63,13 @@ pub async fn sse_handler(
         "sse",
         secret.as_bytes(),
     ) {
-        let expected = crate::web::ticket::sign_ticket(
-            &params.guild_id.to_string(),
-            user_id,
-            expires,
-            "sse",
-            secret.as_bytes(),
-        );
-        debug!(
+        // Not the expected signature: it is a live credential, since verify_ticket accepts it.
+        warn!(
             guild_id = %params.guild_id,
             user_id = %user_id,
             expires = expires,
-            expected = %expected,
-            "rejected SSE subscription: sig mismatch (check INTERNAL_API_SECRET sync & purpose)"
+            purpose = "sse",
+            "SSE ticket signature mismatch, check INTERNAL_API_SECRET sync and purpose"
         );
         return Err(StatusCode::UNAUTHORIZED);
     }

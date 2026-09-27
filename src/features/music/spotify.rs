@@ -1,4 +1,4 @@
-use crate::features::search::redact_url;
+use crate::shared::http::{redact_url, safe_reqwest_error};
 use crate::shared::spotify_auth::SpotifyAuthCache;
 use serde::Deserialize;
 use tracing::{debug, warn};
@@ -54,7 +54,7 @@ pub async fn resolve_spotify_playlist(
         let res = match client.get(&api_url).bearer_auth(&token).send().await {
             Ok(r) => r,
             Err(e) => {
-                warn!(error = %e, "spotify playlist page fetch failed");
+                warn!(error = %safe_reqwest_error(&e), "spotify playlist page fetch failed");
                 break;
             }
         };
@@ -68,7 +68,7 @@ pub async fn resolve_spotify_playlist(
         let body_text = match res.text().await {
             Ok(t) => t,
             Err(e) => {
-                warn!(error = %e, "spotify response body read failed");
+                warn!(error = %safe_reqwest_error(&e), "spotify response body read failed");
                 break;
             }
         };

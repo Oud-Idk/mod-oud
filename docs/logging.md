@@ -92,8 +92,12 @@ tracing::error!("Failed to disconnect member {}: {:?}", target_user_id, err);
 - Field names are domain names: `guild_id`, `channel_id`, `user_id`, `message_id`, `command`,
   `job`, `event`, `outcome`, `duration_ms`. Never `id`, `e`, `ctx`, `data`, `thing`.
 - Never log message content, tokens, or a response body from an authenticated API. A body from
-  a keyed endpoint can echo the key back, and `reqwest` errors include the full URL with its
-  query string.
+  a keyed endpoint can echo the key back, and a `reqwest::Error` embeds the full request URL in
+  **both** its `Display` and its `Debug`, so `error = %e` and `error = ?e` are both a way to print
+  a key. `shared::http` is the tool for this and the test is the reason to believe it:
+  `redact_url` for the URL, `safe_reqwest_error` for the error, `body_bytes` for the body. Worse,
+  a keyed `reqwest::Error` must never enter an `anyhow` chain, because anything above that prints
+  the chain prints the key. Map it at the HTTP call, as `automod/safe_browsing.rs` does.
 - `error = ?e` prints only the outermost context of an `anyhow::Error`. At a boundary, add the
   chain: `error_chain = %format!("{e:#}")`. `core/error.rs` is the reference.
 
@@ -155,6 +159,19 @@ Two real sites in this repo are the `fault` case today, and neither is a missing
 
 So: log inside `inspect_err` only if the error is swallowed, or transformed into a generic
 error where the original context would otherwise be lost.
+
+The second clause is doing more work than it looks. A web handler that answers a bare
+`500 Internal server error` has destroyed the cause: the axum boundary logs
+`error!(reason = 500, "http request failed")` and the status is all that survives. So a handler
+that collapses its error to a generic one **must** say which call failed, and that is not a second
+log of the same failure, it is the only record of it. `verification/web` collects its errors into
+the response instead, which is a third fate and the same rule: the fate is decided there, so it
+logs there.
+
+The line that is actually banned is the duplicate: the same `Err` printed once at the site and
+again at the boundary. `search/http.rs` is the shape to copy, where `get_json` logs the provider,
+the redacted url and a described error, then returns a generic one so the raw error reaches
+neither the log nor a user.
 
 The boundaries are `core::error::on_error`, the top-level `match` in each worker loop, the axum
 error path, and the fallible functions in `main.rs`. Nothing else logs a propagated error.
@@ -406,7 +423,7 @@ $ scripts/check-logging.sh
 logging checks passed
 ```
 
-Five rules, all currently at zero, and gating in CI. The rules are a floor: they cannot tell
+Six rules, all currently at zero, and gating in CI. The rules are a floor: they cannot tell
 whether a level is right, only whether the shape is. Step 2 in particular is a judgement the
 check will never revisit, so a re-level that undoes one of the 72 has to be argued for rather
 than waited for a red build.
@@ -416,8 +433,35 @@ than waited for a red build.
 | `error!` names a cause | 0 | |
 | No `{}` in the message string | 0 | Exempts the formatting macros, where the braces belong to the format specifier. |
 | No `#[instrument(err)]` | 0 | |
-| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 0 | `audit.rs` is exempt: every line in one is an action taken, which is what `info!` is for. |
+| `info!` budget per file (default 8, `INFO_BUDGET`) | 0 | `audit.rs` is exempt: every line in one is an action taken, which is what `info!` is for. |
+| `warn!` budget per file (default 15, `WARN_BUDGET`) | 0 | Same exemption. |
 | `level(` is not `level!(` | 0 | Not an awk rule: the extractor only matches `level!(`, so the mistake it catches is invisible to it by construction. |
+
+**The budgets are ratchets, not diagnoses, and the `warn!` one is weaker than it looks.** Count
+per file measures how chatty a file is, not how often it fires, and on this tree the two disagree
+sharply. Every file over the `warn!` budget is a worker on a timer or a rare-event handler:
+`social_notifications/jobs.rs` on a 30s loop, `raid_detection/raid_end.rs` on raid end,
+`verification/web/setup.rs` on panel setup. Meanwhile every handler that runs per message sits
+comfortably under it, at 5 or 6. So the rule pressures the files that fire least and would not
+notice a per-message flood. It is set to 15, the current maximum, so it is green today and catches
+a file roughly doubling; it is not set to 12 because that would fail on one file whose 15 are
+legitimate, and a gate that is red on arrival gets switched off.
+
+The budget would start to bite if the worker lock lifecycle were extracted. Every worker repeats
+the same four-outcome shape around `acquire_lock` / `release`, and those four lines are most of
+why the worker files are over budget: `social_notifications/jobs.rs` has eight of its fifteen
+from two copies of it. One helper would take that file to seven and the budget could come down.
+
+The rule that would actually catch a flood is not a count. It is that a `warn!` has to name
+something you can query, because a `warn!` with no field at all fails this doc's own test, which
+is whether someone will read the line and do something. There are 34 such `warn!` in the tree.
+About six are legitimate: they report a config fact at startup, where there is nothing to
+correlate and an id would be invented. The rest are missing an id that is in scope at the call
+site, `config_id` beside `giveaways/database.rs`, `cmd.report_id` beside
+`reporting/web/resolve.rs`, the redis key beside `tickets/jobs/ticket_sync.rs`. That rule cannot
+be enforced as written, because it would flag the six config warnings, and an exemption list is
+worse than the rule is worth. It is the more valuable of the two, though, and the 34 are a
+worklist rather than a permanent exemption.
 
 Rule 2's exemption has to name the formatting macros explicitly. Written as `[a-z_]+!` it also
 matches `trace!` and `info!`, which strips every single-literal log call before the brace check

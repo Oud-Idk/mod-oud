@@ -1,3 +1,4 @@
+use crate::shared::http::safe_reqwest_error;
 use anyhow::{Result, bail};
 use prost::Message;
 use std::time::Duration;
@@ -46,12 +47,22 @@ impl SafeBrowsingClient {
             query_params.push(("urls".to_string(), (*url).to_string()));
         }
 
+        // The key rides in the query string, so the raw error must not enter the chain: anything
+        // above that prints it would print the key.
         let response = self
             .http_client
             .get(endpoint)
             .query(&query_params)
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!(
+                    url_count = urls.len(),
+                    error = %safe_reqwest_error(&e),
+                    "safe browsing request failed before a response was received"
+                );
+                anyhow::anyhow!("safe browsing request failed")
+            })?;
 
         let status = response.status();
         if !status.is_success() {
@@ -61,13 +72,23 @@ impl SafeBrowsingClient {
                 .unwrap_or_else(|_| "Unreadable body".to_string());
             warn!(
                 reason = status.as_u16(),
-                error_body = %err_text,
+                // The body, not the message: it comes from a keyed endpoint, and the doc does not
+                // trust a keyed endpoint's body not to echo the key.
+                error_body_bytes = err_text.len(),
                 "Safe Browsing API returned an error status"
             );
             bail!(format!("Safe Browsing API Error: {err_text}"));
         }
 
-        let bytes = response.bytes().await?;
+        // Same reasoning as the send above: the url still carries the key inside this error.
+        let bytes = response.bytes().await.map_err(|e| {
+            warn!(
+                url_count = urls.len(),
+                error = %safe_reqwest_error(&e),
+                "safe browsing response body read failed"
+            );
+            anyhow::anyhow!("safe browsing response body read failed")
+        })?;
 
         let search_response = SearchUrlsResponse::decode(bytes).map_err(|e| {
             warn!(error = %e, "Safe Browsing Protobuf response deserialization failed");

@@ -36,13 +36,8 @@ pub async fn dispatch_events(
     _framework: poise::FrameworkContext<'_, BotData, Error>,
     data: &BotData,
 ) -> Result<()> {
-    // The boundary between the gateway and the features. Everything the features log inherits
-    // these, so a line can be tied to the event that produced it without the feature repeating
-    // the ids.
-    //
-    // `debug`, unlike the other boundary spans: serenity dispatches 79 event variants and the
-    // match below handles 16, so most events take the `_` arm. At `info` the filter would print an
-    // enter and an exit line for each of those with nothing inside.
+    // At `debug` because the match below handles 16 of serenity's 79 event variants, so most
+    // events would print an empty enter and exit pair. See docs/logging.md.
     let subject = subject_of(event);
     let span = debug_span!(
         "dispatch_events",
@@ -75,15 +70,14 @@ fn subject_of(event: &FullEvent) -> Subject {
         FullEvent::MessageUpdate {
             old_if_available,
             new,
-            ..
+            event: raw,
         } => {
-            // The new state is authoritative; the old one is only a fallback for a partial update.
-            let msg = new.as_ref().or(old_if_available.as_ref());
-            if let Some(msg) = msg {
-                s.guild_id = msg.guild_id;
-                s.channel_id = Some(msg.channel_id);
-                s.user_id = Some(msg.author.id);
-            }
+            s = message_update_subject(
+                new.as_ref().or(old_if_available.as_ref()),
+                raw.channel_id,
+                raw.guild_id,
+                raw.author.as_ref(),
+            );
         }
         FullEvent::MessageDelete {
             channel_id,
@@ -144,6 +138,62 @@ fn subject_of(event: &FullEvent) -> Subject {
         _ => {}
     }
     s
+}
+
+/// The ids for a `MessageUpdate`, from whichever source has them.
+///
+/// The raw gateway event wins, being the freshest statement of the edit. The full `Message` is the
+/// fallback, and the only source of an author when the gateway omitted one.
+fn message_update_subject(
+    full: Option<&serenity::all::Message>,
+    raw_channel_id: ChannelId,
+    raw_guild_id: Option<GuildId>,
+    raw_author: Option<&serenity::all::User>,
+) -> Subject {
+    Subject {
+        channel_id: Some(raw_channel_id),
+        guild_id: raw_guild_id.or_else(|| full.and_then(|m| m.guild_id)),
+        user_id: raw_author
+            .map(|a| a.id)
+            .or_else(|| full.map(|m| m.author.id)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::message_update_subject;
+    use serenity::all::{ChannelId, GuildId, User, UserId};
+
+    fn author(id: u64) -> User {
+        let mut user = User::default();
+        user.id = UserId::new(id);
+        user
+    }
+
+    /// Most edits complete no `Message`, and the span still has to carry the ids.
+    #[test]
+    fn message_update_ids_survive_without_a_full_message() {
+        let subject = message_update_subject(
+            None,
+            ChannelId::new(456),
+            Some(GuildId::new(789)),
+            Some(&author(9)),
+        );
+
+        assert_eq!(subject.channel_id, Some(ChannelId::new(456)));
+        assert_eq!(subject.guild_id, Some(GuildId::new(789)));
+        assert_eq!(subject.user_id, Some(UserId::new(9)));
+    }
+
+    /// No author anywhere: the channel survives, the user cannot be named.
+    #[test]
+    fn message_update_keeps_the_channel_when_the_author_is_absent() {
+        let subject = message_update_subject(None, ChannelId::new(456), None, None);
+
+        assert_eq!(subject.channel_id, Some(ChannelId::new(456)));
+        assert_eq!(subject.guild_id, None);
+        assert_eq!(subject.user_id, None);
+    }
 }
 
 async fn dispatch_inner(ctx: &serenity::Context, event: &FullEvent, data: &BotData) -> Result<()> {

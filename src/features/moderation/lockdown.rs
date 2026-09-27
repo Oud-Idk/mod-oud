@@ -195,12 +195,18 @@ pub async fn apply_global_lock(
 
     // Explicit release (rather than just letting the guard drop) so the lock frees up
     // immediately instead of waiting out its TTL if another sweep wants to run right after.
-    if let Err(err) = guard.release().await {
-        warn!(
-            error = ?err,
-            %guild_id,
-            "sweep lock release failed; the TTL will still expire it"
-        );
+    match guard.release().await {
+        Ok(true) => {}
+        Ok(false) => {
+            warn!(%guild_id, "sweep lock no longer owned at release");
+        }
+        Err(err) => {
+            warn!(
+                error = %err,
+                %guild_id,
+                "sweep lock release failed; the TTL will still expire it"
+            );
+        }
     }
 
     Ok(Some(report))
@@ -265,12 +271,18 @@ pub async fn apply_global_unlock(
         }
     }
 
-    if let Err(err) = guard.release().await {
-        warn!(
-            error = ?err,
-            %guild_id,
-            "sweep lock release failed; the TTL will still expire it"
-        );
+    match guard.release().await {
+        Ok(true) => {}
+        Ok(false) => {
+            warn!(%guild_id, "sweep lock no longer owned at release");
+        }
+        Err(err) => {
+            warn!(
+                error = %err,
+                %guild_id,
+                "sweep lock release failed; the TTL will still expire it"
+            );
+        }
     }
 
     Ok(Some(report))

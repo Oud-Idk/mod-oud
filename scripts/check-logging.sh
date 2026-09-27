@@ -72,26 +72,42 @@ if [[ -n "$instrument_err" ]]; then
   fail=1
 fi
 
-# --- rule 4: info! budget per file --------------------------------------------
+# --- rule 4: info! and warn! budget per file ----------------------------------
 # info! is the operator timeline. A file that logs it per message is a flood.
-# audit.rs is exempt: it holds one function per audited event and every one of
-# them is an action taken, which is what info! is for.
-budget="${INFO_BUDGET:-8}"
-noisy="$(extract_calls |
-  awk -F'\t' -v b="$budget" '
-    $2 ~ /^info!/ {
-      split($1, p, ":")
-      if (p[1] ~ /audit\.rs$/) next
-      count[p[1]]++
-    }
-    END { for (f in count) if (count[f] > b) print count[f] "\t" f }' |
-  sort -rn)"
-if [[ -n "$noisy" ]]; then
-  while IFS= read -r line; do
-    red "over info! budget ($budget): ${line#*$'\t'}"
-  done <<< "$noisy"
-  fail=1
-fi
+# warn! gets the same treatment for the reason the doc gives for error!: a level people are
+# trained to skim stops being read. A file carrying a dozen-and-a-half is where that starts.
+# audit.rs is exempt: it holds one function per audited event and every one of them is an
+# action taken, which is what info! is for.
+#
+# This is a ratchet, not a diagnosis. Count per file tracks how chatty a file is, not how often
+# it fires, and the two do not agree: every file over the warn! budget is a worker on a timer or
+# a rare-event handler, while the handlers that run per message all sit under it. It catches
+# growth, not floods. The rule that would catch a flood is a warn! naming something you can query.
+budget_over() {
+  local level="$1" limit="$2"
+  extract_calls |
+    awk -F'\t' -v re="^${level}!" -v b="$limit" '
+      $2 ~ re {
+        split($1, p, ":")
+        if (p[1] ~ /audit\.rs$/) next
+        count[p[1]]++
+      }
+      END { for (f in count) if (count[f] > b) print count[f] "\t" f }' |
+    sort -rn
+}
+
+for spec in "info:${INFO_BUDGET:-8}" "warn:${WARN_BUDGET:-15}"; do
+  level="${spec%%:*}"
+  limit="${spec##*:}"
+  over="$(budget_over "$level" "$limit")"
+  if [[ -n "$over" ]]; then
+    while IFS=$'\t' read -r n f; do
+      red "over ${level}! budget ($limit): $n in ${f#"$root"/}"
+    done <<< "$over"
+    note "  raise it with ${level^^}_BUDGET if the file is genuinely that busy."
+    fail=1
+  fi
+done
 
 # --- rule 5: level( is not level!( ----------------------------------------------
 # `debug("x")` binds to `tracing::field::debug`, the field constructor, not the macro. It
