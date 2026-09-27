@@ -99,6 +99,9 @@ pub async fn handle_verification_setup(
         })?;
 
     let Some(everyone_role) = roles.get(&everyone_role_id) else {
+        // The response below is a bare 500, so without this the boundary's "http request failed"
+        // is the whole story and the cause is unrecoverable.
+        warn!(%guild_id, %everyone_role_id, "@everyone role missing from the guild roles");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
