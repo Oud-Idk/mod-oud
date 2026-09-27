@@ -49,10 +49,11 @@ pub async fn get_all_reaction_users(
 /// Spawns the background task loop that periodically checks for expired giveaways.
 pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client) {
     task::spawn("giveaway_worker", async move {
-        info!("giveaway background worker started");
-
         let lock_key = "lock:giveaway_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
+
+        info!(worker_id = %lock_value, "giveaway background worker started");
+
         let mut interval = tokio::time::interval(Duration::from_secs(10));
 
         loop {

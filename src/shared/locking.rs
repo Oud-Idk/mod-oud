@@ -40,7 +40,7 @@ impl LockGuard {
             .await?;
         let success = res == 1;
 
-        trace!(success, "redis lock release via guard evaluated");
+        trace!(success, "redis lock release attempt");
         Ok(success)
     }
 }
