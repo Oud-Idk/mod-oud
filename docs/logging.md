@@ -182,6 +182,12 @@ Ten spans, opened where work is admitted. Everything downstream inherits them fo
 The root span matters more than it looks: it is the only way to tell which shard a line came
 from.
 
+`dispatch_events` is the one boundary span at `debug`, because it is the only one that fires per
+event rather than per unit of work. Serenity dispatches 79 variants and the dispatcher handles 16,
+so the rest would each print an empty enter and exit pair. A disabled span is free: the per-event
+lines inside it are dropped with it, and an operator who wants to tie a line to its event is doing
+per-event diagnosis anyway.
+
 Do not instrument leaf helpers. A span on `get_multiplier` is a span that appears 40 times per
 message and teaches nobody anything. If a leaf genuinely needs one extra field, use
 `#[instrument(fields(...))]` on the function that is already inside a boundary span.
@@ -307,8 +313,17 @@ In severity order, so each step is shippable on its own:
    now nests a `starboard` span under the `job` one, so it keeps its ids and gains an exit line.
 7. **Done.** The drain and stop lines.
 
-One piece of the line-shape rule is still outstanding: the fallback taken is still often named in
-the message rather than in a field. It is cosmetic, and nothing in the check enforces it.
+Afterwards, the `dispatch_events` span went in, closing the last gap in the table above. It pulls
+the guild, channel and user out of the gateway event into `subject_of`, so every line a feature
+emits inherits the ids without the feature repeating them.
+
+The 15 sites that named a fallback in the message prose now carry a `fallback` field, valued so a
+query can tell the routes apart: `"db"` three times, `"default layout"` four, `"http"`,
+`"postgres"`, `"redis"`, `"defaults"`, `"bot id"`, and so on. Two sites that said "fallback" were
+not one: `join_leave/messages.rs` already had `fallback_channel_id` as a field, and
+`moderation/issuing.rs` names an invite's purpose rather than a path it took. Honeypot's ban notice
+was the opposite case, two parallel branches failing to send with no fallback in sight, so it takes
+a `notice` field naming whose template failed. Nothing in the check enforces any of this.
 
 ## Keeping it that way
 

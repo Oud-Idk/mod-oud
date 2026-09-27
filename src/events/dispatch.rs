@@ -9,6 +9,9 @@ use crate::shared::voice_state::sync_guild_voice_state;
 use anyhow::Result;
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::FullEvent;
+use serenity::all::{ChannelId, GuildId, UserId};
+use tracing::Instrument;
+use tracing::debug_span;
 
 /// Central gateway event dispatcher registered as the Poise event handler.
 ///
@@ -33,6 +36,117 @@ pub async fn dispatch_events(
     _framework: poise::FrameworkContext<'_, BotData, Error>,
     data: &BotData,
 ) -> Result<()> {
+    // The boundary between the gateway and the features. Everything the features log inherits
+    // these, so a line can be tied to the event that produced it without the feature repeating
+    // the ids.
+    //
+    // `debug`, unlike the other boundary spans: serenity dispatches 79 event variants and the
+    // match below handles 16, so most events take the `_` arm. At `info` the filter would print an
+    // enter and an exit line for each of those with nothing inside.
+    let subject = subject_of(event);
+    let span = debug_span!(
+        "dispatch_events",
+        event = event.snake_case_name(),
+        guild_id = ?subject.guild_id,
+        channel_id = ?subject.channel_id,
+        user_id = ?subject.user_id,
+    );
+    dispatch_inner(ctx, event, data).instrument(span).await
+}
+
+/// The ids the dispatch span carries for one event.
+#[allow(clippy::struct_field_names)] // The names have to match the span field names.
+#[derive(Default)]
+struct Subject {
+    guild_id: Option<GuildId>,
+    channel_id: Option<ChannelId>,
+    user_id: Option<UserId>,
+}
+
+/// Pulls the guild, channel and user out of a gateway event, where the variant has them.
+fn subject_of(event: &FullEvent) -> Subject {
+    let mut s = Subject::default();
+    match event {
+        FullEvent::Message { new_message } => {
+            s.guild_id = new_message.guild_id;
+            s.channel_id = Some(new_message.channel_id);
+            s.user_id = Some(new_message.author.id);
+        }
+        FullEvent::MessageUpdate {
+            old_if_available,
+            new,
+            ..
+        } => {
+            // The new state is authoritative; the old one is only a fallback for a partial update.
+            let msg = new.as_ref().or(old_if_available.as_ref());
+            if let Some(msg) = msg {
+                s.guild_id = msg.guild_id;
+                s.channel_id = Some(msg.channel_id);
+                s.user_id = Some(msg.author.id);
+            }
+        }
+        FullEvent::MessageDelete {
+            channel_id,
+            guild_id,
+            ..
+        } => {
+            s.channel_id = Some(*channel_id);
+            s.guild_id = *guild_id;
+        }
+        FullEvent::GuildMemberAddition { new_member } => {
+            s.guild_id = Some(new_member.guild_id);
+            s.user_id = Some(new_member.user.id);
+        }
+        FullEvent::GuildMemberRemoval { guild_id, user, .. } => {
+            s.guild_id = Some(*guild_id);
+            s.user_id = Some(user.id);
+        }
+        FullEvent::InteractionCreate { interaction } => {
+            s.guild_id = interaction.guild_id();
+            s.user_id = Some(match interaction {
+                serenity::Interaction::Command(c) => c.user.id,
+                serenity::Interaction::Autocomplete(a) => a.user.id,
+                serenity::Interaction::Component(c) => c.user.id,
+                serenity::Interaction::Modal(m) => m.user.id,
+                _ => return s,
+            });
+        }
+        FullEvent::ReactionAdd { add_reaction }
+        | FullEvent::ReactionRemove {
+            removed_reaction: add_reaction,
+        } => {
+            s.guild_id = add_reaction.guild_id;
+            s.channel_id = Some(add_reaction.channel_id);
+            s.user_id = add_reaction.user_id;
+        }
+        FullEvent::VoiceStateUpdate { new, .. } => {
+            s.guild_id = new.guild_id;
+            s.channel_id = new.channel_id;
+            s.user_id = new.member.as_ref().map(|m| m.user.id);
+        }
+        FullEvent::AutoModActionExecution { execution } => {
+            s.guild_id = Some(execution.guild_id);
+            s.channel_id = execution.channel_id;
+            s.user_id = Some(execution.user_id);
+        }
+        FullEvent::GuildAuditLogEntryCreate { guild_id, .. }
+        | FullEvent::GuildCreate {
+            guild: serenity::all::Guild { id: guild_id, .. },
+            ..
+        } => {
+            s.guild_id = Some(*guild_id);
+        }
+        FullEvent::InviteCreate { data } => {
+            s.guild_id = data.guild_id;
+            s.channel_id = Some(data.channel_id);
+            s.user_id = data.inviter.as_ref().map(|u| u.id);
+        }
+        _ => {}
+    }
+    s
+}
+
+async fn dispatch_inner(ctx: &serenity::Context, event: &FullEvent, data: &BotData) -> Result<()> {
     extract_and_store_username(data, event).await?;
 
     match event {
