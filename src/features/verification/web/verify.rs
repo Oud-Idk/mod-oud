@@ -68,7 +68,7 @@ pub async fn handle_verify(
         &payload.sig,
         secrets.shared_secret.as_bytes(),
     ) {
-        info!(user_id = %payload.user_id, "user failed to verify: Invalid or expired link");
+        info!(user_id = %payload.user_id, "verification link invalid or expired");
         return Err((
             StatusCode::BAD_REQUEST,
             "Invalid or expired link.".to_string(),
@@ -99,11 +99,15 @@ pub async fn handle_verify(
     // Validate Captcha (Turnstile / hCaptcha)
     validate_captcha(&state, &payload, &secrets, &client_ip).await?;
 
-    info!(user_id = %payload.user_id, "user passed all verification checks");
+    info!(
+        guild_id = %payload.guild_id,
+        user_id = %payload.user_id,
+        "verification checks passed"
+    );
 
     // Assign verified role to the user
     let role_id = verification_cfg.verification_role_id.ok_or_else(|| {
-        warn!("endpoint is fetched, but verification Role ID is empty");
+        warn!(guild_id = %payload.guild_id, "verification role id not configured");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error".to_string(),
@@ -192,7 +196,7 @@ async fn fetch_guild_settings(
         guild_id,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, "get settings"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "guild settings lookup failed"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -207,7 +211,7 @@ async fn verify_discord_oauth_identity(
     payload: &VerifyRequestPayload,
 ) -> WebResult<()> {
     let Some(token) = &payload.access_token else {
-        debug!(user_id = %payload.user_id, "user tried to verify without authentication");
+        debug!(user_id = %payload.user_id, "verification attempted without an access token");
         return Err((
             StatusCode::UNAUTHORIZED,
             "Discord authentication required.".to_string(),
@@ -225,7 +229,7 @@ async fn verify_discord_oauth_identity(
     match response {
         Ok(resp) if resp.status().is_success() => {
             let discord_user: DiscordUser = resp.json().await.map_err(|e| {
-                warn!(error = ?e, "parse Discord user JSON");
+                warn!(error = ?e, %payload.user_id, "discord user json parse failed");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error.".to_string(),
@@ -256,7 +260,11 @@ async fn verify_discord_oauth_identity(
             ))
         }
         Err(e) => {
-            warn!(error = ?e, "reach Discord to validate the access token");
+            warn!(
+                error = ?e,
+                %payload.user_id,
+                "access token validation request to discord failed"
+            );
             Err((
                 StatusCode::UNAUTHORIZED,
                 "Invalid or expired Discord session. Please log in again.".to_string(),
@@ -279,7 +287,7 @@ async fn validate_captcha(
             &payload.captcha_token,
         )
         .await
-        .inspect_err(|e| warn!(error = ?e, "verify using Turnstile"))
+        .inspect_err(|e| warn!(error = ?e, %payload.user_id, "turnstile verification failed"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -295,7 +303,7 @@ async fn validate_captcha(
             secrets.hc_site_key,
         )
         .await
-        .inspect_err(|e| warn!(error = ?e, "verify using hCaptcha"))
+        .inspect_err(|e| warn!(error = ?e, %payload.user_id, "hcaptcha verification failed"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -331,7 +339,7 @@ async fn assign_verified_role(
             Some("User successfully completed verification"),
         )
         .await
-        .inspect_err(|e| warn!(error = ?e, "add role to user"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, %user_id, "verification role not added"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

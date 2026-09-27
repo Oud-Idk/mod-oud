@@ -61,16 +61,16 @@ pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
                     if let Err(e) = process_expired_giveaways(&pool, &http).await {
-                        warn!(error = ?e, "processing expired giveaways");
+                        warn!(error = ?e, "expired giveaway processing failed");
                     }
 
                     match guard.release().await {
                         Ok(true) => trace!("released giveaway lock"),
                         Ok(false) => {
-                            warn!("attempted to release giveaway lock, but ownership was lost");
+                            warn!("giveaway lock release found the lock held elsewhere");
                         }
                         Err(e) => {
-                            warn!(error = ?e, "release giveaway lock due to Redis error");
+                            warn!(error = ?e, "giveaway lock release failed");
                         }
                     }
                 }
@@ -78,7 +78,7 @@ pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client
                     trace!("lock busy; skipping iteration");
                 }
                 Err(e) => {
-                    warn!(error = ?e, "coordinate Redis lock for giveaways");
+                    warn!(error = ?e, "giveaway worker lock acquisition failed");
                 }
             }
         }
@@ -97,10 +97,7 @@ async fn process_expired_giveaways(
         return Ok(());
     }
 
-    info!(
-        expired = expired_giveaways.len(),
-        "found expired giveaways to resolve"
-    );
+    info!(expired = expired_giveaways.len(), "expired giveaways found");
 
     for giveaway in expired_giveaways {
         if let Err(e) = mark_giveaway_finished(pool, giveaway.id).await {

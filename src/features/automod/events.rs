@@ -108,15 +108,11 @@ pub async fn check_for_filter(
         external_links,
     } = verdict
     {
-        trace!("verifying potentially unsafe external URLs via Safe Browsing API");
         verdict = external_urls::resolve_safe_browsing(data, external_links, &urls).await;
     }
 
     if !verdict.is_pass() {
-        debug!(
-            ?verdict,
-            "message flag matched; executing filter verdict actions"
-        );
+        debug!("message flag matched");
         execute_verdict(ctx, data, message, verdict).await?;
         return Ok(true);
     }

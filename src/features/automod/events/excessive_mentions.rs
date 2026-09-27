@@ -4,7 +4,7 @@ use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::MessageFilteringConfig;
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, trace};
+use tracing::debug;
 
 pub fn filter_excessive_mentions<'a>(
     message: &Message,
@@ -15,7 +15,6 @@ pub fn filter_excessive_mentions<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("checking 'Excessive Mentions' filter rule");
     let discord_count = DISCORD_PING_REGEX.find_iter(&message.content).count();
     if discord_count > excessive_mentions.max_mentions as usize {
         debug!(

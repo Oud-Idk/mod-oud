@@ -81,7 +81,7 @@ pub fn start_music_web_control_worker(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    warn!(error = ?e, "convert music web command payload");
+                    warn!(error = ?e, "music web command payload conversion failed");
                     return Ok(());
                 }
             };
@@ -89,7 +89,7 @@ pub fn start_music_web_control_worker(
             let command: RemoteMusicCommand = match serde_json::from_str(&payload) {
                 Ok(command) => command,
                 Err(e) => {
-                    warn!(error = %e, payload = %payload, "parse music web command");
+                    warn!(error = %e, payload = %payload, "music web command parse failed");
                     return Ok(());
                 }
             };
@@ -100,8 +100,6 @@ pub fn start_music_web_control_worker(
                 return Ok(());
             }
 
-            debug!(%guild_id, request_id = %command.request_id, "executing dashboard music command");
-
             let outcome = handle_music_command(
                 &params.music_state,
                 &params.manager,
@@ -110,7 +108,7 @@ pub fn start_music_web_control_worker(
                 guild_id,
                 command.action,
             )
-                .await;
+            .await;
 
             let result = match outcome {
                 Ok(data) => RemoteMusicResult::success(command.request_id.clone(), data),
@@ -120,7 +118,7 @@ pub fn start_music_web_control_worker(
             let reply = match serde_json::to_string(&result) {
                 Ok(reply) => reply,
                 Err(e) => {
-                    warn!(error = %e, "serialize music command result");
+                    warn!(error = %e, "music command result serialization failed");
                     return Ok(());
                 }
             };
@@ -133,7 +131,13 @@ pub fn start_music_web_control_worker(
                 warn!(
                     request_id = %result.request_id,
                     error = ?e,
-                    "publish music command result"
+                    "music command result publish to redis failed"
+                );
+            } else {
+                debug!(
+                    %guild_id,
+                    request_id = %command.request_id,
+                    "dashboard music command applied"
                 );
             }
 
@@ -144,7 +148,7 @@ pub fn start_music_web_control_worker(
     task::spawn("music_web_control_worker", async move {
         match subscriber_client.subscribe(keys::commands_channel()).await {
             Ok(()) => debug!("subscribed to music web commands channel"),
-            Err(e) => warn!(error = ?e, "subscribe to music web commands"),
+            Err(e) => warn!(error = ?e, "music web commands subscription failed"),
         }
     });
 }
@@ -277,19 +281,13 @@ pub async fn ws_handler(
         "ws",
         secret.as_bytes(),
     ) {
-        let expected = crate::web::ticket::sign_ticket(
-            &params.guild_id.to_string(),
-            user_id,
-            expires,
-            "ws",
-            secret.as_bytes(),
-        );
+        // Not the expected signature: it is a live credential, since verify_ticket accepts it.
         warn!(
             guild_id = params.guild_id,
             user_id = %user_id,
             expires = expires,
-            expected = %expected,
-            "invalid ws ticket, signature mismatch, check INTERNAL_API_SECRET sync and purpose"
+            purpose = "ws",
+            "ws ticket signature mismatch, check INTERNAL_API_SECRET sync and purpose"
         );
         return Err(axum::http::StatusCode::UNAUTHORIZED);
     }
@@ -370,7 +368,7 @@ async fn handle_text_message(
     let (request_id, action) = match message {
         Ok(ClientMessage::Music { request_id, action }) => (request_id, action),
         Err(e) => {
-            warn!(error = %e, "parse WebSocket control message");
+            warn!(error = %e, "WebSocket control message parse failed");
             let ack = ServerMessage::Ack {
                 request_id: None,
                 ok: false,

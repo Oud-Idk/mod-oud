@@ -100,7 +100,12 @@ pub async fn websub_notify(
     for channel in subscribed_channels {
         let msg = CreateMessage::new().embed(embed.clone());
         if let Err(e) = channel.send_message(&state.serenity_http, msg).await {
-            warn!(error = ?e, %feed_id, %channel, "deliver WebSub entry to subscribed channel");
+            warn!(
+                error = ?e,
+                %feed_id,
+                %channel,
+                "WebSub entry delivery failed; the subscriber missed this post"
+            );
         }
     }
 
@@ -117,7 +122,7 @@ pub async fn websub_verify(
         warn!(
             feed_id = %feed_id,
             reason = ?params.reason,
-            "WebSub subscription was DENIED by the hub"
+            "WebSub subscription denied by the hub"
         );
         // Per spec: acknowledge denial with 200 OK
         return Ok("ack".to_string());
@@ -138,7 +143,7 @@ pub async fn websub_verify(
     let feed_exists = database::check_if_feed_exists(feed_id, &state.core.db).await;
 
     let feed_exists = feed_exists
-        .inspect_err(|e| warn!(error = ?e, "failed checking feed existence"))
+        .inspect_err(|e| warn!(error = ?e, feed_id = %feed_id, "feed existence check failed"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"))?
         .unwrap_or(false);
 
@@ -152,11 +157,11 @@ pub async fn websub_verify(
 
         let _ = database::update_lease(&state.core.db, feed_id, expires_at)
             .await
-            .inspect_err(|e| error!(error = ?e, "updating lease"))
+            .inspect_err(|e| error!(error = ?e, feed_id = %feed_id, "WebSub lease update failed"))
             .inspect(|_| info!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved"));
     }
 
-    info!(feed_id = %feed_id, "echoing challenge back to WebSub hub");
+    info!(feed_id = %feed_id, "WebSub challenge returned to the hub");
 
     Ok(challenge)
 }

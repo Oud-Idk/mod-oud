@@ -66,7 +66,8 @@ pub async fn get_rule_name(
                     error = ?e,
                     %guild_id,
                     %rule_id,
-                    "cache automod rule name; falling back to uncached lookup"
+                    fallback = "uncached lookup",
+                    "automod rule name cache write failed"
                 );
             }
             rule.name

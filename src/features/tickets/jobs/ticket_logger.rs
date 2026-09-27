@@ -12,17 +12,19 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
         let mut buffer = Vec::with_capacity(100);
         let mut interval = tokio::time::interval(Duration::from_secs(2));
 
-        info!("ticket logger worker started");
-
         loop {
             tokio::select! {
                 _ = interval.tick() => {
                     if !buffer.is_empty() {
                         let batch_size = buffer.len();
-                        debug!(batch_size, "interval tick hit; flushing ticket log buffer");
 
                         if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                            error!(error = ?e, batch_size, "flushing ticket logs on interval tick");
+                            error!(
+                                error = ?e,
+                                batch_size,
+                                trigger = "interval tick",
+                                "ticket log flush failed"
+                            );
                         }
                     }
                 }
@@ -32,7 +34,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                             ticket_channel_id = %payload.ticket_channel_id,
                             message_id = %payload.message_id,
                             author_id = %payload.author_id,
-                            "received ticket log payload"
+                            "ticket log payload received"
                         );
 
                         buffer.push(payload);
@@ -40,10 +42,14 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                         // If we hit 100 messages, flush immediately!
                         if buffer.len() >= 100 {
                             let batch_size = buffer.len();
-                            debug!(batch_size, "buffer capacity limit reached; flushing immediately");
 
                             if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                                error!(error = ?e, batch_size, "flushing ticket logs on buffer capacity limit");
+                                error!(
+                                    error = ?e,
+                                    batch_size,
+                                    trigger = "buffer capacity limit",
+                                    "ticket log flush failed"
+                                );
                             }
                             interval.reset(); // Reset the timer
                         }
@@ -53,7 +59,12 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                         if !buffer.is_empty() {
                             let batch_size = buffer.len();
                             if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                                error!(error = ?e, batch_size, "performing final flush during shutdown");
+                                error!(
+                                    error = ?e,
+                                    batch_size,
+                                    trigger = "shutdown",
+                                    "final ticket log flush failed"
+                                );
                             }
                         }
                         break;

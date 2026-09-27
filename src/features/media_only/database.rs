@@ -79,7 +79,7 @@ pub async fn fetch_media_only_from_db(
     .fetch_optional(db)
     .await
     .map(|row| row.map(MediaOnlyChannel::from))
-    .context("failed to fetch media_only_channels")
+    .context("media_only_channels lookup failed")
 }
 
 pub async fn delete_media_only_from_db(db: &PgPool, channel_id: ChannelId) -> Result<u64> {
@@ -89,7 +89,7 @@ pub async fn delete_media_only_from_db(db: &PgPool, channel_id: ChannelId) -> Re
     )
     .execute(db)
     .await
-    .context("failed to delete media_only_channels")?
+    .context("media_only_channels delete failed")?
     .rows_affected();
 
     Ok(rows_affected)
@@ -107,7 +107,7 @@ pub async fn list_media_only_channels(
     .fetch_all(db)
     .await
     .map(|rows| rows.into_iter().map(MediaOnlyChannel::from).collect())
-    .context("failed to fetch media_only_channels")
+    .context("media_only_channels lookup failed")
 }
 
 pub async fn store_media_only_in_db(db: &PgPool, payload: &MediaOnlyChannel) -> Result<()> {
@@ -155,7 +155,7 @@ pub async fn store_media_only_in_db(db: &PgPool, payload: &MediaOnlyChannel) -> 
     )
     .execute(db)
     .await
-    .context("failed to insert media_only_channels")?;
+    .context("media_only_channels insert failed")?;
 
     Ok(())
 }

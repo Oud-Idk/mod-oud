@@ -72,14 +72,13 @@ pub async fn handle_audit_log_entry(
         for user_id in [target_id, moderator_id] {
             match user_id.to_user(&http).await {
                 Ok(user) => {
-                    if let Err(e) =
-                        store_username_relation(&username_tx, user_id, &user.name).await
-                    {
-                        warn!(error = %e, %user_id, "queue username for audit-synced log");
-                    }
+                    // The failure is logged where it is swallowed, in store_username_relation.
+                    store_username_relation(&username_tx, user_id, &user.name)
+                        .await
+                        .ok();
                 }
                 Err(e) => {
-                    debug!(error = %e, %user_id, "could not resolve user for audit-synced log");
+                    debug!(error = %e, %user_id, "user lookup for the audit-synced log failed");
                 }
             }
         }

@@ -5,7 +5,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, CreateMessage,
 };
 use std::time::Duration;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, instrument, warn};
 
 /// Handles the close-ticket button interaction by purging ticket records and deleting the channel after a countdown.
 ///
@@ -19,8 +19,6 @@ pub async fn on_close_ticket(
     component: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("ticket close request received from button interaction");
-
     component
         .create_response(
             &ctx.http,
@@ -34,13 +32,13 @@ pub async fn on_close_ticket(
     cleanup_ticket_records(data, channel_id).await?;
 
     // Deletion countdown warning
-    debug!("sending deletion countdown warning to channel");
     channel_id
         .send_message(
             &ctx.http,
             CreateMessage::default().content("Closing ticket and deleting channel in 5 seconds..."),
         )
         .await?;
+    debug!(%channel_id, "deletion countdown notice sent to the ticket channel");
 
     tokio::time::sleep(Duration::from_secs(5)).await;
 
@@ -49,7 +47,10 @@ pub async fn on_close_ticket(
     }
 
     if let Err(e) = channel_id.delete(&ctx.http).await {
-        warn!(error = %e, "could not delete channel from Discord; it might have been deleted manually");
+        warn!(
+            error = %e,
+            "ticket channel not deleted; it may already have been removed"
+        );
     }
 
     Ok(())
@@ -58,18 +59,15 @@ pub async fn on_close_ticket(
 #[instrument(skip(data))]
 async fn cleanup_ticket_records(data: &BotData, channel_id: ChannelId) -> Result<(), Error> {
     let channel_id_str = channel_id.get().to_string();
-    debug!(%channel_id, "cleaning up closed ticket channel records");
 
     database::mark_ticket_as_closed_db(data, channel_id).await?;
-    debug!("database status updated to CLOSED");
+    debug!(%channel_id, "ticket status set to closed in the database");
 
     let redis = &data.core.redis;
 
     cache::mark_ticket_as_closed_redis(channel_id, &channel_id_str, redis).await?;
 
-    debug!("evicting ticket from local active cache");
     data.caches.active_tickets.remove(&channel_id).await;
 
-    info!("database and cache records cleaned up");
     Ok(())
 }

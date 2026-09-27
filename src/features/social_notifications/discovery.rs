@@ -23,7 +23,8 @@ pub fn discover_feed_kind(feed_url: &str, xml: &str) -> FeedKind {
 
         warn!(
             hub = %hub_url,
-            "feed advertises a plaintext WebSub hub; ignoring it and falling back to polling"
+            fallback = "polling",
+            "plaintext WebSub hub ignored"
         );
     }
 
@@ -149,8 +150,6 @@ pub async fn request_hub_subscription(
         ("hub.secret", secret),
     ];
 
-    info!(hub = %hub_url, topic = %topic, callback = %callback_url, "sending WebSub subscription request");
-
     let resp = client
         .post(hub_url)
         .form(&form_params)
@@ -159,12 +158,11 @@ pub async fn request_hub_subscription(
 
     // Per spec, hubs usually respond with 202 Accepted
     if resp.status().is_success() || resp.status() == StatusCode::ACCEPTED {
-        info!("hub accepted subscription request! Verification underway");
+        info!(hub = %hub_url, topic = %topic, "WebSub subscription request accepted by the hub");
         Ok(())
     } else {
         let status = resp.status();
         let err_text = resp.text().await.unwrap_or_default();
-        warn!(status = %status, error = %err_text, "WebSub Hub rejected subscription request");
         Err(format!("Hub returned {status}: {err_text}").into())
     }
 }

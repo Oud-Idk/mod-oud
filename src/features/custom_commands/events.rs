@@ -37,7 +37,12 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
     {
         Ok(settings) => resolve_prefix(&settings).to_string(),
         Err(e) => {
-            warn!(error = ?e, %guild_id, "load prefix; falling back to default");
+            warn!(
+                error = ?e,
+                %guild_id,
+                fallback = "default prefix",
+                "custom prefix lookup failed"
+            );
             DEFAULT_PREFIX.to_string()
         }
     };
@@ -48,7 +53,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
             return Ok(());
         };
 
-        debug!(raw_cmd_name, "executing command");
+        debug!(raw_cmd_name, "custom command trigger matched");
 
         let cmd_name = raw_cmd_name.to_ascii_lowercase();
 
@@ -56,7 +61,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
             get_custom_command_by_name(&data.core.db, &data.core.redis, guild_id, &cmd_name)
                 .await?
         else {
-            debug!(raw_cmd_name, "command not found though");
+            debug!(raw_cmd_name, "custom command not found in the guild");
             return Ok(());
         };
 
@@ -73,7 +78,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
         return Ok(());
     }
 
-    debug!(commands = ?matched, "executing anywhere commands");
+    debug!(commands = ?matched, "anywhere command triggers matched");
 
     for cmd_name in &matched {
         let Some(cmd) =
@@ -107,7 +112,9 @@ async fn execute_matched(
 
     handle_custom_command(ctx, msg, cmd, &data.core.redis, &gctx, channel.as_ref())
         .await
-        .inspect_err(|e| warn!(error = ?e, command = %cmd_name, "execute custom command"))?;
+        .inspect_err(
+            |e| warn!(error = ?e, command = %cmd_name, "custom command execution failed"),
+        )?;
 
     Ok(())
 }

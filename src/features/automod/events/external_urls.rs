@@ -17,7 +17,6 @@ pub fn filter_external_urls<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("checking 'External URLs' filter rule");
     let (_, urls) = messages::remove_urls(&message.content);
     if urls.is_empty() {
         return FilterVerdict::Pass;
@@ -153,10 +152,6 @@ pub async fn resolve_safe_browsing<'a>(
 
     let url_refs: Vec<&str> = urls.iter().map(String::as_str).collect();
 
-    trace!(
-        ?url_refs,
-        "requesting threat analysis from Safe Browsing API"
-    );
     match client.check_urls(&url_refs).await {
         Ok(threats_int) if !threats_int.is_empty() => {
             let threats_str = threats_int
@@ -186,7 +181,8 @@ pub async fn resolve_safe_browsing<'a>(
         Err(e) => {
             warn!(
                 error = %e,
-                "Safe Browsing API validation request failed; falling back to Pass"
+                fallback = "pass",
+                "Safe Browsing API validation request failed"
             );
             FilterVerdict::Pass
         }

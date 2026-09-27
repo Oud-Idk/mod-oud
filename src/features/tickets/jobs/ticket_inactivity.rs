@@ -42,36 +42,30 @@ pub fn start_ticket_inactivity_worker(
         loop {
             tokio::time::sleep(Duration::from_mins(1)).await;
 
-            trace!("attempting to acquire lock for ticket inactivity checks");
-
             match locking::acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
-                    trace!("acquired lock; running inactivity evaluations");
-
                     if let Err(e) =
                         warn_inactive_tickets(&pool, &redis_client, &http, &guild_config).await
                     {
-                        warn!(error = ?e, "warning inactive tickets");
+                        warn!(error = ?e, "inactive ticket warning sweep failed");
                     }
 
                     if let Err(e) =
                         close_abandoned_tickets(&pool, &redis_client, &http, &guild_config).await
                     {
-                        warn!(error = ?e, "closing abandoned tickets");
+                        warn!(error = ?e, "abandoned ticket closure sweep failed");
                     }
 
                     // Release using the guard
                     if let Err(e) = guard.release().await {
-                        warn!(error = ?e, "release inactivity lock");
-                    } else {
-                        trace!("released inactivity lock");
+                        warn!(error = ?e, "inactivity lock release failed");
                     }
                 }
                 Ok(None) => {
                     trace!("lock busy; skipping this iteration");
                 }
                 Err(e) => {
-                    warn!(error = ?e, "coordinate Redis lock for ticket inactivity worker");
+                    warn!(error = ?e, "inactivity lock acquisition failed");
                 }
             }
         }
@@ -87,10 +81,6 @@ async fn fetch_guild_settings(
     guild_ids: HashSet<GuildId>,
 ) -> HashMap<GuildId, GuildSettings> {
     let guilds_count = guild_ids.len();
-    debug!(
-        guilds_count,
-        "fetching configuration settings for unique guilds"
-    );
 
     let mut settings_futures = Vec::with_capacity(guilds_count);
 
@@ -110,10 +100,6 @@ async fn fetch_guild_settings(
     let results: HashMap<GuildId, GuildSettings> =
         join_all(settings_futures).await.into_iter().collect();
 
-    debug!(
-        fetched_count = results.len(),
-        "completed fetching guild settings"
-    );
     results
 }
 
@@ -134,12 +120,6 @@ async fn warn_inactive_tickets(
         trace!("no candidates found for inactivity warning");
         return Ok(());
     }
-
-    let candidates_count = candidates.len();
-    debug!(
-        candidates_count,
-        "evaluating tickets for inactivity warning"
-    );
 
     let unique_guild_ids: HashSet<GuildId> = candidates.iter().map(|c| c.guild_id).collect();
     let settings_map = fetch_guild_settings(pool, redis, guild_configs, unique_guild_ids).await;
@@ -180,9 +160,6 @@ async fn warn_inactive_tickets(
         return Ok(());
     }
 
-    let warn_count = tickets_to_warn.len();
-    info!(warn_count, "warning inactive tickets");
-
     let target_ids: Vec<ChannelId> = tickets_to_warn.iter().map(|t| t.channel_id).collect();
 
     if !target_ids.is_empty() {
@@ -209,7 +186,7 @@ async fn warn_inactive_tickets(
                 warn!(
                     channel_id = %target.channel_id,
                     error = ?e,
-                    "send inactivity warning message to channel"
+                    "inactivity warning message not sent to the channel"
                 );
             }
         }
@@ -244,9 +221,6 @@ async fn close_abandoned_tickets(
         return Ok(());
     }
 
-    let candidates_count = candidates.len();
-    debug!(candidates_count, "evaluating tickets for abandoned closure");
-
     let unique_guild_ids: HashSet<GuildId> = candidates.iter().map(|c| c.guild_id).collect();
     let settings_map = fetch_guild_settings(pool, redis, guild_configs, unique_guild_ids).await;
 
@@ -273,9 +247,6 @@ async fn close_abandoned_tickets(
         return Ok(());
     }
 
-    let close_count = tickets_to_close.len();
-    info!(close_count, "closing abandoned tickets");
-
     if !tickets_to_close.is_empty() {
         let close_ids: Vec<ChannelId> = tickets_to_close.iter().map(|(_, c)| *c).collect();
         database::mark_ticket_as_closed(pool, &close_ids).await?;
@@ -301,7 +272,7 @@ async fn close_abandoned_tickets(
                     warn!(
                         %channel_id,
                         error = ?e,
-                        "delete inactive ticket channel on close"
+                        "inactive ticket channel not deleted"
                     );
                 }
             }

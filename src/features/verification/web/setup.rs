@@ -50,13 +50,17 @@ impl RollbackState {
         if let Some(channel_id) = self.created_channel_id
             && let Err(e) = channel_id.delete(http).await
         {
-            warn!(error = ?e, channel_id = channel_id.get(), "rollback: Failed to delete created channel");
+            warn!(
+                error = ?e,
+                channel_id = channel_id.get(),
+                "created verification channel not deleted during rollback"
+            );
         }
 
         if let Some(role_id) = self.created_role_id
             && let Err(e) = guild_id.delete_role(http, role_id).await
         {
-            warn!(error = ?e, %role_id, "rollback: Failed to delete created role");
+            warn!(error = ?e, %role_id, "created verification role not deleted during rollback");
         }
 
         if let Some(orig_perms) = self.original_everyone_permissions {
@@ -65,7 +69,11 @@ impl RollbackState {
                 .edit_role(http, self.everyone_role_id, edit_builder)
                 .await
             {
-                warn!(error = ?e, "rollback: Failed to restore original @everyone permissions");
+                warn!(
+                    error = ?e,
+                    role_id = %self.everyone_role_id,
+                    "original @everyone permissions not restored during rollback"
+                );
             }
         }
     }
@@ -82,7 +90,7 @@ pub async fn handle_verification_setup(
     let roles = guild_id
         .roles(http)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, "get roles for guild"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "guild roles lookup failed"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -118,7 +126,7 @@ async fn execute_setup(
     if let Err(e) =
         remove_perms_from_everyone(http, guild_id, everyone_role_id, everyone_role).await
     {
-        warn!(error = ?e, %guild_id, "remove perms from everyone for guild");
+        warn!(error = ?e, %guild_id, "@everyone view permission not removed");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -130,7 +138,7 @@ async fn execute_setup(
     let verify_role = match create_verify_role(http, guild_id).await {
         Ok(role) => role,
         Err(e) => {
-            warn!(error = ?e, %guild_id, "create verify role for guild");
+            warn!(error = ?e, %guild_id, "verification role not created");
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error.".to_string(),
@@ -144,7 +152,7 @@ async fn execute_setup(
         match create_verify_channel(http, guild_id, everyone_role_id, verify_role.id).await {
             Ok(channel) => channel,
             Err(e) => {
-                warn!(error = ?e, %guild_id, "create verification channel for guild");
+                warn!(error = ?e, %guild_id, "verification channel not created");
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error.".to_string(),
@@ -193,7 +201,7 @@ async fn send_verification_panel(
         std::string::ToString::to_string,
     )
         .inspect_err(|e| {
-            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "build verification panel for guild");
+            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "verification panel build failed");
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
         .ok_or_else(|| {
@@ -206,7 +214,7 @@ async fn send_verification_panel(
         .send_message(http, verify_panel_builder)
         .await
         .inspect_err(|e| {
-            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "send verification panel for guild");
+            warn!(error = ?e, guild_id = verify_channel.guild_id.get(), "verification panel not sent");
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))
 }
@@ -297,18 +305,18 @@ async fn grant_role_to_existing_members(http: Arc<Http>, guild_id: GuildId, role
                         warn!(
                             error = ?e,
                             user_id = member.user.id.get(),
-                            "add verification role to existing user"
+                            "verification role not added to existing member"
                         );
                     } else {
                         trace!(
                             user_id = member.user.id.get(),
-                            "added verification role to existing user"
+                            "verification role added to existing member"
                         );
                     }
                 }
             }
             Err(e) => {
-                warn!(error = ?e, %guild_id, "fetch chunk of members for role granting");
+                warn!(error = ?e, %guild_id, "member chunk fetch failed");
                 break;
             }
         }

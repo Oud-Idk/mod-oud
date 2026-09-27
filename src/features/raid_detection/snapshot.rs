@@ -22,8 +22,6 @@ pub async fn ensure_preraid_state_saved(
     data: &BotData,
     guild_id: GuildId,
 ) -> Result<(), Error> {
-    debug!(%guild_id, "fetching current guild state and permissions for pre-raid snapshot");
-
     // Fetch current guild state from Discord HTTP/Cache
     let partial_guild = guild_id.to_partial_guild(&ctx.http).await?;
 
@@ -61,7 +59,7 @@ pub async fn ensure_preraid_state_saved(
     let _: () = cache::add_guild_to_raid(guild_id, conn).await?;
 
     if let Err(e) = database::save_active_raid_state(&data.core.db, guild_id, &snapshot).await {
-        error!(error = ?e, %guild_id, "persist active raid state to database");
+        error!(error = ?e, %guild_id, "active raid state write to database failed");
     }
 
     if snapshot_saved {
@@ -86,8 +84,6 @@ pub async fn restore_preraid_state(
     data: &BotData,
     guild_id: GuildId,
 ) -> Result<bool, Error> {
-    info!(%guild_id, "initiating pre-raid state restoration");
-
     let json_str = cache::getdel_preraid_snapshot(&data.core.redis, guild_id).await?;
     let Some(json_str) = json_str else {
         // Another worker or manual intervention already claimed and processed this snapshot!
@@ -97,12 +93,6 @@ pub async fn restore_preraid_state(
 
     let snapshot: PreRaidState = serde_json::from_str(&json_str)?;
 
-    debug!(
-        %guild_id,
-        raid_start_time = %snapshot.raid_start_time,
-        "restoring @everyone role permissions"
-    );
-
     let everyone_role_id = RoleId::new(guild_id.get());
     let original_perms = Permissions::from_bits_truncate(snapshot.original_everyone_permissions);
     let role_builder = EditRole::new().permissions(original_perms);
@@ -111,17 +101,12 @@ pub async fn restore_preraid_state(
         .edit_role(&ctx.http, everyone_role_id, role_builder)
         .await
     {
-        warn!(
-            error = ?e,
-            %guild_id,
-            "restore @everyone role permissions"
-        );
+        warn!(error = ?e, %guild_id, "@everyone role permissions not restored");
     }
 
     // Restore verification settings in the database
     let captcha_str = snapshot.original_verification_type.map(|c| format!("{c}"));
 
-    debug!(%guild_id, "restoring verification settings in database");
     database::restore_verification_settings(
         &data.core.db,
         guild_id,
@@ -135,7 +120,7 @@ pub async fn restore_preraid_state(
 
     // Delete persisted state from Postgres
     if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
-        warn!(error = ?e, %guild_id, "delete active raid state from database");
+        warn!(error = ?e, %guild_id, "active raid state row not deleted from database");
     }
 
     info!(%guild_id, "claimed and restored pre-raid state");

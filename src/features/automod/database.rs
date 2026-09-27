@@ -90,5 +90,5 @@ pub async fn log_automod_event(
 
     insert_automod_row(db, entry)
         .await
-        .context("Unable to insert automod log record into database")
+        .context("automod log record insert into the database failed")
 }

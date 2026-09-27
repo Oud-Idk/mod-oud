@@ -77,8 +77,6 @@ impl SpamTracker {
         // Unique member entry for Redis ZSET
         let member_key = member_key(now);
 
-        trace!("executing atomic spam validation transaction in Redis");
-
         // Start atomic MULTI transaction
         let tx = cache::begin_spam_transaction(&self.redis_conn);
 
@@ -90,12 +88,12 @@ impl SpamTracker {
         if is_spamming {
             debug!(
                 window_message_count = count,
-                limit, "user exceeded the message limit; flagging as spam"
+                limit, "user exceeded the message limit"
             );
         } else {
             trace!(
                 window_message_count = count,
-                limit, "user checked; message count is within acceptable threshold"
+                limit, "message count within the limit"
             );
         }
 
@@ -126,7 +124,6 @@ impl SpamTracker {
         user_id: UserId,
         cooldown: Duration,
     ) -> Result<bool> {
-        trace!("checking warning cooldown status in Redis");
         let key = keys::spam_warned_key(guild_id, user_id);
         let cooldown = i64::try_from(cooldown.as_millis())?;
 

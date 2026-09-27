@@ -130,7 +130,7 @@ async fn ensure_channel_in_guild(
             ))
         }
         Err(e) => {
-            debug!(error = ?e, %guild_id, %channel_id, "rejected feed subscription: could not resolve channel");
+            debug!(error = ?e, %guild_id, %channel_id, "feed subscription rejected: channel not resolved");
             Err((
                 StatusCode::BAD_REQUEST,
                 "Could not find that channel in this server".to_string(),

@@ -3,7 +3,7 @@ use crate::core::config::state::{Context, Error};
 use crate::features::moderation::{ActionType, audit, lockdown, log_moderation_action};
 use crate::shared::command_context::GuildMetadata;
 use serenity::all::{GuildChannel, GuildId, RoleId};
-use tracing::{info, trace};
+use tracing::trace;
 
 /// Lock down a text channel, preventing members from sending messages.
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
@@ -15,7 +15,6 @@ pub async fn lock(
     #[description = "Reason for the lockdown"] reason: Option<String>,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    info!(caller_id, "invoked lock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = lockdown::resolve_target_channel(&ctx, channel).await?;
@@ -66,7 +65,6 @@ pub async fn unlock(
     >,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    info!(caller_id, "invoked unlock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = lockdown::resolve_target_channel(&ctx, channel).await?;
@@ -102,8 +100,6 @@ pub async fn global_lock(
     #[description = "Reason for the server-wide lockdown"] reason: Option<String>,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
-    info!(caller_id, guild_id, "invoked global_lock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
 
@@ -153,8 +149,6 @@ pub async fn global_lock(
 #[poise::command(slash_command, required_permissions = "MANAGE_CHANNELS", guild_only)]
 pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
-    info!(caller_id, guild_id, "invoked global_unlock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
 
@@ -205,12 +199,6 @@ pub async fn log_action(
     action: ActionType,
     reason: Option<&str>,
 ) -> Result<(), Error> {
-    trace!(
-        %guild_id,
-        target_id,
-        action = ?action,
-        "dispatching moderation log to database and Discord integration"
-    );
     log_moderation_action(
         &ctx.data().core.db,
         guild_id,
@@ -221,5 +209,11 @@ pub async fn log_action(
         None,
     )
     .await?;
+    trace!(
+        %guild_id,
+        target_id,
+        action = ?action,
+        "moderation action logged to the database"
+    );
     Ok(())
 }

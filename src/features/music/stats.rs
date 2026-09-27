@@ -129,7 +129,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
     let mut tx = match db.begin().await {
         Ok(tx) => tx,
         Err(e) => {
-            warn!(error = ?e, "begin music stats batch; requeueing");
+            warn!(error = ?e, "music stats transaction begin failed; events requeued");
             *buffer = events;
             return;
         }
@@ -181,7 +181,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
         };
 
         if let Err(e) = result {
-            warn!(error = ?e, "write music stats event; requeueing batch");
+            warn!(error = ?e, "music stats event write failed; batch requeued");
             ok = false;
             break;
         }
@@ -189,7 +189,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<StatsEvent>) {
 
     if ok {
         if let Err(e) = tx.commit().await {
-            warn!(error = ?e, "commit music stats batch; requeueing");
+            warn!(error = ?e, "music stats batch commit failed; events requeued");
             *buffer = events;
         }
     } else {
@@ -210,17 +210,17 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
 
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
-                    trace!("music stats prune lock acquired; pruning old play events");
+                    trace!("music stats prune lock acquired");
                     if let Err(e) = prune_play_events(&db).await {
-                        warn!(error = ?e, "pruning old music play events");
+                        warn!(error = ?e, "old music play events not pruned");
                     }
                     match guard.release().await {
                         Ok(true) => trace!("music stats prune lock released"),
-                        Ok(false) => warn!(
-                            "attempted to release music stats prune lock, but we no longer owned it"
-                        ),
+                        Ok(false) => {
+                            warn!("music stats prune lock release skipped, no longer owned");
+                        }
                         Err(e) => {
-                            warn!(error = ?e, "release music stats prune lock due to a Redis error");
+                            warn!(error = ?e, "music stats prune lock release failed");
                         }
                     }
                 }
@@ -228,7 +228,7 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                     trace!("music stats prune lock already held by another worker; skipping");
                 }
                 Err(e) => {
-                    warn!(error = ?e, "coordinate music stats prune lock");
+                    warn!(error = ?e, "music stats prune lock acquisition failed");
                 }
             }
         }

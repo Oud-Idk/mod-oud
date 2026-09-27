@@ -26,11 +26,11 @@ pub async fn get_cached_role(redis: &Client, cache_key: &str) -> Option<Option<R
             )
         }
         Ok(None) => {
-            trace!("cache miss when finding role, querying from database");
+            trace!(cache_key, fallback = "db", "role cache miss");
             None
         }
         Err(e) => {
-            warn!(cache_key, error = ?e, "redis read failed, falling back to database");
+            warn!(cache_key, error = ?e, fallback = "db", "role cache read from redis failed");
             None
         }
     }

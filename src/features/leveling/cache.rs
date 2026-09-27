@@ -21,7 +21,6 @@ pub async fn cache_aside_multipliers(
     db: &PgPool,
     guild_id: GuildId,
 ) -> Result<Vec<XpMultiplier>> {
-    debug!(key = %multiplier_key, "checking Redis cache for multipliers");
     let cached_multipliers: Option<String> = redis.get(multiplier_key).await.ok();
 
     let multipliers = if let Some(json_data) = cached_multipliers {
@@ -30,15 +29,15 @@ pub async fn cache_aside_multipliers(
             warn!(
                 error = ?err,
                 key = %multiplier_key,
-                "deserialize cached multipliers; falling back to empty list"
+                fallback = "empty list",
+                "cached multiplier deserialization failed"
             );
             Vec::new()
         })
     } else {
-        debug!(key = %multiplier_key, "cache miss; fetching multipliers from database");
+        debug!(key = %multiplier_key, "multiplier cache miss");
         let db_multipliers = database::get_multipliers(db, guild_id).await?;
 
-        debug!(key = %multiplier_key, "serializing and caching multipliers in Redis");
         let serialized = serde_json::to_string(&db_multipliers)?;
         let _: () = redis
             .set(
@@ -49,6 +48,7 @@ pub async fn cache_aside_multipliers(
                 false,
             )
             .await?;
+        debug!(key = %multiplier_key, "multipliers cached in redis");
 
         db_multipliers
     };
@@ -68,12 +68,6 @@ pub async fn create_redis_cooldown(
         return Ok(true);
     }
 
-    debug!(
-        key = %cooldown_key,
-        duration = cooldown_duration,
-        "attempting to set cooldown in Redis"
-    );
-
     let cooldown_result: Option<String> = redis
         .set(
             cooldown_key,
@@ -87,7 +81,11 @@ pub async fn create_redis_cooldown(
     let success = cooldown_result.is_some();
 
     if success {
-        debug!(key = %cooldown_key, "cooldown created");
+        debug!(
+            key = %cooldown_key,
+            duration = cooldown_duration,
+            "cooldown created"
+        );
     } else {
         debug!(key = %cooldown_key, "cooldown already active");
     }
@@ -232,21 +230,22 @@ pub async fn open_session(
     start_clock: bool,
 ) -> Result<()> {
     let key = keys::session_key(guild_id, user_id);
-    trace!(
-        %guild_id,
-        %user_id,
-        %channel_id,
-        start_clock,
-        "opening voice session"
-    );
-
     let session = VcSession {
         join_time: now,
         channel_id,
         accumulated_secs: 0,
         clock_started_at: if start_clock { Some(now) } else { None },
     };
-    set_session(redis, &key, &session).await
+    set_session(redis, &key, &session).await?;
+
+    trace!(
+        %guild_id,
+        %user_id,
+        %channel_id,
+        start_clock,
+        "voice session opened"
+    );
+    Ok(())
 }
 
 /// Resumes a paused clock (channel crossed from <2 to >=2 eligible occupants). No-op if already running
@@ -261,9 +260,9 @@ pub async fn resume_clock(
     if let Some(mut s) = get_session(redis, &key).await?
         && s.clock_started_at.is_none()
     {
-        trace!(%guild_id, user_id = user_id.get(), "resuming voice XP clock");
         s.clock_started_at = Some(now);
         set_session(redis, &key, &s).await?;
+        trace!(%guild_id, user_id = user_id.get(), "voice XP clock resumed");
     }
     Ok(())
 }
@@ -280,9 +279,13 @@ pub async fn pause_clock(
     if let Some(mut s) = get_session(redis, &key).await?
         && let Some(started) = s.clock_started_at.take()
     {
-        trace!(%guild_id, user_id = user_id.get(), "pausing voice XP clock (alone in channel)");
         s.accumulated_secs += (now - started).max(0);
         set_session(redis, &key, &s).await?;
+        trace!(
+            %guild_id,
+            user_id = user_id.get(),
+            "voice XP clock paused; the user is alone in the channel"
+        );
     }
     Ok(())
 }
@@ -294,8 +297,6 @@ pub async fn consume_session(
     session_key: &str,
     now: i64,
 ) -> Result<Option<VcSession>> {
-    trace!("consuming active voice session from Redis");
-
     let Some(mut s) = get_session(redis, session_key).await? else {
         return Ok(None);
     };
@@ -353,7 +354,6 @@ pub async fn claim_pending_levels(
         .await?;
 
     let success = claimed == 1;
-    debug!(claimed = success, "claim key attempt result");
     Ok(success)
 }
 

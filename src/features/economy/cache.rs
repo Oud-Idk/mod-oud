@@ -50,7 +50,8 @@ pub async fn check_cooldown(
             warn!(
                 error = ?e,
                 cooldown_key = key,
-                "cooldown TTL lookup failed; reporting a 0s wait"
+                fallback = "0s wait",
+                "cooldown TTL lookup failed"
             );
             0
         }

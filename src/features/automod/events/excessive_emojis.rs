@@ -4,7 +4,7 @@ use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::MessageFilteringConfig;
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, trace};
+use tracing::debug;
 use unicode_segmentation::UnicodeSegmentation;
 
 pub fn filter_excessive_emojis<'a>(
@@ -15,7 +15,6 @@ pub fn filter_excessive_emojis<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("checking 'Excessive Emojis' filter rule");
     // Add ASCII emoji and Discord emoji `<:asdf:1234>`
     let total_count =
         count_emojis(&message.content) + DISCORD_EMOJI_REGEX.find_iter(&message.content).count();

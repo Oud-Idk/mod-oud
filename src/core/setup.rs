@@ -188,7 +188,7 @@ pub fn setup<'a>(
         };
 
         if let Err(e) = reconcile_active_raids(ctx, &data).await {
-            error!(error = ?e, "reconciling active raids on startup");
+            error!(error = ?e, "startup raid reconciliation failed");
         }
 
         Ok(data)

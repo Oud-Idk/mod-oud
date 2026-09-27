@@ -60,7 +60,7 @@ pub fn build_custom_msg(
     embed: &DiscordEmbed,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
     build_custom_message(format, content, embed, std::string::ToString::to_string).map_err(|e| {
-        warn!(error = ?e, "compile reaction roles message layout");
+        warn!(error = ?e, "reaction roles message layout compilation failed");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal Server Error".to_string(),
@@ -137,14 +137,14 @@ pub async fn edit_reactions(
                             error = ?e,
                             %channel_id,
                             %message_id,
-                            "remove stale reaction; it remains on the message"
+                            "stale reaction not removed; it remains on the message"
                         );
                     }
                 }
             }
         }
         Err(e) => {
-            warn!(error = ?e, %message_id, "skipped stale reaction cleanup: failed to fetch the message");
+            warn!(error = ?e, %message_id, "message fetch failed; stale reaction cleanup skipped");
         }
     }
 
@@ -155,7 +155,7 @@ pub async fn edit_reactions(
                 .create_reaction(*channel_id, *message_id, &emoji)
                 .await
         {
-            warn!(error = ?err, "failed applying reaction emoji to edited post");
+            warn!(error = ?err, "reaction emoji not applied to the edited post");
         }
     }
     Ok(())

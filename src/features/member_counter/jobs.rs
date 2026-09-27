@@ -24,9 +24,9 @@ pub fn start_member_counter_job(
     cache: Cache<GuildId, GuildSettings>,
 ) {
     task::spawn("member_counter_worker", async move {
-        info!("member counter background job started");
-
         let worker_id = format!("worker-{}", chrono::Utc::now().timestamp_millis());
+        info!(worker_id = %worker_id, "member counter worker started");
+
         let mut timer = interval(Duration::from_mins(1));
 
         loop {
@@ -36,7 +36,7 @@ pub fn start_member_counter_job(
                 process_all_member_counters(&http, &serenity_cache, &db, &redis, &cache, &worker_id)
                     .await
             {
-                warn!(error = ?e, "processing member counters");
+                warn!(error = ?e, "member counter processing failed");
             }
         }
     });
@@ -63,7 +63,7 @@ async fn process_all_member_counters(
         let settings = match get_settings(db, redis, cache, guild_id).await {
             Ok(s) => s,
             Err(e) => {
-                warn!(%guild_id, error = ?e, "fetch settings for guild");
+                warn!(%guild_id, error = ?e, "guild settings lookup failed");
                 continue;
             }
         };
@@ -101,13 +101,13 @@ async fn process_all_member_counters(
         // Process counters for this guild
         if let Err(e) = update_guild_counters(http, serenity_cache, guild_id, counter_config).await
         {
-            warn!(%guild_id, error = ?e, "update member counter channels for guild");
+            warn!(%guild_id, error = ?e, "member counter channel update failed");
 
             if let Err(del_err) = redis.del::<i64, _>(&claim_key).await {
                 warn!(
                     %guild_id,
                     error = ?del_err,
-                    "release member counter claim after failed update"
+                    "member counter claim not released after the failed update"
                 );
             }
         }

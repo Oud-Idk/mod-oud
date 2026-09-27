@@ -16,7 +16,8 @@ pub async fn get_settings_from_redis(redis: &Client, cache_key: &str) -> Option<
             warn!(
                 error = ?e,
                 key = %cache_key,
-                "parse settings from Redis; falling back to DB"
+                fallback = "db",
+                "settings deserialize from the redis cache failed"
             );
             None
         }

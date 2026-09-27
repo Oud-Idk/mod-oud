@@ -186,7 +186,7 @@ impl WebCommandBus {
                 let payload = match msg.value.convert::<String>() {
                     Ok(val) => val,
                     Err(e) => {
-                        warn!(error = ?e, "convert music command reply payload");
+                        warn!(error = ?e, "music command reply payload conversion failed");
                         return Ok(());
                     }
                 };
@@ -194,7 +194,7 @@ impl WebCommandBus {
                 let result: RemoteMusicResult = match serde_json::from_str(&payload) {
                     Ok(result) => result,
                     Err(e) => {
-                        warn!(error = %e, payload = %payload, "parse music command reply");
+                        warn!(error = %e, payload = %payload, "music command reply parse failed");
                         return Ok(());
                     }
                 };
@@ -220,7 +220,7 @@ impl WebCommandBus {
                 .await
             {
                 Ok(()) => debug!("subscribed to music web reply channel"),
-                Err(e) => warn!(error = ?e, "subscribe to music web reply channel"),
+                Err(e) => warn!(error = ?e, "music web reply channel subscription failed"),
             }
         });
 

@@ -27,13 +27,13 @@ pub async fn handle_delete_reaction_role_message(
         .await
     {
         Ok(()) => {
-            debug!("Discord message deleted");
+            debug!(channel_id = %channel_id, message_id = %message_id, "message deleted via discord");
         }
         Err(e) => {
             if is_unknown_message_error(&e) {
                 debug!(error = ?e, "Discord message already deleted; proceeding with cleanup");
             } else {
-                warn!(error = ?e, "delete message via Discord API");
+                warn!(error = ?e, "message delete via discord failed");
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal Server Error".to_string(),

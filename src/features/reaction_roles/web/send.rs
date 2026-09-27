@@ -28,7 +28,7 @@ pub async fn handle_send_reaction_role_message(
     debug!(
         %guild_id,
         config_id = config_id_str,
-        "dispatching reaction roles message"
+        "reaction roles message requested"
     );
 
     let config_id = parse_config_id(&config_id_str)?;
@@ -61,7 +61,7 @@ pub async fn handle_send_reaction_role_message(
         .send_message(&state.serenity_http, message_builder)
         .await
         .map_err(|e| {
-            warn!(error = ?e, "send payload to Discord channel");
+            warn!(error = ?e, "reaction roles message not sent to discord");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),
@@ -74,14 +74,14 @@ pub async fn handle_send_reaction_role_message(
             if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>()
                 && let Err(err) = message.react(&state.serenity_http, emoji).await
             {
-                warn!(error = ?err, "failed applying reaction emoji to post");
+                warn!(error = ?err, "reaction emoji not applied to the post");
             }
         }
     }
 
     let message_id = message.id;
     if let Err(e) = database::add_message_to_db(&state, &config_row, message_id).await {
-        error!(error = ?e, config_id, %message_id, "record the reaction roles message id");
+        error!(error = ?e, config_id, %message_id, "reaction roles message id not recorded");
     }
 
     info!(

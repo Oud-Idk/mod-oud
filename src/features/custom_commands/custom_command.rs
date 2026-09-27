@@ -59,14 +59,14 @@ pub async fn handle_custom_command(
         }
     }
 
-    if command.delete_trigger {
-        if let Err(e) = msg.delete(&ctx.http).await {
-            warn!(
-                error = ?e,
-                message_id = %msg.id,
-                "delete custom command trigger; trigger remains visible"
-            );
-        }
+    if command.delete_trigger
+        && let Err(e) = msg.delete(&ctx.http).await
+    {
+        warn!(
+            error = ?e,
+            message_id = %msg.id,
+            "custom command trigger not deleted; the trigger stays visible"
+        );
     }
 
     for (action_index, action) in command.actions.iter().enumerate() {
@@ -210,14 +210,14 @@ async fn add_role_action(
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "add role from custom command action; member did not receive it"
+            "custom command role not added; the member did not receive it"
         );
         debug!(
             %guild_id,
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "custom command executed partially; the add-role action failed"
+            "custom command executed partially"
         );
     }
 }
@@ -254,14 +254,14 @@ async fn remove_role_action(
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "remove role from custom command action; member kept the role"
+            "custom command role not removed; the member kept the role"
         );
         debug!(
             %guild_id,
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "custom command executed partially; the remove-role action failed"
+            "custom command executed partially"
         );
     }
 }

@@ -55,7 +55,7 @@ pub async fn handle_send_custom_embed(
     Path(guild_id): Path<GuildId>,
     Json(payload): Json<SendCustomEmbedPayload>,
 ) -> Result<(StatusCode, Json<SendCustomEmbedResponse>), (StatusCode, String)> {
-    debug!(%guild_id, "received request to dispatch generic embed");
+    debug!(%guild_id, "custom message send requested");
 
     let target_channel = serenity::ChannelId::new(payload.channel_id);
 
@@ -65,7 +65,7 @@ pub async fn handle_send_custom_embed(
         .send_message(&state.serenity_http, message_builder)
         .await
         .inspect_err(
-            |e| warn!(error = ?e, channel_id = payload.channel_id, "deliver Discord message"),
+            |e| warn!(error = %e, channel_id = payload.channel_id, "custom message not delivered"),
         )
         .map_err(|_| {
             (

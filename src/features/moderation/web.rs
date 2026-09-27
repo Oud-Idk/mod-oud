@@ -30,12 +30,6 @@ pub async fn handle_delete_entire_category(
     Path(guild_id_str): Path<String>,
     Json(payload): Json<DeleteCategoryPayload>,
 ) -> Result<(StatusCode, Json<DeleteCategoryResponse>), (StatusCode, String)> {
-    debug!(
-        guild_id = guild_id_str,
-        category_id = payload.category_id,
-        "request to delete category and children via API"
-    );
-
     // Parse IDs
     let guild_id_u64 = guild_id_str
         .parse::<u64>()
@@ -52,7 +46,7 @@ pub async fn handle_delete_entire_category(
 
     let deleted_count = delete_entire_category(&state.serenity_http, guild_id, category_id)
         .await
-        .inspect_err(|e| warn!(error = ?e, "delete category through API"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, "category delete via the api failed"))
         .map_err(|_e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

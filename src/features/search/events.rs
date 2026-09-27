@@ -36,7 +36,7 @@ pub async fn handle_search_play(
             return Ok(true);
         }
         Err(e) => {
-            tracing::warn!(error = ?e, "lookup user VC for search play");
+            tracing::warn!(error = ?e, "user voice channel lookup failed");
             respond_ephemeral(
                 ctx,
                 component,
@@ -126,7 +126,7 @@ async fn edit_reply(ctx: &Context, component: &ComponentInteraction, content: &s
         tracing::warn!(
             error = ?e,
             user_id = %component.user.id,
-            "edit deferred search play reply; reply left stale"
+            "deferred search play reply not edited; the reply is left stale"
         );
     }
 }
@@ -154,7 +154,7 @@ async fn report_outcome(ctx: &Context, component: &ComponentInteraction, outcome
         tracing::warn!(
             error = ?e,
             user_id = %component.user.id,
-            "report search play outcome; reply left stale"
+            "search play outcome not reported; the reply is left stale"
         );
     }
 }

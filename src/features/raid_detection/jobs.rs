@@ -20,23 +20,21 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
 
             match acquire_lock(&redis_client, lock_key, &lock_value, 5).await {
                 Ok(Some(guard)) => {
-                    trace!("lock acquired; flushing raid hourly stats");
-
                     if let Err(e) = flush_pending_stats(&db_pool, &redis_client).await {
-                        warn!(error = ?e, "flushing raid stats to database");
+                        warn!(error = ?e, "raid stats flush to database failed");
                     }
 
                     match guard.release().await {
                         Ok(true) => trace!("lock released"),
                         Ok(false) => warn!("lock already lost during flush"),
-                        Err(e) => warn!(error = ?e, "release flush lock"),
+                        Err(e) => warn!(error = ?e, "flush lock release failed"),
                     }
                 }
                 Ok(None) => {
                     trace!("lock held by another worker; skipping flush");
                 }
                 Err(e) => {
-                    warn!(error = ?e, "acquire flush lock");
+                    warn!(error = ?e, "flush lock acquire failed");
                 }
             }
         }
@@ -56,15 +54,14 @@ async fn flush_pending_stats(
     }
 
     let count = dirty_guilds.len();
-    info!(count, "flushing raid stats for dirty guilds");
 
     for guild_id in dirty_guilds {
         if let Err(e) = flush_guild(guild_id, redis, db).await {
-            warn!(%guild_id, error = ?e, "flush raid stats for guild");
+            warn!(%guild_id, error = ?e, "raid stats flush for guild failed");
         }
     }
 
-    trace!("finished flushing raid stats batch");
+    info!(count, "raid stats flushed for dirty guilds");
     Ok(())
 }
 
@@ -83,7 +80,6 @@ async fn flush_guild(
     }
 
     let count = records.len();
-    debug!(count, "flushing accumulated hourly stats");
 
     let hour_keys: Vec<String> = records.keys().cloned().collect();
     let join_counts: Vec<i64> = records.values().copied().collect();

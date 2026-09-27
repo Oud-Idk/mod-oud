@@ -75,8 +75,6 @@ async fn build_query_url(
     query: &str,
     youtube_api_key: &str,
 ) -> String {
-    debug!(query = %query, "resolving query URL");
-
     // Try resolving Spotify track into ytsearch string
     if let Some(spotify_query) = resolve_spotify_track(client, spotify_auth, query).await {
         return spotify_query;
@@ -866,7 +864,7 @@ impl GuildActor {
             .as_ref()
             .context("Nothing is currently playing.")?;
 
-        handle.pause().context("Failed to pause audio stream")?;
+        handle.pause().context("audio stream pause failed")?;
 
         if self.state.current_paused_at.is_none() {
             self.state.current_paused_at = Some(Instant::now());
@@ -883,7 +881,7 @@ impl GuildActor {
             .as_ref()
             .context("Nothing is currently playing.")?;
 
-        handle.play().context("Failed to resume audio stream")?;
+        handle.play().context("audio stream resume failed")?;
 
         if let Some(paused_at) = self.state.current_paused_at.take() {
             self.state.current_paused_total += paused_at.elapsed();
@@ -1057,7 +1055,7 @@ impl GuildActor {
                 true
             }
             Err(e) => {
-                warn!(error = ?e, guild_id = %self.guild_id, "reconnect live stream");
+                warn!(error = ?e, guild_id = %self.guild_id, "live stream reconnect failed");
                 self.broadcast_state().await;
                 false
             }
@@ -1262,14 +1260,22 @@ impl GuildActor {
         let payload = match serde_json::to_string(&event) {
             Ok(payload) => payload,
             Err(e) => {
-                warn!(guild_id = %self.guild_id, error = %e, "serialize now-playing event");
+                warn!(
+                    guild_id = %self.guild_id,
+                    error = %e,
+                    "now-playing event serialization failed"
+                );
                 return;
             }
         };
 
         let published: Result<i64, _> = self.redis.publish(keys::events_channel(), payload).await;
         if let Err(e) = published {
-            debug!(guild_id = %self.guild_id, error = ?e, "publish now-playing event");
+            debug!(
+                guild_id = %self.guild_id,
+                error = ?e,
+                "now-playing event publish to redis failed"
+            );
         }
     }
 

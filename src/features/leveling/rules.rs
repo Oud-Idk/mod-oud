@@ -83,11 +83,10 @@ pub async fn get_multiplier(
     guild_id: GuildId,
     message: &Message,
 ) -> Result<f32> {
-    trace!("fetching multipliers");
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .inspect_err(|err| {
-            warn!(error = %err, "retrieve XP multipliers from cache/database");
+            warn!(error = %err, "XP multiplier lookup failed");
         })?;
 
     let channel_id = message.channel_id;
@@ -98,7 +97,7 @@ pub async fn get_multiplier(
         .unwrap_or_default();
 
     let multiplier = calculate_multiplier(multipliers, channel_id, roles);
-    debug!(multiplier, "determined message multiplier");
+    debug!(multiplier, "message multiplier resolved");
     Ok(multiplier)
 }
 
@@ -118,14 +117,13 @@ pub async fn get_voice_multiplier(
     channel_id: ChannelId,
     member_roles: &[RoleId],
 ) -> Result<f32> {
-    trace!("fetching voice multipliers");
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .inspect_err(|err| {
-            warn!(error = %err, "retrieve voice XP multipliers from cache/database");
+            warn!(error = %err, "voice XP multiplier lookup failed");
         })?;
 
     let multiplier = calculate_multiplier(multipliers, channel_id, member_roles);
-    debug!(multiplier, "determined voice multiplier");
+    debug!(multiplier, "voice multiplier resolved");
     Ok(multiplier)
 }

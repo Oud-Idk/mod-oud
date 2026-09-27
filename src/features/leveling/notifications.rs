@@ -13,12 +13,6 @@ pub async fn send_according_to_config(
     author: &User,
     msg: CreateMessage,
 ) -> Result<()> {
-    trace!(
-        current_channel_id = current_channel_id.get(),
-        author_id = author.id.get(),
-        "sending announcement message according to notification scope configuration"
-    );
-
     match config.notify.target {
         NotificationTarget::CurrentChannel => {
             current_channel_id.send_message(&ctx.http, msg).await?;
@@ -32,7 +26,7 @@ pub async fn send_according_to_config(
                 warn!(
                     error = ?e,
                     user_id = %author.id,
-                    "send level-up DM; notification dropped"
+                    "level-up DM not sent; notification dropped"
                 );
             }
         }
@@ -57,13 +51,6 @@ pub async fn send_message(
     let guild_id = event.guild_id;
     let user_id = event.user_level.user_id;
     let current_level = event.user_level.current_level;
-
-    trace!(
-        %guild_id,
-        user_id = %user_id,
-        current_level,
-        "initiating level up notification sequence"
-    );
 
     let gctx = get_guild_ctx(guild_id, ctx.http.as_ref()).await?;
 
@@ -107,6 +94,13 @@ pub async fn send_message(
 
     send_according_to_config(ctx, event.channel_id, config, &event.author, msg).await?;
 
+    trace!(
+        %guild_id,
+        user_id = %user_id,
+        current_level,
+        "level-up notification sent"
+    );
+
     Ok(())
 }
 
@@ -119,11 +113,6 @@ pub async fn send_voice_level_up_message(
     voice_channel_id: ChannelId,
     previous_level: u32,
 ) -> Result<()> {
-    trace!(
-        %guild_id,
-        "compiling custom voice level up message"
-    );
-
     let gctx = get_guild_ctx(guild_id, ctx.http.as_ref()).await?;
 
     let custom_message_opt = build_custom_message(
@@ -164,6 +153,13 @@ pub async fn send_voice_level_up_message(
     });
 
     send_according_to_config(ctx, voice_channel_id, config, user, msg).await?;
+
+    trace!(
+        %guild_id,
+        user_id = %user.id,
+        current_level = user_level.current_level,
+        "voice level-up notification sent"
+    );
 
     Ok(())
 }

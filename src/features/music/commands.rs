@@ -32,7 +32,7 @@ async fn prepare_command(ctx: &Context<'_>, require_vc: bool) -> Result<Option<P
 
     let manager = songbird::get(ctx.serenity_context())
         .await
-        .context("Failed to get song manager")?;
+        .context("song manager lookup failed")?;
     let reqwest_client = ctx.data().core.reqwest_client.clone();
 
     let actor_tx = ctx

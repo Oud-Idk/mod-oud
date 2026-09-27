@@ -92,7 +92,7 @@ pub async fn unregister_temp_vc(
     pipe.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await?;
     pipe.hdel::<(), _, _>(&owner_hash, &owner_field).await?;
     if let Err(e) = pipe.all::<Vec<i64>>().await {
-        warn!(%guild_id, %channel_id, error = ?e, "temp vc entry cleanup failed");
+        warn!(%guild_id, %channel_id, error = ?e, "temp vc unregister pipeline failed");
     }
     Ok(())
 }
@@ -114,7 +114,7 @@ pub async fn cleanup_temp_vc_entries(
             pipe.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await?;
             pipe.hdel::<(), _, _>(&owner_hash, owner_id).await?;
             if let Err(e) = pipe.all::<Vec<i64>>().await {
-                warn!(%guild_id, %channel_id, error = ?e, "temp vc hash entry cleanup failed");
+                warn!(%guild_id, %channel_id, error = ?e, "temp vc cleanup pipeline failed");
             }
         } else {
             let _: Result<(), _> = redis.hdel::<(), _, _>(&temp_vc_hash, &temp_vc_field).await;
@@ -194,7 +194,6 @@ pub async fn commit_transfer_to_redis(
     current_owner: &str,
     target_owner: &str,
 ) -> Result<(), Error> {
-    debug!("executing Redis pipeline to finalize transfer");
     let temp_vc_hash = keys::temp_vcs_key(guild_id);
     let owner_hash = keys::temp_vc_owners_key(guild_id);
     let pending_key = keys::pending_transfer_key(channel_id);
@@ -217,6 +216,8 @@ pub async fn commit_transfer_to_redis(
         warn!(%guild_id, %channel_id, error = ?e, "redis pipeline execution failed");
         return Err(e.into());
     }
+
+    debug!(%guild_id, %channel_id, "transfer committed to redis");
 
     Ok(())
 }

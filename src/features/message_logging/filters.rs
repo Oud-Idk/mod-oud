@@ -12,13 +12,6 @@ pub async fn should_exclude_from_logging(
     guild_id: GuildId,
     ctx: &Context,
 ) -> bool {
-    trace!(
-        %author_id,
-        %channel_id,
-        %guild_id,
-        "evaluating message logging exclusions"
-    );
-
     // Check if channel is ignored
     if let Some(ref ignored_channels) = config.ignored_channels
         && ignored_channels.contains(&channel_id)
@@ -60,7 +53,8 @@ pub async fn should_exclude_from_logging(
                 trace!(
                     %author_id,
                     %guild_id,
-                    "member not in cache, falling back to HTTP request"
+                    fallback = "http member lookup",
+                    "member not in the guild cache"
                 );
 
                 match ctx.http.get_member(guild_id, author_id).await {
@@ -75,7 +69,8 @@ pub async fn should_exclude_from_logging(
                             error = ?err,
                             %author_id,
                             %guild_id,
-                            "fetch guild member metadata via HTTP for exclusion checks"
+                            fallback = "role exclusion not applied",
+                            "guild member metadata fetch failed"
                         );
                     }
                 }
@@ -97,12 +92,6 @@ pub fn fetch_cached_message(
     channel_id: ChannelId,
     message_id: MessageId,
 ) -> Option<MessageDetails> {
-    trace!(
-        chan_id = channel_id.get(),
-        msg_id = message_id.get(),
-        "fetching message from cache"
-    );
-
     let Some(message) = cache.message(channel_id, message_id) else {
         debug!(
             chan_id = channel_id.get(),
@@ -173,8 +162,6 @@ pub fn extract_edit_details(
 ) -> Option<EditDetails> {
     let msg_id = event.id;
     let chan_id = event.channel_id;
-
-    trace!(%msg_id, %chan_id, "processing message update event");
 
     // Check if the author of the update or the cached message is a bot
     if let Some(author) = &event.author {

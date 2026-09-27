@@ -55,12 +55,6 @@ pub async fn handle_voice_leveling(
     }
 
     if old_eligible && let Some(old_ch) = old_channel {
-        debug!(
-            %guild_id,
-            user_id = user_id.get(),
-            "closing voice session"
-        );
-
         if let Some(session) = cache::consume_session(redis, &session_key, now).await? {
             let eligible_secs = session.accumulated_secs;
 
@@ -88,6 +82,8 @@ pub async fn handle_voice_leveling(
         if remaining < 2 {
             cache::pause_channel_clocks(redis, guild_id, old_ch, now).await?;
         }
+
+        debug!(%guild_id, user_id = user_id.get(), "voice session closed");
     }
 
     // MEMBER JOINED VC AND IS ELIGIBLE
@@ -308,7 +304,7 @@ async fn handle_level_up(
             guild_id = %event.guild_id,
             user_id = %event.user_level.user_id,
             level = event.user_level.current_level,
-            "apply level-up rewards; reward roles skipped until next level"
+            "level-up reward roles not applied; skipped until the next level"
         );
     }
     Ok(())

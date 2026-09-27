@@ -51,7 +51,7 @@ pub async fn handle_media_channel_message(
         }
     }
 
-    trace!("processing valid media-only channel message");
+    trace!("message passed the media-only checks");
 
     if let Some(thread_name_template) = config.thread_name_template {
         if !config.auto_thread {

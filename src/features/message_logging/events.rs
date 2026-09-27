@@ -11,7 +11,7 @@ use fred::interfaces::FredResult;
 use moka::future::Cache;
 use serenity::all::{ChannelId, Context, GuildId, MessageAction, MessageId, UserId, audit_log};
 use std::sync::Arc;
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, error, instrument, warn};
 
 #[instrument(
     skip(ctx, audit_cache),
@@ -34,10 +34,9 @@ async fn determine_deleter(
         debug!("using cached audit logs for deleter lookup");
         data
     } else {
-        debug!("audit logs cache miss, sleeping 800ms before querying discord api");
+        debug!("audit logs cache miss; the discord api query is delayed 800ms");
         tokio::time::sleep(std::time::Duration::from_millis(800)).await;
 
-        debug!("requesting message delete audit logs from Discord API");
         let audit_logs = match guild_id
             .audit_logs(
                 &ctx.http,
@@ -50,7 +49,7 @@ async fn determine_deleter(
         {
             Ok(logs) => logs,
             Err(e) => {
-                warn!(error = %e, "retrieve audit logs from Discord API");
+                warn!(error = %e, "message delete audit log retrieval failed");
                 return None;
             }
         };
@@ -83,7 +82,7 @@ async fn determine_deleter(
                 return Some((entry.user_id, user.name.clone()));
             }
 
-            debug!(deleter_id = %entry.user_id, "user details not found in audit payload; resolving via API");
+            debug!(deleter_id = %entry.user_id, "deleter not found in the audit log payload");
             if let Ok(user) = entry.user_id.to_user(&ctx.http).await {
                 return Some((entry.user_id, user.name));
             }
@@ -114,7 +113,6 @@ pub async fn message_log_delete(
     guild_id: Option<&GuildId>,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("received message delete event");
     let Some(guild_id) = guild_id else {
         return Ok(());
     };
@@ -169,8 +167,6 @@ pub async fn message_log_delete(
     let channel_id_val = channel_id;
 
     task::spawn("message_delete_audit", async move {
-        debug!("spawning background task to match deletion audit logs and insert record");
-
         let deleted_by = determine_deleter(
             &ctx_clone,
             guild_id,
@@ -193,7 +189,7 @@ pub async fn message_log_delete(
         .await;
 
         if let Err(e) = db_res {
-            error!(error = %e, "insert deleted message log into database");
+            error!(error = %e, "deleted message log insert failed");
         }
 
         let payload = DeletedMessagePayload {
@@ -210,11 +206,11 @@ pub async fn message_log_delete(
         };
 
         if let Ok(payload_json) = serde_json::to_string(&payload) {
-            debug!("publishing delete event");
+            debug!("delete event payload published to redis");
             let res: FredResult<()> =
                 features::message_logging::cache::publish_delete_event(redis, payload_json).await;
             if let Err(err) = res {
-                warn!(error = %err, "publish delete message event");
+                warn!(error = %err, "delete event publish failed");
             }
         }
     });
@@ -242,8 +238,6 @@ pub async fn log_message_update(
     event: &serenity::all::MessageUpdateEvent,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("received message update event");
-
     let redis = &data.core.redis;
     let db = &data.core.db;
 
@@ -298,8 +292,8 @@ pub async fn log_message_update(
         return Ok(());
     }
 
-    debug!("inserting message modification history into the database");
     database::insert_modified_messages(&data.core.db, &details, guild_id).await?;
+    debug!("message modification history inserted into the database");
 
     let payload = ModifiedMessagePayload {
         id: details.msg_id,
@@ -314,18 +308,16 @@ pub async fn log_message_update(
 
     match serde_json::to_string(&payload) {
         Ok(payload_json) => {
-            debug!(
-                "publishing modified message payload to Redis pub/sub channel 'discord:updates'"
-            );
+            debug!("modified message payload published to redis");
             let pub_res: FredResult<()> =
                 features::message_logging::cache::publish_edit_event(redis, payload_json).await;
 
             if let Err(e) = pub_res {
-                warn!(error = %e, "publish update event payload to Redis channel");
+                warn!(error = %e, "update event publish failed");
             }
         }
         Err(e) => {
-            warn!(error = %e, "serialize updated message payload for Redis publication");
+            warn!(error = %e, "modified message payload serialization failed");
         }
     }
 

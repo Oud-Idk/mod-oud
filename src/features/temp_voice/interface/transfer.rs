@@ -16,8 +16,6 @@ pub async fn handle_transfer_temp_vc(
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    debug!(%interaction.user.id, "handling voice channel transfer");
-
     let Ok(Some(_)) = preflight_button_check(ctx, interaction, data).await else {
         debug!("preflight check failed or returned no channel information");
         return Ok(());

@@ -43,7 +43,7 @@ pub async fn handle_edit_giveaway_message(
     let host_user = UserId::from(record.host_id.cast_unsigned())
         .to_user(&state.serenity_http)
         .await
-        .inspect_err(|e| warn!(error = ?e, "couldn't get user through HTTP"))
+        .inspect_err(|e| warn!(error = ?e, "host user lookup via discord failed"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -52,7 +52,7 @@ pub async fn handle_edit_giveaway_message(
         })?;
     let gctx = get_guild_ctx(GuildId::from(guild_id), &state.serenity_http)
         .await
-        .inspect_err(|e| warn!(error = ?e, "couldn't get guild ctx"))
+        .inspect_err(|e| warn!(error = ?e, "guild context lookup failed"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -75,7 +75,7 @@ pub async fn handle_edit_giveaway_message(
         .edit_message(&state.serenity_http, message_id, edit_builder)
         .await
         .map_err(|e| {
-            warn!(error = ?e, "edit Discord giveaway message");
+            warn!(error = ?e, "giveaway message not edited on discord");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),

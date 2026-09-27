@@ -41,8 +41,6 @@ pub struct GuildCtx {
 /// # Errors
 /// Returns an `Err` if the HTTP fallback fails to retrieve guild data from Discord API.
 pub async fn get_guild_ctx(guild_id: GuildId, cache_http: impl CacheHttp) -> Result<GuildCtx> {
-    trace!(%guild_id, "fetching guild context details");
-
     if let Some(g) = cache_http.cache().and_then(|c| guild_id.to_guild_cached(c)) {
         trace!(%guild_id, "retrieved guild context from local cache");
 

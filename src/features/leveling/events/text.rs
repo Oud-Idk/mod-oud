@@ -170,24 +170,12 @@ pub fn spawn_level_up_effects(
     let db_lvl_up = db.clone();
 
     task::spawn("level_up_notification", async move {
-        if !matches!(config.notify.target, NotificationTarget::None) {
-            trace!(
-                %guild_id,
-                %author_id,
-                "initiating level-up notification"
-            );
-
-            if let Err(e) = notifications::send_message(&ctx, &event, &config).await {
-                warn!(error = ?e, "send level-up notification");
-            }
+        if !matches!(config.notify.target, NotificationTarget::None)
+            && let Err(e) = notifications::send_message(&ctx, &event, &config).await
+        {
+            warn!(error = ?e, "level-up notification not sent");
         }
 
-        trace!(
-            %guild_id,
-            %author_id,
-            level = current_level_val,
-            "evaluating reward assignments"
-        );
         if let Err(e) =
             rewards::apply_level_rewards(&ctx, &db_lvl_up, guild_id, author_id, current_level_val)
                 .await
@@ -197,7 +185,7 @@ pub fn spawn_level_up_effects(
                 %guild_id,
                 %author_id,
                 level = current_level_val,
-                "apply leveling role rewards to member"
+                "level reward roles not applied; skipped until the next level"
             );
         }
     });

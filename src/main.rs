@@ -271,9 +271,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_bot {
-        debug!("since RUN_BOT is true, running discord bot");
+        debug!("discord bot enabled by RUN_BOT");
     } else {
-        debug!("since RUN_BOT is false, not running discord bot");
+        debug!("discord bot disabled by RUN_BOT");
     }
 
     let run_web: bool = env::var("RUN_WEB")
@@ -282,9 +282,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_web {
-        debug!("since RUN_WEB is true, running REST API");
+        debug!("REST API enabled by RUN_WEB");
     } else {
-        debug!("since RUN_WEB is false, not running REST API");
+        debug!("REST API disabled by RUN_WEB");
     }
 
     let run_migrations = env::var("RUN_MIGRATIONS")
@@ -411,7 +411,7 @@ async fn start_bot(
         cache_channels = cache_settings.cache_channels,
         cache_guilds = cache_settings.cache_guilds,
         ttl = cache_settings.time_to_live.as_secs(),
-        "setting up cache",
+        "cache settings applied",
     );
 
     let commands_to_register = build_commands();
@@ -508,7 +508,12 @@ fn dynamic_prefix(
                 mod_oud::features::custom_commands::resolve_prefix(&settings).to_string(),
             )),
             Err(e) => {
-                warn!(error = ?e, %guild_id, "load prefix; falling back to default");
+                warn!(
+                    error = ?e,
+                    %guild_id,
+                    fallback = "!",
+                    "command prefix resolution failed"
+                );
                 Ok(Some("!".to_string()))
             }
         }

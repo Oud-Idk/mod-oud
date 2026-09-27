@@ -29,23 +29,21 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
             tokio::time::sleep(tokio::time::Duration::from_mins(1)).await;
 
             let now = chrono::Utc::now();
-            trace!("attempting to acquire lock for temp ban processing");
 
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
-                    trace!("acquired lock; processing expired temp bans");
                     if let Err(e) = process_expired_temp_bans(&db_pool, &http, now).await {
-                        warn!(error = ?e, "processing expired temp bans");
+                        warn!(error = ?e, "expired temp ban processing failed");
                     }
 
                     // Release lock
                     match guard.release().await {
-                        Ok(true) => trace!("released lock"),
+                        Ok(true) => {}
                         Ok(false) => {
-                            warn!("attempted to release temp ban lock, but ownership was lost");
+                            warn!("temp ban lock not released; ownership was lost");
                         }
                         Err(e) => {
-                            warn!(error = ?e, "release temp ban lock due to Redis error");
+                            warn!(error = ?e, "temp ban lock release failed");
                         }
                     }
                 }
@@ -53,7 +51,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                     trace!("lock busy; skipping iteration");
                 }
                 Err(e) => {
-                    warn!(error = ?e, "coordinate Redis lock for temp bans");
+                    warn!(error = ?e, "temp ban lock acquisition failed");
                 }
             }
         }
@@ -75,7 +73,7 @@ async fn process_expired_temp_bans(
     }
 
     let bans_count = expired_bans.len();
-    info!(bans_count, "found expired temp bans to process");
+    info!(bans_count, "expired temp bans found");
 
     let unban_futures = expired_bans.into_iter().map(|record| {
         let http_ref = http;
@@ -104,7 +102,7 @@ async fn process_expired_temp_bans(
                             user_id = %user_id,
                             ban_id = record.id,
                             error = ?e,
-                            "unban user in guild"
+                            "temporary ban not lifted"
                         );
                         Err(record.id)
                     }
@@ -132,7 +130,7 @@ async fn process_expired_temp_bans(
     if successful_count < bans_count {
         warn!(
             failed_count = bans_count - successful_count,
-            "some temp bans failed to process and remain in database"
+            "expired temp bans remain in the database"
         );
     }
 

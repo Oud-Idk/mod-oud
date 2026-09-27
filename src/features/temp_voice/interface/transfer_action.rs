@@ -151,7 +151,7 @@ async fn validate_transfer_request(
             "acceptor now owns a different temp vc, refusing to complete transfer"
         );
         if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
-            warn!(%channel_id, error = ?e, "pending transfer not cleared");
+            warn!(%channel_id, error = ?e, "pending transfer not cleared during validation");
         }
         interaction
             .create_response(
@@ -186,16 +186,17 @@ async fn apply_transfer_permissions(
         kind: PermissionOverwriteType::Member(new_owner_id),
     };
 
-    debug!(%channel_id, %new_owner_id, "applying new channel permissions");
     if let Err(e) = channel_id.create_permission(&ctx.http, new_overwrite).await {
         warn!(
             %channel_id,
             %new_owner_id,
             error = ?e,
-            "permission override not applied"
+            "new owner channel permission not applied"
         );
         return Ok(false);
     }
+
+    debug!(%channel_id, %new_owner_id, "new owner channel permission applied");
 
     if let Ok(old_owner_id) = current_owner_str.parse::<u64>() {
         let old_owner_overwrite = PermissionOverwrite {
@@ -203,11 +204,6 @@ async fn apply_transfer_permissions(
             deny: Permissions::empty(),
             kind: PermissionOverwriteType::Member(UserId::new(old_owner_id)),
         };
-        debug!(
-            %channel_id,
-            old_owner_id,
-            "demoting old owner to member-level permissions"
-        );
         if let Err(e) = channel_id
             .create_permission(&ctx.http, old_owner_overwrite)
             .await
@@ -217,6 +213,12 @@ async fn apply_transfer_permissions(
                 old_owner_id,
                 error = ?e,
                 "old owner's permission demotion failed"
+            );
+        } else {
+            debug!(
+                %channel_id,
+                old_owner_id,
+                "old owner demoted to member-level permissions"
             );
         }
     }
@@ -282,9 +284,8 @@ pub async fn handle_decline_transfer(
         return Ok(());
     }
 
-    debug!(%channel_id, "deleting pending transfer key from redis");
     if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
-        warn!(%channel_id, error = ?e, "pending transfer not cleared");
+        warn!(%channel_id, error = ?e, "pending transfer not cleared on decline");
     }
 
     if let Ok(target) = target_owner.parse::<u64>() {

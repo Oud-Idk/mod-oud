@@ -106,7 +106,7 @@ pub async fn check_if_enabled(
     get_settings(db, redis, cache, guild_id)
         .await
         .map(|s| s.invite_tracker.and_then(|s| s.enabled).unwrap_or(false))
-        .context("Failed to get settings to check whether invite tracking is enabled")
+        .context("settings lookup for the invite tracking feature check failed")
 }
 
 /// Attributes a member join to the inviter whose invite use count incremented.
@@ -166,7 +166,7 @@ pub async fn store_member_invite(
         debug!(
             %guild_id,
             member_id = new_member.user.id.get(),
-            "could not determine which invite was used (vanity URL, oauth join, or bot invite?)"
+            "used invite unresolved (vanity URL, OAuth join, or bot invite)"
         );
         return Ok(());
     };

@@ -58,7 +58,7 @@ pub async fn handle_starboard_demotion(
             error = ?e,
             %starboard_channel,
             starboard_msg_id = %starboard_msg_id,
-            "delete demoted starboard post; post stays in the channel"
+            "demoted starboard post not deleted; the post stays in the channel"
         );
     }
 

@@ -17,11 +17,6 @@ pub async fn pre_flight_check(
     action_name: &str,
 ) -> Result<Option<GuildMetadata>, Error> {
     let target_id = user_id.get();
-    trace!(
-        target_id,
-        action = action_name,
-        "initiating moderation pre-flight checks"
-    );
 
     if check_self_moderation(ctx, user_id, action_name).await? {
         return Ok(None);
@@ -67,8 +62,6 @@ pub async fn check_self_moderation(
 
 /// Main entry point to perform Discord hierarchy validation checks.
 pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), Error> {
-    trace!(%target_id, "evaluating role hierarchy permissions");
-
     let guild_id = ctx
         .guild_id()
         .with_context(|| "This command must be run in a server.")?;
@@ -127,11 +120,8 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
 
     let executor_member = executor_res
         .with_context(|| "Failed to fetch executor member details.")
-        .inspect_err(|_a| {
-            warn!(
-                %target_id,
-                "resolve executor member details from context"
-            );
+        .inspect_err(|a| {
+            warn!(%target_id, error = %a, "executor member resolution failed");
         })?;
 
     let bot_member = bot_res.with_context(|| "Failed to fetch bot member details.")?;
@@ -142,7 +132,7 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
 
     trace!(
         %target_id,
-        executor_pos, target_pos, bot_pos, "comparing highest role positions"
+        executor_pos, target_pos, bot_pos, "highest role positions compared"
     );
 
     validate_hierarchy(ctx.author().id, owner_id, executor_pos, target_pos, bot_pos).inspect_err(

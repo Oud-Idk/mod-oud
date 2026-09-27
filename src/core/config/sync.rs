@@ -35,12 +35,12 @@ pub fn sync_configs(
             let payload = match msg.value.convert::<String>() {
                 Ok(val) => val,
                 Err(e) => {
-                    tracing::warn!(error = ?e, "convert config pub/sub message value to String");
+                    tracing::warn!(error = ?e, "config_updates payload conversion failed");
                     return Ok(());
                 }
             };
 
-            tracing::debug!(payload = %payload, "processing config update pub/sub event");
+            tracing::debug!(payload = %payload, "config update pub/sub event received");
 
             // Splits the key between `:`
             // E.g. 'invalidate:12456' becomes ['invalidate', '12435']
@@ -59,7 +59,7 @@ pub fn sync_configs(
                 tracing::warn!(
                     guild_id_raw = %parts[1],
                     error = ?e,
-                    "parse guild ID into u64 from config update payload"
+                    "guild id parse from the config update payload failed"
                 );
             }) else {
                 return Ok(());
@@ -92,14 +92,12 @@ pub fn sync_configs(
     // Starts the worker
     let client_clone = subscriber.clone();
     task::spawn("config_sync_subscriber", async move {
-        tracing::debug!("attempting to register subscriber on 'config_updates' channel");
-
         match client_clone.subscribe("config_updates").await {
             Ok(()) => {
                 tracing::info!("subscribed to config_updates channel, listener active");
             }
             Err(e) => {
-                tracing::warn!(error = ?e, "subscribe to 'config_updates' channel");
+                tracing::warn!(error = ?e, "config_updates subscription failed");
             }
         }
     });

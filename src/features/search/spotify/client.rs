@@ -27,7 +27,7 @@ impl<'a> SpotifyClient<'a> {
             .auth_cache
             .get_token(self.http)
             .await
-            .ok_or_else(|| anyhow::anyhow!("Failed to acquire Spotify access token."))?;
+            .ok_or_else(|| anyhow::anyhow!("spotify access token acquisition failed"))?;
 
         let limit_str = limit.to_string();
 

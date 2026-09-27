@@ -106,19 +106,19 @@ pub async fn fetch_avatar_data_uri(url: &str) -> Option<String> {
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub async fn render_svg_to_png(svg: String, scale: f32) -> Result<Vec<u8>> {
     tokio::task::spawn_blocking(move || {
-        let tree = Tree::from_str(&svg, resvg_options()).context("Failed to parse SVG template")?;
+        let tree = Tree::from_str(&svg, resvg_options()).context("SVG template parse failed")?;
         let size = tree.size();
         let width = (size.width() * scale).round() as u32;
         let height = (size.height() * scale).round() as u32;
 
-        let mut pixmap = Pixmap::new(width, height).context("Failed to allocate PNG buffer")?;
+        let mut pixmap = Pixmap::new(width, height).context("PNG buffer allocation failed")?;
         resvg::render(
             &tree,
             Transform::from_scale(scale, scale),
             &mut pixmap.as_mut(),
         );
 
-        pixmap.encode_png().context("Failed to encode PNG")
+        pixmap.encode_png().context("PNG encode failed")
     })
     .await
     .context("Render task was cancelled")?

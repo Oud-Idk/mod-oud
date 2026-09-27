@@ -24,7 +24,6 @@ pub async fn apply_level_rewards(
     user_id: UserId,
     new_level: u32,
 ) -> Result<(), Error> {
-    debug!("fetching level rewards from database");
     let rewards = fetch_level_rewards(db, guild_id).await?;
 
     let mut eligible_rewards: Vec<&LevelReward> = rewards
@@ -45,19 +44,10 @@ pub async fn apply_level_rewards(
     debug!(
         roles_to_add = ?roles_to_add,
         roles_to_remove = ?roles_to_remove,
-        "determined role modifications"
+        "level reward role changes determined"
     );
 
-    debug!("fetching current roles for member");
     let member_roles = fetch_member_roles(ctx, guild_id, user_id).await;
-
-    debug!(
-        %guild_id,
-        %user_id,
-        adding = ?roles_to_add,
-        removing = ?roles_to_remove,
-        "applying level reward role modifications"
-    );
 
     apply_role_modifications(
         ctx,

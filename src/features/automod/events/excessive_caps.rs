@@ -3,7 +3,7 @@ use crate::features::automod::types::FilterVerdict;
 use crate::features::automod::types::MessageFilteringConfig;
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, trace};
+use tracing::debug;
 
 pub fn filter_excessive_caps<'a>(
     message: &Message,
@@ -13,7 +13,6 @@ pub fn filter_excessive_caps<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("checking 'Excessive Caps' filter rule");
     if message.content.chars().count() < excessive_caps.min_length as usize {
         return FilterVerdict::Pass;
     }

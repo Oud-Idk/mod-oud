@@ -40,12 +40,16 @@ pub async fn handle_delete_giveaway_message(
         .delete_message(&state.serenity_http, message_id)
         .await
     {
-        Ok(()) => debug!("Discord giveaway message deleted"),
+        Ok(()) => debug!(
+            channel_id = %channel_id,
+            message_id = %message_id,
+            "giveaway message deleted via discord"
+        ),
         Err(e) => {
             if is_unknown_message_error(&e) {
                 debug!("Discord message already deleted; proceeding with DB cleanup");
             } else {
-                warn!(error = ?e, "delete message via Discord API");
+                warn!(error = ?e, "message delete via discord failed");
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error.".to_string(),

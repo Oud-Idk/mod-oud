@@ -30,7 +30,7 @@ pub async fn store_username_relation(
     .inspect_err(|e| {
         tracing::warn!(error = ?e, user_id = %id, "username update channel closed; update dropped");
     })
-    .map_err(|e| anyhow::anyhow!("Failed to queue username update: {e}"))
+    .map_err(|e| anyhow::anyhow!("username update queueing failed: {e}"))
 }
 
 /// Fetches a username, checking Redis first, then Postgres.
@@ -123,7 +123,7 @@ async fn flush_updates(db: &PgPool, updates: &mut HashMap<UserId, String>) {
     .await;
 
     if let Err(e) = result {
-        tracing::error!(error = %e, "flush username batch to DB");
+        tracing::error!(error = %e, "username batch flush to db failed");
     }
 }
 

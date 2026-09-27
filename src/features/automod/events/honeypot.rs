@@ -67,19 +67,19 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         &["BAN"],
     )
     .await
-    .context("Failed to log honeypot automod action")?;
+    .context("honeypot automod event log write failed")?;
 
     notify_banned(ctx, message, guild_id, &gctx, reason, duration, &config).await;
 
     guild_id
         .ban_with_reason(&ctx.http, message.author.id, dmd, reason)
         .await
-        .context("Failed to ban honeypot offender")?;
+        .context("honeypot offender ban failed")?;
 
     if let Some(dur) = duration {
         schedule_unban(&data.core.db, guild_id, &message.author, dur)
             .await
-            .context("Failed to schedule temp unban for honeypot offender")?;
+            .context("temporary unban scheduling for a honeypot offender failed")?;
     }
 
     info!(user_id = %message.author.id, %guild_id, "honeypot offender banished");
