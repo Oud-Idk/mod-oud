@@ -1,4 +1,4 @@
-use crate::features::search::redact_url;
+use crate::shared::http::{redact_url, safe_reqwest_error};
 use serde::Deserialize;
 use std::fmt::Write;
 use tracing::{debug, warn};
@@ -108,7 +108,7 @@ pub async fn resolve_youtube_playlist(
         let res = match client.get(&api_url).send().await {
             Ok(r) => r,
             Err(e) => {
-                warn!(error = %e, "youtube playlist page fetch failed");
+                warn!(error = %safe_reqwest_error(&e), "youtube playlist page fetch failed");
                 break;
             }
         };
@@ -122,7 +122,7 @@ pub async fn resolve_youtube_playlist(
         let body_text = match res.text().await {
             Ok(t) => t,
             Err(e) => {
-                warn!(error = %e, "youtube response body read failed");
+                warn!(error = %safe_reqwest_error(&e), "youtube response body read failed");
                 break;
             }
         };

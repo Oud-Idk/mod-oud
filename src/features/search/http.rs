@@ -1,66 +1,21 @@
 //! Shared HTTP plumbing for the search providers.
 //!
-//! `reqwest::Error` includes the full request URL in its `Display`, and four providers
-//! authenticate in the URL (`giphy`, `youtube`, `rawg` in the query string, `klipy` in the path).
-//! `get_json` redacts the URL before logging and returns a generic error so the raw error, and
-//! the key inside it, never reaches a log line or a user.
+//! Four providers authenticate in the URL (`giphy`, `youtube`, `rawg` in the query string,
+//! `klipy` in the path), and `reqwest::Error` embeds that URL in both its `Display` and its
+//! `Debug`. So `get_json` logs a redacted url and a described error, and returns a generic one,
+//! which is the only way the key stays out of the log and out of a user-facing message.
 //!
 //! It also records `status` and `latency_ms`, which no provider did before.
 
 use crate::core::config::state::Error;
+use crate::shared::http::{redact_url, safe_reqwest_error};
 use reqwest::{RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use std::time::Instant;
 use tracing::{debug, warn};
 
-/// Query-string parameter names that carry a credential.
-const SECRET_QUERY_PARAMS: &[&str] = &[
-    "api_key",
-    "apikey",
-    "api-key",
-    "key",
-    "app_key",
-    "appkey",
-    "token",
-    "access_token",
-];
-
 /// Longest upstream error body kept for diagnosis.
 const BODY_SNIPPET_CHARS: usize = 500;
-
-/// Returns `url` with credentials removed so it is safe to log.
-///
-/// `path_secrets` is for providers that put the key in the path, which cannot be matched by
-/// parameter name. If no query parameter survives, the whole query string is dropped.
-#[must_use]
-pub fn redact_url(url: &str, path_secrets: &[&str]) -> String {
-    let mut redacted = url.to_string();
-    for secret in path_secrets {
-        if !secret.is_empty() {
-            redacted = redacted.replace(secret, "<redacted>");
-        }
-    }
-
-    let Some((path, query)) = redacted.split_once('?') else {
-        return redacted;
-    };
-
-    let kept: Vec<&str> = query
-        .split('&')
-        .filter(|pair| {
-            let key = pair.split('=').next().unwrap_or(pair);
-            !SECRET_QUERY_PARAMS
-                .iter()
-                .any(|secret| secret.eq_ignore_ascii_case(key))
-        })
-        .collect();
-
-    if kept.is_empty() {
-        path.to_string()
-    } else {
-        format!("{path}?{}", kept.join("&"))
-    }
-}
 
 /// Fetch and decode a JSON body from an upstream provider.
 ///
@@ -84,7 +39,7 @@ pub async fn get_json<T: DeserializeOwned>(
             provider,
             op,
             url = %safe_url,
-            error = ?e,
+            error = %safe_reqwest_error(&e),
             "upstream provider request failed before a response was received"
         );
         anyhow::anyhow!("{provider} is unavailable right now.")
@@ -124,7 +79,7 @@ pub async fn get_json<T: DeserializeOwned>(
             op,
             status = status.as_u16(),
             url = %safe_url,
-            error = ?e,
+            error = %safe_reqwest_error(&e),
             "upstream provider succeeded but the body did not decode, so their schema changed"
         );
         anyhow::anyhow!("{provider} returned an unexpected response.")
@@ -142,40 +97,3 @@ pub async fn get_json<T: DeserializeOwned>(
     Ok(payload)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::redact_url;
-
-    #[test]
-    fn drops_credential_query_params() {
-        let redacted = redact_url(
-            "https://api.giphy.com/v1/gifs/search?api_key=SUPERSECRET&q=cat&limit=1",
-            &[],
-        );
-        assert!(!redacted.contains("SUPERSECRET"), "{redacted}");
-        assert!(redacted.contains("q=cat"), "{redacted}");
-        assert!(redacted.contains("limit=1"), "{redacted}");
-    }
-
-    #[test]
-    fn drops_the_query_entirely_when_nothing_survives() {
-        let redacted = redact_url("https://api.example.com/x?key=abc123", &[]);
-        assert_eq!(redacted, "https://api.example.com/x");
-    }
-
-    #[test]
-    fn redacts_path_secrets() {
-        let redacted = redact_url(
-            "https://api.klipy.com/api/v1/abc123/gifs/search?q=cat",
-            &["abc123"],
-        );
-        assert!(!redacted.contains("abc123"), "{redacted}");
-        assert!(redacted.contains("<redacted>"), "{redacted}");
-    }
-
-    #[test]
-    fn leaves_a_url_without_a_query_untouched() {
-        let url = "https://api.urbandictionary.com/v0/define?term=cat";
-        assert_eq!(redact_url(url, &[]), url);
-    }
-}

@@ -1,7 +1,7 @@
 use crate::features::search::genius::models::{
     DomChild, GeniusSongLookupResult, GeniusSongSearchResponse, Hit, Song,
 };
-use crate::features::search::http::redact_url;
+use crate::shared::http::redact_url;
 use scraper::{ElementRef, Html, Node, Selector};
 use std::sync::LazyLock;
 use tracing::warn;
