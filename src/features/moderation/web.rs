@@ -33,13 +33,13 @@ pub async fn handle_delete_entire_category(
     debug!(
         guild_id = guild_id_str,
         category_id = payload.category_id,
-        "Request to delete category and children via API"
+        "request to delete category and children via API"
     );
 
     // Parse IDs
     let guild_id_u64 = guild_id_str
         .parse::<u64>()
-        .inspect_err(|e| debug!(error = ?e, guild_id_str = guild_id_str, "Rejected request with unparseable guild ID"))
+        .inspect_err(|e| debug!(error = ?e, guild_id_str = guild_id_str, "rejected request with unparseable guild ID"))
         .map_err(|_| {
             (
                 StatusCode::BAD_REQUEST,

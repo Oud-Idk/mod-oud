@@ -166,13 +166,13 @@ pub async fn store_member_invite(
         debug!(
             %guild_id,
             member_id = new_member.user.id.get(),
-            "Could not determine which invite was used (vanity URL, oauth join, or bot invite?)"
+            "could not determine which invite was used (vanity URL, oauth join, or bot invite?)"
         );
         return Ok(());
     };
 
     let Some(inviter_id) = get_cached_inviter(redis, guild_id, &code).await else {
-        debug!(%guild_id, %code, "No cached inviter for this code");
+        debug!(%guild_id, %code, "no cached inviter for this code");
         return Ok(());
     };
 
@@ -194,6 +194,6 @@ pub async fn store_member_invite(
     )
     .await?;
 
-    debug!(%guild_id, member_id = %new_member.user.id, inviter_id, %code, "Attributed join to inviter");
+    debug!(%guild_id, member_id = %new_member.user.id, inviter_id, %code, "attributed join to inviter");
     Ok(())
 }

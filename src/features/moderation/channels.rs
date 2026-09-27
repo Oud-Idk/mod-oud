@@ -21,14 +21,14 @@ pub async fn delete_entire_category(
         %guild_id,
         category_id = %category_id,
         count = child_channels.len(),
-        "Found child channels to delete"
+        "found child channels to delete"
     );
 
     let mut deleted_count = 0;
     for channel_id in &child_channels {
         match channel_id.delete(http_ref).await {
             Ok(_) => {
-                debug!(channel_id = %channel_id, "Deleted channel");
+                debug!(channel_id = %channel_id, "deleted channel");
                 deleted_count += 1;
             }
             Err(e) => {

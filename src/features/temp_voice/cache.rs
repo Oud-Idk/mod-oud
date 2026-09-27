@@ -194,7 +194,7 @@ pub async fn commit_transfer_to_redis(
     current_owner: &str,
     target_owner: &str,
 ) -> Result<(), Error> {
-    debug!("Executing Redis pipeline to finalize transfer");
+    debug!("executing Redis pipeline to finalize transfer");
     let temp_vc_hash = keys::temp_vcs_key(guild_id);
     let owner_hash = keys::temp_vc_owners_key(guild_id);
     let pending_key = keys::pending_transfer_key(channel_id);

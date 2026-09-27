@@ -57,7 +57,7 @@ pub async fn apply_role_modifications(
         if let Some(current_roles) = member_roles
             && current_roles.contains(&role_id)
         {
-            trace!(%role_id, "User already contains role");
+            trace!(%role_id, "user already contains role");
             continue;
         }
 
@@ -76,7 +76,7 @@ pub async fn apply_role_modifications(
         if let Some(current_roles) = member_roles
             && !current_roles.contains(&role_id)
         {
-            trace!(%role_id, "User already doesn't contains role");
+            trace!(%role_id, "user already doesn't contains role");
             continue;
         }
 

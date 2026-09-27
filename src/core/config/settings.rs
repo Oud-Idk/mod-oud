@@ -146,7 +146,7 @@ impl GuildSettings {
 fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> GuildSettings {
     match serde_path_to_error::deserialize(raw_json) {
         Ok(s) => {
-            debug!(%guild_id, "Found config from DB");
+            debug!(%guild_id, "found config from DB");
             s
         }
         Err(err) => {
@@ -187,7 +187,7 @@ pub async fn get_settings_inner(
 ) -> Result<GuildSettings> {
     // Get from Moka
     if let Some(settings) = cache.get(&guild_id).await {
-        trace!(%guild_id, "Retrieved settings from memory cache");
+        trace!(%guild_id, "retrieved settings from memory cache");
         return Ok(settings);
     }
 
@@ -198,7 +198,7 @@ pub async fn get_settings_inner(
         return Ok(settings);
     }
 
-    debug!(%guild_id, key = %cache_key, "Settings cache miss; querying DB");
+    debug!(%guild_id, key = %cache_key, "settings cache miss; querying DB");
 
     // Get from DB
     let settings_db = database::get_settings_from_database(db, guild_id)
@@ -210,7 +210,7 @@ pub async fn get_settings_inner(
         || {
             trace!(
                 %guild_id,
-                "No config found in database; using default settings"
+                "no config found in database; using default settings"
             );
             GuildSettings::default()
         },

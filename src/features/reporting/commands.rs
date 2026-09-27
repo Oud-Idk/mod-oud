@@ -38,7 +38,7 @@ pub async fn report_message(
 
     info!(
         reporter_id = %reporter.id,
-        reported_message_id = %reported_message.id, %guild_id, "Invoked report_message context menu command"
+        reported_message_id = %reported_message.id, %guild_id, "invoked report_message context menu command"
     );
 
     let db = &ctx.data().core.db;
@@ -47,7 +47,7 @@ pub async fn report_message(
 
     trace!(
         %guild_id,
-        "Fetching server settings for report configuration check"
+        "fetching server settings for report configuration check"
     );
     let config = get_settings(db, &redis, guild_configs, guild_id).await?;
     let report_enabled = config.report.as_ref().is_some_and(|r| r.enabled);
@@ -55,7 +55,7 @@ pub async fn report_message(
     if !report_enabled {
         debug!(
             %guild_id,
-            "Report command execution cancelled: report feature is disabled in this guild"
+            "report command execution cancelled: report feature is disabled in this guild"
         );
         ctx.send(
             poise::CreateReply::default()
@@ -66,13 +66,13 @@ pub async fn report_message(
         return Ok(());
     }
 
-    trace!(reporter_id = %reporter.id, "Executing report modal prompt");
+    trace!(reporter_id = %reporter.id, "executing report modal prompt");
     let modal_data = ReportModal::execute(app_ctx).await?;
 
     if let Some(modal) = modal_data {
         debug!(
             reporter_id = %reporter.id,
-            reported_message_id = %reported_message.id, "Report modal submitted; issuing report"
+            reported_message_id = %reported_message.id, "report modal submitted; issuing report"
         );
         let metadata = ReportMetadata {
             guild_id,
@@ -94,14 +94,14 @@ pub async fn report_message(
         let reply_content = if let Some(report_id) = result {
             info!(
                 reporter_id = %reporter.id,
-                reported_message_id = %reported_message.id, report_id, "Message report created and recorded"
+                reported_message_id = %reported_message.id, report_id, "message report created and recorded"
             );
             "Your report has been submitted to the moderation team."
         } else {
             debug!(
                 reporter_id = %ctx.author().id,
                 reported_message_id = %reported_message.id,
-                "Duplicate report rejected: this message was already reported by this user"
+                "duplicate report rejected: this message was already reported by this user"
             );
             "Someone has already reported this message."
         };
@@ -113,7 +113,7 @@ pub async fn report_message(
         )
         .await?;
     } else {
-        trace!(reporter_id = %reporter.id, "Report modal was cancelled or timed out");
+        trace!(reporter_id = %reporter.id, "report modal was cancelled or timed out");
     }
 
     Ok(())

@@ -20,20 +20,20 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
 
             match acquire_lock(&redis_client, lock_key, &lock_value, 5).await {
                 Ok(Some(guard)) => {
-                    trace!("Lock acquired; flushing raid hourly stats");
+                    trace!("lock acquired; flushing raid hourly stats");
 
                     if let Err(e) = flush_pending_stats(&db_pool, &redis_client).await {
                         warn!(error = ?e, "flushing raid stats to database");
                     }
 
                     match guard.release().await {
-                        Ok(true) => trace!("Lock released"),
-                        Ok(false) => warn!("Lock already lost during flush"),
+                        Ok(true) => trace!("lock released"),
+                        Ok(false) => warn!("lock already lost during flush"),
                         Err(e) => warn!(error = ?e, "release flush lock"),
                     }
                 }
                 Ok(None) => {
-                    trace!("Lock held by another worker; skipping flush");
+                    trace!("lock held by another worker; skipping flush");
                 }
                 Err(e) => {
                     warn!(error = ?e, "acquire flush lock");
@@ -51,12 +51,12 @@ async fn flush_pending_stats(
     let dirty_guilds = cache::get_dirty_raid_guilds(redis).await?;
 
     if dirty_guilds.is_empty() {
-        trace!("No dirty guilds to flush");
+        trace!("no dirty guilds to flush");
         return Ok(());
     }
 
     let count = dirty_guilds.len();
-    info!(count, "Flushing raid stats for dirty guilds");
+    info!(count, "flushing raid stats for dirty guilds");
 
     for guild_id in dirty_guilds {
         if let Err(e) = flush_guild(guild_id, redis, db).await {
@@ -64,7 +64,7 @@ async fn flush_pending_stats(
         }
     }
 
-    trace!("Finished flushing raid stats batch");
+    trace!("finished flushing raid stats batch");
     Ok(())
 }
 
@@ -77,13 +77,13 @@ async fn flush_guild(
     let records = cache::claim_accumulator(redis, guild_id).await?;
 
     if records.is_empty() {
-        debug!("No accumulated records to flush");
+        debug!("no accumulated records to flush");
         cache::remove_dirty_raid_guild(redis, guild_id).await?;
         return Ok(());
     }
 
     let count = records.len();
-    debug!(count, "Flushing accumulated hourly stats");
+    debug!(count, "flushing accumulated hourly stats");
 
     let hour_keys: Vec<String> = records.keys().cloned().collect();
     let join_counts: Vec<i64> = records.values().copied().collect();

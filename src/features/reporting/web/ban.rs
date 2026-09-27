@@ -19,7 +19,7 @@ pub async fn handle_ban_user(
     user_id: UserId,
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
-    info!("Issuing ban to user");
+    info!("issuing ban to user");
 
     let (user, moderator) = tokio::try_join!(
         resolve_target_user(&state.serenity_http, user_id),

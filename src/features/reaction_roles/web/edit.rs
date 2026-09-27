@@ -28,7 +28,7 @@ pub async fn handle_edit_reaction_role_message(
     debug!(
         %guild_id,
         config_id = config_id_str,
-        "Editing existing reaction roles message"
+        "editing existing reaction roles message"
     );
 
     let config_id = parse_config_id(&config_id_str)?;
@@ -85,7 +85,7 @@ pub async fn handle_edit_reaction_role_message(
     info!(
         %guild_id,
         %message_id,
-        "Reaction role layout edited"
+        "reaction role layout edited"
     );
 
     Ok((

@@ -144,7 +144,7 @@ pub async fn edit_reactions(
             }
         }
         Err(e) => {
-            warn!(error = ?e, %message_id, "Skipped stale reaction cleanup: failed to fetch the message");
+            warn!(error = ?e, %message_id, "skipped stale reaction cleanup: failed to fetch the message");
         }
     }
 
@@ -155,7 +155,7 @@ pub async fn edit_reactions(
                 .create_reaction(*channel_id, *message_id, &emoji)
                 .await
         {
-            warn!(error = ?err, "Failed applying reaction emoji to edited post");
+            warn!(error = ?err, "failed applying reaction emoji to edited post");
         }
     }
     Ok(())

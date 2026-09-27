@@ -75,7 +75,7 @@ async fn build_query_url(
     query: &str,
     youtube_api_key: &str,
 ) -> String {
-    debug!(query = %query, "Resolving query URL");
+    debug!(query = %query, "resolving query URL");
 
     // Try resolving Spotify track into ytsearch string
     if let Some(spotify_query) = resolve_spotify_track(client, spotify_auth, query).await {
@@ -88,11 +88,11 @@ async fn build_query_url(
     }
 
     if query.starts_with("http://") || query.starts_with("https://") {
-        debug!(query = %query, "Query detected as direct URL");
+        debug!(query = %query, "query detected as direct URL");
         query.to_string()
     } else {
         let search_query = format!("ytsearch:{query}");
-        debug!(query = %query, search_query = %search_query, "Constructed ytsearch query");
+        debug!(query = %query, search_query = %search_query, "constructed ytsearch query");
         search_query
     }
 }
@@ -1008,7 +1008,7 @@ impl GuildActor {
         if let Some(last) = self.last_live_reconnect_at
             && last.elapsed() < MIN_RECONNECT_INTERVAL
         {
-            warn!(guild_id = %self.guild_id, "Live stream dropped again too quickly; advancing the queue");
+            warn!(guild_id = %self.guild_id, "live stream dropped again too quickly; advancing the queue");
             return false;
         }
 

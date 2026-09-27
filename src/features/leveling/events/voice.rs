@@ -58,7 +58,7 @@ pub async fn handle_voice_leveling(
         debug!(
             %guild_id,
             user_id = user_id.get(),
-            "Closing voice session"
+            "closing voice session"
         );
 
         if let Some(session) = cache::consume_session(redis, &session_key, now).await? {
@@ -79,7 +79,7 @@ pub async fn handle_voice_leveling(
                 debug!(
                     %guild_id,
                     user_id = user_id.get(),
-                    "Discarded brief voice session (<10s)"
+                    "discarded brief voice session (<10s)"
                 );
             }
         }
@@ -149,7 +149,7 @@ async fn award_vc_xp_for_session(
     if rules::should_exclude_from_level_up(leveling_config, &member.roles, channel_id) {
         trace!(
             %guild_id,
-            "Skipping voice XP: channel/user is excluded"
+            "skipping voice XP: channel/user is excluded"
         );
         return Ok(());
     }

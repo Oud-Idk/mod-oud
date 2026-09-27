@@ -15,7 +15,7 @@ pub fn filter_excessive_emojis<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'Excessive Emojis' filter rule");
+    trace!("checking 'Excessive Emojis' filter rule");
     // Add ASCII emoji and Discord emoji `<:asdf:1234>`
     let total_count =
         count_emojis(&message.content) + DISCORD_EMOJI_REGEX.find_iter(&message.content).count();
@@ -24,7 +24,7 @@ pub fn filter_excessive_emojis<'a>(
         debug!(
             emoji_count = total_count,
             threshold = excessive_emojis.max_emojis,
-            "Message flagged by Excessive Emojis filter"
+            "message flagged by Excessive Emojis filter"
         );
         return FilterVerdict::Block {
             rule_name: "Excessive Emojis".into(),

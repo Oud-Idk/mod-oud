@@ -28,7 +28,7 @@ pub async fn store_username_relation(
     })
     .await
     .inspect_err(|e| {
-        tracing::warn!(error = ?e, user_id = %id, "Username update channel closed; update dropped");
+        tracing::warn!(error = ?e, user_id = %id, "username update channel closed; update dropped");
     })
     .map_err(|e| anyhow::anyhow!("Failed to queue username update: {e}"))
 }

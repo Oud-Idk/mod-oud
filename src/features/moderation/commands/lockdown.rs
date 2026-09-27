@@ -15,7 +15,7 @@ pub async fn lock(
     #[description = "Reason for the lockdown"] reason: Option<String>,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    info!(caller_id, "Invoked lock command");
+    info!(caller_id, "invoked lock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = lockdown::resolve_target_channel(&ctx, channel).await?;
@@ -66,7 +66,7 @@ pub async fn unlock(
     >,
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
-    info!(caller_id, "Invoked unlock command");
+    info!(caller_id, "invoked unlock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = lockdown::resolve_target_channel(&ctx, channel).await?;
@@ -103,7 +103,7 @@ pub async fn global_lock(
 ) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
     let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
-    info!(caller_id, guild_id, "Invoked global_lock command");
+    info!(caller_id, guild_id, "invoked global_lock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
 
@@ -154,7 +154,7 @@ pub async fn global_lock(
 pub async fn global_unlock(ctx: Context<'_>) -> Result<(), Error> {
     let caller_id = ctx.author().id.get();
     let guild_id = ctx.guild_id().map(serenity::all::GuildId::get);
-    info!(caller_id, guild_id, "Invoked global_unlock command");
+    info!(caller_id, guild_id, "invoked global_unlock command");
 
     let meta = GuildMetadata::extract(&ctx)?;
 
@@ -209,7 +209,7 @@ pub async fn log_action(
         %guild_id,
         target_id,
         action = ?action,
-        "Dispatching moderation log to database and Discord integration"
+        "dispatching moderation log to database and Discord integration"
     );
     log_moderation_action(
         &ctx.data().core.db,

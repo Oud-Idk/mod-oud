@@ -91,7 +91,7 @@ pub async fn fetch_reaction_message(
         (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())
     })?
     .ok_or_else(|| {
-        warn!(id = config_id, "Reaction message not found");
+        warn!(id = config_id, "reaction message not found");
         (StatusCode::NOT_FOUND, "Reaction configuration not found".to_string())
     })?;
 
@@ -114,7 +114,7 @@ pub async fn fetch_active_reactions(
     )
     .fetch_all(pool)
     .await
-    .inspect_err(|e| warn!(error = ?e, "Failed fetching reaction list"))
+    .inspect_err(|e| warn!(error = ?e, "failed fetching reaction list"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

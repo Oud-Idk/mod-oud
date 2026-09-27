@@ -38,7 +38,7 @@ pub async fn setup_tickets(
     info!(
         caller_id = %ctx.author().id,
         %guild_id,
-        "Moderator invoked setup_tickets slash command"
+        "moderator invoked setup_tickets slash command"
     );
 
     let settings = get_settings(
@@ -77,7 +77,7 @@ pub async fn setup_tickets(
         caller_id = %ctx.author().id,
         target_channel_id = %params.target_channel_id,
         %message_id,
-        "Ticket system setup process completed"
+        "ticket system setup process completed"
     );
 
     Ok(())
@@ -96,7 +96,7 @@ async fn resolve_and_validate_params(
     if let Some(ref ticket_cfg) = settings.tickets
         && ticket_cfg.posted_message_id.is_some()
     {
-        debug!(%guild_id, "Ticket setup blocked: active ticket panel already exists");
+        debug!(%guild_id, "ticket setup blocked: active ticket panel already exists");
         ctx.send(
             CreateReply::default()
                 .content("A ticket panel is already active. Please delete the existing panel before setting up a new one.")
@@ -110,7 +110,7 @@ async fn resolve_and_validate_params(
         .map(|c| c.id)
         .or_else(|| settings.tickets.as_ref().and_then(|t| t.category_id))
     else {
-        debug!(%guild_id, "Ticket setup blocked: category_id not provided or configured");
+        debug!(%guild_id, "ticket setup blocked: category_id not provided or configured");
         ctx.send(
             CreateReply::default()
                 .content("Please set a category for tickets using the dashboard/config first, or pass it as an argument.")
@@ -124,7 +124,7 @@ async fn resolve_and_validate_params(
         .map(|r| r.id)
         .or_else(|| settings.tickets.as_ref().and_then(|t| t.ticket_role_id))
     else {
-        debug!(%guild_id, "Ticket setup blocked: support role not provided or configured");
+        debug!(%guild_id, "ticket setup blocked: support role not provided or configured");
         ctx.send(
             CreateReply::default()
                 .content("Please set a support role using the dashboard/config first, or pass it as an argument.")
@@ -150,7 +150,7 @@ async fn post_ticket_panel(
     params: &ResolvedSetupParams,
 ) -> Result<Option<MessageId>, Error> {
     let Some(ref ticket_cfg) = settings.tickets else {
-        debug!(%guild_id, "Ticket setup blocked: no message configured");
+        debug!(%guild_id, "ticket setup blocked: no message configured");
         ctx.send(
             CreateReply::default()
                 .content(
@@ -162,7 +162,7 @@ async fn post_ticket_panel(
         return Ok(None);
     };
 
-    debug!(%guild_id, "Compiling ticket panel layouts and assets");
+    debug!(%guild_id, "compiling ticket panel layouts and assets");
     let message_builder = build_ticket_message_payload(
         ctx.http(),
         guild_id,
@@ -176,7 +176,7 @@ async fn post_ticket_panel(
     debug!(
         %guild_id,
         target_channel_id = %params.target_channel_id,
-        "Dispatching ticket panel message to Discord API"
+        "dispatching ticket panel message to Discord API"
     );
 
     // ChannelId::send_message works directly without needing to branch on Option<GuildChannel>!

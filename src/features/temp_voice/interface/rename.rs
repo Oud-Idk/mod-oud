@@ -20,7 +20,7 @@ pub async fn handle_rename_temp_vc(
         return Ok(());
     }; // To make sure user is in a guild and in a voice chat
 
-    debug!("Showing rename modal");
+    debug!("showing rename modal");
 
     let input = CreateInputText::new(InputTextStyle::Short, "New channel name", "new_name")
         .placeholder("e.g. Late Night Grind. Leave blank to reset.")

@@ -22,7 +22,7 @@ pub async fn ensure_preraid_state_saved(
     data: &BotData,
     guild_id: GuildId,
 ) -> Result<(), Error> {
-    debug!(%guild_id, "Fetching current guild state and permissions for pre-raid snapshot");
+    debug!(%guild_id, "fetching current guild state and permissions for pre-raid snapshot");
 
     // Fetch current guild state from Discord HTTP/Cache
     let partial_guild = guild_id.to_partial_guild(&ctx.http).await?;
@@ -73,7 +73,7 @@ pub async fn ensure_preraid_state_saved(
             "created and saved pre-raid state snapshot"
         );
     } else {
-        debug!(%guild_id, "Pre-raid snapshot already exists in Redis; skipping overwrite");
+        debug!(%guild_id, "pre-raid snapshot already exists in Redis; skipping overwrite");
     }
 
     Ok(())
@@ -86,12 +86,12 @@ pub async fn restore_preraid_state(
     data: &BotData,
     guild_id: GuildId,
 ) -> Result<bool, Error> {
-    info!(%guild_id, "Initiating pre-raid state restoration");
+    info!(%guild_id, "initiating pre-raid state restoration");
 
     let json_str = cache::getdel_preraid_snapshot(&data.core.redis, guild_id).await?;
     let Some(json_str) = json_str else {
         // Another worker or manual intervention already claimed and processed this snapshot!
-        debug!(%guild_id, "Snapshot already claimed or non-existent; skipping duplicate restoration");
+        debug!(%guild_id, "snapshot already claimed or non-existent; skipping duplicate restoration");
         return Ok(false);
     };
 
@@ -100,7 +100,7 @@ pub async fn restore_preraid_state(
     debug!(
         %guild_id,
         raid_start_time = %snapshot.raid_start_time,
-        "Restoring @everyone role permissions"
+        "restoring @everyone role permissions"
     );
 
     let everyone_role_id = RoleId::new(guild_id.get());
@@ -121,7 +121,7 @@ pub async fn restore_preraid_state(
     // Restore verification settings in the database
     let captcha_str = snapshot.original_verification_type.map(|c| format!("{c}"));
 
-    debug!(%guild_id, "Restoring verification settings in database");
+    debug!(%guild_id, "restoring verification settings in database");
     database::restore_verification_settings(
         &data.core.db,
         guild_id,

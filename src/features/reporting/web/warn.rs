@@ -30,7 +30,7 @@ pub async fn handle_warn(
     let moderator_id = user_lookup::resolve_moderator_id(&state.serenity_http, ctx.mod_id).await?;
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
 
-    info!(moderator_id = %moderator_id, "Issuing warning to user");
+    info!(moderator_id = %moderator_id, "issuing warning to user");
 
     issue_warning(
         &state.core.db,

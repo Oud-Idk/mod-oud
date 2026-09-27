@@ -96,11 +96,11 @@ pub fn start_music_web_control_worker(
 
             let guild_id = serenity::GuildId::new(command.guild_id);
             if !owns_guild(guild_id, params.shard_index, params.total_shards) {
-                debug!(%guild_id, "Music command for a guild on another shard; ignoring");
+                debug!(%guild_id, "music command for a guild on another shard; ignoring");
                 return Ok(());
             }
 
-            debug!(%guild_id, request_id = %command.request_id, "Executing dashboard music command");
+            debug!(%guild_id, request_id = %command.request_id, "executing dashboard music command");
 
             let outcome = handle_music_command(
                 &params.music_state,
@@ -143,7 +143,7 @@ pub fn start_music_web_control_worker(
 
     task::spawn("music_web_control_worker", async move {
         match subscriber_client.subscribe(keys::commands_channel()).await {
-            Ok(()) => debug!("Subscribed to music web commands channel"),
+            Ok(()) => debug!("subscribed to music web commands channel"),
             Err(e) => warn!(error = ?e, "subscribe to music web commands"),
         }
     });
@@ -266,7 +266,7 @@ pub async fn ws_handler(
         params.expires,
         params.sig.as_deref(),
     ) else {
-        warn!(guild_id = params.guild_id, "Missing ticket for WS");
+        warn!(guild_id = params.guild_id, "missing ticket for WS");
         return Err(axum::http::StatusCode::UNAUTHORIZED);
     };
     if !crate::web::ticket::verify_ticket(
@@ -297,7 +297,7 @@ pub async fn ws_handler(
     debug!(
         guild_id = params.guild_id,
         user_id = %user_id,
-        "New WebSocket control connection"
+        "new WebSocket control connection"
     );
     Ok(ws.on_upgrade(move |socket| {
         handle_socket(socket, state, serenity::GuildId::from(params.guild_id))

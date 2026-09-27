@@ -51,7 +51,7 @@ pub async fn websub_notify(
         .internal_api_secret
         .as_deref()
         .ok_or_else(|| {
-            warn!("Internal API secret is not set up, but the WebSub endpoint is still called");
+            warn!("internal API secret is not set up, but the WebSub endpoint is still called");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".into(),
@@ -65,17 +65,17 @@ pub async fn websub_notify(
         .and_then(|h| h.to_str().ok());
 
     let Some(signature) = signature_header else {
-        debug!(feed_id = %feed_id, "Rejected WebSub POST: Missing X-Hub-Signature header");
+        debug!(feed_id = %feed_id, "rejected WebSub POST: Missing X-Hub-Signature header");
         return Err((StatusCode::UNAUTHORIZED, "Missing signature header".into()));
     };
 
     if !verify_signature(&expected_secret, signature, &body) {
-        debug!(feed_id = %feed_id, "Rejected WebSub POST: Invalid cryptographic signature");
+        debug!(feed_id = %feed_id, "rejected WebSub POST: Invalid cryptographic signature");
         return Err((StatusCode::UNAUTHORIZED, "Invalid signature".into()));
     }
 
     let Ok(feed) = feed_rs::parser::parse(&body[..]) else {
-        debug!(feed_id = %feed_id, "Dropped WebSub POST: body is not a parseable feed");
+        debug!(feed_id = %feed_id, "dropped WebSub POST: body is not a parseable feed");
         return Ok(StatusCode::OK);
     };
 
@@ -125,25 +125,25 @@ pub async fn websub_verify(
 
     // Must be a subscribe (or unsubscribe) request
     if params.mode != "subscribe" && params.mode != "unsubscribe" {
-        debug!(feed_id = %feed_id, mode = %params.mode, "Rejected WebSub verification: unknown hub.mode received");
+        debug!(feed_id = %feed_id, mode = %params.mode, "rejected WebSub verification: unknown hub.mode received");
         return Err((StatusCode::BAD_REQUEST, "Invalid hub.mode"));
     }
 
     // The challenge must be present
     let Some(challenge) = params.challenge else {
-        debug!(feed_id = %feed_id, "Rejected WebSub verification: missing hub.challenge");
+        debug!(feed_id = %feed_id, "rejected WebSub verification: missing hub.challenge");
         return Err((StatusCode::BAD_REQUEST, "Missing hub.challenge"));
     };
 
     let feed_exists = database::check_if_feed_exists(feed_id, &state.core.db).await;
 
     let feed_exists = feed_exists
-        .inspect_err(|e| warn!(error = ?e, "Failed checking feed existence"))
+        .inspect_err(|e| warn!(error = ?e, "failed checking feed existence"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"))?
         .unwrap_or(false);
 
     if !feed_exists {
-        debug!(feed_id = %feed_id, "Rejected WebSub verification for non-existent feed");
+        debug!(feed_id = %feed_id, "rejected WebSub verification for non-existent feed");
         return Err((StatusCode::NOT_FOUND, "Feed not found"));
     }
 
@@ -156,7 +156,7 @@ pub async fn websub_verify(
             .inspect(|_| info!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved"));
     }
 
-    info!(feed_id = %feed_id, "Echoing challenge back to WebSub hub");
+    info!(feed_id = %feed_id, "echoing challenge back to WebSub hub");
 
     Ok(challenge)
 }

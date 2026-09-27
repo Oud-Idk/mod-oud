@@ -105,7 +105,7 @@ fn parse_action_snowflake(
                 action_index,
                 field,
                 value = raw,
-                "Custom command action has a non-numeric snowflake; skipping it"
+                "custom command action has a non-numeric snowflake; skipping it"
             );
             None
         }
@@ -127,7 +127,7 @@ async fn execute_payload(
             %command_id,
             action_index,
             user_id = %msg.author.id,
-            "Custom command action ran outside a guild; nothing to execute"
+            "custom command action ran outside a guild; nothing to execute"
         );
         return Ok(());
     };
@@ -217,7 +217,7 @@ async fn add_role_action(
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "Custom command executed partially; the add-role action failed"
+            "custom command executed partially; the add-role action failed"
         );
     }
 }
@@ -261,7 +261,7 @@ async fn remove_role_action(
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "Custom command executed partially; the remove-role action failed"
+            "custom command executed partially; the remove-role action failed"
         );
     }
 }

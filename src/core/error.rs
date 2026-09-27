@@ -20,7 +20,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
             error!(
                 error = ?error,
                 error_chain = %format!("{error:#}"),
-                "Fatal: user data setup failed; aborting startup"
+                "fatal: user data setup failed; aborting startup"
             );
             panic!("Failed to start bot: {error:?}");
         }
@@ -31,7 +31,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
                 event = event.snake_case_name(),
                 error = ?error,
                 error_chain = %format!("{error:#}"),
-                "Event handler failed"
+                "event handler failed"
             );
         }
 
@@ -42,7 +42,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
                 user_id = %ctx.author().id,
                 error = ?error,
                 error_chain = %format!("{error:#}"),
-                "Command failed"
+                "command failed"
             );
             reply_internal_error(&ctx).await;
         }
@@ -56,7 +56,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
                 user_id = %ctx.author().id,
                 fault = "command panicked",
                 panic = ?payload,
-                "Command panicked"
+                "command panicked"
             );
             reply_internal_error(&ctx).await;
         }

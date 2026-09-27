@@ -102,7 +102,7 @@ pub async fn build_starboard_message(
     emoji_count: u64,
     starboard_channel: ChannelId,
 ) -> Result<Option<(String, CreateEmbed, Message)>, anyhow::Error> {
-    debug!("Building message structures from templates");
+    debug!("building message structures from templates");
     let Some(guild_id) = reaction.guild_id else {
         return Ok(None);
     };
@@ -157,11 +157,11 @@ pub async fn count_emoji_and_cache(
     if let Some(count) = value {
         trace!(
             count = count,
-            "Count provided by Redis script, utilizing cache value"
+            "count provided by Redis script, utilizing cache value"
         );
         Ok(count)
     } else {
-        debug!("Count not provided by Redis; recalculating manually from message reactions");
+        debug!("count not provided by Redis; recalculating manually from message reactions");
         let mut count = msg
             .reactions
             .iter()
@@ -169,7 +169,7 @@ pub async fn count_emoji_and_cache(
             .map_or(0, |r| r.count);
 
         if starboard.prevent_self_star {
-            trace!("Self-star prevention active; checking reaction authors");
+            trace!("self-star prevention active; checking reaction authors");
             let has_author_reacted = has_user_reacted(
                 ctx,
                 removed_reaction.channel_id,
@@ -180,12 +180,12 @@ pub async fn count_emoji_and_cache(
             .await
             .unwrap_or(false);
             if has_author_reacted && count > 0 {
-                debug!("Self-star detected; decrementing official reaction count");
+                debug!("self-star detected; decrementing official reaction count");
                 count -= 1;
             }
         }
 
-        trace!(key = %cached_key, count = count, "Updating Redis emoji cache");
+        trace!(key = %cached_key, count = count, "updating Redis emoji cache");
         cache_emoji_count(redis, cached_key, count).await?;
         Ok(count)
     }

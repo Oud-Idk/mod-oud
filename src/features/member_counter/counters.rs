@@ -93,7 +93,7 @@ pub async fn update_guild_counters(
                 trace!(
                     %guild_id,
                     %channel_id,
-                    "Channel name is already up to date"
+                    "channel name is already up to date"
                 );
             } else {
                 name_changed = true;
@@ -102,7 +102,7 @@ pub async fn update_guild_counters(
                     %channel_id,
                     old_name = %guild_channel.name,
                     new_name = %target_name,
-                    "Updating member counter channel name"
+                    "updating member counter channel name"
                 );
 
                 let edit_builder = serenity::all::EditChannel::new().name(&target_name);

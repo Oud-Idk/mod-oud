@@ -13,9 +13,9 @@ pub fn filter_zalgo<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'Zalgo' filter rule");
+    trace!("checking 'Zalgo' filter rule");
     if is_zalgo_grapheme(&message.content, 3) {
-        debug!("Message flagged by Zalgo filter");
+        debug!("message flagged by Zalgo filter");
         return FilterVerdict::Block {
             rule_name: "Zalgo".into(),
             base_rule: Cow::Borrowed(zalgo),

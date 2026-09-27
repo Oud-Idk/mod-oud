@@ -47,7 +47,7 @@ pub async fn resolve_spotify_playlist(
     let mut offset = 0;
     let limit = 100;
 
-    debug!(playlist_id = %playlist_id, "Fetching Spotify playlist tracks via Web API");
+    debug!(playlist_id = %playlist_id, "fetching Spotify playlist tracks via Web API");
 
     loop {
         let api_url = format!(
@@ -57,7 +57,7 @@ pub async fn resolve_spotify_playlist(
         let res = match client.get(&api_url).bearer_auth(&token).send().await {
             Ok(r) => r,
             Err(e) => {
-                warn!(error = %e, "Network error while fetching playlist tracks page");
+                warn!(error = %e, "network error while fetching playlist tracks page");
                 break;
             }
         };
@@ -156,7 +156,7 @@ pub async fn resolve_spotify_track(
     };
 
     let Some(token) = spotify_auth.get_token(client).await else {
-        warn!("Could not retrieve Spotify API token for track resolution");
+        warn!("could not retrieve Spotify API token for track resolution");
         return None;
     };
 
@@ -184,6 +184,6 @@ pub async fn resolve_spotify_track(
         .trim()
         .to_string();
 
-    debug!(url = %url, search_term = %search_term, "Resolved Spotify track via Web API");
+    debug!(url = %url, search_term = %search_term, "resolved Spotify track via Web API");
     Some(search_term)
 }

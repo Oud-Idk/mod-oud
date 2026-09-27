@@ -53,7 +53,7 @@ pub async fn execute_rule_actions(
 
     debug!(
         ?actions_taken,
-        "Executing configured actions for matched rule"
+        "executing configured actions for matched rule"
     );
 
     if should_warn.unwrap_or(true)
@@ -93,11 +93,11 @@ async fn handle_automod(
     let warn_enabled = should_warn.unwrap_or(true);
 
     for action in &base.action {
-        trace!(?action, "Applying target configuration action");
+        trace!(?action, "applying target configuration action");
         match action {
             RuleAction::Delete => {
                 if let Err(err) = message.delete(&ctx.http).await {
-                    warn!(error = %err, "Could not delete flagged message");
+                    warn!(error = %err, "could not delete flagged message");
                 }
             }
             RuleAction::Warn => {
@@ -150,7 +150,7 @@ async fn apply_warning(
     username_buf_tx: &mpsc::Sender<UserUpdate>,
 ) {
     let Some(guild_id) = message.guild_id else {
-        trace!("Skipping automated warning: Message was not sent in a guild");
+        trace!("skipping automated warning: Message was not sent in a guild");
         return;
     };
 
@@ -180,7 +180,7 @@ async fn apply_warning(
     {
         Ok(warn_id) => info!(
             warn_id,
-            "Automated filter issued warning and executed threshold actions"
+            "automated filter issued warning and executed threshold actions"
         ),
         Err(err) => warn!(error = %err, "apply automated warning via issue_warning"),
     }
@@ -213,7 +213,7 @@ async fn apply_mute(
     else {
         error!(
             fault = "mute timestamp is out of range",
-            "Could not calculate a valid mute timestamp"
+            "could not calculate a valid mute timestamp"
         );
         return;
     };
@@ -247,7 +247,7 @@ async fn apply_mute(
     fields(user_id = %message.author.id.get(), channel_id = %message.channel_id.get()),
 )]
 async fn apply_public_reminder(ctx: &serenity::all::Context, message: &Message, rule_name: &str) {
-    trace!("Sending public automod violation warning");
+    trace!("sending public automod violation warning");
     send_temp_warning(
         ctx,
         message.channel_id,
@@ -276,9 +276,9 @@ async fn apply_private_reminder(
         },
         |custom| CreateMessage::new().content(custom),
     );
-    trace!("Sending private direct message automod warning");
+    trace!("sending private direct message automod warning");
     if let Err(err) = message.author.dm(&ctx.http, builder).await {
-        warn!(error = %err, "Direct message reminder delivery failed");
+        warn!(error = %err, "direct message reminder delivery failed");
     }
 }
 
@@ -298,7 +298,7 @@ async fn send_temp_warning(
             if let Err(err) = temp_msg.delete(&http).await {
                 warn!(error = %err, message_id = %temp_msg_id.get(), "remove temporary warning message");
             } else {
-                trace!(message_id = %temp_msg_id.get(), "Cleaned up temporary warning message");
+                trace!(message_id = %temp_msg_id.get(), "cleaned up temporary warning message");
             }
         });
     } else {

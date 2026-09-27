@@ -47,7 +47,7 @@ pub async fn handle_dashboard_command(
                     debug!(
                         status = %status,
                         error = %err_msg,
-                        "Rejected report lookup for the requested report id"
+                        "rejected report lookup for the requested report id"
                     );
                 } else {
                     warn!(
@@ -64,7 +64,7 @@ pub async fn handle_dashboard_command(
 
     info!(
         moderator_name = moderator_name,
-        "Processing dashboard moderation command"
+        "processing dashboard moderation command"
     );
 
     match &cmd.action {
@@ -107,7 +107,7 @@ pub async fn handle_dashboard_command(
         return Err(WebError::Internal);
     }
 
-    info!("Dashboard moderation command executed");
+    info!("dashboard moderation command executed");
     Ok(StatusCode::OK)
 }
 

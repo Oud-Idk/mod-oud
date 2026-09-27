@@ -32,12 +32,12 @@ pub async fn handle_setup_member_counter(
     let Json(payload) = match payload {
         Ok(p) => p,
         Err(rejection) => {
-            debug!(error = %rejection, "Rejected member counter setup: request body failed to deserialize");
+            debug!(error = %rejection, "rejected member counter setup: request body failed to deserialize");
             return Err((StatusCode::UNPROCESSABLE_ENTITY, rejection.body_text()));
         }
     };
 
-    debug!(%guild_id, "Received request to setup member counter channels");
+    debug!(%guild_id, "received request to setup member counter channels");
 
     let mut counters = payload.counters;
 
@@ -55,7 +55,7 @@ pub async fn handle_setup_member_counter(
     info!(
         %guild_id,
         category_id = %category_id.get(),
-        "Member counter category and channels setup completed"
+        "member counter category and channels setup completed"
     );
 
     Ok((
@@ -94,20 +94,20 @@ async fn get_or_create_counter_category(
             Ok(serenity::Channel::Guild(channel))
                 if channel.kind == serenity::ChannelType::Category =>
             {
-                debug!(category_id = saved_id.get(), "Reusing existing category");
+                debug!(category_id = saved_id.get(), "reusing existing category");
                 return Ok(saved_id);
             }
             Ok(_) => {
-                warn!(%guild_id, channel_id = %saved_id, "Saved category ID is not a category, recreating");
+                warn!(%guild_id, channel_id = %saved_id, "saved category ID is not a category, recreating");
             }
             Err(e) => {
-                warn!(error = ?e, %guild_id, channel_id = %saved_id, "Saved category ID no longer exists in Discord, recreating");
+                warn!(error = ?e, %guild_id, channel_id = %saved_id, "saved category ID no longer exists in Discord, recreating");
             }
         }
     }
 
     // Category is missing or invalid -> Create a new one
-    info!(%guild_id, "Creating 'Server Stats' category for member counters");
+    info!(%guild_id, "creating 'Server Stats' category for member counters");
 
     let category_builder =
         serenity::CreateChannel::new("Server Stats").kind(serenity::ChannelType::Category);
@@ -166,7 +166,7 @@ async fn create_missing_counter_channels(
                 %guild_id,
                 channel_name = %channel_name,
                 counter_id = %counter.id,
-                "Creating voice channel for counter"
+                "creating voice channel for counter"
             );
 
             let voice_channel = guild_id

@@ -242,7 +242,7 @@ pub fn start_music_event_bridge(
 
     task::spawn("music_events_subscriber", async move {
         match subscriber.subscribe(keys::events_channel()).await {
-            Ok(()) => info!("Subscribed to music now-playing events"),
+            Ok(()) => info!("subscribed to music now-playing events"),
             Err(e) => warn!(error = ?e, "subscribe to music now-playing events"),
         }
     });

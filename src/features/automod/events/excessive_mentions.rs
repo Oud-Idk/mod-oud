@@ -15,13 +15,13 @@ pub fn filter_excessive_mentions<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'Excessive Mentions' filter rule");
+    trace!("checking 'Excessive Mentions' filter rule");
     let discord_count = DISCORD_PING_REGEX.find_iter(&message.content).count();
     if discord_count > excessive_mentions.max_mentions as usize {
         debug!(
             mention_count = discord_count,
             threshold = excessive_mentions.max_mentions,
-            "Message flagged by Excessive Mentions filter"
+            "message flagged by Excessive Mentions filter"
         );
         return FilterVerdict::Block {
             rule_name: "Excessive Mentions".into(),

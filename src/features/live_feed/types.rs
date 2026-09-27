@@ -29,7 +29,7 @@ impl LogEvent {
                 .map(Self::MessageReport),
 
             _ => {
-                warn!(%channel, "Received subscription data from an unexpected channel");
+                warn!(%channel, "received subscription data from an unexpected channel");
                 None
             }
         }

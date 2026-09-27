@@ -46,7 +46,7 @@ impl CoinSide {
                 // Unreachable with two elements, but it would bias every flip to Heads.
                 tracing::error!(
                     fault = "coin flip variant set is empty",
-                    "Coin flip RNG selection failed; falling back to Heads"
+                    "coin flip RNG selection failed; falling back to Heads"
                 );
                 Self::Heads
             },

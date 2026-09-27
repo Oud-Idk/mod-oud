@@ -30,7 +30,7 @@ pub async fn trigger_raid_manual(
     info!(
         %guild_id,
         mod_username,
-        "Manual raid mode activation requested by moderator"
+        "manual raid mode activation requested by moderator"
     );
 
     let detector = DynamicRaidDetector::new(data.core.redis.clone(), 60, 3.0, 5);
@@ -40,7 +40,7 @@ pub async fn trigger_raid_manual(
         warn!(
             %guild_id,
             mod_username,
-            "Manual raid trigger ignored: server is already in an active raid"
+            "manual raid trigger ignored: server is already in an active raid"
         );
         return Ok(false);
     }
@@ -89,7 +89,7 @@ pub async fn trigger_raid_manual(
     else {
         warn!(
             %guild_id,
-            "Raid mode set active manually, but no raid configuration found for mitigation actions"
+            "raid mode set active manually, but no raid configuration found for mitigation actions"
         );
         return Ok(true);
     };
@@ -99,7 +99,7 @@ pub async fn trigger_raid_manual(
     info!(
         %guild_id,
         mod_username,
-        "Manual raid mode activated"
+        "manual raid mode activated"
     );
 
     Ok(true)
@@ -115,7 +115,7 @@ async fn invoke_actions(
     for action in &raid_config.raid_actions {
         match action {
             RaidAction::LockdownServer => {
-                debug!(%guild_id, "Spawning global server lockdown background task (manual trigger)");
+                debug!(%guild_id, "spawning global server lockdown background task (manual trigger)");
                 let ctx = ctx.clone();
                 let data = (*data).clone();
                 task::spawn("raid_manual_lock", async move {
@@ -125,11 +125,11 @@ async fn invoke_actions(
                 });
             }
             RaidAction::BumpVerification => {
-                info!(%guild_id, "Bumping server verification to hCaptcha and using auth (manual trigger)");
+                info!(%guild_id, "bumping server verification to hCaptcha and using auth (manual trigger)");
                 database::bump_verification_to_max(&data.core.db, guild_id).await?;
             }
             RaidAction::PauseInvites { hours } => {
-                info!(%guild_id, hours, "Pausing server invites (manual trigger)");
+                info!(%guild_id, hours, "pausing server invites (manual trigger)");
                 let until = chrono::Utc::now() + chrono::Duration::hours(*hours);
                 let timestamp = Timestamp::from_unix_timestamp(until.timestamp())?;
                 let builder = EditGuildIncidentActions::new().invites_disabled_until(timestamp);
@@ -138,7 +138,7 @@ async fn invoke_actions(
                     .await?;
             }
             RaidAction::Alert { channel_id } => {
-                info!(%guild_id, channel_id, "Sending manual raid alert message");
+                info!(%guild_id, channel_id, "sending manual raid alert message");
                 let channel = ChannelId::new(*channel_id);
                 let message_content = format!(
                     "**Manual Raid Mode Activated** by moderator `{mod_username}`! Server incident protections have been enabled."
@@ -160,7 +160,7 @@ pub async fn resolve_raid_manual(
     data: &BotData,
     guild_id: GuildId,
 ) -> Result<bool, Error> {
-    info!(%guild_id, "Manual raid resolution requested");
+    info!(%guild_id, "manual raid resolution requested");
 
     let is_active = cache::check_raid_active(&data.core.redis, guild_id)
         .await
@@ -172,7 +172,7 @@ pub async fn resolve_raid_manual(
     if !is_active && !has_snapshot {
         warn!(
             %guild_id,
-            "Manual raid resolution ignored: no active raid flag or snapshot found"
+            "manual raid resolution ignored: no active raid flag or snapshot found"
         );
         return Ok(false);
     }
@@ -186,10 +186,10 @@ pub async fn resolve_raid_manual(
         error!(error = ?e, %guild_id, "log raid resolve event");
     }
 
-    info!(%guild_id, "Cleared active raid flag; initiating raid cleanup");
+    info!(%guild_id, "cleared active raid flag; initiating raid cleanup");
     handle_raid_end(ctx, data, guild_id).await?;
 
-    info!(%guild_id, "Manual raid resolution completed");
+    info!(%guild_id, "manual raid resolution completed");
 
     Ok(true)
 }

@@ -29,13 +29,13 @@ pub async fn handle_cleanup_if_starboard(
     debug!(%orig_msg_id, "checking starboard for the original message");
 
     let rows = database::fetch_starboard(db, orig_msg_id).await?;
-    debug!(rows_found = rows.len(), "Fetched linked starboard messages");
+    debug!(rows_found = rows.len(), "fetched linked starboard messages");
 
     for row in rows {
         if row.keep_deleted_messages.unwrap_or(false) {
             debug!(
                 channel_id = %row.starboard_channel_id,
-                "Skipping Discord message deletion because 'keep_deleted_messages' is enabled"
+                "skipping Discord message deletion because 'keep_deleted_messages' is enabled"
             );
             continue;
         }
@@ -43,14 +43,14 @@ pub async fn handle_cleanup_if_starboard(
         let channel_id = row.starboard_channel_id;
 
         if let Some(msg_id) = row.starboard_message_id {
-            debug!(channel_id = %channel_id, msg_id = %msg_id, "Attempting to delete message from starboard channel");
+            debug!(channel_id = %channel_id, msg_id = %msg_id, "attempting to delete message from starboard channel");
             if let Err(e) = channel_id.delete_message(&ctx.http, msg_id).await {
-                warn!(error = %e, channel_id = %channel_id, msg_id = %msg_id, "Could not delete message from Discord");
+                warn!(error = %e, channel_id = %channel_id, msg_id = %msg_id, "could not delete message from Discord");
             }
         }
     }
 
-    debug!("Deleting message mappings from database");
+    debug!("deleting message mappings from database");
     database::delete_starboard(db, orig_msg_id).await?;
 
     info!(%orig_msg_id, "starboard removed");
@@ -68,7 +68,7 @@ pub async fn handle_reaction_add(
     add_reaction: &Reaction,
     data: &BotData,
 ) -> Result<()> {
-    debug!("Handling reaction add event");
+    debug!("handling reaction add event");
     handle_starboard_reaction(ctx, add_reaction, data, StarboardOp::Add).await
 }
 
@@ -83,7 +83,7 @@ pub async fn handle_reaction_remove(
     removed_reaction: &Reaction,
     data: &BotData,
 ) -> Result<()> {
-    debug!("Handling reaction remove event");
+    debug!("handling reaction remove event");
     handle_starboard_reaction(ctx, removed_reaction, data, StarboardOp::Remove).await
 }
 
@@ -110,11 +110,11 @@ async fn handle_starboard_reaction(
     }
 
     let Some(member) = builder::resolve_member(ctx, guild_id, user_id, reaction).await else {
-        warn!(%guild_id, user_id = %user_id, "Could not resolve reacting member");
+        warn!(%guild_id, user_id = %user_id, "could not resolve reacting member");
         return Ok(());
     };
 
-    debug!("Fetching original message");
+    debug!("fetching original message");
     let message = reaction.message(&ctx.http).await?;
 
     for starboard in starboards {
@@ -122,14 +122,14 @@ async fn handle_starboard_reaction(
         let _enter = span.enter();
 
         if !perms::is_event_allowed(&starboard, reaction, &message, &member, user_id) {
-            trace!("Event not allowed under starboard permissions");
+            trace!("event not allowed under starboard permissions");
             continue;
         }
 
         let emojis = &starboard.emojis;
         let emoji_string = reaction.emoji.to_string();
         if !emojis.contains(&emoji_string) {
-            trace!(emoji = %emoji_string, "Emoji does not match starboard configured emojis");
+            trace!(emoji = %emoji_string, "emoji does not match starboard configured emojis");
             continue;
         }
 
@@ -141,7 +141,7 @@ async fn handle_starboard_reaction(
             emoji_string
         );
 
-        debug!(key = %cached_key, "Attempting redis operation");
+        debug!(key = %cached_key, "attempting redis operation");
         let maybe_count = apply_starboard_op_if_exists(redis, &cached_key, op).await?;
 
         let emoji_count = count_emoji_and_cache(
@@ -154,7 +154,7 @@ async fn handle_starboard_reaction(
             &cached_key,
         )
         .await?;
-        debug!(count = emoji_count, "Determined current emoji count");
+        debug!(count = emoji_count, "determined current emoji count");
 
         debounced_starboard_sync(
             ctx,
@@ -187,10 +187,10 @@ async fn debounced_starboard_sync(
     let lock_key = format!("lock:starboard:{}:{}", guild_id, reaction.message_id.get());
     let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
-    debug!(lock_key = %lock_key, "Attempting to acquire lock");
+    debug!(lock_key = %lock_key, "attempting to acquire lock");
     let maybe_lock = acquire_lock(redis, &lock_key, &lock_value, 5).await?;
     if let Some(guard) = maybe_lock {
-        info!("Lock acquired, spawning async updates loop");
+        info!("lock acquired, spawning async updates loop");
         let ctx_clone = ctx.clone();
         let db_clone = data.core.db.clone();
         let redis_clone = redis.clone();
@@ -223,7 +223,7 @@ async fn debounced_starboard_sync(
                     debug!(
                         final_count = final_count,
                         loop_count = loop_count,
-                        "Updating starboard in worker loop"
+                        "updating starboard in worker loop"
                     );
 
                     if let Err(e) = upsert_starboard(
@@ -250,7 +250,7 @@ async fn debounced_starboard_sync(
                         debug!(
                             latest_count = latest_count,
                             loop_count = loop_count,
-                            "Starboard loop finished condition met"
+                            "starboard loop finished condition met"
                         );
                         break;
                     }
@@ -258,7 +258,7 @@ async fn debounced_starboard_sync(
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 }
 
-                debug!("Releasing lock");
+                debug!("releasing lock");
                 if let Err(e) = guard.release().await {
                     warn!(
                         error = ?e,
@@ -270,7 +270,7 @@ async fn debounced_starboard_sync(
             .instrument(ids_span),
         );
     } else {
-        debug!("Lock busy, skipping spawn");
+        debug!("lock busy, skipping spawn");
     }
 
     Ok(())
@@ -295,7 +295,7 @@ pub async fn upsert_starboard(
     let threshold = u64::try_from(starboard.reaction_threshold)?;
     let orig_msg_id = reaction.message_id;
 
-    debug!(threshold = threshold, "Upsert check started");
+    debug!(threshold = threshold, "upsert check started");
     let starboard_msg_id =
         database::fetch_starboard_message_id(db, orig_msg_id, starboard.id).await?;
 
@@ -306,7 +306,7 @@ pub async fn upsert_starboard(
 
     if emoji_count < threshold {
         if let Some(post_id) = starboard_msg_id {
-            info!(post_id = %post_id, "Count fell below threshold; demoting/deleting post");
+            info!(post_id = %post_id, "count fell below threshold; demoting/deleting post");
             database::handle_starboard_demotion(
                 ctx,
                 db,
@@ -320,7 +320,7 @@ pub async fn upsert_starboard(
         return Ok(());
     }
 
-    debug!("Building starboard message formatting");
+    debug!("building starboard message formatting");
     let Some((text_message, embedded_message, origin_message)) = build_starboard_message(
         ctx,
         starboard,
@@ -331,7 +331,7 @@ pub async fn upsert_starboard(
     )
     .await?
     else {
-        warn!("Could not build starboard message components");
+        warn!("could not build starboard message components");
         return Ok(());
     };
 
@@ -385,7 +385,7 @@ async fn create_or_update_post(
     let orig_msg_id = reaction.message_id;
 
     if let Some(post_id) = starboard_msg_id {
-        info!(channel_id = %starboard_channel, post_id = %post_id, "Editing existing starboard message");
+        info!(channel_id = %starboard_channel, post_id = %post_id, "editing existing starboard message");
         let builder = EditMessage::new()
             .content(message_data.text)
             .embed(message_data.embed);
@@ -395,7 +395,7 @@ async fn create_or_update_post(
             .await?;
         database::update_starred_message_count(db, orig_msg_id, starboard.id, emoji_count).await?;
     } else {
-        info!(channel_id = %starboard_channel, "Creating brand new starboard message");
+        info!(channel_id = %starboard_channel, "creating brand new starboard message");
         let builder = CreateMessage::new()
             .content(message_data.text)
             .embed(message_data.embed);

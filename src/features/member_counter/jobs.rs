@@ -24,7 +24,7 @@ pub fn start_member_counter_job(
     cache: Cache<GuildId, GuildSettings>,
 ) {
     task::spawn("member_counter_worker", async move {
-        info!("Member counter background job started");
+        info!("member counter background job started");
 
         let worker_id = format!("worker-{}", chrono::Utc::now().timestamp_millis());
         let mut timer = interval(Duration::from_mins(1));
@@ -54,7 +54,7 @@ async fn process_all_member_counters(
     let guild_ids = any_guild_ids_with_member_counters(db).await;
 
     if guild_ids.is_empty() {
-        trace!("No active member counters to process");
+        trace!("no active member counters to process");
         return Ok(());
     }
 
@@ -94,7 +94,7 @@ async fn process_all_member_counters(
             .await?;
 
         if claimed.is_none() {
-            trace!(%guild_id, "Update claim held; skipping until interval elapses");
+            trace!(%guild_id, "update claim held; skipping until interval elapses");
             continue;
         }
 

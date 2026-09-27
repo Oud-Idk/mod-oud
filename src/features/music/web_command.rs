@@ -202,10 +202,10 @@ impl WebCommandBus {
                 if let Ok(mut pending) = pending.lock()
                     && let Some(reply_tx) = pending.remove(&result.request_id)
                 {
-                    debug!(request_id = %result.request_id, "Matched music command reply");
+                    debug!(request_id = %result.request_id, "matched music command reply");
                     let _ = reply_tx.send(result);
                 } else {
-                    debug!(request_id = %result.request_id, "Reply arrived for unknown or expired request");
+                    debug!(request_id = %result.request_id, "reply arrived for unknown or expired request");
                 }
 
                 Ok(())
@@ -219,7 +219,7 @@ impl WebCommandBus {
                 .subscribe(subscribe_channel.as_str())
                 .await
             {
-                Ok(()) => debug!("Subscribed to music web reply channel"),
+                Ok(()) => debug!("subscribed to music web reply channel"),
                 Err(e) => warn!(error = ?e, "subscribe to music web reply channel"),
             }
         });
@@ -269,7 +269,7 @@ impl WebCommandBus {
 
         match tokio::time::timeout(Duration::from_secs(COMMAND_TIMEOUT_SECS), reply_rx).await {
             Ok(Ok(result)) => {
-                debug!(request_id = %request_id, "Music command completed");
+                debug!(request_id = %request_id, "music command completed");
                 result.into_inner()
             }
             Ok(Err(_)) => Err("Music command reply channel closed".to_string()),

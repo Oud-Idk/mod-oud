@@ -89,7 +89,7 @@ fn track_embed(author: &User, title: String, thumbnail: Option<String>) -> Creat
     )
 )]
 pub async fn music(ctx: Context<'_>) -> Result<()> {
-    debug!(author = %ctx.author().name, "Parent /music command invoked");
+    debug!(author = %ctx.author().name, "parent /music command invoked");
     Ok(())
 }
 
@@ -99,13 +99,13 @@ pub async fn music(ctx: Context<'_>) -> Result<()> {
     subcommands("add", "list", "clear", "remove", "shuffle", "goto")
 )]
 pub async fn queue(ctx: Context<'_>) -> Result<()> {
-    debug!(author = %ctx.author().name, "Subcommand group /music queue invoked");
+    debug!(author = %ctx.author().name, "subcommand group /music queue invoked");
     Ok(())
 }
 
 #[poise::command(slash_command, guild_only, subcommands("history_list", "history_goto"))]
 pub async fn history(ctx: Context<'_>) -> Result<()> {
-    debug!(author = %ctx.author().name, "Subcommand group /music history invoked");
+    debug!(author = %ctx.author().name, "subcommand group /music history invoked");
     Ok(())
 }
 

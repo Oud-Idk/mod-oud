@@ -40,7 +40,7 @@ pub async fn get_channel_media(
     let redis = &data.core.redis;
     let key = keys::media_channel_key(channel_id);
 
-    trace!("Getting media channel from cache");
+    trace!("getting media channel from cache");
     let media_channel: Option<String> = redis.get(&key).await?;
     if let Some(payload) = media_channel {
         let media_channel = serde_json::from_str::<Option<MediaOnlyChannel>>(&payload)
@@ -49,7 +49,7 @@ pub async fn get_channel_media(
     }
 
     // Not found in Redis
-    trace!("Cache miss; getting from DB");
+    trace!("cache miss; getting from DB");
     let media_channel_from_db = fetch_media_only_from_db(&data.core.db, channel_id).await?;
     if let Some(media_channel_from_db) = media_channel_from_db {
         let _ = store_media_only_channel_redis(redis, &media_channel_from_db)

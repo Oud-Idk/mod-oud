@@ -20,11 +20,11 @@ pub async fn handle_timeout(
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
     let duration_mins = cmd.duration_mins.ok_or_else(|| {
-        debug!("Missing duration_mins parameter for timeout action");
+        debug!("missing duration_mins parameter for timeout action");
         WebError::BadRequest("Missing duration_mins parameter".to_string())
     })?;
 
-    info!(duration_minutes = duration_mins, "Issuing timeout to user");
+    info!(duration_minutes = duration_mins, "issuing timeout to user");
 
     let (user, moderator) = tokio::try_join!(
         resolve_target_user(&state.serenity_http, user_id),
@@ -38,12 +38,12 @@ pub async fn handle_timeout(
 
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .inspect_err(|e| error!(error = ?e, "System clock is before the unix epoch"))
+        .inspect_err(|e| error!(error = ?e, "system clock is before the unix epoch"))
         .map_err(|_| WebError::Internal)?
         .as_secs();
 
     let future_secs = now_secs.checked_add(duration_mins * 60).ok_or_else(|| {
-        debug!(duration_mins, "Duration calculation overflowed during timeout window generation");
+        debug!(duration_mins, "duration calculation overflowed during timeout window generation");
         WebError::BadRequest("Duration calculation overflowed".to_string())
     })?;
 

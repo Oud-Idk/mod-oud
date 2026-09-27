@@ -95,7 +95,7 @@ pub async fn resolve_youtube_playlist(
     let mut page_token: Option<String> = None;
     let max_results = 50; // YouTube Data API v3 limit per page
 
-    debug!(playlist_id = %playlist_id, "Fetching YouTube playlist tracks via Data API v3");
+    debug!(playlist_id = %playlist_id, "fetching YouTube playlist tracks via Data API v3");
 
     loop {
         let mut api_url = format!(
@@ -109,7 +109,7 @@ pub async fn resolve_youtube_playlist(
         let res = match client.get(&api_url).send().await {
             Ok(r) => r,
             Err(e) => {
-                warn!(error = %e, "Network error while fetching YouTube playlist page");
+                warn!(error = %e, "network error while fetching YouTube playlist page");
                 break;
             }
         };
@@ -197,6 +197,6 @@ pub async fn resolve_youtube_video(
 
     let watch_url = format!("https://www.youtube.com/watch?v={video_id}");
 
-    debug!(url = %url, watch_url = %watch_url, "Resolved YouTube video via Data API v3");
+    debug!(url = %url, watch_url = %watch_url, "resolved YouTube video via Data API v3");
     Some(watch_url)
 }

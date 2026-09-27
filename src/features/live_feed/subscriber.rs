@@ -26,7 +26,7 @@ pub async fn start_live_feed_subscriber(
             debug!(
                 channel = %channel,
                 payload_len = payload_str.len(),
-                "Received Redis subscription message"
+                "received Redis subscription message"
             );
 
             if LogEvent::REDIS_CHANNELS.contains(&channel.as_str()) {
@@ -38,7 +38,7 @@ pub async fn start_live_feed_subscriber(
                     warn!(channel = %channel, "parse LogEvent from Redis payload");
                 }
             } else {
-                trace!(channel = %channel, "Received irrelevant payload; skipping");
+                trace!(channel = %channel, "received irrelevant payload; skipping");
             }
             Ok(())
         }
@@ -49,7 +49,7 @@ pub async fn start_live_feed_subscriber(
         .map(|&c| Key::from(c))
         .collect();
 
-    info!(channels = ?LogEvent::REDIS_CHANNELS, "Subscribing to Redis channels");
+    info!(channels = ?LogEvent::REDIS_CHANNELS, "subscribing to Redis channels");
     subscriber_client.subscribe(channels).await?;
     info!("subscribed to Redis channels");
 

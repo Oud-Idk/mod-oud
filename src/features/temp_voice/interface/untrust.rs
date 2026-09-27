@@ -16,7 +16,7 @@ pub async fn handle_untrust_temp_vc(
         return Ok(());
     };
 
-    debug!("Showing user select menu for Untrust");
+    debug!("showing user select menu for Untrust");
 
     let select_menu = CreateSelectMenu::new(
         "temp_voice_untrust_select",

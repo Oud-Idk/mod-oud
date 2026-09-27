@@ -13,7 +13,7 @@ pub async fn handle_delete_message(
     channel_id: ChannelId,
     message_id: MessageId,
 ) -> Result<StatusCode, WebError> {
-    info!(%channel_id, %message_id, "Attempting message deletion");
+    info!(%channel_id, %message_id, "attempting message deletion");
 
     match state
         .serenity_http
@@ -29,14 +29,14 @@ pub async fn handle_delete_message(
         }
         Err(poise::serenity_prelude::Error::Http(http_err)) => {
             if http_err.status_code().map(|s| s.as_u16()) == Some(404) {
-                warn!("Message already deleted (404) returned from Discord API");
+                warn!("message already deleted (404) returned from Discord API");
             } else {
                 warn!(error = %http_err, "delete message via HTTP");
                 return Err(WebError::BadGateway("Message already deleted.".to_string()));
             }
         }
         Err(e) => {
-            warn!(error = %e, "Unexpected error deleting message");
+            warn!(error = %e, "unexpected error deleting message");
             return Err(WebError::Internal);
         }
     }

@@ -200,7 +200,7 @@ pub async fn delete_temp_vc(
 
     tracing::debug!(
         channel_id = channel_id.get(),
-        "Owner requested manual deletion of temp VC. Cleaning up"
+        "owner requested manual deletion of temp VC. Cleaning up"
     );
 
     if let Err(e) = channel_id.delete(http).await {
@@ -240,13 +240,13 @@ pub async fn initiate_temp_vc_transfer(
 
     let target_existing_vc = cache::get_user_owned_channel(redis, guild_id, new_owner_id).await?;
     if target_existing_vc.is_some() {
-        tracing::debug!("Transfer rejected: Target user already owns a temporary voice channel");
+        tracing::debug!("transfer rejected: Target user already owns a temporary voice channel");
         return Ok("That user already owns a temporary voice channel!".to_string());
     }
 
     cache::store_pending_transfer(redis, channel_id, new_owner_id).await?;
 
-    tracing::debug!("Pending transfer state written to Redis with 90s TTL");
+    tracing::debug!("pending transfer state written to Redis with 90s TTL");
 
     Ok("Transfer offer sent! Waiting for them to accept...".to_string())
 }

@@ -16,7 +16,7 @@ pub async fn handle_unblock_temp_vc(
         return Ok(());
     };
 
-    debug!("Showing user select menu for Unblock");
+    debug!("showing user select menu for Unblock");
 
     let select_menu = CreateSelectMenu::new(
         "temp_voice_unblock_select",

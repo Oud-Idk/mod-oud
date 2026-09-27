@@ -63,7 +63,7 @@ where
             %user_id,
             item_id = %item.id,
             item_name = %item.name,
-            "Item requirements could not be parsed; refusing to evaluate the gate"
+            "item requirements could not be parsed; refusing to evaluate the gate"
         );
         anyhow::anyhow!("This item is misconfigured and cannot be used right now.")
     })?;

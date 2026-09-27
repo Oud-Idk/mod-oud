@@ -16,7 +16,7 @@ pub async fn handle_block_temp_vc(
         return Ok(());
     };
 
-    debug!("Showing user select menu for Block");
+    debug!("showing user select menu for Block");
 
     let select_menu = CreateSelectMenu::new(
         "temp_voice_block_select",

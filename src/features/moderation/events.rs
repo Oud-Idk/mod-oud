@@ -40,12 +40,12 @@ pub async fn handle_audit_log_entry(
     };
 
     if entry.user_id == ctx.cache.current_user().id {
-        debug!("Skipping audit log entry created by the bot itself");
+        debug!("skipping audit log entry created by the bot itself");
         return Ok(());
     }
 
     let Some(target_generic_id) = entry.target_id else {
-        warn!("Audit log entry has no target; skipping moderation sync");
+        warn!("audit log entry has no target; skipping moderation sync");
         return Ok(());
     };
     let target_id = target_generic_id.get().into();
@@ -63,7 +63,7 @@ pub async fn handle_audit_log_entry(
     )
     .await?;
 
-    debug!(?action, "Synced native moderation action to database");
+    debug!(?action, "synced native moderation action to database");
 
     // Best-effort username enrichment for the dashboard join. Never fails sync.
     let http = ctx.http.clone();
@@ -79,7 +79,7 @@ pub async fn handle_audit_log_entry(
                     }
                 }
                 Err(e) => {
-                    debug!(error = %e, %user_id, "Could not resolve user for audit-synced log");
+                    debug!(error = %e, %user_id, "could not resolve user for audit-synced log");
                 }
             }
         }

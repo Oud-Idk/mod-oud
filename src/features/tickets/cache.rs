@@ -19,7 +19,7 @@ pub async fn mark_ticket_as_closed_redis(
     channel_id_str: &str,
     redis: &Client,
 ) -> Result<(), Error> {
-    debug!("Running Redis pipeline to remove ticket keys and publish close event");
+    debug!("running Redis pipeline to remove ticket keys and publish close event");
     let pipeline = redis.pipeline();
 
     let _: () = pipeline

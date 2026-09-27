@@ -46,7 +46,7 @@ impl SafeBrowsingClient {
             query_params.push(("urls".to_string(), (*url).to_string()));
         }
 
-        trace!("Sending GET request to Safe Browsing API");
+        trace!("sending GET request to Safe Browsing API");
         let response = self
             .http_client
             .get(endpoint)
@@ -68,10 +68,10 @@ impl SafeBrowsingClient {
             bail!(format!("Safe Browsing API Error: {err_text}"));
         }
 
-        trace!("Reading payload response bytes");
+        trace!("reading payload response bytes");
         let bytes = response.bytes().await?;
 
-        trace!("Decoding Protobuf response payload");
+        trace!("decoding Protobuf response payload");
         let search_response = SearchUrlsResponse::decode(bytes).map_err(|e| {
             warn!(error = %e, "deserialize Safe Browsing Protobuf response");
             e

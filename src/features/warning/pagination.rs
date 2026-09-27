@@ -35,7 +35,7 @@ pub async fn paginate_warnings(
 
     trace!(
         total_warnings = warnings.len(),
-        total_pages, "Rendering warning pagination flow"
+        total_pages, "rendering warning pagination flow"
     );
 
     pagination::paginate(ctx, total_pages, move |page_idx| {

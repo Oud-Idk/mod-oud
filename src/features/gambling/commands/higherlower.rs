@@ -242,7 +242,7 @@ async fn run_game_loop(
                 warn!(
                     %user_id,
                     custom_id = other,
-                    "Unknown custom_id for higher/lower"
+                    "unknown custom_id for higher/lower"
                 );
                 continue;
             }

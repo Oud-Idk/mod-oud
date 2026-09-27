@@ -56,7 +56,7 @@ impl fmt::Display for DiagnosticReport<'_> {
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     debug!(
         caller_id = ctx.author().id.get(),
-        "Invoked ping diagnostic command"
+        "invoked ping diagnostic command"
     );
 
     let gateway_latency = fetch_shard_latency(&ctx).await?;
@@ -79,7 +79,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 
     trace!(
         latency_ms = gateway_latency.map(|l| l.as_millis()),
-        "Responding to ping command"
+        "responding to ping command"
     );
 
     ctx.say(report.to_string()).await?;

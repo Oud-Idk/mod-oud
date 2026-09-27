@@ -84,7 +84,7 @@ pub async fn get_hub_info(
             Ok(hub) => hub, // valid cache hit
             Err(e) => {
                 // malformed body, then we refetch and invalidate and stuff
-                warn!(error = %e, cache_key = %cache_key, "Corrupt cache entry, falling back to DB");
+                warn!(error = %e, cache_key = %cache_key, "corrupt cache entry, falling back to DB");
                 get_hub_and_cache(guild_id, redis, db, target_channel_id, cache_key).await?
             }
         },
@@ -150,7 +150,7 @@ pub async fn get_hub_info_by_category(
             Ok(hub) => hub, // valid cache hit
             Err(e) => {
                 // malformed body, then we refetch and invalidate
-                warn!(error = %e, cache_key = %cache_key, "Corrupt cache entry, falling back to DB");
+                warn!(error = %e, cache_key = %cache_key, "corrupt cache entry, falling back to DB");
                 get_hub_and_cache_by_category(guild_id, redis, db, category_id, cache_key).await?
             }
         },

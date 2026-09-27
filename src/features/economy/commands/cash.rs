@@ -95,7 +95,7 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
                 error = ?e,
                 cooldown_key = %cooldown_key,
                 cooldown_secs = config.work_cooldown_secs,
-                "Cooldown SET failed; the /work cooldown is not being enforced"
+                "cooldown SET failed; the /work cooldown is not being enforced"
             );
         })?;
 
@@ -107,7 +107,7 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
                 warn!(
                     error = ?e,
                     cooldown_key = %cooldown_key,
-                    "Cooldown TTL lookup failed; reporting a 0s wait"
+                    "cooldown TTL lookup failed; reporting a 0s wait"
                 );
                 0
             }

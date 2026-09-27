@@ -51,7 +51,7 @@ pub async fn try_acquire_gambling_cooldown(
                 cooldown_secs = secs,
                 %guild_id,
                 %user_id,
-                "Gambling cooldown SET failed; failing closed"
+                "gambling cooldown SET failed; failing closed"
             );
             return Some(COOLDOWN_UNAVAILABLE_MESSAGE.to_string());
         }
@@ -70,7 +70,7 @@ pub async fn try_acquire_gambling_cooldown(
                 cooldown_key = %key,
                 %guild_id,
                 %user_id,
-                "Gambling cooldown TTL lookup failed; remaining time unknown"
+                "gambling cooldown TTL lookup failed; remaining time unknown"
             );
             return Some(COOLDOWN_UNAVAILABLE_MESSAGE.to_string());
         }
@@ -98,7 +98,7 @@ pub async fn release_gambling_cooldown(ctx: &Context<'_>) {
             cooldown_key = %key,
             %guild_id,
             %user_id,
-            "Failed to release gambling cooldown; the player may be throttled despite not being \
+            "failed to release gambling cooldown; the player may be throttled despite not being \
              charged"
         );
     }

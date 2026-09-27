@@ -86,6 +86,8 @@ tracing::error!("Failed to disconnect member {}: {:?}", target_user_id, err);
 
 - The message is a lowercase clause. No trailing period, no "Failed to", no "Error", no
   "Successfully", no `{}` interpolation, no "Starting X" or "Cleanup completed" narration.
+  Product names, acronyms and env vars keep their capitals, and so do the lifecycle lines printed
+  above: `Tracing initialized`, `TCP listener bound`, `Draining`. There are 41 like that.
 - Everything else is a field. The message stays one short sentence.
 - Field names are domain names: `guild_id`, `channel_id`, `user_id`, `message_id`, `command`,
   `job`, `event`, `outcome`, `duration_ms`. Never `id`, `e`, `ctx`, `data`, `thing`.
@@ -278,7 +280,7 @@ a convention, and it would not fix a single one of the problems above.
 
 Current state, for sizing the work: 1294 log calls (`warn` 440, `debug` 413, `trace` 213,
 `info` 156, `error` 72), 0 of them interpolating into the message string, 0 starting with
-"Failed to", 0 "Successfully", 0 trailing periods, 790 still starting with a capital, 84
+"Failed to", 0 "Successfully", 0 trailing periods, 41 starting with a capital, 84
 `inspect_err` sites, 100 `#[instrument]` attributes, 6 explicit spans, and 42 `task::spawn`
 call sites. The only `tokio::spawn` left is the one inside the helper.
 
@@ -305,9 +307,8 @@ In severity order, so each step is shippable on its own:
    now nests a `starboard` span under the `job` one, so it keeps its ids and gains an exit line.
 7. **Done.** The drain and stop lines.
 
-Two pieces of the line-shape rule are still outstanding: 790 messages start with a capital, and
-the fallback taken is still often named in the message rather than in a field. Both are
-cosmetic, and nothing in the check enforces either.
+One piece of the line-shape rule is still outstanding: the fallback taken is still often named in
+the message rather than in a field. It is cosmetic, and nothing in the check enforces it.
 
 ## Keeping it that way
 

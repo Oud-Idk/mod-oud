@@ -32,29 +32,29 @@ pub async fn on_open_ticket(
     component: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("Opening ticket event received");
+    trace!("opening ticket event received");
 
     let redis = &data.core.redis;
     let db = &data.core.db;
 
     let Some(guild_id) = component.guild_id else {
-        trace!("Interaction occurs outside of a guild context; ignoring");
+        trace!("interaction occurs outside of a guild context; ignoring");
         return Ok(());
     };
     let user_interact = &component.user;
 
-    debug!("Checking settings validation for ticket generation");
+    debug!("checking settings validation for ticket generation");
     let settings = get_settings(db, redis, &data.core.guild_configs_cache, guild_id).await?;
     let tickets = settings.tickets.as_ref();
 
     let Some(role_id) = tickets.and_then(|t| t.ticket_role_id) else {
-        warn!("Ticket staff role missing from guild configuration");
+        warn!("ticket staff role missing from guild configuration");
         message::send_missing_config_error(ctx, component).await?;
         return Ok(());
     };
 
     if tickets.is_none_or(|t| !t.enabled) {
-        debug!("Ticket system is disabled in this guild settings");
+        debug!("ticket system is disabled in this guild settings");
         message::send_disabled_error(ctx, component).await?;
         return Ok(());
     }
@@ -76,7 +76,7 @@ pub async fn on_open_ticket(
 
     let ticket_category_id = settings.tickets.as_ref().and_then(|t| t.category_id);
 
-    debug!("Creating channel overwrites and constructing new Discord channel");
+    debug!("creating channel overwrites and constructing new Discord channel");
     let overwrites = build_permission_overwrites(guild_id, user_interact.id, role_id);
     let ticket_channel = create_ticket_channel(
         ctx,
@@ -98,7 +98,7 @@ pub async fn on_open_ticket(
             .and_then(|roles| roles.get(&role_id).map(|r| r.name.clone()))
     };
 
-    debug!("Sending custom ticket welcome layout");
+    debug!("sending custom ticket welcome layout");
     let welcome_msg = send_welcome_message(
         ctx,
         &ticket_channel,
@@ -110,7 +110,7 @@ pub async fn on_open_ticket(
     )
     .await?;
 
-    debug!("Persisting new ticket status to DB and initializing state in Redis");
+    debug!("persisting new ticket status to DB and initializing state in Redis");
     tokio::try_join!(
         save_ticket_to_db(
             data,
@@ -130,7 +130,7 @@ pub async fn on_open_ticket(
         .insert(ticket_channel.id, ())
         .await;
 
-    debug!("Confirming channel link to user interaction");
+    debug!("confirming channel link to user interaction");
     component
         .edit_response(
             &ctx.http,
@@ -189,7 +189,7 @@ async fn create_ticket_channel(
         channel_builder = channel_builder.category(cat);
     }
 
-    debug!("Calling Discord API to create ticket channel");
+    debug!("calling Discord API to create ticket channel");
     let channel = guild_id.create_channel(&ctx.http, channel_builder).await?;
     Ok(channel)
 }
@@ -233,7 +233,7 @@ async fn send_welcome_message(
 
         custom_layout.unwrap_or_else(|| {
             trace!(
-                "Custom ticket template parse failed or empty; using fallback system default layout"
+                "custom ticket template parse failed or empty; using fallback system default layout"
             );
             CreateMessage::default().embed(default_embed.clone())
         })

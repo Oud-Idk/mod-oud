@@ -24,12 +24,12 @@ pub async fn kick(
     let target_id = user.id.get();
     debug!(
         caller_id = ctx.author().id.get(),
-        target_id, "Invoked kick command"
+        target_id, "invoked kick command"
     );
 
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, user.id, "kick").await? else {
-        debug!(target_id, "Kick pre-flight permissions check failed");
+        debug!(target_id, "kick pre-flight permissions check failed");
         return Ok(());
     };
     let reason_str = reason.as_deref().unwrap_or("No reason provided");
@@ -53,7 +53,7 @@ pub async fn kick(
     )
     .await?;
 
-    info!(target_id, "User kicked");
+    info!(target_id, "user kicked");
     Ok(())
 }
 
@@ -74,12 +74,12 @@ pub async fn ban(
         caller_id = ctx.author().id.get(),
         target_id,
         duration = ?duration,
-        "Invoked ban command"
+        "invoked ban command"
     );
 
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, user.id, "ban").await? else {
-        debug!(target_id, "Ban pre-flight permissions check failed");
+        debug!(target_id, "ban pre-flight permissions check failed");
         return Ok(());
     };
 
@@ -94,7 +94,7 @@ pub async fn ban(
                 debug!(
                     target_id,
                     duration_str = ds,
-                    "Ban duration parsing returned empty (aborted)"
+                    "ban duration parsing returned empty (aborted)"
                 );
                 return Ok(());
             };
@@ -127,7 +127,7 @@ pub async fn ban(
     );
     send_ephemeral(&ctx, conf_msg).await?;
 
-    info!(target_id, "User banned");
+    info!(target_id, "user banned");
     Ok(())
 }
 
@@ -150,7 +150,7 @@ pub async fn purge(
         caller_id = ctx.author().id.get(),
         channel_id = channel_id.get(),
         amount,
-        "Invoked purge command"
+        "invoked purge command"
     );
 
     ctx.defer_ephemeral().await?;
@@ -162,14 +162,14 @@ pub async fn purge(
 
     trace!(
         fetched_count = messages.len(),
-        "Retrieved messages from channel for purging"
+        "retrieved messages from channel for purging"
     );
     let message_ids: Vec<MessageId> = get_to_be_deleted_message_ids(&messages);
 
     if message_ids.is_empty() {
         debug!(
             channel_id = channel_id.get(),
-            "Purge skipped: no deletable message IDs returned (potentially all older than 14 days)"
+            "purge skipped: no deletable message IDs returned (potentially all older than 14 days)"
         );
         send_ephemeral(&ctx, "Seems like I can't delete any messages. Perhaps those messages are older than 14 days?").await?;
     } else {
@@ -206,18 +206,18 @@ pub async fn mute(
         caller_id = ctx.author().id.get(),
         target_id,
         duration = %duration,
-        "Invoked mute command"
+        "invoked mute command"
     );
 
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, member.user.id, "mute").await? else {
-        debug!(target_id, "Mute pre-flight permissions check failed");
+        debug!(target_id, "mute pre-flight permissions check failed");
         return Ok(());
     };
     let reason_str = reason.as_deref().unwrap_or("No reason specified");
 
     let Some(dur) = parse_duration(&ctx, &duration).await? else {
-        debug!(target_id, "Mute duration parsing returned empty (aborted)");
+        debug!(target_id, "mute duration parsing returned empty (aborted)");
         return Ok(());
     };
 
@@ -225,7 +225,7 @@ pub async fn mute(
         debug!(
             target_id,
             duration_secs = dur.as_secs(),
-            "Mute aborted: duration lies outside Discord bounds (60s - 28d)"
+            "mute aborted: duration lies outside Discord bounds (60s - 28d)"
         );
         send_ephemeral(
             &ctx,
@@ -266,7 +266,7 @@ pub async fn mute(
     )
     .await?;
 
-    info!(target_id, duration = %duration, "User muted");
+    info!(target_id, duration = %duration, "user muted");
     Ok(())
 }
 
@@ -283,17 +283,17 @@ pub async fn unmute(
     let target_id = member.user.id.get();
     debug!(
         caller_id = ctx.author().id.get(),
-        target_id, "Invoked unmute command"
+        target_id, "invoked unmute command"
     );
 
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, member.user.id, "unmute").await? else {
-        debug!(target_id, "Unmute pre-flight permissions check failed");
+        debug!(target_id, "unmute pre-flight permissions check failed");
         return Ok(());
     };
 
     if member.communication_disabled_until.is_none() {
-        debug!(target_id, "Unmute aborted: member is not currently muted");
+        debug!(target_id, "unmute aborted: member is not currently muted");
         send_ephemeral(
             &ctx,
             format!(
@@ -324,7 +324,7 @@ pub async fn unmute(
     )
     .await?;
 
-    info!(target_id, "User unmuted");
+    info!(target_id, "user unmuted");
     Ok(())
 }
 
@@ -342,12 +342,12 @@ pub async fn softban(
     let target_id = member.user.id.get();
     debug!(
         caller_id = ctx.author().id.get(),
-        target_id, dmd, "Invoked softban command"
+        target_id, dmd, "invoked softban command"
     );
 
     ctx.defer_ephemeral().await?;
     let Some(meta) = pre_flight_check(ctx, member.user.id, "softban").await? else {
-        debug!(target_id, "Softban pre-flight permissions check failed");
+        debug!(target_id, "softban pre-flight permissions check failed");
         return Ok(());
     };
     let reason_str = reason.as_deref().unwrap_or("No reason specified");
@@ -373,7 +373,7 @@ pub async fn softban(
     )
     .await?;
 
-    info!(target_id, "User soft-banned");
+    info!(target_id, "user soft-banned");
     Ok(())
 }
 
@@ -387,7 +387,7 @@ pub async fn unban(
     let target_id = user.id.get();
     debug!(
         caller_id = ctx.author().id.get(),
-        target_id, "Invoked unban command"
+        target_id, "invoked unban command"
     );
 
     ctx.defer_ephemeral().await?;
@@ -415,7 +415,7 @@ pub async fn unban(
             ))
             .await?;
 
-            info!(target_id, "User unbanned");
+            info!(target_id, "user unbanned");
         }
         Err(err) => {
             warn!(error = ?err, target_id, "execute unban operation via serenity API");

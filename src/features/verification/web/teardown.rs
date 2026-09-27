@@ -59,7 +59,7 @@ pub async fn handle_verification_teardown(
                     execution_errors.push("Failed to restore @everyone permissions".to_string());
                 }
             } else {
-                warn!("Could not find @everyone role during teardown");
+                warn!("could not find @everyone role during teardown");
                 execution_errors.push("Could not locate @everyone role".to_string());
             }
         }

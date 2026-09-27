@@ -165,7 +165,7 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
             .await
             .is_err()
         {
-            warn!("Drain timed out, exiting with the gateway still connected");
+            warn!("drain timed out, exiting with the gateway still connected");
         }
     } else {
         warn!(
@@ -271,9 +271,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_bot {
-        debug!("Since RUN_BOT is true, running discord bot");
+        debug!("since RUN_BOT is true, running discord bot");
     } else {
-        debug!("Since RUN_BOT is false, not running discord bot");
+        debug!("since RUN_BOT is false, not running discord bot");
     }
 
     let run_web: bool = env::var("RUN_WEB")
@@ -282,9 +282,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_web {
-        debug!("Since RUN_WEB is true, running REST API");
+        debug!("since RUN_WEB is true, running REST API");
     } else {
-        debug!("Since RUN_WEB is false, not running REST API");
+        debug!("since RUN_WEB is false, not running REST API");
     }
 
     let run_migrations = env::var("RUN_MIGRATIONS")
@@ -411,7 +411,7 @@ async fn start_bot(
         cache_channels = cache_settings.cache_channels,
         cache_guilds = cache_settings.cache_guilds,
         ttl = cache_settings.time_to_live.as_secs(),
-        "Setting up cache",
+        "setting up cache",
     );
 
     let commands_to_register = build_commands();

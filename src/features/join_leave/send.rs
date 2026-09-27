@@ -36,7 +36,7 @@ async fn maybe_attach_welcome_card(
     if let Some(bytes) = bytes {
         builder.add_file(CreateAttachment::bytes(bytes, "welcome.png"))
     } else {
-        warn!("Skipping welcome image attachment; sending text/embed only");
+        warn!("skipping welcome image attachment; sending text/embed only");
         builder
     }
 }
@@ -62,11 +62,11 @@ pub async fn send_public_welcome(
     };
 
     let Some(channel_id) = public.channel_id else {
-        warn!("Channel ID for welcome is somehow empty");
+        warn!("channel ID for welcome is somehow empty");
         return Ok(());
     };
 
-    trace!(%guild_id, %user_id, %channel_id, "Assembling public welcome message layout");
+    trace!(%guild_id, %user_id, %channel_id, "assembling public welcome message layout");
 
     let builder = match messages::build_welcome_message(
         public,
@@ -95,7 +95,7 @@ pub async fn send_public_welcome(
     if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
         warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "send public welcome message to channel");
     } else {
-        debug!(%guild_id, %user_id, target_channel = %channel_id, "Public welcome message sent");
+        debug!(%guild_id, %user_id, target_channel = %channel_id, "public welcome message sent");
     }
 
     Ok(())
@@ -123,7 +123,7 @@ pub async fn send_private_welcome(
 
     trace!(
         guild_id,
-        user_id, "Establishing private DM context for welcome message"
+        user_id, "establishing private DM context for welcome message"
     );
 
     let dm_channel = match member.user.create_dm_channel(&ctx.http).await {
@@ -161,7 +161,7 @@ pub async fn send_private_welcome(
     if let Err(e) = dm_channel.send_message(&ctx.http, builder).await {
         warn!(error = ?e, guild_id, user_id, "send private DM welcome message to user");
     } else {
-        debug!(guild_id, user_id, "Private DM welcome message sent");
+        debug!(guild_id, user_id, "private DM welcome message sent");
     }
 
     Ok(())

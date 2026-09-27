@@ -68,7 +68,7 @@ pub async fn handle_verify(
         &payload.sig,
         secrets.shared_secret.as_bytes(),
     ) {
-        info!(user_id = %payload.user_id, "User failed to verify: Invalid or expired link");
+        info!(user_id = %payload.user_id, "user failed to verify: Invalid or expired link");
         return Err((
             StatusCode::BAD_REQUEST,
             "Invalid or expired link.".to_string(),
@@ -83,7 +83,7 @@ pub async fn handle_verify(
         .ok_or_else(|| {
             debug!(
                 guild_id = %payload.guild_id,
-                "Rejected verification: captcha type mismatch or verification not configured for guild"
+                "rejected verification: captcha type mismatch or verification not configured for guild"
             );
             (
                 StatusCode::BAD_REQUEST,
@@ -99,11 +99,11 @@ pub async fn handle_verify(
     // Validate Captcha (Turnstile / hCaptcha)
     validate_captcha(&state, &payload, &secrets, &client_ip).await?;
 
-    info!(user_id = %payload.user_id, "User passed all verification checks");
+    info!(user_id = %payload.user_id, "user passed all verification checks");
 
     // Assign verified role to the user
     let role_id = verification_cfg.verification_role_id.ok_or_else(|| {
-        warn!("Endpoint is fetched, but verification Role ID is empty");
+        warn!("endpoint is fetched, but verification Role ID is empty");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error".to_string(),
@@ -207,7 +207,7 @@ async fn verify_discord_oauth_identity(
     payload: &VerifyRequestPayload,
 ) -> WebResult<()> {
     let Some(token) = &payload.access_token else {
-        debug!(user_id = %payload.user_id, "User tried to verify without authentication");
+        debug!(user_id = %payload.user_id, "user tried to verify without authentication");
         return Err((
             StatusCode::UNAUTHORIZED,
             "Discord authentication required.".to_string(),
@@ -236,7 +236,7 @@ async fn verify_discord_oauth_identity(
                 debug!(
                     user_id = %payload.user_id,
                     auth_user_id = %discord_user.id,
-                    "Rejected verification: link and authenticated Discord account differ"
+                    "rejected verification: link and authenticated Discord account differ"
                 );
                 return Err((
                     StatusCode::FORBIDDEN,
@@ -248,7 +248,7 @@ async fn verify_discord_oauth_identity(
         Ok(resp) => {
             debug!(
                 status = %resp.status(),
-                "Rejected verification: Discord refused the supplied access token"
+                "rejected verification: Discord refused the supplied access token"
             );
             Err((
                 StatusCode::UNAUTHORIZED,
@@ -305,7 +305,7 @@ async fn validate_captcha(
     };
 
     if !verified {
-        debug!(user_id = %payload.user_id, reject_reasons = ?reject_reasons, "Captcha failed");
+        debug!(user_id = %payload.user_id, reject_reasons = ?reject_reasons, "captcha failed");
         return Err((
             StatusCode::BAD_REQUEST,
             "Captcha verification failed.".to_string(),

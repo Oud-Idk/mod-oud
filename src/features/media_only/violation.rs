@@ -56,7 +56,7 @@ async fn send_dm_for_content(ctx: &Context, message: &Message, original_content:
         .author
         .dm(ctx, CreateMessage::new().content(original_dm_content))
         .await
-        .inspect_err(|e| debug!(error = ?e, "Couldn't resend message content to user"));
+        .inspect_err(|e| debug!(error = ?e, "couldn't resend message content to user"));
 }
 
 async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> anyhow::Result<()> {

@@ -19,7 +19,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                 _ = interval.tick() => {
                     if !buffer.is_empty() {
                         let batch_size = buffer.len();
-                        debug!(batch_size, "Interval tick hit; flushing ticket log buffer");
+                        debug!(batch_size, "interval tick hit; flushing ticket log buffer");
 
                         if let Err(e) = flush_batch(&pool, &mut buffer).await {
                             error!(error = ?e, batch_size, "flushing ticket logs on interval tick");
@@ -32,7 +32,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                             ticket_channel_id = %payload.ticket_channel_id,
                             message_id = %payload.message_id,
                             author_id = %payload.author_id,
-                            "Received ticket log payload"
+                            "received ticket log payload"
                         );
 
                         buffer.push(payload);
@@ -40,7 +40,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                         // If we hit 100 messages, flush immediately!
                         if buffer.len() >= 100 {
                             let batch_size = buffer.len();
-                            debug!(batch_size, "Buffer capacity limit reached; flushing immediately");
+                            debug!(batch_size, "buffer capacity limit reached; flushing immediately");
 
                             if let Err(e) = flush_batch(&pool, &mut buffer).await {
                                 error!(error = ?e, batch_size, "flushing ticket logs on buffer capacity limit");
@@ -48,7 +48,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                             interval.reset(); // Reset the timer
                         }
                     } else {
-                        info!("Ticket logger receiver channel closed; flushing remaining logs and stopping worker task");
+                        info!("ticket logger receiver channel closed; flushing remaining logs and stopping worker task");
 
                         if !buffer.is_empty() {
                             let batch_size = buffer.len();
@@ -71,7 +71,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<TicketLogPayload>) -> Result<
 
     debug!(
         batch_size,
-        "Starting batch flush of ticket logs to database"
+        "starting batch flush of ticket logs to database"
     );
     database::flush_ticket_logs_to_db(db, &records).await?;
     debug!(batch_size, "committed ticket log batch to database");

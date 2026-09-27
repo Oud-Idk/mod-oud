@@ -50,13 +50,13 @@ impl RollbackState {
         if let Some(channel_id) = self.created_channel_id
             && let Err(e) = channel_id.delete(http).await
         {
-            warn!(error = ?e, channel_id = channel_id.get(), "Rollback: Failed to delete created channel");
+            warn!(error = ?e, channel_id = channel_id.get(), "rollback: Failed to delete created channel");
         }
 
         if let Some(role_id) = self.created_role_id
             && let Err(e) = guild_id.delete_role(http, role_id).await
         {
-            warn!(error = ?e, %role_id, "Rollback: Failed to delete created role");
+            warn!(error = ?e, %role_id, "rollback: Failed to delete created role");
         }
 
         if let Some(orig_perms) = self.original_everyone_permissions {
@@ -65,7 +65,7 @@ impl RollbackState {
                 .edit_role(http, self.everyone_role_id, edit_builder)
                 .await
             {
-                warn!(error = ?e, "Rollback: Failed to restore original @everyone permissions");
+                warn!(error = ?e, "rollback: Failed to restore original @everyone permissions");
             }
         }
     }
@@ -91,7 +91,7 @@ pub async fn handle_verification_setup(
         })?;
 
     let Some(everyone_role) = roles.get(&everyone_role_id) else {
-        warn!("Cannot get @everyone from roles");
+        warn!("cannot get @everyone from roles");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -198,7 +198,7 @@ async fn send_verification_panel(
         })
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?
         .ok_or_else(|| {
-            debug!(guild_id = verify_channel.guild_id.get(), payload = ?payload.embed, "Rejected verification setup: panel payload renders to nothing");
+            debug!(guild_id = verify_channel.guild_id.get(), payload = ?payload.embed, "rejected verification setup: panel payload renders to nothing");
             (StatusCode::BAD_REQUEST, "Invalid embed configuration".to_string())
         })?
         .components(vec![verify_row]);

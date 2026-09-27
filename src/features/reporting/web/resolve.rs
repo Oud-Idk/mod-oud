@@ -19,7 +19,7 @@ pub async fn handle_resolve_report(
     guild_id: GuildId,
     redis: &Client,
 ) -> Result<StatusCode, WebError> {
-    info!("Resolving report status and notifying reporter");
+    info!("resolving report status and notifying reporter");
 
     let config = get_settings(
         &state.core.db,
@@ -32,7 +32,7 @@ pub async fn handle_resolve_report(
     .map_err(|_| WebError::Internal)?;
 
     let Some(report_config) = config.report else {
-        warn!("Report config was missing for target guild during report resolution");
+        warn!("report config was missing for target guild during report resolution");
         return Ok(StatusCode::BAD_REQUEST);
     };
 
@@ -40,7 +40,7 @@ pub async fn handle_resolve_report(
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::Status(*status))
         .await
-        .inspect_err(|e| error!(error = ?e, "Database report status update failed"))
+        .inspect_err(|e| error!(error = ?e, "database report status update failed"))
         .map_err(|_| WebError::Internal)?;
 
     let dm_channel = reporter_id
@@ -59,7 +59,7 @@ pub async fn handle_resolve_report(
 
     if layout_opt.is_none_or(|l| !l.enabled) {
         info!(
-            "Report status resolved; skipping DM layout dispatch since configurations are disabled"
+            "report status resolved; skipping DM layout dispatch since configurations are disabled"
         );
         return Ok(StatusCode::OK);
     }
@@ -95,9 +95,9 @@ pub async fn handle_resolve_report(
     };
 
     if let Err(e) = send_result {
-        warn!(error = %e, %reporter_id, "Could not send resolution DM to reporter");
+        warn!(error = %e, %reporter_id, "could not send resolution DM to reporter");
     } else {
-        info!(%reporter_id, "Resolution DM sent to reporter");
+        info!(%reporter_id, "resolution DM sent to reporter");
     }
 
     Ok(StatusCode::OK)

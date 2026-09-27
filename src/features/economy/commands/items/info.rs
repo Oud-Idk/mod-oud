@@ -73,7 +73,7 @@ pub async fn info(
                 guild_id = ?ctx.guild_id(),
                 item_id = %item.id,
                 item_name = %item.name,
-                "Item requirements could not be parsed"
+                "item requirements could not be parsed"
             );
             embed = embed.field("Requirements", "*Could not be read.*", false);
         }
@@ -92,7 +92,7 @@ pub async fn info(
                 guild_id = ?ctx.guild_id(),
                 item_id = %item.id,
                 item_name = %item.name,
-                "Item actions could not be parsed"
+                "item actions could not be parsed"
             );
             embed = embed.field("Actions", "*Could not be read.*", false);
         }

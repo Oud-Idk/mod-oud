@@ -16,7 +16,7 @@ pub async fn send_according_to_config(
     trace!(
         current_channel_id = current_channel_id.get(),
         author_id = author.id.get(),
-        "Sending announcement message according to notification scope configuration"
+        "sending announcement message according to notification scope configuration"
     );
 
     match config.notify.target {
@@ -62,7 +62,7 @@ pub async fn send_message(
         %guild_id,
         user_id = %user_id,
         current_level,
-        "Initiating level up notification sequence"
+        "initiating level up notification sequence"
     );
 
     let gctx = get_guild_ctx(guild_id, ctx.http.as_ref()).await?;
@@ -95,7 +95,7 @@ pub async fn send_message(
         debug!(
             %guild_id,
             user_id = %user_id,
-            "Using fallback level-up announcement string"
+            "using fallback level-up announcement string"
         );
         let content = format!(
             "Congratulations, <@{user_id}>. You have leveled up to **level {current_level}**",
@@ -119,7 +119,7 @@ pub async fn send_voice_level_up_message(
 ) -> Result<()> {
     trace!(
         %guild_id,
-        "Compiling custom voice level up message"
+        "compiling custom voice level up message"
     );
 
     let gctx = get_guild_ctx(guild_id, ctx.http.as_ref()).await?;
@@ -150,7 +150,7 @@ pub async fn send_voice_level_up_message(
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(
             %guild_id,
-            "Using fallback default voice level-up message"
+            "using fallback default voice level-up message"
         );
         let content = format!(
             "Congratulations, <@{}>. You have leveled up to **level {}**",

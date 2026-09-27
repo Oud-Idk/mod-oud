@@ -12,7 +12,7 @@ pub async fn set_warning_active_status(
 ) -> Result<(), Error> {
     trace!(
         warning_id = id,
-        set_active, "Initiating warning active status adjustment"
+        set_active, "initiating warning active status adjustment"
     );
 
     let meta = GuildMetadata::extract(&ctx)?;
@@ -43,7 +43,7 @@ pub async fn set_warning_active_status(
             target_user_id,
             set_active,
             action = action_past_tense,
-            "Warning active status modified in the database"
+            "warning active status modified in the database"
         );
     } else {
         let status_description = if set_active { "inactive" } else { "active" };

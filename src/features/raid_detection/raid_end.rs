@@ -169,7 +169,7 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
             // Check if this guild's raid is still "active" by re-saving to Redis and attaching monitor
             info!(
                 %guild_id,
-                "Recovering active raid from database; re-attaching monitor"
+                "recovering active raid from database; re-attaching monitor"
             );
 
             // Re-populate Redis active raids set and snapshot
@@ -207,14 +207,14 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                         spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
                     }
                     Ok(false) => {
-                        info!(%guild_id, "Raid already tracked by another instance; skipping");
+                        info!(%guild_id, "raid already tracked by another instance; skipping");
                     }
                     Err(e) => {
                         warn!(error = ?e, %guild_id, "set raid active during recovery");
                     }
                 }
             } else {
-                warn!(%guild_id, "Active raid in database but no snapshot found; cleaning up");
+                warn!(%guild_id, "active raid in database but no snapshot found; cleaning up");
                 if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
                     warn!(error = ?e, %guild_id, "clean up orphaned raid state");
                 }

@@ -22,7 +22,7 @@ pub async fn build_ticket_message_payload(
     trace!(
         %guild_id,
         %role_id,
-        "Building ticket message payload"
+        "building ticket message payload"
     );
 
     let mut role_name_opt = None;
@@ -30,7 +30,7 @@ pub async fn build_ticket_message_payload(
     trace!(
         %guild_id,
         %role_id,
-        "Retrieving role details for placeholders"
+        "retrieving role details for placeholders"
     );
     if let Ok(roles) = guild_id.roles(http).await
         && let Some(role) = roles.get(&role_id)
@@ -40,7 +40,7 @@ pub async fn build_ticket_message_payload(
 
     trace!(
         %guild_id,
-        "Fetching guild context for placeholder evaluation"
+        "fetching guild context for placeholder evaluation"
     );
     let gctx = get_guild_ctx(guild_id, http).await?;
 
@@ -51,7 +51,7 @@ pub async fn build_ticket_message_payload(
     let message_builder = custom_msg_opt.map_or_else(|| {
         debug!(
             %guild_id,
-            "No custom layout configured; falling back to default embed"
+            "no custom layout configured; falling back to default embed"
         );
         let description = format!(
             "Click the button below to open a support ticket. Our staff with role <@{role_id}> will assist you shortly."
@@ -66,7 +66,7 @@ pub async fn build_ticket_message_payload(
     }, |custom_msg| {
         debug!(
             %guild_id,
-            "Applying custom ticket panel layout from configuration"
+            "applying custom ticket panel layout from configuration"
         );
         custom_msg
     });

@@ -125,6 +125,6 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
             .context("Failed to schedule temp unban for honeypot offender")?;
     }
 
-    info!(user_id = %message.author.id, %guild_id, "Honeypot offender banished");
+    info!(user_id = %message.author.id, %guild_id, "honeypot offender banished");
     Ok(true)
 }

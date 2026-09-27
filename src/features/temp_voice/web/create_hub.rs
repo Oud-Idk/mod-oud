@@ -33,12 +33,12 @@ pub async fn handle_create_temp_category_and_hub(
 ) -> Result<(StatusCode, Json<CreateTempHubResponse>), (StatusCode, String)> {
     debug!(
         guild_id = guild_id_str,
-        "Received request to create temp category and voice hub"
+        "received request to create temp category and voice hub"
     );
 
     let guild_id_u64 = guild_id_str
         .parse::<u64>()
-        .inspect_err(|e| debug!(error = ?e, guild_id_str = guild_id_str, "Rejected request with unparseable guild ID"))
+        .inspect_err(|e| debug!(error = ?e, guild_id_str = guild_id_str, "rejected request with unparseable guild ID"))
         .map_err(|_| {
             (
                 StatusCode::BAD_REQUEST,
@@ -50,7 +50,7 @@ pub async fn handle_create_temp_category_and_hub(
     let category_builder = serenity::all::CreateChannel::new(&payload.category_name)
         .kind(serenity::all::ChannelType::Category);
 
-    info!(%guild_id, name = %payload.category_name, "Creating temporary category");
+    info!(%guild_id, name = %payload.category_name, "creating temporary category");
 
     let category = guild_id
         .create_channel(&state.serenity_http, category_builder)
@@ -81,7 +81,7 @@ pub async fn handle_create_temp_category_and_hub(
     info!(
         %guild_id,
         channel_id = interface_channel.id.get(),
-        "Created interface channel"
+        "created interface channel"
     );
 
     let voice_builder = serenity::all::CreateChannel::new(&payload.hub_channel_name)
@@ -104,7 +104,7 @@ pub async fn handle_create_temp_category_and_hub(
         category_id = %category.id,
         interface_channel_id = %interface_channel.id.get(),
         voice_channel_id = %voice_channel.id,
-        "Temp category and voice hub created"
+        "temp category and voice hub created"
     );
 
     Ok((

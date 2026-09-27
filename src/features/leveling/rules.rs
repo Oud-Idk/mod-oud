@@ -49,7 +49,7 @@ fn calculate_multiplier(
                 trace!(
                     %target_id,
                     multiplier = mult.multiplier,
-                    "Channel-specific XP multiplier applied"
+                    "channel-specific XP multiplier applied"
                 );
                 applied_multiplier = applied_multiplier.max(mult.multiplier);
             }
@@ -57,7 +57,7 @@ fn calculate_multiplier(
                 trace!(
                     %target_id,
                     multiplier = mult.multiplier,
-                    "Role-specific XP multiplier applied"
+                    "role-specific XP multiplier applied"
                 );
                 applied_multiplier = applied_multiplier.max(mult.multiplier);
             }
@@ -83,7 +83,7 @@ pub async fn get_multiplier(
     guild_id: GuildId,
     message: &Message,
 ) -> Result<f32> {
-    trace!("Fetching multipliers");
+    trace!("fetching multipliers");
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .inspect_err(|err| {
@@ -118,7 +118,7 @@ pub async fn get_voice_multiplier(
     channel_id: ChannelId,
     member_roles: &[RoleId],
 ) -> Result<f32> {
-    trace!("Fetching voice multipliers");
+    trace!("fetching voice multipliers");
     let multipliers = cache::cache_aside_multipliers(redis, multiplier_key, db, guild_id)
         .await
         .inspect_err(|err| {

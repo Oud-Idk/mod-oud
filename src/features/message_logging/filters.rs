@@ -16,14 +16,14 @@ pub async fn should_exclude_from_logging(
         %author_id,
         %channel_id,
         %guild_id,
-        "Evaluating message logging exclusions"
+        "evaluating message logging exclusions"
     );
 
     // Check if channel is ignored
     if let Some(ref ignored_channels) = config.ignored_channels
         && ignored_channels.contains(&channel_id)
     {
-        debug!(%channel_id, "Message excluded: channel is ignored");
+        debug!(%channel_id, "message excluded: channel is ignored");
         return true;
     }
 
@@ -31,7 +31,7 @@ pub async fn should_exclude_from_logging(
     if let Some(ref ignored_users) = config.ignored_users
         && ignored_users.contains(&author_id)
     {
-        debug!(%author_id, "Message excluded: user is ignored");
+        debug!(%author_id, "message excluded: user is ignored");
         return true;
     }
 
@@ -50,7 +50,7 @@ pub async fn should_exclude_from_logging(
 
         match cached_has_role {
             Some(true) => {
-                debug!(%author_id, "Message excluded: user has ignored role (from cache)");
+                debug!(%author_id, "message excluded: user has ignored role (from cache)");
                 return true;
             }
             Some(false) => {
@@ -60,13 +60,13 @@ pub async fn should_exclude_from_logging(
                 trace!(
                     %author_id,
                     %guild_id,
-                    "Member not in cache, falling back to HTTP request"
+                    "member not in cache, falling back to HTTP request"
                 );
 
                 match ctx.http.get_member(guild_id, author_id).await {
                     Ok(member) => {
                         if member.has_any_role(ignored_roles) {
-                            debug!(%author_id, "Message excluded: user has ignored role (from HTTP)");
+                            debug!(%author_id, "message excluded: user has ignored role (from HTTP)");
                             return true;
                         }
                     }
@@ -86,7 +86,7 @@ pub async fn should_exclude_from_logging(
     trace!(
         %author_id,
         %channel_id,
-        "No matching exclusions found for message"
+        "no matching exclusions found for message"
     );
     false
 }
@@ -100,14 +100,14 @@ pub fn fetch_cached_message(
     trace!(
         chan_id = channel_id.get(),
         msg_id = message_id.get(),
-        "Fetching message from cache"
+        "fetching message from cache"
     );
 
     let Some(message) = cache.message(channel_id, message_id) else {
         debug!(
             chan_id = channel_id.get(),
             msg_id = message_id.get(),
-            "Message not found in cache"
+            "message not found in cache"
         );
         return None;
     };
@@ -116,7 +116,7 @@ pub fn fetch_cached_message(
         trace!(
             msg_id = message.id.get(),
             author_id = message.author.id.get(),
-            "Cached message skipped: author is a bot"
+            "cached message skipped: author is a bot"
         );
         return None;
     }
@@ -174,18 +174,18 @@ pub fn extract_edit_details(
     let msg_id = event.id;
     let chan_id = event.channel_id;
 
-    trace!(%msg_id, %chan_id, "Processing message update event");
+    trace!(%msg_id, %chan_id, "processing message update event");
 
     // Check if the author of the update or the cached message is a bot
     if let Some(author) = &event.author {
         if author.bot {
-            debug!(%msg_id, "Edit ignored: author is a bot (from event)");
+            debug!(%msg_id, "edit ignored: author is a bot (from event)");
             return None;
         }
     } else if let Some(old) = old_if_available
         && old.author.bot
     {
-        debug!(%msg_id, "Edit ignored: author is a bot (from cache)");
+        debug!(%msg_id, "edit ignored: author is a bot (from cache)");
         return None;
     }
 
@@ -197,7 +197,7 @@ pub fn extract_edit_details(
         .or_else(|| old_if_available.map(|m| (m.author.id, &m.author.name)));
 
     let Some((author_id, author_name)) = author else {
-        warn!(%msg_id, "Unable to resolve author for edit event");
+        warn!(%msg_id, "unable to resolve author for edit event");
         return None;
     };
     let author_name = author_name.clone();
@@ -210,7 +210,7 @@ pub fn extract_edit_details(
 
     // Cheap reference comparison! Zero allocations!
     if old_text == new_text {
-        debug!(%msg_id, "Edit ignored: content was unmodified");
+        debug!(%msg_id, "edit ignored: content was unmodified");
         return None;
     }
 

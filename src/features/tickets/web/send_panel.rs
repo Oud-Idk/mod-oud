@@ -51,7 +51,7 @@ pub async fn handle_send_ticket_message(
     })?;
 
     let ticket_cfg = settings.tickets.ok_or_else(|| {
-        debug!(%guild_id, "Ticket dispatch failed: system is unconfigured");
+        debug!(%guild_id, "ticket dispatch failed: system is unconfigured");
         (
             StatusCode::BAD_REQUEST,
             "Ticket system is not configured yet.".to_string(),
@@ -61,7 +61,7 @@ pub async fn handle_send_ticket_message(
     let Some(ticket_role_id) = ticket_cfg.ticket_role_id else {
         debug!(
             %guild_id,
-            "Ticket dispatch failed: support staff role is unconfigured"
+            "ticket dispatch failed: support staff role is unconfigured"
         );
         return Err((
             StatusCode::BAD_REQUEST,
@@ -97,7 +97,7 @@ pub async fn handle_send_ticket_message(
         %guild_id,
         channel_id = %payload.channel_id,
         message_id = %message.id,
-        "Ticket panel message dispatched via Web API"
+        "ticket panel message dispatched via Web API"
     );
 
     Ok((

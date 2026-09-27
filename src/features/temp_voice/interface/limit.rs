@@ -18,7 +18,7 @@ pub async fn handle_set_limit_vc(
         return Ok(());
     }; // same deal here. Preflight so the user doesn't rename when disconnected.
 
-    debug!("Showing limit modal");
+    debug!("showing limit modal");
 
     let input = CreateInputText::new(
         InputTextStyle::Short,
@@ -46,7 +46,7 @@ pub async fn handle_set_limit_vc_submit(
         return Ok(());
     };
 
-    trace!("Handling limit submit");
+    trace!("handling limit submit");
 
     let limit_raw =
         crate::features::temp_voice::interface::get_input_value(interaction, "new_limit").unwrap();

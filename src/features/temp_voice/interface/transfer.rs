@@ -19,7 +19,7 @@ pub async fn handle_transfer_temp_vc(
     debug!(%interaction.user.id, "handling voice channel transfer");
 
     let Ok(Some(_)) = preflight_button_check(ctx, interaction, data).await else {
-        debug!("Preflight check failed or returned no channel information");
+        debug!("preflight check failed or returned no channel information");
         return Ok(());
     };
 
@@ -44,7 +44,7 @@ pub async fn handle_transfer_temp_vc(
         .create_response(&ctx.http, CreateInteractionResponse::Message(response))
         .await?;
 
-    debug!("Transfer selection menu sent to user");
+    debug!("transfer selection menu sent to user");
     Ok(())
 }
 
@@ -63,12 +63,12 @@ pub async fn handle_transfer_temp_vc_submit(
 ) -> Result<(), Error> {
     let Ok(Some((channel_id, guild_id))) = preflight_button_check(ctx, interaction, data).await
     else {
-        debug!("Preflight check failed during target user submission");
+        debug!("preflight check failed during target user submission");
         return Ok(());
     };
 
     let Some(&new_owner_id) = target_user_ids.first() else {
-        warn!("Target user submission empty");
+        warn!("target user submission empty");
         return Ok(());
     };
 

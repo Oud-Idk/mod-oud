@@ -48,7 +48,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
             return Ok(());
         };
 
-        debug!(raw_cmd_name, "Executing command");
+        debug!(raw_cmd_name, "executing command");
 
         let cmd_name = raw_cmd_name.to_ascii_lowercase();
 
@@ -56,7 +56,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
             get_custom_command_by_name(&data.core.db, &data.core.redis, guild_id, &cmd_name)
                 .await?
         else {
-            debug!(raw_cmd_name, "Command not found though");
+            debug!(raw_cmd_name, "command not found though");
             return Ok(());
         };
 
@@ -73,13 +73,13 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
         return Ok(());
     }
 
-    debug!(commands = ?matched, "Executing anywhere commands");
+    debug!(commands = ?matched, "executing anywhere commands");
 
     for cmd_name in &matched {
         let Some(cmd) =
             get_custom_command_by_name(&data.core.db, &data.core.redis, guild_id, cmd_name).await?
         else {
-            debug!(cmd_name, "Anywhere command vanished before execution");
+            debug!(cmd_name, "anywhere command vanished before execution");
             continue;
         };
         execute_matched(ctx, msg, data, guild_id, &cmd, cmd_name).await?;

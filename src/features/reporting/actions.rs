@@ -65,7 +65,7 @@ pub async fn issue_report(
         %guild_id,
         message_id = %reported_message.id,
         reporter_id = %reporter.id,
-        "Starting issue_report process"
+        "starting issue_report process"
     );
 
     let reported_author = &reported_message.author;
@@ -75,7 +75,7 @@ pub async fn issue_report(
     let content = reported_message.content.clone();
     let attachment_url = extract_image_urls(reported_message).join(",");
 
-    trace!("Attempting to insert reported message into the database");
+    trace!("attempting to insert reported message into the database");
     let Some(row) = insert_reported_message(
         db,
         guild_id,
@@ -90,7 +90,7 @@ pub async fn issue_report(
         debug!(
             message_id = reported_message.id.get(),
             reporter_id = reporter.id.get(),
-            "Report creation skipped: message was already reported by this user"
+            "report creation skipped: message was already reported by this user"
         );
         return Ok(None);
     };
@@ -120,7 +120,7 @@ pub async fn issue_report(
         reporter_name: reporter.name.clone(),
     };
 
-    trace!(report_id = id, "Serializing report payload to JSON");
+    trace!(report_id = id, "serializing report payload to JSON");
     let payload_str = serde_json::to_string(&payload).map_err(|err| {
         warn!(error = ?err, report_id = id, "serialize report payload to JSON");
         err
@@ -128,7 +128,7 @@ pub async fn issue_report(
 
     debug!(
         report_id = id,
-        "Publishing report payload to Redis 'discord:reports' channel"
+        "publishing report payload to Redis 'discord:reports' channel"
     );
 
     cache::publish_report(redis, &payload_str)
@@ -151,7 +151,7 @@ async fn send_message_to_channel(http: Arc<Http>, config: &GuildSettings, messag
     let Some(config) = config.report.as_deref() else { return Ok(()); };
     debug!(
         ?config,
-        "Attempting to send alert to channel"
+        "attempting to send alert to channel"
     );
     let Some(reporting_channel) = config.reporting_channel else { return Ok(()); };
     let message_url = message.link();

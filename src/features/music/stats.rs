@@ -210,14 +210,14 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
 
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
-                    trace!("Music stats prune lock acquired; pruning old play events");
+                    trace!("music stats prune lock acquired; pruning old play events");
                     if let Err(e) = prune_play_events(&db).await {
                         warn!(error = ?e, "pruning old music play events");
                     }
                     match guard.release().await {
-                        Ok(true) => trace!("Music stats prune lock released"),
+                        Ok(true) => trace!("music stats prune lock released"),
                         Ok(false) => warn!(
-                            "Attempted to release music stats prune lock, but we no longer owned it"
+                            "attempted to release music stats prune lock, but we no longer owned it"
                         ),
                         Err(e) => {
                             warn!(error = ?e, "release music stats prune lock due to a Redis error");
@@ -225,7 +225,7 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                     }
                 }
                 Ok(None) => {
-                    trace!("Music stats prune lock already held by another worker; skipping");
+                    trace!("music stats prune lock already held by another worker; skipping");
                 }
                 Err(e) => {
                     warn!(error = ?e, "coordinate music stats prune lock");

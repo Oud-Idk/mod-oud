@@ -112,7 +112,7 @@ pub async fn purchase_item_tx(
             item_id = %item_id,
             unit_price = item.price,
             quantity,
-            "Purchase rejected: price * quantity overflowed i64, so the cost is not representable"
+            "purchase rejected: price * quantity overflowed i64, so the cost is not representable"
         );
         return Ok(Err(PurchaseError::InvalidQuantity));
     };
@@ -307,7 +307,7 @@ pub async fn sell_item_tx(
             item_id = %item_id,
             unit_price = item.price,
             quantity,
-            "Sale rejected: price * quantity overflowed i64, so the refund is not representable"
+            "sale rejected: price * quantity overflowed i64, so the refund is not representable"
         );
         return Ok(Err(SellError::InvalidQuantity)); // Overflow protection
     };

@@ -9,7 +9,7 @@ pub async fn get_settings_from_redis(redis: &Client, cache_key: &str) -> Option<
 
     match serde_json::from_str::<GuildSettings>(&cached_string) {
         Ok(settings) => {
-            trace!(key = %cache_key, "Retrieved settings from Redis cache");
+            trace!(key = %cache_key, "retrieved settings from Redis cache");
             Some(settings)
         }
         Err(e) => {

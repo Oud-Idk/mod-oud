@@ -57,19 +57,19 @@ async fn run_feed_polling_worker(
         // Heartbeat = 5s (Watchdog auto-extends with 15s safety ceiling)
         match acquire_lock(&redis_client, lock_key, lock_value, 5).await {
             Ok(Some(guard)) => {
-                trace!("Lock acquired; polling due RSS feeds");
+                trace!("lock acquired; polling due RSS feeds");
 
                 if let Err(e) = poll_due_feeds(&db, &http, &http_client).await {
                     warn!(error = ?e, "polling due rss feeds");
                 }
 
                 match guard.release().await {
-                    Ok(true) => trace!("Polling lock released"),
-                    Ok(false) => warn!("Polling lock lost during execution"),
+                    Ok(true) => trace!("polling lock released"),
+                    Ok(false) => warn!("polling lock lost during execution"),
                     Err(e) => warn!(error = ?e, "release polling lock"),
                 }
             }
-            Ok(None) => trace!("Polling lock held by another instance; skipping"),
+            Ok(None) => trace!("polling lock held by another instance; skipping"),
             Err(e) => warn!(error = ?e, "acquire feed polling lock"),
         }
     }
@@ -116,7 +116,7 @@ async fn run_websub_renewal_worker(
 
         match acquire_lock(&redis_client, lock_key, lock_value, 5).await {
             Ok(Some(guard)) => {
-                trace!("Lock acquired; renewing expiring WebSub leases");
+                trace!("lock acquired; renewing expiring WebSub leases");
 
                 if let Err(e) = renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()).await {
                     warn!(error = ?e, "renewing WebSub leases");
@@ -191,7 +191,7 @@ pub async fn poll_due_feeds(
         };
 
         let Ok(parsed_feed) = parser::parse(&body[..]) else {
-            warn!(feed_id = %feed_id, "Malformed XML during polling");
+            warn!(feed_id = %feed_id, "malformed XML during polling");
             continue;
         };
 
@@ -274,7 +274,7 @@ pub async fn renew_expiring_leases(
             error!(
                 fault = "feed has no hub or topic recorded",
                 feed_id = %feed.id,
-                "Expiring WebSub feed has no hub or topic recorded; skipping renewal"
+                "expiring WebSub feed has no hub or topic recorded; skipping renewal"
             );
             failed += 1;
             continue;
@@ -291,14 +291,14 @@ pub async fn renew_expiring_leases(
                 feed_id = %feed.id,
                 hub = %hub_url,
                 lease_expires_at = ?feed.lease_expires_at,
-                "WebSub lease already expired — no notifications have been arriving since then"
+                "no notifications have been arriving since then"
             );
         } else {
             info!(
                 feed_id = %feed.id,
                 hub = %hub_url,
                 lease_expires_at = ?feed.lease_expires_at,
-                "Renewing WebSub lease"
+                "renewing WebSub lease"
             );
         }
 

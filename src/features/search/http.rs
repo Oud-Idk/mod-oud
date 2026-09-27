@@ -85,7 +85,7 @@ pub async fn get_json<T: DeserializeOwned>(
             op,
             url = %safe_url,
             error = ?e,
-            "Upstream provider request failed before a response was received"
+            "upstream provider request failed before a response was received"
         );
         anyhow::anyhow!("{provider} is unavailable right now.")
     })?;
@@ -102,7 +102,7 @@ pub async fn get_json<T: DeserializeOwned>(
                 status = status.as_u16(),
                 url = %safe_url,
                 body = %snippet,
-                "Upstream provider rate limited us, usually quota exhaustion"
+                "upstream provider rate limited us, usually quota exhaustion"
             );
         } else {
             warn!(
@@ -111,7 +111,7 @@ pub async fn get_json<T: DeserializeOwned>(
                 reason = status.as_u16(),
                 url = %safe_url,
                 body = %snippet,
-                "Upstream provider returned a non-success status"
+                "upstream provider returned a non-success status"
             );
         }
 
@@ -125,7 +125,7 @@ pub async fn get_json<T: DeserializeOwned>(
             status = status.as_u16(),
             url = %safe_url,
             error = ?e,
-            "Upstream provider succeeded but the body did not decode, so their schema changed"
+            "upstream provider succeeded but the body did not decode, so their schema changed"
         );
         anyhow::anyhow!("{provider} returned an unexpected response.")
     })?;
@@ -136,7 +136,7 @@ pub async fn get_json<T: DeserializeOwned>(
         status = status.as_u16(),
         url = %safe_url,
         latency_ms = started.elapsed().as_millis(),
-        "Upstream provider request succeeded"
+        "upstream provider request succeeded"
     );
 
     Ok(payload)

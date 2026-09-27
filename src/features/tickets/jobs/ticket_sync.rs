@@ -51,7 +51,7 @@ where
 
     debug!(
         total_elements = all_members.len(),
-        pages_scanned, "Completed set scan"
+        pages_scanned, "completed set scan"
     );
     Ok(all_members)
 }
@@ -61,7 +61,7 @@ async fn hydrate_active_tickets(
     redis_client: &Client,
     cache: &Cache<ChannelId, ()>,
 ) -> Result<(), Error> {
-    debug!("Invalidating local ticket cache before hydration");
+    debug!("invalidating local ticket cache before hydration");
     cache.invalidate_all();
 
     // Serenity's ChannelId implements std::str::FromStr, so scan_all_set_members parses directly into ChannelId
@@ -104,11 +104,11 @@ pub fn sync_tickets(
                 }
             };
 
-            debug!(payload = %payload, "Processing ticket update pub/sub event");
+            debug!(payload = %payload, "processing ticket update pub/sub event");
 
             let parts: Vec<&str> = payload.split(':').collect();
             if parts.len() != 2 {
-                warn!(payload = %payload, "Invalid ticket pub/sub payload format; expected 'action:channel_id'");
+                warn!(payload = %payload, "invalid ticket pub/sub payload format; expected 'action:channel_id'");
                 return Ok(());
             }
 
@@ -128,17 +128,17 @@ pub fn sync_tickets(
             match action {
                 "open" => {
                     cache.insert(channel_id, ()).await;
-                    debug!(channel_id = %channel_id, "Ticket marked as open in cache");
+                    debug!(channel_id = %channel_id, "ticket marked as open in cache");
                 }
                 "close" => {
                     cache.invalidate(&channel_id).await;
-                    debug!(channel_id = %channel_id, "Ticket marked as closed and removed from cache");
+                    debug!(channel_id = %channel_id, "ticket marked as closed and removed from cache");
                 }
                 unknown => {
                     warn!(
                         action = %unknown,
                         channel_id = %channel_id,
-                        "Received unknown ticket action"
+                        "received unknown ticket action"
                     );
                 }
             }
@@ -166,12 +166,12 @@ pub fn sync_tickets(
     let subscriber_clone_startup = subscriber_client.clone();
     let cache_clone_startup = active_tickets_cache.clone();
     task::spawn("ticket_cache_hydration", async move {
-        debug!("Performing initial ticket cache hydration on startup");
+        debug!("performing initial ticket cache hydration on startup");
         if let Err(e) = hydrate_active_tickets(&redis_clone_startup, &cache_clone_startup).await {
             warn!(error = ?e, "initially hydrate active tickets on startup");
         }
 
-        debug!("Subscribing to 'ticket_updates' pub/sub channel");
+        debug!("subscribing to 'ticket_updates' pub/sub channel");
         match subscriber_clone_startup
             .subscribe(keys::ticket_updates_channel())
             .await

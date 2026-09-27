@@ -40,7 +40,7 @@ pub fn sync_configs(
                 }
             };
 
-            tracing::debug!(payload = %payload, "Processing config update pub/sub event");
+            tracing::debug!(payload = %payload, "processing config update pub/sub event");
 
             // Splits the key between `:`
             // E.g. 'invalidate:12456' becomes ['invalidate', '12435']
@@ -49,7 +49,7 @@ pub fn sync_configs(
             if parts.len() < 2 || parts[0] != "invalidate" {
                 tracing::warn!(
                     payload = %payload,
-                    "Invalid pub/sub message payload format; expected 'invalidate:GUILD_ID' or 'invalidate:GUILD_ID:CACHE_NAME'"
+                    "invalid pub/sub message payload format; expected 'invalidate:GUILD_ID' or 'invalidate:GUILD_ID:CACHE_NAME'"
                 );
                 return Ok(());
             }
@@ -69,18 +69,18 @@ pub fn sync_configs(
                 None => {
                     // Invalidate the Moka guild settings cache
                     config_cache.invalidate(&guild_id).await;
-                    tracing::info!(%guild_id, "Evicted guild config from memory cache via pub/sub");
+                    tracing::info!(%guild_id, "evicted guild config from memory cache via pub/sub");
                 }
                 Some(&"bad_words") => {
                     // Invalidate the Moka bad word rulesets cache
                     bad_words_cache.invalidate(&guild_id).await;
-                    tracing::info!(%guild_id, "Evicted bad word rulesets from memory cache via pub/sub");
+                    tracing::info!(%guild_id, "evicted bad word rulesets from memory cache via pub/sub");
                 }
                 Some(cache_name) => {
                     tracing::warn!(
                         %guild_id,
                         cache_name,
-                        "Unknown cache name in config update payload"
+                        "unknown cache name in config update payload"
                     );
                 }
             }
@@ -92,7 +92,7 @@ pub fn sync_configs(
     // Starts the worker
     let client_clone = subscriber.clone();
     task::spawn("config_sync_subscriber", async move {
-        tracing::debug!("Attempting to register subscriber on 'config_updates' channel");
+        tracing::debug!("attempting to register subscriber on 'config_updates' channel");
 
         match client_clone.subscribe("config_updates").await {
             Ok(()) => {

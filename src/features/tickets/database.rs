@@ -67,7 +67,7 @@ pub async fn save_ticket_to_db(
     welcome_msg_id: MessageId,
     username: &str,
 ) -> Result<(), Error> {
-    trace!("Executing database write for ticket registration");
+    trace!("executing database write for ticket registration");
     sqlx::query!(
         r#"
         INSERT INTO tickets (guild_id, channel_id, opener_id, last_button_message_id)

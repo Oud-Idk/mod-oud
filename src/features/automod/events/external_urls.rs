@@ -17,14 +17,14 @@ pub fn filter_external_urls<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'External URLs' filter rule");
+    trace!("checking 'External URLs' filter rule");
     let (_, urls) = messages::remove_urls(&message.content);
     if urls.is_empty() {
         return FilterVerdict::Pass;
     }
 
     if external_links.block_only_malicious {
-        trace!("External URLs verification deferred for external API evaluation");
+        trace!("external URLs verification deferred for external API evaluation");
         return FilterVerdict::RequiresSafeBrowsingCheck {
             urls: urls.into_iter().map(String::from).collect(),
             external_links,
@@ -43,7 +43,7 @@ pub fn filter_external_urls<'a>(
 
     debug!(
         url,
-        rule_name, "Message flagged by External URLs domain list filters"
+        rule_name, "message flagged by External URLs domain list filters"
     );
     FilterVerdict::Block {
         rule_name: rule_name.into(),
@@ -155,7 +155,7 @@ pub async fn resolve_safe_browsing<'a>(
 
     trace!(
         ?url_refs,
-        "Requesting threat analysis from Safe Browsing API"
+        "requesting threat analysis from Safe Browsing API"
     );
     match client.check_urls(&url_refs).await {
         Ok(threats_int) if !threats_int.is_empty() => {
@@ -167,7 +167,7 @@ pub async fn resolve_safe_browsing<'a>(
 
             debug!(
                 threats = %threats_str,
-                "Malicious URL threat confirmed by Safe Browsing API check"
+                "malicious URL threat confirmed by Safe Browsing API check"
             );
 
             FilterVerdict::Block {

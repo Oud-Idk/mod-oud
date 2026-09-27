@@ -21,14 +21,14 @@ pub async fn apply_threshold_actions(
         for action in &threshold.action_type {
             match action {
                 WarnAction::Ban => {
-                    debug!("Executing auto-ban");
+                    debug!("executing auto-ban");
                     member
                         .ban_with_reason(http, 7, "Reached warning threshold")
                         .await?;
                     actions.push("BAN");
                 }
                 WarnAction::Kick => {
-                    debug!("Executing auto-kick");
+                    debug!("executing auto-kick");
                     member
                         .kick_with_reason(http, "Reached warning threshold")
                         .await?;
@@ -36,7 +36,7 @@ pub async fn apply_threshold_actions(
                 }
                 WarnAction::Timeout => {
                     if let Some(secs) = threshold.duration {
-                        debug!(secs, "Executing auto-timeout");
+                        debug!(secs, "executing auto-timeout");
                         let until = Timestamp::from_unix_timestamp(
                             chrono::Utc::now().timestamp() + i64::from(secs),
                         )?;
@@ -50,7 +50,7 @@ pub async fn apply_threshold_actions(
                 WarnAction::RoleAdd => {
                     if let Some(ref roles) = threshold.roles_to_add {
                         for role_id in roles {
-                            debug!(%role_id, "Adding role from threshold");
+                            debug!(%role_id, "adding role from threshold");
                             member.add_role(http, *role_id).await?;
                         }
                     }
@@ -59,14 +59,14 @@ pub async fn apply_threshold_actions(
                 WarnAction::RoleRemove => {
                     if let Some(ref roles) = threshold.roles_to_remove {
                         for role_id in roles {
-                            debug!(%role_id, "Removing role from threshold");
+                            debug!(%role_id, "removing role from threshold");
                             member.remove_role(http, *role_id).await?;
                         }
                     }
                     actions.push("ROLE_REMOVE");
                 }
                 WarnAction::RoleRemoveAll => {
-                    debug!("Removing all roles from member");
+                    debug!("removing all roles from member");
                     for role in &member.roles {
                         member.remove_role(http, *role).await?;
                     }

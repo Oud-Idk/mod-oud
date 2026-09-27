@@ -28,7 +28,7 @@ pub async fn handle_send_reaction_role_message(
     debug!(
         %guild_id,
         config_id = config_id_str,
-        "Dispatching reaction roles message"
+        "dispatching reaction roles message"
     );
 
     let config_id = parse_config_id(&config_id_str)?;
@@ -74,7 +74,7 @@ pub async fn handle_send_reaction_role_message(
             if let Ok(emoji) = r.emoji.parse::<serenity::all::ReactionType>()
                 && let Err(err) = message.react(&state.serenity_http, emoji).await
             {
-                warn!(error = ?err, "Failed applying reaction emoji to post");
+                warn!(error = ?err, "failed applying reaction emoji to post");
             }
         }
     }
@@ -87,7 +87,7 @@ pub async fn handle_send_reaction_role_message(
     info!(
         %guild_id,
         %message_id,
-        "Reaction role layout processed"
+        "reaction role layout processed"
     );
 
     Ok((

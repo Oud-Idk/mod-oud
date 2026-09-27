@@ -13,7 +13,7 @@ pub fn filter_excessive_caps<'a>(
         return FilterVerdict::Pass;
     };
 
-    trace!("Checking 'Excessive Caps' filter rule");
+    trace!("checking 'Excessive Caps' filter rule");
     if message.content.chars().count() < excessive_caps.min_length as usize {
         return FilterVerdict::Pass;
     }
@@ -26,7 +26,7 @@ pub fn filter_excessive_caps<'a>(
     debug!(
         uppercase_percent,
         threshold = excessive_caps.threshold,
-        "Message flagged by Excessive Caps filter"
+        "message flagged by Excessive Caps filter"
     );
     FilterVerdict::Block {
         rule_name: "Excessive Caps".into(),

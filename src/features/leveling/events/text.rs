@@ -32,7 +32,7 @@ pub async fn handle_text_leveling(
     };
 
     if data.caches.active_tickets.contains_key(&message.channel_id) {
-        trace!(%guild_id, channel_id = %message.channel_id, "Skipping leveling XP: channel is marked as a ticket");
+        trace!(%guild_id, channel_id = %message.channel_id, "skipping leveling XP: channel is marked as a ticket");
         return Ok(());
     }
 
@@ -66,7 +66,7 @@ pub async fn handle_text_leveling(
     if !set_cooldown {
         trace!(
             %guild_id,
-            %author_id, "Skipping leveling XP: user is on XP cooldown"
+            %author_id, "skipping leveling XP: user is on XP cooldown"
         );
         return Ok(());
     }
@@ -98,7 +98,7 @@ pub async fn handle_text_leveling(
     if should_be_clamped {
         debug!(
             %guild_id,
-            %author_id, "Skipping leveling XP: user has already reached the leveling cap"
+            %author_id, "skipping leveling XP: user has already reached the leveling cap"
         );
         return Ok(());
     }
@@ -118,7 +118,7 @@ pub async fn handle_text_leveling(
             %author_id,
             old_level = previous_level,
             new_level = user_level.current_level,
-            "User has leveled up"
+            "user has leveled up"
         );
 
         let event = LevelUpEvent {
@@ -149,7 +149,7 @@ pub fn should_skip_leveling(message: &Message, config: &LevelingConfig) -> bool 
         trace!(
             guild_id,
             author_id = message.author.id.get(),
-            "Skipping leveling XP: member or channel is excluded"
+            "skipping leveling XP: member or channel is excluded"
         );
         return true;
     }
@@ -174,7 +174,7 @@ pub fn spawn_level_up_effects(
             trace!(
                 %guild_id,
                 %author_id,
-                "Initiating level-up notification"
+                "initiating level-up notification"
             );
 
             if let Err(e) = notifications::send_message(&ctx, &event, &config).await {
@@ -186,7 +186,7 @@ pub fn spawn_level_up_effects(
             %guild_id,
             %author_id,
             level = current_level_val,
-            "Evaluating reward assignments"
+            "evaluating reward assignments"
         );
         if let Err(e) =
             rewards::apply_level_rewards(&ctx, &db_lvl_up, guild_id, author_id, current_level_val)

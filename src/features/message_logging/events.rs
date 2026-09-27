@@ -31,13 +31,13 @@ async fn determine_deleter(
     let cached_logs = audit_cache.get(&guild_id).await;
 
     let audit_data = if let Some(data) = cached_logs {
-        debug!("Using cached audit logs for deleter lookup");
+        debug!("using cached audit logs for deleter lookup");
         data
     } else {
         debug!("audit logs cache miss, sleeping 800ms before querying discord api");
         tokio::time::sleep(std::time::Duration::from_millis(800)).await;
 
-        debug!("Requesting message delete audit logs from Discord API");
+        debug!("requesting message delete audit logs from Discord API");
         let audit_logs = match guild_id
             .audit_logs(
                 &ctx.http,
@@ -79,18 +79,18 @@ async fn determine_deleter(
 
         if target_matches && channel_matches {
             if let Some(user) = audit_data.users.get(&entry.user_id) {
-                debug!(deleter_id = %entry.user_id, deleter_name = %user.name, "Found matching deleter in cached users list");
+                debug!(deleter_id = %entry.user_id, deleter_name = %user.name, "found matching deleter in cached users list");
                 return Some((entry.user_id, user.name.clone()));
             }
 
-            debug!(deleter_id = %entry.user_id, "User details not found in audit payload; resolving via API");
+            debug!(deleter_id = %entry.user_id, "user details not found in audit payload; resolving via API");
             if let Ok(user) = entry.user_id.to_user(&ctx.http).await {
                 return Some((entry.user_id, user.name));
             }
         }
     }
 
-    debug!("No matching audit log entry found for message delete event");
+    debug!("no matching audit log entry found for message delete event");
     None
 }
 
@@ -114,7 +114,7 @@ pub async fn message_log_delete(
     guild_id: Option<&GuildId>,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("Received message delete event");
+    trace!("received message delete event");
     let Some(guild_id) = guild_id else {
         return Ok(());
     };
@@ -169,7 +169,7 @@ pub async fn message_log_delete(
     let channel_id_val = channel_id;
 
     task::spawn("message_delete_audit", async move {
-        debug!("Spawning background task to match deletion audit logs and insert record");
+        debug!("spawning background task to match deletion audit logs and insert record");
 
         let deleted_by = determine_deleter(
             &ctx_clone,
@@ -210,7 +210,7 @@ pub async fn message_log_delete(
         };
 
         if let Ok(payload_json) = serde_json::to_string(&payload) {
-            debug!("Publishing delete event");
+            debug!("publishing delete event");
             let res: FredResult<()> =
                 features::message_logging::cache::publish_delete_event(redis, payload_json).await;
             if let Err(err) = res {
@@ -242,13 +242,13 @@ pub async fn log_message_update(
     event: &serenity::all::MessageUpdateEvent,
     data: &BotData,
 ) -> Result<(), Error> {
-    trace!("Received message update event");
+    trace!("received message update event");
 
     let redis = &data.core.redis;
     let db = &data.core.db;
 
     let Some(guild_id) = event.guild_id else {
-        debug!("Message updated outside of a guild context; skipping logging");
+        debug!("message updated outside of a guild context; skipping logging");
         return Ok(());
     };
 
@@ -269,19 +269,19 @@ pub async fn log_message_update(
 
     let Some(details) =
         (if let Some(local_details) = filters::extract_edit_details(old_if_available, new, event) {
-            debug!("Resolved edit details using active cache");
+            debug!("resolved edit details using active cache");
             Some(local_details)
         } else {
-            debug!("Edit details not available locally; querying distributed Redis cache");
+            debug!("edit details not available locally; querying distributed Redis cache");
             fetch_dist_edit_details(redis, event).await?
         })
     else {
-        warn!("Unable to retrieve message modification history; log action skipped");
+        warn!("unable to retrieve message modification history; log action skipped");
         return Ok(());
     };
 
     if details.old_content == details.new_content {
-        debug!("Message edit logging skipped due to identical old/new content");
+        debug!("message edit logging skipped due to identical old/new content");
         return Ok(());
     }
 
@@ -294,11 +294,11 @@ pub async fn log_message_update(
     )
     .await
     {
-        debug!("Message edit logging skipped due to inclusion/exclusion filters");
+        debug!("message edit logging skipped due to inclusion/exclusion filters");
         return Ok(());
     }
 
-    debug!("Inserting message modification history into the database");
+    debug!("inserting message modification history into the database");
     database::insert_modified_messages(&data.core.db, &details, guild_id).await?;
 
     let payload = ModifiedMessagePayload {
@@ -315,7 +315,7 @@ pub async fn log_message_update(
     match serde_json::to_string(&payload) {
         Ok(payload_json) => {
             debug!(
-                "Publishing modified message payload to Redis pub/sub channel 'discord:updates'"
+                "publishing modified message payload to Redis pub/sub channel 'discord:updates'"
             );
             let pub_res: FredResult<()> =
                 features::message_logging::cache::publish_edit_event(redis, payload_json).await;

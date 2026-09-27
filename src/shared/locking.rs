@@ -40,7 +40,7 @@ impl LockGuard {
             .await?;
         let success = res == 1;
 
-        trace!(success, "Attempted to release Redis lock via guard");
+        trace!(success, "attempted to release Redis lock via guard");
         Ok(success)
     }
 }
@@ -120,7 +120,7 @@ pub async fn acquire_lock(
 
                     match res {
                         Ok(1) => {
-                            trace!(key = %key_string, "Lock TTL extended");
+                            trace!(key = %key_string, "lock TTL extended");
                         }
                         Ok(_) => {
                             warn!(key = %key_string, "failed to renew lock, ownership may have been lost");

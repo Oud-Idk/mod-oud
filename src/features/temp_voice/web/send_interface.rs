@@ -34,7 +34,7 @@ pub async fn handle_send_temp_voice_interface(
 ) -> Result<(StatusCode, Json<SendTempVoiceInterfaceResponse>), (StatusCode, String)> {
     debug!(
         guild_id = guild_id_str,
-        "Received request to dispatch generic embed"
+        "received request to dispatch generic embed"
     );
 
     let target_channel = serenity::all::ChannelId::new(payload.channel_id);
@@ -107,7 +107,7 @@ pub async fn handle_send_temp_voice_interface(
     info!(
         channel_id = payload.channel_id,
         message_id = %message.id,
-        "Interface delivered"
+        "interface delivered"
     );
 
     Ok((

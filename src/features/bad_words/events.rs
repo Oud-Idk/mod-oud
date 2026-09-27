@@ -42,7 +42,7 @@ pub fn filter_bad_words<'a>(
             continue;
         }
 
-        trace!(ruleset_name = %ruleset.name, "Checking custom database bad words ruleset");
+        trace!(ruleset_name = %ruleset.name, "checking custom database bad words ruleset");
 
         if let Some(verdict) = check_ruleset(&mut ctx, ruleset) {
             return verdict;
@@ -107,7 +107,7 @@ fn block_verdict<'a>(ruleset: &'a CompiledRuleset, trigger: &str) -> FilterVerdi
     debug!(
         ruleset = %ruleset.name,
         trigger = %trigger,
-        "Message flagged by dynamic Bad Words ruleset"
+        "message flagged by dynamic Bad Words ruleset"
     );
     FilterVerdict::Block {
         rule_name: Cow::Borrowed(&ruleset.name),
