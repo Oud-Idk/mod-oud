@@ -156,7 +156,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
             giveaway.prize
         );
         channel_id.say(http, no_winners_msg).await?;
-        info!(id = giveaway.id, "giveaway ended with 0 winners");
+        info!(giveaway_id = %giveaway.id, "giveaway ended with 0 winners");
     } else {
         let winner_mentions: Vec<String> = winners.iter().map(|u| format!("<@{u}>")).collect();
         let announcement = format!(
@@ -166,7 +166,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
         );
 
         channel_id.say(http, announcement).await?;
-        info!(id = giveaway.id, winners = ?winners, "giveaway resolved");
+        info!(giveaway_id = %giveaway.id, winners = ?winners, "giveaway resolved");
     }
 
     Ok(())

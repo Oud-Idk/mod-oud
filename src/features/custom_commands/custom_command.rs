@@ -104,7 +104,7 @@ fn parse_action_snowflake(
                 %command_id,
                 action_index,
                 field,
-                value = raw,
+                raw_value = raw,
                 "custom command action has a non-numeric snowflake; skipping it"
             );
             None

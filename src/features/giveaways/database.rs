@@ -39,7 +39,7 @@ pub async fn fetch_giveaway(
         )
     })?
     .ok_or_else(|| {
-        warn!(id = config_id, "giveaway configuration not found");
+        warn!(config_id, "giveaway configuration not found");
         (
             StatusCode::NOT_FOUND,
             "Giveaway configuration not found".to_string(),

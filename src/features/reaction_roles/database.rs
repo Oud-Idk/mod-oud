@@ -91,7 +91,7 @@ pub async fn fetch_reaction_message(
         (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string())
     })?
     .ok_or_else(|| {
-        warn!(id = config_id, "reaction message not found");
+        warn!(config_id, "reaction message not found");
         (StatusCode::NOT_FOUND, "Reaction configuration not found".to_string())
     })?;
 

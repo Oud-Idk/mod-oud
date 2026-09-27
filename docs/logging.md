@@ -325,6 +325,12 @@ the doc already said not to log them: `ticket_logger` announced a flush that the
 the `#[instrument]` both already reported, and `verification/web/setup.rs` warned about an `Err`
 that reaches the axum boundary, which logs every 5xx on its own.
 
+The last placeholder field names went with them, seven `id =` and one `value =`. Every one had a
+domain name in scope at the call site: `bot_id` beside `bot`, `custom_id` beside a local of the same
+name, `config_id` and `giveaway_id` after the variable they came from, and `raw_value` for the
+unparsed text a dashboard row held. `key` and `value` in `locking.rs` are left alone, because there
+`value` is the lock's own fencing token and the pair is the domain.
+
 The 15 sites that named a fallback in the message prose now carry a `fallback` field, valued so a
 query can tell the routes apart: `"db"` three times, `"default layout"` four, `"http"`,
 `"postgres"`, `"redis"`, `"defaults"`, `"bot id"`, and so on. Two sites that said "fallback" were

@@ -116,7 +116,7 @@ pub fn setup<'a>(
             total_shards,
         } = params;
 
-        info!(bot = %ready.user.name, id = %ready.user.id, "gateway logged in");
+        info!(bot = %ready.user.name, bot_id = %ready.user.id, "gateway logged in");
 
         let active_tickets_cache = hydrate_active_tickets_cache(&redis_client).await;
 
