@@ -60,7 +60,7 @@ pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client
             match acquire_lock(&redis_client, lock_key, &lock_value, 3).await {
                 Ok(Some(guard)) => {
                     if let Err(e) = process_expired_giveaways(&pool, &http).await {
-                        error!(error = ?e, "expired giveaways");
+                        error!(error = ?e, "processing expired giveaways");
                     }
 
                     match guard.release().await {

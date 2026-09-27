@@ -118,7 +118,7 @@ async fn run_websub_renewal_worker(
                 trace!("Lock acquired; renewing expiring WebSub leases");
 
                 if let Err(e) = renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()).await {
-                    error!(error = ?e, "WebSub leases");
+                    error!(error = ?e, "renewing WebSub leases");
                 }
 
                 // The poller logs release failures; a renewal that cannot hand

@@ -152,7 +152,7 @@ pub async fn websub_verify(
 
         let _ = database::update_lease(&state.core.db, feed_id, expires_at)
             .await
-            .inspect_err(|e| error!(error = ?e, "lease"))
+            .inspect_err(|e| error!(error = ?e, "updating lease"))
             .inspect(|_| info!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved"));
     }
 

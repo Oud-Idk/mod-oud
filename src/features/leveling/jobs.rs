@@ -26,7 +26,7 @@ pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
                     trace!("Lock acquired; starting pending level flush");
 
                     if let Err(e) = flush_pending_levels(&db_pool, &redis_client).await {
-                        error!(error = ?e, "levels to database");
+                        error!(error = ?e, "flushing levels to database");
                     }
 
                     match guard.release().await {

@@ -211,7 +211,7 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                 Ok(Some(guard)) => {
                     trace!("Music stats prune lock acquired; pruning old play events");
                     if let Err(e) = prune_play_events(&db).await {
-                        error!(error = ?e, "old music play events");
+                        error!(error = ?e, "pruning old music play events");
                     }
                     match guard.release().await {
                         Ok(true) => trace!("Music stats prune lock released"),

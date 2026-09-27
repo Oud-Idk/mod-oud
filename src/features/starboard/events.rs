@@ -232,7 +232,7 @@ async fn debounced_starboard_sync(
                     )
                     .await
                     {
-                        error!(error = %e, "background starboard upsert");
+                        error!(error = %e, "upserting background starboard");
                     }
 
                     current_processed = final_count;

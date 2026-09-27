@@ -371,7 +371,7 @@ async fn run_birthday_worker(
                 }
 
                 if let Err(e) = cleanup_expired_birthday_roles(&pool, &ctx).await {
-                    error!(error = ?e, "expired birthday roles");
+                    error!(error = ?e, "cleaning up expired birthday roles");
                 }
 
                 if let Err(e) = guard.release().await {

@@ -22,7 +22,7 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
                     trace!("Lock acquired; flushing raid hourly stats");
 
                     if let Err(e) = flush_pending_stats(&db_pool, &redis_client).await {
-                        error!(error = ?e, "raid stats to database");
+                        error!(error = ?e, "flushing raid stats to database");
                     }
 
                     match guard.release().await {

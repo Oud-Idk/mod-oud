@@ -48,13 +48,13 @@ pub fn start_ticket_inactivity_worker(
                     if let Err(e) =
                         warn_inactive_tickets(&pool, &redis_client, &http, &guild_config).await
                     {
-                        error!(error = ?e, "inactive tickets");
+                        error!(error = ?e, "warning inactive tickets");
                     }
 
                     if let Err(e) =
                         close_abandoned_tickets(&pool, &redis_client, &http, &guild_config).await
                     {
-                        error!(error = ?e, "abandoned tickets");
+                        error!(error = ?e, "closing abandoned tickets");
                     }
 
                     // Release using the guard

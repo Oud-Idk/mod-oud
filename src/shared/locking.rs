@@ -126,7 +126,7 @@ pub async fn acquire_lock(
                             break;
                         }
                         Err(err) => {
-                            warn!(key = %key_string, ?err, "lock");
+                            warn!(key = %key_string, ?err, "renewing lock");
                         }
                     }
                 }

@@ -81,7 +81,7 @@ pub async fn fetch_metadata(services: PlaybackServices<'_>, query: &str) -> Resu
             Ok(metadata)
         }
         Err(e) => {
-            error!(guild_id = %services.guild_id, error = ?e, "track metadata");
+            error!(guild_id = %services.guild_id, error = ?e, "fetching track metadata");
             Err(e.into())
         }
     }
