@@ -105,12 +105,12 @@ export function ReportBody({
 
     const filteredLogs = useMemo(() => {
         return logs.filter((log) => {
-            const currentStatus = log.status.toLowerCase();
+            const currentStatus = log.status;
             if (statusFilter === "OPEN") {
-                return currentStatus === "under_review";
+                return currentStatus === "UNDER_REVIEW";
             }
             if (statusFilter === "CLOSED") {
-                return currentStatus === "actioned" || currentStatus === "dismissed";
+                return currentStatus === "ACTIONED" || currentStatus === "DISMISSED";
             }
             return true;
         });
