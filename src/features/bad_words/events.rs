@@ -182,7 +182,8 @@ async fn fetch_and_cache_from_db(
             warn!(
                 error = ?e,
                 %guild_id,
-                "write bad word ruleset to cache; next lookup refetches from Postgres"
+                fallback = "postgres",
+                "wrote bad word ruleset to cache"
             );
         }
     }

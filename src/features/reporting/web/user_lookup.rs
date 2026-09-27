@@ -13,7 +13,9 @@ pub async fn resolve_moderator_id(
             .get_current_user()
             .await
             .map(|u| u.id)
-            .inspect_err(|e| warn!(error = %e, "fetch fallback bot details from Discord API"))
+            .inspect_err(|e| {
+                warn!(error = %e, fallback = "bot id", "fetch the moderator id for a report");
+            })
             .map_err(|_| {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,

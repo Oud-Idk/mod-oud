@@ -198,7 +198,7 @@ pub async fn get_settings_inner(
         return Ok(settings);
     }
 
-    debug!(%guild_id, key = %cache_key, "settings cache miss; querying DB");
+    debug!(%guild_id, key = %cache_key, fallback = "db", "settings cache miss");
 
     // Get from DB
     let settings_db = database::get_settings_from_database(db, guild_id)
@@ -208,10 +208,7 @@ pub async fn get_settings_inner(
     // Parses settings, return empty if not exist.
     let settings = settings_db.map_or_else(
         || {
-            trace!(
-                %guild_id,
-                "no config found in database; using default settings"
-            );
+            trace!(%guild_id, fallback = "defaults", "no config found in database");
             GuildSettings::default()
         },
         |raw| parse_guild_settings(&raw, guild_id),

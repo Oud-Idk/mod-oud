@@ -272,7 +272,7 @@ pub async fn log_message_update(
             debug!("resolved edit details using active cache");
             Some(local_details)
         } else {
-            debug!("edit details not available locally; querying distributed Redis cache");
+            debug!(fallback = "redis", "edit details not available locally");
             fetch_dist_edit_details(redis, event).await?
         })
     else {

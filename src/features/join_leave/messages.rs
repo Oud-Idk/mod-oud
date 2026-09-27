@@ -92,7 +92,8 @@ pub async fn build_goodbye_message(
         debug!(
             %guild_id,
             user_id = user.id.get(),
-            "no member metadata available in cache; constructing default fallback layout"
+            fallback = "default layout",
+            "no member metadata available in cache"
         );
         return build_fallback_message(user, None);
     };
@@ -128,7 +129,8 @@ pub async fn build_goodbye_message(
                     error = ?e,
                     %guild_id,
                     user_id = user.id.get(),
-                    "compile custom leave message template; using fallback layout"
+                    fallback = "default layout",
+                    "failed to compile custom leave message template"
                 );
                 None
             });

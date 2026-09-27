@@ -233,7 +233,8 @@ async fn send_welcome_message(
 
         custom_layout.unwrap_or_else(|| {
             trace!(
-                "custom ticket template parse failed or empty; using fallback system default layout"
+                fallback = "system default layout",
+                "custom ticket template parse failed or empty"
             );
             CreateMessage::default().embed(default_embed.clone())
         })

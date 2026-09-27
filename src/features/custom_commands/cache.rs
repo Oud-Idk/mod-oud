@@ -18,7 +18,8 @@ pub async fn cache_command_to_redis(
                 warn!(
                     error = ?e,
                     cache_key,
-                    "cache custom command; next lookup refetches from DB"
+                    fallback = "db",
+                    "cached custom command"
                 );
             }
         }
@@ -74,7 +75,8 @@ pub async fn cache_anywhere_names_to_redis(redis: &Client, cache_key: &str, name
             warn!(
                 error = ?e,
                 cache_key,
-                "cache anywhere command names; next lookup refetches from DB"
+                fallback = "db",
+                "cached anywhere command names"
             );
         }
     }

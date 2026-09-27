@@ -58,10 +58,7 @@ pub async fn get_guild_ctx(guild_id: GuildId, cache_http: impl CacheHttp) -> Res
         });
     }
 
-    debug!(
-        %guild_id,
-        "guild context not in local cache; executing HTTP fallback request"
-    );
+    debug!(%guild_id, fallback = "http", "guild context not in local cache");
 
     let g = cache_http.http().get_guild_with_counts(guild_id).await?;
 

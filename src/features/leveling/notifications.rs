@@ -86,7 +86,8 @@ pub async fn send_message(
             error = ?e,
             %guild_id,
             user_id = %user_id,
-            "compile custom level-up layout; using standard fallback"
+            fallback = "default layout",
+            "failed to compile custom level-up layout"
         );
             None
         });
@@ -95,7 +96,8 @@ pub async fn send_message(
         debug!(
             %guild_id,
             user_id = %user_id,
-            "using fallback level-up announcement string"
+            fallback = "default announcement",
+            "level-up announcement"
         );
         let content = format!(
             "Congratulations, <@{user_id}>. You have leveled up to **level {current_level}**",
@@ -142,7 +144,8 @@ pub async fn send_voice_level_up_message(
             warn!(
             error = ?e,
             %guild_id,
-            "construct custom VC level-up layout; using standard fallback"
+            fallback = "default layout",
+            "failed to construct custom voice level-up layout"
         );
             None
         });
@@ -150,7 +153,8 @@ pub async fn send_voice_level_up_message(
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(
             %guild_id,
-            "using fallback default voice level-up message"
+            fallback = "default announcement",
+            "voice level-up announcement"
         );
         let content = format!(
             "Congratulations, <@{}>. You have leveled up to **level {}**",
