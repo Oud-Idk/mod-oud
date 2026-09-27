@@ -7,7 +7,7 @@ use serenity::all::{
     Channel, ChannelId, Context, CreateEmbed, GuildChannel, GuildId, Member, Message, MessageId,
     Reaction, ReactionType, UserId,
 };
-use tracing::{debug, instrument, trace};
+use tracing::{debug, instrument};
 
 pub struct StarboardCtx<'a> {
     pub starboard: Option<&'a Starboard>,
@@ -154,7 +154,7 @@ pub async fn count_emoji_and_cache(
     cached_key: &str,
 ) -> FredResult<u64> {
     if let Some(count) = value {
-        trace!(
+        debug!(
             count = count,
             "count provided by Redis script, utilizing cache value"
         );
@@ -168,7 +168,7 @@ pub async fn count_emoji_and_cache(
             .map_or(0, |r| r.count);
 
         if starboard.prevent_self_star {
-            trace!("self-star prevention active");
+            debug!("self-star prevention active");
             let has_author_reacted = has_user_reacted(
                 ctx,
                 removed_reaction.channel_id,
@@ -185,7 +185,7 @@ pub async fn count_emoji_and_cache(
         }
 
         cache_emoji_count(redis, cached_key, count).await?;
-        trace!(key = %cached_key, count = count, "redis emoji cache updated");
+        debug!(key = %cached_key, count = count, "redis emoji cache updated");
         Ok(count)
     }
 }

@@ -16,7 +16,7 @@ use serenity::model::application::ComponentInteraction;
 use std::time::Duration;
 use tokio::time::timeout;
 use tokio_stream::StreamExt;
-use tracing::{error, warn};
+use tracing::warn;
 
 /// Recorded on every audit line for this game.
 const GAME: &str = "higherlower";
@@ -123,7 +123,7 @@ pub async fn higherlower(
                 )
                 .await
             {
-                error!(
+                warn!(
                     error = ?e,
                     error_chain = %format!("{e:#}"),
                     %guild_id,

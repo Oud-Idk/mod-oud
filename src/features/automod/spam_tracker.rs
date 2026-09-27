@@ -3,7 +3,7 @@ use anyhow::Result;
 use fred::clients::Client;
 use serenity::model::id::{GuildId, UserId};
 use std::time::Duration;
-use tracing::{debug, instrument, trace};
+use tracing::{debug, instrument};
 
 /// Redis-backed spam rate-limiter and notification cooldown tracker.
 ///
@@ -91,7 +91,7 @@ impl SpamTracker {
                 limit, "user exceeded the message limit"
             );
         } else {
-            trace!(
+            debug!(
                 window_message_count = count,
                 limit, "message count within the limit"
             );
@@ -138,7 +138,7 @@ impl SpamTracker {
         if cooldown_elapsed {
             debug!("warning cooldown has elapsed; user can be notified again");
         } else {
-            trace!("warning cooldown is still active; silencing potential notification");
+            debug!("warning cooldown is still active; silencing potential notification");
         }
 
         Ok(cooldown_elapsed)

@@ -9,7 +9,7 @@ use serenity::model::id::UserId;
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
 use sqlx::types::Json;
-use tracing::warn;
+use tracing::{error, warn};
 
 /// Fetches a single giveaway configuration by ID and Guild ID for the web handler
 pub async fn fetch_giveaway(
@@ -73,7 +73,7 @@ pub async fn clear_giveaway_message_id(
     )
     .execute(pool)
     .await
-    .inspect_err(|e| warn!(error = ?e, "giveaway message id not cleared in the database"))
+    .inspect_err(|e| error!(error = ?e, "giveaway message id not cleared in the database"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

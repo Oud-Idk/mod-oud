@@ -81,7 +81,8 @@ pub async fn trigger_raid_manual(
     .await?
     .raid_detection
     else {
-        warn!(
+        error!(
+            fault = "raid detection is not configured for this guild",
             %guild_id,
             "raid mode set active manually, but no raid configuration found for mitigation actions"
         );
@@ -113,7 +114,7 @@ async fn invoke_actions(
                 let data = (*data).clone();
                 task::spawn("raid_manual_lock", async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        warn!(
+                        error!(
                             error = ?e,
                             %guild_id,
                             "global server lockdown not applied for a manual trigger"

@@ -8,7 +8,7 @@ use serenity::all::{
     ChannelId, ChannelType, Context, CreateChannel, GuildChannel, GuildId, Member, VoiceState,
 };
 use serenity::model::id::UserId;
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 /// Records user voice channel join/leave state for temporary voice tracking.
 ///
@@ -208,7 +208,7 @@ pub async fn handle_leave_temp_vc(
     };
 
     let Some(old_state) = old else {
-        trace!("old VC state unavailable, skipping");
+        debug!("old VC state unavailable, skipping");
         return Ok(());
     };
 

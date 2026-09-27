@@ -2,7 +2,7 @@ use crate::constants::BRAND_COLOR;
 use crate::core::config::state::{Context, Error};
 use crate::features::warning::types::WarningInfo;
 use crate::shared::pagination;
-use tracing::trace;
+use tracing::debug;
 
 fn make_page(warn: &WarningInfo) -> String {
     let status = if warn.is_active.unwrap_or(true) {
@@ -33,7 +33,7 @@ pub async fn paginate_warnings(
     let chunks: Vec<_> = warnings.chunks(warnings_per_page).collect();
     let total_pages = chunks.len();
 
-    trace!(
+    debug!(
         total_warnings = warnings.len(),
         total_pages, "warning list split into pages"
     );

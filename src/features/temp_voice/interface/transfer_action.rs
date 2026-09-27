@@ -144,7 +144,7 @@ async fn validate_transfer_request(
     if let Some(existing_channel) = acceptor_existing_vc
         && existing_channel != channel_id.get().to_string()
     {
-        warn!(
+        debug!(
             %channel_id,
             acceptor_id = %interaction.user.id,
             existing_channel = %existing_channel,

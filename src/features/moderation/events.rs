@@ -78,7 +78,7 @@ pub async fn handle_audit_log_entry(
                         .ok();
                 }
                 Err(e) => {
-                    debug!(error = %e, %user_id, "user lookup for the audit-synced log failed");
+                    warn!(error = %e, %user_id, "user lookup for the audit-synced log failed");
                 }
             }
         }

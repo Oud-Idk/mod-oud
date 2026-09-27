@@ -13,7 +13,7 @@ use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, EditMember, GuildId, Member,
     Timestamp,
 };
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 /// Detects raid anomalies on member join and applies configured mitigation actions.
 ///
@@ -45,7 +45,7 @@ pub async fn handle_raid_detection(
     .await?
     .raid_detection
     else {
-        trace!(%guild_id, "raid detection disabled or unconfigured");
+        debug!(%guild_id, "raid detection disabled or unconfigured");
         return Ok(());
     };
 
@@ -116,7 +116,7 @@ pub async fn handle_raid_detection(
     if is_already_active {
         // Keep the raid cooldown timer alive
         if let Err(e) = detector.extend_raid_active(guild_id, 300).await {
-            warn!(
+            error!(
                 error = ?e,
                 %guild_id,
                 %user_id,
@@ -135,7 +135,7 @@ pub async fn handle_raid_detection(
         return Ok(());
     }
 
-    trace!(
+    debug!(
         %guild_id,
         %user_id,
         window_seconds = raid_config.window_size_seconds,
@@ -216,7 +216,7 @@ async fn apply_guild_mitigations(
                 let data = (*data).clone();
                 task::spawn("raid_global_lock", async move {
                     if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        warn!(error = ?e, %guild_id, "global server lockdown not applied");
+                        error!(error = ?e, %guild_id, "global server lockdown not applied");
                     }
                 });
             }

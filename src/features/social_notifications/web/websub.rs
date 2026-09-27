@@ -17,7 +17,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serenity::all::CreateMessage;
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 /// Query parameters a hub sends when verifying (or denying) a subscription.
@@ -51,7 +51,10 @@ pub async fn websub_notify(
         .internal_api_secret
         .as_deref()
         .ok_or_else(|| {
-            warn!("internal API secret is not set up, but the WebSub endpoint is still called");
+            error!(
+                fault = "INTERNAL_API_SECRET is not set",
+                "internal API secret is not set up, but the WebSub endpoint is still called"
+            );
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".into(),
@@ -119,7 +122,7 @@ pub async fn websub_verify(
 ) -> Result<String, (StatusCode, &'static str)> {
     // Check if the hub denied the subscription
     if params.mode == "denied" {
-        warn!(
+        error!(
             feed_id = %feed_id,
             reason = ?params.reason,
             "WebSub subscription denied by the hub"
@@ -158,10 +161,10 @@ pub async fn websub_verify(
         let _ = database::update_lease(&state.core.db, feed_id, expires_at)
             .await
             .inspect_err(|e| error!(error = ?e, feed_id = %feed_id, "WebSub lease update failed"))
-            .inspect(|_| info!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved"));
+            .inspect(|_| debug!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved"));
     }
 
-    info!(feed_id = %feed_id, "WebSub challenge returned to the hub");
+    debug!(feed_id = %feed_id, "WebSub challenge returned to the hub");
 
     Ok(challenge)
 }

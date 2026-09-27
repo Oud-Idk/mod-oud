@@ -2,7 +2,7 @@ use crate::features::message_logging::types::MessageLoggingConfig;
 use crate::features::message_logging::types::{EditDetails, MessageDetails};
 use crate::shared::permissions::HasRoles;
 use serenity::all::{Cache, ChannelId, Context, GuildId, MessageId, UserId};
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 /// Checks if a message should be excluded from logging based on channel, user, or role exclusions.
 pub async fn should_exclude_from_logging(
@@ -50,7 +50,7 @@ pub async fn should_exclude_from_logging(
                 // ignore
             }
             None => {
-                trace!(
+                debug!(
                     %author_id,
                     %guild_id,
                     fallback = "http member lookup",
@@ -78,7 +78,7 @@ pub async fn should_exclude_from_logging(
         }
     }
 
-    trace!(
+    debug!(
         %author_id,
         %channel_id,
         "no matching exclusions found for message"
@@ -102,7 +102,7 @@ pub fn fetch_cached_message(
     };
 
     if message.author.bot {
-        trace!(
+        debug!(
             msg_id = message.id.get(),
             author_id = message.author.id.get(),
             "cached message skipped: author is a bot"
@@ -117,7 +117,7 @@ pub fn fetch_cached_message(
         .map(|a| a.url.clone())
         .collect();
 
-    trace!(
+    debug!(
         msg_id = %message.id,
         "retrieved and parsed cached message"
     );
@@ -184,7 +184,7 @@ pub fn extract_edit_details(
         .or_else(|| old_if_available.map(|m| (m.author.id, &m.author.name)));
 
     let Some((author_id, author_name)) = author else {
-        warn!(%msg_id, "edit event author unresolved");
+        debug!(%msg_id, "edit event author unresolved");
         return None;
     };
     let author_name = author_name.clone();
@@ -205,7 +205,7 @@ pub fn extract_edit_details(
     let old_content = old_text.map(ToOwned::to_owned);
     let new_content = new_text.map(ToOwned::to_owned);
 
-    trace!(%msg_id, %author_id, "resolved edit details");
+    debug!(%msg_id, %author_id, "resolved edit details");
 
     Some(EditDetails {
         msg_id,

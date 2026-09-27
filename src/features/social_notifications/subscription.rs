@@ -74,7 +74,7 @@ pub async fn subscribe_feed(
         .send()
         .await
         .and_then(reqwest::Response::error_for_status)
-        .inspect_err(|e| tracing::warn!(error = ?e, %url, "feed URL fetch failed"))
+        .inspect_err(|e| tracing::debug!(error = ?e, %url, "feed URL fetch failed"))
         .map_err(|_| {
             SubscribeError::UnusableFeed(
                 "Could not fetch that URL. Make sure it points to a public RSS/Atom feed."
@@ -85,11 +85,11 @@ pub async fn subscribe_feed(
     let body = resp
         .text()
         .await
-        .inspect_err(|e| tracing::warn!(error = ?e, %url, "feed body read failed"))
+        .inspect_err(|e| tracing::debug!(error = ?e, %url, "feed body read failed"))
         .map_err(|_| SubscribeError::UnusableFeed("Could not read that feed's contents.".to_string()))?;
 
     let feed = feed_rs::parser::parse(body.as_bytes())
-        .inspect_err(|e| tracing::warn!(error = ?e, %url, "feed parse failed"))
+        .inspect_err(|e| tracing::debug!(error = ?e, %url, "feed parse failed"))
         .map_err(|_| {
             SubscribeError::UnusableFeed(
                 "That URL does not look like a valid RSS or Atom feed.".to_string(),

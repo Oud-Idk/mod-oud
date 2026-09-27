@@ -10,7 +10,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, CreateMessage, Message, MessageId,
 };
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::{info, instrument, trace, warn};
+use tracing::{debug, info, instrument, warn};
 
 /// Intercepts messages in active ticket channels, logging them to the database and rotating the close button when activity thresholds are reached.
 ///
@@ -48,7 +48,7 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
     };
 
     if !is_ticket_active(data, channel_id) {
-        trace!("message is not in an active ticket channel; skipping ticket logic");
+        debug!("message is not in an active ticket channel; skipping ticket logic");
         return Ok(());
     }
 
@@ -63,14 +63,14 @@ pub async fn handle_tickets(ctx: &Context, message: &Message, data: &BotData) ->
         }) {
             has_role
         } else {
-            trace!(fallback = "http", "member roles not in the local cache");
+            debug!(fallback = "http", "member roles not in the local cache");
             message.author.has_role(ctx, guild_id, role_id).await?
         }
     } else {
         false
     };
 
-    trace!(has_role, "ticket message staff role evaluated");
+    debug!(has_role, "ticket message staff role evaluated");
     log_message_to_db(&data.ticket_log_tx, channel_id, message, has_role);
 
     // Single format allocation instead of intermediate channel_id_str String

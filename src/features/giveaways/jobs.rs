@@ -8,7 +8,7 @@ use serenity::all::{ChannelId, Http, MessageId, ReactionType, User, UserId};
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 pub async fn get_all_reaction_users(
     http: &Http,
@@ -98,7 +98,7 @@ async fn process_expired_giveaways(
         return Ok(());
     }
 
-    info!(expired = expired_giveaways.len(), "expired giveaways found");
+    debug!(expired = expired_giveaways.len(), "expired giveaways found");
 
     for giveaway in expired_giveaways {
         if let Err(e) = mark_giveaway_finished(pool, giveaway.id).await {
@@ -139,7 +139,7 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
 
     let winner_count = usize::try_from(giveaway.winner_count)
         .inspect_err(
-            |e| warn!(error = ?e, fallback = "1 winner", "winner_count not convertible to usize"),
+            |e| error!(error = %e, fallback = "1 winner", "winner_count not convertible to usize"),
         )
         .unwrap_or(1);
 

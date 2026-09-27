@@ -19,7 +19,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Dependencies required to bootstrap the axum dashboard server.
 pub struct WebServerDeps {
@@ -56,7 +56,7 @@ pub async fn start_web_server(deps: WebServerDeps) -> Result<(), Error> {
         live_feed::start_live_feed_subscriber(deps.subscriber_client, deps.tx.clone()).await
     {
         // Swallowed: the server still serves, it just stops pushing live updates.
-        warn!(
+        error!(
             error = %e,
             "live feed subscriber failed to start; continuing without live updates"
         );

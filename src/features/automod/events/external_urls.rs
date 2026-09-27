@@ -7,7 +7,7 @@ use crate::features::automod::types::{
 use crate::shared::messages;
 use serenity::all::Message;
 use std::borrow::Cow;
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, instrument, warn};
 
 pub fn filter_external_urls<'a>(
     message: &'a Message,
@@ -23,7 +23,7 @@ pub fn filter_external_urls<'a>(
     }
 
     if external_links.block_only_malicious {
-        trace!("external URLs verification deferred for external API evaluation");
+        debug!("external URLs verification deferred for external API evaluation");
         return FilterVerdict::RequiresSafeBrowsingCheck {
             urls: urls.into_iter().map(String::from).collect(),
             external_links,
@@ -175,7 +175,7 @@ pub async fn resolve_safe_browsing<'a>(
             }
         }
         Ok(_) => {
-            trace!("URLs verified as clean by Safe Browsing API check");
+            debug!("URLs verified as clean by Safe Browsing API check");
             FilterVerdict::Pass
         }
         Err(e) => {

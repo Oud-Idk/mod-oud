@@ -1,6 +1,6 @@
 use crate::{core::config::state::BotData, features::verification::generate_verification_link};
 use poise::serenity_prelude as serenity;
-use tracing::warn;
+use tracing::error;
 
 /// Sends an ephemeral verification link to the user who interacted with the verify button.
 ///
@@ -15,7 +15,10 @@ pub async fn send_verification_link(
         return Ok(());
     };
     let Some(shared_secret) = data.core.config.shared_secret.as_deref() else {
-        warn!("shared secret not set up for verification");
+        error!(
+            fault = "VERIFICATION_SECRET is not set",
+            "shared secret not set up for verification"
+        );
         return Ok(());
     };
     let verification_link = generate_verification_link(

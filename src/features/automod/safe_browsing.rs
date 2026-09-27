@@ -77,7 +77,7 @@ impl SafeBrowsingClient {
                 error_body_bytes = err_text.len(),
                 "Safe Browsing API returned an error status"
             );
-            bail!(format!("Safe Browsing API Error: {err_text}"));
+            bail!("safe browsing api returned a non-success status");
         }
 
         // Same reasoning as the send above: the url still carries the key inside this error.

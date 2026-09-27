@@ -4,7 +4,7 @@ use crate::shared::task;
 use fred::clients::Client;
 use sqlx::PgPool;
 use std::time::Duration;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 /// Spawns a background worker that periodically flushes accumulated hourly raid join stats
 /// from Redis to PostgreSQL. Uses a distributed lock to avoid duplicate writes across instances.
@@ -57,11 +57,11 @@ async fn flush_pending_stats(
 
     for guild_id in dirty_guilds {
         if let Err(e) = flush_guild(guild_id, redis, db).await {
-            warn!(%guild_id, error = ?e, "raid stats flush for guild failed");
+            error!(%guild_id, error = ?e, "raid stats flush for guild failed");
         }
     }
 
-    info!(count, "raid stats flushed for dirty guilds");
+    debug!(count, "raid stats flushed for dirty guilds");
     Ok(())
 }
 

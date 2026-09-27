@@ -4,7 +4,7 @@ use anyhow::Result;
 use fred::clients::Client;
 use serenity::all::{ChannelId, GuildId, Message, RoleId};
 use sqlx::PgPool;
-use tracing::{warn, debug, trace, instrument};
+use tracing::{warn, debug, instrument};
 
 pub fn should_exclude_from_level_up(
     config: &LevelingConfig,
@@ -46,7 +46,7 @@ fn calculate_multiplier(
     for mult in multipliers {
         match mult.target {
             XpTarget::Channel { target_id } if target_id == channel_id => {
-                trace!(
+                debug!(
                     %target_id,
                     multiplier = mult.multiplier,
                     "channel-specific XP multiplier applied"
@@ -54,7 +54,7 @@ fn calculate_multiplier(
                 applied_multiplier = applied_multiplier.max(mult.multiplier);
             }
             XpTarget::Role { target_id } if role_ids.contains(&target_id) => {
-                trace!(
+                debug!(
                     %target_id,
                     multiplier = mult.multiplier,
                     "role-specific XP multiplier applied"

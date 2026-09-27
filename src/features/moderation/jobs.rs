@@ -73,7 +73,7 @@ async fn process_expired_temp_bans(
     }
 
     let bans_count = expired_bans.len();
-    info!(bans_count, "expired temp bans found");
+    debug!(bans_count, "expired temp bans found");
 
     let unban_futures = expired_bans.into_iter().map(|record| {
         let http_ref = http;

@@ -13,7 +13,7 @@ use serenity::all::{
 };
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, error, instrument, warn};
 
 pub struct RuleActionPayload<'a> {
     pub base: &'a BaseRule,
@@ -146,7 +146,7 @@ async fn apply_warning(
     username_buf_tx: &mpsc::Sender<UserUpdate>,
 ) {
     let Some(guild_id) = message.guild_id else {
-        trace!("automated warning not applied; the message has no guild");
+        debug!("automated warning not applied; the message has no guild");
         return;
     };
 
@@ -288,7 +288,7 @@ async fn send_temp_warning(
                 if let Err(err) = temp_msg.delete(&http).await {
                     warn!(error = %err, message_id = %temp_msg_id.get(), "temporary warning message not removed");
                 } else {
-                    trace!(message_id = %temp_msg_id.get(), "temporary warning message deleted");
+                    debug!(message_id = %temp_msg_id.get(), "temporary warning message deleted");
                 }
             });
         }

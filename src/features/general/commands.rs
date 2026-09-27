@@ -7,7 +7,7 @@ use std::fmt;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::{ProcessesToUpdate, System};
-use tracing::{trace, warn};
+use tracing::{debug, warn};
 
 /// Holds all gathered diagnostic metrics to separate data collection from presentation.
 struct DiagnosticReport<'a> {
@@ -74,7 +74,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 
     ctx.say(report.to_string()).await?;
 
-    trace!(
+    debug!(
         latency_ms = gateway_latency.map(|l| l.as_millis()),
         "ping reply sent"
     );
@@ -113,7 +113,7 @@ async fn check_db_status(pool: &sqlx::PgPool) -> String {
 
     match db_query {
         Ok(_) => {
-            trace!(
+            debug!(
                 latency_ms = db_latency,
                 "PostgreSQL database connection is healthy"
             );
@@ -133,7 +133,7 @@ async fn check_redis_status(redis: &fred::clients::Client) -> String {
 
     match redis_ping {
         Ok(_) => {
-            trace!(
+            debug!(
                 latency_ms = redis_latency,
                 "Redis cache connection is healthy"
             );

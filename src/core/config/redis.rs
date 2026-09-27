@@ -2,14 +2,14 @@ use crate::core::config::settings::GuildSettings;
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface, PubsubInterface};
 use fred::prelude::Expiration;
-use tracing::{trace, warn};
+use tracing::{debug, warn};
 
 pub async fn get_settings_from_redis(redis: &Client, cache_key: &str) -> Option<GuildSettings> {
     let cached_string: String = redis.get(cache_key).await.ok()?;
 
     match serde_json::from_str::<GuildSettings>(&cached_string) {
         Ok(settings) => {
-            trace!(key = %cache_key, "retrieved settings from Redis cache");
+            debug!(key = %cache_key, "retrieved settings from Redis cache");
             Some(settings)
         }
         Err(e) => {

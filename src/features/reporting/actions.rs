@@ -9,7 +9,7 @@ use fred::clients::Client;
 use futures_util::TryFutureExt;
 use serenity::all::{CreateMessage, GuildId, Http, Message, User};
 use tokio::sync::mpsc;
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 use crate::core::config::settings::GuildSettings;
 
 pub fn extract_image_urls(message: &Message) -> Vec<String> {
@@ -61,7 +61,7 @@ pub async fn issue_report(
         guild_id, reported_message, reporter, reason,
     } = report_metadata;
 
-    trace!(
+    debug!(
         %guild_id,
         message_id = %reported_message.id,
         reporter_id = %reporter.id,
@@ -124,14 +124,14 @@ pub async fn issue_report(
         err
     })?;
 
-    debug!(report_id = id, "report payload published to redis");
-
     cache::publish_report(redis, &payload_str)
         .map_err(|err| {
             warn!(error = ?err, report_id = id, "report publish to redis failed");
             err
         })
         .await?;
+
+    debug!(report_id = id, "report payload published to redis");
 
     send_message_to_channel(http, &config, reported_message, guild_id, domain).await?;
 

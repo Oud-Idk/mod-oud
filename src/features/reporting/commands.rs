@@ -5,7 +5,7 @@ use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::reporting::actions;
 use poise::Modal;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, info, warn};
 use crate::features::reporting::actions::ReportMetadata;
 
 #[derive(poise::Modal)]
@@ -36,7 +36,7 @@ pub async fn report_message(
         return Ok(());
     };
 
-    info!(
+    debug!(
         reporter_id = %reporter.id,
         reported_message_id = %reported_message.id, %guild_id, "report context menu invoked"
     );
@@ -62,7 +62,7 @@ pub async fn report_message(
         return Ok(());
     }
 
-    trace!(reporter_id = %reporter.id, "report modal shown");
+    debug!(reporter_id = %reporter.id, "report modal shown");
     let modal_data = ReportModal::execute(app_ctx).await?;
 
     if let Some(modal) = modal_data {
@@ -109,7 +109,7 @@ pub async fn report_message(
         )
         .await?;
     } else {
-        trace!(reporter_id = %reporter.id, "report modal was cancelled or timed out");
+        debug!(reporter_id = %reporter.id, "report modal was cancelled or timed out");
     }
 
     Ok(())

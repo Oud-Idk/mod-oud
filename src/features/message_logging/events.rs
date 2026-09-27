@@ -7,7 +7,6 @@ use crate::features::message_logging::types::{
 };
 use crate::features::message_logging::{database, filters};
 use crate::shared::task;
-use fred::interfaces::FredResult;
 use moka::future::Cache;
 use serenity::all::{ChannelId, Context, GuildId, MessageAction, MessageId, UserId, audit_log};
 use std::sync::Arc;
@@ -206,11 +205,10 @@ pub async fn message_log_delete(
         };
 
         if let Ok(payload_json) = serde_json::to_string(&payload) {
-            debug!("delete event payload published to redis");
-            let res: FredResult<()> =
-                features::message_logging::cache::publish_delete_event(redis, payload_json).await;
-            if let Err(err) = res {
-                warn!(error = %err, "delete event publish failed");
+            match features::message_logging::cache::publish_delete_event(redis, payload_json).await
+            {
+                Ok(()) => debug!("delete event payload published to redis"),
+                Err(err) => warn!(error = %err, "delete event publish failed"),
             }
         }
     });
@@ -270,7 +268,7 @@ pub async fn log_message_update(
             fetch_dist_edit_details(redis, event).await?
         })
     else {
-        warn!("message modification history unavailable; log action skipped");
+        debug!("message modification history unavailable; log action skipped");
         return Ok(());
     };
 
@@ -308,12 +306,9 @@ pub async fn log_message_update(
 
     match serde_json::to_string(&payload) {
         Ok(payload_json) => {
-            debug!("modified message payload published to redis");
-            let pub_res: FredResult<()> =
-                features::message_logging::cache::publish_edit_event(redis, payload_json).await;
-
-            if let Err(e) = pub_res {
-                warn!(error = %e, "update event publish failed");
+            match features::message_logging::cache::publish_edit_event(redis, payload_json).await {
+                Ok(()) => debug!("modified message payload published to redis"),
+                Err(e) => warn!(error = %e, "update event publish failed"),
             }
         }
         Err(e) => {

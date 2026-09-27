@@ -6,13 +6,13 @@ use feed_rs::parser;
 use serenity::all::{CreateMessage, Http};
 use sqlx::PgPool;
 use tracing::{error, info, instrument, warn};
-use tracing::log::trace;
+use tracing::trace;
 use uuid::Uuid;
 use crate::shared::task;
 use crate::features::social_notifications::database;
 use crate::features::social_notifications::discovery::{derive_feed_secret, request_hub_subscription};
 use crate::features::social_notifications::embed::build_entry_embed;
-use crate::shared::locking::acquire_lock;
+use fred::clients::Client;
 
 
 /// Runs every 30 seconds. Checks and fetches feeds that are due for polling.
@@ -55,23 +55,47 @@ async fn run_feed_polling_worker(
         tokio::time::sleep(Duration::from_secs(30)).await;
 
         // Heartbeat = 5s (Watchdog auto-extends with 15s safety ceiling)
-        match acquire_lock(&redis_client, lock_key, lock_value, 5).await {
-            Ok(Some(guard)) => {
-                trace!("polling lock acquired");
+        run_under_lock(
+            &redis_client,
+            lock_key,
+            lock_value,
+            || poll_due_feeds(&db, &http, &http_client),
+            |e| warn!(error = ?e, "due rss feed poll failed"),
+        )
+        .await;
+    }
+}
 
-                if let Err(e) = poll_due_feeds(&db, &http, &http_client).await {
-                    warn!(error = ?e, "due rss feed poll failed");
-                }
+/// Takes `lock_key`, runs `work` once, and hands the lock back, logging all four outcomes.
+///
+/// `Ok(false)` from the release is the case worth a `warn!`: the lock is no longer ours, so the TTL
+/// lapsed or another instance took it while `work` ran. A successful release is not an event.
+async fn run_under_lock<E, F, Fut>(
+    redis: &Client,
+    lock_key: &str,
+    lock_value: &str,
+    work: F,
+    on_work_err: impl Fn(&E),
+) where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<(), E>>,
+{
+    match crate::shared::locking::acquire_lock(redis, lock_key, lock_value, 5).await {
+        Ok(Some(guard)) => {
+            trace!(%lock_key, "lock acquired");
 
-                match guard.release().await {
-                    Ok(true) => trace!("polling lock released"),
-                    Ok(false) => warn!(%lock_key, "polling lock lost during execution"),
-                    Err(e) => warn!(error = ?e, "polling lock release failed"),
-                }
+            if let Err(e) = work().await {
+                on_work_err(&e);
             }
-            Ok(None) => trace!("polling lock held by another instance"),
-            Err(e) => warn!(error = ?e, "feed polling lock acquisition failed"),
+
+            match guard.release().await {
+                Ok(true) => trace!(%lock_key, "lock released"),
+                Ok(false) => warn!(%lock_key, "lock lost during execution"),
+                Err(e) => warn!(error = %e, "lock release failed"),
+            }
         }
+        Ok(None) => trace!(%lock_key, "lock held by another instance"),
+        Err(e) => warn!(error = %e, %lock_key, "lock acquisition failed"),
     }
 }
 
@@ -114,25 +138,14 @@ async fn run_websub_renewal_worker(
     loop {
         tokio::time::sleep(Duration::from_secs(3600)).await;
 
-        match acquire_lock(&redis_client, lock_key, lock_value, 5).await {
-            Ok(Some(guard)) => {
-                trace!("WebSub renewal lock acquired");
-
-                if let Err(e) = renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()).await {
-                    warn!(error = ?e, "WebSub lease renewal failed");
-                }
-
-                // The poller logs release failures; a renewal that cannot hand
-                // the lock back is just as stuck and must not vanish.
-                match guard.release().await {
-                    Ok(true) => trace!("WebSub renewal lock released"),
-                    Ok(false) => warn!(%lock_key, "WebSub renewal lock lost during execution"),
-                    Err(e) => warn!(error = ?e, "WebSub renewal lock release failed"),
-                }
-            }
-            Ok(None) => trace!("WebSub renewal lock held by another instance"),
-            Err(e) => warn!(error = ?e, "WebSub renewal lock acquisition failed"),
-        }
+        run_under_lock(
+            &redis_client,
+            lock_key,
+            lock_value,
+            || renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()),
+            |e| warn!(error = ?e, "WebSub lease renewal failed"),
+        )
+        .await;
     }
 }
 
@@ -315,7 +328,7 @@ pub async fn renew_expiring_leases(
     }
 
     if failed > 0 {
-        error!(reason = failed, total, "WebSub lease renewal finished with failures");
+        warn!(reason = failed, total, "WebSub lease renewal finished with failures");
     }
 
     Ok(())

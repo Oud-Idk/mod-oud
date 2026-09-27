@@ -6,7 +6,7 @@ use std::fmt::Write;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
-use tracing::{debug, warn};
+use tracing::warn;
 
 pub async fn handle_violation(
     ctx: &Context,
@@ -56,7 +56,7 @@ async fn send_dm_for_content(ctx: &Context, message: &Message, original_content:
         .author
         .dm(ctx, CreateMessage::new().content(original_dm_content))
         .await
-        .inspect_err(|e| debug!(error = ?e, "message content DM not sent to the user"));
+        .inspect_err(|e| warn!(error = ?e, "message content DM not sent to the user"));
 }
 
 async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> anyhow::Result<()> {

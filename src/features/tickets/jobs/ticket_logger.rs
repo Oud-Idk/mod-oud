@@ -4,7 +4,7 @@ use crate::shared::task;
 use sqlx::PgPool;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument};
 
 /// Starts the background worker that batches ticket message logs and flushes them to the database.
 pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: PgPool) {
@@ -30,7 +30,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                 }
                 msg = rx.recv() => {
                     if let Some(payload) = msg {
-                        trace!(
+                        debug!(
                             ticket_channel_id = %payload.ticket_channel_id,
                             message_id = %payload.message_id,
                             author_id = %payload.author_id,

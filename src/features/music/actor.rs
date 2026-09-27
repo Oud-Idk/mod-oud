@@ -1271,7 +1271,7 @@ impl GuildActor {
 
         let published: Result<i64, _> = self.redis.publish(keys::events_channel(), payload).await;
         if let Err(e) = published {
-            debug!(
+            warn!(
                 guild_id = %self.guild_id,
                 error = ?e,
                 "now-playing event publish to redis failed"

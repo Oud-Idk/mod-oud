@@ -18,7 +18,7 @@ use serenity::all::{
 };
 use serenity::builder::CreateEmbed;
 use serenity::model::guild::Member;
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, instrument, warn};
 
 /// Handles the open-ticket button interaction by creating a private ticket channel and initializing its state.
 ///
@@ -36,7 +36,7 @@ pub async fn on_open_ticket(
     let db = &data.core.db;
 
     let Some(guild_id) = component.guild_id else {
-        trace!("interaction occurs outside of a guild context; ignoring");
+        debug!("interaction occurs outside of a guild context; ignoring");
         return Ok(());
     };
     let user_interact = &component.user;
@@ -224,7 +224,7 @@ async fn send_welcome_message(
         .flatten();
 
         custom_layout.unwrap_or_else(|| {
-            trace!(
+            debug!(
                 fallback = "system default layout",
                 "custom ticket template parse failed or empty"
             );

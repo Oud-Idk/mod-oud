@@ -21,7 +21,7 @@ use fred::clients::Client;
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
 use sqlx::PgPool;
-use tracing::{debug, trace, warn};
+use tracing::{debug, warn};
 
 /// Configuration settings for a Discord server (guild).
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -188,7 +188,7 @@ pub async fn get_settings_inner(
 ) -> Result<GuildSettings> {
     // Get from Moka
     if let Some(settings) = cache.get(&guild_id).await {
-        trace!(%guild_id, "retrieved settings from memory cache");
+        debug!(%guild_id, "retrieved settings from memory cache");
         return Ok(settings);
     }
 
@@ -209,7 +209,7 @@ pub async fn get_settings_inner(
     // Parses settings, return empty if not exist.
     let settings = settings_db.map_or_else(
         || {
-            trace!(%guild_id, fallback = "defaults", "no config found in database");
+            debug!(%guild_id, fallback = "defaults", "no config found in database");
             GuildSettings::default()
         },
         |raw| parse_guild_settings(&raw, guild_id),

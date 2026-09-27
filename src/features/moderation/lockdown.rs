@@ -10,7 +10,7 @@ use serenity::all::{
     PermissionOverwriteType, Permissions, RoleId,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::{debug, trace, warn};
+use tracing::{debug, error, warn};
 
 const GLOBAL_SWEEP_LOCK_HEARTBEAT_SECS: u64 = 5;
 
@@ -56,7 +56,7 @@ pub async fn save_pre_lockdown_state(
     let wrote = cache::set_pre_lockdown_state(&data.core.redis, key, json).await?;
 
     if !wrote {
-        trace!(
+        debug!(
             channel_id = channel.id.get(),
             "pre-lockdown state already cached; the existing snapshot is kept"
         );
@@ -92,7 +92,7 @@ pub async fn restore_pre_lockdown_state(
                 channel_id.create_permission(&ctx.http, overwrite).await?;
             }
             StoredOverwriteState::NoOverwrite => {
-                trace!(
+                debug!(
                     channel_id = channel_id.get(),
                     "cached state shows no prior overwrite; deleting the overwrite entirely"
                 );
@@ -103,7 +103,7 @@ pub async fn restore_pre_lockdown_state(
         }
         cache::delete_pre_lockdown_state(&data.core.redis, key).await?;
     } else {
-        trace!(
+        debug!(
             channel_id = channel_id.get(),
             "no cached state found; deleting the overwrite entirely"
         );
@@ -147,7 +147,7 @@ pub async fn apply_global_lock(
     )
     .await?
     else {
-        debug!(
+        warn!(
             %guild_id,
             "global lock sweep already in progress for this guild; skipping"
         );
@@ -168,7 +168,7 @@ pub async fn apply_global_lock(
 
         if let Err(err) = save_pre_lockdown_state(guild_id, &channel, everyone_role_id, data).await
         {
-            warn!(
+            error!(
                 error = ?err,
                 channel_id,
                 fallback = "no snapshot",
@@ -180,7 +180,7 @@ pub async fn apply_global_lock(
         match channel.id.create_permission(&ctx.http, overwrite).await {
             Ok(()) => {
                 report.succeeded += 1;
-                trace!(channel_id, "lockdown applied to channel");
+                debug!(channel_id, "lockdown applied to channel");
             }
             Err(err) => {
                 warn!(
@@ -236,7 +236,7 @@ pub async fn apply_global_unlock(
     )
     .await?
     else {
-        debug!(
+        warn!(
             %guild_id,
             "global lock sweep already in progress for this guild; skipping"
         );
@@ -258,7 +258,7 @@ pub async fn apply_global_unlock(
         match restore_pre_lockdown_state(ctx, data, guild_id, channel.id, everyone_role_id).await {
             Ok(()) => {
                 report.succeeded += 1;
-                trace!(channel_id, "lockdown removed from channel");
+                debug!(channel_id, "lockdown removed from channel");
             }
             Err(err) => {
                 warn!(

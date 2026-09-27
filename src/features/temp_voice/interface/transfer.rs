@@ -66,7 +66,7 @@ pub async fn handle_transfer_temp_vc_submit(
     };
 
     let Some(&new_owner_id) = target_user_ids.first() else {
-        warn!("target user submission empty");
+        debug!("target user submission empty");
         return Ok(());
     };
 

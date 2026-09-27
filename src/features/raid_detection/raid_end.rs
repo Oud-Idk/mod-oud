@@ -51,7 +51,7 @@ pub async fn handle_raid_end(
 
     // Delete persisted active raid state from Postgres
     if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
-        warn!(error = ?e, %guild_id, "active raid state row not deleted from database");
+        error!(error = ?e, %guild_id, "active raid state row not deleted from database");
     }
 
     // Log the resolve event
@@ -91,7 +91,7 @@ async fn revert_actions(
                 let data = (*data).clone();
                 task::spawn("raid_global_unlock", async move {
                     if let Err(e) = apply_global_unlock(&ctx, &data, guild_id).await {
-                        warn!(
+                        error!(
                             error = ?e,
                             %guild_id,
                             "global server lockdown not lifted on raid end"
@@ -108,7 +108,7 @@ async fn revert_actions(
                     .edit_guild_incident_actions(&ctx.http, guild_id, builder)
                     .await
                 {
-                    warn!(error = ?e, %guild_id, "server invites not unpaused on raid end");
+                    error!(error = ?e, %guild_id, "server invites not unpaused on raid end");
                 }
             }
             RaidAction::Alert { channel_id } => {
@@ -192,7 +192,7 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                 if let Err(e) =
                     cache::save_preraid_snapshot(&data.core.redis, guild_id, &snapshot_json).await
                 {
-                    warn!(
+                    error!(
                         error = ?e,
                         %guild_id,
                         "pre-raid snapshot not saved to redis during recovery"
@@ -212,10 +212,10 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                         spawn_raid_end_monitor(ctx.clone(), (*data).clone(), guild_id);
                     }
                     Ok(false) => {
-                        info!(%guild_id, "raid already tracked by another instance; skipping");
+                        warn!(%guild_id, "raid already tracked by another instance; skipping");
                     }
                     Err(e) => {
-                        warn!(error = ?e, %guild_id, "raid active flag not set during recovery");
+                        error!(error = ?e, %guild_id, "raid active flag not set during recovery");
                     }
                 }
             } else {

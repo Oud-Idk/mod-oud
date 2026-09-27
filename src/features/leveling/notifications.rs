@@ -4,7 +4,7 @@ use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserL
 use crate::shared::embed::build_custom_message;
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User};
-use tracing::{warn, debug, trace};
+use tracing::{warn, debug};
 
 pub async fn send_according_to_config(
     ctx: &Context,
@@ -94,7 +94,7 @@ pub async fn send_message(
 
     send_according_to_config(ctx, event.channel_id, config, &event.author, msg).await?;
 
-    trace!(
+    debug!(
         %guild_id,
         user_id = %user_id,
         current_level,
@@ -154,7 +154,7 @@ pub async fn send_voice_level_up_message(
 
     send_according_to_config(ctx, voice_channel_id, config, user, msg).await?;
 
-    trace!(
+    debug!(
         %guild_id,
         user_id = %user.id,
         current_level = user_level.current_level,

@@ -8,7 +8,7 @@ use crate::shared::embed::build_custom_message;
 use axum::http::StatusCode;
 use fred::clients::Client;
 use serenity::all::GuildId;
-use tracing::{error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 #[instrument(skip(state, redis), fields(report_id = cmd.report_id, %guild_id, status = ?status
 ))]
@@ -63,7 +63,7 @@ pub async fn handle_resolve_report(
     };
 
     if layout_opt.is_none_or(|l| !l.enabled) {
-        info!("report status resolved; DM layout dispatch skipped, the configuration is disabled");
+        debug!("report status resolved; DM layout dispatch skipped, the configuration is disabled");
         return Ok(StatusCode::OK);
     }
 
