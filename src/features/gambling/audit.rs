@@ -122,6 +122,7 @@ pub fn payout_overflow(
 ) {
     error!(
         event = "payout_overflow",
+        fault = "payout does not fit in i64",
         game,
         %guild_id,
         %user_id,

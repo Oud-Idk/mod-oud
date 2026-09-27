@@ -38,11 +38,7 @@ jobs:
       - name: Rust tests
         run: SQLX_OFFLINE=true cargo test --lib
 
-      # Non-blocking until the logging convention is fully adopted. Currently finds 15
-      # `error!` with no cause field and 2 files over the `info!` budget; those are
-      # migration steps 2 and 3 in docs/logging.md.
       - name: Logging convention
-        continue-on-error: true
         run: scripts/check-logging.sh
 
       - uses: actions/setup-node@v4

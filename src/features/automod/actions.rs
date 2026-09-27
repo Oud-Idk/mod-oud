@@ -210,7 +210,10 @@ async fn apply_mute(
     let Some(timeout_until) =
         Timestamp::from_unix_timestamp(now_secs + i64::from(duration_secs)).ok()
     else {
-        error!("Could not calculate a valid mute timestamp");
+        error!(
+            fault = "mute timestamp is out of range",
+            "Could not calculate a valid mute timestamp"
+        );
         return;
     };
 

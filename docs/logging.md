@@ -279,11 +279,13 @@ In severity order, so each step is shippable on its own:
 
 1. **Done.** `shared/logger.rs` with `init` and `task::spawn`, the `process` root span, and the
    per-request `http_request` span in `web/router.rs`.
-2. **To do.** Re-level the 211 `error!` calls that are really expected Discord or Redis
-   outcomes, down to `warn!`. Largest single win, and purely mechanical. Start with
-   `temp_voice/service.rs`, `starboard/events.rs`, `message_logging/events.rs`, `moderation/`.
-3. **To do.** Demote per-event `info!` to `debug!`. `reaction_roles/events.rs`, `leveling/`,
-   `custom_commands/`, `reporting/web.rs`.
+2. **Half done.** Every `error!` now names a cause, so the check is satisfied. The re-levelling is
+   not: 211 `error!` calls are still `error!` that are really expected Discord or Redis
+   outcomes. Largest remaining win, and mechanical. Start with `temp_voice/service.rs`,
+   `starboard/events.rs`, `message_logging/events.rs`, `moderation/`.
+3. **Half done.** The two files that were over the per-file `info!` budget are under it, so the
+   check is satisfied. The broader volume pass is not: `reaction_roles/events.rs`, `leveling/`,
+   `custom_commands/`, `reporting/web.rs` still log per-event at `info!`.
 4. **To do.** Promote audit-worthy `debug!` to `info!` through a per-feature `audit.rs`:
    `moderation`, `verification`, `tickets`, `temp_voice` transfers.
 5. **Done.** Narration stripped and every interpolated message turned into fields.
@@ -308,20 +310,17 @@ per-level counts match a separate `rg -c` tally exactly.
 
 ```console
 $ scripts/check-logging.sh
-error! without a cause: src/features/verification/web/verify.rs:131
-  add error = (a value), reason = (known cause), or fault = (broken invariant).
-  Do not invent an io::Error to pass this.
-over info! budget (8): src/features/moderation/commands/actions.rs
+logging checks passed
 ```
 
-Four rules, and what they currently find:
+Four rules, all currently at zero, and gating in CI:
 
 | Rule | Finds | Notes |
 |---|---|---|
-| `error!` names a cause | 15 | Step 2. Most are the `fault` case. |
+| `error!` names a cause | 0 | |
 | No `{}` in the message string | 0 | Exempts the formatting macros, where the braces belong to the format specifier. |
 | No `#[instrument(err)]` | 0 | |
-| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 2 | `moderation/commands/actions.rs` and `raid_detection/triggers.rs`. Step 3. |
+| `info!` budget per file (default 8, `INFO_BUDGET` to change) | 0 | |
 
 Rule 2's exemption has to name the formatting macros explicitly. Written as `[a-z_]+!` it also
 matches `trace!` and `info!`, which strips every single-literal log call before the brace check

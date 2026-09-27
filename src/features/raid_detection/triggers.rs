@@ -11,7 +11,7 @@ use crate::features::raid_detection::{RaidDetectionConfig, cache};
 use serenity::all::{
     ChannelId, Context, CreateMessage, EditGuildIncidentActions, GuildId, Timestamp,
 };
-use tracing::{error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 #[instrument(
     skip(ctx, data),
@@ -114,7 +114,7 @@ async fn invoke_actions(
     for action in &raid_config.raid_actions {
         match action {
             RaidAction::LockdownServer => {
-                info!(%guild_id, "Spawning global server lockdown background task (manual trigger)");
+                debug!(%guild_id, "Spawning global server lockdown background task (manual trigger)");
                 let ctx = ctx.clone();
                 let data = (*data).clone();
                 tokio::spawn(async move {

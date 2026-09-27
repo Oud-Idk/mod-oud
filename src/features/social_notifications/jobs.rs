@@ -271,6 +271,7 @@ pub async fn renew_expiring_leases(
     for feed in expiring {
         let (Some(hub_url), Some(topic)) = (feed.hub_url, feed.topic) else {
             error!(
+                fault = "feed has no hub or topic recorded",
                 feed_id = %feed.id,
                 "Expiring WebSub feed has no hub or topic recorded; skipping renewal"
             );
@@ -285,6 +286,7 @@ pub async fn renew_expiring_leases(
         // a very different problem from one that is merely coming up for renewal.
         if feed.lease_expires_at.is_some_and(|expires_at| expires_at <= Utc::now()) {
             error!(
+                reason = "lease already expired",
                 feed_id = %feed.id,
                 hub = %hub_url,
                 lease_expires_at = ?feed.lease_expires_at,
@@ -313,7 +315,7 @@ pub async fn renew_expiring_leases(
     }
 
     if failed > 0 {
-        error!(failed, total, "WebSub lease renewal finished with failures");
+        error!(reason = failed, total, "WebSub lease renewal finished with failures");
     }
 
     Ok(())

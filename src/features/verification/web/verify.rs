@@ -128,7 +128,10 @@ fn get_secrets(state: &Arc<WebState>) -> WebResult<VerificationSecrets<'_>> {
     let config = &state.core.config;
 
     let shared_secret = config.shared_secret.as_deref().ok_or_else(|| {
-        error!("VERIFICATION_SECRET environment variable is not set");
+        error!(
+            fault = "VERIFICATION_SECRET is not set",
+            "captcha verification unavailable"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -136,7 +139,10 @@ fn get_secrets(state: &Arc<WebState>) -> WebResult<VerificationSecrets<'_>> {
     })?;
 
     let cf_secret_key = config.cf_secret_key.as_deref().ok_or_else(|| {
-        error!("TURNSTILE_SECRET environment variable is not set");
+        error!(
+            fault = "TURNSTILE_SECRET is not set",
+            "captcha verification unavailable"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -144,7 +150,10 @@ fn get_secrets(state: &Arc<WebState>) -> WebResult<VerificationSecrets<'_>> {
     })?;
 
     let hc_secret_key = config.hc_secret_key.as_deref().ok_or_else(|| {
-        error!("HCAPTCHA_SECRET environment variable is not set");
+        error!(
+            fault = "HCAPTCHA_SECRET is not set",
+            "captcha verification unavailable"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -152,7 +161,10 @@ fn get_secrets(state: &Arc<WebState>) -> WebResult<VerificationSecrets<'_>> {
     })?;
 
     let hc_site_key = config.hc_site_key.as_deref().ok_or_else(|| {
-        error!("HCAPTCHA_SITE_KEY environment variable is not set");
+        error!(
+            fault = "HCAPTCHA_SITE_KEY is not set",
+            "captcha verification unavailable"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),

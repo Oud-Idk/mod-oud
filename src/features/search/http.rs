@@ -108,7 +108,7 @@ pub async fn get_json<T: DeserializeOwned>(
             error!(
                 provider,
                 op,
-                status = status.as_u16(),
+                reason = status.as_u16(),
                 url = %safe_url,
                 body = %snippet,
                 "Upstream provider returned a non-success status"

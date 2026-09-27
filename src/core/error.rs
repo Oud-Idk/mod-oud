@@ -54,6 +54,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
                 command = %ctx.command().qualified_name,
                 guild_id = ?ctx.guild_id(),
                 user_id = %ctx.author().id,
+                fault = "command panicked",
                 panic = ?payload,
                 "Command panicked"
             );

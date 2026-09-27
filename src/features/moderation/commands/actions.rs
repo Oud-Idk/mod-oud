@@ -21,7 +21,7 @@ pub async fn kick(
     #[description = "The reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     let target_id = user.id.get();
-    info!(
+    debug!(
         caller_id = ctx.author().id.get(),
         target_id, "Invoked kick command"
     );
@@ -69,7 +69,7 @@ pub async fn ban(
     dmd: Option<u8>,
 ) -> Result<(), Error> {
     let target_id = user.id.get();
-    info!(
+    debug!(
         caller_id = ctx.author().id.get(),
         target_id,
         duration = ?duration,
@@ -144,7 +144,7 @@ pub async fn purge(
     amount: u8,
 ) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
-    info!(
+    debug!(
         caller_id = ctx.author().id.get(),
         channel_id = channel_id.get(),
         amount,
@@ -197,7 +197,7 @@ pub async fn mute(
     #[description = "The reason."] reason: Option<String>,
 ) -> Result<(), Error> {
     let target_id = member.user.id.get();
-    info!(
+    debug!(
         caller_id = ctx.author().id.get(),
         target_id,
         duration = %duration,
@@ -276,7 +276,7 @@ pub async fn unmute(
     #[description = "The member to unmute"] member: Member,
 ) -> Result<(), Error> {
     let target_id = member.user.id.get();
-    info!(
+    debug!(
         caller_id = ctx.author().id.get(),
         target_id, "Invoked unmute command"
     );
@@ -335,7 +335,7 @@ pub async fn softban(
     dmd: u8,
 ) -> Result<(), Error> {
     let target_id = member.user.id.get();
-    info!(
+    debug!(
         caller_id = ctx.author().id.get(),
         target_id, dmd, "Invoked softban command"
     );
@@ -380,7 +380,7 @@ pub async fn unban(
     #[description = "The reason for the unban"] reason: Option<String>,
 ) -> Result<(), Error> {
     let target_id = user.id.get();
-    info!(
+    debug!(
         caller_id = ctx.author().id.get(),
         target_id, "Invoked unban command"
     );

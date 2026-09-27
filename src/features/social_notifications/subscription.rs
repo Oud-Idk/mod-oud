@@ -130,7 +130,7 @@ pub async fn subscribe_feed(
             .internal_api_secret
             .as_deref()
             .ok_or_else(|| {
-                tracing::error!("INTERNAL_API_SECRET is not set, cannot sign WebSub callbacks");
+                tracing::error!(fault = "INTERNAL_API_SECRET is not set", "cannot sign WebSub callbacks");
                 SubscribeError::Misconfigured(
                     "Missing internal API secret. Please ask the bot's administrator to fix this."
                         .to_string(),

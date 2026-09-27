@@ -61,7 +61,7 @@ impl SafeBrowsingClient {
                 .await
                 .unwrap_or_else(|_| "Unreadable body".to_string());
             error!(
-                status = %status,
+                reason = status.as_u16(),
                 error_body = %err_text,
                 "Safe Browsing API returned an error status"
             );
