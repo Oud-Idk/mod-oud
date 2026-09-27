@@ -25,8 +25,7 @@ export function ReportActions({
     onBanClick,
     onWarnClick,
 }: ReportActionsProps): JSX.Element {
-    const statusLower = log.status.toLowerCase();
-    const isResolved = statusLower === "ACTIONED" || statusLower === "DISMISSED";
+    const isResolved = log.status === "ACTIONED" || log.status === "DISMISSED";
     const isMessageDeleted = log.message_deleted;
 
     if (isResolved) {
