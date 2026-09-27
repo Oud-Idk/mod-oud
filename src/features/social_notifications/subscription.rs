@@ -74,7 +74,7 @@ pub async fn subscribe_feed(
         .send()
         .await
         .and_then(reqwest::Response::error_for_status)
-        .inspect_err(|e| tracing::error!(error = ?e, %url, "Failed to fetch feed URL"))
+        .inspect_err(|e| tracing::error!(error = ?e, %url, "fetch feed URL"))
         .map_err(|_| {
             SubscribeError::UnusableFeed(
                 "Could not fetch that URL. Make sure it points to a public RSS/Atom feed."
@@ -85,11 +85,11 @@ pub async fn subscribe_feed(
     let body = resp
         .text()
         .await
-        .inspect_err(|e| tracing::error!(error = ?e, %url, "Failed to read feed body"))
+        .inspect_err(|e| tracing::error!(error = ?e, %url, "read feed body"))
         .map_err(|_| SubscribeError::UnusableFeed("Could not read that feed's contents.".to_string()))?;
 
     let feed = feed_rs::parser::parse(body.as_bytes())
-        .inspect_err(|e| tracing::error!(error = ?e, %url, "Failed to parse feed"))
+        .inspect_err(|e| tracing::error!(error = ?e, %url, "parse feed"))
         .map_err(|_| {
             SubscribeError::UnusableFeed(
                 "That URL does not look like a valid RSS or Atom feed.".to_string(),
@@ -101,12 +101,12 @@ pub async fn subscribe_feed(
 
     let feed_id = insert_feed(&core.db, url, &kind)
         .await
-        .inspect_err(|e| tracing::error!(error = ?e, %url, "Failed to store feed"))
+        .inspect_err(|e| tracing::error!(error = ?e, %url, "store feed"))
         .map_err(|_| SubscribeError::Internal)?;
 
     let is_new = subscribe_channel(&core.db, feed_id, channel_id, guild_id)
         .await
-        .inspect_err(|e| tracing::error!(error = ?e, %url, "Failed to subscribe channel"))
+        .inspect_err(|e| tracing::error!(error = ?e, %url, "subscribe channel"))
         .map_err(|_| SubscribeError::Internal)?;
 
     let already_subscribed = !is_new;
@@ -130,7 +130,7 @@ pub async fn subscribe_feed(
             .internal_api_secret
             .as_deref()
             .ok_or_else(|| {
-                tracing::error!("INTERNAL_API_SECRET is not set, cannot sign WebSub callbacks");
+                tracing::error!(fault = "INTERNAL_API_SECRET is not set", "cannot sign WebSub callbacks");
                 SubscribeError::Misconfigured(
                     "Missing internal API secret. Please ask the bot's administrator to fix this."
                         .to_string(),
@@ -150,7 +150,7 @@ pub async fn subscribe_feed(
         .await
         {
             Ok(()) => hub_confirmed = true,
-            Err(e) => tracing::error!(error = ?e, %feed_id, "Failed to subscribe to WebSub hub"),
+            Err(e) => tracing::error!(error = ?e, %feed_id, "subscribe to WebSub hub"),
         }
     }
 

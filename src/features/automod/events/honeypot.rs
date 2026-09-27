@@ -87,7 +87,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
                         error = ?e,
                         user_id = %message.author.id,
                         %guild_id,
-                        "Failed to send honeypot ban DM; user was banned without notice"
+                        "send honeypot ban DM; user was banned without notice"
                     );
                 }
             }
@@ -108,7 +108,7 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
                     error = ?e,
                     user_id = %message.author.id,
                     %guild_id,
-                    "Failed to send fallback honeypot ban DM; user was banned without notice"
+                    "send fallback honeypot ban DM; user was banned without notice"
                 );
             }
         }
@@ -125,6 +125,6 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
             .context("Failed to schedule temp unban for honeypot offender")?;
     }
 
-    info!(user_id = %message.author.id, %guild_id, "Honeypot offender banished successfully");
+    info!(user_id = %message.author.id, %guild_id, "Honeypot offender banished");
     Ok(true)
 }

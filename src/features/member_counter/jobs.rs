@@ -35,7 +35,7 @@ pub fn start_member_counter_job(
                 process_all_member_counters(&http, &serenity_cache, &db, &redis, &cache, &worker_id)
                     .await
             {
-                error!(error = ?e, "Error encountered during member counter job execution");
+                error!(error = ?e, "processing member counters");
             }
         }
     });
@@ -62,7 +62,7 @@ async fn process_all_member_counters(
         let settings = match get_settings(db, redis, cache, guild_id).await {
             Ok(s) => s,
             Err(e) => {
-                warn!(%guild_id, error = ?e, "Failed to fetch settings for guild");
+                warn!(%guild_id, error = ?e, "fetch settings for guild");
                 continue;
             }
         };
@@ -100,13 +100,13 @@ async fn process_all_member_counters(
         // Process counters for this guild
         if let Err(e) = update_guild_counters(http, serenity_cache, guild_id, counter_config).await
         {
-            warn!(%guild_id, error = ?e, "Failed to update member counter channels for guild");
+            warn!(%guild_id, error = ?e, "update member counter channels for guild");
 
             if let Err(del_err) = redis.del::<i64, _>(&claim_key).await {
                 warn!(
                     %guild_id,
                     error = ?del_err,
-                    "Failed to release member counter claim after failed update"
+                    "release member counter claim after failed update"
                 );
             }
         }

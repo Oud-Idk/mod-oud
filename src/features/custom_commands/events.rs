@@ -37,7 +37,7 @@ pub async fn handle_custom_cmd(ctx: &Context, msg: &Message, data: &BotData) -> 
     {
         Ok(settings) => resolve_prefix(&settings).to_string(),
         Err(e) => {
-            warn!(error = ?e, %guild_id, "Failed to load prefix; falling back to default");
+            warn!(error = ?e, %guild_id, "load prefix; falling back to default");
             DEFAULT_PREFIX.to_string()
         }
     };
@@ -107,9 +107,7 @@ async fn execute_matched(
 
     handle_custom_command(ctx, msg, cmd, &data.core.redis, &gctx, channel.as_ref())
         .await
-        .inspect_err(
-            |e| error!(error = ?e, command = %cmd_name, "Failed to execute custom command"),
-        )?;
+        .inspect_err(|e| error!(error = ?e, command = %cmd_name, "execute custom command"))?;
 
     Ok(())
 }

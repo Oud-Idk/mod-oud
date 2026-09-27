@@ -77,11 +77,11 @@ pub async fn fetch_metadata(services: PlaybackServices<'_>, query: &str) -> Resu
     let mut src = YoutubeDl::new(services.reqwest_client.clone(), query.to_string());
     match src.aux_metadata().await {
         Ok(metadata) => {
-            debug!(guild_id = %services.guild_id, title = ?metadata.title, "Aux metadata successfully fetched");
+            debug!(guild_id = %services.guild_id, title = ?metadata.title, "Aux metadata fetched");
             Ok(metadata)
         }
         Err(e) => {
-            error!(guild_id = %services.guild_id, error = ?e, "Error fetching track metadata");
+            error!(guild_id = %services.guild_id, error = ?e, "fetching track metadata");
             Err(e.into())
         }
     }

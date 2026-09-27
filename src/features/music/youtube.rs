@@ -123,7 +123,7 @@ pub async fn resolve_youtube_playlist(
         let body_text = match res.text().await {
             Ok(t) => t,
             Err(e) => {
-                warn!(error = %e, "Failed to read response body text from YouTube API");
+                warn!(error = %e, "read response body text from YouTube API");
                 break;
             }
         };
@@ -132,7 +132,7 @@ pub async fn resolve_youtube_playlist(
         let data: PlaylistItemListResponse = match serde_json::from_str(&body_text) {
             Ok(d) => d,
             Err(e) => {
-                warn!(error = %e, raw_body = %body_text, "Failed to deserialize YouTube playlist JSON");
+                warn!(error = %e, raw_body = %body_text, "deserialize YouTube playlist JSON");
                 break;
             }
         };
@@ -160,12 +160,12 @@ pub async fn resolve_youtube_playlist(
     }
 
     if video_urls.is_empty() {
-        warn!(url = %url, "Failed to fetch videos from YouTube API or playlist was empty");
+        warn!(url = %url, "fetch videos from YouTube API or playlist was empty");
         None
     } else {
         debug!(
             count = video_urls.len(),
-            "Successfully fetched all YouTube playlist tracks"
+            "fetched all YouTube playlist tracks"
         );
         Some(video_urls)
     }

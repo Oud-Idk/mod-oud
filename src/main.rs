@@ -20,10 +20,12 @@ use mod_oud::features::{
     leveling, media_only, member_counter, moderation, music, raid_detection, reporting, search,
     social_notifications, temp_voice, tickets, warning,
 };
+use mod_oud::shared::logger;
 use mod_oud::shared::spotify_auth::SpotifyAuthCache;
 use mod_oud::shared::username_cache::UserUpdate;
 use mod_oud::web::server::{WebServerDeps, start_web_server};
 use poise::serenity_prelude as serenity;
+use serenity::gateway::ShardManager;
 use serenity::prelude::GatewayIntents;
 use songbird::SerenityInit;
 use sqlx::ConnectOptions;
@@ -33,8 +35,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
+use tokio::task::JoinHandle;
 use tracing::log::LevelFilter;
-use tracing::{debug, info, trace, warn};
+use tracing::{Instrument, debug, error, info, info_span, warn};
 
 fn main() -> Result<(), Error> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -42,13 +45,32 @@ fn main() -> Result<(), Error> {
         .thread_stack_size(4 * 1024 * 1024)
         .build()?;
 
-    runtime.block_on(async_main())
+    // Before `load_env`, so a local `.env` reaches both.
+    let filter = logger::init();
+    install_crypto_provider();
+    let env_config = load_env();
+
+    // The root span is the only way to tell which shard a line came from.
+    let process = info_span!(
+        "process",
+        shard_id = env_config.shard_index,
+        shard_count = env_config.total_shards,
+        log_filter = %filter,
+    );
+    // `main` is the boundary for everything below it, so its error is logged here. Without this
+    // the only record is the bare `Error:` that `Termination` prints on the way out.
+    runtime
+        .block_on(async_main(env_config).instrument(process))
+        .inspect_err(|e| {
+            error!(
+                error = ?e,
+                error_chain = %format!("{e:#}"),
+                "process exited with an error"
+            );
+        })
 }
 
-async fn async_main() -> Result<(), Error> {
-    init_logging();
-
-    let env_config = load_env();
+async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
     let pool = connect_database(&env_config.database_url, env_config.run_migrations).await?;
     let (redis_client, subscriber_client) = connect_redis(&env_config.redis_url).await?;
 
@@ -103,9 +125,11 @@ async fn async_main() -> Result<(), Error> {
     }
 
     if env_config.run_bot {
-        start_bot(BotDeps {
+        let (shard_manager, mut gateway) = start_bot(BotDeps {
             token: env_config.token,
             google_cloud_api_key: env_config.google_cloud_api_key,
+            shard_index: env_config.shard_index,
+            total_shards: env_config.total_shards,
             pool,
             redis_client,
             subscriber_client,
@@ -117,14 +141,63 @@ async fn async_main() -> Result<(), Error> {
             music_state,
         })
         .await?;
+
+        // Without this a deploy kills the process mid-connection and the log ends mid-sentence,
+        // so a restart is indistinguishable from a crash.
+        tokio::select! {
+            result = &mut gateway => {
+                match result {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => error!(error = ?e, "gateway stopped on its own"),
+                    Err(e) => error!(error = ?e, "gateway task ended abnormally"),
+                }
+            }
+            signal = shutdown_signal() => {
+                info!(signal, "shutdown signal received");
+            }
+        }
+
+        info!("Draining");
+        shard_manager.shutdown_all().await;
+        // Bounded, so a shard that will not close cannot hang the deploy.
+        if tokio::time::timeout(DRAIN_TIMEOUT, &mut gateway)
+            .await
+            .is_err()
+        {
+            warn!("Drain timed out, exiting with the gateway still connected");
+        }
     } else {
         warn!(
-            "Bot Gateway client is disabled. Web server running exclusively. Ignore this warning if this is intentional."
+            "bot gateway client is disabled, web server running exclusively; ignore this warning if intentional"
         );
-        tokio::signal::ctrl_c().await?;
+        let signal = shutdown_signal().await;
+        info!(signal, "shutdown signal received");
     }
 
+    info!("Stopped");
+
     Ok(())
+}
+
+/// How long the drain waits for the gateway to finish before the process exits anyway.
+const DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Resolves on the first SIGTERM or SIGINT, naming which one arrived.
+async fn shutdown_signal() -> &'static str {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        if let Ok(mut terminate) = signal(SignalKind::terminate()) {
+            return tokio::select! {
+                _ = terminate.recv() => "SIGTERM",
+                _ = tokio::signal::ctrl_c() => "SIGINT",
+            };
+        }
+    }
+
+    let _ = tokio::signal::ctrl_c().await;
+    "SIGINT"
 }
 
 /// Environment variables parsed at startup.
@@ -133,6 +206,8 @@ struct EnvConfig {
     database_url: String,
     redis_url: String,
     google_cloud_api_key: String,
+    shard_index: u32,
+    total_shards: u32,
     run_bot: bool,
     run_web: bool,
     run_migrations: bool,
@@ -142,6 +217,8 @@ struct EnvConfig {
 struct BotDeps {
     token: String,
     google_cloud_api_key: String,
+    shard_index: u32,
+    total_shards: u32,
     pool: sqlx::PgPool,
     redis_client: Client,
     subscriber_client: SubscriberClient,
@@ -153,59 +230,39 @@ struct BotDeps {
     music_state: MusicState,
 }
 
-/// Log filter used when `RUST_LOG` is unset.
+/// Installs the rustls crypto provider before any TLS client is built.
 ///
-/// `EnvFilter::from_default_env()` hardcodes `ERROR` as its fallback directive,
-/// and the Docker image never sets `RUST_LOG` — so without this the deployed bot
-/// emits almost nothing and every `info!` is silently dropped. Override per
-/// environment by exporting `RUST_LOG`.
-const DEFAULT_LOG_FILTER: &str = "info,sqlx=warn,serenity=warn,poise=info";
-
-/// Installs the rustls crypto provider, loads `.env`, and initializes tracing.
-fn init_logging() {
-    // Only fails when a provider is already installed, which is a no-op success
-    // in practice; log it rather than swallowing so a real conflict is visible.
+/// Fails only when a provider is already installed, which is a no-op in practice.
+fn install_crypto_provider() {
     if let Err(e) = rustls::crypto::ring::default_provider().install_default() {
-        tracing::debug!(error = ?e, "rustls provider was already installed; reusing it");
+        debug!(error = ?e, "rustls provider was already installed; reusing it");
     }
-
-    // Must precede reading the filter, so a local `.env` still takes effect.
-    dotenvy::dotenv().ok();
-
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(DEFAULT_LOG_FILTER));
-
-    tracing_subscriber::fmt()
-        .with_env_filter(filter.clone())
-        .pretty()
-        .with_target(true)
-        .with_line_number(true)
-        .with_file(true)
-        .with_thread_names(true)
-        .init();
-
-    // Log the effective filter, so the active verbosity is discoverable from the
-    // logs rather than inferred from what is missing in them.
-    tracing::info!(filter = %filter, "Tracing initialized");
 }
 
 /// Reads all environment configuration into an [`EnvConfig`].
 fn load_env() -> EnvConfig {
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment table, `DISCORD_TOKEN`");
-    trace!("Discord token loaded successfully.");
 
     let database_url = env::var("DATABASE_URL")
         .expect("Expected a database URL in the environment table, `DATABASE_URL`");
-    trace!("Database URL loaded successfully.");
 
     let redis_url =
         env::var("REDIS_URL").expect("Expected a Redis URL in the environment table, `REDIS_URL`");
-    trace!("Redis URL loaded successfully.");
 
     let google_cloud_api_key = env::var("GOOGLE_CLOUD_API_KEY")
         .expect("Expected a Google Cloud API key in the environment table, `GOOGLE_CLOUD_API_KEY`");
-    trace!("Google Cloud API Key loaded successfully.");
+
+    // Read here rather than per consumer, so the root span can name the shard.
+    let shard_index: u32 = env::var("SHARD_INDEX")
+        .unwrap_or_else(|_| "0".to_string())
+        .parse()
+        .expect("SHARD_INDEX must be a valid u32");
+
+    let total_shards: u32 = env::var("TOTAL_SHARDS")
+        .unwrap_or_else(|_| "1".to_string())
+        .parse()
+        .expect("TOTAL_SHARDS must be a valid u32");
 
     let run_bot: bool = env::var("RUN_BOT")
         .unwrap_or_else(|_| "true".to_string())
@@ -213,9 +270,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_bot {
-        debug!("Since RUN_BOT is true, running discord bot.");
+        debug!("Since RUN_BOT is true, running discord bot");
     } else {
-        debug!("Since RUN_BOT is false, not running discord bot.");
+        debug!("Since RUN_BOT is false, not running discord bot");
     }
 
     let run_web: bool = env::var("RUN_WEB")
@@ -224,9 +281,9 @@ fn load_env() -> EnvConfig {
         .unwrap_or(true);
 
     if run_web {
-        debug!("Since RUN_WEB is true, running REST API.");
+        debug!("Since RUN_WEB is true, running REST API");
     } else {
-        debug!("Since RUN_WEB is false, not running REST API.");
+        debug!("Since RUN_WEB is false, not running REST API");
     }
 
     let run_migrations = env::var("RUN_MIGRATIONS")
@@ -239,6 +296,8 @@ fn load_env() -> EnvConfig {
         database_url,
         redis_url,
         google_cloud_api_key,
+        shard_index,
+        total_shards,
         run_bot,
         run_web,
         run_migrations,
@@ -260,15 +319,14 @@ async fn connect_database(database_url: &str, run_migrations: bool) -> Result<sq
         .await?;
 
     info!(
-        "Database connection established! Pool size: {}, Idle: {}",
-        pool.size(),
-        pool.num_idle()
+        pool_size = pool.size(),
+        pool_idle = pool.num_idle(),
+        "database pool connected"
     );
 
     if run_migrations {
-        info!("Running database migrations...");
         sqlx::migrate!().run(&pool).await?;
-        info!("Database migrated successfully.");
+        info!("Migrations applied");
     }
 
     Ok(pool)
@@ -285,12 +343,12 @@ async fn connect_redis(redis_url: &str) -> Result<(Client, SubscriberClient), Er
         .build()?;
     redis_client.init().await?;
     debug!(
-        "Connected to Redis as {}.",
-        redis_client
+        user = redis_client
             .client_config()
             .username
             .as_deref()
-            .unwrap_or("default")
+            .unwrap_or("default"),
+        "connected to redis"
     );
 
     let subscriber_config = Config::from_url(redis_url)?;
@@ -303,19 +361,25 @@ async fn connect_redis(redis_url: &str) -> Result<(Client, SubscriberClient), Er
     subscriber_client.init().await?;
     subscriber_client.manage_subscriptions();
     debug!(
-        "Connected to Redis with Subscriber as {}.",
-        subscriber_client
+        user = subscriber_client
             .client_config()
             .username
             .as_deref()
-            .unwrap_or("default")
+            .unwrap_or("default"),
+        "connected to redis with subscriber"
     );
 
     Ok((redis_client, subscriber_client))
 }
 
 /// Builds and starts the Discord bot gateway client.
-async fn start_bot(deps: BotDeps) -> Result<(), Error> {
+///
+/// Returns the shard manager, which is what a graceful shutdown goes through, and a handle to the
+/// gateway task. The handle is needed because `start_shard` does not return until every shard has
+/// shut down.
+async fn start_bot(
+    deps: BotDeps,
+) -> Result<(Arc<ShardManager>, JoinHandle<Result<(), Error>>), Error> {
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -327,7 +391,12 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
 
     let active_names: Vec<&str> = intents.iter_names().map(|(name, _flag)| name).collect();
 
-    info!("Selected intents: {:?}", active_names);
+    info!(
+        shard = deps.shard_index + 1,
+        shard_count = deps.total_shards,
+        intents = ?active_names,
+        "shard selected intents"
+    );
 
     let mut cache_settings = serenity::cache::Settings::default();
     cache_settings.max_messages = 5;
@@ -346,10 +415,10 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
 
     let commands_to_register = build_commands();
 
-    info!("Registered {} commands", commands_to_register.len());
-
-    let guild_configs_for_setup = deps.guild_configs.clone();
-    let bad_words_cache_for_setup = deps.bad_words_cache.clone();
+    info!(
+        commands = commands_to_register.len(),
+        "registered application commands"
+    );
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -373,11 +442,13 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
         .setup(move |ctx, ready, _framework| {
             setup(SetupParams {
                 google_cloud_api_key: deps.google_cloud_api_key,
+                shard_index: deps.shard_index,
+                total_shards: deps.total_shards,
                 pool: deps.pool,
                 redis_client: deps.redis_client.clone(),
                 subscriber_client: deps.subscriber_client.clone(),
-                guild_configs_cache: guild_configs_for_setup.clone(),
-                bad_words_cache: bad_words_cache_for_setup.clone(),
+                guild_configs_cache: deps.guild_configs.clone(),
+                bad_words_cache: deps.bad_words_cache.clone(),
                 ctx,
                 username_tx: deps.username_tx.clone(),
                 username_rx: deps.username_rx,
@@ -399,21 +470,17 @@ async fn start_bot(deps: BotDeps) -> Result<(), Error> {
         data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
     }
 
-    let shard_index: u32 = env::var("SHARD_INDEX")
-        .unwrap_or_else(|_| "0".to_string())
-        .parse()
-        .expect("SHARD_INDEX must be a valid u32");
+    // `start_shard` blocks for the life of the gateway, so it runs as a task the caller selects
+    // on. A drain reaches the shards through `ShardManager`, which is why it is returned.
+    let shard_manager = Arc::clone(&client.shard_manager);
+    let gateway = tokio::spawn(async move {
+        client
+            .start_shard(deps.shard_index, deps.total_shards)
+            .await
+            .map_err(Error::from)
+    });
 
-    let total_shards: u32 = env::var("TOTAL_SHARDS")
-        .unwrap_or_else(|_| "1".to_string())
-        .parse()
-        .expect("TOTAL_SHARDS must be a valid u32");
-
-    info!("Starting Shard {} of {}...", shard_index + 1, total_shards);
-
-    client.start_shard(shard_index, total_shards).await?;
-
-    Ok(())
+    Ok((shard_manager, gateway))
 }
 
 /// Resolves the per-guild command prefix for poise prefix commands.
@@ -440,7 +507,7 @@ fn dynamic_prefix(
                 mod_oud::features::custom_commands::resolve_prefix(&settings).to_string(),
             )),
             Err(e) => {
-                warn!(error = ?e, %guild_id, "Failed to load prefix; falling back to default");
+                warn!(error = ?e, %guild_id, "load prefix; falling back to default");
                 Ok(Some("!".to_string()))
             }
         }

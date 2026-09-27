@@ -37,7 +37,9 @@ pub async fn resolve_spotify_playlist(
     let playlist_id = url.split("/playlist/").nth(1)?.split('?').next()?;
 
     let Some(token) = spotify_auth.get_token(client).await else {
-        warn!("Could not retrieve Spotify API token. Check SPOTIFY_CLIENT_ID / SECRET env vars.");
+        warn!(
+            "could not retrieve spotify api token, check SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET"
+        );
         return None;
     };
 
@@ -69,7 +71,7 @@ pub async fn resolve_spotify_playlist(
         let body_text = match res.text().await {
             Ok(t) => t,
             Err(e) => {
-                warn!(error = %e, "Failed to read response body text from Spotify");
+                warn!(error = %e, "read response body text from Spotify");
                 break;
             }
         };
@@ -78,7 +80,7 @@ pub async fn resolve_spotify_playlist(
         let data: PlaylistTracksResponse = match serde_json::from_str(&body_text) {
             Ok(d) => d,
             Err(e) => {
-                warn!(error = %e, raw_body = %body_text, "Failed to deserialize Spotify playlist tracks JSON");
+                warn!(error = %e, raw_body = %body_text, "deserialize Spotify playlist tracks JSON");
                 break;
             }
         };
@@ -122,13 +124,10 @@ pub async fn resolve_spotify_playlist(
     }
 
     if search_terms.is_empty() {
-        warn!(url = %url, "Failed to fetch tracks from Spotify API or playlist was empty");
+        warn!(url = %url, "fetch tracks from Spotify API or playlist was empty");
         None
     } else {
-        debug!(
-            count = search_terms.len(),
-            "Successfully fetched all playlist tracks"
-        );
+        debug!(count = search_terms.len(), "fetched all playlist tracks");
         Some(search_terms)
     }
 }
@@ -157,7 +156,7 @@ pub async fn resolve_spotify_track(
     };
 
     let Some(token) = spotify_auth.get_token(client).await else {
-        warn!("Could not retrieve Spotify API token for track resolution.");
+        warn!("Could not retrieve Spotify API token for track resolution");
         return None;
     };
 

@@ -128,7 +128,7 @@ pub async fn higherlower(
                     error_chain = %format!("{e:#}"),
                     %guild_id,
                     %user_id,
-                    "Failed to finalise a timed out higher/lower game; the buttons stay active"
+                    "finalise a timed out higher/lower game; the buttons stay active"
                 );
             }
         }

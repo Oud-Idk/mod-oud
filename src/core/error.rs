@@ -54,6 +54,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
                 command = %ctx.command().qualified_name,
                 guild_id = ?ctx.guild_id(),
                 user_id = %ctx.author().id,
+                fault = "command panicked",
                 panic = ?payload,
                 "Command panicked"
             );
@@ -64,7 +65,7 @@ pub async fn on_error(error: poise::FrameworkError<'_, BotData, Error>) {
         // these well, and they are not internal faults.
         other => {
             if let Err(e) = poise::builtins::on_error(other).await {
-                error!(error = %e, "Error while handling a user-facing framework error");
+                error!(error = %e, "failed to handle a user-facing framework error");
             }
         }
     }
@@ -78,8 +79,7 @@ async fn reply_internal_error(ctx: &Context<'_>) {
             guild_id = ?ctx.guild_id(),
             user_id = %ctx.author().id,
             error = ?reply_err,
-            "Failed to deliver the error reply; the user saw nothing. Expected if the command \
-             already deferred"
+            "failed to deliver the error reply, the user saw nothing"
         );
     }
 }

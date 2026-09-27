@@ -98,7 +98,7 @@ pub async fn issue_report(
     let id = row.id;
     debug!(
         report_id = id,
-        "Successfully saved reported message to database"
+        "saved reported message to database"
     );
 
     let payload = ReportedMessagePayload {
@@ -122,7 +122,7 @@ pub async fn issue_report(
 
     trace!(report_id = id, "Serializing report payload to JSON");
     let payload_str = serde_json::to_string(&payload).map_err(|err| {
-        warn!(error = ?err, report_id = id, "Failed to serialize report payload to JSON");
+        warn!(error = ?err, report_id = id, "serialize report payload to JSON");
         err
     })?;
 
@@ -133,7 +133,7 @@ pub async fn issue_report(
 
     cache::publish_report(redis, &payload_str)
         .map_err(|err| {
-            warn!(error = ?err, report_id = id, "Failed to publish report to Redis Pub/Sub");
+            warn!(error = ?err, report_id = id, "publish report to Redis Pub/Sub");
             err
         })
         .await?;
@@ -142,7 +142,7 @@ pub async fn issue_report(
 
     debug!(
         report_id = id,
-        "Successfully completed report processing and transmission"
+        "completed report processing and transmission"
     );
     Ok(Some(row.id))
 }

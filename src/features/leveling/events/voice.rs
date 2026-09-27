@@ -308,7 +308,7 @@ async fn handle_level_up(
             guild_id = %event.guild_id,
             user_id = %event.user_level.user_id,
             level = event.user_level.current_level,
-            "Failed to apply level-up rewards; reward roles skipped until next level"
+            "apply level-up rewards; reward roles skipped until next level"
         );
     }
     Ok(())

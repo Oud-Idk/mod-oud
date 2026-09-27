@@ -60,7 +60,7 @@ pub fn build_custom_msg(
     embed: &DiscordEmbed,
 ) -> Result<Option<serenity::all::CreateMessage>, (StatusCode, String)> {
     build_custom_message(format, content, embed, std::string::ToString::to_string).map_err(|e| {
-        error!(error = ?e, "Failed to compile reaction roles message layout");
+        error!(error = ?e, "compile reaction roles message layout");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal Server Error".to_string(),
@@ -137,7 +137,7 @@ pub async fn edit_reactions(
                             error = ?e,
                             %channel_id,
                             %message_id,
-                            "Failed to remove stale reaction; it remains on the message"
+                            "remove stale reaction; it remains on the message"
                         );
                     }
                 }

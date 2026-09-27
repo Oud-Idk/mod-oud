@@ -65,7 +65,7 @@ pub async fn execute_rule_actions(
         )
         .await
     {
-        error!(error = %e, "Failed to log automod event");
+        error!(error = %e, "log automod event");
     } // This if statement is to prevent spamming the shit out of my poor database
 
     handle_automod(
@@ -149,7 +149,7 @@ async fn apply_warning(
     username_buf_tx: &mpsc::Sender<UserUpdate>,
 ) {
     let Some(guild_id) = message.guild_id else {
-        trace!("Skipping automated warning: Message was not sent in a guild.");
+        trace!("Skipping automated warning: Message was not sent in a guild");
         return;
     };
 
@@ -179,9 +179,9 @@ async fn apply_warning(
     {
         Ok(warn_id) => info!(
             warn_id,
-            "Automated filter successfully issued warning and executed threshold actions"
+            "Automated filter issued warning and executed threshold actions"
         ),
-        Err(err) => error!(error = %err, "Failed to apply automated warning via issue_warning"),
+        Err(err) => error!(error = %err, "apply automated warning via issue_warning"),
     }
 }
 
@@ -210,7 +210,10 @@ async fn apply_mute(
     let Some(timeout_until) =
         Timestamp::from_unix_timestamp(now_secs + i64::from(duration_secs)).ok()
     else {
-        error!("Could not calculate a valid mute timestamp");
+        error!(
+            fault = "mute timestamp is out of range",
+            "Could not calculate a valid mute timestamp"
+        );
         return;
     };
 
@@ -233,11 +236,8 @@ async fn apply_mute(
     )
     .await
     {
-        Ok(()) => info!(
-            duration_secs,
-            "Successfully timed out user via automated mute"
-        ),
-        Err(err) => error!(error = %err, "Failed to apply automated timeout"),
+        Ok(()) => info!(duration_secs, "timed out user via automated mute"),
+        Err(err) => error!(error = %err, "apply automated timeout"),
     }
 }
 
@@ -295,12 +295,12 @@ async fn send_temp_warning(
         tokio::spawn(async move {
             tokio::time::sleep(duration).await;
             if let Err(err) = temp_msg.delete(&http).await {
-                warn!(error = %err, message_id = %temp_msg_id.get(), "Failed to remove temporary warning message");
+                warn!(error = %err, message_id = %temp_msg_id.get(), "remove temporary warning message");
             } else {
                 trace!(message_id = %temp_msg_id.get(), "Cleaned up temporary warning message");
             }
         });
     } else {
-        warn!("Failed to dispatch temporary channel warning message");
+        warn!("dispatch temporary channel warning message");
     }
 }

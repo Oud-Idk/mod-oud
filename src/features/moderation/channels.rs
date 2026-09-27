@@ -35,7 +35,7 @@ pub async fn delete_entire_category(
                 warn!(
                     error = ?e,
                     channel_id = %channel_id,
-                    "Failed to delete child channel inside category"
+                    "delete child channel inside category"
                 );
             }
         }

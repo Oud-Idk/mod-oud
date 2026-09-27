@@ -44,7 +44,10 @@ impl CoinSide {
         [Self::Heads, Self::Tails].choose(&mut rng).map_or_else(
             || {
                 // Unreachable with two elements, but it would bias every flip to Heads.
-                tracing::error!("Coin flip RNG selection failed; falling back to Heads");
+                tracing::error!(
+                    fault = "coin flip variant set is empty",
+                    "Coin flip RNG selection failed; falling back to Heads"
+                );
                 Self::Heads
             },
             |side| *side,

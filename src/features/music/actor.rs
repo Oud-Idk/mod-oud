@@ -1056,7 +1056,7 @@ impl GuildActor {
                 true
             }
             Err(e) => {
-                warn!(error = ?e, guild_id = %self.guild_id, "Failed to reconnect live stream");
+                warn!(error = ?e, guild_id = %self.guild_id, "reconnect live stream");
                 self.broadcast_state().await;
                 false
             }
@@ -1261,14 +1261,14 @@ impl GuildActor {
         let payload = match serde_json::to_string(&event) {
             Ok(payload) => payload,
             Err(e) => {
-                warn!(guild_id = %self.guild_id, error = %e, "Failed to serialize now-playing event");
+                warn!(guild_id = %self.guild_id, error = %e, "serialize now-playing event");
                 return;
             }
         };
 
         let published: Result<i64, _> = self.redis.publish(keys::events_channel(), payload).await;
         if let Err(e) = published {
-            debug!(guild_id = %self.guild_id, error = ?e, "Failed to publish now-playing event");
+            debug!(guild_id = %self.guild_id, error = ?e, "publish now-playing event");
         }
     }
 

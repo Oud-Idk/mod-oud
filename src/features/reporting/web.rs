@@ -53,7 +53,7 @@ pub async fn handle_dashboard_command(
                     error!(
                         status = %status,
                         error = %err_msg,
-                        "Failed to fetch target report details from database"
+                        "fetch target report details from database"
                     );
                 }
             })?;
@@ -103,11 +103,11 @@ pub async fn handle_dashboard_command(
     }
 
     if let Err(e) = broadcast_report_update(&state.core.db, &redis_conn, cmd.report_id).await {
-        error!(error = ?e, "Failed to broadcast report update after moderation action");
+        error!(error = ?e, "broadcast report update after moderation action");
         return Err(WebError::Internal);
     }
 
-    info!("Dashboard moderation command executed successfully");
+    info!("Dashboard moderation command executed");
     Ok(StatusCode::OK)
 }
 

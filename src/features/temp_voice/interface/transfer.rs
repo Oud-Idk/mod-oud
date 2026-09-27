@@ -15,7 +15,7 @@ pub async fn handle_transfer_temp_vc(
     interaction: &ComponentInteraction,
     data: &BotData,
 ) -> Result<(), Error> {
-    debug!("Starting voice channel transfer workflow");
+    debug!(%interaction.user.id, "handling voice channel transfer");
 
     let Ok(Some(_)) = preflight_button_check(ctx, interaction, data).await else {
         debug!("Preflight check failed or returned no channel information");
@@ -43,7 +43,7 @@ pub async fn handle_transfer_temp_vc(
         .create_response(&ctx.http, CreateInteractionResponse::Message(response))
         .await?;
 
-    debug!("Transfer selection menu successfully sent to user");
+    debug!("Transfer selection menu sent to user");
     Ok(())
 }
 
@@ -104,14 +104,15 @@ pub async fn handle_transfer_temp_vc_submit(
         .content(message_content)
         .components(vec![row]);
     info!(
-        "Sending transfer offer in channel {} from owner {} to target {}",
-        channel_id.get(),
-        current_owner_id.get(),
-        new_owner_id.get()
+        %guild_id,
+        %channel_id,
+        from_owner = %current_owner_id,
+        to_owner = %new_owner_id,
+        "sending temporary voice channel transfer offer"
     );
 
     if let Err(e) = channel_id.send_message(&ctx.http, msg).await {
-        warn!("Failed to send transfer offer message: {:?}", e);
+        warn!(%guild_id, %channel_id, error = ?e, "failed to send transfer offer message");
     }
 
     Ok(())

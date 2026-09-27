@@ -64,14 +64,21 @@ pub async fn handle_send_custom_embed(
     let message = target_channel
         .send_message(&state.serenity_http, message_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, channel_id = payload.channel_id, "Failed to deliver Discord message"))
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.".to_string()))?;
+        .inspect_err(
+            |e| warn!(error = ?e, channel_id = payload.channel_id, "deliver Discord message"),
+        )
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".to_string(),
+            )
+        })?;
 
     info!(
         %guild_id,
         channel_id = payload.channel_id,
         message_id = %message.id,
-        "Custom message successfully delivered"
+        "Custom message delivered"
     );
 
     Ok((

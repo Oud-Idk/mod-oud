@@ -59,7 +59,7 @@ async fn get_display_name(
     };
 
     if let Err(e) = store_username_relation(sender, user_id, &fetched_name).await {
-        warn!(error = ?e, %user_id, "Failed to queue username update for birthday announcement");
+        warn!(error = ?e, %user_id, "queue username update for birthday announcement");
     }
 
     fetched_name
@@ -123,7 +123,7 @@ async fn announce_for_guild(
     let settings = match get_settings(db, redis, guild_configs, guild_id).await {
         Ok(s) => s,
         Err(e) => {
-            error!(%guild_id, error = %e, "Failed to fetch settings for birthday job");
+            error!(%guild_id, error = %e, "fetch settings for birthday job");
             return;
         }
     };
@@ -197,7 +197,7 @@ async fn unannounced_celebrants(
         {
             Ok(records) => records,
             Err(e) => {
-                error!(%guild_id, error = %e, "Failed to get unannounced birthdays");
+                error!(%guild_id, error = %e, "get unannounced birthdays");
                 return None;
             }
         };
@@ -305,7 +305,7 @@ pub async fn cleanup_expired_birthday_roles(
                     error = ?e,
                     %guild_id,
                     %user_id,
-                    "Failed to remove expired birthday role; member keeps the role"
+                    "remove expired birthday role; member keeps the role"
                 );
             }
         })
@@ -349,7 +349,7 @@ async fn run_birthday_worker(
     let lock_key = "lock:birthday_worker";
     let lock_value = &worker_id;
 
-    info!(worker_id = %lock_value, "Starting birthday worker task");
+    info!(worker_id = %lock_value, "birthday worker started");
 
     loop {
         tokio::time::sleep(Duration::from_mins(2)).await;
@@ -367,24 +367,24 @@ async fn run_birthday_worker(
                 )
                 .await
                 {
-                    error!(error = ?e, "Error running birthday announcements");
+                    error!(error = ?e, "running birthday announcements");
                 }
 
                 if let Err(e) = cleanup_expired_birthday_roles(&pool, &ctx).await {
-                    error!(error = ?e, "Error cleaning up expired birthday roles");
+                    error!(error = ?e, "cleaning up expired birthday roles");
                 }
 
                 if let Err(e) = guard.release().await {
-                    warn!(error = ?e, "Failed to release birthday worker lock");
+                    warn!(error = ?e, "release birthday worker lock");
                 } else {
-                    trace!("Released birthday worker lock successfully");
+                    trace!("Released birthday worker lock");
                 }
             }
             Ok(None) => {
                 trace!("Lock busy; skipping this iteration");
             }
             Err(e) => {
-                error!(error = ?e, "Failed to coordinate Redis lock for birthday worker");
+                error!(error = ?e, "coordinate Redis lock for birthday worker");
             }
         }
     }

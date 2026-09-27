@@ -14,7 +14,7 @@ pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
         let lock_key = "lock:level_flush_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
-        info!(worker_id = %lock_value, "Starting level flush worker task");
+        info!(worker_id = %lock_value, "level flush worker started");
 
         loop {
             tokio::time::sleep(Duration::from_secs(15)).await;
@@ -26,20 +26,20 @@ pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
                     trace!("Lock acquired; starting pending level flush");
 
                     if let Err(e) = flush_pending_levels(&db_pool, &redis_client).await {
-                        error!(error = ?e, "Error flushing levels to database");
+                        error!(error = ?e, "flushing levels to database");
                     }
 
                     match guard.release().await {
-                        Ok(true) => trace!("Lock released successfully"),
+                        Ok(true) => trace!("Lock released"),
                         Ok(false) => warn!("Attempted to release lock, but we no longer owned it"),
-                        Err(e) => error!(error = ?e, "Failed to release lock due to a Redis error"),
+                        Err(e) => error!(error = ?e, "release lock due to a Redis error"),
                     }
                 }
                 Ok(None) => {
                     trace!("Lock already held by another worker; skipping this iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "Failed to coordinate Redis lock for level flushing");
+                    error!(error = ?e, "coordinate Redis lock for level flushing");
                 }
             }
         }
@@ -83,7 +83,7 @@ async fn process_flushing_key(
                 warn!(
                     field = %field,
                     error = ?e,
-                    "Failed to deserialize UserLevel from flushing map field"
+                    "deserialize UserLevel from flushing map field"
                 );
             }
         }
@@ -107,7 +107,7 @@ async fn process_flushing_key(
     }
 
     cache::delete_levels_flush_key(redis, flushing_key).await?;
-    debug!("Successfully deleted flushing key from Redis");
+    debug!("deleted flushing key from Redis");
 
     Ok(())
 }
@@ -164,7 +164,7 @@ async fn flush_pending_levels(
 
         async move {
             if let Err(e) = flush_guild(&guild_id_str, &redis_clone, db_pool).await {
-                error!(%guild_id_str, error = ?e, "Failed to flush levels for guild");
+                error!(%guild_id_str, error = ?e, "flush levels for guild");
             }
         }
     });

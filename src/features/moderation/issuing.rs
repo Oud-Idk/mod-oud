@@ -77,7 +77,7 @@ pub async fn issue_kick(
                     invite_url = Some(format!("https://discord.gg/{}", invite.code));
                 }
                 Err(e) => {
-                    warn!(error = ?e, "Failed to create Discord invite for kick DM");
+                    warn!(error = ?e, "create Discord invite for kick DM");
                 }
             }
         }
@@ -125,7 +125,7 @@ pub async fn issue_kick(
     debug!("Executing kick via Discord HTTP API");
     guild_id.kick_with_reason(http, user.id, reason).await?;
 
-    info!("Successfully kicked user from guild");
+    info!("kicked user from guild");
     Ok(())
 }
 
@@ -205,7 +205,7 @@ pub async fn issue_ban(
     )
     .await?;
 
-    info!("Successfully banned user from guild");
+    info!("banned user from guild");
     Ok(())
 }
 
@@ -302,7 +302,7 @@ pub async fn issue_mute(
     )
     .await?;
 
-    info!("Successfully muted user in guild");
+    info!("muted user in guild");
     Ok(())
 }
 
@@ -349,7 +349,7 @@ pub async fn issue_unmute(
     )
     .await?;
 
-    info!("Successfully unmuted user in guild");
+    info!("unmuted user in guild");
     Ok(())
 }
 
@@ -419,6 +419,6 @@ pub async fn issue_softban(
     )
     .await?;
 
-    info!("Successfully soft-banned user from guild");
+    info!("soft-banned user from guild");
     Ok(())
 }

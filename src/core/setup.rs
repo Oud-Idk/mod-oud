@@ -25,7 +25,6 @@ use fred::interfaces::SetsInterface;
 use moka::future::Cache;
 use serenity::all::{ChannelId, Context, GuildId, Ready, ShardId, ShardInfo, ShardManager};
 use sqlx::{Pool, Postgres};
-use std::env;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -70,6 +69,12 @@ pub struct SetupParams<'a> {
 
     /// Serenity gateway `Ready` event payload.
     pub ready: &'a Ready,
+
+    /// Zero-based index of the shard this process runs.
+    pub shard_index: u32,
+
+    /// Total number of shards across the deployment.
+    pub total_shards: u32,
 }
 
 /// Initializes core bot state, hydrates local caches, and starts background worker tasks upon gateway login.
@@ -87,9 +92,8 @@ pub struct SetupParams<'a> {
 /// * `reqwest_client` - Shared HTTP client.
 /// * `music_state` - Music playback state manager.
 /// * `ready` - Serenity gateway `Ready` event payload.
-///
-/// # Panics
-/// When environmental variables `SHARD_INDEX` and `TOTAL_SHARDS` is empty, it will panic.
+/// * `shard_index` - Zero-based index of the shard this process runs.
+/// * `total_shards` - Total number of shards across the deployment.
 #[must_use]
 pub fn setup<'a>(
     params: SetupParams<'a>,
@@ -108,20 +112,22 @@ pub fn setup<'a>(
             reqwest_client,
             music_state,
             ready,
+            shard_index,
+            total_shards,
         } = params;
 
-        info!("Logged in as {}", ready.user.name);
+        info!(bot = %ready.user.name, id = %ready.user.id, "gateway logged in");
 
         let active_tickets_cache = hydrate_active_tickets_cache(&redis_client).await;
 
         debug!(
-            "Hydrated {} active tickets into local cache.",
-            active_tickets_cache.entry_count()
+            active_tickets = active_tickets_cache.entry_count(),
+            "hydrated active tickets into local cache"
         );
 
         let (ticket_tx, ticket_rx) = mpsc::unbounded_channel();
 
-        start_jobs(JobParams {
+        let workers = start_jobs(JobParams {
             db: &pool,
             redis_client: &redis_client,
             subscriber_client: &subscriber_client,
@@ -133,20 +139,11 @@ pub fn setup<'a>(
             username_rx,
             reqwest_client: &reqwest_client,
         });
+        info!(workers, "Ready: workers started");
 
         let spam_tracker = SpamTracker::new(redis_client.clone());
         let client = SafeBrowsingClient::new(google_cloud_api_key);
         let audit_log_cache = Cache::new(10000);
-
-        let shard_index: u32 = env::var("SHARD_INDEX")
-            .unwrap_or_else(|_| "0".to_string())
-            .parse()
-            .expect("SHARD_INDEX must be a valid u32");
-
-        let total_shards: u32 = env::var("TOTAL_SHARDS")
-            .unwrap_or_else(|_| "1".to_string())
-            .parse()
-            .expect("TOTAL_SHARDS must be a valid u32");
 
         if let Some(songbird) = songbird::get(ctx).await {
             start_music_web_control_worker(
@@ -191,7 +188,7 @@ pub fn setup<'a>(
         };
 
         if let Err(e) = reconcile_active_raids(ctx, &data).await {
-            error!(error = ?e, "Error reconciling active raids on startup");
+            error!(error = ?e, "reconciling active raids on startup");
         }
 
         Ok(data)
@@ -250,8 +247,12 @@ pub struct JobParams<'a> {
     pub reqwest_client: &'a reqwest::Client,
 }
 
-/// Spawns background worker tasks for tickets, moderation, level flushing, reminders, and feature jobs.
-pub fn start_jobs(params: JobParams) {
+/// Spawns background worker tasks for tickets, moderation, level flushing, reminders, and feature
+/// jobs.
+///
+/// Returns how many workers were started, so startup can report it on one line.
+#[must_use]
+pub fn start_jobs(params: JobParams) -> usize {
     let JobParams {
         db,
         redis_client,
@@ -265,57 +266,49 @@ pub fn start_jobs(params: JobParams) {
         reqwest_client,
     } = params;
 
-    sync_tickets(redis_client, subscriber_client, active_tickets_cache);
-
-    start_ticket_inactivity_worker(
-        db.clone(),
-        ctx.http.clone(),
-        redis_client.clone(),
-        guild_configs_cache.clone(),
-    );
-
-    start_ticket_logger(ticket_rx, db.clone());
-
-    start_temp_ban_worker(db.clone(), ctx.http.clone(), redis_client.clone());
-
-    start_level_flush_worker(db.clone(), redis_client.clone());
-
-    start_reminder_worker(db.clone(), ctx.http.clone(), redis_client.clone());
-
-    start_member_counter_job(
-        ctx.http.clone(),
-        ctx.cache.clone(),
-        db.clone(),
-        redis_client.clone(),
-        guild_configs_cache.clone(),
-    );
-
-    start_giveaway_worker(db.clone(), ctx.http.clone(), redis_client.clone());
-
-    start_birthday_worker(
-        db.clone(),
-        redis_client.clone(),
-        guild_configs_cache.clone(),
-        username_tx.clone(),
-        ctx.clone(),
-    );
-
-    start_username_batch_worker(db.clone(), username_rx);
-
-    start_music_stats_prune_worker(db.clone(), redis_client.clone());
-
-    start_raid_stats_flush_worker(db.clone(), redis_client.clone());
-
-    start_feed_polling_worker(db.clone(), ctx.http.clone(), redis_client.clone());
-
     let app_config = AppConfig::from_env();
-    start_websub_renewal_worker(
-        db.clone(),
-        redis_client.clone(),
-        reqwest_client.clone(),
-        app_config.domain,
-        app_config.internal_api_secret,
-    );
+
+    // Collected rather than called in place, so the count cannot drift from the list.
+    [
+        sync_tickets(redis_client, subscriber_client, active_tickets_cache),
+        start_ticket_inactivity_worker(
+            db.clone(),
+            ctx.http.clone(),
+            redis_client.clone(),
+            guild_configs_cache.clone(),
+        ),
+        start_ticket_logger(ticket_rx, db.clone()),
+        start_temp_ban_worker(db.clone(), ctx.http.clone(), redis_client.clone()),
+        start_level_flush_worker(db.clone(), redis_client.clone()),
+        start_reminder_worker(db.clone(), ctx.http.clone(), redis_client.clone()),
+        start_member_counter_job(
+            ctx.http.clone(),
+            ctx.cache.clone(),
+            db.clone(),
+            redis_client.clone(),
+            guild_configs_cache.clone(),
+        ),
+        start_giveaway_worker(db.clone(), ctx.http.clone(), redis_client.clone()),
+        start_birthday_worker(
+            db.clone(),
+            redis_client.clone(),
+            guild_configs_cache.clone(),
+            username_tx.clone(),
+            ctx.clone(),
+        ),
+        start_username_batch_worker(db.clone(), username_rx),
+        start_music_stats_prune_worker(db.clone(), redis_client.clone()),
+        start_raid_stats_flush_worker(db.clone(), redis_client.clone()),
+        start_feed_polling_worker(db.clone(), ctx.http.clone(), redis_client.clone()),
+        start_websub_renewal_worker(
+            db.clone(),
+            redis_client.clone(),
+            reqwest_client.clone(),
+            app_config.domain,
+            app_config.internal_api_secret,
+        ),
+    ]
+    .len()
 }
 
 /// Serenity [`TypeMapKey`](serenity::prelude::TypeMapKey) container for storing the shared [`ShardManager`].

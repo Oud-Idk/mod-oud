@@ -25,13 +25,13 @@ pub async fn handle_delete_message(
         .await
     {
         Ok(()) => {
-            info!("Discord message deleted successfully");
+            info!("Discord message deleted");
         }
         Err(poise::serenity_prelude::Error::Http(http_err)) => {
             if http_err.status_code().map(|s| s.as_u16()) == Some(404) {
                 warn!("Message already deleted (404) returned from Discord API");
             } else {
-                error!(error = %http_err, "Failed to delete message via HTTP");
+                error!(error = %http_err, "delete message via HTTP");
                 return Err(WebError::BadGateway("Message already deleted.".to_string()));
             }
         }

@@ -63,7 +63,7 @@ pub async fn generate_welcome_card(
     match render_svg_to_png(svg, 2.0).await {
         Ok(bytes) => Some(bytes),
         Err(e) => {
-            warn!(error = ?e, "Failed to render welcome card");
+            warn!(error = ?e, "render welcome card");
             None
         }
     }
@@ -90,7 +90,7 @@ pub async fn generate_leave_card(
     match render_svg_to_png(svg, 2.0).await {
         Ok(bytes) => Some(bytes),
         Err(e) => {
-            tracing::warn!(error = ?e, "Failed to render leave card");
+            tracing::warn!(error = ?e, "render leave card");
             None
         }
     }

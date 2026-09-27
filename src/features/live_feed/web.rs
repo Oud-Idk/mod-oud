@@ -100,7 +100,7 @@ pub async fn sse_handler(
         .map(|msg| {
             let event = msg
                 .to_sse_event()
-                .inspect_err(|e| error!(error = %e, "Failed to serialize event payload to SSE"))
+                .inspect_err(|e| error!(error = %e, "serialize event payload to SSE"))
                 .unwrap_or_else(|_| Event::default().data("serialization error"));
             Ok(event)
         });

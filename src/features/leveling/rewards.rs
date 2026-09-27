@@ -33,7 +33,7 @@ pub async fn apply_level_rewards(
         .collect();
 
     if eligible_rewards.is_empty() {
-        debug!("No eligible level rewards found for level {}", new_level);
+        debug!(%guild_id, %user_id, level = new_level, "no eligible level rewards");
         return Ok(());
     }
 
@@ -52,8 +52,11 @@ pub async fn apply_level_rewards(
     let member_roles = fetch_member_roles(ctx, guild_id, user_id).await;
 
     info!(
-        "Applying role modifications to user: adding {:?}, removing {:?}",
-        roles_to_add, roles_to_remove
+        %guild_id,
+        %user_id,
+        adding = ?roles_to_add,
+        removing = ?roles_to_remove,
+        "applying level reward role modifications"
     );
 
     apply_role_modifications(

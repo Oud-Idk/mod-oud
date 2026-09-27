@@ -36,7 +36,7 @@ pub async fn handle_search_play(
             return Ok(true);
         }
         Err(e) => {
-            tracing::warn!(error = ?e, "Failed to lookup user VC for search play");
+            tracing::warn!(error = ?e, "lookup user VC for search play");
             respond_ephemeral(
                 ctx,
                 component,
@@ -126,7 +126,7 @@ async fn edit_reply(ctx: &Context, component: &ComponentInteraction, content: &s
         tracing::error!(
             error = ?e,
             user_id = %component.user.id,
-            "Failed to edit deferred search play reply; reply left stale"
+            "edit deferred search play reply; reply left stale"
         );
     }
 }
@@ -154,7 +154,7 @@ async fn report_outcome(ctx: &Context, component: &ComponentInteraction, outcome
         tracing::error!(
             error = ?e,
             user_id = %component.user.id,
-            "Failed to report search play outcome; reply left stale"
+            "report search play outcome; reply left stale"
         );
     }
 }

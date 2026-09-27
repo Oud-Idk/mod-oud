@@ -37,8 +37,7 @@ impl SafeBrowsingClient {
     #[instrument(
         name = "safebrowsing_client::check_urls",
         skip(self, urls),
-        fields(url_count = urls.len()),
-        err
+        fields(url_count = urls.len())
     )]
     pub async fn check_urls(&self, urls: &[&str]) -> Result<Vec<i32>> {
         let endpoint = "https://safebrowsing.googleapis.com/v5/urls:search";
@@ -62,7 +61,7 @@ impl SafeBrowsingClient {
                 .await
                 .unwrap_or_else(|_| "Unreadable body".to_string());
             error!(
-                status = %status,
+                reason = status.as_u16(),
                 error_body = %err_text,
                 "Safe Browsing API returned an error status"
             );
@@ -74,7 +73,7 @@ impl SafeBrowsingClient {
 
         trace!("Decoding Protobuf response payload");
         let search_response = SearchUrlsResponse::decode(bytes).map_err(|e| {
-            error!(error = %e, "Failed to deserialize Safe Browsing Protobuf response");
+            error!(error = %e, "deserialize Safe Browsing Protobuf response");
             e
         })?;
 
@@ -85,7 +84,7 @@ impl SafeBrowsingClient {
 
         debug!(
             threats_found = threat_types.len(),
-            "Successfully completed Safe Browsing check"
+            "completed Safe Browsing check"
         );
         Ok(threat_types)
     }

@@ -11,7 +11,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
         let mut buffer = Vec::with_capacity(100);
         let mut interval = tokio::time::interval(Duration::from_secs(2));
 
-        info!("Starting ticket logger worker task");
+        info!("ticket logger worker started");
 
         loop {
             tokio::select! {
@@ -21,7 +21,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                         debug!(batch_size, "Interval tick hit; flushing ticket log buffer");
 
                         if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                            error!(error = ?e, batch_size, "Error flushing ticket logs on interval tick");
+                            error!(error = ?e, batch_size, "flushing ticket logs on interval tick");
                         }
                     }
                 }
@@ -42,7 +42,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                             debug!(batch_size, "Buffer capacity limit reached; flushing immediately");
 
                             if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                                error!(error = ?e, batch_size, "Error flushing ticket logs on buffer capacity limit");
+                                error!(error = ?e, batch_size, "flushing ticket logs on buffer capacity limit");
                             }
                             interval.reset(); // Reset the timer
                         }
@@ -52,7 +52,7 @@ pub fn start_ticket_logger(mut rx: UnboundedReceiver<TicketLogPayload>, pool: Pg
                         if !buffer.is_empty() {
                             let batch_size = buffer.len();
                             if let Err(e) = flush_batch(&pool, &mut buffer).await {
-                                error!(error = ?e, batch_size, "Error performing final flush during shutdown");
+                                error!(error = ?e, batch_size, "performing final flush during shutdown");
                             }
                         }
                         break;
@@ -73,10 +73,7 @@ async fn flush_batch(db: &PgPool, buffer: &mut Vec<TicketLogPayload>) -> Result<
         "Starting batch flush of ticket logs to database"
     );
     database::flush_ticket_logs_to_db(db, &records).await?;
-    debug!(
-        batch_size,
-        "Successfully committed ticket log batch to database"
-    );
+    debug!(batch_size, "committed ticket log batch to database");
 
     Ok(())
 }

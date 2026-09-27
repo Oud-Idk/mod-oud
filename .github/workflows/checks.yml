@@ -1,0 +1,60 @@
+name: checks
+
+# Runs directly on pull requests, and is called by deploy.yml for pushes to main
+# so the image build stays gated on these passing. Defining them once avoids the
+# two copies drifting apart.
+
+on:
+  workflow_call:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # True for a PR so superseded runs are dropped. Must be false when deploy.yml
+  # calls this: a called workflow sees the caller's `github.workflow`, so it
+  # shares deploy.yml's group, and cancelling here would cancel the deploy that
+  # is waiting on this job.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Not gating: pedantic and nursery are `warn` in Cargo.toml, so this exits
+      # 0 with warnings. Add `-- -D warnings` once the count is at zero.
+      - name: Clippy (lib + tests)
+        run: SQLX_OFFLINE=true cargo clippy --all-targets
+
+      - name: Rust tests
+        run: SQLX_OFFLINE=true cargo test --lib
+
+      - name: Logging convention
+        run: scripts/check-logging.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Dashboard Lint
+        working-directory: dashboard
+        run: npm run lint
+
+      - name: Dashboard tests
+        working-directory: dashboard
+        run: npm test

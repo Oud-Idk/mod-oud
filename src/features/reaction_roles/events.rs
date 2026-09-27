@@ -34,11 +34,14 @@ pub async fn handle_reaction_role_add(
             .await
         {
             warn!(
-                "Failed to add role {} to user {}: {}",
-                role_id, user_id, err
+                %guild_id,
+                %user_id,
+                %role_id,
+                error = %err,
+                "failed to add reaction role"
             );
         } else {
-            info!("Assigned role {} to user {}", role_id, user_id);
+            info!(%guild_id, %user_id, %role_id, "assigned reaction role");
         }
     }
     Ok(())
@@ -71,11 +74,14 @@ pub async fn handle_reaction_role_remove(
             .await
         {
             warn!(
-                "Failed to remove role {} from user {}: {}",
-                role_id, user_id, err
+                %guild_id,
+                %user_id,
+                %role_id,
+                error = %err,
+                "failed to remove reaction role"
             );
         } else {
-            info!("Removed role {} from user {}", role_id, user_id);
+            info!(%guild_id, %user_id, %role_id, "removed reaction role");
         }
     }
     Ok(())
@@ -117,13 +123,16 @@ pub async fn handle_button_interaction(
             .await
         {
             Ok(()) => {
-                info!("Removed button role {} from user {}", role_id, user_id);
+                info!(%guild_id, %user_id, %role_id, "removed button role");
                 format!("Removed the <@&{role_id}> role from you.")
             }
             Err(err) => {
                 warn!(
-                    "Failed to remove button role {} from user {}: {}",
-                    role_id, user_id, err
+                    %guild_id,
+                    %user_id,
+                    %role_id,
+                    error = %err,
+                    "failed to remove button role"
                 );
                 "Failed to remove role. Please check my bot role permissions.".to_string()
             }
@@ -135,13 +144,16 @@ pub async fn handle_button_interaction(
             .await
         {
             Ok(()) => {
-                info!("Assigned button role {} to user {}", role_id, user_id);
+                info!(%guild_id, %user_id, %role_id, "assigned button role");
                 format!("Gave you the <@&{role_id}> role!")
             }
             Err(err) => {
                 warn!(
-                    "Failed to add button role {} to user {}: {}",
-                    role_id, user_id, err
+                    %guild_id,
+                    %user_id,
+                    %role_id,
+                    error = %err,
+                    "failed to add button role"
                 );
                 "Failed to add role. Please check my bot role permissions.".to_string()
             }

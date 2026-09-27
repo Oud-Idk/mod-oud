@@ -16,7 +16,7 @@ pub async fn handle_accept_transfer(
     data: &BotData,
 ) -> Result<(), Error> {
     let Some(guild_id) = interaction.guild_id else {
-        debug!("Transfer acceptance interaction received outside of a guild");
+        debug!("transfer acceptance interaction received outside of a guild");
         return Ok(());
     };
 
@@ -25,7 +25,7 @@ pub async fn handle_accept_transfer(
             .get(&interaction.user.id)
             .and_then(|vs| vs.channel_id)
     }) else {
-        debug!("User attempting to accept transfer is not in a voice channel");
+        debug!("acceptor is not in a voice channel");
         interaction
             .create_response(
                 &ctx.http,
@@ -65,10 +65,10 @@ pub async fn handle_accept_transfer(
         .await?;
 
     info!(
-        "Successfully transferred channel {} from owner {} to {}",
-        channel_id.get(),
-        current_owner,
-        target_owner
+        %channel_id,
+        from_owner = %current_owner,
+        to_owner = %target_owner,
+        "transferred temporary voice channel"
     );
 
     // Update the interaction message
@@ -102,10 +102,7 @@ async fn validate_transfer_request(
     let target_owner_str = cache::get_pending_transfer_target(redis, channel_id).await?;
 
     let Some(target_owner) = target_owner_str else {
-        debug!(
-            "Transfer acceptance failed: No pending key in Redis or key expired for channel {}",
-            channel_id.get()
-        );
+        debug!(%channel_id, "transfer acceptance found no pending key in redis");
         interaction
             .create_response(
                 &ctx.http,
@@ -117,9 +114,10 @@ async fn validate_transfer_request(
 
     if target_owner != interaction.user.id.get().to_string() {
         debug!(
-            "Transfer acceptance rejected: User {} is not the designated target {}",
-            interaction.user.id.get(),
-            target_owner
+            %channel_id,
+            acceptor_id = %interaction.user.id,
+            expected_owner = %target_owner,
+            "transfer acceptance rejected, acceptor is not the designated target"
         );
         interaction
             .create_response(
@@ -133,10 +131,7 @@ async fn validate_transfer_request(
     let current_owner_str = cache::get_temp_vc_owner(redis, guild_id, channel_id).await?;
 
     let Some(current_owner) = current_owner_str else {
-        warn!(
-            "No current owner recorded in Redis for active channel {}",
-            channel_id.get()
-        );
+        warn!(%channel_id, "no current owner recorded in redis for active channel");
         return Ok(None);
     };
 
@@ -145,17 +140,13 @@ async fn validate_transfer_request(
         && existing_channel != channel_id.get().to_string()
     {
         warn!(
-            acceptor_id = %interaction.user.id.get(),
+            %channel_id,
+            acceptor_id = %interaction.user.id,
             existing_channel = %existing_channel,
-            offered_channel = %channel_id.get(),
-            "Acceptor now owns a different temp VC; refusing to complete transfer"
+            "acceptor now owns a different temp vc, refusing to complete transfer"
         );
         if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
-            warn!(
-                "Failed to clear pending transfer for channel {}: {:?}",
-                channel_id.get(),
-                e
-            );
+            warn!(%channel_id, error = ?e, "failed to clear pending transfer");
         }
         interaction
             .create_response(
@@ -190,14 +181,13 @@ async fn apply_transfer_permissions(
         kind: PermissionOverwriteType::Member(new_owner_id),
     };
 
-    debug!(
-        "Applying new channel permissions for user {}",
-        new_owner_id.get()
-    );
+    debug!(%channel_id, %new_owner_id, "applying new channel permissions");
     if let Err(e) = channel_id.create_permission(&ctx.http, new_overwrite).await {
         error!(
-            "Failed to apply permission override to Discord API: {:?}",
-            e
+            %channel_id,
+            %new_owner_id,
+            error = ?e,
+            "failed to apply permission override"
         );
         return Ok(false);
     }
@@ -209,14 +199,20 @@ async fn apply_transfer_permissions(
             kind: PermissionOverwriteType::Member(UserId::new(old_owner_id)),
         };
         debug!(
-            "Demoting old owner {} to member-level permissions",
-            old_owner_id
+            %channel_id,
+            old_owner_id,
+            "demoting old owner to member-level permissions"
         );
         if let Err(e) = channel_id
             .create_permission(&ctx.http, old_owner_overwrite)
             .await
         {
-            warn!("Failed to demote old owner's permissions: {:?}", e);
+            warn!(
+                %channel_id,
+                old_owner_id,
+                error = ?e,
+                "failed to demote old owner's permissions"
+            );
         }
     }
 
@@ -230,7 +226,7 @@ pub async fn handle_decline_transfer(
     data: &BotData,
 ) -> Result<(), Error> {
     let Some(guild_id) = interaction.guild_id else {
-        debug!("Transfer decline interaction received outside of a guild");
+        debug!("transfer decline interaction received outside of a guild");
         return Ok(());
     };
 
@@ -239,7 +235,7 @@ pub async fn handle_decline_transfer(
             .get(&interaction.user.id)
             .and_then(|vs| vs.channel_id)
     }) else {
-        debug!("User attempting to decline transfer is not in a voice channel");
+        debug!("decliner is not in a voice channel");
         interaction
             .create_response(
                 &ctx.http,
@@ -255,10 +251,7 @@ pub async fn handle_decline_transfer(
     let target_owner_str = cache::get_pending_transfer_target(redis, channel_id).await?;
 
     let Some(target_owner) = target_owner_str else {
-        debug!(
-            "Transfer decline failed: No pending key in Redis or key expired for channel {}",
-            channel_id.get()
-        );
+        debug!(%channel_id, "transfer decline found no pending key in redis");
         interaction
             .create_response(
                 &ctx.http,
@@ -270,9 +263,10 @@ pub async fn handle_decline_transfer(
 
     if target_owner != interaction.user.id.get().to_string() {
         debug!(
-            "Transfer decline rejected: User {} is not the designated target {}",
-            interaction.user.id.get(),
-            target_owner
+            %channel_id,
+            decliner_id = %interaction.user.id,
+            expected_owner = %target_owner,
+            "transfer decline rejected, decliner is not the designated target"
         );
         interaction
             .create_response(
@@ -283,22 +277,15 @@ pub async fn handle_decline_transfer(
         return Ok(());
     }
 
-    debug!(
-        "Deleting pending transfer key from Redis for channel {}",
-        channel_id.get()
-    );
+    debug!(%channel_id, "deleting pending transfer key from redis");
     if let Err(e) = cache::clear_pending_transfer(redis, channel_id).await {
-        warn!(
-            "Failed to clear pending transfer for channel {}: {:?}",
-            channel_id.get(),
-            e
-        );
+        warn!(%channel_id, error = ?e, "failed to clear pending transfer");
     }
 
     info!(
-        "Transfer request for channel {} was declined by user {}",
-        channel_id.get(),
-        interaction.user.id.get()
+        %channel_id,
+        decliner_id = %interaction.user.id,
+        "temporary voice channel transfer declined"
     );
 
     let updated_text = format!(

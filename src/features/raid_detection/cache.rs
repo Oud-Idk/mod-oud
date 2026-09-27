@@ -125,7 +125,7 @@ pub async fn cache_calculated_stats(
         warn!(
             error = ?e,
             stats_cache_key,
-            "Failed to prune stale raid stats history field"
+            "prune stale raid stats history field"
         );
     }
     Ok(())

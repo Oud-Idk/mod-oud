@@ -33,7 +33,7 @@ pub async fn trigger(ctx: Context<'_>) -> Result<(), Error> {
                 .await?;
         }
         Err(e) => {
-            tracing::error!(error = ?e, "Error triggering manual raid");
+            tracing::error!(error = ?e, "triggering manual raid");
             ctx.say("❌ Failed to trigger raid mode. Check bot permissions.")
                 .await?;
         }
@@ -58,7 +58,7 @@ pub async fn resolve(ctx: Context<'_>) -> Result<()> {
             ctx.say("No active raid session found to resolve.").await?;
         }
         Err(e) => {
-            tracing::error!(error = ?e, "Error resolving manual raid");
+            tracing::error!(error = ?e, "resolving manual raid");
             ctx.say("❌ Failed to resolve raid mode.").await?;
         }
     }

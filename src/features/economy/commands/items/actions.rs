@@ -182,7 +182,7 @@ pub async fn apply_discord_actions(
                         %guild_id,
                         %user_id,
                         item_id = %item.id,
-                        "Failed to send an item action response; the user received no feedback"
+                        "send an item action response; the user received no feedback"
                     );
                 }
             }

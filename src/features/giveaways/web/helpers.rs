@@ -43,7 +43,7 @@ pub fn build_giveaway_msg(
         },
     )
     .map_err(|e| {
-        error!(error = ?e, "Failed to compile giveaway message layout");
+        error!(error = ?e, "compile giveaway message layout");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal Server Error".to_string(),

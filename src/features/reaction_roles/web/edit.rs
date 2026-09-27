@@ -71,7 +71,7 @@ pub async fn handle_edit_reaction_role_message(
         .edit_message(&state.serenity_http, message_id, edit_builder)
         .await
         .map_err(|e| {
-            warn!(error = ?e, "Failed to edit Discord message");
+            warn!(error = ?e, "edit Discord message");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),
@@ -85,7 +85,7 @@ pub async fn handle_edit_reaction_role_message(
     info!(
         %guild_id,
         %message_id,
-        "Reaction role layout successfully edited"
+        "Reaction role layout edited"
     );
 
     Ok((

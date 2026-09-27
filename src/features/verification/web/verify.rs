@@ -50,7 +50,14 @@ pub async fn handle_verify(
     let client_ip = extract_client_ip(&headers);
     let secrets = get_secrets(&state)?;
 
-    debug!(user_id = %payload.user_id, "Verifying user with payload {:?}", payload);
+    // Not the whole payload: it carries `sig`, `access_token` and `captcha_token`.
+    debug!(
+        guild_id = %payload.guild_id,
+        user_id = %payload.user_id,
+        captcha_type = ?payload.captcha_type,
+        expires = payload.expires,
+        "verifying user"
+    );
 
     // Verify URL signature integrity
     if !verify_sig(
@@ -91,7 +98,7 @@ pub async fn handle_verify(
     // Validate Captcha (Turnstile / hCaptcha)
     validate_captcha(&state, &payload, &secrets, &client_ip).await?;
 
-    info!(user_id = %payload.user_id, "User passed all verification checks!");
+    info!(user_id = %payload.user_id, "User passed all verification checks");
 
     // Assign verified role to the user
     let role_id = verification_cfg.verification_role_id.ok_or_else(|| {
@@ -121,7 +128,10 @@ fn get_secrets(state: &Arc<WebState>) -> WebResult<VerificationSecrets<'_>> {
     let config = &state.core.config;
 
     let shared_secret = config.shared_secret.as_deref().ok_or_else(|| {
-        error!("VERIFICATION_SECRET environment variable is not set!");
+        error!(
+            fault = "VERIFICATION_SECRET is not set",
+            "captcha verification unavailable"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -129,7 +139,10 @@ fn get_secrets(state: &Arc<WebState>) -> WebResult<VerificationSecrets<'_>> {
     })?;
 
     let cf_secret_key = config.cf_secret_key.as_deref().ok_or_else(|| {
-        error!("TURNSTILE_SECRET environment variable is not set!");
+        error!(
+            fault = "TURNSTILE_SECRET is not set",
+            "captcha verification unavailable"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -137,7 +150,10 @@ fn get_secrets(state: &Arc<WebState>) -> WebResult<VerificationSecrets<'_>> {
     })?;
 
     let hc_secret_key = config.hc_secret_key.as_deref().ok_or_else(|| {
-        error!("HCAPTCHA_SECRET environment variable is not set!");
+        error!(
+            fault = "HCAPTCHA_SECRET is not set",
+            "captcha verification unavailable"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -145,7 +161,10 @@ fn get_secrets(state: &Arc<WebState>) -> WebResult<VerificationSecrets<'_>> {
     })?;
 
     let hc_site_key = config.hc_site_key.as_deref().ok_or_else(|| {
-        error!("HCAPTCHA_SITE_KEY environment variable is not set!");
+        error!(
+            fault = "HCAPTCHA_SITE_KEY is not set",
+            "captcha verification unavailable"
+        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal server error.".to_string(),
@@ -172,7 +191,7 @@ async fn fetch_guild_settings(
         guild_id,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, "Failed to get settings!"))
+    .inspect_err(|e| warn!(error = ?e, "get settings"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -205,7 +224,7 @@ async fn verify_discord_oauth_identity(
     match response {
         Ok(resp) if resp.status().is_success() => {
             let discord_user: DiscordUser = resp.json().await.map_err(|e| {
-                warn!(error = ?e, "Failed to parse Discord user JSON");
+                warn!(error = ?e, "parse Discord user JSON");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error.".to_string(),
@@ -236,7 +255,7 @@ async fn verify_discord_oauth_identity(
             ))
         }
         Err(e) => {
-            error!(error = ?e, "Failed to reach Discord to validate the access token");
+            error!(error = ?e, "reach Discord to validate the access token");
             Err((
                 StatusCode::UNAUTHORIZED,
                 "Invalid or expired Discord session. Please log in again.".to_string(),
@@ -259,7 +278,7 @@ async fn validate_captcha(
             &payload.captcha_token,
         )
         .await
-        .inspect_err(|e| warn!(error = ?e, "Failed to verify using Turnstile"))
+        .inspect_err(|e| warn!(error = ?e, "verify using Turnstile"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -275,7 +294,7 @@ async fn validate_captcha(
             secrets.hc_site_key,
         )
         .await
-        .inspect_err(|e| warn!(error = ?e, "Failed to verify using hCaptcha"))
+        .inspect_err(|e| warn!(error = ?e, "verify using hCaptcha"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -311,7 +330,7 @@ async fn assign_verified_role(
             Some("User successfully completed verification"),
         )
         .await
-        .inspect_err(|e| error!(error = ?e, "Failed to add role to user"))
+        .inspect_err(|e| error!(error = ?e, "add role to user"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

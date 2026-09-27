@@ -17,7 +17,7 @@ pub fn verify_sig(
         .unwrap()
         .as_secs();
     if now > expires {
-        debug!(user_id = user_id, "User link expired, skipping.");
+        debug!(user_id = user_id, "User link expired, skipping");
         return false;
     }
 

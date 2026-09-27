@@ -127,7 +127,7 @@ pub async fn fetch_target_report(
     )
     .fetch_optional(pool)
     .await
-    .inspect_err(|e| error!(error = ?e, report_id, "Failed to fetch reported message by ID"))
+    .inspect_err(|e| error!(error = ?e, report_id, "fetch reported message by ID"))
     .map_err(|_e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -152,7 +152,7 @@ pub async fn fetch_reporter_id(
     )
     .fetch_optional(pool)
     .await
-    .inspect_err(|e| error!(error = ?e, report_id, "Failed to fetch reporter ID for report"))
+    .inspect_err(|e| error!(error = ?e, report_id, "fetch reporter ID for report"))
     .map_err(|_e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -220,7 +220,7 @@ pub async fn update_reported_message(
 
     result
         .map(|_| ())
-        .inspect_err(|e| warn!(error = ?e, "Failed to update reported message"))
+        .inspect_err(|e| warn!(error = ?e, "update reported message"))
         .map_err(|_e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

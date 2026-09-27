@@ -2,6 +2,9 @@
 
 **This file only covers the Discord Bot Rust Project**
 
+The short rules that apply everywhere. Anything longer lives in [`docs/`](docs/README.md), linked
+from the section it was moved out of.
+
 ## The Golden Rule: Keep it local, and KISS.
 
 1. If it only matters to one feature, it lives inside that feature's folder.
@@ -23,8 +26,6 @@
       `#[sqlx(rename_all = "SCREAMING_SNAKE_CASE")]`).
 2. All JSONB fields must be `camelCase`, not `snake_case`, for JavaScript conventions.
     - Always use `#[serde(rename_all = "camelCase")]` for any JSONB fields when using serde.
-3. Log inside `inspect_err` only if the error is swallowed or transformed into a generic error where original context
-   would otherwise be lost.
 
 ## File Structure
 
@@ -35,6 +36,8 @@
 3. If two features need each other (circular dependency), that's a signal one of them should be split, or the shared
    piece should move to `shared/`.
 
+Where a new file belongs, and what a module root may contain: [`docs/structure.md`](docs/structure.md).
+
 ## Discord Commands
 
 1. If a command touches the database, external HTTP APIs, or Redis, defer immediately.
@@ -43,24 +46,32 @@
 
 1. Internal Errors must be logged via `tracing::error!` and returned to the user as a generic friendly message (e.g.,
    "Something went wrong on our end").
+2. Log the failure once. An error that is propagated is logged by the boundary that receives it, not on the way up.
+   See [`docs/logging.md`](docs/logging.md).
 
 ## Background Jobs (`jobs.rs`)
 
 1. **Redis Locking for Crons:** Every scheduled job MUST acquire a distributed Redis lock before executing to prevent
    duplicate execution when multiple bot instances are running. Use the provided lock at
    `shared/locking.rs`
-2. **Graceful Task Spawning:** Always spawn background tasks using `tokio::spawn` with a `tracing::instrument` macro so
-   panics in background tasks are caught and logged with span context rather than crashing silently.
+2. **Graceful Task Spawning:** Spawn background tasks through `shared::task::spawn`, which attaches the span and logs
+   the task's outcome. An `#[instrument]` attribute on an `async move` block inside `tokio::spawn` does nothing. See
+   [`docs/logging.md`](docs/logging.md).
 
 ## State & Database
 
-1. Never hold DB transactions across `await` points unless strictly necessary. Keep transactions as short as humanly
-   possible to avoid pool starvation.
+1. Never hold DB transactions across `await` points unless strictly necessary.
+
+The `Raw DTO` pattern and the snowflake casting rules: [`docs/database.md`](docs/database.md).
 
 ## Others
 
 1. Never use heavy CPU-bound tasks (e.g., image manipulation, heavy cryptography, massive JSON parsing) directly on
    async worker threads. Offload them using `tokio::task::spawn_blocking`.
+
+## Logging
+
+Where a log line goes, what level it is, and what shape it takes: [`docs/logging.md`](docs/logging.md).
 
 ## Tests
 
@@ -77,188 +88,3 @@
 4. **Test Business Logic, Not Discord Wrappers:** Prioritize testing core domain logic, calculations, and state
    rules—not the slash command functions directly. Keep command handlers thin (extract business logic into helper
    functions) so it can be tested without needing to mock Serenity or Discord contexts.
-
----
-
-## Top-Level Layout
-
-No junk drawers allowed.
-
-We use the **modern Rust module style**: a module named `foo` is declared as `foo.rs` sitting *next to* its `foo/`
-folder. never `foo/mod.rs`.
-
-```
-src/
-├── main.rs               # Wiring only: build Config, register features, start bot + web
-├── core.rs               # `mod config; mod setup;` — re-exports only
-├── core/                 # Framework/bootstrapping glue — NOT feature logic
-│   ├── config.rs         # The AppState/Config struct, DB pool setup
-│   └── setup.rs
-├── events.rs             # `mod dispatch;`
-├── events/
-│   └── dispatch.rs       # Fan-out: raw serenity event -> feature::handle_event()
-├── shared.rs             # `mod error; mod locking; mod logger; mod placeholders; mod embed;`
-├── shared/               # Cross-cutting utilities used by 3+ features
-│   ├── error.rs
-│   ├── locking.rs
-│   ├── logger.rs
-│   ├── placeholders.rs
-│   └── embed.rs
-├── features.rs           # `mod <feature_name>;` for every feature
-├── features/
-│   └── <feature_name>.rs # Everything about one specific feature — see below!
-│   └── <feature_name>/   # The feature's supporting files
-├── web.rs                # `mod server;`
-└── web/
-    ├── routes.rs         # Collect all routes from features
-    └── server.rs         # Startup, CORS, listener, and shared states
-```
-
----
-
-## Feature Folder Shape
-
-Every feature is a `<feature_name>.rs` + `<feature_name>/` pair under `features/`. The `.rs` file is the **public
-contract** (see rule below); the folder holds the implementation files. Not every file is required—if your feature
-doesn't have web API routes, just omit `web.rs`. Don't overcomplicate it.
-
-```
-features/
-├── <feature_name>.rs      # THE PUBLIC CONTRACT ONLY — see rule below
-└── <feature_name>/
-    ├── commands.rs        # Slash command definitions + handler logic
-    ├── cache.rs           # Anything redis related
-    ├── events.rs          # Event handlers (or events/ dir if you need to split text.rs and voice.rs)
-    ├── database.rs        # All SQL/queries for this feature (and only this feature!)
-    ├── types.rs           # Structs/enums specific to this feature (including its config struct). Exclude req/res types.
-    ├── jobs.rs            # Scheduled/background cron jobs
-    ├── keys.rs            # Any Redis key getters 
-    ├── placeholders.rs    # Any placeholder replacement logic goes here 
-    └── web.rs             # HTTP routes (or web/ dir if several). 
-```
-
-You have to create a `web/` directory in a feature when you have 3+ endpoints OR file exceeds ~300 lines of code
-(endpoints include different methods). Otherwise, place it at `web.rs`. Request and response structs should be placed at
-the top. If you have decided to make a directory, combine all routes into one Router in the feature's `web.rs` file.
-
-Note that this isn't a strict guidelines and that you may add more files if needed. For example, src/features/leveling
-includes calculation.rs.
-
-### `<feature_name>.rs` is a contract, not a junk drawer.
-
-Your feature's `<feature_name>.rs` is a security guard standing at the door. It should **only** contain:
-
-* `mod` declarations for the files inside the sibling `<feature_name>/` folder.
-* Clean, flat `pub use` re-exports of the small set of things the rest of the app is actually allowed to call
-  (typically: `register_commands()`, `handle_event()`, `routes()`, and the feature's `Config` type).
-
-No external code should ever write `use crate::features::leveling::database::get_xp;`. Instead, they should write
-`use crate::features::leveling::get_xp;`. `leveling.rs` must re-export it.
-
-To enforce this rule, do not put `pub mod` declarations in the feature's `<feature_name>.rs` file.
-
-**DO NOT USE WILDCARDS IN `pub use` STATEMENTS. THAT DEFEATS THE ENTIRE PURPOSE OF THIS**
-
----
-
-## Where does new code go? (The Decision Flow)
-
-When writing new code, run through this mental checklist in order:
-
-1. **Does it belong to exactly one feature?**
-    - Put it in that feature's folder, in the file matching its role (`custom_command`, `config`, `types.rs`, etc.).
-2. **Is it glue that wires features into the bot/web framework itself?**
-    - Put it in `core/` or `events/dispatch.rs`.
-3. **Is it used by 3+ features and has absolutely zero feature-specific knowledge?**
-    - Put it in `shared/` (e.g., a generic placeholder engine, generic embed builder, global error types).
-4. **Still unsure?**
-    - **Put it in the feature.** You can move it to `shared/` in a single, painless RustRover refactor later. Untangling
-      a prematurely shared file is ten times more expensive.
-
-### The Naming Rule for Splitting Files
-
-When `dispatch` or `config` gets too massive, split by **sub-behavior**, not by technical layers — using the same
-`name.rs` + `name/` sibling pattern one level deeper.
-
-* **Good:** `features/leveling/events.rs` (`mod text; mod voice;`) with `features/leveling/events/text.rs` and
-  `.../events/voice.rs`
-* **Bad:** `.../text/handler.rs` + `.../text/notify.rs` + `.../text.rs` (3 levels of folder nesting is too deep. If you
-  need a 3rd level, the feature is actually two separate features!).
-
----
-
-## Events
-
-`events/dispatch.rs` is the **only** file in the entire project allowed to `match` on the raw Serenity/Poise event enum.
-It should read like a clean table of contents.
-
-If `dispatch.rs` needs an `if` statement to decide business logic (e.g., *"only log if the channel isn't excluded"*),
-that logic is misplaced—it belongs inside the feature's own `check_for_filter`, not in the global dispatcher.
-
----
-
-## Naming Conventions
-
-* **File names describe roles, not contents:** `custom_command`, `config`, `types.rs`, `dispatch`, `jobs.rs`,
-  `web.rs`. Two different features' `config` files should look virtually identical in layout, even if the SQL queries
-  inside are completely different.
-* **Stop creating `utils.rs` as a default dumping ground.** If you are about to add one, ask yourself: *"A utility for
-  what?"* Usually, the answer reveals it belongs in an existing file (`config`, `types.rs`) or needs a specific,
-  nameable helper file (e.g., `calculation.rs`).
-* **Never use `mod.rs`.** Every module is `name.rs` sitting beside its `name/` folder. This applies at every level of
-  the tree, not just `features/`.
-
----
-
-## What NOT to do (The Code Smells)
-
-* **`mod.rs` files:** Any file named `mod.rs` anywhere in the tree. Use `name.rs` + `name/` instead — it's the modern,
-  unambiguous style and plays nicer with editor tabs.
-* **Layer-First Folders:** Creating folders like `commands/`, `events/handlers/`, or `jobs/` containing one file per
-  feature. This is what caused the "5-folders-to-add-one-feature" nightmare.
-* **Reaching into Guts**: Calling another feature's internal submodules directly. Always call exported functions from
-  its root file (e.g., crate::features::foo::bar).
-* **Bullshit File Names:** No file named `utils.rs` or `misc.rs`.
-* **No SQLx methods that is checked at runtime. Use the macros, lazy ass.**
-
-All guild_id args should be u64, then convert to i64 at the SQLx statement using `.cast_signed()`.
-And the other way around (SQLx guild ID comes out as i64), use `.cast_unsigned()`.
-
-## Database — Raw DTO Pattern
-
-All `database.rs` files MUST use the **Raw DTO** pattern — never inline row mapping inside `query!`.
-
-1. **Raw struct per domain model, inline in `database.rs`.** For each domain model (`Item`, `Balance`, `InventoryRow`, etc.) define a DB-mirroring counterpart (`RawItem`, `RawBalance`, …) at the top of that feature's `database.rs`. It MUST `#[derive(sqlx::FromRow)]`, use `i64` for every Discord snowflake (`GuildId`, `UserId`, `ChannelId`, `RoleId`, `MessageId` → `i64` / `Option<i64>`), and keep all other columns at their Postgres types (`i32`, `bool`, `Uuid`, `Value`/`Json<T>`, `DateTime<Utc>`, `Vec<T>`). Do NOT put Raw structs in `types.rs` or `shared/` — duplicate per file is intentional (Golden Rule).
-
-   ```rust
-   #[derive(sqlx::FromRow)]
-   struct RawItem {
-       id: Uuid,
-       guild_id: i64,
-       name: String,
-       price: i64,
-       // ...
-       requirements: serde_json::Value,
-       expires_at: Option<DateTime<Utc>>,
-   }
-   ```
-
-2. **`From<Raw>` owns the snowflake conversion.** Implement `From<RawX> for X` right below the Raw struct. All `i64 → GuildId/UserId/…` conversions live there, via `GuildId::new(r.guild_id.cast_unsigned())` (and `.map(|id| RoleId::new(id.cast_unsigned()))` for `Option<Vec<i64>>`). No `cast_unsigned()` outside the `From` impl; no `Type::from_raw()` helpers.
-
-   ```rust
-   impl From<RawItem> for Item {
-       fn from(r: RawItem) -> Self {
-           Self { guild_id: GuildId::new(r.guild_id.cast_unsigned()), .. }
-       }
-   }
-   ```
-
-3. **Queries use `query_as!(Raw, …)` + `Into::into`.** Every `SELECT`/`RETURNING` that materializes a domain model MUST be `sqlx::query_as!(RawX, r#"..."#, guild_id.get().cast_signed(), …)` and convert with `.map(Into::into)`:
-   - `fetch_optional` → `.await?.map(Into::into)`
-   - `fetch_one` → `.await?.into()` or `.await.map(Into::into)?`
-   - `fetch_all` → `.await.map(|rows| rows.into_iter().map(Into::into).collect())`
-   - joined rows (e.g. inventory + item + `quantity`) define a dedicated `RawInventoryItem { …, quantity: i32 }` and map to `(Item, i32)`.
-
-   Keep `sqlx::query!` only for pure `INSERT`/`UPDATE`/`DELETE` without a domain return (`.execute()`), and `query_scalar!` for scalar counts/IDs. Preserve `as "col: Type"` overrides only when the `FromRow` type needs it (`Json<T>`, enums like `ReportStatus`, `InteractionMode`).
-
-4. **Examples live inline.** See `src/features/economy/database/items.rs` (`RawItem`), `balances.rs` (`RawBalance`), `warning/database.rs` (`WarningInfoRow`), `media_only/database.rs` (`MediaOnlyChannelRow`) as canonical references.

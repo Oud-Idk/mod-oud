@@ -62,7 +62,7 @@ macro_rules! send_mod_dm {
                     tracing::error!(
                         error = %e,
                         action = action_name,
-                        "Failed to build custom moderation DM"
+                        "build custom moderation DM"
                     );
                     None
                 });
@@ -79,7 +79,7 @@ macro_rules! send_mod_dm {
                 tracing::debug!(
                     %user_id,
                     action = action_name,
-                    "Successfully sent moderation DM to user"
+                    "sent moderation DM to user"
                 );
             }
             Err(e) => {
@@ -87,7 +87,7 @@ macro_rules! send_mod_dm {
                     %user_id,
                     action = action_name,
                     error = ?e,
-                    "Failed to send moderation DM to user (DMs may be closed)"
+                    "send moderation DM to user, DMs may be closed"
                 );
             }
         }

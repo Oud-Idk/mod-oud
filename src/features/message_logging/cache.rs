@@ -39,7 +39,7 @@ pub async fn spawn_cache_message_in_redis(data: &BotData, msg: &Message) -> Resu
 
     tokio::spawn(async move {
         if let Err(e) = cache_message_in_redis(&redis_conn, &msg_clone).await {
-            error!("Failed to cache message in Redis: {}", e);
+            error!(message_id = %msg_clone.id, error = %e, "failed to cache message in redis");
         }
     });
 
@@ -66,7 +66,7 @@ pub async fn cache_message_in_redis(redis: &Client, msg: &Message) -> Result<(),
     let serialized = match serde_json::to_string(&cached) {
         Ok(s) => s,
         Err(e) => {
-            error!(error = %e, "Failed to serialize message for Redis caching");
+            error!(error = %e, "serialize message for Redis caching");
             return Err(e.into());
         }
     };
@@ -76,7 +76,7 @@ pub async fn cache_message_in_redis(redis: &Client, msg: &Message) -> Result<(),
         .set(&key, &serialized, Some(Expiration::EX(18000)), None, false)
         .await?;
 
-    debug!(key = %key, "Message successfully cached in Redis");
+    debug!(key = %key, "Message cached in Redis");
     Ok(())
 }
 
@@ -103,7 +103,7 @@ pub async fn fetch_dist_cached_message(
         let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
             Ok(c) => c,
             Err(e) => {
-                error!(error = %e, key = %key, "Failed to deserialize cached message JSON");
+                error!(error = %e, key = %key, "deserialize cached message JSON");
                 return Err(e.into());
             }
         };
@@ -145,7 +145,7 @@ pub async fn fetch_dist_edit_details(
         let cached: DistributedCachedMessage = match serde_json::from_str(&raw) {
             Ok(c) => c,
             Err(e) => {
-                error!(error = %e, key = %key, "Failed to deserialize cached message JSON during edit");
+                error!(error = %e, key = %key, "deserialize cached message JSON during edit");
                 return Err(e.into());
             }
         };
@@ -161,7 +161,7 @@ pub async fn fetch_dist_edit_details(
             let serialized = match serde_json::to_string(&updated) {
                 Ok(s) => s,
                 Err(e) => {
-                    error!(error = %e, "Failed to serialize updated message details");
+                    error!(error = %e, "serialize updated message details");
                     return Err(e.into());
                 }
             };

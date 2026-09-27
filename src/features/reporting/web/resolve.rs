@@ -28,7 +28,7 @@ pub async fn handle_resolve_report(
         guild_id,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "Failed to resolve guild config"))
+    .inspect_err(|e| error!(error = %e, "resolve guild config"))
     .map_err(|_| WebError::Internal)?;
 
     let Some(report_config) = config.report else {
@@ -47,7 +47,7 @@ pub async fn handle_resolve_report(
         .create_dm_channel(&state.serenity_http)
         .await
         .map_err(|e| {
-            error!(error = %e, "Failed to open direct message channel to the reporter");
+            error!(error = %e, "open direct message channel to the reporter");
             WebError::BadGateway(format!("Failed to open DM channel: {e}"))
         })?;
 
@@ -73,7 +73,7 @@ pub async fn handle_resolve_report(
             &layout.message.embed,
             replace_fn,
         )
-        .inspect_err(|e| error!(error = %e, "Failed to generate custom messaging content layout"))
+        .inspect_err(|e| error!(error = %e, "generate custom messaging content layout"))
         .map_err(|_e| WebError::Internal)?
     } else {
         None
@@ -97,7 +97,7 @@ pub async fn handle_resolve_report(
     if let Err(e) = send_result {
         warn!(error = %e, %reporter_id, "Could not send resolution DM to reporter");
     } else {
-        info!(%reporter_id, "Resolution DM successfully sent to reporter");
+        info!(%reporter_id, "Resolution DM sent to reporter");
     }
 
     Ok(StatusCode::OK)

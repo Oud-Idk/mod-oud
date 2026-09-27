@@ -25,7 +25,7 @@ pub async fn handle_cleanup_if_starboard(
     db: &PgPool,
     orig_msg_id: MessageId,
 ) -> Result<()> {
-    debug!("Starting starboard cleanup check for original message");
+    debug!(%orig_msg_id, "checking starboard for the original message");
 
     let rows = database::fetch_starboard(db, orig_msg_id).await?;
     debug!(rows_found = rows.len(), "Fetched linked starboard messages");
@@ -52,7 +52,7 @@ pub async fn handle_cleanup_if_starboard(
     debug!("Deleting message mappings from database");
     database::delete_starboard(db, orig_msg_id).await?;
 
-    info!("Cleanup successfully completed");
+    info!(%orig_msg_id, "starboard removed");
     Ok(())
 }
 
@@ -113,7 +113,7 @@ async fn handle_starboard_reaction(
         return Ok(());
     };
 
-    debug!("Fetching original message...");
+    debug!("Fetching original message");
     let message = reaction.message(&ctx.http).await?;
 
     for starboard in starboards {
@@ -232,7 +232,7 @@ async fn debounced_starboard_sync(
                     )
                     .await
                     {
-                        error!(error = %e, "Error occurred during background starboard upsert");
+                        error!(error = %e, "upserting background starboard");
                     }
 
                     current_processed = final_count;
@@ -259,7 +259,7 @@ async fn debounced_starboard_sync(
                     warn!(
                         error = ?e,
                         lock_key = %lock_key,
-                        "Failed to release starboard worker lock; lock will expire on its own"
+                        "release starboard worker lock; lock will expire on its own"
                     );
                 }
             }
@@ -296,7 +296,7 @@ pub async fn upsert_starboard(
         database::fetch_starboard_message_id(db, orig_msg_id, starboard.id).await?;
 
     if emoji_count < threshold && starboard_msg_id.is_none() {
-        debug!("Count is below threshold, and no post exists yet. Skipping.");
+        debug!("count is below threshold and no post exists yet, skipping");
         return Ok(());
     }
 

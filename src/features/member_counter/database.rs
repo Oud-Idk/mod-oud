@@ -11,7 +11,7 @@ pub async fn any_guild_ids_with_member_counters(db: &sqlx::Pool<sqlx::Postgres>)
     )
     .fetch_all(db)
     .await
-    .inspect_err(|e| warn!(error = ?e, "Failed to query active member counter guilds from DB"))
+    .inspect_err(|e| warn!(error = ?e, "query active member counter guilds from DB"))
     .map_or_else(
         |_| Vec::new(),
         |rows| {

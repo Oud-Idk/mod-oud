@@ -297,7 +297,7 @@ async fn run_player_turns(
             }
             _ => warn!(
                 custom_id = interaction.data.custom_id,
-                "Unknown custom_id for blackjack!"
+                "Unknown custom_id for blackjack"
             ),
         }
 
@@ -421,6 +421,7 @@ fn split_first_hand(game: &mut BlackjackGame, ctx: &Context<'_>) {
     let Some(second_card) = game.player_hands[0].cards.pop() else {
         // The extra bet is already debited, so log rather than panic.
         tracing::error!(
+            fault = "hand has no second card to split",
             guild_id = ?ctx.guild_id(),
             user_id = %ctx.author().id,
             hand_len = game.player_hands[0].cards.len(),

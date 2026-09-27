@@ -38,7 +38,7 @@ pub async fn require_internal_secret(
         return Ok(next.run(request).await);
     }
 
-    trace!("Received request with path: {path}");
+    trace!(path = %path, "received request");
 
     // Also allow nested /api prefix check for exempt subpaths
     if path.starts_with("/verify")
@@ -50,8 +50,9 @@ pub async fn require_internal_secret(
 
     let Some(expected) = state.core.config.internal_api_secret.as_deref() else {
         warn!(
-            "INTERNAL_API_SECRET not set. Rejecting protected route {}",
-            path
+            path = %path,
+            fault = "INTERNAL_API_SECRET is not set",
+            "rejecting protected route, server misconfigured"
         );
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -81,10 +82,15 @@ pub async fn require_internal_secret(
 
     match provided {
         Some(token) if token == expected => Ok(next.run(request).await),
-        Some(_) => Err((
-            StatusCode::UNAUTHORIZED,
-            "Invalid internal secret".to_string(),
-        )),
+        Some(_) => {
+            // One of the few 4xx worth a line: a deploy or a dashboard is holding the wrong
+            // secret, and nothing else in the log would say so.
+            warn!(path = %path, "rejected request with an invalid internal secret");
+            Err((
+                StatusCode::UNAUTHORIZED,
+                "Invalid internal secret".to_string(),
+            ))
+        }
         None => Err((
             StatusCode::UNAUTHORIZED,
             "Missing Authorization".to_string(),

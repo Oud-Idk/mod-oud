@@ -30,7 +30,7 @@ pub async fn cache_aside_multipliers(
             warn!(
                 error = ?err,
                 key = %multiplier_key,
-                "Failed to deserialize cached multipliers; falling back to empty list"
+                "deserialize cached multipliers; falling back to empty list"
             );
             Vec::new()
         })
@@ -87,7 +87,7 @@ pub async fn create_redis_cooldown(
     let success = cooldown_result.is_some();
 
     if success {
-        debug!(key = %cooldown_key, "Cooldown successfully created");
+        debug!(key = %cooldown_key, "Cooldown created");
     } else {
         debug!(key = %cooldown_key, "Cooldown already active");
     }

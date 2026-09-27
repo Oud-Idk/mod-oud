@@ -51,7 +51,7 @@ pub async fn websub_notify(
         .internal_api_secret
         .as_deref()
         .ok_or_else(|| {
-            warn!("Internal API secret is not set up, but the WebSub endpoint is still called!");
+            warn!("Internal API secret is not set up, but the WebSub endpoint is still called");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".into(),
@@ -70,7 +70,7 @@ pub async fn websub_notify(
     };
 
     if !verify_signature(&expected_secret, signature, &body) {
-        debug!(feed_id = %feed_id, "Rejected WebSub POST: Invalid cryptographic signature!");
+        debug!(feed_id = %feed_id, "Rejected WebSub POST: Invalid cryptographic signature");
         return Err((StatusCode::UNAUTHORIZED, "Invalid signature".into()));
     }
 
@@ -80,13 +80,13 @@ pub async fn websub_notify(
     };
 
     let Some(entry) = feed.entries.first() else {
-        debug!("WebSub payload contained no entries for feed {}", feed_id);
+        debug!(%feed_id, "websub payload contained no entries");
         return Ok(StatusCode::OK);
     };
 
     let subscribed_channels = get_subscribed_channels(&state.core.db, feed_id)
         .await
-        .inspect_err(|e| error!(error = ?e, "Error getting subscribed channels"))
+        .inspect_err(|e| error!(%feed_id, error = ?e, "failed to get subscribed channels"))
         .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -100,7 +100,7 @@ pub async fn websub_notify(
     for channel in subscribed_channels {
         let msg = CreateMessage::new().embed(embed.clone());
         if let Err(e) = channel.send_message(&state.serenity_http, msg).await {
-            error!(error = ?e, %feed_id, %channel, "Failed to deliver WebSub entry to subscribed channel");
+            error!(error = ?e, %feed_id, %channel, "deliver WebSub entry to subscribed channel");
         }
     }
 
@@ -152,11 +152,11 @@ pub async fn websub_verify(
 
         let _ = database::update_lease(&state.core.db, feed_id, expires_at)
             .await
-            .inspect_err(|e| error!(error = ?e, "Error updating lease"))
-            .inspect(|_| info!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved."));
+            .inspect_err(|e| error!(error = ?e, "updating lease"))
+            .inspect(|_| info!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved"));
     }
 
-    info!(feed_id = %feed_id, "Echoing challenge back to WebSub hub.");
+    info!(feed_id = %feed_id, "Echoing challenge back to WebSub hub");
 
     Ok(challenge)
 }

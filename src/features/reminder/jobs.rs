@@ -22,7 +22,7 @@ pub fn start_reminder_worker(
         let lock_key = "lock:reminder_worker";
         let lock_value = format!("worker-{}", Utc::now().timestamp_millis());
 
-        info!(worker_id = %lock_value, "Starting reminder worker task");
+        info!(worker_id = %lock_value, "reminder worker started");
 
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
@@ -34,16 +34,16 @@ pub fn start_reminder_worker(
                 Ok(Some(guard)) => {
                     trace!("Acquired lock; processing expired reminders");
                     if let Err(e) = process_expired_reminders(&db_pool, &http, now).await {
-                        error!(error = ?e, "Error processing expired reminders");
+                        error!(error = ?e, "processing expired reminders");
                     }
 
                     match guard.release().await {
-                        Ok(true) => trace!("Released lock successfully"),
+                        Ok(true) => trace!("Released lock"),
                         Ok(false) => {
                             warn!("Attempted to release reminder lock, but we no longer owned it");
                         }
                         Err(e) => {
-                            error!(error = ?e, "Failed to release reminder lock due to Redis error");
+                            error!(error = ?e, "release reminder lock due to Redis error");
                         }
                     }
                 }
@@ -51,7 +51,7 @@ pub fn start_reminder_worker(
                     trace!("Lock busy; skipping this iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "Failed to coordinate Redis lock for reminders");
+                    error!(error = ?e, "coordinate Redis lock for reminders");
                 }
             }
         }
@@ -92,11 +92,11 @@ async fn process_expired_reminders(
                         %channel_id,
                         reminder_id,
                         error = ?e,
-                        "Failed to generate reminder embed"
+                        "generate reminder embed"
                     );
                     // Invalid template/embed -> advance state so it doesn't choke forever
                     if let Err(e) = handle_post_execution(db_ref, &record).await {
-                        error!(error = ?e, reminder_id, "Failed to update reminder state in DB");
+                        error!(error = ?e, reminder_id, "update reminder state in DB");
                     }
                     return Err(reminder_id);
                 }
@@ -105,14 +105,14 @@ async fn process_expired_reminders(
             if let Some(content) = content_opt {
                 match channel_id.send_message(http_ref, content).await {
                     Ok(_) => {
-                        debug!(reminder_id, "Successfully sent reminder");
+                        debug!(reminder_id, "sent reminder");
                         if let Err(e) = handle_post_execution(db_ref, &record).await {
-                            error!(error = ?e, reminder_id, "Failed to update reminder state in DB");
+                            error!(error = ?e, reminder_id, "update reminder state in DB");
                         }
                         Ok(reminder_id)
                     }
                     Err(e) => {
-                        error!(error = ?e, reminder_id, "Failed to send reminder to Discord");
+                        error!(error = ?e, reminder_id, "send reminder to Discord");
                         // We do NOT update DB here so it can retry on the next tick!
                         Err(reminder_id)
                     }
@@ -120,11 +120,11 @@ async fn process_expired_reminders(
             } else {
                 debug!(
                     reminder_id,
-                    "No content to send (empty message). Updating state..."
+                    "No content to send (empty message). Updating state"
                 );
 
                 if let Err(e) = handle_post_execution(db_ref, &record).await {
-                    error!(error = ?e, reminder_id, "Failed to update reminder state in DB");
+                    error!(error = ?e, reminder_id, "update reminder state in DB");
                 }
 
                 Ok(reminder_id)

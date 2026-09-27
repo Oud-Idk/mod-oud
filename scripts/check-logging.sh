@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Logging convention checks. Grep-based on purpose: clippy has no rule for log
+# levels, and a rule nobody runs decays.
+#
+# Log-macro invocations are extracted whole, balancing parens and skipping string
+# literals, so a call spread over ten lines is judged as one call.
+#
+# Usage: scripts/check-logging.sh [src-dir]     (default: src)
+
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+target="${1:-$root/src}"
+fail=0
+
+red() { printf '\033[31m%s\033[0m\n' "$*"; }
+note() { printf '\033[2m%s\033[0m\n' "$*"; }
+
+# --- extract -----------------------------------------------------------------
+# Emits:  file:line <TAB> level!(body)
+extract_calls() {
+  find "$target" -name '*.rs' -print0 | sort -z | xargs -0 awk -f "$root/scripts/log_calls.awk"
+}
+
+# --- rule 1: error! must name a cause ----------------------------------------
+# A cause is `error` (a value), `reason` (known cause, not an error value) or
+# `fault` (an invariant already broken, so there is no Err to report). Never
+# invent an io::Error to satisfy this check.
+missing_cause="$(extract_calls |
+  awk -F'\t' '$2 ~ /^error!/ && $2 !~ /(^|[ (])(error|reason|fault)[[:space:]]*=/ { print $1 }')"
+
+if [[ -n "$missing_cause" ]]; then
+  while IFS= read -r loc; do
+    red "error! without a cause: ${loc#"$root"/}"
+  done <<< "$missing_cause"
+  note "  add error = (a value), reason = (known cause), or fault = (broken invariant)."
+  note "  Do not invent an io::Error to pass this."
+  fail=1
+fi
+
+# --- rule 2: no interpolation into the message --------------------------------
+# { } inside the message string defeats field queries. Exempt the formatting
+# macros, where the braces belong to the format specifier, not the message.
+#
+# The leading class is load-bearing. Without it `xformat!` matches, and with a bare
+# `[a-z_]+!` the exemption matches `trace!` and `info!` themselves, which drops
+# every single-literal log call and hides the violation this rule exists to catch.
+interpolated="$(extract_calls |
+  awk -F'\t' '
+    {
+      body = $2
+      gsub(/(^|[^[:alnum:]_])(format|print|println|eprint|eprintln|panic|todo|unreachable|unimplemented|assert|assert_eq|assert_ne|debug_assert|debug_assert_eq|debug_assert_ne|write|writeln)!\("[^"]*"/, "\\1\\2!(", body)
+      if (body ~ /"[^"]*\{[^"]*"/) print $1
+    }')"
+
+if [[ -n "$interpolated" ]]; then
+  while IFS= read -r loc; do
+    red "interpolation in message: ${loc#"$root"/}"
+  done <<< "$interpolated"
+  note "  move the value into a field, see docs/logging.md"
+  fail=1
+fi
+
+# --- rule 3: #[instrument(err)] double-logs -----------------------------------
+# The attribute logs the error on the way out and so does the boundary. Drop one.
+# Multiline, because the attribute usually wraps and err sits on its own line.
+instrument_err="$(rg -U -n --no-heading '#\[(tracing::)?instrument\([^]]*?(\s|,)err(\s*[,)])' -g '*.rs' "$target" |
+  awk '/#\[(tracing::)?instrument\(/ { sub(/#\[(tracing::)?instrument\(.*/, "#[instrument("); print }' || true)"
+if [[ -n "$instrument_err" ]]; then
+  while IFS= read -r line; do
+    red "#[instrument(err)] double-logs: ${line#"$root"/}"
+  done <<< "$instrument_err"
+  fail=1
+fi
+
+# --- rule 4: info! budget per file --------------------------------------------
+# info! is the operator timeline. A file that logs it per message is a flood.
+budget="${INFO_BUDGET:-8}"
+noisy="$(extract_calls |
+  awk -F'\t' -v b="$budget" '
+    $2 ~ /^info!/ { split($1, p, ":"); count[p[1]]++ }
+    END { for (f in count) if (count[f] > b) print count[f] "\t" f }' |
+  sort -rn)"
+if [[ -n "$noisy" ]]; then
+  while IFS= read -r line; do
+    red "over info! budget ($budget): ${line#*$'\t'}"
+  done <<< "$noisy"
+  fail=1
+fi
+
+if [[ $fail -eq 0 ]]; then
+  note "logging checks passed"
+fi
+exit $fail

@@ -12,7 +12,7 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
         let lock_key = "lock:raid_stats_flush_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
-        info!(worker_id = %lock_value, "Starting raid stats flush worker");
+        info!(worker_id = %lock_value, "raid stats flush worker started");
 
         loop {
             tokio::time::sleep(Duration::from_secs(30)).await;
@@ -22,20 +22,20 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
                     trace!("Lock acquired; flushing raid hourly stats");
 
                     if let Err(e) = flush_pending_stats(&db_pool, &redis_client).await {
-                        error!(error = ?e, "Error flushing raid stats to database");
+                        error!(error = ?e, "flushing raid stats to database");
                     }
 
                     match guard.release().await {
-                        Ok(true) => trace!("Lock released successfully"),
+                        Ok(true) => trace!("Lock released"),
                         Ok(false) => warn!("Lock already lost during flush"),
-                        Err(e) => error!(error = ?e, "Failed to release flush lock"),
+                        Err(e) => error!(error = ?e, "release flush lock"),
                     }
                 }
                 Ok(None) => {
                     trace!("Lock held by another worker; skipping flush");
                 }
                 Err(e) => {
-                    error!(error = ?e, "Failed to acquire flush lock");
+                    error!(error = ?e, "acquire flush lock");
                 }
             }
         }
@@ -59,7 +59,7 @@ async fn flush_pending_stats(
 
     for guild_id in dirty_guilds {
         if let Err(e) = flush_guild(guild_id, redis, db).await {
-            error!(%guild_id, error = ?e, "Failed to flush raid stats for guild");
+            error!(%guild_id, error = ?e, "flush raid stats for guild");
         }
     }
 
@@ -91,7 +91,7 @@ async fn flush_guild(
     database::upsert_hourly_stats(db, &guild_ids, &hour_keys, &join_counts).await?;
 
     cache::remove_dirty_raid_guild(redis, guild_id).await?;
-    debug!(count, "Successfully flushed hourly stats to database");
+    debug!(count, "flushed hourly stats to database");
 
     Ok(())
 }

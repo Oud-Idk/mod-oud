@@ -128,7 +128,7 @@ pub async fn build_goodbye_message(
                     error = ?e,
                     %guild_id,
                     user_id = user.id.get(),
-                    "Failed to compile custom leave message template; using fallback layout"
+                    "compile custom leave message template; using fallback layout"
                 );
                 None
             });
@@ -141,7 +141,7 @@ pub async fn build_goodbye_message(
                 context_error = ?context_err.err(),
                 %guild_id,
                 user_id = user.id.get(),
-                "Failed to resolve rendering context for leave notification; falling back to default layout"
+                "resolve rendering context for leave notification; falling back to default layout"
             );
             build_fallback_message(user, member_data_if_available)
         }
@@ -190,7 +190,7 @@ pub async fn get_context_channel(
         }
     }
 
-    warn!(%guild_id, "Failed to resolve any valid text channel context in guild");
+    warn!(%guild_id, "resolve any valid text channel context in guild");
     Err(std::io::Error::other("Could not resolve a suitable text channel context.").into())
 }
 
@@ -267,7 +267,7 @@ pub async fn send_leave_message(
         "Dispatching goodbye notification message"
     );
     if let Err(e) = channel_id.send_message(&ctx.http, msg_payload).await {
-        warn!(error = ?e, %guild_id, %user_id, target_channel = channel_id.get(), "Failed to send goodbye notification to channel");
+        warn!(error = ?e, %guild_id, %user_id, target_channel = channel_id.get(), "send goodbye notification to channel");
     }
 
     trace!(%guild_id, %user_id, "Logging member leave record to database");

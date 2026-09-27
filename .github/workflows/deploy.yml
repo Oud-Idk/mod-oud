@@ -1,13 +1,22 @@
-name: ci-cd
+name: deploy
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# Push to main only. Checks come from checks.yml, which this calls, so a red
+# clippy or a failing test still blocks the image build and the deploy.
+#
+# The build and deploy jobs live here rather than in checks.yml so that a pull
+# request cannot reach the registry. They push a `:latest` tag, which
+# docker-compose.prod.yml pulls.
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a deploy in flight. Two pushes to main in quick succession
+  # would otherwise interrupt one between `git pull` and `compose up`.
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
@@ -18,41 +27,12 @@ permissions:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Clippy (lib + tests)
-        run: SQLX_OFFLINE=true cargo clippy --all-targets
-
-      - name: Rust tests
-        run: SQLX_OFFLINE=true cargo test --lib
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: dashboard/package-lock.json
-
-      - name: Install dashboard dependencies
-        working-directory: dashboard
-        run: npm ci
-
-      - name: Dashboard Lint
-        working-directory: dashboard
-        run: npm run lint
-
-      - name: Dashboard tests
-        working-directory: dashboard
-        run: npm test
+    uses: ./.github/workflows/checks.yml
 
   build-backend:
     needs: checks
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -65,7 +45,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker Meta (Backend)
-        id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}-backend
@@ -85,6 +64,7 @@ jobs:
   build-dashboard:
     needs: checks
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -97,7 +77,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker Meta (Dashboard)
-        id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}-dashboard
@@ -113,8 +92,6 @@ jobs:
             NEXT_PUBLIC_BACKEND_URL=${{ vars.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080' }}
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
             NEXT_PUBLIC_HCAPTCHA_SITE_KEY=${{ vars.NEXT_PUBLIC_HCAPTCHA_SITE_KEY }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=dashboard
           cache-to: type=gha,scope=dashboard,mode=max
 
@@ -122,6 +99,7 @@ jobs:
     needs: [ build-backend, build-dashboard ]
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: self-hosted
+    timeout-minutes: 20
     steps:
       - name: Deploy Containers
         env:
@@ -130,12 +108,11 @@ jobs:
         run: |
           set -e
           cd /opt/mod-oud
-          
+
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
-          
           git pull --ff-only origin main
           docker compose -f docker-compose.prod.yml pull
           docker compose -f docker-compose.prod.yml up -d --remove-orphans
           docker image prune -f
-          
+
           docker logout ghcr.io

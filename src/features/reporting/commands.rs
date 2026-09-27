@@ -94,7 +94,7 @@ pub async fn report_message(
         let reply_content = if let Some(report_id) = result {
             info!(
                 reporter_id = %reporter.id,
-                reported_message_id = %reported_message.id, report_id, "Message report successfully created and recorded"
+                reported_message_id = %reported_message.id, report_id, "Message report created and recorded"
             );
             "Your report has been submitted to the moderation team."
         } else {

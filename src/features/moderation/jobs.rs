@@ -21,7 +21,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
         let lock_key = "lock:temp_ban_worker";
         let lock_value = format!("worker-{}", chrono::Utc::now().timestamp_millis());
 
-        info!(worker_id = %lock_value, "Starting temp ban worker task");
+        info!(worker_id = %lock_value, "temp ban worker started");
 
         loop {
             tokio::time::sleep(tokio::time::Duration::from_mins(1)).await;
@@ -33,17 +33,17 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                 Ok(Some(guard)) => {
                     trace!("Acquired lock; processing expired temp bans");
                     if let Err(e) = process_expired_temp_bans(&db_pool, &http, now).await {
-                        error!(error = ?e, "Error processing expired temp bans");
+                        error!(error = ?e, "processing expired temp bans");
                     }
 
                     // Release lock
                     match guard.release().await {
-                        Ok(true) => trace!("Released lock successfully"),
+                        Ok(true) => trace!("Released lock"),
                         Ok(false) => {
                             warn!("Attempted to release temp ban lock, but ownership was lost");
                         }
                         Err(e) => {
-                            error!(error = ?e, "Failed to release temp ban lock due to Redis error");
+                            error!(error = ?e, "release temp ban lock due to Redis error");
                         }
                     }
                 }
@@ -51,7 +51,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                     trace!("Lock busy; skipping iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "Failed to coordinate Redis lock for temp bans");
+                    error!(error = ?e, "coordinate Redis lock for temp bans");
                 }
             }
         }
@@ -88,7 +88,7 @@ async fn process_expired_temp_bans(
                         %guild_id,
                         user_id = %user_id,
                         ban_id = record.id,
-                        "Successfully unbanned user"
+                        "unbanned user"
                     );
                     Ok(record.id)
                 }
@@ -107,7 +107,7 @@ async fn process_expired_temp_bans(
                             user_id = %user_id,
                             ban_id = record.id,
                             error = ?e,
-                            "Failed to unban user in guild"
+                            "unban user in guild"
                         );
                         Err(record.id)
                     }

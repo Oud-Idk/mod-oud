@@ -34,7 +34,7 @@ pub fn start_ticket_inactivity_worker(
         let lock_key = keys::ticket_inactivity_lock_key();
         let lock_value = format!("worker-{}", Utc::now().timestamp_millis());
 
-        info!(worker_id = %lock_value, "Starting ticket inactivity worker task");
+        info!(worker_id = %lock_value, "ticket inactivity worker started");
 
         loop {
             tokio::time::sleep(Duration::from_mins(1)).await;
@@ -48,27 +48,27 @@ pub fn start_ticket_inactivity_worker(
                     if let Err(e) =
                         warn_inactive_tickets(&pool, &redis_client, &http, &guild_config).await
                     {
-                        error!(error = ?e, "Error warning inactive tickets");
+                        error!(error = ?e, "warning inactive tickets");
                     }
 
                     if let Err(e) =
                         close_abandoned_tickets(&pool, &redis_client, &http, &guild_config).await
                     {
-                        error!(error = ?e, "Error closing abandoned tickets");
+                        error!(error = ?e, "closing abandoned tickets");
                     }
 
                     // Release using the guard
                     if let Err(e) = guard.release().await {
-                        warn!(error = ?e, "Failed to release inactivity lock");
+                        warn!(error = ?e, "release inactivity lock");
                     } else {
-                        trace!("Released inactivity lock successfully");
+                        trace!("Released inactivity lock");
                     }
                 }
                 Ok(None) => {
                     trace!("Lock busy; skipping this iteration");
                 }
                 Err(e) => {
-                    error!(error = ?e, "Failed to coordinate Redis lock for ticket inactivity worker");
+                    error!(error = ?e, "coordinate Redis lock for ticket inactivity worker");
                 }
             }
         }
@@ -204,7 +204,7 @@ async fn warn_inactive_tickets(
                 warn!(
                     channel_id = %target.channel_id,
                     error = ?e,
-                    "Failed to send inactivity warning message to channel"
+                    "send inactivity warning message to channel"
                 );
             }
         }
@@ -282,7 +282,7 @@ async fn close_abandoned_tickets(
     for channel_id in tickets_to_close {
         match channel_id.delete(http).await {
             Ok(_) => {
-                info!(%channel_id, "Successfully deleted abandoned ticket channel");
+                info!(%channel_id, "deleted abandoned ticket channel");
             }
             Err(e) => {
                 // FIX 2: Gracefully handle manually deleted channels (Error 10003)
@@ -295,7 +295,7 @@ async fn close_abandoned_tickets(
                     warn!(
                         %channel_id,
                         error = ?e,
-                        "Failed to delete inactive ticket channel on close"
+                        "delete inactive ticket channel on close"
                     );
                 }
             }

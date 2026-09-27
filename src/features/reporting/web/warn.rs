@@ -46,7 +46,7 @@ pub async fn handle_warn(
         ctx.target_username,
     )
     .await
-    .inspect_err(|e| error!(error = %e, "Failed to execute warning issuance"))
+    .inspect_err(|e| error!(error = %e, "execute warning issuance"))
     .map_err(|_e| WebError::Internal)?;
 
     update_reported_message(&state.core.db, cmd.report_id, ReportUpdate::UserWarned).await?;

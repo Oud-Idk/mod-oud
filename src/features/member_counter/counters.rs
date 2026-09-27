@@ -82,7 +82,7 @@ pub async fn update_guild_counters(
         let current_channel = match channel_id.to_channel(http).await {
             Ok(c) => c,
             Err(e) => {
-                warn!(%guild_id, %channel_id, error = ?e, "Failed to fetch counter channel");
+                warn!(%guild_id, %channel_id, error = ?e, "fetch counter channel");
                 continue;
             }
         };
@@ -111,7 +111,7 @@ pub async fn update_guild_counters(
                         %guild_id,
                         %channel_id,
                         error = ?e,
-                        "Failed to update channel name on Discord"
+                        "update channel name on Discord"
                     );
                 }
             }

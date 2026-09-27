@@ -75,7 +75,7 @@ pub async fn setup_tickets(
         caller_id = %ctx.author().id,
         target_channel_id = %params.target_channel_id,
         %message_id,
-        "Ticket system setup process completed successfully"
+        "Ticket system setup process completed"
     );
 
     Ok(())

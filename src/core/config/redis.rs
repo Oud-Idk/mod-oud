@@ -16,7 +16,7 @@ pub async fn get_settings_from_redis(redis: &Client, cache_key: &str) -> Option<
             warn!(
                 error = ?e,
                 key = %cache_key,
-                "Failed to parse settings from Redis; falling back to DB"
+                "parse settings from Redis; falling back to DB"
             );
             None
         }
@@ -42,8 +42,9 @@ pub async fn set_setting_to_redis(
         }
         Err(err) => {
             warn!(
-                "Failed to serialize settings for key {}: {}. Skipping.",
-                cache_key, err
+                cache_key,
+                error = %err,
+                "failed to serialize settings, skipping cache write"
             );
             Ok(())
         }

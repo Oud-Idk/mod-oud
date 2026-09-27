@@ -61,7 +61,7 @@ pub async fn ensure_preraid_state_saved(
     let _: () = cache::add_guild_to_raid(guild_id, conn).await?;
 
     if let Err(e) = database::save_active_raid_state(&data.core.db, guild_id, &snapshot).await {
-        error!(error = ?e, %guild_id, "Failed to persist active raid state to database");
+        error!(error = ?e, %guild_id, "persist active raid state to database");
     }
 
     if snapshot_saved {
@@ -70,7 +70,7 @@ pub async fn ensure_preraid_state_saved(
             everyone_permissions = everyone_perms,
             verification_type = ?snapshot.original_verification_type,
             use_oauth = ?snapshot.original_oauth_required,
-            "Successfully created and saved pre-raid state snapshot"
+            "created and saved pre-raid state snapshot"
         );
     } else {
         debug!(%guild_id, "Pre-raid snapshot already exists in Redis; skipping overwrite");
@@ -114,7 +114,7 @@ pub async fn restore_preraid_state(
         error!(
             error = ?e,
             %guild_id,
-            "Failed to restore @everyone role permissions"
+            "restore @everyone role permissions"
         );
     }
 
@@ -135,10 +135,10 @@ pub async fn restore_preraid_state(
 
     // Delete persisted state from Postgres
     if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
-        error!(error = ?e, %guild_id, "Failed to delete active raid state from database");
+        error!(error = ?e, %guild_id, "delete active raid state from database");
     }
 
-    info!(%guild_id, "Successfully claimed and restored pre-raid state");
+    info!(%guild_id, "claimed and restored pre-raid state");
 
     Ok(true)
 }

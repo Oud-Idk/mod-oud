@@ -62,7 +62,7 @@ pub async fn send_public_welcome(
     };
 
     let Some(channel_id) = public.channel_id else {
-        warn!("Channel ID for welcome is somehow empty!");
+        warn!("Channel ID for welcome is somehow empty");
         return Ok(());
     };
 
@@ -78,7 +78,7 @@ pub async fn send_public_welcome(
     ) {
         Ok(b) => b,
         Err(e) => {
-            warn!(error = ?e, %guild_id, %user_id, "Failed to compile public welcome layout template");
+            warn!(error = ?e, %guild_id, %user_id, "compile public welcome layout template");
             return Ok(());
         }
     };
@@ -93,9 +93,9 @@ pub async fn send_public_welcome(
     .await;
 
     if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
-        warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "Failed to send public welcome message to channel");
+        warn!(error = ?e, %guild_id, %user_id, target_channel = %channel_id, "send public welcome message to channel");
     } else {
-        debug!(%guild_id, %user_id, target_channel = %channel_id, "Public welcome message sent successfully");
+        debug!(%guild_id, %user_id, target_channel = %channel_id, "Public welcome message sent");
     }
 
     Ok(())
@@ -129,7 +129,7 @@ pub async fn send_private_welcome(
     let dm_channel = match member.user.create_dm_channel(&ctx.http).await {
         Ok(ch) => ch,
         Err(e) => {
-            warn!(error = ?e, guild_id, user_id, "Failed to establish DM channel with newly joined user");
+            warn!(error = ?e, guild_id, user_id, "establish DM channel with newly joined user");
             return Ok(());
         }
     };
@@ -144,7 +144,7 @@ pub async fn send_private_welcome(
     ) {
         Ok(b) => b,
         Err(e) => {
-            warn!(error = ?e, guild_id, user_id, "Failed to compile private DM welcome layout template");
+            warn!(error = ?e, guild_id, user_id, "compile private DM welcome layout template");
             return Ok(());
         }
     };
@@ -159,12 +159,9 @@ pub async fn send_private_welcome(
     .await;
 
     if let Err(e) = dm_channel.send_message(&ctx.http, builder).await {
-        warn!(error = ?e, guild_id, user_id, "Failed to send private DM welcome message to user");
+        warn!(error = ?e, guild_id, user_id, "send private DM welcome message to user");
     } else {
-        debug!(
-            guild_id,
-            user_id, "Private DM welcome message sent successfully"
-        );
+        debug!(guild_id, user_id, "Private DM welcome message sent");
     }
 
     Ok(())

@@ -146,7 +146,7 @@ impl GuildSettings {
 fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> GuildSettings {
     match serde_path_to_error::deserialize(raw_json) {
         Ok(s) => {
-            debug!(%guild_id, "Found config from DB.");
+            debug!(%guild_id, "Found config from DB");
             s
         }
         Err(err) => {
@@ -155,7 +155,7 @@ fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> Guil
                 field_path = %err.path(),
                 %guild_id,
                 raw_json = %raw_json,
-                "Failed to deserialize database JSON; falling back to default settings"
+                "deserialize database JSON; falling back to default settings"
             );
             GuildSettings::default()
         }
@@ -223,7 +223,7 @@ pub async fn get_settings_inner(
             error = %e,
             %guild_id,
             key = %cache_key,
-            "Failed to write settings to Redis cache"
+            "write settings to Redis cache"
         );
     }
 
@@ -253,7 +253,7 @@ pub async fn save_settings(
             error = %e,
             %guild_id,
             key = %cache_key,
-            "Failed to write updated settings to Redis cache"
+            "write updated settings to Redis cache"
         );
     }
 
@@ -263,7 +263,7 @@ pub async fn save_settings(
         warn!(
             error = %e,
             %guild_id,
-            "Failed to publish config invalidation event to Redis Pub/Sub"
+            "publish config invalidation event to Redis Pub/Sub"
         );
     }
 

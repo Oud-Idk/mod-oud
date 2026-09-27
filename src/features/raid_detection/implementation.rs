@@ -98,7 +98,7 @@ impl DynamicRaidDetector {
                 current_joins_in_window,
                 threshold,
                 avg_joins_per_min = result.avg_joins_per_min,
-                "Raid anomaly detected!"
+                "Raid anomaly detected"
             );
         } else {
             debug!(
@@ -146,14 +146,14 @@ impl DynamicRaidDetector {
         let stats_res = self.recompute_stats(guild_id, now, &stats_cache_key).await;
 
         if let Err(ref e) = stats_res {
-            error!(%guild_id, error = %e, "Failed to recompute stats");
+            error!(%guild_id, error = %e, "recompute stats");
         }
 
         if let Err(e) = lock_guard.release().await {
             warn!(
                 error = ?e,
                 %guild_id,
-                "Failed to release raid stats recompute lock; lock will expire on its own"
+                "release raid stats recompute lock; lock will expire on its own"
             );
         }
 
@@ -189,7 +189,7 @@ impl DynamicRaidDetector {
             threshold = stats.threshold,
             mean_window = stats.mean_window,
             std_dev_window = stats.std_dev_window,
-            "Successfully recomputed and cached threshold stats"
+            "recomputed and cached threshold stats"
         );
 
         Ok(stats)

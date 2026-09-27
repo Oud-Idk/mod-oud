@@ -64,7 +64,7 @@ pub async fn handle_custom_command(
             warn!(
                 error = ?e,
                 message_id = %msg.id,
-                "Failed to delete custom command trigger; trigger remains visible"
+                "delete custom command trigger; trigger remains visible"
             );
         }
     }
@@ -210,7 +210,7 @@ async fn add_role_action(
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "Failed to add role from custom command action; member did not receive it"
+            "add role from custom command action; member did not receive it"
         );
         info!(
             %guild_id,
@@ -254,7 +254,7 @@ async fn remove_role_action(
             %command_id,
             user_id = %msg.author.id,
             %role_id,
-            "Failed to remove role from custom command action; member kept the role"
+            "remove role from custom command action; member kept the role"
         );
         info!(
             %guild_id,

@@ -42,7 +42,7 @@ pub async fn handle_send_ticket_message(
         guild_id,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to load guild configuration settings"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "load guild configuration settings"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -78,7 +78,7 @@ pub async fn handle_send_ticket_message(
         &ticket_cfg.panel_message.message.embed,
     )
     .await
-    .inspect_err(|e| warn!(error = ?e, %guild_id, "Failed to compile custom ticket layout payload"))
+    .inspect_err(|e| warn!(error = ?e, %guild_id, "compile custom ticket layout payload"))
     .map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -90,14 +90,14 @@ pub async fn handle_send_ticket_message(
         .channel_id
         .send_message(&state.serenity_http, message_builder)
         .await
-        .inspect_err(|e| warn!(error = ?e, %guild_id, channel_id = %payload.channel_id, "Failed to send Discord panel message"))
+        .inspect_err(|e| warn!(error = ?e, %guild_id, channel_id = %payload.channel_id, "send Discord panel message"))
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string()))?;
 
     info!(
         %guild_id,
         channel_id = %payload.channel_id,
         message_id = %message.id,
-        "Ticket panel message dispatched successfully via Web API!"
+        "Ticket panel message dispatched via Web API"
     );
 
     Ok((
