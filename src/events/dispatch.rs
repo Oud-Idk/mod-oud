@@ -36,13 +36,8 @@ pub async fn dispatch_events(
     _framework: poise::FrameworkContext<'_, BotData, Error>,
     data: &BotData,
 ) -> Result<()> {
-    // The boundary between the gateway and the features. Everything the features log inherits
-    // these, so a line can be tied to the event that produced it without the feature repeating
-    // the ids.
-    //
-    // `debug`, unlike the other boundary spans: serenity dispatches 79 event variants and the
-    // match below handles 16, so most events take the `_` arm. At `info` the filter would print an
-    // enter and an exit line for each of those with nothing inside.
+    // At `debug` because the match below handles 16 of serenity's 79 event variants, so most
+    // events would print an empty enter and exit pair. See docs/logging.md.
     let subject = subject_of(event);
     let span = debug_span!(
         "dispatch_events",
@@ -147,13 +142,8 @@ fn subject_of(event: &FullEvent) -> Subject {
 
 /// The ids for a `MessageUpdate`, from whichever source has them.
 ///
-/// The raw gateway event is preferred throughout: for an update it is the freshest statement of
-/// what changed, where a completed `Message` may still be the cached pre-edit state. The full
-/// message is the fallback, and is the only source of an author when the gateway omitted one.
-///
-/// Reading the ids off the full message alone left the span empty for most edits, which is the
-/// one event type where the span is most worth having. The precedence only decides the case where
-/// both sources have the id, and there they agree, so this is uniformity rather than behaviour.
+/// The raw gateway event wins, being the freshest statement of the edit. The full `Message` is the
+/// fallback, and the only source of an author when the gateway omitted one.
 fn message_update_subject(
     full: Option<&serenity::all::Message>,
     raw_channel_id: ChannelId,
@@ -180,8 +170,7 @@ mod tests {
         user
     }
 
-    /// The regression: a MESSAGE_UPDATE with no completed `Message` still has to produce a span
-    /// with ids, which is the case that was returning three `None`s.
+    /// Most edits complete no `Message`, and the span still has to carry the ids.
     #[test]
     fn message_update_ids_survive_without_a_full_message() {
         let subject = message_update_subject(
@@ -196,7 +185,7 @@ mod tests {
         assert_eq!(subject.user_id, Some(UserId::new(9)));
     }
 
-    /// The gateway omitted the author, so there is no user to name. The channel is still there.
+    /// No author anywhere: the channel survives, the user cannot be named.
     #[test]
     fn message_update_keeps_the_channel_when_the_author_is_absent() {
         let subject = message_update_subject(None, ChannelId::new(456), None, None);
