@@ -334,8 +334,8 @@ a convention, and it would not fix a single one of the problems above.
 
 ## Migration
 
-Current state, for sizing the work: 1080 log calls (`debug` 418, `warn` 410, `info` 125,
-`error` 97, `trace` 30), 0 of them interpolating into the message string, 0 starting with
+Current state, for sizing the work: 1082 log calls (`debug` 419, `warn` 410, `info` 125,
+`error` 98, `trace` 30), 0 of them interpolating into the message string, 0 starting with
 "Failed to", 0 "Successfully", 0 trailing periods, 41 starting with a capital, 84
 `inspect_err` sites, 100 `#[instrument]` attributes, 6 explicit spans, and 42 `task::spawn`
 call sites. The only `tokio::spawn` left is the one inside the helper.
