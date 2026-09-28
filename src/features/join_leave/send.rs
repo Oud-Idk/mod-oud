@@ -36,7 +36,11 @@ async fn maybe_attach_welcome_card(
     if let Some(bytes) = bytes {
         builder.add_file(CreateAttachment::bytes(bytes, "welcome.png"))
     } else {
-        warn!("skipping welcome image attachment; sending text/embed only");
+        warn!(
+            guild_id = %member.guild_id,
+            user_id = %member.user.id,
+            "skipping welcome image attachment; sending text/embed only"
+        );
         builder
     }
 }

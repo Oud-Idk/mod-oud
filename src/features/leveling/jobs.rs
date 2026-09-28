@@ -30,7 +30,9 @@ pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
 
                     match guard.release().await {
                         Ok(true) => trace!("level flush lock released"),
-                        Ok(false) => warn!("level flush lock release skipped, no longer owned"),
+                        Ok(false) => {
+                            warn!(%lock_key, "level flush lock release skipped, no longer owned");
+                        }
                         Err(e) => warn!(error = ?e, "level flush lock release failed"),
                     }
                 }

@@ -217,7 +217,10 @@ pub fn start_music_stats_prune_worker(db: PgPool, redis_client: Client) {
                     match guard.release().await {
                         Ok(true) => trace!("music stats prune lock released"),
                         Ok(false) => {
-                            warn!("music stats prune lock release skipped, no longer owned");
+                            warn!(
+                                %lock_key,
+                                "music stats prune lock release skipped, no longer owned"
+                            );
                         }
                         Err(e) => {
                             warn!(error = ?e, "music stats prune lock release failed");

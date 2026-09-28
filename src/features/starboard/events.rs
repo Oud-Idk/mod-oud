@@ -266,7 +266,7 @@ async fn debounced_starboard_sync(
             "starboard worker spawned under the lock"
         );
     } else {
-        warn!("lock busy, skipping spawn");
+        warn!(lock_key = %lock_key, "lock busy, skipping spawn");
     }
 
     Ok(())

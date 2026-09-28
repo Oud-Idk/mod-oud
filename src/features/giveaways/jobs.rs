@@ -68,7 +68,7 @@ pub fn start_giveaway_worker(pool: PgPool, http: Arc<Http>, redis_client: Client
                     match guard.release().await {
                         Ok(true) => trace!("released giveaway lock"),
                         Ok(false) => {
-                            warn!("giveaway lock release found the lock held elsewhere");
+                            warn!(%lock_key, "giveaway lock release found the lock held elsewhere");
                         }
                         Err(e) => {
                             warn!(error = ?e, "giveaway lock release failed");

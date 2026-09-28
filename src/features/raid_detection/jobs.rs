@@ -26,7 +26,7 @@ pub fn start_raid_stats_flush_worker(db_pool: PgPool, redis_client: Client) {
 
                     match guard.release().await {
                         Ok(true) => trace!("lock released"),
-                        Ok(false) => warn!("lock already lost during flush"),
+                        Ok(false) => warn!(%lock_key, "lock already lost during flush"),
                         Err(e) => warn!(error = ?e, "flush lock release failed"),
                     }
                 }

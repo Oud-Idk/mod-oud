@@ -40,7 +40,7 @@ pub fn start_temp_ban_worker(db_pool: PgPool, http: Arc<serenity::Http>, redis_c
                     match guard.release().await {
                         Ok(true) => {}
                         Ok(false) => {
-                            warn!("temp ban lock not released; ownership was lost");
+                            warn!(%lock_key, "temp ban lock not released; ownership was lost");
                         }
                         Err(e) => {
                             warn!(error = ?e, "temp ban lock release failed");
