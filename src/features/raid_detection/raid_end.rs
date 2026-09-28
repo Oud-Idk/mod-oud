@@ -1,6 +1,7 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_unlock;
+use crate::features::raid_detection::audit;
 use crate::features::raid_detection::database;
 use crate::features::raid_detection::snapshot::restore_preraid_state;
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
@@ -90,12 +91,15 @@ async fn revert_actions(
                 let ctx = ctx.clone();
                 let data = (*data).clone();
                 task::spawn("raid_global_unlock", async move {
-                    if let Err(e) = apply_global_unlock(&ctx, &data, guild_id).await {
-                        error!(
-                            error = ?e,
-                            %guild_id,
-                            "global server lockdown not lifted on raid end"
-                        );
+                    match apply_global_unlock(&ctx, &data, guild_id).await {
+                        Ok(_) => audit::global_lockdown_lifted(guild_id),
+                        Err(e) => {
+                            error!(
+                                error = ?e,
+                                %guild_id,
+                                "global server lockdown not lifted on raid end"
+                            );
+                        }
                     }
                 });
             }
@@ -104,11 +108,14 @@ async fn revert_actions(
                 let builder =
                     EditGuildIncidentActions::new().invites_disabled_until(past_timestamp);
 
-                if let Err(e) = guild_id
+                match guild_id
                     .edit_guild_incident_actions(&ctx.http, guild_id, builder)
                     .await
                 {
-                    error!(error = ?e, %guild_id, "server invites not unpaused on raid end");
+                    Ok(_) => audit::invites_unpaused(guild_id),
+                    Err(e) => {
+                        error!(error = ?e, %guild_id, "server invites not unpaused on raid end");
+                    }
                 }
             }
             RaidAction::Alert { channel_id } => {
@@ -116,13 +123,16 @@ async fn revert_actions(
                 let message = CreateMessage::new().content(
                     "**Raid Resolved**: Join rate has stabilized back to safe levels. Reverted incident actions and lockdown state."
                 );
-                if let Err(e) = channel.send_message(&ctx.http, message).await {
-                    warn!(
-                        error = ?e,
-                        %guild_id,
-                        channel_id = %channel,
-                        "raid resolved alert not delivered; moderators were not notified"
-                    );
+                match channel.send_message(&ctx.http, message).await {
+                    Ok(_) => audit::resolved_alert_sent(guild_id, channel),
+                    Err(e) => {
+                        warn!(
+                            error = ?e,
+                            %guild_id,
+                            channel_id = %channel,
+                            "raid resolved alert not delivered; moderators were not notified"
+                        );
+                    }
                 }
             }
             _ => {}

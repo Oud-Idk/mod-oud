@@ -67,6 +67,19 @@ pub fn member_unmuted(guild_id: GuildId, target_id: UserId, moderator_id: UserId
     );
 }
 
+/// Records an unban. The one moderation action the command handler logged itself, because unban
+/// has no `issue_*` wrapper to sit in.
+pub fn member_unbanned(guild_id: GuildId, target_id: UserId, moderator_id: UserId, reason: &str) {
+    info!(
+        event = "member_unbanned",
+        %guild_id,
+        %target_id,
+        %moderator_id,
+        reason,
+        "moderation: unbanned member"
+    );
+}
+
 /// Records a softban, which bans and immediately unbans to clear the member's recent messages.
 pub fn member_softbanned(guild_id: GuildId, target_id: UserId, moderator_id: UserId, reason: &str) {
     info!(

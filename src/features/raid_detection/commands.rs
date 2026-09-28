@@ -48,8 +48,9 @@ pub async fn resolve(ctx: Context<'_>) -> Result<()> {
     ctx.defer().await?;
 
     let guild_id = ctx.guild_id().with_context(|| "Must be run in a server")?;
+    let author_name = ctx.author().name.clone();
 
-    match resolve_raid_manual(ctx.serenity_context(), ctx.data(), guild_id).await {
+    match resolve_raid_manual(ctx.serenity_context(), ctx.data(), guild_id, &author_name).await {
         Ok(true) => {
             ctx.say("**Raid Resolved**. Pre-raid permissions and settings restored.")
                 .await?;

@@ -1,6 +1,7 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_lock;
+use crate::features::raid_detection::audit;
 use crate::features::raid_detection::cache;
 use crate::features::raid_detection::database;
 use crate::features::raid_detection::implementation::DynamicRaidDetector;
@@ -100,14 +101,13 @@ pub async fn handle_raid_detection(
         // Apply member-specific mitigations (timeouts, auto-bans)
         apply_member_mitigations(ctx, new_member, &raid_config.raid_actions, now).await?;
 
-        info!(
-            %guild_id,
-            %user_id,
-            current_joins = result.current_joins_in_window,
-            threshold = result.calculated_threshold,
-            avg_joins_per_min = result.avg_joins_per_min,
-            std_dev_per_min = result.std_dev_per_min,
-            "raid anomaly detected; mitigation applied"
+        audit::anomaly_detected(
+            guild_id,
+            user_id,
+            result.current_joins_in_window,
+            result.calculated_threshold,
+            result.avg_joins_per_min,
+            result.std_dev_per_min,
         );
         return Ok(());
     }
@@ -215,14 +215,17 @@ async fn apply_guild_mitigations(
                 let ctx = ctx.clone();
                 let data = (*data).clone();
                 task::spawn("raid_global_lock", async move {
-                    if let Err(e) = apply_global_lock(&ctx, &data, guild_id).await {
-                        error!(error = ?e, %guild_id, "global server lockdown not applied");
+                    match apply_global_lock(&ctx, &data, guild_id).await {
+                        Ok(_) => audit::global_lockdown_applied(guild_id, None),
+                        Err(e) => {
+                            error!(error = ?e, %guild_id, "global server lockdown not applied");
+                        }
                     }
                 });
             }
             RaidAction::BumpVerification => {
                 database::bump_verification_to_max(&data.core.db, guild_id).await?;
-                info!(%guild_id, "server verification requirement set to hCaptcha");
+                audit::verification_bumped(guild_id, None);
             }
             RaidAction::PauseInvites { hours } => {
                 let until = Utc::now() + chrono::Duration::hours(*hours);
@@ -233,7 +236,7 @@ async fn apply_guild_mitigations(
                     .edit_guild_incident_actions(&ctx.http, guild_id, builder)
                     .await?;
 
-                info!(%guild_id, hours, "server invites paused");
+                audit::invites_paused(guild_id, None, *hours);
             }
             RaidAction::Alert { channel_id } => {
                 let channel = ChannelId::new(*channel_id);
@@ -247,7 +250,7 @@ async fn apply_guild_mitigations(
                         "raid alert message delivery failed"
                     );
                 } else {
-                    info!(%guild_id, channel_id, "raid alert sent to the configured channel");
+                    audit::alert_sent(guild_id, None, channel);
                 }
             }
             _ => {}
@@ -273,13 +276,6 @@ async fn apply_member_mitigations(
                 let age = now.signed_duration_since(created_at);
 
                 if age.num_hours() < i64::try_from(*max_age_hours).unwrap_or(i64::MAX) {
-                    warn!(
-                        %guild_id,
-                        %user_id,
-                        account_age_hours = age.num_hours(),
-                        max_age_hours,
-                        "account age below the auto-ban threshold during an active raid"
-                    );
                     member
                         .ban_with_reason(
                             ctx,
@@ -287,6 +283,7 @@ async fn apply_member_mitigations(
                             "Account joined during active raid and is too new.",
                         )
                         .await?;
+                    audit::auto_ban_applied(guild_id, user_id, age.num_hours(), *max_age_hours);
                 }
             }
             RaidAction::TimeoutNewJoins { mins } => {
@@ -296,12 +293,7 @@ async fn apply_member_mitigations(
 
                 guild_id.edit_member(&ctx.http, user_id, builder).await?;
 
-                warn!(
-                    %guild_id,
-                    %user_id,
-                    timeout_mins = mins,
-                    "communication timeout applied to a new join during an active raid"
-                );
+                audit::auto_timeout_applied(guild_id, user_id, *mins);
             }
             _ => {}
         }
