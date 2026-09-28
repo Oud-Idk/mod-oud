@@ -63,7 +63,12 @@ fi
 # --- rule 3: #[instrument(err)] double-logs -----------------------------------
 # The attribute logs the error on the way out and so does the boundary. Drop one.
 # Multiline, because the attribute usually wraps and err sits on its own line.
-instrument_err="$(rg -U -n --no-heading '#\[(tracing::)?instrument\([^]]*?(\s|,)err(\s*[,)])' -g '*.rs' "$target" |
+#
+# The class before `err` has to include `(`, not only whitespace and a comma: the single-line
+# `#[instrument(err)]` puts the paren there, and omitting it misses the commonest form of all.
+# The class after it accepts `= true` too, since that is the same argument spelled out.
+# Known limit: `skip(err)` naming a variable called err would match. Nothing in the tree does.
+instrument_err="$(rg -U -n --no-heading '#\[(tracing::)?instrument\([^]]*?[,[:space:]]?err[[:space:]]*(=[^],)]*)?[,)]' -g '*.rs' "$target" |
   awk '/#\[(tracing::)?instrument\(/ { sub(/#\[(tracing::)?instrument\(.*/, "#[instrument("); print }' || true)"
 if [[ -n "$instrument_err" ]]; then
   while IFS= read -r line; do

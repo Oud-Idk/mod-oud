@@ -149,6 +149,28 @@ Two real sites in this repo are the `fault` case today, and neither is a missing
 - `core/error.rs` `CommandPanic`: the cause is a panic payload, which is not a
   `std::error::Error`. Log `fault = "command panicked"` alongside `panic = ?payload`.
 
+### A line is filterable if its span is, or it is not filterable
+
+`warn!` is a line someone acts on, so it has to be answerable to a question like "which guilds".
+That comes from a field on the call, or from an enclosing span that already carries it. The
+second counts, and a check demanding a field per call would be wrong:
+
+```rust
+// Filterable: the span above it declares fields(guild_id = ?component.guild_id, user_id = ...).
+warn!("ticket staff role missing from guild configuration");
+
+// Not filterable: no span, and nothing on the call either.
+warn!("lock busy, skipping spawn");
+```
+
+The first is fine. Repeating `guild_id` on the call would put it in the line's own field list,
+where it duplicates what the span already resolved. The second has to gain a field.
+
+The cases that are field-less *and* span-less after a pass are the ones worth naming. In this
+repo, eight `warn!` calls have no field and do not need one: two log a `config_id` as a bare
+field, five sit under a span that carries the id, and `main.rs`'s two fire once per startup or
+shutdown with nothing to name.
+
 ---
 
 ## Log a failure once, where its fate is decided
@@ -312,8 +334,8 @@ a convention, and it would not fix a single one of the problems above.
 
 ## Migration
 
-Current state, for sizing the work: 1080 log calls (`debug` 426, `warn` 412, `trace` 30,
-`info` 116, `error` 96), 0 of them interpolating into the message string, 0 starting with
+Current state, for sizing the work: 1082 log calls (`debug` 419, `warn` 410, `info` 125,
+`error` 98, `trace` 30), 0 of them interpolating into the message string, 0 starting with
 "Failed to", 0 "Successfully", 0 trailing periods, 41 starting with a capital, 84
 `inspect_err` sites, 100 `#[instrument]` attributes, 6 explicit spans, and 42 `task::spawn`
 call sites. The only `tokio::spawn` left is the one inside the helper.
@@ -330,9 +352,11 @@ In severity order, so each step is shippable on its own:
 3. **Done.** Per-event `info!` is now `debug!` in `reaction_roles/events.rs`, `leveling/`,
    `custom_commands/`. `reporting/web.rs` keeps `info!`, because a dashboard-issued ban or warn
    is an action taken.
-4. **Done.** `moderation`, `verification`, `tickets` and `temp_voice` each have an `audit.rs`, and
-   the action sites call one typed function per event instead of writing a log line. `temp_voice`
-   covers transfers only: channel creation and teardown fire per voice event and stay at `debug!`.
+4. **Done.** `moderation`, `verification`, `tickets`, `temp_voice`, `warning` and `raid_detection`
+   each have an `audit.rs`, and the action sites call one typed function per event instead of
+   writing a log line. `temp_voice` covers transfers only: channel creation and teardown fire per
+   voice event and stay at `debug!`. `reporting` and `automod` deliberately do not have one,
+   since both delegate their Discord actions to `moderation`'s `issue_*` functions.
 5. **Done.** Narration stripped and every interpolated message turned into fields.
 6. **Done.** All 41 background tasks go through `task::spawn`, so each has a name, an outcome and
    a duration. Nothing was deleted for it: the `#[instrument]`s were never on the spawned
@@ -407,6 +431,60 @@ The `anyhow` context strings were swept at the same time, since they reach the l
 `error_chain` at every boundary. The two user-facing item strings in `economy` were left alone:
 they are shown to a user, not logged.
 
+The check script cannot judge whether a level is *right*, only whether the message names a
+cause, so the levels got audited separately, by direction rather than by feature, with five
+agents each given a direction and the volume test to apply: 158 calls moved. The largest group
+was 97 `trace!` to `debug!` on the line that separates a per-iteration from a per-thing, so
+"per iteration stays `trace!`, per thing goes `debug!`". Then 28 `warn!` to `error!` where the
+failure left a guild needing a human, 23 `warn!` or `info!` to `debug!` where the line was
+per-event detail, 4 `error!` down to `warn!`, and 5 up from `debug!`.
+
+Mechanical audits verify form and not meaning, and that showed up three times inside that one
+commit. Three sites said "published to redis" *before* the publish, because the narration sweep
+had reworded them in place and the level audit then read the claim as true. `safe_browsing.rs`
+put a keyed request body in the `anyhow` chain through a `bail!`, so a `?` carried it to the
+boundary. Those are the reason the rule is to re-read the meaning, not just the level, after any
+bulk edit.
+
+`raid_detection` and `warning` then got an `audit.rs` each, and `moderation` got the one action
+it was missing. `raid_detection` was the one with real gaps rather than just duplication: it
+applies bans, timeouts, lockdowns and verification changes, and its global lockdown is spawned,
+so only the *failure* was ever logged and a successful lockdown had no line at all. The same
+held for the invite unpause and the raid-resolved alert. Its auto-ban logged its decision and
+not the ban. Every mitigation is reached from both the automatic path and a moderator's, which
+had given each its own line saying "for a manual trigger", so one function per mitigation now
+serves both with `moderator` optional. That exposed a real gap behind the log: `resolve_raid_manual`
+never received the moderator, so it could not name who resolved the raid. The trigger path
+already threaded it, so the resolve command does the same now.
+
+`reporting` and `automod` deliberately did *not* get an `audit.rs`. Both delegate their Discord
+actions to `moderation`'s `issue_*` functions, so what they log is reports and filter verdicts
+rather than actions taken, and the file would have been a wrapper around someone else's.
+
+The `warn!` calls with no field were swept last. The count I had was 28; the real number is 19,
+of which 11 needed a field and 8 were already filterable through a span. Five of the 11 were the
+same "release found the lock held elsewhere" shape across five workers. That pass is what
+produced the span-or-field rule above.
+
+**Four data-loss bugs came out of reading the logs**, and they are the strongest argument for the
+audit having been done by reading. None of them was a level or a field; all four lost
+authoritative state on a path that looked recoverable.
+
+- `raid_end.rs` recovery loaded with `if let Ok(Some(snapshot))`, so the `else` arm caught a read
+  `Err` as well as a genuine absence and deleted the row. A Postgres blip at startup destroyed a
+  live raid's state, and nothing was left to lift the mitigations it had applied. The three
+  outcomes are now separate, and only a confirmed absence deletes.
+- `claim_accumulator` deleted the Redis hash before the Postgres upsert, so a failed write lost
+  that guild's hourly join counts and the next flush found an empty hash. The delete moved
+  behind the write. The upsert is idempotent, so a clear that fails now costs a repeat.
+- `flush_updates` drained the map of pending usernames before the insert, so a failed batch was
+  gone. It now clears only on success, which needed a gate on the size trigger: with the batch
+  retained, every incoming update would otherwise attempt another write until Postgres returned.
+- The reporting handlers multiplied a dashboard-supplied `u64` by 60 with `checked_add` guarding
+  the sum but not the product. Unchecked it wraps in release, which puts a timeout's expiry in
+  the past and lifts the timeout as it is applied. One `duration_secs` helper now covers both
+  call sites, with a test that I checked fails against the unchecked multiply.
+
 ## Keeping it that way
 
 `scripts/check-logging.sh`, a grep-based check rather than a clippy lint. Clippy has no rule
@@ -454,15 +532,22 @@ in that file repeated the same four-outcome shape around `acquire_lock` / `relea
 workers still repeat the shape, and are why two files sit at the maximum.
 
 The rule that would actually catch a flood is not a count. It is that a `warn!` has to name
-something you can query, because a `warn!` with no field at all fails this doc's own test, which
-is whether someone will read the line and do something. There are 28 such `warn!` in the tree.
-About six are legitimate: they report a config fact at startup, where there is nothing to
-correlate and an id would be invented. The rest are missing an id that is in scope at the call
-site, `config_id` beside `giveaways/database.rs`, `cmd.report_id` beside
-`reporting/web/resolve.rs`, the redis key beside `tickets/jobs/ticket_sync.rs`. That rule cannot
-be enforced as written, because it would flag the six config warnings, and an exemption list is
-worse than the rule is worth. It is the more valuable of the two, though, and the 34 are a
-worklist rather than a permanent exemption.
+something you can query, because a `warn!` with neither a field nor a span under it fails this
+doc's own test, which is whether someone will read the line and do something.
+
+I first counted 28 of those, which was wrong. The real number was 19, and 11 needed a field; the
+other 8 were already answerable. Five of the 11 were the same "release found the lock held
+elsewhere" shape across five workers, and the one that mattered most was in `join_leave`, where
+the line fires once per join and there is no span anywhere in the file.
+
+**That pass is why the rule is not enforced, and the reason is better than an exemption list.**
+The eight that were already fine are fine for two different reasons, and the second is the
+interesting one. Some log a bare `config_id` field, which I had miscounted as no field at all.
+The rest sit under an `#[instrument]` that already carries the id, so the line is filterable
+without repeating it. A rule demanding a field per call would flag all of them, and an
+exemption list is worse than the rule is worth. Eight field-less `warn!` remain, all accounted
+for: two bare fields, five span-supplied, and `main.rs`'s two, which fire once per startup or
+shutdown with nothing to name.
 
 Rule 2's exemption has to name the formatting macros explicitly. Written as `[a-z_]+!` it also
 matches `trace!` and `info!`, which strips every single-literal log call before the brace check
@@ -472,6 +557,16 @@ Rule 5 exists because a line can be a log call, look like one, compile clean and
 `debug("x")` binds to `tracing::field::debug`, the field constructor. It has to skip `fn` headers,
 since poise's command handlers are literally `pub async fn info(`, or the rule fires on the whole
 tree.
+
+**Rule 3 was dead for the commonest form of the thing it looks for, and passing is why nobody
+noticed.** Its pattern required whitespace or a comma before `err`, so it caught
+`#[instrument(skip(x), err)]` and the multi-line spelling and missed `#[instrument(err)]`, where
+the paren is there instead. The tree was green either way, since nothing used that form. A check
+that cannot be shown to fail is indistinguishable from a check that always passes, so every rule
+here was probed by writing the violation and confirming the script rejects it. Two of the six did
+not fire on the first probe, for two different reasons: rule 4 because `audit.rs` is exempt by
+design and I had probed it there, and rule 3 because of the blind spot above. Budget rules are the
+easy ones to mis-probe, since the exemption is the interesting part.
 
 
 The check is a floor, not the convention. It cannot tell a `debug!` that is useful from one

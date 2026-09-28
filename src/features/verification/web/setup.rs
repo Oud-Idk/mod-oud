@@ -277,6 +277,7 @@ async fn remove_perms_from_everyone(
 
 async fn grant_role_to_existing_members(http: Arc<Http>, guild_id: GuildId, role_id: RoleId) {
     let mut after = None;
+    let mut failed = 0usize;
 
     loop {
         match guild_id.members(&http, Some(1000), after).await {
@@ -305,7 +306,10 @@ async fn grant_role_to_existing_members(http: Arc<Http>, guild_id: GuildId, role
                         )
                         .await
                     {
-                        warn!(
+                        // Per member because one call is made per member, so a large guild
+                        // produces thousands of these. The count is what earns a warn.
+                        failed += 1;
+                        debug!(
                             error = ?e,
                             user_id = member.user.id.get(),
                             "verification role not added to existing member"
@@ -323,5 +327,14 @@ async fn grant_role_to_existing_members(http: Arc<Http>, guild_id: GuildId, role
                 break;
             }
         }
+    }
+
+    if failed > 0 {
+        warn!(
+            %guild_id,
+            %role_id,
+            failed,
+            "verification role not added to some existing members"
+        );
     }
 }

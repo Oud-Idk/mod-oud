@@ -8,7 +8,7 @@ use serenity::all::{
     CreateInteractionResponseMessage, GuildId, PermissionOverwrite, PermissionOverwriteType,
     Permissions, UserId,
 };
-use tracing::{debug, instrument, warn};
+use tracing::{debug, error, instrument, warn};
 
 #[instrument(skip(ctx, data), fields(acceptor_id = %interaction.user.id.get()))]
 pub async fn handle_accept_transfer(
@@ -65,15 +65,22 @@ pub async fn handle_accept_transfer(
     cache::commit_transfer_to_redis(redis, guild_id, channel_id, &current_owner, &target_owner)
         .await?;
 
-    // The stored owner is a string; a parse failure means the cache row is malformed, and the
-    // ownership change above already committed.
-    if let Ok(from_owner) = current_owner.parse::<u64>() {
-        audit::transfer_accepted(
+    // The stored owner is a string, and the ownership change above has already committed. The
+    // audit entry is the record of the action, so a hole in one is worth an operator seeing.
+    match current_owner.parse::<u64>() {
+        Ok(from_owner) => audit::transfer_accepted(
             guild_id,
             channel_id,
             UserId::new(from_owner),
             interaction.user.id,
-        );
+        ),
+        Err(e) => error!(
+            error = ?e,
+            %guild_id,
+            %channel_id,
+            stored_owner = %current_owner,
+            "temp voice transfer committed without an audit entry; the stored owner is not a user id"
+        ),
     }
 
     // Update the interaction message
