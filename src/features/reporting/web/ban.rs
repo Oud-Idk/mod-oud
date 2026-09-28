@@ -28,7 +28,9 @@ pub async fn handle_ban_user(
     let reason_str = cmd.reason.as_deref().unwrap_or("No reason specified");
     let duration = cmd
         .duration_mins
-        .map(|mins| std::time::Duration::from_secs(mins * 60));
+        .map(super::duration_secs)
+        .transpose()?
+        .map(std::time::Duration::from_secs);
 
     issue_ban(
         &state.core.db,

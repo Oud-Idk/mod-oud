@@ -241,7 +241,7 @@ pub async fn increment_hourly_accumulator(
     Ok(())
 }
 
-pub async fn claim_accumulator(
+pub async fn read_accumulator(
     redis: &Client,
     guild_id: GuildId,
 ) -> Result<HashMap<String, i64>, Error> {
@@ -254,11 +254,14 @@ pub async fn claim_accumulator(
         .filter_map(|(k, v)| v.parse::<i64>().ok().map(|n| (k, n)))
         .collect();
 
-    if !parsed.is_empty() {
-        let _: () = redis.del(&accum_key).await?;
-    }
-
     Ok(parsed)
+}
+
+/// Clears the accumulator once its contents are durable. Kept separate from the read so a failed
+/// upsert leaves the counts in Redis to be retried.
+pub async fn clear_accumulator(redis: &Client, guild_id: GuildId) -> Result<(), Error> {
+    let _: () = redis.del(&keys::hourly_accumulator_key(guild_id)).await?;
+    Ok(())
 }
 
 pub async fn remove_dirty_raid_guild(redis: &Client, guild_id: GuildId) -> Result<(), Error> {

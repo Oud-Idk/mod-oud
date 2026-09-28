@@ -71,7 +71,7 @@ async fn flush_guild(
     redis: &Client,
     db: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let records = cache::claim_accumulator(redis, guild_id).await?;
+    let records = cache::read_accumulator(redis, guild_id).await?;
 
     if records.is_empty() {
         debug!("no accumulated records to flush");
@@ -87,6 +87,9 @@ async fn flush_guild(
 
     database::upsert_hourly_stats(db, &guild_ids, &hour_keys, &join_counts).await?;
 
+    // Cleared after the write, not before, so a failed upsert leaves the counts to be retried.
+    // The upsert is idempotent, so a clear that fails just costs a repeat.
+    cache::clear_accumulator(redis, guild_id).await?;
     cache::remove_dirty_raid_guild(redis, guild_id).await?;
     debug!(count, "flushed hourly stats to database");
 

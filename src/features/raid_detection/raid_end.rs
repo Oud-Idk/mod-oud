@@ -184,9 +184,29 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
             info!(%guild_id, "active raid recovered from the database");
 
             // Re-populate Redis active raids set and snapshot
-            if let Ok(Some(snapshot)) =
-                database::load_active_raid_state(&data.core.db, guild_id).await
-            {
+            let loaded = match database::load_active_raid_state(&data.core.db, guild_id).await {
+                Ok(Some(snapshot)) => Some(snapshot),
+                Ok(None) => {
+                    warn!(%guild_id, "active raid in the database with no snapshot");
+                    if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await
+                    {
+                        warn!(error = ?e, %guild_id, "orphaned raid state row not deleted");
+                    }
+                    None
+                }
+                Err(e) => {
+                    // Skipping the delete, because a read failure is not evidence the row is
+                    // orphaned. Deleting here loses a live raid's state, and nothing is left to
+                    // lift the mitigations it applied.
+                    error!(
+                        error = ?e,
+                        %guild_id,
+                        "active raid state lookup failed during recovery; the raid was not resumed"
+                    );
+                    None
+                }
+            };
+            if let Some(snapshot) = loaded {
                 let snapshot_json = match serde_json::to_string(&snapshot) {
                     Ok(j) => j,
                     Err(e) => {
@@ -227,11 +247,6 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                     Err(e) => {
                         error!(error = ?e, %guild_id, "raid active flag not set during recovery");
                     }
-                }
-            } else {
-                warn!(%guild_id, "active raid in the database with no snapshot");
-                if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
-                    warn!(error = ?e, %guild_id, "orphaned raid state row not deleted");
                 }
             }
         }
