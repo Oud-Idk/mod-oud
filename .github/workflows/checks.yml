@@ -9,11 +9,14 @@ on:
   pull_request:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # True for a PR so superseded runs are dropped. Must be false when deploy.yml
-  # calls this: a called workflow sees the caller's `github.workflow`, so it
-  # shares deploy.yml's group, and cancelling here would cancel the deploy that
-  # is waiting on this job.
+  # Prefixed so it can never collide with a caller's group. A called workflow
+  # resolves `github.workflow` to the caller, so `github.workflow-ref` here is
+  # the same string deploy.yml already holds while it waits for this job. With
+  # the same group and cancel-in-progress false, this workflow queues behind its
+  # own caller and the run is torn down with every dependent skipped.
+  group: checks-${{ github.event_name }}-${{ github.ref }}
+  # Only a direct pull_request run has superseded runs worth dropping. A push
+  # arrives via deploy.yml, which must not be cancelled underneath it.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
