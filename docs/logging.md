@@ -558,6 +558,16 @@ Rule 5 exists because a line can be a log call, look like one, compile clean and
 since poise's command handlers are literally `pub async fn info(`, or the rule fires on the whole
 tree.
 
+**Rule 3 was dead for the commonest form of the thing it looks for, and passing is why nobody
+noticed.** Its pattern required whitespace or a comma before `err`, so it caught
+`#[instrument(skip(x), err)]` and the multi-line spelling and missed `#[instrument(err)]`, where
+the paren is there instead. The tree was green either way, since nothing used that form. A check
+that cannot be shown to fail is indistinguishable from a check that always passes, so every rule
+here was probed by writing the violation and confirming the script rejects it. Two of the six did
+not fire on the first probe, for two different reasons: rule 4 because `audit.rs` is exempt by
+design and I had probed it there, and rule 3 because of the blind spot above. Budget rules are the
+easy ones to mis-probe, since the exemption is the interesting part.
+
 
 The check is a floor, not the convention. It cannot tell a `debug!` that is useful from one
 that is noise, and it will never know whether an `info!` is justified. It catches the mechanical
