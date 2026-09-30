@@ -198,7 +198,8 @@ async fn debounced_starboard_sync(
             msg_id = %reaction_clone.message_id
         );
 
-        task::spawn(
+        // Quiet: one per reaction, and the loop's own outcome is logged inside it.
+        task::spawn_quiet(
             "starboard_worker_loop",
             async move {
                 tokio::time::sleep(std::time::Duration::from_millis(1500)).await;

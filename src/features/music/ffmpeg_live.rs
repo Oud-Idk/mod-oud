@@ -110,7 +110,8 @@ impl FfmpegLiveInput {
         })?;
 
         // Reap ffmpeg once it exits (e.g. SIGPIPE when songbird stops the track).
-        task::spawn("ffmpeg_stream_reap", async move {
+        // Quiet: one per track, and the ffmpeg exit status is discarded either way.
+        task::spawn_quiet("ffmpeg_stream_reap", async move {
             let mut child = child;
             let _ = child.wait().await;
         });

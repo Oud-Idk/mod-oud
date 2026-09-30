@@ -169,7 +169,8 @@ pub fn spawn_level_up_effects(
     let current_level_val = event.user_level.current_level;
     let db_lvl_up = db.clone();
 
-    task::spawn("level_up_notification", async move {
+    // Quiet: one per level up, and both failures are logged below.
+    task::spawn_quiet("level_up_notification", async move {
         if !matches!(config.notify.target, NotificationTarget::None)
             && let Err(e) = notifications::send_message(&ctx, &event, &config).await
         {

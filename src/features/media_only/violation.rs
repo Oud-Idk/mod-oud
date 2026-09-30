@@ -74,7 +74,8 @@ async fn send_warning(ctx: &Context, message: &Message, del_warning: u64) -> any
             )
             .await?;
 
-        task::spawn("media_only_warning_cleanup", async move {
+        // Quiet: one per violation, and the delete logs its own failure.
+        task::spawn_quiet("media_only_warning_cleanup", async move {
             time::sleep(Duration::from_secs(del_warning)).await;
             let _ = sent_message.delete(http_clone).await.inspect_err(
                 |e| warn!(error = ?e, "warning message not deleted; it may already be gone"),

@@ -278,6 +278,33 @@ duration. Every background task goes through it, so each is named, has an outcom
 how long it ran. `starboard/events.rs` nests its own span inside so its per-iteration lines keep
 `starboard_id` and `msg_id`.
 
+**A task whose end is routine takes `spawn_quiet` instead**: the same span, the same `error!` on a
+panic, and no `info!` on the normal exit. The exit line earns its place by reporting that a job
+which should still be running stopped, and a task that runs once per message or once per worker
+loop does not earn it, because it reports a fact nobody acts on. What the two share is the panic
+path: a `spawn_quiet` task that panics is still an `error!`, since nothing about a panic is
+routine, and a panic in a detached task is otherwise only visible in the panic hook's stderr.
+
+Eight sites take it, and they are the same shape each time. Either the task runs on a frequency
+rather than at startup, or it does one thing whose failure is already logged inside it:
+
+| Site | Frequency | What the exit line would have said |
+|---|---|---|
+| `locking.rs` `lock_heartbeat` | per lock cycle, so per worker loop | nothing; the `warn!`s say renewal stopped |
+| `message_logging/cache.rs` `message_cache_write` | per message | nothing; the Redis write logs its own failure |
+| `message_logging/events.rs` `message_delete_audit` | per deleted message | nothing; the insert and the publish each log |
+| `leveling/events/text.rs` `level_up_notification` | per level up | nothing; both failures log |
+| `automod/actions.rs` `automod_temp_message_cleanup` | per temp warning | nothing; the delete logs its own outcome |
+| `media_only/violation.rs` `media_only_warning_cleanup` | per media-only violation | nothing; the delete logs its own failure |
+| `moderation/events.rs` `audit_log_user_resolve` | per moderation action | nothing; the user lookup logs its own failure |
+| `starboard/events.rs` `starboard_worker_loop` | per reaction | nothing; the loop logs its own outcome |
+| `music/ffmpeg_live.rs` `ffmpeg_stream_reap` | per track | nothing; the exit status is discarded either way |
+
+The volume test in the level table is the general form of that argument, and it is the check to
+apply when a new site appears: a spawn's exit fires more than a few hundred times a day on a busy
+guild, so it is `spawn_quiet`. What stays on `spawn` is the 33 that run for the process lifetime or once at
+startup, where a missing exit line is the only signal that the job is gone.
+
 ---
 
 ## HTTP requests are visible at the default filter

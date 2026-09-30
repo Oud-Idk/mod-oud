@@ -165,7 +165,8 @@ pub async fn message_log_delete(
     let msg_clone = msg;
     let channel_id_val = channel_id;
 
-    task::spawn("message_delete_audit", async move {
+    // Quiet: one per deleted message, and both failures are logged below.
+    task::spawn_quiet("message_delete_audit", async move {
         let deleted_by = determine_deleter(
             &ctx_clone,
             guild_id,

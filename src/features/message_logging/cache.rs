@@ -38,7 +38,8 @@ pub async fn spawn_cache_message_in_redis(data: &BotData, msg: &Message) -> Resu
     let redis_conn = data.core.redis.clone();
     let msg_clone = msg.clone();
 
-    task::spawn("message_cache_write", async move {
+    // Quiet: one per message, and the write logs its own failure below.
+    task::spawn_quiet("message_cache_write", async move {
         if let Err(e) = cache_message_in_redis(&redis_conn, &msg_clone).await {
             warn!(message_id = %msg_clone.id, error = %e, "message cache write failed");
         }

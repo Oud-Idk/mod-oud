@@ -283,7 +283,8 @@ async fn send_temp_warning(
         Ok(temp_msg) => {
             let http = ctx.http.clone();
             let temp_msg_id = temp_msg.id;
-            task::spawn("automod_temp_message_cleanup", async move {
+            // Quiet: one per temp warning, and the delete logs its own outcome.
+            task::spawn_quiet("automod_temp_message_cleanup", async move {
                 tokio::time::sleep(duration).await;
                 if let Err(err) = temp_msg.delete(&http).await {
                     warn!(error = %err, message_id = %temp_msg_id.get(), "temporary warning message not removed");

@@ -16,18 +16,41 @@ where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
+    spawn_inner(name, fut, true)
+}
+
+/// Spawns `fut` under a `job` span, with no line when it ends normally.
+///
+/// For a task whose end is routine rather than an event, so an exit line per run is a flood: a
+/// lock heartbeat stops on every release, and its owner loops every few seconds. A panic is
+/// still an `error!`, and the span still names whatever the task logs while it runs.
+pub fn spawn_quiet<F>(name: &'static str, fut: F) -> JoinHandle<F::Output>
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    spawn_inner(name, fut, false)
+}
+
+fn spawn_inner<F>(name: &'static str, fut: F, log_exit: bool) -> JoinHandle<F::Output>
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
     let started = Instant::now();
     let span = info_span!("job", job = name);
     tokio::spawn(
         async move {
             match AssertUnwindSafe(fut).catch_unwind().await {
                 Ok(output) => {
-                    info!(
-                        job = name,
-                        outcome = "completed",
-                        duration_ms = started.elapsed().as_millis(),
-                        "job exited"
-                    );
+                    if log_exit {
+                        info!(
+                            job = name,
+                            outcome = "completed",
+                            duration_ms = started.elapsed().as_millis(),
+                            "job exited"
+                        );
+                    }
                     output
                 }
                 Err(payload) => {

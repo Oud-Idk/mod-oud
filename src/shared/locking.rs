@@ -89,7 +89,9 @@ pub async fn acquire_lock(
     let key_string = key.to_string();
     let value_string = value.to_string();
 
-    task::spawn("lock_heartbeat", async move {
+    // Quiet: the watchdog is released on purpose every few seconds, so an exit line per
+    // acquisition is a flood. A panic in here still logs, and the renewals are traced.
+    task::spawn_quiet("lock_heartbeat", async move {
         let mut interval = time::interval(Duration::from_secs(heartbeat_interval_secs));
         // Skip the immediate first tick, as `time::interval` fires instantly on creation.
         interval.tick().await;

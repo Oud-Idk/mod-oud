@@ -68,7 +68,8 @@ pub async fn handle_audit_log_entry(
     // Best-effort username enrichment for the dashboard join. Never fails sync.
     let http = ctx.http.clone();
     let username_tx = data.core.username_tx.clone();
-    task::spawn("audit_log_user_resolve", async move {
+    // Quiet: one per moderation action, and the lookup failure is logged below.
+    task::spawn_quiet("audit_log_user_resolve", async move {
         for user_id in [target_id, moderator_id] {
             match user_id.to_user(&http).await {
                 Ok(user) => {
