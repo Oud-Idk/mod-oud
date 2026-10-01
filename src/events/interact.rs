@@ -1,4 +1,4 @@
-use crate::features::{reaction_roles, search, tickets};
+use crate::features::{reaction_roles, reporting, search, tickets};
 use crate::features::{temp_voice, verification};
 
 use crate::core::config::state::BotData;
@@ -30,6 +30,11 @@ pub async fn on_interact(
                 return Ok(());
             }
 
+            if custom_id.starts_with("report:") {
+                reporting::handle_interaction(ctx, interaction, data).await?;
+                return Ok(());
+            }
+
             if custom_id.starts_with("btn_") {
                 reaction_roles::handle_button_interaction(ctx, component, data).await?;
                 return Ok(());
@@ -58,6 +63,10 @@ pub async fn on_interact(
 
             if custom_id.starts_with("temp_voice_") {
                 temp_voice::handle_interaction(ctx, interaction, data).await?;
+            }
+
+            if custom_id.starts_with("report_modal:") {
+                reporting::handle_interaction(ctx, interaction, data).await?;
             }
         }
         _ => {}

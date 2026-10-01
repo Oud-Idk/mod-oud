@@ -26,6 +26,9 @@ pub use commands::lockdown::{global_lock, global_unlock, lock, unlock};
 // Used by warnings
 pub use database::{log_external_moderation_action, log_moderation_action};
 pub use events::handle_audit_log_entry;
+// Used by reporting
+pub use perms::check_hierarchy_in;
+// Used by commands
 pub use perms::pre_flight_check;
 pub use placeholders::{
     replace_basic_placeholder, replace_reason_placeholders, replace_system_ban_placeholders,

@@ -1,37 +1,60 @@
-mod ban;
-mod delete;
-mod error;
-mod resolve;
-mod timeout;
-mod user_lookup;
-mod warn;
-
 use crate::core::config::state::WebState;
 use crate::features::reporting;
 use crate::features::reporting::cache::publish_report;
+use crate::features::reporting::moderation::{
+    ActionError, ActionRequest, ReportDeps, ban_user, delete_message, settle, timeout_user,
+    warn_user,
+};
 use crate::features::reporting::types::{DashboardAction, DashboardCommand};
 use axum::extract::State;
 use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
-use error::WebError;
 use fred::clients::Client;
-use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{warn, info, debug, instrument};
+use tracing::{debug, info, instrument, warn};
 
-/// Converts a dashboard-supplied minute count to seconds. The value arrives as JSON, so the
-/// multiply is checked: unchecked it wraps in release, which would put a timeout's expiry in the
-/// past and lift the timeout the moment it was applied.
-fn duration_secs(mins: u64) -> Result<u64, WebError> {
-    mins.checked_mul(60).ok_or_else(|| {
-        debug!(mins, "dashboard duration out of range; rejecting the command");
-        WebError::BadRequest("Duration calculation overflowed".to_string())
-    })
+/// The fallback recorded against a dashboard action whose dashboard did not name the moderator.
+const UNKNOWN_MODERATOR: &str = "Web Dashboard";
+
+/// The failure of a dashboard route. The action layer reports what went wrong in its own words,
+/// so the mapping here only has to choose a status.
+pub enum WebError {
+    NotFound,
+    BadRequest(String),
+    Internal,
+    BadGateway(String),
+}
+
+impl IntoResponse for WebError {
+    fn into_response(self) -> Response {
+        let (status, msg) = match self {
+            Self::NotFound => (StatusCode::NOT_FOUND, "Report not found".to_string()),
+            Self::BadRequest(s) => (StatusCode::BAD_REQUEST, s),
+            Self::Internal => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal server error".to_string(),
+            ),
+            Self::BadGateway(s) => (StatusCode::BAD_GATEWAY, s),
+        };
+        (status, msg).into_response()
+    }
+}
+
+impl From<ActionError> for WebError {
+    fn from(err: ActionError) -> Self {
+        match err {
+            ActionError::NotFound => Self::NotFound,
+            ActionError::InvalidInput(msg) => Self::BadRequest(msg),
+            ActionError::Discord(msg) => Self::BadGateway(msg),
+            ActionError::Internal => Self::Internal,
+        }
+    }
 }
 
 async fn broadcast_report_update(
-    pool: &PgPool,
+    pool: &sqlx::PgPool,
     redis_conn: &Client,
     report_id: i64,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -51,60 +74,53 @@ pub async fn handle_dashboard_command(
     let (guild_id, user_id, target_username) =
         reporting::database::fetch_target_report(&state.core.db, cmd.report_id)
             .await
-            .inspect_err(|(status, err_msg)| {
-                // A miss is the caller's id being wrong (404); only our own failure is 5xx.
-                if status.is_client_error() {
-                    debug!(
-                        status = %status,
-                        error = %err_msg,
-                        "rejected report lookup for the requested report id"
-                    );
+            .inspect_err(|err| {
+                // A miss is the dashboard's id being wrong; only our own failure is 5xx.
+                if matches!(err, ActionError::NotFound) {
+                    debug!(report_id = cmd.report_id, "rejected lookup for an unknown report id");
                 } else {
-                    warn!(
-                        status = %status,
-                        error = %err_msg,
-                        "target report lookup failed"
-                    );
+                    warn!(report_id = cmd.report_id, error = %err, "target report lookup failed");
                 }
             })?;
 
     let redis_conn = state.core.redis.clone();
-    let moderator_name = cmd.name.as_deref().unwrap_or("Web Dashboard");
-    let moderator_id = cmd.moderator_id;
+    let moderator_name = cmd.name.as_deref().unwrap_or(UNKNOWN_MODERATOR);
+    let deps = ReportDeps {
+        core: &state.core,
+        http: &state.serenity_http,
+    };
+
+    let request = ActionRequest {
+        report_id: cmd.report_id,
+        guild_id,
+        target_id: user_id,
+        moderator_id: cmd.moderator_id,
+        moderator_name,
+        target_name: &target_username,
+        reason: cmd.reason.as_deref(),
+        duration_mins: cmd.duration_mins,
+    };
 
     match &cmd.action {
         DashboardAction::ResolveReport { status } => {
-            resolve::handle_resolve_report(&state, &cmd, status, guild_id, &redis_conn).await?;
+            settle(&deps, &request, *status).await?;
         }
         DashboardAction::DeleteMessage {
             channel_id,
             message_id,
         } => {
-            delete::handle_delete_message(&state, &cmd, *channel_id, *message_id).await?;
-        }
-        DashboardAction::WarnUser => {
-            warn::handle_warn(
-                &state,
-                &cmd,
-                warn::WarnContext {
-                    mod_id: moderator_id,
-                    guild_id,
-                    user_id,
-                    redis: &redis_conn,
-                    moderator_username: moderator_name,
-                    target_username: &target_username,
-                },
+            delete_message(
+                &deps,
+                &request,
+                *channel_id,
+                *message_id,
+                "Deleted via Moderation Dashboard",
             )
             .await?;
         }
-        DashboardAction::TimeoutUser => {
-            timeout::handle_timeout(&state, &cmd, moderator_id, guild_id, user_id, &redis_conn)
-                .await?;
-        }
-        DashboardAction::BanUser => {
-            ban::handle_ban_user(&state, &cmd, moderator_id, guild_id, user_id, &redis_conn)
-                .await?;
-        }
+        DashboardAction::WarnUser => warn_user(&deps, &request).await?,
+        DashboardAction::TimeoutUser => timeout_user(&deps, &request).await?,
+        DashboardAction::BanUser => ban_user(&deps, &request).await?,
     }
 
     if let Err(e) = broadcast_report_update(&state.core.db, &redis_conn, cmd.report_id).await {
@@ -114,7 +130,7 @@ pub async fn handle_dashboard_command(
 
     info!(
         report_id = cmd.report_id,
-        moderator_id = ?moderator_id,
+        moderator_id = ?cmd.moderator_id,
         action = ?cmd.action,
         "dashboard moderation command applied and broadcast"
     );
@@ -124,28 +140,4 @@ pub async fn handle_dashboard_command(
 /// Registers the reporting web route for dashboard moderation commands.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new().route("/commands", post(handle_dashboard_command))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::duration_secs;
-
-    /// A minute count whose unchecked multiply wraps to 44 seconds, so a timeout would have
-    /// expired almost as soon as it was applied.
-    const WRAPPING_MINS: u64 = 307_445_734_561_825_861;
-
-    #[test]
-    fn rejects_a_duration_whose_multiply_would_wrap() {
-        assert_eq!(WRAPPING_MINS.wrapping_mul(60), 44);
-        assert!(duration_secs(WRAPPING_MINS).is_err());
-        assert!(duration_secs(u64::MAX).is_err());
-    }
-
-    #[test]
-    fn converts_durations_a_moderator_would_actually_send() {
-        assert_eq!(duration_secs(0).ok(), Some(0));
-        assert_eq!(duration_secs(10).ok(), Some(600));
-        // Discord's longest timeout is 28 days.
-        assert_eq!(duration_secs(28 * 24 * 60).ok(), Some(2_419_200));
-    }
 }

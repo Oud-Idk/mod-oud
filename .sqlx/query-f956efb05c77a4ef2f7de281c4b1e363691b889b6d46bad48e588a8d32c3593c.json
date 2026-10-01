@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT guild_id, author_id FROM reported_messages WHERE id = $1",
+  "query": "\n        SELECT r.guild_id, r.author_id, u.username AS author_name\n        FROM reported_messages r\n        LEFT JOIN discord_users u ON u.user_id = r.author_id\n        WHERE r.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -24,6 +24,17 @@
             "name": "author_id"
           }
         }
+      },
+      {
+        "ordinal": 2,
+        "name": "author_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "discord_users",
+            "name": "username"
+          }
+        }
       }
     ],
     "parameters": {
@@ -33,8 +44,9 @@
     },
     "nullable": [
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "8eea8956bb9abfd20171828dd2ef36b7fa776ea7539dc2cc72bec3020781e3ab"
+  "hash": "f956efb05c77a4ef2f7de281c4b1e363691b889b6d46bad48e588a8d32c3593c"
 }

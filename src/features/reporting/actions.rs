@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use crate::features::reporting::cache;
 use crate::features::reporting::database::insert_reported_message;
+use crate::features::reporting::interface;
 use crate::features::reporting::types::{ReportStatus, ReportedMessagePayload};
 use crate::shared::store_username_relation;
 use crate::shared::username_cache::UserUpdate;
@@ -133,24 +134,28 @@ pub async fn issue_report(
 
     debug!(report_id = id, "report payload published to redis");
 
-    send_message_to_channel(http, &config, reported_message, guild_id, domain).await?;
+    send_message_to_channel(http, config, reported_message, id, guild_id, domain).await?;
 
     Ok(Some(row.id))
 }
 
-async fn send_message_to_channel(http: Arc<Http>, config: &GuildSettings, message: &Message, guild_id: GuildId, domain: &str) -> Result<()> {
+async fn send_message_to_channel(http: Arc<Http>, config: &GuildSettings, message: &Message, report_id: i64, guild_id: GuildId, domain: &str) -> Result<()> {
     let Some(config) = config.report.as_deref() else { return Ok(()); };
     let Some(reporting_channel) = config.reporting_channel else { return Ok(()); };
     let message_url = message.link();
-    let dashboard_url = format!("{}/dashboard/{guild_id}/report", domain);
+    let dashboard_url = format!("{domain}/dashboard/{guild_id}/report");
 
     reporting_channel.send_message(&http, CreateMessage::new()
-        .content(format!("Someone reported a message! Message located at {message_url}. Head to {dashboard_url} to resolve."))
+        .content(format!(
+            "Someone reported a message! Message located at {message_url}. Head to {dashboard_url} to resolve."
+        ))
+        .components(interface::action_rows(report_id))
     ).await?;
 
     debug!(
         %guild_id,
         %reporting_channel,
+        report_id,
         message_id = %message.id,
         "report alert sent to the reporting channel"
     );

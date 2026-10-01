@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE reported_messages\n        SET status = $1::text::report_status\n        WHERE id = $2 AND status = 'UNDER_REVIEW'::report_status\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "42c41caf343c089b31ce4eee900385a1adc16d78d231039c41318818514b5a58"
+}

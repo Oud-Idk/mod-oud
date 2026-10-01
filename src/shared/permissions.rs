@@ -1,4 +1,49 @@
-use serenity::all::{Member, PartialMember, RoleId};
+use serenity::all::{GuildId, Member, PartialMember, Permissions, Role, RoleId, UserId};
+use std::collections::HashMap;
+use std::hash::BuildHasher;
+
+/// The guild-wide permissions a member holds through their roles.
+///
+/// Channel overwrites are deliberately ignored. Slash commands declare
+/// `default_member_permissions`, which Discord evaluates without overwrites, so a gate standing
+/// in for one has to agree: checking a channel would let an overwrite on that channel grant a
+/// permission the matching slash command would still refuse.
+#[must_use]
+pub fn guild_role_permissions<S: BuildHasher>(
+    member: &Member,
+    guild_id: GuildId,
+    guild_roles: &HashMap<RoleId, Role, S>,
+) -> Permissions {
+    // Discord models the everyone role under the guild's own id.
+    let mut permissions = guild_roles
+        .get(&RoleId::new(guild_id.get()))
+        .map_or_else(Permissions::empty, |role| role.permissions);
+
+    for role_id in &member.roles {
+        if let Some(role) = guild_roles.get(role_id) {
+            permissions |= role.permissions;
+        }
+    }
+
+    permissions
+}
+
+/// Returns whether `member` holds every permission in `required`.
+///
+/// The guild owner counts as holding all of them: Discord grants that to the owner, but a
+/// role-derived permission set does not carry it. Any gate that runs on behalf of a user needs
+/// this, or the owner is locked out of the action they are entitled to take.
+#[must_use]
+pub fn has_permissions<S: BuildHasher>(
+    member: &Member,
+    guild_id: GuildId,
+    guild_owner_id: UserId,
+    guild_roles: &HashMap<RoleId, Role, S>,
+    required: Permissions,
+) -> bool {
+    member.user.id == guild_owner_id
+        || guild_role_permissions(member, guild_id, guild_roles).contains(required)
+}
 
 /// Extension trait providing permission and role check helpers for Serenity member types.
 pub trait HasRoles {

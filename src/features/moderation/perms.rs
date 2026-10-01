@@ -1,7 +1,8 @@
 use crate::core::config::state::{Context, Error};
 use crate::shared::command_context::GuildMetadata;
 use anyhow::{Context as _, Result, bail};
-use serenity::all::{Member, Role, RoleId, UserId};
+use poise::serenity_prelude as serenity;
+use serenity::all::{GuildId, Member, Role, RoleId, UserId};
 use std::collections::HashMap;
 use tracing::{debug, warn};
 
@@ -66,11 +67,34 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
         .guild_id()
         .with_context(|| "This command must be run in a server.")?;
 
+    check_hierarchy_in(
+        ctx.serenity_context(),
+        guild_id,
+        ctx.framework().bot_id,
+        ctx.author().id,
+        target_id,
+    )
+    .await
+}
+
+/// Hierarchy validation for a moderator acting outside a slash command, such as from a
+/// reporting-channel button.
+///
+/// # Errors
+/// Returns an error if the guild or a member cannot be read, or if a hierarchy rule is
+/// violated.
+pub async fn check_hierarchy_in(
+    ctx: &serenity::Context,
+    guild_id: GuildId,
+    bot_id: UserId,
+    executor_id: UserId,
+    target_id: UserId,
+) -> Result<(), Error> {
     // Extract owner_id & roles and DROP the GuildRef immediately so no raw pointer crosses an .await
-    let (owner_id, roles) = if let Some(guild) = ctx.guild() {
+    let (owner_id, roles) = if let Some(guild) = ctx.cache.guild(guild_id) {
         (guild.owner_id, guild.roles.clone())
     } else {
-        let partial = guild_id.to_partial_guild(&ctx).await?;
+        let partial = guild_id.to_partial_guild(ctx).await?;
         (partial.owner_id, partial.roles)
     };
 
@@ -79,16 +103,20 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
     }
 
     // Check cache for members (temporary GuildRef is dropped at the end of each statement)
-    let bot_id = ctx.framework().bot_id;
     let cached_target = ctx
-        .cache()
+        .cache
         .guild(guild_id)
         .and_then(|g| g.members.get(&target_id).cloned());
 
     let cached_bot = ctx
-        .cache()
+        .cache
         .guild(guild_id)
         .and_then(|g| g.members.get(&bot_id).cloned());
+
+    let cached_executor = ctx
+        .cache
+        .guild(guild_id)
+        .and_then(|g| g.members.get(&executor_id).cloned());
 
     // Fetch missing members concurrently with tokio::join!
     let (target_res, executor_res, bot_res) = tokio::join!(
@@ -96,15 +124,21 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
             if let Some(member) = cached_target {
                 Ok(member)
             } else {
-                guild_id.member(&ctx, target_id).await
+                guild_id.member(ctx, target_id).await
             }
         },
-        ctx.author_member(),
+        async {
+            if let Some(member) = cached_executor {
+                Ok(member)
+            } else {
+                guild_id.member(ctx, executor_id).await
+            }
+        },
         async {
             if let Some(member) = cached_bot {
                 Ok(member)
             } else {
-                guild_id.member(&ctx, bot_id).await
+                guild_id.member(ctx, bot_id).await
             }
         }
     );
@@ -135,7 +169,7 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
         executor_pos, target_pos, bot_pos, "highest role positions compared"
     );
 
-    validate_hierarchy(ctx.author().id, owner_id, executor_pos, target_pos, bot_pos).inspect_err(
+    validate_hierarchy(executor_id, owner_id, executor_pos, target_pos, bot_pos).inspect_err(
         |err| {
             debug!(
                 %target_id,
@@ -163,6 +197,9 @@ pub fn get_highest_role_pos(member: &Member, roles: &HashMap<RoleId, Role>) -> u
 
 /// A pure business logic function to validate hierarchy positions.
 /// This can be easily unit-tested with dummy values.
+///
+/// # Errors
+/// Returns an error naming the rule that stopped the action.
 pub fn validate_hierarchy(
     executor_id: UserId,
     owner_id: UserId,

@@ -1,5 +1,5 @@
+use crate::features::reporting::moderation::ActionError;
 use crate::features::reporting::types::{ReportStatus, ReportUpdate, ReportedMessagePayload};
-use axum::http::StatusCode;
 use serenity::all::{ChannelId, GuildId, Message, MessageId, User, UserId};
 use sqlx::PgPool;
 use tracing::warn;
@@ -51,6 +51,7 @@ impl From<RawReportedMessage> for ReportedMessagePayload {
 struct RawTargetReport {
     guild_id: i64,
     author_id: i64,
+    author_name: Option<String>,
 }
 
 pub struct Id {
@@ -119,33 +120,33 @@ pub async fn get_reported_message_by_id(
 pub async fn fetch_target_report(
     pool: &PgPool,
     report_id: i64,
-) -> Result<(GuildId, UserId, String), (StatusCode, String)> {
+) -> Result<(GuildId, UserId, String), ActionError> {
     let report = sqlx::query_as!(
         RawTargetReport,
-        "SELECT guild_id, author_id FROM reported_messages WHERE id = $1",
+        r#"
+        SELECT r.guild_id, r.author_id, u.username AS author_name
+        FROM reported_messages r
+        LEFT JOIN discord_users u ON u.user_id = r.author_id
+        WHERE r.id = $1
+        "#,
         report_id
     )
     .fetch_optional(pool)
     .await
     .inspect_err(|e| warn!(error = ?e, report_id, "reported message lookup failed"))
-    .map_err(|_e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal server error.".to_string(),
-        )
-    })?
-    .ok_or_else(|| (StatusCode::NOT_FOUND, "Report ID not found".to_string()))?;
+    .map_err(|_| ActionError::Internal)?
+    .ok_or(ActionError::NotFound)?;
 
     let guild_id = GuildId::new(report.guild_id.cast_unsigned());
     let user_id = UserId::new(report.author_id.cast_unsigned());
 
-    Ok((guild_id, user_id, "sample username".to_string())) // TODO do something about `sample username` lol
+    Ok((guild_id, user_id, report.author_name.unwrap_or_default()))
 }
 
 pub async fn fetch_reporter_id(
     pool: &PgPool,
     report_id: i64,
-) -> Result<UserId, (StatusCode, String)> {
+) -> Result<UserId, ActionError> {
     let reporter_id = sqlx::query_scalar!(
         "SELECT reporter_id FROM reported_messages WHERE id = $1",
         report_id
@@ -153,13 +154,8 @@ pub async fn fetch_reporter_id(
     .fetch_optional(pool)
     .await
     .inspect_err(|e| warn!(error = ?e, report_id, "reporter id lookup failed"))
-    .map_err(|_e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal server error.".to_string(),
-        )
-    })?
-    .ok_or_else(|| (StatusCode::NOT_FOUND, "Report ID not found".to_string()))?;
+    .map_err(|_| ActionError::Internal)?
+    .ok_or(ActionError::NotFound)?;
 
     Ok(UserId::new(reporter_id.cast_unsigned()))
 }
@@ -168,63 +164,82 @@ pub async fn update_reported_message(
     pool: &PgPool,
     report_id: i64,
     update: ReportUpdate,
-) -> Result<(), (StatusCode, String)> {
-    let result = match update {
-        ReportUpdate::Status(status) => {
-            let status_str = match status {
-                ReportStatus::UnderReview => "UNDER_REVIEW",
-                ReportStatus::Actioned => "ACTIONED",
-                ReportStatus::Dismissed => "DISMISSED",
-            };
-            sqlx::query!(
-                "UPDATE reported_messages SET status = $1::text::report_status WHERE id = $2",
-                status_str,
-                report_id
-            )
-            .execute(pool)
-            .await
+) -> Result<(), ActionError> {
+    let column = match update {
+        ReportUpdate::MessageDeleted => "message_deleted",
+        ReportUpdate::UserWarned => "user_warned",
+        ReportUpdate::UserTimedOut => "user_timed_out",
+        ReportUpdate::UserBanned => "user_banned",
+    };
+
+    flag(pool, report_id, column).await
+}
+
+/// Sets one of the `message_deleted`, `user_warned`, `user_timed_out` and `user_banned`
+/// markers.
+///
+/// The statement is picked from a fixed set rather than built from the column name, so the
+/// `sqlx` macros can check it against the schema.
+///
+/// # Errors
+/// Returns [`ActionError::Internal`] if the update does not land.
+async fn flag(pool: &PgPool, report_id: i64, column: &'static str) -> Result<(), ActionError> {
+    let query: sqlx::query::Query<'_, sqlx::Postgres, sqlx::postgres::PgArguments> = match column {
+        "message_deleted" => {
+            sqlx::query!("UPDATE reported_messages SET message_deleted = TRUE WHERE id = $1", report_id)
         }
-        ReportUpdate::MessageDeleted => {
-            sqlx::query!(
-                "UPDATE reported_messages SET message_deleted = TRUE WHERE id = $1",
-                report_id
-            )
-            .execute(pool)
-            .await
+        "user_warned" => {
+            sqlx::query!("UPDATE reported_messages SET user_warned = TRUE WHERE id = $1", report_id)
         }
-        ReportUpdate::UserWarned => {
-            sqlx::query!(
-                "UPDATE reported_messages SET user_warned = TRUE WHERE id = $1",
-                report_id
-            )
-            .execute(pool)
-            .await
+        "user_timed_out" => {
+            sqlx::query!("UPDATE reported_messages SET user_timed_out = TRUE WHERE id = $1", report_id)
         }
-        ReportUpdate::UserTimedOut => {
-            sqlx::query!(
-                "UPDATE reported_messages SET user_timed_out = TRUE WHERE id = $1",
-                report_id
-            )
-            .execute(pool)
-            .await
-        }
-        ReportUpdate::UserBanned => {
-            sqlx::query!(
-                "UPDATE reported_messages SET user_banned = TRUE WHERE id = $1",
-                report_id
-            )
-            .execute(pool)
-            .await
+        _ => {
+            sqlx::query!("UPDATE reported_messages SET user_banned = TRUE WHERE id = $1", report_id)
         }
     };
 
-    result
-        .map(|_| ())
-        .inspect_err(|e| warn!(error = ?e, "reported message update failed"))
-        .map_err(|_e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal server error".to_string(),
-            )
-        })
+    query
+        .execute(pool)
+        .await
+        .inspect_err(|e| warn!(error = ?e, report_id, "reported message update failed"))
+        .map_err(|_| ActionError::Internal)?;
+
+    Ok(())
+}
+
+/// Settles a report's status only while it is still under review, and reports whether the row
+/// was claimed. This is the guard against two moderators settling one report concurrently.
+///
+/// # Errors
+/// Returns [`ActionError::Internal`] if the update does not land. A report that is already
+/// settled is `Ok(false)`, not an error.
+pub async fn update_reported_message_status_guarded(
+    pool: &PgPool,
+    report_id: i64,
+    status: ReportStatus,
+) -> Result<bool, ActionError> {
+    let result = sqlx::query!(
+        r#"
+        UPDATE reported_messages
+        SET status = $1::text::report_status
+        WHERE id = $2 AND status = 'UNDER_REVIEW'::report_status
+        "#,
+        status_str(status),
+        report_id
+    )
+    .execute(pool)
+    .await
+    .inspect_err(|e| warn!(error = ?e, report_id, "guarded report status update failed"))
+    .map_err(|_| ActionError::Internal)?;
+
+    Ok(result.rows_affected() > 0)
+}
+
+const fn status_str(status: ReportStatus) -> &'static str {
+    match status {
+        ReportStatus::UnderReview => "UNDER_REVIEW",
+        ReportStatus::Actioned => "ACTIONED",
+        ReportStatus::Dismissed => "DISMISSED",
+    }
 }
