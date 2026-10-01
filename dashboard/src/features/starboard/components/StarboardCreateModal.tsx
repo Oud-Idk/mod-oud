@@ -60,7 +60,7 @@ export function StarboardCreateModal({
 
                 toast.success("Starboard created successfully");
                 onClose();
-                setModalChannelId("");
+                setModalChannelId(null);
                 setModalThreshold(3);
                 router.push(`/dashboard/${guildId}/starboard?id=${id}`);
             } catch (err) {
@@ -105,7 +105,7 @@ export function StarboardCreateModal({
                     </Button>
                     <Button
                         type="submit"
-                        disabled={isPending || modalChannelId !== null}
+                        disabled={isPending || modalChannelId === null}
                     >
                         {isPending ? "Creating..." : "Create"}
                     </Button>
