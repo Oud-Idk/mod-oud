@@ -122,8 +122,7 @@ pub async fn debounced_starboard_sync(
 
 /// Creates or updates the starboard post for a message based on its emoji count
 /// and configured threshold, demoting or deleting posts that fall below it.
-#[instrument(skip(ctx, db, starboard, reaction, member), fields(starboard_id = starboard.id, orig_msg_id = %reaction.message_id, emoji_count = emoji_count
-))]
+#[instrument(skip(ctx, db, starboard, reaction), fields(starboard_id = starboard.id, orig_msg_id = %reaction.message_id, emoji_count = emoji_count))]
 pub async fn upsert_starboard(
     ctx: &Context,
     db: &PgPool,
