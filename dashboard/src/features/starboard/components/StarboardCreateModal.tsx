@@ -47,7 +47,7 @@ export function StarboardCreateModal({
                     embed_template: {
                         color: 15591782,
                         author: {
-                            name: "{member.mention}",
+                            name: "{member.username}",
                             icon_url: "{member.avatar_url}",
                         },
                         description: "{message.text}",

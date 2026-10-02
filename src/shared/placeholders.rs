@@ -119,7 +119,7 @@ impl PlaceholderResolver for DiscordCtx<'_> {
                 "message.text" => msg.content.clone(),
                 "message.timestamp" => msg.timestamp.format("%B %d, %Y at %R").to_string(),
                 "message.link" => msg.link(),
-                "message.first_attachment" => msg.attachments.first()?.url.clone(),
+                "message.first_attachment" => msg.attachments.first().map_or_else(String::new, |a| a.url.clone()),
                 _ => return None,
             });
         }

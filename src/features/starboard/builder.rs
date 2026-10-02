@@ -112,7 +112,7 @@ pub async fn build_starboard_message(
     };
 
     let origin_message = reaction.message(ctx).await?;
-    let author_member = origin_message.member(ctx).await.ok();
+    let author_member = guild_id.member(ctx, origin_message.author.id).await.ok();
     let gctx = get_guild_ctx(guild_id, ctx).await?;
 
     let embed_template = &starboard.embed_template;
@@ -121,6 +121,7 @@ pub async fn build_starboard_message(
     let discord_ctx = DiscordCtx {
         gctx: Some(&gctx),
         member: author_member.as_ref(),
+        user: Some(&origin_message.author),
         channel: Some(&guild_starboard_channel),
         source_channel: Some(&origin_channel),
         message: Some(&origin_message),

@@ -94,7 +94,6 @@ pub struct SetupParams<'a> {
 /// * `ready` - Serenity gateway `Ready` event payload.
 /// * `shard_index` - Zero-based index of the shard this process runs.
 /// * `total_shards` - Total number of shards across the deployment.
-#[must_use]
 pub fn setup<'a>(
     params: SetupParams<'a>,
 ) -> Pin<Box<dyn Future<Output = Result<BotData, Error>> + Send + 'a>> {

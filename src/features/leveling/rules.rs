@@ -22,7 +22,6 @@ pub fn should_exclude_from_level_up(
             {
                 return true;
             }
-            false
         }
         ScopeMode::Enforced => {
             if !config.scope.channels.is_empty() && !config.scope.channels.contains(&channel_id) {
@@ -36,9 +35,9 @@ pub fn should_exclude_from_level_up(
                     return true;
                 }
             }
-            false
         }
     }
+    false
 }
 
 fn calculate_multiplier(
