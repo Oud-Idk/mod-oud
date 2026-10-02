@@ -1,15 +1,14 @@
+use crate::features::social_notifications::types::FeedKind;
 use axum::http::StatusCode;
 use hmac::{Hmac, KeyInit, Mac};
 use quick_xml::Reader;
 use quick_xml::events::Event;
-use sha2::Sha256;
 use sha1::Sha1;
-use tracing::{warn, info};
+use sha2::Sha256;
+use tracing::{info, warn};
 use uuid::Uuid;
-use crate::features::social_notifications::types::FeedKind;
 
 pub fn discover_feed_kind(feed_url: &str, xml: &str) -> FeedKind {
-
     let discovered = scan_xml_for_hub(&xml);
 
     if let Some(hub_url) = discovered.hub_url {
@@ -150,11 +149,7 @@ pub async fn request_hub_subscription(
         ("hub.secret", secret),
     ];
 
-    let resp = client
-        .post(hub_url)
-        .form(&form_params)
-        .send()
-        .await?;
+    let resp = client.post(hub_url).form(&form_params).send().await?;
 
     // Per spec, hubs usually respond with 202 Accepted
     if resp.status().is_success() || resp.status() == StatusCode::ACCEPTED {
@@ -186,12 +181,16 @@ pub fn verify_signature(secret: &str, header_val: &str, body: &[u8]) -> bool {
 
     match algo {
         "sha256" => {
-            let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(secret.as_bytes()) else { return false };
+            let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(secret.as_bytes()) else {
+                return false;
+            };
             mac.update(body);
             mac.verify_slice(&expected_bytes).is_ok()
         }
         "sha1" => {
-            let Ok(mut mac) = Hmac::<Sha1>::new_from_slice(secret.as_bytes()) else { return false };
+            let Ok(mut mac) = Hmac::<Sha1>::new_from_slice(secret.as_bytes()) else {
+                return false;
+            };
             mac.update(body);
             mac.verify_slice(&expected_bytes).is_ok()
         }
@@ -232,19 +231,31 @@ mod tests {
 
     #[test]
     fn falls_back_to_polling_when_a_feed_advertises_a_plaintext_hub() {
-        let xml = feed_xml("http://medium.superfeedr.com", "https://medium.com/@blog/feed");
+        let xml = feed_xml(
+            "http://medium.superfeedr.com",
+            "https://medium.com/@blog/feed",
+        );
 
         let kind = discover_feed_kind("https://medium.com/feed/@blog", &xml);
 
         assert!(
-            matches!(kind, FeedKind::Polling { interval_secs: 600, .. }),
+            matches!(
+                kind,
+                FeedKind::Polling {
+                    interval_secs: 600,
+                    ..
+                }
+            ),
             "expected polling fallback for a plaintext hub"
         );
     }
 
     #[test]
     fn still_uses_websub_when_the_advertised_hub_is_https() {
-        let xml = feed_xml("https://pubsubhubbub.appspot.com", "https://example.com/feed");
+        let xml = feed_xml(
+            "https://pubsubhubbub.appspot.com",
+            "https://example.com/feed",
+        );
 
         let FeedKind::PubSubHubbub { hub_url, topic, .. } =
             discover_feed_kind("https://example.com/feed", &xml)

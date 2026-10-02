@@ -1,4 +1,3 @@
-use crate::shared::task;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::leveling;
@@ -10,8 +9,9 @@ use crate::features::leveling::notifications::LevelUpEvent;
 use crate::features::leveling::rules::get_multiplier;
 use crate::features::leveling::types::{LevelingConfig, NotificationTarget};
 use crate::features::leveling::{cache, keys, notifications, rewards, rules};
+use crate::shared::task;
 use serenity::all::{Context, Message, RoleId};
-use tracing::{warn, debug};
+use tracing::{debug, warn};
 
 /// Grants text chat XP for a message, applying cooldowns, multipliers, and level-ups.
 ///
@@ -42,7 +42,7 @@ pub async fn handle_text_leveling(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
     let config_maybe = settings.leveling;
     let Some(leveling_config) = config_maybe else {
         return Ok(());

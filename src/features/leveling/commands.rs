@@ -1,16 +1,16 @@
 #![allow(missing_docs, clippy::unused_async)]
 use crate::constants::BRAND_COLOR;
-use crate::core::config::settings::{get_settings, GuildSettings};
+use crate::core::config::settings::{GuildSettings, get_settings};
 use crate::core::config::state::{Context, Error};
 use crate::features::leveling::calculation::{calculate_cumulative_xp, calculate_xp_needed};
 use crate::features::leveling::database::{get_user_level, update_level};
 use crate::features::leveling::{cache, database, keys};
-use crate::shared::card_engine::{fetch_avatar_data_uri, render_svg_to_png, SvgTemplate};
+use crate::shared::card_engine::{SvgTemplate, fetch_avatar_data_uri, render_svg_to_png};
 use crate::shared::messages::send_ephemeral;
 use anyhow::Context as _;
 use anyhow::Result;
 use serenity::all::{CreateAttachment, CreateEmbed, User};
-use tracing::{debug};
+use tracing::debug;
 use unit_prefix::NumberPrefix;
 
 #[poise::command(
@@ -61,7 +61,7 @@ pub async fn view(
         &stats_key,
         &target_user.name,
     )
-        .await?;
+    .await?;
 
     let xp_needed = calculate_xp_needed(user_level.current_level);
 
@@ -155,10 +155,12 @@ pub async fn card(
         &stats_key,
         &target_user.name,
     )
-        .await?;
+    .await?;
 
     let xp_needed = calculate_xp_needed(user_level.current_level);
-    let rank = database::get_user_rank(db, guild_id, target_user.id).await?.unwrap_or(0);
+    let rank = database::get_user_rank(db, guild_id, target_user.id)
+        .await?
+        .unwrap_or(0);
 
     let level = user_level.current_level;
     let xp = user_level.current_xp;

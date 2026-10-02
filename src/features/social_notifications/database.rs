@@ -44,38 +44,32 @@ impl TryFrom<RawFeedRow> for Feed {
 }
 
 pub async fn insert_feed(db: &PgPool, url: &str, kind: &FeedKind) -> sqlx::Result<Uuid> {
-    let (
-        feed_type_str,
-        hub_url,
-        topic,
-        lease_expires_at,
-        interval_secs,
-        last_polled_at,
-    ) = match kind {
-        FeedKind::PubSubHubbub {
-            hub_url,
-            topic,
-            lease_expires_at,
-        } => (
-            "PUBSUBHUBBUB",
-            Some(hub_url),
-            Some(topic),
-            lease_expires_at.as_ref(),
-            None,
-            None,
-        ),
-        FeedKind::Polling {
-            interval_secs,
-            last_polled_at,
-        } => (
-            "POLLING",
-            None,
-            None,
-            None,
-            Some((*interval_secs).cast_signed()),
-            last_polled_at.as_ref(),
-        ),
-    };
+    let (feed_type_str, hub_url, topic, lease_expires_at, interval_secs, last_polled_at) =
+        match kind {
+            FeedKind::PubSubHubbub {
+                hub_url,
+                topic,
+                lease_expires_at,
+            } => (
+                "PUBSUBHUBBUB",
+                Some(hub_url),
+                Some(topic),
+                lease_expires_at.as_ref(),
+                None,
+                None,
+            ),
+            FeedKind::Polling {
+                interval_secs,
+                last_polled_at,
+            } => (
+                "POLLING",
+                None,
+                None,
+                None,
+                Some((*interval_secs).cast_signed()),
+                last_polled_at.as_ref(),
+            ),
+        };
 
     let feed_id = sqlx::query_scalar!(
         r#"
@@ -104,8 +98,8 @@ pub async fn insert_feed(db: &PgPool, url: &str, kind: &FeedKind) -> sqlx::Resul
         interval_secs,
         last_polled_at
     )
-        .fetch_one(db)
-        .await?;
+    .fetch_one(db)
+    .await?;
 
     Ok(feed_id)
 }
@@ -129,17 +123,14 @@ pub async fn subscribe_channel(
         channel_id.get().cast_signed(),
         guild_id.get().cast_signed(),
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     Ok(inserted.is_some())
 }
 
 /// Fetches all Discord channel IDs subscribed to a given feed.
-pub async fn get_subscribed_channels(
-    db: &PgPool,
-    feed_id: Uuid,
-) -> sqlx::Result<Vec<ChannelId>> {
+pub async fn get_subscribed_channels(db: &PgPool, feed_id: Uuid) -> sqlx::Result<Vec<ChannelId>> {
     let rows = sqlx::query_scalar!(
         r#"
         SELECT channel_id
@@ -148,8 +139,8 @@ pub async fn get_subscribed_channels(
         "#,
         feed_id
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     let channels = rows
         .into_iter()
@@ -160,10 +151,7 @@ pub async fn get_subscribed_channels(
 }
 
 pub async fn check_if_feed_exists(feed_id: Uuid, db: &PgPool) -> Result<Option<bool>, Error> {
-    sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM feeds WHERE id = $1)",
-        feed_id
-    )
+    sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM feeds WHERE id = $1)", feed_id)
         .fetch_one(db)
         .await
 }
@@ -190,8 +178,8 @@ pub async fn fetch_due_feeds(db: &PgPool) -> sqlx::Result<Vec<DueFeedRow>> {
         LIMIT 10
         "#
     )
-        .fetch_all(db)
-        .await
+    .fetch_all(db)
+    .await
 }
 
 pub async fn mark_feed_polled(db: &PgPool, feed_id: Uuid) -> sqlx::Result<()> {
@@ -199,8 +187,8 @@ pub async fn mark_feed_polled(db: &PgPool, feed_id: Uuid) -> sqlx::Result<()> {
         "UPDATE feeds SET last_polled_at = NOW() WHERE id = $1",
         feed_id
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
     Ok(())
 }
 
@@ -219,8 +207,8 @@ pub async fn insert_seen_entry(
         feed_id,
         entry_id
     )
-        .fetch_optional(db)
-        .await
+    .fetch_optional(db)
+    .await
 }
 
 #[derive(FromRow)]
@@ -245,8 +233,8 @@ pub async fn fetch_expiring_feeds(db: &PgPool) -> sqlx::Result<Vec<ExpiringFeedR
         LIMIT 5
         "#
     )
-        .fetch_all(db)
-        .await
+    .fetch_all(db)
+    .await
 }
 
 pub async fn update_lease(
@@ -263,7 +251,7 @@ pub async fn update_lease(
         expires_at,
         feed_id
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
     Ok(())
 }

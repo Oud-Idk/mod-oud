@@ -201,9 +201,15 @@ pub async fn warn_user(deps: &ReportDeps<'_>, req: &ActionRequest<'_>) -> Result
 /// Returns [`ActionError::InvalidInput`] when no usable duration was given, and
 /// [`ActionError`] when the timeout could not be issued or recorded.
 #[instrument(skip_all, fields(report_id = req.report_id, %req.guild_id, target_id = %req.target_id, duration_mins = ?req.duration_mins))]
-pub async fn timeout_user(deps: &ReportDeps<'_>, req: &ActionRequest<'_>) -> Result<(), ActionError> {
+pub async fn timeout_user(
+    deps: &ReportDeps<'_>,
+    req: &ActionRequest<'_>,
+) -> Result<(), ActionError> {
     let duration_mins = req.duration_mins.ok_or_else(|| {
-        debug!(report_id = req.report_id, "timeout action reached without a duration");
+        debug!(
+            report_id = req.report_id,
+            "timeout action reached without a duration"
+        );
         ActionError::InvalidInput("That timeout needs a duration.".to_string())
     })?;
 
@@ -213,7 +219,10 @@ pub async fn timeout_user(deps: &ReportDeps<'_>, req: &ActionRequest<'_>) -> Res
         .as_secs()
         .checked_add(secs)
         .ok_or_else(|| {
-            debug!(duration_mins, "timeout window expiry calculation overflowed");
+            debug!(
+                duration_mins,
+                "timeout window expiry calculation overflowed"
+            );
             ActionError::InvalidInput("That duration is too long.".to_string())
         })?;
 
@@ -234,7 +243,8 @@ pub async fn timeout_user(deps: &ReportDeps<'_>, req: &ActionRequest<'_>) -> Res
         req.guild_id,
         target,
         moderator,
-        req.reason.unwrap_or("Timeout applied to a reported message"),
+        req.reason
+            .unwrap_or("Timeout applied to a reported message"),
         &Duration::from_secs(secs),
         timestamp,
     )
@@ -324,7 +334,10 @@ pub async fn settle(
     .map_err(|_| ActionError::Internal)?;
 
     let Some(report_config) = settings.report else {
-        warn!(report_id = req.report_id, "report config missing for the target guild");
+        warn!(
+            report_id = req.report_id,
+            "report config missing for the target guild"
+        );
         return Err(ActionError::InvalidInput(
             "Reporting is not configured in this server.".to_string(),
         ));
@@ -332,7 +345,9 @@ pub async fn settle(
 
     let settled = update_reported_message_status_guarded(&deps.core.db, req.report_id, status)
         .await
-        .inspect_err(|e| warn!(error = %e, report_id = req.report_id, "report status update failed"))?;
+        .inspect_err(
+            |e| warn!(error = %e, report_id = req.report_id, "report status update failed"),
+        )?;
 
     if !settled {
         debug!(
@@ -347,7 +362,9 @@ pub async fn settle(
 
     let reporter_id = fetch_reporter_id(&deps.core.db, req.report_id)
         .await
-        .inspect_err(|e| warn!(error = %e, report_id = req.report_id, "reporter id lookup failed"))?;
+        .inspect_err(
+            |e| warn!(error = %e, report_id = req.report_id, "reporter id lookup failed"),
+        )?;
 
     info!(
         report_id = req.report_id,

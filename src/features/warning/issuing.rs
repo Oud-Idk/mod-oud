@@ -126,7 +126,6 @@ pub async fn issue_warning_status_change(
         .reason
         .unwrap_or_else(|| "No reason specified.".to_string());
 
-
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);
     let user = &member.user;
@@ -207,7 +206,6 @@ pub async fn issue_delete_warning(
     let reason = row
         .reason
         .unwrap_or_else(|| "No reason specified.".to_string());
-
 
     let (gctx, member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id_raw, user_id);

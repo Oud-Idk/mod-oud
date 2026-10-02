@@ -1,34 +1,29 @@
-use std::sync::Arc;
-use std::time::Duration;
+use crate::features::social_notifications::database;
+use crate::features::social_notifications::discovery::{
+    derive_feed_secret, request_hub_subscription,
+};
+use crate::features::social_notifications::embed::build_entry_embed;
+use crate::shared::task;
 use anyhow::Context;
 use chrono::Utc;
 use feed_rs::parser;
+use fred::clients::Client;
 use serenity::all::{CreateMessage, Http};
 use sqlx::PgPool;
-use tracing::{error, info, instrument, warn};
+use std::sync::Arc;
+use std::time::Duration;
 use tracing::trace;
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
-use crate::shared::task;
-use crate::features::social_notifications::database;
-use crate::features::social_notifications::discovery::{derive_feed_secret, request_hub_subscription};
-use crate::features::social_notifications::embed::build_entry_embed;
-use fred::clients::Client;
-
 
 /// Runs every 30 seconds. Checks and fetches feeds that are due for polling.
-pub fn start_feed_polling_worker(
-    db: PgPool,
-    http: Arc<Http>,
-    redis_client: fred::clients::Client,
-) {
+pub fn start_feed_polling_worker(db: PgPool, http: Arc<Http>, redis_client: fred::clients::Client) {
     let worker_id = format!("worker-polling-{}", Utc::now().timestamp_millis());
 
-    task::spawn("feed_polling_worker", run_feed_polling_worker(
-        db,
-        http,
-        redis_client,
-        worker_id,
-    ));
+    task::spawn(
+        "feed_polling_worker",
+        run_feed_polling_worker(db, http, redis_client, worker_id),
+    );
 }
 
 /// The polling loop itself, spawned under a span so a panic carries the worker
@@ -109,14 +104,17 @@ pub fn start_websub_renewal_worker(
 ) {
     let worker_id = format!("worker-websub-{}", Utc::now().timestamp_millis());
 
-    task::spawn("websub_renewal_worker", run_websub_renewal_worker(
-        db,
-        redis_client,
-        reqwest_client,
-        domain,
-        internal_secret,
-        worker_id,
-    ));
+    task::spawn(
+        "websub_renewal_worker",
+        run_websub_renewal_worker(
+            db,
+            redis_client,
+            reqwest_client,
+            domain,
+            internal_secret,
+            worker_id,
+        ),
+    );
 }
 
 /// The renewal loop itself, spawned under a span so a panic carries the worker
@@ -142,13 +140,19 @@ async fn run_websub_renewal_worker(
             &redis_client,
             lock_key,
             lock_value,
-            || renew_expiring_leases(&db, domain.clone(), &reqwest_client, internal_secret.as_deref()),
+            || {
+                renew_expiring_leases(
+                    &db,
+                    domain.clone(),
+                    &reqwest_client,
+                    internal_secret.as_deref(),
+                )
+            },
             |e| warn!(error = ?e, "WebSub lease renewal failed"),
         )
         .await;
     }
 }
-
 
 /// Polls all RSS/Atom feeds that are scheduled for an update.
 ///
@@ -214,7 +218,10 @@ pub async fn poll_due_feeds(
             } else if let Some(link) = entry.links.first() {
                 link.href.clone()
             } else {
-                entry.title.as_ref().map_or("unknown".into(), |t| t.content.clone())
+                entry
+                    .title
+                    .as_ref()
+                    .map_or("unknown".into(), |t| t.content.clone())
             };
 
             let newly_inserted = database::insert_seen_entry(db, feed_id, &entry_id).await?;
@@ -276,7 +283,7 @@ pub async fn renew_expiring_leases(
     // Resolved once, up front: a missing secret fails every renewal equally, and
     // there is nothing worth complaining about when no lease needs renewing.
     let internal_api_secret = internal_api_secret.with_context(
-        || "Missing internal API secret. Please ask the bot's administrator to fix this."
+        || "Missing internal API secret. Please ask the bot's administrator to fix this.",
     )?;
 
     let mut failed = 0_usize;
@@ -328,7 +335,10 @@ pub async fn renew_expiring_leases(
     }
 
     if failed > 0 {
-        warn!(reason = failed, total, "WebSub lease renewal finished with failures");
+        warn!(
+            reason = failed,
+            total, "WebSub lease renewal finished with failures"
+        );
     }
 
     Ok(())

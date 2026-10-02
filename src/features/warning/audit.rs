@@ -47,7 +47,12 @@ pub fn warning_status_changed(
 }
 
 /// Records a warning record being deleted outright.
-pub fn warning_deleted(guild_id: GuildId, target_id: UserId, moderator_id: UserId, warning_id: i64) {
+pub fn warning_deleted(
+    guild_id: GuildId,
+    target_id: UserId,
+    moderator_id: UserId,
+    warning_id: i64,
+) {
     info!(
         event = "warning_deleted",
         %guild_id,

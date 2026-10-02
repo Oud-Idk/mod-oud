@@ -4,11 +4,11 @@ use crate::features::leveling::cache;
 use crate::features::leveling::types::{
     LevelReward, LevelingConfig, UserLevel, XpMultiplier, XpTarget,
 };
-use anyhow::{Result};
+use anyhow::Result;
 use fred::clients::Client;
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
-use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
+use sqlx::postgres::PgQueryResult;
 use tracing::debug;
 
 #[derive(sqlx::FromRow)]
@@ -45,7 +45,8 @@ impl From<RawLevelReward> for LevelReward {
         Self {
             id: None,
             guild_id: None,
-            level_requirement: u32::try_from(r.level_requirement.cast_unsigned()).unwrap_or(u32::MAX),
+            level_requirement: u32::try_from(r.level_requirement.cast_unsigned())
+                .unwrap_or(u32::MAX),
             roles_to_add: r
                 .roles_to_add
                 .unwrap_or_default()
@@ -72,8 +73,8 @@ pub async fn get_level(
         user_id.get().cast_signed(),
         guild_id.get().cast_signed(),
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     Ok(row.map(Into::into))
 }
@@ -93,8 +94,8 @@ pub async fn insert_level(
         user_id.get().cast_signed(),
         guild_id.get().cast_signed(),
     )
-        .fetch_one(db)
-        .await?;
+    .fetch_one(db)
+    .await?;
 
     Ok(row.into())
 }
@@ -110,8 +111,8 @@ pub async fn update_level(db: &PgPool, user_level: &UserLevel) -> Result<PgQuery
         user_level.user_id.get().cast_signed(),
         user_level.guild_id.get().cast_signed(),
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(result)
 }
@@ -132,8 +133,8 @@ pub async fn get_multipliers(db: &PgPool, guild_id: GuildId) -> Result<Vec<XpMul
         "#,
         guild_id.get().cast_signed()
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     let multipliers = rows
         .into_iter()
@@ -173,8 +174,8 @@ pub async fn fetch_level_rewards(
         "#,
         guild_id.get().cast_signed()
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
 
     Ok(rows.into_iter().map(Into::into).collect())
 }
@@ -216,7 +217,7 @@ pub async fn load_leveling_config(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     let Some(leveling_config) = config.leveling else {
         debug!(
@@ -272,8 +273,8 @@ pub async fn upsert_level(
         &raw_current_levels,
         &raw_current_xps
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(())
 }
@@ -297,8 +298,8 @@ pub async fn get_user_rank(
         guild_id.get().cast_signed(),
         user_id.get().cast_signed(),
     )
-        .fetch_optional(db)
-        .await?;
+    .fetch_optional(db)
+    .await?;
 
     Ok(rank.map(i64::cast_unsigned))
 }

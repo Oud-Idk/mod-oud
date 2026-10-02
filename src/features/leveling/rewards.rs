@@ -57,7 +57,7 @@ pub async fn apply_level_rewards(
         roles_to_add,
         roles_to_remove,
     )
-        .await;
+    .await;
 
     Ok(())
 }

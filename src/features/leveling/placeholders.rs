@@ -1,5 +1,5 @@
 use crate::core::config::guild_ctx::GuildCtx;
-use crate::shared::placeholders::{render, DiscordCtx, PlaceholderResolver, ResolverChain};
+use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver, ResolverChain, render};
 use serenity::all::User;
 
 /// Custom resolver for leveling-specific keys like `{level}` or `{level.old}`

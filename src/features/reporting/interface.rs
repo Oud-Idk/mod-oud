@@ -137,14 +137,24 @@ pub async fn handle_interaction(
     match interaction {
         Interaction::Component(component) => {
             if component.data.custom_id.starts_with(BUTTON_PREFIX) {
-                Box::pin(on_button(ctx, Alert::Button(Box::new(component.clone())), data)).await
+                Box::pin(on_button(
+                    ctx,
+                    Alert::Button(Box::new(component.clone())),
+                    data,
+                ))
+                .await
             } else {
                 Ok(())
             }
         }
         Interaction::Modal(modal) => {
             if modal.data.custom_id.starts_with(MODAL_PREFIX) {
-                Box::pin(on_modal_submit(ctx, Alert::Modal(Box::new(modal.clone())), data)).await
+                Box::pin(on_modal_submit(
+                    ctx,
+                    Alert::Modal(Box::new(modal.clone())),
+                    data,
+                ))
+                .await
             } else {
                 Ok(())
             }
@@ -250,7 +260,10 @@ async fn on_button(ctx: &Context, alert: Alert, data: &BotData) -> Result<(), Er
 #[instrument(skip_all, fields(report_id, guild_id = ?alert.guild_id(), moderator_id = %alert.user().id))]
 async fn on_modal_submit(ctx: &Context, alert: Alert, data: &BotData) -> Result<(), Error> {
     let Alert::Modal(modal) = &alert else {
-        debug!(custom_id = alert.custom_id(), "report modal id on a button interaction");
+        debug!(
+            custom_id = alert.custom_id(),
+            "report modal id on a button interaction"
+        );
         return Ok(());
     };
 
@@ -436,8 +449,7 @@ async fn finish(
     match outcome {
         Ok(()) => {
             broadcast(&deps, report.id).await;
-            confirm(ctx, alert, report.id, action, duration_mins, moderator_id)
-                .await;
+            confirm(ctx, alert, report.id, action, duration_mins, moderator_id).await;
             Ok(())
         }
         Err(err) => {
@@ -566,10 +578,14 @@ async fn open_modal(
     report: &ReportedMessagePayload,
 ) -> Result<(), Error> {
     let mut rows = vec![CreateActionRow::InputText(
-        CreateInputText::new(InputTextStyle::Paragraph, reason_label(action), REASON_INPUT)
-            .placeholder(reason_placeholder(action))
-            .max_length(1000)
-            .required(action != ReportAction::Dismiss),
+        CreateInputText::new(
+            InputTextStyle::Paragraph,
+            reason_label(action),
+            REASON_INPUT,
+        )
+        .placeholder(reason_placeholder(action))
+        .max_length(1000)
+        .required(action != ReportAction::Dismiss),
     )];
 
     if action == ReportAction::Timeout {
@@ -588,7 +604,11 @@ async fn open_modal(
         .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
         .await?;
 
-    debug!(report_id, action = action.slug(), "report action modal opened");
+    debug!(
+        report_id,
+        action = action.slug(),
+        "report action modal opened"
+    );
     Ok(())
 }
 
@@ -699,9 +719,12 @@ fn input_value(modal: Option<&ModalInteraction>, custom_id: &str) -> Option<Stri
         .iter()
         .flat_map(|row| row.components.iter())
         .find_map(|c| match c {
-            ActionRowComponent::InputText(input) if input.custom_id == custom_id => {
-                input.value.as_deref().map(str::trim).filter(|v| !v.is_empty()).map(String::from)
-            }
+            ActionRowComponent::InputText(input) if input.custom_id == custom_id => input
+                .value
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(String::from),
             _ => None,
         })
 }

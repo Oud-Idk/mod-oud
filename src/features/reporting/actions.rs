@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use crate::core::config::settings::GuildSettings;
 use crate::features::reporting::cache;
 use crate::features::reporting::database::insert_reported_message;
 use crate::features::reporting::interface;
@@ -9,9 +9,9 @@ use anyhow::Result;
 use fred::clients::Client;
 use futures_util::TryFutureExt;
 use serenity::all::{CreateMessage, GuildId, Http, Message, User};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
-use crate::core::config::settings::GuildSettings;
 
 pub fn extract_image_urls(message: &Message) -> Vec<String> {
     let mut urls = Vec::new();
@@ -59,7 +59,10 @@ pub async fn issue_report(
     domain: &str,
 ) -> Result<Option<i64>> {
     let ReportMetadata {
-        guild_id, reported_message, reporter, reason,
+        guild_id,
+        reported_message,
+        reporter,
+        reason,
     } = report_metadata;
 
     debug!(
@@ -96,10 +99,7 @@ pub async fn issue_report(
     };
 
     let id = row.id;
-    debug!(
-        report_id = id,
-        "saved reported message to database"
-    );
+    debug!(report_id = id, "saved reported message to database");
 
     let payload = ReportedMessagePayload {
         id,
@@ -139,9 +139,20 @@ pub async fn issue_report(
     Ok(Some(row.id))
 }
 
-async fn send_message_to_channel(http: Arc<Http>, config: &GuildSettings, message: &Message, report_id: i64, guild_id: GuildId, domain: &str) -> Result<()> {
-    let Some(config) = config.report.as_deref() else { return Ok(()); };
-    let Some(reporting_channel) = config.reporting_channel else { return Ok(()); };
+async fn send_message_to_channel(
+    http: Arc<Http>,
+    config: &GuildSettings,
+    message: &Message,
+    report_id: i64,
+    guild_id: GuildId,
+    domain: &str,
+) -> Result<()> {
+    let Some(config) = config.report.as_deref() else {
+        return Ok(());
+    };
+    let Some(reporting_channel) = config.reporting_channel else {
+        return Ok(());
+    };
     let message_url = message.link();
     let dashboard_url = format!("{domain}/dashboard/{guild_id}/report");
 

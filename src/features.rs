@@ -45,6 +45,8 @@ pub mod reminder;
 pub mod reporting;
 /// Anime search system.
 pub mod search;
+/// Social push notifications system.
+pub mod social_notifications;
 /// Starboard for message highlights.
 pub mod starboard;
 /// Temporary voice channels.
@@ -55,5 +57,3 @@ pub mod tickets;
 pub mod verification;
 /// Warning system.
 pub mod warning;
-/// Social push notifications system.
-pub mod social_notifications;

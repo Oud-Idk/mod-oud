@@ -4,7 +4,7 @@ use crate::features::leveling::types::{LevelingConfig, NotificationTarget, UserL
 use crate::shared::embed::build_custom_message;
 use anyhow::Result;
 use serenity::all::{ChannelId, Context, CreateMessage, GuildId, User};
-use tracing::{warn, debug};
+use tracing::{debug, warn};
 
 pub async fn send_according_to_config(
     ctx: &Context,
@@ -68,16 +68,16 @@ pub async fn send_message(
             )
         },
     )
-        .unwrap_or_else(|e| {
-            warn!(
+    .unwrap_or_else(|e| {
+        warn!(
             error = ?e,
             %guild_id,
             user_id = %user_id,
             fallback = "default layout",
             "custom level-up layout compilation failed"
         );
-            None
-        });
+        None
+    });
 
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(
@@ -129,15 +129,15 @@ pub async fn send_voice_level_up_message(
             )
         },
     )
-        .unwrap_or_else(|e| {
-            warn!(
+    .unwrap_or_else(|e| {
+        warn!(
             error = ?e,
             %guild_id,
             fallback = "default layout",
             "custom voice level-up layout construction failed"
         );
-            None
-        });
+        None
+    });
 
     let msg = custom_message_opt.unwrap_or_else(|| {
         debug!(

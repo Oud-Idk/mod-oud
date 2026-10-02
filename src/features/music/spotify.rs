@@ -168,7 +168,10 @@ pub async fn resolve_spotify_track(
     };
 
     let Some(token) = spotify_auth.get_token(client).await else {
-        warn!(op = "resolve_track", "spotify api token unavailable for track resolution");
+        warn!(
+            op = "resolve_track",
+            "spotify api token unavailable for track resolution"
+        );
         return None;
     };
 

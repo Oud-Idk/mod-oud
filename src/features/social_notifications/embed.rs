@@ -20,10 +20,7 @@ pub fn build_entry_embed(entry: &feed_rs::model::Entry) -> CreateEmbed {
     let link = entry.links.first().map_or("", |l| &l.href);
     let description = description_from_markup(entry.summary.as_ref().map_or("", |s| &s.content));
 
-    let mut embed = CreateEmbed::new()
-        .title(title)
-        .url(link)
-        .color(BRAND_COLOR);
+    let mut embed = CreateEmbed::new().title(title).url(link).color(BRAND_COLOR);
 
     // Discord rejects an embed whose description is an empty string, so only set
     // the field when the feed actually gave us something to say.
@@ -83,7 +80,9 @@ fn truncate(text: &str) -> String {
 
     // Reserve a character for the ellipsis so the result still fits the budget.
     let kept: String = text.chars().take(MAX_DESCRIPTION_CHARS - 1).collect();
-    let head = kept.rsplit_once(' ').map_or(kept.as_str(), |(head, _)| head);
+    let head = kept
+        .rsplit_once(' ')
+        .map_or(kept.as_str(), |(head, _)| head);
 
     format!("{head}…")
 }
@@ -106,7 +105,10 @@ mod tests {
 
     #[test]
     fn separates_words_split_across_tags() {
-        assert_eq!(description_from_markup("<b>Bold</b><i>Italic</i>"), "Bold Italic");
+        assert_eq!(
+            description_from_markup("<b>Bold</b><i>Italic</i>"),
+            "Bold Italic"
+        );
     }
 
     #[test]
@@ -119,12 +121,18 @@ mod tests {
 
     #[test]
     fn collapses_cdata_whitespace() {
-        assert_eq!(description_from_markup("\n  <p>One</p>\n\n  <p>Two</p>\n "), "One Two");
+        assert_eq!(
+            description_from_markup("\n  <p>One</p>\n\n  <p>Two</p>\n "),
+            "One Two"
+        );
     }
 
     #[test]
     fn leaves_plain_text_untouched() {
-        assert_eq!(description_from_markup("Just a sentence."), "Just a sentence.");
+        assert_eq!(
+            description_from_markup("Just a sentence."),
+            "Just a sentence."
+        );
     }
 
     #[test]

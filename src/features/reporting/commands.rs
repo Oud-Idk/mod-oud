@@ -1,12 +1,12 @@
 #![allow(missing_docs, clippy::unused_async)]
 
-use std::sync::Arc;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{Context, Error};
 use crate::features::reporting::actions;
-use poise::Modal;
-use tracing::{debug, info, warn};
 use crate::features::reporting::actions::ReportMetadata;
+use poise::Modal;
+use std::sync::Arc;
+use tracing::{debug, info, warn};
 
 #[derive(poise::Modal)]
 #[name = "Report This Message"]

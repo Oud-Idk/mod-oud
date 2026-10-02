@@ -1,4 +1,3 @@
-use anyhow::Result;
 use crate::core::config::state::BotData;
 use crate::features::starboard::builder::build_starboard_message;
 use crate::features::starboard::cache::get_starboard_count;
@@ -7,10 +6,13 @@ use crate::features::starboard::database::StarboardPayload;
 use crate::features::starboard::types::Starboard;
 use crate::shared::locking::acquire_lock;
 use crate::shared::task;
-use std::convert::TryFrom;
-use serenity::all::{Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction};
+use anyhow::Result;
+use serenity::all::{
+    Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction,
+};
 use sqlx::PgPool;
-use tracing::{debug, error, info, instrument, warn, Instrument};
+use std::convert::TryFrom;
+use tracing::{Instrument, debug, error, info, instrument, warn};
 
 pub async fn debounced_starboard_sync(
     ctx: &Context,
@@ -165,14 +167,8 @@ pub async fn upsert_starboard(
         return Ok(());
     }
 
-    let Some((text_message, embedded_message, origin_message)) = build_starboard_message(
-        ctx,
-        starboard,
-        reaction,
-        emoji_count,
-        starboard_channel,
-    )
-    .await?
+    let Some((text_message, embedded_message, origin_message)) =
+        build_starboard_message(ctx, starboard, reaction, emoji_count, starboard_channel).await?
     else {
         warn!(
             channel_id = %starboard_channel,

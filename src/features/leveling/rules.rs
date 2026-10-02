@@ -4,7 +4,7 @@ use anyhow::Result;
 use fred::clients::Client;
 use serenity::all::{ChannelId, GuildId, Message, RoleId};
 use sqlx::PgPool;
-use tracing::{warn, debug, instrument};
+use tracing::{debug, instrument, warn};
 
 pub fn should_exclude_from_level_up(
     config: &LevelingConfig,
@@ -16,7 +16,10 @@ pub fn should_exclude_from_level_up(
             if config.scope.channels.contains(&channel_id) {
                 return true;
             }
-            if user_roles.iter().any(|role| config.scope.roles.contains(role)) {
+            if user_roles
+                .iter()
+                .any(|role| config.scope.roles.contains(role))
+            {
                 return true;
             }
             false
@@ -26,7 +29,9 @@ pub fn should_exclude_from_level_up(
                 return true;
             }
             if !config.scope.roles.is_empty() {
-                let has_allowed_role = user_roles.iter().any(|role| config.scope.roles.contains(role));
+                let has_allowed_role = user_roles
+                    .iter()
+                    .any(|role| config.scope.roles.contains(role));
                 if !has_allowed_role {
                     return true;
                 }

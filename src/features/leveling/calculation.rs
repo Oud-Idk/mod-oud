@@ -56,7 +56,11 @@ pub const fn calculate_cumulative_xp(level: u32, current_xp: u64) -> u64 {
     current_xp + sum_sq + sum_linear + sum_const
 }
 
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 pub fn calculate_level_up(
     leveling_config: &LevelingConfig,
     applied_multiplier: f32,
@@ -69,7 +73,11 @@ pub fn calculate_level_up(
     (previous_level, gained_xp)
 }
 
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 pub fn calculate_session_xp(elapsed_minutes: u64, config: &LevelingConfig, multiplier: f32) -> u64 {
     (0..elapsed_minutes)
         .map(|_| {

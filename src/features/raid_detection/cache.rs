@@ -52,9 +52,7 @@ pub async fn record_join_event(
             (now_ts as f64, &member_key),
         )
         .await?;
-    let _: () = pipeline
-        .zremrangebyscore(&joins_key, floor, cutoff)
-        .await?;
+    let _: () = pipeline.zremrangebyscore(&joins_key, floor, cutoff).await?;
     let _: () = pipeline.zcard(&joins_key).await?;
     let _: () = pipeline
         .expire(&joins_key, window_size_seconds * 2, None)

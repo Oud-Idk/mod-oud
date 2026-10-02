@@ -51,8 +51,7 @@ where
 
     debug!(
         total_elements = all_members.len(),
-        pages_scanned,
-        "redis set scan finished"
+        pages_scanned, "redis set scan finished"
     );
     Ok(all_members)
 }

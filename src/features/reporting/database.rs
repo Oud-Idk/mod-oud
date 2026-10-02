@@ -143,10 +143,7 @@ pub async fn fetch_target_report(
     Ok((guild_id, user_id, report.author_name.unwrap_or_default()))
 }
 
-pub async fn fetch_reporter_id(
-    pool: &PgPool,
-    report_id: i64,
-) -> Result<UserId, ActionError> {
+pub async fn fetch_reporter_id(pool: &PgPool, report_id: i64) -> Result<UserId, ActionError> {
     let reporter_id = sqlx::query_scalar!(
         "SELECT reporter_id FROM reported_messages WHERE id = $1",
         report_id
@@ -186,16 +183,28 @@ pub async fn update_reported_message(
 async fn flag(pool: &PgPool, report_id: i64, column: &'static str) -> Result<(), ActionError> {
     let query: sqlx::query::Query<'_, sqlx::Postgres, sqlx::postgres::PgArguments> = match column {
         "message_deleted" => {
-            sqlx::query!("UPDATE reported_messages SET message_deleted = TRUE WHERE id = $1", report_id)
+            sqlx::query!(
+                "UPDATE reported_messages SET message_deleted = TRUE WHERE id = $1",
+                report_id
+            )
         }
         "user_warned" => {
-            sqlx::query!("UPDATE reported_messages SET user_warned = TRUE WHERE id = $1", report_id)
+            sqlx::query!(
+                "UPDATE reported_messages SET user_warned = TRUE WHERE id = $1",
+                report_id
+            )
         }
         "user_timed_out" => {
-            sqlx::query!("UPDATE reported_messages SET user_timed_out = TRUE WHERE id = $1", report_id)
+            sqlx::query!(
+                "UPDATE reported_messages SET user_timed_out = TRUE WHERE id = $1",
+                report_id
+            )
         }
         _ => {
-            sqlx::query!("UPDATE reported_messages SET user_banned = TRUE WHERE id = $1", report_id)
+            sqlx::query!(
+                "UPDATE reported_messages SET user_banned = TRUE WHERE id = $1",
+                report_id
+            )
         }
     };
 

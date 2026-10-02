@@ -188,7 +188,8 @@ pub async fn reconcile_active_raids(ctx: &Context, data: &BotData) -> Result<(),
                 Ok(Some(snapshot)) => Some(snapshot),
                 Ok(None) => {
                     warn!(%guild_id, "active raid in the database with no snapshot");
-                    if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await
+                    if let Err(e) =
+                        database::delete_active_raid_state(&data.core.db, guild_id).await
                     {
                         warn!(error = ?e, %guild_id, "orphaned raid state row not deleted");
                     }

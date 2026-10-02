@@ -86,7 +86,9 @@ pub async fn subscribe_feed(
         .text()
         .await
         .inspect_err(|e| tracing::debug!(error = ?e, %url, "feed body read failed"))
-        .map_err(|_| SubscribeError::UnusableFeed("Could not read that feed's contents.".to_string()))?;
+        .map_err(|_| {
+            SubscribeError::UnusableFeed("Could not read that feed's contents.".to_string())
+        })?;
 
     let feed = feed_rs::parser::parse(body.as_bytes())
         .inspect_err(|e| tracing::debug!(error = ?e, %url, "feed parse failed"))
@@ -125,29 +127,22 @@ pub async fn subscribe_feed(
     let mut hub_confirmed = false;
 
     if let FeedKind::PubSubHubbub { hub_url, topic, .. } = &kind {
-        let master_secret = core
-            .config
-            .internal_api_secret
-            .as_deref()
-            .ok_or_else(|| {
-                tracing::error!(fault = "INTERNAL_API_SECRET is not set", "WebSub callback signing unavailable");
-                SubscribeError::Misconfigured(
-                    "Missing internal API secret. Please ask the bot's administrator to fix this."
-                        .to_string(),
-                )
-            })?;
+        let master_secret = core.config.internal_api_secret.as_deref().ok_or_else(|| {
+            tracing::error!(
+                fault = "INTERNAL_API_SECRET is not set",
+                "WebSub callback signing unavailable"
+            );
+            SubscribeError::Misconfigured(
+                "Missing internal API secret. Please ask the bot's administrator to fix this."
+                    .to_string(),
+            )
+        })?;
 
         let callback_url = format!("{}/websub/{}", core.config.domain, feed_id);
         let secret = derive_feed_secret(master_secret, &feed_id);
 
-        match request_hub_subscription(
-            &core.reqwest_client,
-            hub_url,
-            topic,
-            &callback_url,
-            &secret,
-        )
-        .await
+        match request_hub_subscription(&core.reqwest_client, hub_url, topic, &callback_url, &secret)
+            .await
         {
             Ok(()) => hub_confirmed = true,
             Err(e) => tracing::warn!(error = ?e, %feed_id, "WebSub hub subscription failed"),
@@ -170,8 +165,10 @@ mod tests {
     #[test]
     fn caller_faults_keep_their_explanation() {
         assert_eq!(
-            SubscribeError::UnusableFeed("That URL does not look like a valid RSS or Atom feed.".into())
-                .to_string(),
+            SubscribeError::UnusableFeed(
+                "That URL does not look like a valid RSS or Atom feed.".into()
+            )
+            .to_string(),
             "That URL does not look like a valid RSS or Atom feed."
         );
         assert_eq!(

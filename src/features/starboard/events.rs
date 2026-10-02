@@ -4,6 +4,7 @@ use crate::features::starboard::cache::{
     apply_starboard_op_if_exists, get_starboard_count, get_starboards,
 };
 use crate::features::starboard::database::StarboardPayload;
+use crate::features::starboard::jobs::debounced_starboard_sync;
 use crate::features::starboard::types::{Starboard, StarboardOp};
 use crate::features::starboard::{builder, database, perms};
 use crate::shared::locking::acquire_lock;
@@ -14,7 +15,6 @@ use serenity::all::{
 };
 use sqlx::PgPool;
 use tracing::{Instrument, debug, error, info, instrument, warn};
-use crate::features::starboard::jobs::debounced_starboard_sync;
 
 /// Deletes linked starboard messages when the original message is removed,
 /// unless the starboard is configured to keep deleted messages.
@@ -150,17 +150,8 @@ async fn handle_starboard_reaction(
         .await?;
         debug!(count = emoji_count, "determined current emoji count");
 
-        debounced_starboard_sync(
-            ctx,
-            data,
-            &starboard,
-            reaction,
-            &cached_key,
-            emoji_count,
-        )
-        .await?;
+        debounced_starboard_sync(ctx, data, &starboard, reaction, &cached_key, emoji_count).await?;
     }
 
     Ok(())
 }
-

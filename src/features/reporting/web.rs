@@ -77,7 +77,10 @@ pub async fn handle_dashboard_command(
             .inspect_err(|err| {
                 // A miss is the dashboard's id being wrong; only our own failure is 5xx.
                 if matches!(err, ActionError::NotFound) {
-                    debug!(report_id = cmd.report_id, "rejected lookup for an unknown report id");
+                    debug!(
+                        report_id = cmd.report_id,
+                        "rejected lookup for an unknown report id"
+                    );
                 } else {
                     warn!(report_id = cmd.report_id, error = %err, "target report lookup failed");
                 }

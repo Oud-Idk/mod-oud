@@ -1,13 +1,12 @@
-use crate::shared::task;
 use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::database::log_external_moderation_action;
 use crate::features::moderation::types::ActionType;
 use crate::shared::store_username_relation;
+use crate::shared::task;
 use chrono::TimeDelta;
 use serenity::all::{
-    Context, GuildId,
+    AuditLogEntry, Context, GuildId,
     audit_log::{Action, Change, MemberAction},
-    AuditLogEntry,
 };
 use tracing::{debug, instrument, warn};
 
@@ -181,9 +180,9 @@ mod tests {
     fn maps_future_timeout_to_mute() {
         let entry = make_entry(
             24,
-            serde_json::json!([timeout_change(
-                serde_json::json!("2030-01-01T00:00:00.000Z")
-            )]),
+            serde_json::json!([timeout_change(serde_json::json!(
+                "2030-01-01T00:00:00.000Z"
+            ))]),
         );
         let (action, duration) = map_audit_action(&entry).expect("should map");
         assert_eq!(action, ActionType::Mute);
@@ -206,9 +205,9 @@ mod tests {
     fn maps_expired_timeout_to_unmute() {
         let entry = make_entry(
             24,
-            serde_json::json!([timeout_change(
-                serde_json::json!("2000-01-01T00:00:00.000Z")
-            )]),
+            serde_json::json!([timeout_change(serde_json::json!(
+                "2000-01-01T00:00:00.000Z"
+            ))]),
         );
         let (action, _) = map_audit_action(&entry).expect("should map");
         assert_eq!(action, ActionType::Unmute);

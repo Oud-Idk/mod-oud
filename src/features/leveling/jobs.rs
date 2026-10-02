@@ -1,13 +1,13 @@
-use crate::shared::task;
 use crate::features::leveling::types::UserLevel;
 use crate::features::leveling::{cache, database, keys};
 use crate::shared::locking::acquire_lock;
+use crate::shared::task;
 use fred::clients::Client;
 use futures_util::StreamExt;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::time::Duration;
-use tracing::{warn, info, debug, error, trace, instrument};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 /// Spawns a background worker that periodically flushes pending user levels from Redis to the database.
 pub fn start_level_flush_worker(db_pool: PgPool, redis_client: Client) {
@@ -99,7 +99,7 @@ async fn process_flushing_key(
             &current_levels,
             &current_xps,
         )
-            .await?;
+        .await?;
 
         debug!(records_to_upsert, "user levels upserted to database");
     }

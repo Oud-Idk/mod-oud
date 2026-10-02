@@ -1,6 +1,6 @@
 use crate::core::config::message_layout::MessageLayout;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 
 #[serde_as]
@@ -21,7 +21,6 @@ pub enum NotificationTarget {
         channel_id: ChannelId,
     },
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
