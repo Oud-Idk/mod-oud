@@ -73,14 +73,14 @@ pub fn resolve_db_actions(
                 ..
             } => out
                 .add_items
-                .extend(resolve_item_counts(&quantities, &item_ids, quantity)),
+                .extend(resolve_item_counts(quantities, item_ids, quantity)),
             ItemAction::RemoveItems {
                 quantities,
                 item_ids,
                 ..
             } => out
                 .remove_items
-                .extend(resolve_item_counts(&quantities, &item_ids, quantity)),
+                .extend(resolve_item_counts(quantities, item_ids, quantity)),
             ItemAction::AddRoles { .. }
             | ItemAction::RemoveRoles { .. }
             | ItemAction::Respond { .. } => {}
@@ -159,10 +159,10 @@ pub async fn apply_discord_actions(
     for action in actions.iter().filter(|a| trigger.matches(a)) {
         match action {
             ItemAction::AddRoles { role_ids, .. } => {
-                modify_roles(ctx, guild_id, user_id, &role_ids, &item.name, true).await;
+                modify_roles(ctx, guild_id, user_id, role_ids, &item.name, true).await;
             }
             ItemAction::RemoveRoles { role_ids, .. } => {
-                modify_roles(ctx, guild_id, user_id, &role_ids, &item.name, false).await;
+                modify_roles(ctx, guild_id, user_id, role_ids, &item.name, false).await;
             }
             ItemAction::Respond {
                 message: Some(layout),

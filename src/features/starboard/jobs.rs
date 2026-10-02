@@ -8,7 +8,7 @@ use crate::shared::locking::acquire_lock;
 use crate::shared::task;
 use anyhow::Result;
 use serenity::all::{
-    Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction,
+    Context, CreateEmbed, CreateMessage, EditMessage, Message, MessageId, Reaction,
 };
 use sqlx::PgPool;
 use std::convert::TryFrom;

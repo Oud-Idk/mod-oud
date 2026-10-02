@@ -4,6 +4,7 @@ use serenity::all::{ChannelId, GuildId};
 use sqlx::{Error, FromRow, PgPool};
 use uuid::Uuid;
 
+#[allow(dead_code)]
 #[derive(FromRow)]
 pub struct RawFeedRow {
     pub id: Uuid,
@@ -34,7 +35,7 @@ impl TryFrom<RawFeedRow> for Feed {
             _ => return Err("Unknown feed_type in database"),
         };
 
-        Ok(Feed {
+        Ok(Self {
             id: row.id,
             url: row.url,
             kind,

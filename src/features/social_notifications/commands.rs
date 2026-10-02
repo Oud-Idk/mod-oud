@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::unused_async)]
 
 use crate::core::config::state::{Context, Error};
 use crate::features::social_notifications::subscription::subscribe_feed;

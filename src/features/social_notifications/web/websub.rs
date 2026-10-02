@@ -27,6 +27,7 @@ pub struct WebSubVerifyParams {
     pub mode: String,
 
     #[serde(rename = "hub.topic")]
+    #[allow(dead_code)]
     pub topic: String,
 
     #[serde(rename = "hub.challenge")]
@@ -161,7 +162,7 @@ pub async fn websub_verify(
         let _ = database::update_lease(&state.core.db, feed_id, expires_at)
             .await
             .inspect_err(|e| error!(error = ?e, feed_id = %feed_id, "WebSub lease update failed"))
-            .inspect(|_| debug!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved"));
+            .inspect(|()| debug!(feed_id = %feed_id, lease_seconds = secs, %expires_at, "WebSub lease verified and saved"));
     }
 
     debug!(feed_id = %feed_id, "WebSub challenge returned to the hub");

@@ -72,8 +72,7 @@ pub fn resolve_prefix(settings: &GuildSettings) -> &str {
     settings
         .custom_commands
         .as_deref()
-        .map(CustomCommandsConfig::effective_prefix)
-        .unwrap_or(DEFAULT_PREFIX)
+        .map_or(DEFAULT_PREFIX, CustomCommandsConfig::effective_prefix)
 }
 
 /// Strips the trigger (`@mention` or `prefix`) from message content.

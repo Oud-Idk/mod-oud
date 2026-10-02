@@ -94,7 +94,7 @@ async fn run_under_lock<E, F, Fut>(
     }
 }
 
-/// Runs once every hour. Renews WebSub hub subscriptions expiring in the next 24h.
+/// Runs once every hour. Renews `WebSub` hub subscriptions expiring in the next 24h.
 pub fn start_websub_renewal_worker(
     db: PgPool,
     redis_client: fred::clients::Client,
@@ -221,7 +221,7 @@ pub async fn poll_due_feeds(
                 entry
                     .title
                     .as_ref()
-                    .map_or("unknown".into(), |t| t.content.clone())
+                    .map_or_else(|| "unknown".into(), |t| t.content.clone())
             };
 
             let newly_inserted = database::insert_seen_entry(db, feed_id, &entry_id).await?;
@@ -267,7 +267,6 @@ async fn dispatch_entry_to_discord(
 /// # Errors
 /// Returns an error if fetching the subscribed channels from the database fails
 /// or if a critical HTTP dispatch error occurs.
-
 pub async fn renew_expiring_leases(
     db: &PgPool,
     domain: String,

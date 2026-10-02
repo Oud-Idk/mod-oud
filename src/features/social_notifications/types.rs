@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 /// How a feed is delivered: push via hub or polled periodically.
 pub enum FeedKind {
-    /// Push feed via PubSubHubbub/`WebSub` hub.
+    /// Push feed via `PubSubHubbub`/`WebSub` hub.
     PubSubHubbub {
         /// Hub URL discovered from the feed or known overrides.
         hub_url: String,
@@ -23,6 +23,7 @@ pub enum FeedKind {
     },
 }
 
+#[allow(dead_code)]
 /// A tracked feed row.
 pub struct Feed {
     /// Feed primary key.

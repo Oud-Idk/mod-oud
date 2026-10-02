@@ -1,20 +1,17 @@
 use crate::core::config::state::BotData;
-use crate::features::starboard::builder::{build_starboard_message, count_emoji_and_cache};
+use crate::features::starboard::builder::count_emoji_and_cache;
 use crate::features::starboard::cache::{
-    apply_starboard_op_if_exists, get_starboard_count, get_starboards,
+    apply_starboard_op_if_exists, get_starboards,
 };
-use crate::features::starboard::database::StarboardPayload;
 use crate::features::starboard::jobs::debounced_starboard_sync;
-use crate::features::starboard::types::{Starboard, StarboardOp};
+use crate::features::starboard::types::StarboardOp;
 use crate::features::starboard::{builder, database, perms};
-use crate::shared::locking::acquire_lock;
-use crate::shared::task;
 use anyhow::Result;
 use serenity::all::{
-    Context, CreateEmbed, CreateMessage, EditMessage, Member, Message, MessageId, Reaction,
+    Context, MessageId, Reaction,
 };
 use sqlx::PgPool;
-use tracing::{Instrument, debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 /// Deletes linked starboard messages when the original message is removed,
 /// unless the starboard is configured to keep deleted messages.

@@ -9,7 +9,7 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 pub fn discover_feed_kind(feed_url: &str, xml: &str) -> FeedKind {
-    let discovered = scan_xml_for_hub(&xml);
+    let discovered = scan_xml_for_hub(xml);
 
     if let Some(hub_url) = discovered.hub_url {
         if is_secure_hub(&hub_url) {
@@ -170,9 +170,8 @@ pub fn derive_feed_secret(master_secret: &str, feed_id: &Uuid) -> String {
 }
 
 pub fn verify_signature(secret: &str, header_val: &str, body: &[u8]) -> bool {
-    let (algo, hex_sig) = match header_val.split_once('=') {
-        Some(parts) => parts,
-        None => return false,
+    let Some((algo, hex_sig)) = header_val.split_once('=') else {
+        return false;
     };
 
     let Ok(expected_bytes) = hex::decode(hex_sig) else {

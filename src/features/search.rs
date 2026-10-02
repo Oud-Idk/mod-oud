@@ -23,7 +23,7 @@ pub use pick::choose_or_first;
 /// Shortens `s` to at most `max` bytes, appending an ellipsis.
 ///
 /// Cuts on a char boundary. Every caller passes upstream text, so a byte slice would panic on
-/// the first multi-byte character in a YouTube description or a dictionary entry.
+/// the first multi-byte character in a `YouTube` description or a dictionary entry.
 pub(crate) fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max {
         return s.to_string();
