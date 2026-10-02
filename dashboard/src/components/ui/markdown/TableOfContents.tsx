@@ -2,15 +2,14 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 
-export interface TocItem {
-    id: string;
-    text: string;
-    level: number;
-}
+import type { TocItem } from "@/lib/markdown-toc";
+
+export type { TocItem };
 
 interface TableOfContentsProps {
     containerRef: React.RefObject<HTMLElement | null>;
-    content?: string;
+    /** Heading outline, extracted from the markdown so it renders server-side. */
+    headings: TocItem[];
 }
 
 function getScrollContainer(element: HTMLElement | null): HTMLElement | Window {
@@ -26,9 +25,8 @@ function getScrollContainer(element: HTMLElement | null): HTMLElement | Window {
     return window;
 }
 
-export const TableOfContents: React.FC<TableOfContentsProps> = ({ containerRef, content }) => {
-    const [headings, setHeadings] = useState<TocItem[]>([]);
-    const [activeId, setActiveId] = useState<string>("");
+export const TableOfContents: React.FC<TableOfContentsProps> = ({ containerRef, headings }) => {
+    const [activeId, setActiveId] = useState<string>(headings[0]?.id ?? "");
     const itemRefs = useRef<Map<string, HTMLLIElement>>(new Map());
     const navRef = useRef<HTMLElement>(null);
     const [indicator, setIndicator] = useState({ top: 0, height: 0, visible: false });
@@ -42,47 +40,9 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({ containerRef, 
         return Math.min(...headings.map((h) => h.level));
     }, [headings]);
 
-    // 1. Scan headings and observe DOM changes
-    const scanHeadings = useCallback((): void => {
-        if (!containerRef.current) return;
-
-        const elements = containerRef.current.querySelectorAll("h1, h2, h3, h4");
-        const items: TocItem[] = [];
-
-        elements.forEach((el): void => {
-            if (el.id.trim() !== "" && el.textContent.trim() !== "") {
-                const parsedLevel = Number.parseInt(el.tagName.replace("H", ""), 10);
-                items.push({
-                    id: el.id,
-                    text: el.textContent.replace(/^#+\s*/, ""),
-                    level: Number.isNaN(parsedLevel) || parsedLevel <= 0 ? 1 : parsedLevel,
-                });
-            }
-        });
-
-        setHeadings(items);
-        if (items.length > 0) {
-            setActiveId((prev: string): string => (prev !== "" ? prev : items[0].id));
-        }
-    }, [containerRef]);
-
-    useEffect((): (() => void) | undefined => {
-        scanHeadings();
-
-        const node = containerRef.current;
-        if (!node) return undefined;
-
-        const observer = new MutationObserver((): void => {
-            scanHeadings();
-        });
-        observer.observe(node, { childList: true, subtree: true });
-
-        return (): void => {
-            observer.disconnect();
-        };
-    }, [containerRef, content, scanHeadings]);
-
-    // 2. Scroll-spy tracking
+    // 1. Scroll-spy tracking. Re-runs (and re-syncs `activeId`) whenever the
+    // outline changes, which is what resets the active entry when the rendered
+    // document is swapped out.
     const updateActiveHeading = useCallback((): void => {
         if (headings.length === 0 || isClickScrollingRef.current) return;
 

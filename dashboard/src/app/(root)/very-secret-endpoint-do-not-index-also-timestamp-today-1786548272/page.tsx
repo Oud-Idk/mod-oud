@@ -2,6 +2,7 @@ import { JSX } from "react";
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { MarkdownWithToc } from "@/components/ui/markdown/MarkdownWithToC";
+import { extractToc } from "@/lib/markdown-toc";
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +59,7 @@ export default async function SecretPage(): Promise<JSX.Element> {
         <div className="flex flex-col flex-1 h-full min-h-0 overflow-hidden w-full">
             <main className="flex-1 min-h-0 overflow-y-auto w-full">
                 <div className="mx-auto px-6 py-10 max-w-6l">
-                    <MarkdownWithToc content={content}/>
+                    <MarkdownWithToc content={content} headings={extractToc(content)} />
                 </div>
             </main>
 

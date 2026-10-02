@@ -4,16 +4,20 @@ import React, { useRef } from "react";
 import { TableOfContents } from "./TableOfContents";
 import { MarkdownRenderer } from "@/components/ui/markdown/MarkdownRenderer";
 
+import type { TocItem } from "@/lib/markdown-toc";
+
 interface MarkdownWithTocProps {
     content?: string;
     className?: string;
     showToc?: boolean;
+    headings?: TocItem[];
 }
 
 export const MarkdownWithToc: React.FC<MarkdownWithTocProps> = ({
     content,
     className = "",
     showToc = true,
+    headings = [],
 }) => {
     const contentRef = useRef<HTMLDivElement>(null);
 
@@ -28,7 +32,7 @@ export const MarkdownWithToc: React.FC<MarkdownWithTocProps> = ({
             {showToc && (
                 <aside className="hidden xl:block max-w-80 shrink-0">
                     <div className="sticky top-20 max-h-[calc(100vh-30rem)] overflow-y-auto pr-2 scrollbar-thin">
-                        <TableOfContents containerRef={contentRef} content={content} />
+                        <TableOfContents containerRef={contentRef} headings={headings} />
                     </div>
                 </aside>
             )}

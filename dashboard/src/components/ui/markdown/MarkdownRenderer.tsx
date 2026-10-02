@@ -2,24 +2,16 @@
 
 import 'katex/dist/katex.min.css';
 
-import React, { FC, ReactNode, useState } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
-import { vscDarkPlus, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { useTheme } from "next-themes";
+import React, { ReactNode, useEffect, useState, type JSX } from "react";
 import { Element } from 'hast';
+import { useTheme } from "next-themes";
 
 import ReactMarkdown, { Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import remarkBreaks from "remark-breaks";
-import rehypeKatex from "rehype-katex";
-import rehypeSlug from 'rehype-slug';
-import rehypeAutolinkHeadings from 'rehype-autolink-headings';
-import remarkDirective from 'remark-directive';
-import rehypeExternalLinks from 'rehype-external-links';
-import rehypeRaw from 'rehype-raw';
+
 import { getLinguist } from "@/lib/linguist";
+import { rehypePlugins, remarkPlugins } from "@/lib/markdown-plugins";
+import { CopyButton } from "@/components/ui/markdown/CopyButton";
+import { normalizeLanguage, Prism as SyntaxHighlighter, themes } from "@/components/ui/markdown/prism";
 
 interface CodeElementProps {
     className?: string;
@@ -32,15 +24,36 @@ interface PreProps extends React.HTMLAttributes<HTMLPreElement> {
     children?: ReactNode;
 }
 
-const CodeBlock: FC<PreProps> = ({ children, _node, style: preStyle, ...props }) => {
-    const [isCopied, setIsCopied] = useState(false);
+// `useSyncExternalStore` wants an unsubscribe function; this component never
+// subscribes to anything, so the callback is never called and the returned
+// function is never called either.
+/**
+ * `resolvedTheme` is `undefined` on the server and on the first client render,
+ * so reading it directly would give one answer during SSR and another during
+ * hydration. This reports `false` until after mount, when the real theme is
+ * known and React has already committed the server's markup.
+ */
+function useMounted(): boolean {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect((): void => {
+        setMounted(true);
+    }, []);
+
+    return mounted;
+}
+
+const CodeBlock = ({ children, style: preStyle, ...props }: PreProps): JSX.Element => {
     const { resolvedTheme } = useTheme();
+    const mounted = useMounted();
     const child = React.Children.toArray(children)[0];
 
     if (React.isValidElement<CodeElementProps>(child)) {
         const className = child.props.className;
-        const match = typeof className === "string" ? /language-(\w+)/.exec(className) : null;
-        const language = match?.[1] ?? "plaintext";
+        // `\S+` rather than `\w+` so fences with punctuation survive: ```c++
+        // and ```c# would otherwise truncate to "c" and highlight as C.
+        const match = typeof className === "string" ? /language-(\S+)/.exec(className) : null;
+        const fence = match?.[1] ?? "";
 
         const rawChildren = child.props.children;
         const code = typeof rawChildren === "string"
@@ -49,54 +62,29 @@ const CodeBlock: FC<PreProps> = ({ children, _node, style: preStyle, ...props })
                 ? rawChildren.filter((c): c is string => typeof c === "string").join("")
                 : "";
 
-        const languageName = getLinguist(language);
+        // The fence name and the display label are separate concerns: the label
+        // is the GitHub Linguist name, the grammar is whatever we registered
+        // under after alias resolution. `null` means no grammar, so plain text.
+        const language = normalizeLanguage(fence);
+        const languageName = getLinguist(fence);
 
-        const handleCopy = async (): Promise<void> => {
-            if (code.length === 0) return;
-            try {
-                await navigator.clipboard.writeText(code);
-                setIsCopied(true);
-                setTimeout(() => {
-                    setIsCopied(false);
-                }, 2000);
-            } catch (err) {
-                console.error("Failed to copy code: ", err);
-            }
-        };
+        // Light theme until mounted, then follow the resolved theme. Both
+        // render passes agree on the first one, so hydration doesn't mismatch.
+        const syntaxTheme = mounted && resolvedTheme === "dark" ? themes.dark : themes.light;
 
         return (
             <div className="relative group bg-surface-muted my-4 rounded-xl border border-border overflow-hidden shadow-xs transition-all">
-                {/* Code Block Header */}
                 <div className="flex items-center justify-between px-4 py-2 border-b border-border-subtle bg-surface/50 text-xs font-mono text-muted-foreground">
                     <span className="font-medium tracking-wide uppercase">{languageName ?? "Plaintext"}</span>
-                    <button
-                        onClick={() => {
-                            void handleCopy();
-                        }}
-                        aria-label="Copy code"
-                        type="button"
-                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-surface rounded-md text-xs font-sans text-muted-foreground hover:text-foreground hover:bg-surface-active border border-border-subtle transition-all focus-ring"
-                    >
-                        {isCopied ? (
-                            <>
-                                <CheckIcon className="h-3.5 w-3.5 text-success" />
-                                <span className="text-success font-medium">Copied!</span>
-                            </>
-                        ) : (
-                            <>
-                                <ClipboardDocumentIcon className="h-3.5 w-3.5" />
-                                <span>Copy</span>
-                            </>
-                        )}
-                    </button>
+
+                    <CopyButton code={code} />
                 </div>
 
-                {/* Syntax Highlighter Container */}
                 <div className="p-3 overflow-x-auto text-sm">
                     <SyntaxHighlighter
                         codeTagProps={{ style: { fontFamily: 'var(--font-jetbrains-mono)' } }}
-                        style={resolvedTheme === 'dark' ? vscDarkPlus : oneLight}
-                        language={language}
+                        {...(language !== null ? { language } : {})}
+                        style={syntaxTheme}
                         wrapLines={true}
                         wrapLongLines={true}
                         customStyle={{
@@ -131,11 +119,16 @@ const markdownComponents: Components & Record<string, React.ElementType> = {
         return <hr className="my-8 border-border" />;
     },
     p({ children }) {
-        const containsBlockElement = React.Children.toArray(children).some(
-            (child) => React.isValidElement(child) && child.type === SyntaxHighlighter
+        // A paragraph holding a block child (a code block) must not be wrapped in
+        // a `<p>` or the browser closes it early and the layout breaks. Matching
+        // on the block renderers we own, not on the highlighter component:
+        // `pre` resolves to `CodeBlock`, so no child of `<p>` is ever the
+        // highlighter itself and the old check could never fire.
+        const hasBlockChild = React.Children.toArray(children).some(
+            (child) => React.isValidElement(child) && (child.type === CodeBlock || child.type === "div")
         );
 
-        if (containsBlockElement) {
+        if (hasBlockChild) {
             return <>{children}</>;
         }
         return <p className="my-1! mb-2! leading-relaxed text-foreground last:mb-0">{children}</p>;
@@ -190,14 +183,8 @@ export const MarkdownRenderer = React.memo(({ content, className }: { content?: 
             `}
         >
             <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkMath, remarkBreaks, remarkDirective]}
-                rehypePlugins={[
-                    rehypeRaw,
-                    rehypeKatex,
-                    rehypeSlug,
-                    [rehypeAutolinkHeadings],
-                    [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
-                ]}
+                remarkPlugins={remarkPlugins}
+                rehypePlugins={rehypePlugins}
                 components={markdownComponents}
             >
                 {content}
