@@ -155,7 +155,6 @@ async fn handle_starboard_reaction(
             data,
             &starboard,
             reaction,
-            &member,
             &cached_key,
             emoji_count,
         )

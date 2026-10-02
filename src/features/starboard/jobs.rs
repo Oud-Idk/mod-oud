@@ -17,7 +17,6 @@ pub async fn debounced_starboard_sync(
     data: &BotData,
     starboard: &Starboard,
     reaction: &Reaction,
-    member: &Member,
     cached_key: &str,
     emoji_count: u64,
 ) -> Result<(), fred::error::Error> {
@@ -35,7 +34,6 @@ pub async fn debounced_starboard_sync(
         let redis_clone = redis.clone();
         let starboard_clone = starboard.clone();
         let reaction_clone = reaction.clone();
-        let member_clone = member.clone();
         let cached_key_clone = cached_key.to_string();
 
         // The job span carries the name and the exit line; this one carries which starboard, so
@@ -65,7 +63,6 @@ pub async fn debounced_starboard_sync(
                         &db_clone,
                         &starboard_clone,
                         &reaction_clone,
-                        &member_clone,
                         final_count,
                     )
                     .await
@@ -130,7 +127,6 @@ pub async fn upsert_starboard(
     db: &PgPool,
     starboard: &Starboard,
     reaction: &Reaction,
-    member: &Member,
     emoji_count: u64,
 ) -> Result<()> {
     let Some(_guild_id) = reaction.guild_id else {
@@ -173,7 +169,6 @@ pub async fn upsert_starboard(
         ctx,
         starboard,
         reaction,
-        member,
         emoji_count,
         starboard_channel,
     )

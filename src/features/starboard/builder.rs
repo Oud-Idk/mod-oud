@@ -93,12 +93,11 @@ pub async fn has_user_reacted(
     Ok(users.iter().any(|u| u.id == user_id))
 }
 
-#[instrument(skip(ctx, starboard, reaction, member), fields(starboard_id = starboard.id))]
+#[instrument(skip(ctx, starboard, reaction), fields(starboard_id = starboard.id))]
 pub async fn build_starboard_message(
     ctx: &Context,
     starboard: &Starboard,
     reaction: &Reaction,
-    member: &Member,
     emoji_count: u64,
     starboard_channel: ChannelId,
 ) -> Result<Option<(String, CreateEmbed, Message)>, anyhow::Error> {
@@ -113,6 +112,7 @@ pub async fn build_starboard_message(
     };
 
     let origin_message = reaction.message(ctx).await?;
+    let author_member = origin_message.member(ctx).await.ok();
     let gctx = get_guild_ctx(guild_id, ctx).await?;
 
     let embed_template = &starboard.embed_template;
@@ -120,7 +120,7 @@ pub async fn build_starboard_message(
 
     let discord_ctx = DiscordCtx {
         gctx: Some(&gctx),
-        member: Some(member),
+        member: author_member.as_ref(),
         channel: Some(&guild_starboard_channel),
         source_channel: Some(&origin_channel),
         message: Some(&origin_message),
