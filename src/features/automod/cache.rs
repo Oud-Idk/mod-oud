@@ -126,6 +126,76 @@ pub fn begin_spam_transaction(redis: &Client) -> Transaction {
     redis.multi()
 }
 
+/// Adds a member to the duplicate window, prunes expired entries, and caps the
+/// window at `max_entries` in one transaction.
+///
+/// The trim keeps the set bounded when a user floods faster than the window
+/// expires, which is exactly when the read path would otherwise be most
+/// expensive.
+pub async fn record_duplicate_window(
+    redis: &Client,
+    key: &str,
+    now: f64,
+    clear_before: f64,
+    window: Duration,
+    member: &str,
+    max_entries: u32,
+) -> Result<()> {
+    // Redis ranks are negative-from-the-end, so the trim keeps the newest
+    // `max_entries` by dropping everything before the last one.
+    let rank = i64::from(max_entries);
+    let tx = begin_spam_transaction(redis);
+
+    let _: () = tx.zremrangebyscore(key, "-inf", clear_before).await?;
+    let _: () = tx
+        .zadd(
+            key,
+            None::<SetOptions>,
+            None::<Ordering>,
+            false,
+            false,
+            (now, member),
+        )
+        .await?;
+    let _: () = tx.zremrangebyrank(key, 0, -rank - 1).await?;
+    let _: () = tx
+        .expire(
+            key,
+            i64::try_from(window.as_secs().saturating_add(1)).unwrap_or(i64::MAX),
+            None::<ExpireOptions>,
+        )
+        .await?;
+
+    let _: (usize, usize, usize, usize) = tx.exec(true).await?;
+    Ok(())
+}
+
+/// Reads the most recent duplicate window entries, newest first.
+pub async fn read_duplicate_window(
+    redis: &Client,
+    key: &str,
+    clear_before: f64,
+    max_entries: u32,
+) -> Result<Vec<String>> {
+    let members: Vec<String> = redis
+        .zrevrangebyscore(
+            key,
+            "+inf",
+            clear_before,
+            false,
+            Some((0, i64::from(max_entries))),
+        )
+        .await?;
+
+    Ok(members)
+}
+
+/// Removes members from the duplicate window after their copies are purged.
+pub async fn forget_duplicate_copies(redis: &Client, key: &str, members: &[&str]) -> Result<()> {
+    let _: usize = redis.zrem(key, members.to_vec()).await?;
+    Ok(())
+}
+
 /// Sets a Redis cooldown lock, returning `true` if the lock was newly acquired
 /// (i.e. the cooldown had elapsed) and `false` if the key already existed.
 ///

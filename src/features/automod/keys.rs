@@ -17,3 +17,9 @@ pub fn spam_record_key(guild_id: GuildId, user_id: UserId) -> String {
 pub fn spam_warned_key(guild_id: GuildId, user_id: UserId) -> String {
     format!("spam:warned:{guild_id}:{user_id}")
 }
+
+/// Generates the Redis key holding a user's recent message fingerprints.
+#[must_use]
+pub fn cross_channel_records_key(guild_id: GuildId, user_id: UserId) -> String {
+    format!("spam:cross_channel:{guild_id}:{user_id}")
+}

@@ -2,6 +2,7 @@ mod actions;
 mod cache;
 mod commands;
 mod database;
+mod duplicate_tracker;
 mod events;
 mod keys;
 mod patterns;
@@ -20,6 +21,7 @@ pub use rules::should_skip_scope;
 pub use safe_browsing::SafeBrowsingClient;
 pub use spam_tracker::SpamTracker;
 pub use types::{
-    BaseRule, FilterVerdict, HoneypotConfig, MessageFilteringConfig, RuleAction, RuleScope,
+    BaseRule, CrossChannelSpamRule, FilterVerdict, HoneypotConfig, MessageFilteringConfig,
+    PriorCopies, RuleAction, RuleScope,
 };
 pub use web::routes;

@@ -12,6 +12,7 @@ import { ExcessiveSpoilersTab } from "@/features/message-filtering/components/Ta
 import { ExcessiveMentionsTab } from "@/features/message-filtering/components/Tabs/ExcessiveMentionsTab";
 import { ZalgoTab } from "@/features/message-filtering/components/Tabs/ZalgoTab";
 import { AntiSpamFilterTab } from "@/features/message-filtering/components/Tabs/AntiSpamFilterTab";
+import { CrossChannelSpamTab } from "@/features/message-filtering/components/Tabs/CrossChannelSpamTab";
 import { GlobalScopeTab } from "@/features/message-filtering/components/Tabs/GlobalScope";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { BadWordTab } from "@/features/message-filtering/components/Tabs/BadWordsTab";
@@ -35,6 +36,7 @@ type TabValue =
     | "EXCESSIVE_MENTIONS"
     | "ZALGO"
     | "ANTI_SPAM"
+    | "CROSS_CHANNEL_SPAM"
     | "CRYPTO_ADDRESSES"
     | "GLOBAL_SCOPE";
 
@@ -49,6 +51,7 @@ const FILTERING_TABS: TabItem<TabValue>[] = [
     { value: "EXCESSIVE_MENTIONS", label: "Excessive Mentions" },
     { value: "ZALGO", label: "Zalgo" },
     { value: "ANTI_SPAM", label: "Anti Spam" },
+    { value: "CROSS_CHANNEL_SPAM", label: "Cross Channel Spam" },
     { value: "CRYPTO_ADDRESSES", label: "Crypto Addresses" },
     { value: "GLOBAL_SCOPE", label: "Global Scope" },
 ];
@@ -65,6 +68,7 @@ const TAB_MAP: Record<Exclude<TabValue, "BAD_WORDS">, TabSignature> = {
     EXCESSIVE_MENTIONS: ExcessiveMentionsTab,
     ZALGO: ZalgoTab,
     ANTI_SPAM: AntiSpamFilterTab,
+    CROSS_CHANNEL_SPAM: CrossChannelSpamTab,
     CRYPTO_ADDRESSES: CryptoAddressTab,
     GLOBAL_SCOPE: GlobalScopeTab,
 };

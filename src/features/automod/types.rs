@@ -277,6 +277,62 @@ pub struct AntiSpamRule {
     pub window_seconds: u64,
 }
 
+/// What the cross channel duplicate rule does with the copies it matched in
+/// channels other than the one that tripped.
+///
+/// The triggering message is not covered here. [`RuleAction::Delete`] owns it,
+/// and keeping the two separate is what stops a mod who unchecks Delete from
+/// still having messages removed elsewhere.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(tag = "mode", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PriorCopies {
+    /// Leave the earlier copies for a moderator to clean up.
+    #[default]
+    Keep,
+    /// Delete up to `limit` of them, newest first. `None` means no limit.
+    Delete {
+        /// The maximum number of channels to delete across.
+        limit: Option<u32>,
+    },
+}
+
+impl PriorCopies {
+    /// The maximum number of copies to delete, or `Some(0)` to delete none.
+    ///
+    /// An unbounded policy comes back as `u32::MAX` rather than `None`, so the
+    /// call site has one numeric cap to apply instead of two cases.
+    #[must_use]
+    pub const fn delete_limit(&self) -> Option<u32> {
+        match self {
+            Self::Keep => Some(0),
+            Self::Delete { limit } => Some(match *limit {
+                Some(value) => value,
+                None => u32::MAX,
+            }),
+        }
+    }
+}
+
+/// Configuration for detecting the same text posted across many channels.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CrossChannelSpamRule {
+    /// The common base rule settings.
+    #[serde(flatten)]
+    pub base: BaseRule,
+    /// The number of distinct channels the same text must reach.
+    pub min_channels: u32,
+    /// The rolling time window duration in seconds.
+    pub window_seconds: u64,
+    /// The similarity ratio two messages must reach to count as the same text.
+    pub similarity_threshold: f64,
+    /// The minimum normalized character length before evaluation begins.
+    pub min_length: u32,
+    /// What to do with the matching copies in the other channels.
+    #[serde(default)]
+    pub prior_copies: PriorCopies,
+}
+
 /// Configuration for filtering external links and inspecting for malicious URLs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -344,6 +400,8 @@ pub struct MessageFilteringConfig {
     pub zalgo: Option<ZalgoRule>,
     /// Anti-spam filter configuration.
     pub anti_spam: Option<AntiSpamRule>,
+    /// Cross-channel duplicate spam filter configuration.
+    pub cross_channel_spam: Option<CrossChannelSpamRule>,
     /// Offensive language and profanity filter configuration.
     pub offensive_messages: Option<OffensiveMessagesRule>,
     /// Cryptocurrency address filter configuration.
@@ -393,6 +451,7 @@ impl_has_base!(
     ExcessiveSpoilersRule,
     ExcessiveMentionsRule,
     AntiSpamRule,
+    CrossChannelSpamRule,
     ExternalLinksRule,
     OffensiveMessagesRule
 );

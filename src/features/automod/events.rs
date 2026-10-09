@@ -1,3 +1,4 @@
+mod cross_channel;
 mod crypto_address;
 mod excessive_caps;
 mod excessive_emojis;
@@ -13,6 +14,7 @@ mod zalgo;
 
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
+use crate::features::automod::events::cross_channel::handle_cross_channel_spam;
 use crate::features::automod::events::spam::handle_spam_prevention;
 use crate::features::automod::rules::should_apply_filter;
 use crate::features::automod::types::FilterVerdict;
@@ -85,6 +87,17 @@ pub async fn check_for_filter(
 
             if was_spam {
                 debug!("message blocked by spam prevention system");
+                return Ok(true);
+            }
+
+            // Runs after the spam window, so a user hard enough to trip
+            // anti-spam never records here and is never seen by this rule.
+            let was_cross_channel =
+                handle_cross_channel_spam(ctx, message, data, filtering, guild_id, author_id)
+                    .await?;
+
+            if was_cross_channel {
+                debug!("message blocked by cross channel duplicate filter");
                 return Ok(true);
             }
 

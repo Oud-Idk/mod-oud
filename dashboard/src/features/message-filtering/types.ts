@@ -56,6 +56,21 @@ export const antiSpamRuleSchema = baseRuleSchema.extend({
     windowSeconds: z.number().default(5),
 });
 
+// Null limit means unbounded, which is a different state from a zero limit,
+// so the pair stays an object rather than collapsing into a bare number.
+export const priorCopiesSchema = z.discriminatedUnion("mode", [
+    z.object({ mode: z.literal("KEEP") }),
+    z.object({ mode: z.literal("DELETE"), limit: z.number().nullish() }),
+]);
+
+export const crossChannelSpamRuleSchema = baseRuleSchema.extend({
+    minChannels: z.number().default(3),
+    windowSeconds: z.number().default(600),
+    similarityThreshold: z.number().default(0.85),
+    minLength: z.number().default(15),
+    priorCopies: priorCopiesSchema.default({ mode: "KEEP" }),
+});
+
 export const externalLinksRuleSchema = baseRuleSchema.extend({
     blockOnlyMalicious: z.boolean().default(true),
     mode: scopeListModeSchema,
@@ -81,6 +96,7 @@ export const messageFilteringConfigSchema = z.object({
     excessiveMentions: excessiveMentionsRuleSchema.default(excessiveMentionsRuleSchema.parse({})),
     zalgo: zalgoRuleSchema.default(zalgoRuleSchema.parse({})),
     antiSpam: antiSpamRuleSchema.default(antiSpamRuleSchema.parse({})),
+    crossChannelSpam: crossChannelSpamRuleSchema.default(crossChannelSpamRuleSchema.parse({})),
     offensiveMessages: offensiveMessagesSchema.default(offensiveMessagesSchema.parse({})),
     cryptoAddress: cryptoAddressRuleSchema.default(cryptoAddressRuleSchema.parse({})),
     globalSettings: scopeSchema.default(scopeSchema.parse({})),
@@ -123,6 +139,8 @@ export type ExcessiveEmojisRule = z.infer<typeof excessiveEmojisRuleSchema>;
 export type ExcessiveSpoilersRule = z.infer<typeof excessiveSpoilersRuleSchema>;
 export type ExcessiveMentionsRule = z.infer<typeof excessiveMentionsRuleSchema>;
 export type AntiSpamRule = z.infer<typeof antiSpamRuleSchema>;
+export type CrossChannelSpamRule = z.infer<typeof crossChannelSpamRuleSchema>;
+export type PriorCopies = z.infer<typeof priorCopiesSchema>;
 export type ExternalLinksRule = z.infer<typeof externalLinksRuleSchema>;
 export type OffensiveMessages = z.infer<typeof offensiveMessagesSchema>;
 export type ServerInvitesRule = z.infer<typeof serverInvitesRuleSchema>;
