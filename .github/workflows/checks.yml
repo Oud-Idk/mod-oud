@@ -44,20 +44,27 @@ jobs:
       - name: Logging convention
         run: scripts/check-logging.sh
 
+      # Reads the pnpm version pinned in dashboard/package.json's packageManager field
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: dashboard/package.json
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: dashboard/package-lock.json
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
 
       - name: Install dashboard dependencies
         working-directory: dashboard
-        run: npm ci
+        env:
+          SHARP_IGNORE_GLOBAL_LIBVIPS: 1
+        run: pnpm install --frozen-lockfile
 
       - name: Dashboard Lint
         working-directory: dashboard
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Dashboard tests
         working-directory: dashboard
-        run: npm test
+        run: pnpm test

@@ -34,7 +34,7 @@ Each feature lives in its own vertical slice under `src/features/`. see
 ### Prerequisites
 
 - Rust 1.85+ (edition 2024)
-- Node.js 20+
+- Node.js 24+ (Corepack comes bundled, for pnpm)
 - Docker (for Postgres + Redis)
 
 ### Setup
@@ -64,9 +64,15 @@ Each feature lives in its own vertical slice under `src/features/`. see
 
    ```bash
    cd dashboard
-   npm install
-   npm run dev
+   corepack enable
+   pnpm install
+   pnpm run dev
    ```
+
+   `corepack enable` is a one-time setup per machine (it ships with Node.js); it hands
+   out the pnpm version pinned in `package.json`. Install with
+   `SHARP_IGNORE_GLOBAL_LIBVIPS=1 pnpm install` if your machine ships its own libvips,
+   otherwise sharp's install script tries (and fails) to compile from source.
 
    Open http://localhost:3000. The dashboard expects the bot's API at the URL set in
    `NEXT_PUBLIC_BACKEND_URL`.
@@ -78,8 +84,8 @@ Each feature lives in its own vertical slice under `src/features/`. see
 | `cargo build --release`          | Build the bot                             |
 | `cargo clippy`                   | Lint (pedantic/nursery lints are enabled) |
 | `cargo fmt`                      | Format (config in `rustfmt.toml`)         |
-| `npm run lint` (in `dashboard/`) | Lint the dashboard                        |
-| `npm test` (in `dashboard/`)     | Run Vitest tests                          |
+| `pnpm run lint` (in `dashboard/`) | Lint the dashboard                        |
+| `pnpm test` (in `dashboard/`)     | Run Vitest tests                          |
 
 ## Production
 

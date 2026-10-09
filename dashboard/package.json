@@ -2,6 +2,7 @@
   "name": "dashboard",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.28.4",
   "scripts": {
     "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' next dev",
     "build": "next build",
@@ -15,9 +16,12 @@
     "@headlessui/tailwindcss": "^0.2.2",
     "@heroicons/react": "^2.2.0",
     "@monaco-editor/react": "^4.7.0",
+    "@radix-ui/react-slider": "^1.4.0",
     "@skyra/discord-components-react": "^4.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "hast-util-heading-rank": "^3.0.0",
+    "hast-util-to-string": "^3.0.1",
     "heroicons": "^2.2.0",
     "ioredis": "^5.11.0",
     "katex": "^0.17.0",
@@ -43,9 +47,13 @@
     "remark-directive": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tw-merge": "^0.0.1-alpha.3",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
     "uwuifier": "^4.2.2",
     "validator": "^13.15.35",
     "zod": "^4.4.3"
@@ -56,6 +64,7 @@
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.20",
+    "@types/hast": "^3.0.5",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
@@ -70,8 +79,5 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"
-  },
-  "allowScripts": {
-    "sharp@0.34.5": true
   }
 }

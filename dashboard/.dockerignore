@@ -2,7 +2,6 @@ node_modules/
 .next/
 out/
 build/
-.npm/
 
 .env*
 !.env.example
@@ -12,4 +11,4 @@ tsconfig.tsbuildinfo
 .git/
 .DS_Store
 *.log
-npm-debug.log*
+pnpm-debug.log*

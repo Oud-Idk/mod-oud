@@ -17,10 +17,6 @@ Thumbs.db
 **/.next/
 **/out/
 **/build/
-**/.npm/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 
 *.tar.gz
