@@ -22,6 +22,7 @@ describe("Logs Query Module", () => {
 
     describe("getAutomodLogs", () => {
         it("should pass defaults to the query when no cursor is provided", async () => {
+            const testDate = new Date("2026-01-01T00:00:00.000Z");
             const rows = [
                 {
                     id: "1",
@@ -34,7 +35,7 @@ describe("Logs Query Module", () => {
                     trigger_content: "spam",
                     original_content: null,
                     actions_taken: [],
-                    created_at: "2026-01-01T00:00:00.000Z",
+                    created_at: testDate,
                 },
             ];
             mockQuery.mockResolvedValue({ rows });
@@ -62,7 +63,7 @@ describe("Logs Query Module", () => {
                         trigger_content: null,
                         original_content: null,
                         actions_taken: [],
-                        created_at: "2026-01-01T00:00:00.000Z",
+                        created_at: new Date("2026-01-01T00:00:00.000Z"),
                     },
                 ],
             });
@@ -83,9 +84,36 @@ describe("Logs Query Module", () => {
             );
 
             const [, params = []] = mockQuery.mock.calls[0];
-            expect(params[1]).toBe("2026-01-01T00:00:00.000Z");
+            // Since getLogsInputSchema coerces cursorCreatedAt, it is passed as a Date
+            expect(params[1]).toEqual(new Date("2026-01-01T00:00:00.000Z"));
             expect(params[2]).toBe("99");
             expect(params[3]).toBe(5);
+        });
+
+        it("should return created_at as a native Date object", async () => {
+            const testDate = new Date("2026-10-05T00:47:09.591Z");
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        id: "1",
+                        guild_id: "guild_123",
+                        user_id: "user_1",
+                        username: "Alice",
+                        channel_id: null,
+                        message_id: null,
+                        rule_type: "BAD_WORD",
+                        trigger_content: "spam",
+                        original_content: null,
+                        actions_taken: [],
+                        created_at: testDate,
+                    },
+                ],
+            });
+
+            const result = await getAutomodLogs("guild_123");
+
+            expect(result[0].created_at).toBeInstanceOf(Date);
+            expect(result[0].created_at).toEqual(testDate);
         });
 
         it("should reject an empty guild id", async () => {
@@ -119,10 +147,80 @@ describe("Logs Query Module", () => {
             expect(params[4]).toBe(10);
         });
 
+        it("should return created_at as a native Date object", async () => {
+            const testDate = new Date("2026-10-05T00:47:09.591Z");
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        id: "10",
+                        user_id: "user_1",
+                        username: "Alice",
+                        guild_id: "guild_123",
+                        action: "JOIN",
+                        created_at: testDate,
+                    },
+                ],
+            });
+
+            const result = await getJoinLeaveLogs("guild_123");
+
+            expect(result[0].created_at).toBeInstanceOf(Date);
+            expect(result[0].created_at).toEqual(testDate);
+        });
+
+        it("should allow formatting created_at into an ISO cursor for Postgres pagination", async () => {
+            const testDate = new Date("2026-10-05T00:47:09.591Z");
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        id: "10",
+                        user_id: "user_1",
+                        username: "Alice",
+                        guild_id: "guild_123",
+                        action: "JOIN",
+                        created_at: testDate,
+                    },
+                ],
+            });
+
+            const result = await getJoinLeaveLogs("guild_123");
+            const cursor = result[0].created_at.toISOString();
+
+            expect(cursor).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+            expect(cursor).toBe("2026-10-05T00:47:09.591Z");
+        });
+
+        it("should reject an invalid Date input", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        id: "10",
+                        user_id: "user_1",
+                        username: "Alice",
+                        guild_id: "guild_123",
+                        action: "JOIN",
+                        created_at: new Date("not-a-valid-date"),
+                    },
+                ],
+            });
+
+            await expect(getJoinLeaveLogs("guild_123")).rejects.toThrow();
+        });
+
+        it("should pass the cursor through for the next page", async () => {
+            mockQuery.mockResolvedValue({ rows: [] });
+
+            await getJoinLeaveLogs("guild_123", null, 20, "2026-10-05T00:47:09.591Z", "10");
+
+            const [, params = []] = mockQuery.mock.calls[0];
+            expect(params[2]).toEqual(new Date("2026-10-05T00:47:09.591Z"));
+            expect(params[3]).toBe("10");
+        });
     });
 
     describe("getModerationLogs", () => {
         it("should format PgInterval duration into a human string", async () => {
+            const testDate = new Date("2026-01-01T00:00:00.000Z");
             mockQuery.mockResolvedValue({
                 rows: [
                     {
@@ -135,7 +233,7 @@ describe("Logs Query Module", () => {
                         action_type: "BAN",
                         reason: "Spam",
                         duration: { years: 1, months: 2, days: 3, hours: 4, minutes: 5, seconds: 6 },
-                        created_at: new Date("2026-01-01T00:00:00.000Z"),
+                        created_at: testDate,
                     },
                 ],
             });
@@ -153,7 +251,7 @@ describe("Logs Query Module", () => {
                     action_type: "BAN",
                     reason: "Spam",
                     duration: "1y 2mo 3d 4h 5m 6s",
-                    created_at: "2026-01-01T00:00:00.000Z",
+                    created_at: testDate,
                 },
             ]);
         });
@@ -169,7 +267,7 @@ describe("Logs Query Module", () => {
                         action_type: "WARN",
                         reason: null,
                         duration: null,
-                        created_at: "2026-01-01T00:00:00.000Z",
+                        created_at: new Date("2026-01-01T00:00:00.000Z"),
                     },
                 ],
             });
@@ -190,7 +288,7 @@ describe("Logs Query Module", () => {
                         action_type: "MUTE",
                         reason: null,
                         duration: { days: 0, hours: 2 },
-                        created_at: "2026-01-01T00:00:00.000Z",
+                        created_at: new Date("2026-01-01T00:00:00.000Z"),
                     },
                 ],
             });
@@ -206,7 +304,10 @@ describe("Logs Query Module", () => {
             await getModerationLogs("guild_123", 10, "2026-01-01T00:00:00.000Z", "5");
 
             const [, params = []] = mockQuery.mock.calls[0];
+            // params: [guildId, cursorCreatedAt, cursorCaseId, limit]
+            expect(params[1]).toEqual(new Date("2026-01-01T00:00:00.000Z"));
             expect(params[2]).toBe("5");
+            expect(params[3]).toBe(10);
         });
     });
 });

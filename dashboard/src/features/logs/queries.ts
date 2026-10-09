@@ -31,7 +31,7 @@ interface RawModerationLog {
     action_type: string;
     reason: string | null;
     duration: PgInterval | null;
-    created_at: string | Date;
+    created_at: Date;
 }
 
 function formatDuration(duration: PgInterval | null): string | null {
@@ -202,7 +202,6 @@ export async function getModerationLogs(
     const formattedRows = result.rows.map((row) => ({
         ...row,
         duration: formatDuration(row.duration),
-        created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     }));
 
     return z.array(moderationLogSchema).parse(formattedRows);

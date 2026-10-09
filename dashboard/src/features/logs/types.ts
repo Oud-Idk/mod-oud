@@ -13,7 +13,7 @@ export const automodLogSchema = z.object({
     trigger_content: z.string().nullish().default(null),
     original_content: z.string().nullish().default(null),
     actions_taken: z.array(z.string()).default([]),
-    created_at: z.coerce.string(),
+    created_at: z.coerce.date(),
 });
 
 export const joinLeaveLogSchema = z.object({
@@ -22,7 +22,7 @@ export const joinLeaveLogSchema = z.object({
     username: z.string().default(""),
     guild_id: z.string(),
     action: joinLeaveActionSchema,
-    created_at: z.coerce.string(),
+    created_at: z.coerce.date(),
 });
 
 export const moderationLogSchema = z.object({
@@ -35,13 +35,13 @@ export const moderationLogSchema = z.object({
     action_type: z.string(),
     reason: z.string().nullish().default(null),
     duration: z.string().nullish().default(null),
-    created_at: z.coerce.string(),
+    created_at: z.coerce.date(),
 });
 
 export const getLogsInputSchema = z.object({
     guildId: z.string().min(1),
     limit: z.number().int().positive().default(20),
-    cursorCreatedAt: z.string().nullish().default(null),
+    cursorCreatedAt: z.coerce.date().nullish().default(null),
     cursorId: z.string().nullish().default(null),
 });
 

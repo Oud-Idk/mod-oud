@@ -151,7 +151,7 @@ describe("getLogsInputSchema", () => {
         });
 
         expect(parsed.limit).toBe(5);
-        expect(parsed.cursorCreatedAt).toBe("2026-01-01T00:00:00.000Z");
+        expect(parsed.cursorCreatedAt).toStrictEqual(new Date("2026-01-01T00:00:00.000Z"));
         expect(parsed.cursorId).toBe("99");
     });
 
