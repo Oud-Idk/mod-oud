@@ -72,7 +72,7 @@ pub async fn cache_message_in_redis(redis: &Client, msg: &Message) -> Result<(),
 
     let key = format!("msg:{}:{}", msg.channel_id.get(), msg.id.get());
     let _: () = redis
-        .set(&key, &serialized, Some(Expiration::EX(18000)), None, false)
+        .set(&key, &serialized, Some(Expiration::EX(28800)), None, false)
         .await?;
 
     debug!(key = %key, "message cached in redis");
