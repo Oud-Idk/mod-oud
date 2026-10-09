@@ -298,6 +298,62 @@ export async function saveTicketsConfigAction(guildId: string, rawData: unknown)
 
 ---
 
+## 📅 Dates Stay Dates
+
+**A timestamp field is a `Date`. All the way through. Never a string.**
+
+Postgres `timestamptz`, `pg`, RSC, React's Flight serializer, Server Actions, and modern JS all handle `Date` natively. There is no transport layer that needs you to stringify anything, so don't invent one.
+
+### Why This Is Non-Negotiable
+
+`z.coerce.string()` does not convert a `Date` to an ISO timestamp. It calls `String(date)`, which is `date.toString()`:
+
+```typescript
+new Date("2026-01-01T00:00:00.000Z").toString()
+// => "Thu Jan 01 2026 00:00:00 GMT+0000 (Coordinated Universal Time)"
+```
+
+That string is unparseable in some contexts, un-sortable lexicographically, and the moment it hits a template literal or a `String(x)` you get `[object Object]`. It is not a date. It's a debug representation of one.
+
+### The Rules
+
+1. **Schema:** `z.coerce.date()`, never `z.coerce.string()` or `z.string()`.
+2. **Consume directly:** `log.created_at.toLocaleString()`. No `new Date(...)` wrapper: the value is already a `Date`, and wrapping it is at best noise.
+3. **Round-trip cursors as `Date`:** pagination cursors are timestamps. Pass the `Date` back to the action and through to `pg`, which serializes it natively.
+4. **`toISOString()` only at a real string boundary**, and there are exactly two in this codebase:
+   - a `<input type="datetime-local">` `value`, which must be a local `YYYY-MM-DDTHH:mm` string and rejects what `Date.toString()` produces;
+   - `URLSearchParams` / query strings.
+
+   Both `giveaways` and `reminders` have a `formatToLocalDateTime` helper for the first case. Copy it; don't inline the `getFullYear()`/`getMonth()` arithmetic a second time.
+
+5. **Epoch numbers are not timestamps.** `lib/auth.ts` (`accessTokenExpires`, epoch ms) and `lib/ticket.ts` (`expires`, epoch seconds) are numbers on purpose, and `expires_at` on an `account` is a number. Don't "fix" these into `Date`s.
+
+### `z.coerce.date()` vs `z.coerce.string()` For Validation
+
+`z.coerce.date()` is strictly better as a validator. `z.coerce.string()` accepts an `Invalid Date` and hands you the string `"Invalid Date"`, so a bad timestamp propagates silently until something renders it. `z.coerce.date()` rejects it at the boundary.
+
+Prefer `z.coerce.date()` over bare `z.date()` for DB rows. `pg` returns a real `Date` for `timestamptz`, but some paths stringify first: `JSON_BUILD_OBJECT` in `tickets/queries.ts` does exactly that, and SSE payloads arrive as JSON. `z.coerce.date()` accepts both; `z.date()` rejects strings.
+
+### SSE Payloads Are The One Real Trap
+
+`EventSource` delivers JSON, so every timestamp on the wire is a string. If a shared hook merges those fields into rows whose schema says `Date`, you get a type lie: the object claims `Date`, the value is a `string`, and `isLogItem(item): item is T` (a bare `typeof === "object"` guard) will happily wave it through.
+
+So coerce **at the wire schema**, and make sure every timestamp the render sites read actually has a value on a pushed row:
+
+```typescript
+// src/lib/hooks/useSSEInfiniteScroll.ts
+created_at: z.coerce.date().optional(),
+deleted_at: z.coerce.date().optional(),
+```
+
+A field the payload doesn't carry at all is a field that will be `undefined` at runtime, and `.toLocaleString()` on `undefined` throws. If the bot sends one timestamp per event type, either derive the others or render defensively.
+
+### A Note On `new Date(x)` Not Being A Type Error
+
+`tsconfig.json` sets `lib: ["dom", "dom.iterable", "esnext"]`, and `es2015.core` widens the constructor to `new (value: number | string | Date): Date`. So `new Date(alreadyADate)` **compiles clean**. It's still wrong: it allocates a second `Date` for no reason, and it signals that the author believed the field was a string. Don't rely on the compiler to catch this one.
+
+---
+
 ## Testing Conventions (Unit, Integration & E2E)
 
 ### 1. Colocate Feature Tests ("Keep It Local")
@@ -373,3 +429,6 @@ my-dashboard/
 * **Arbitrary values in feature/component code**: `w-[137px]`, `bg-[#3b82f6]` outside truly one-off layout tweaks that will never repeat.
 * **`dark`: variant sprawl**: repeating dark:bg-... dark:text-... on every element instead of letting the CSS variable swap handle it.
 * **Ternary classNames instead of cva**: className={variant === "danger" ? "bg-red-500" : "bg-blue-500"} in a component with more than two variants.
+* **String timestamps**: `z.coerce.string()` on a `created_at` / `updated_at` / `*_at` field, or a `.transform((d) => d.toISOString())` bolted onto a date schema. Dates stay `Date`. See [Dates Stay Dates](#-dates-stay-dates).
+* **Redundant `new Date()`**: `new Date(row.created_at)` when the field is already typed `Date`. Compiles fine, allocates a second `Date`, and misleads the next reader.
+* **`string | Date`**: a union that hedges a field's type instead of committing to one. Pick `Date`; if you genuinely don't know, the schema is wrong.
