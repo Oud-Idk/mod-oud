@@ -140,6 +140,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             clientId: process.env.AUTH_DISCORD_ID,
             clientSecret: process.env.AUTH_DISCORD_SECRET,
             authorization: "https://discord.com/oauth2/authorize?scope=identify+guilds",
+            issuer: "https://discord.com",
         }),
     ],
     callbacks: {
