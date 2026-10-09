@@ -109,7 +109,7 @@ export function RemindersBody({
                             scheduleText = `${String(reminder.intervalSeconds)}s`;
                         }
                     } else {
-                        scheduleText = new Date(reminder.nextTriggerAt).toLocaleDateString();
+                        scheduleText = reminder.nextTriggerAt.toLocaleDateString();
                     }
 
                     return (

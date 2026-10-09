@@ -133,6 +133,8 @@ describe("Message Filtering Query Module", () => {
             expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("FROM bad_word_rulesets"), ["guild_123"]);
             expect(result).toHaveLength(1);
             expect(result[0].name).toBe("No swears");
+            expect(result[0].createdAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+            expect(result[0].updatedAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
         });
 
         it("should return an empty array when no rows exist", async () => {
@@ -269,8 +271,8 @@ function rulesetRowFixture(): {
     actions: never[];
     timeoutDurationSeconds: null;
     scope: { mode: "EXEMPT"; roles: never[]; channels: never[] };
-    createdAt: string;
-    updatedAt: string;
+    createdAt: Date;
+    updatedAt: Date;
 } {
     return {
         id: "uuid_1",
@@ -281,7 +283,7 @@ function rulesetRowFixture(): {
         actions: [],
         timeoutDurationSeconds: null,
         scope: { mode: "EXEMPT", roles: [], channels: [] },
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     };
 }

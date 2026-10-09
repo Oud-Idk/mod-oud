@@ -33,9 +33,7 @@ interface EconomyItemRow {
     stock_remaining: number;
     requirements: unknown;
     actions: unknown;
-    expires_at: Date | null;
-    created_at: Date;
-}
+    }
 
 function mapRowToItem(row: EconomyItemRow): EconomyItem {
     let emoji: string | undefined = undefined;
@@ -244,7 +242,6 @@ interface EconomyWorkMessageRow {
     id: string;
     guild_id: string;
     content: string;
-    created_at: Date;
 }
 
 function mapRowToWorkMessage(row: EconomyWorkMessageRow): import("./types").EconomyWorkMessage {

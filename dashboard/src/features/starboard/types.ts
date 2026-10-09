@@ -66,8 +66,8 @@ export const starboardConfigSchema = z.object({
     embed_template: DiscordEmbedSchema.optional().default({}),
     plaintext_template: z.string().default(""),
     keep_deleted_messages: z.boolean().default(true),
-    created_at: z.coerce.string(),
-    updated_at: z.coerce.string(),
+    created_at: z.coerce.date(),
+    updated_at: z.coerce.date(),
 });
 
 export type StarboardConfigInput = z.input<typeof starboardConfigInputSchema>;

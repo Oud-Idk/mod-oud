@@ -83,15 +83,15 @@ export function ReminderConfig({
         onChange({ [field]: formattedTime });
     };
 
-    const getFormattedDateTime = (isoString?: string): string => {
-        if (isoString === undefined || isoString === "") return "";
-        const d = new Date(isoString);
-        if (Number.isNaN(d.getTime())) return "";
-        const year = String(d.getFullYear());
-        const month = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        const hours = String(d.getHours()).padStart(2, "0");
-        const minutes = String(d.getMinutes()).padStart(2, "0");
+    /// A datetime-local input only accepts a local `YYYY-MM-DDTHH:mm` string; React
+/// would stringify a Date via toString() and the input would reject it.
+const getFormattedDateTime = (date: Date): string => {
+        if (Number.isNaN(date.getTime())) return "";
+        const year = String(date.getFullYear());
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
@@ -196,12 +196,12 @@ export function ReminderConfig({
                     <InputLabel>Next Scheduled Trigger</InputLabel>
                     {config.rType === "RECURRING" ? (
                         <div className="bg-surface-muted border border-border-subtle rounded-lg px-4 py-2.5 text-xs text-muted-foreground">
-                            {new Date(config.nextTriggerAt).toLocaleString()}
+                            {config.nextTriggerAt.toLocaleString()}
                         </div>
                     ) : (
                         <TextInput
                             type="datetime-local"
-                            value={getFormattedDateTime(config.nextTriggerAt.toISOString())}
+                            value={getFormattedDateTime(config.nextTriggerAt)}
                             onChange={(e) => {
                                 if (e.target.value !== "") {
                                     onChange({

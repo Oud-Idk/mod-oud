@@ -287,8 +287,8 @@ describe("starboardConfigSchema (DB rows)", () => {
         expect(result.success).toBe(true);
         if (result.success) {
             expect(result.data.id).toBe("1");
-            expect(result.data.created_at).toBe("2026-01-01T00:00:00.000Z");
-            expect(result.data.updated_at).toBe("2026-01-02T00:00:00.000Z");
+            expect(result.data.created_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+            expect(result.data.updated_at).toEqual(new Date("2026-01-02T00:00:00.000Z"));
         }
     });
 

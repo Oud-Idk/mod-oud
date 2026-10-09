@@ -57,8 +57,8 @@ describe("Starboard Server Actions", () => {
         embed_template: {},
         plaintext_template: "",
         keep_deleted_messages: true,
-        created_at: "2026-01-01T00:00:00.000Z",
-        updated_at: "2026-01-02T00:00:00.000Z",
+        created_at: new Date("2026-01-01T00:00:00.000Z"),
+        updated_at: new Date("2026-01-02T00:00:00.000Z"),
     };
 
     describe("saveStarboardConfigAction", () => {
