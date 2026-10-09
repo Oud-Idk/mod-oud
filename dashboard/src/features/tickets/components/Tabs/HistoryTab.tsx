@@ -152,7 +152,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                                             {ticket.message_count}
                                         </td>
                                         <td className="py-3.5 px-4 text-xs text-muted-foreground whitespace-nowrap">
-                                            {new Date(ticket.created_at).toLocaleString()}
+                                            {ticket.created_at.toLocaleString()}
                                         </td>
                                         <td className="py-3.5 px-4 text-right">
                                             <button
@@ -244,7 +244,7 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                                                     )}
                                                 </div>
                                                 <span className="text-[10px] text-muted-foreground">
-                                                    {new Date(msg.created_at).toLocaleString()}
+                                                    {msg.created_at.toLocaleString()}
                                                 </span>
                                             </div>
                                             <p className="text-xs text-foreground/90 whitespace-pre-wrap wrap-break-word leading-relaxed">

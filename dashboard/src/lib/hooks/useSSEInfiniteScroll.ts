@@ -25,7 +25,9 @@ export const sseLogPayloadSchema = z
         attachment_url: z.string().nullable().optional(),
         reason: z.string().optional(),
         status: z.string().optional(),
-        created_at: z.string().optional(),
+        created_at: z.coerce.date().optional(),
+        deleted_at: z.coerce.date().optional(),
+        updated_at: z.coerce.date().optional(),
     })
     .loose();
 
@@ -74,7 +76,11 @@ export function buildNewSSELogEntry(
         attachment_url: parsed.attachment_url ?? null,
         reason: parsed.reason,
         status: parsed.status ?? "UNDER_REVIEW",
-        created_at: parsed.created_at ?? new Date().toISOString(),
+        created_at: parsed.created_at ?? new Date(),
+        // A viewer renders whichever timestamp its own schema requires, and the
+        // wire event only carries one of them.
+        deleted_at: parsed.deleted_at ?? parsed.created_at ?? new Date(),
+        updated_at: parsed.updated_at ?? parsed.created_at ?? new Date(),
         ...parsed,
         author_username: "",
         reporter_username: "",

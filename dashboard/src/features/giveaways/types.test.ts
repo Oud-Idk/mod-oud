@@ -39,7 +39,7 @@ describe("saveGiveawayInputSchema (draft mode)", () => {
         expect(parsed.winner_count).toBe(3);
     });
 
-    it("should convert a Date end_time into an ISO 8601 string", () => {
+    it("should keep end_time as a Date", () => {
         const parsed = saveGiveawayInputSchema.parse({
             guild_id: "guild_123",
             host_id: "user_123",
@@ -47,7 +47,7 @@ describe("saveGiveawayInputSchema (draft mode)", () => {
             end_time: new Date("2026-01-01T00:00:00.000Z"),
         });
 
-        expect(parsed.end_time).toBe("2026-01-01T00:00:00.000Z");
+        expect(parsed.end_time).toEqual(new Date("2026-01-01T00:00:00.000Z"));
     });
 
     it("should reject when prize is missing", () => {

@@ -22,7 +22,6 @@ describe("Logs Query Module", () => {
 
     describe("getAutomodLogs", () => {
         it("should pass defaults to the query when no cursor is provided", async () => {
-            const testDate = new Date("2026-01-01T00:00:00.000Z");
             const rows = [
                 {
                     id: "1",
@@ -35,7 +34,7 @@ describe("Logs Query Module", () => {
                     trigger_content: "spam",
                     original_content: null,
                     actions_taken: [],
-                    created_at: testDate,
+                    created_at: new Date("2026-01-01T00:00:00.000Z"),
                 },
             ];
             mockQuery.mockResolvedValue({ rows });
@@ -76,44 +75,13 @@ describe("Logs Query Module", () => {
         it("should pass cursors and limit through", async () => {
             mockQuery.mockResolvedValue({ rows: [] });
 
-            await getAutomodLogs(
-                "guild_123",
-                5,
-                "2026-01-01T00:00:00.000Z",
-                "99"
-            );
+            const cursor = new Date("2026-01-01T00:00:00.000Z");
+            await getAutomodLogs("guild_123", 5, cursor, "99");
 
             const [, params = []] = mockQuery.mock.calls[0];
-            // Since getLogsInputSchema coerces cursorCreatedAt, it is passed as a Date
-            expect(params[1]).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+            expect(params[1]).toEqual(cursor);
             expect(params[2]).toBe("99");
             expect(params[3]).toBe(5);
-        });
-
-        it("should return created_at as a native Date object", async () => {
-            const testDate = new Date("2026-10-05T00:47:09.591Z");
-            mockQuery.mockResolvedValue({
-                rows: [
-                    {
-                        id: "1",
-                        guild_id: "guild_123",
-                        user_id: "user_1",
-                        username: "Alice",
-                        channel_id: null,
-                        message_id: null,
-                        rule_type: "BAD_WORD",
-                        trigger_content: "spam",
-                        original_content: null,
-                        actions_taken: [],
-                        created_at: testDate,
-                    },
-                ],
-            });
-
-            const result = await getAutomodLogs("guild_123");
-
-            expect(result[0].created_at).toBeInstanceOf(Date);
-            expect(result[0].created_at).toEqual(testDate);
         });
 
         it("should reject an empty guild id", async () => {
@@ -147,7 +115,7 @@ describe("Logs Query Module", () => {
             expect(params[4]).toBe(10);
         });
 
-        it("should return created_at as a native Date object", async () => {
+        it("should return created_at as a native Date so it can be used as a cursor", async () => {
             const testDate = new Date("2026-10-05T00:47:09.591Z");
             mockQuery.mockResolvedValue({
                 rows: [
@@ -165,29 +133,7 @@ describe("Logs Query Module", () => {
             const result = await getJoinLeaveLogs("guild_123");
 
             expect(result[0].created_at).toBeInstanceOf(Date);
-            expect(result[0].created_at).toEqual(testDate);
-        });
-
-        it("should allow formatting created_at into an ISO cursor for Postgres pagination", async () => {
-            const testDate = new Date("2026-10-05T00:47:09.591Z");
-            mockQuery.mockResolvedValue({
-                rows: [
-                    {
-                        id: "10",
-                        user_id: "user_1",
-                        username: "Alice",
-                        guild_id: "guild_123",
-                        action: "JOIN",
-                        created_at: testDate,
-                    },
-                ],
-            });
-
-            const result = await getJoinLeaveLogs("guild_123");
-            const cursor = result[0].created_at.toISOString();
-
-            expect(cursor).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-            expect(cursor).toBe("2026-10-05T00:47:09.591Z");
+            expect(result[0].created_at.toISOString()).toBe("2026-10-05T00:47:09.591Z");
         });
 
         it("should reject an invalid Date input", async () => {
@@ -210,10 +156,11 @@ describe("Logs Query Module", () => {
         it("should pass the cursor through for the next page", async () => {
             mockQuery.mockResolvedValue({ rows: [] });
 
-            await getJoinLeaveLogs("guild_123", null, 20, "2026-10-05T00:47:09.591Z", "10");
+            const cursor = new Date("2026-10-05T00:47:09.591Z");
+            await getJoinLeaveLogs("guild_123", null, 20, cursor, "10");
 
             const [, params = []] = mockQuery.mock.calls[0];
-            expect(params[2]).toEqual(new Date("2026-10-05T00:47:09.591Z"));
+            expect(params[2]).toEqual(cursor);
             expect(params[3]).toBe("10");
         });
     });
@@ -301,11 +248,11 @@ describe("Logs Query Module", () => {
         it("should pass the case id as the cursor id", async () => {
             mockQuery.mockResolvedValue({ rows: [] });
 
-            await getModerationLogs("guild_123", 10, "2026-01-01T00:00:00.000Z", "5");
+            const cursor = new Date("2026-01-01T00:00:00.000Z");
+            await getModerationLogs("guild_123", 10, cursor, "5");
 
             const [, params = []] = mockQuery.mock.calls[0];
-            // params: [guildId, cursorCreatedAt, cursorCaseId, limit]
-            expect(params[1]).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+            expect(params[1]).toEqual(cursor);
             expect(params[2]).toBe("5");
             expect(params[3]).toBe(10);
         });

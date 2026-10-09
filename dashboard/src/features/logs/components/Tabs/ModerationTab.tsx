@@ -174,7 +174,7 @@ export function ModerationTab({ guildId }: ModerationTabProps): JSX.Element {
                                 )}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                                {new Date(log.created_at).toLocaleString()}
+                                {log.created_at.toLocaleString()}
                             </TableCell>
                         </TableRow>
                     ))}

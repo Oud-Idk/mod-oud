@@ -64,7 +64,7 @@ export function DeletedMessageLogViewer({
                                     <span className="text-brand font-medium">{channelName}</span>
                                 </span>
                                 <span className="text-muted-foreground text-[11px]">
-                                    {new Date(log.deleted_at).toLocaleString()}
+                                    {log.deleted_at.toLocaleString()}
                                 </span>
                             </div>
 

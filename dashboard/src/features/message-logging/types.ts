@@ -23,7 +23,7 @@ export const deletedMessageSchema = z.object({
     guild_id: z.string(),
     content: z.string().default(""),
     attachment_url: z.string().nullish().default(null),
-    deleted_at: z.coerce.date().transform((d) => d.toISOString()),
+    deleted_at: z.coerce.date(),
 });
 
 export const editedMessageSchema = z.object({
@@ -35,7 +35,7 @@ export const editedMessageSchema = z.object({
     guild_id: z.string(),
     old_content: z.string().nullish().default(null),
     new_content: z.string().nullish().default(null),
-    updated_at: z.coerce.date().transform((d) => d.toISOString()),
+    updated_at: z.coerce.date(),
 });
 
 export type DeletedMessage = z.infer<typeof deletedMessageSchema>;

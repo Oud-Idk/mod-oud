@@ -135,7 +135,7 @@ export function AutomodTab({ guildId }: AutomodTabProps): JSX.Element {
                                 </div>
                             </TableCell>
                             <TableCell>
-                                {new Date(log.created_at).toLocaleString()}
+                                {log.created_at.toLocaleString()}
                             </TableCell>
                         </TableRow>
                     ))}

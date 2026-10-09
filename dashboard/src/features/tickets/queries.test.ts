@@ -114,12 +114,7 @@ describe("Tickets Query Module", () => {
 
             const result = await getTicketHistory("chan_456");
 
-            // IsoDateSchema transforms Date -> ISO string
-            expect(result).toEqual({
-                ...mockHistory,
-                created_at: now.toISOString(),
-                last_activity: now.toISOString(),
-            });
+            expect(result).toEqual(mockHistory);
             expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["chan_456"]);
         });
 
@@ -163,13 +158,7 @@ describe("Tickets Query Module", () => {
 
             const res = await getTicketList("guild_123");
 
-            // TicketSchema converts Date -> ISO string
-            expect(res).toEqual([
-                {
-                    ...mockRows[0],
-                    created_at: now.toISOString(),
-                },
-            ]);
+            expect(res).toEqual(mockRows);
             expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["guild_123"]);
         });
 

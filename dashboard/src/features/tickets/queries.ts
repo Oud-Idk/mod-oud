@@ -28,6 +28,7 @@ export async function getTicketHistory(
                                        'message_id', tm.message_id::TEXT,
                                        'author_id', tm.author_id::TEXT,
                                        'content', tm.content,
+                                       -- JSON_BUILD_OBJECT stringifies this; the schema coerces it back
                                        'created_at', tm.created_at,
                                        'is_ticket_manager', tm.is_ticket_manager
                                ) ORDER BY tm.created_at

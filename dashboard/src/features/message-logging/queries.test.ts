@@ -54,7 +54,7 @@ describe("Message Logging Query Module", () => {
             const result = await getEditedMessagesHistory("guild_123");
 
             expect(result[0].id).toBe(1);
-            expect(result[0].updated_at).toBe("2026-01-01T00:00:00.000Z");
+            expect(result[0].updated_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
             const [sql, params = []] = mockQuery.mock.calls[0];
             expect(params[0]).toBe("guild_123");
             expect(params[1]).toBe(10);

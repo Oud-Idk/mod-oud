@@ -165,17 +165,17 @@ describe("Ticket Schemas Unit Tests", () => {
             closed_at: null,
         };
 
-        it("should coerce a string id to a number and Date created_at to ISO", () => {
+        it("should coerce a string id to a number and created_at to a Date", () => {
             const result = TicketSchema.safeParse({
                 ...baseRow,
                 id: "42",
-                created_at: new Date("2026-01-01T00:00:00.000Z"),
+                created_at: "2026-01-01T00:00:00.000Z",
             });
 
             expect(result.success).toBe(true);
             if (result.success) {
                 expect(result.data.id).toBe(42);
-                expect(result.data.created_at).toBe("2026-01-01T00:00:00.000Z");
+                expect(result.data.created_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
             }
         });
 
@@ -222,7 +222,7 @@ describe("Ticket Schemas Unit Tests", () => {
             }
         });
 
-        it("should convert a Date created_at to an ISO string", () => {
+        it("should keep a Date created_at as a Date", () => {
             const result = TicketMessageSchema.safeParse({
                 message_id: "msg_1",
                 author_id: "user_1",
@@ -231,7 +231,7 @@ describe("Ticket Schemas Unit Tests", () => {
 
             expect(result.success).toBe(true);
             if (result.success) {
-                expect(result.data.created_at).toBe("2026-01-02T00:00:00.000Z");
+                expect(result.data.created_at).toEqual(new Date("2026-01-02T00:00:00.000Z"));
             }
         });
     });

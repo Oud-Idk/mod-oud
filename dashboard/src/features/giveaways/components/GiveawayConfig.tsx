@@ -24,9 +24,10 @@ interface GiveawayConfigProps {
     onDeleteDiscordMessage: (id: number) => Promise<void>;
 }
 
-function formatToLocalDateTime(isoString?: string): string {
-    if (isoString === undefined || isoString.length === 0) return "";
-    const date = new Date(isoString);
+/// A datetime-local input only accepts a local `YYYY-MM-DDTHH:mm` string; React
+/// would stringify a Date via toString() and the input would reject it.
+function formatToLocalDateTime(date?: Date | null): string {
+    if (date === undefined || date === null) return "";
     if (Number.isNaN(date.getTime())) return "";
 
     const pad = (n: number): string => String(n).padStart(2, "0");
@@ -169,8 +170,7 @@ export function GiveawayConfig({
                     value={formatToLocalDateTime(config.end_time)}
                     onChange={(e) => {
                         if (e.target.value.length === 0) return;
-                        const utcISOString = new Date(e.target.value).toISOString();
-                        onChange({ ...config, end_time: utcISOString });
+                        onChange({ ...config, end_time: new Date(e.target.value) });
                     }}
                     className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground focus-ring w-full max-w-xs cursor-pointer"
                 />

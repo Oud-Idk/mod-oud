@@ -4,8 +4,6 @@ import { z } from "zod";
 export const feedDeliverySchema = z.enum(["PUBSUBHUBBUB", "POLLING"]);
 export type FeedDelivery = z.infer<typeof feedDeliverySchema>;
 
-const isoDateSchema = z.coerce.date().transform((date: Date) => date.toISOString());
-
 /// One row of "this guild's channel is subscribed to this feed".
 export const rssFeedSubscriptionSchema = z.object({
     feedId: z.uuid("Invalid feed ID"),
@@ -14,9 +12,9 @@ export const rssFeedSubscriptionSchema = z.object({
     delivery: feedDeliverySchema,
     hubUrl: z.string().nullish(),
     topic: z.string().nullish(),
-    leaseExpiresAt: isoDateSchema.nullish(),
+    leaseExpiresAt: z.coerce.date().nullish(),
     intervalSecs: z.number().int().nullish(),
-    lastPolledAt: isoDateSchema.nullish(),
+    lastPolledAt: z.coerce.date().nullish(),
 });
 export type RssFeedSubscription = z.infer<typeof rssFeedSubscriptionSchema>;
 

@@ -8,7 +8,7 @@ import { verifyGuildAccess } from "@/features/_shared/guild";
 export async function getAutomodLogsAction(
     guildId: string,
     limit = 20,
-    cursorCreatedAt?: string | null,
+    cursorCreatedAt?: Date | null,
     cursorId?: string | null
 ): Promise<AutomodLog[]> {
     await verifyGuildAccess(guildId);
@@ -26,7 +26,7 @@ export async function getJoinLeaveLogsAction(
     guildId: string,
     action?: JoinLeaveAction | null,
     limit = 20,
-    cursorCreatedAt?: string | null,
+    cursorCreatedAt?: Date | null,
     cursorId?: string | null
 ): Promise<JoinLeaveLog[]> {
     await verifyGuildAccess(guildId);
@@ -43,7 +43,7 @@ export async function getJoinLeaveLogsAction(
 export async function getModerationLogsAction(
     guildId: string,
     limit = 20,
-    cursorCreatedAt?: string | null,
+    cursorCreatedAt?: Date | null,
     cursorCaseId?: string | null
 ): Promise<ModerationLog[]> {
     await verifyGuildAccess(guildId);

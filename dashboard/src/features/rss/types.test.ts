@@ -129,10 +129,11 @@ describe("RSS Schemas", () => {
             expect(result.intervalSecs).toBe(600);
         });
 
-        it("should convert Postgres timestamps to ISO strings", () => {
+        it("should keep Postgres timestamps as native Dates", () => {
             const result = rssFeedSubscriptionSchema.parse(row);
 
-            expect(result.leaseExpiresAt).toBe("2026-09-27T10:00:00.000Z");
+            expect(result.leaseExpiresAt).toBeInstanceOf(Date);
+            expect(result.leaseExpiresAt?.toISOString()).toBe("2026-09-27T10:00:00.000Z");
         });
 
         it("should tolerate null timestamps", () => {

@@ -148,7 +148,7 @@ export function GiveawaysBody({
                         guild_id: guildId,
                         prize: v.prize ?? "New Giveaway",
                         winner_count: v.winner_count ?? 1,
-                        end_time: v.end_time ?? new Date().toISOString(),
+                        end_time: v.end_time ?? new Date(),
                         host_id: userId,
                         message_id: null,
                         message: DEFAULT_GIVEAWAY_MESSAGE,

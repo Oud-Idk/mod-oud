@@ -66,8 +66,8 @@ describe("Giveaways Query Module", () => {
                 guild_id: "guild_123",
                 prize: "Nitro",
                 winner_count: 2,
-                end_time: END_TIME,
             });
+            expect(result[0].end_time).toEqual(new Date(END_TIME));
         });
 
         it("should return an empty array when no rows exist", async () => {
@@ -78,7 +78,7 @@ describe("Giveaways Query Module", () => {
             expect(result).toEqual([]);
         });
 
-        it("should coerce string ids/winner counts and convert Date end_time to ISO", async () => {
+        it("should coerce string ids/winner counts and keep end_time a Date", async () => {
             mockQuery.mockResolvedValue({
                 rows: [
                     createMockGiveawayRow({
@@ -94,7 +94,7 @@ describe("Giveaways Query Module", () => {
 
             expect(result[0].id).toBe(7);
             expect(result[0].winner_count).toBe(3);
-            expect(result[0].end_time).toBe("2026-01-01T00:00:00.000Z");
+            expect(result[0].end_time).toEqual(new Date("2026-01-01T00:00:00.000Z"));
         });
 
         it("should fall back to the default message for legacy slash-command rows", async () => {

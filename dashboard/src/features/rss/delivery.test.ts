@@ -21,14 +21,14 @@ describe("pollIntervalMinutes", () => {
 
 describe("formatTimestamp", () => {
     it("should render a parseable timestamp", () => {
-        const iso = "2026-09-27T10:00:00.000Z";
-        expect(formatTimestamp(iso)).toBe(new Date(iso).toLocaleString());
+        const date = new Date("2026-09-27T10:00:00.000Z");
+        expect(formatTimestamp(date)).toBe(date.toLocaleString());
     });
 
     it("should report absent and unparseable timestamps alike", () => {
         expect(formatTimestamp(null)).toBe("never");
         expect(formatTimestamp(undefined)).toBe("never");
-        expect(formatTimestamp("not-a-date")).toBe("never");
+        expect(formatTimestamp(new Date("not-a-date"))).toBe("never");
     });
 });
 
@@ -59,7 +59,7 @@ describe("DELIVERY presentation table", () => {
 
     it("should describe a polled feed by its cadence", () => {
         const detail = DELIVERY[FEED_DELIVERY.POLLING].detail(
-            row({ intervalSecs: 1800, lastPolledAt: "2026-09-26T10:00:00.000Z" })
+            row({ intervalSecs: 1800, lastPolledAt: new Date("2026-09-26T10:00:00.000Z") })
         );
 
         expect(detail).toContain("Every 30 min");
@@ -68,7 +68,7 @@ describe("DELIVERY presentation table", () => {
 
     it("should describe a pushed feed by its lease", () => {
         const detail = DELIVERY[FEED_DELIVERY.PUBSUBHUBBUB].detail(
-            row({ delivery: FEED_DELIVERY.PUBSUBHUBBUB, leaseExpiresAt: "2026-09-27T10:00:00.000Z" })
+            row({ delivery: FEED_DELIVERY.PUBSUBHUBBUB, leaseExpiresAt: new Date("2026-09-27T10:00:00.000Z") })
         );
 
         expect(detail).toContain("Lease expires");

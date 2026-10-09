@@ -15,7 +15,7 @@ export const warnSchema = z.object({
     guild_id: z.string(),
     moderator_id: z.string(),
     reason: z.string().default("No reason provided."),
-    created_at: z.coerce.date().transform((d) => d.toISOString()),
+    created_at: z.coerce.date(),
     is_active: z.boolean().default(true),
 });
 

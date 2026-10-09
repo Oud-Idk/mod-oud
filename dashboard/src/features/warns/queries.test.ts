@@ -62,7 +62,7 @@ describe("Warns Query Module", () => {
             const result = await searchWarns("guild_123", "user_1");
 
             expect(result[0].id).toBe("warn_1");
-            expect(result[0].created_at).toBe("2026-01-01T00:00:00.000Z");
+            expect(result[0].created_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
             const params = mockQuery.mock.calls[0][1];
             expect(params).toEqual(["guild_123", "user_1"]);
         });

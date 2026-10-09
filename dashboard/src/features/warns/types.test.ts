@@ -23,7 +23,7 @@ describe("moderationActionSchema", () => {
 });
 
 describe("warnSchema", () => {
-    it("should apply defaults and ISO the date", () => {
+    it("should apply defaults and keep the date as a Date", () => {
         const parsed = warnSchema.parse({
             id: "warn_1",
             user_id: "user_1",
@@ -34,7 +34,7 @@ describe("warnSchema", () => {
 
         expect(parsed.reason).toBe("No reason provided.");
         expect(parsed.is_active).toBe(true);
-        expect(parsed.created_at).toBe("2026-01-01T00:00:00.000Z");
+        expect(parsed.created_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
     });
 
     it("should keep provided values", () => {

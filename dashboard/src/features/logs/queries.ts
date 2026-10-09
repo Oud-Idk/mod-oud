@@ -63,7 +63,7 @@ function formatDuration(duration: PgInterval | null): string | null {
 export async function getAutomodLogs(
     guildId: string,
     limit = 20,
-    cursorCreatedAt?: string | null,
+    cursorCreatedAt?: Date | null,
     cursorId?: string | null
 ): Promise<AutomodLog[]> {
     const params = getLogsInputSchema.parse({
@@ -111,7 +111,7 @@ export async function getJoinLeaveLogs(
     guildId: string,
     action?: JoinLeaveAction | null,
     limit = 20,
-    cursorCreatedAt?: string | null,
+    cursorCreatedAt?: Date | null,
     cursorId?: string | null
 ): Promise<JoinLeaveLog[]> {
     const params = getLogsInputSchema.parse({
@@ -158,7 +158,7 @@ export async function getJoinLeaveLogs(
 export async function getModerationLogs(
     guildId: string,
     limit = 20,
-    cursorCreatedAt?: string | null,
+    cursorCreatedAt?: Date | null,
     cursorCaseId?: string | null
 ): Promise<ModerationLog[]> {
     const params = getLogsInputSchema.parse({

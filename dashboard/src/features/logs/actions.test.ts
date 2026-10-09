@@ -38,7 +38,7 @@ describe("Logs Action Module", () => {
                 id: "1", guild_id: "guild_123", user_id: "u",
                 channel_id: null, message_id: null, rule_type: "BAD_WORD",
                 trigger_content: null, original_content: null, actions_taken: [],
-                created_at: "2026-01-01T00:00:00.000Z", username: "Spice",
+                created_at: new Date("2026-01-01T00:00:00.000Z"), username: "Spice",
             }];
             vi.mocked(getAutomodLogs).mockResolvedValue(logs);
 
@@ -68,7 +68,7 @@ describe("Logs Action Module", () => {
         it("should return the query result with the action filter", async () => {
             const logs: JoinLeaveLog[] = [{
                 id: "1", user_id: "u", guild_id: "guild_123",
-                action: "JOIN", created_at: "2026-01-01T00:00:00.000Z",
+                action: "JOIN", created_at: new Date("2026-01-01T00:00:00.000Z"),
                 username: "Spicy is so stupid he whiffed a 10 km/h defense",
             }];
             vi.mocked(getJoinLeaveLogs).mockResolvedValue(logs);
@@ -93,14 +93,15 @@ describe("Logs Action Module", () => {
             const logs: ModerationLog[] = [{
                 case_id: "1", guild_id: "guild_123", target_id: null,
                 moderator_id: "m", action_type: "BAN", reason: null,
-                duration: null, created_at: "2026-01-01T00:00:00.000Z",
+                duration: null, created_at: new Date("2026-01-01T00:00:00.000Z"),
                 target_username: "SpicyWolf", moderator_username: "Oud",
             }];
             vi.mocked(getModerationLogs).mockResolvedValue(logs);
 
-            const result = await getModerationLogsAction("guild_123", 10, "2026-01-01T00:00:00.000Z", "5");
+            const cursor = new Date("2026-01-01T00:00:00.000Z");
+            const result = await getModerationLogsAction("guild_123", 10, cursor, "5");
 
-            expect(getModerationLogs).toHaveBeenCalledWith("guild_123", 10, "2026-01-01T00:00:00.000Z", "5");
+            expect(getModerationLogs).toHaveBeenCalledWith("guild_123", 10, cursor, "5");
             expect(result).toEqual(logs);
         });
 

@@ -171,6 +171,4 @@ export const TogglableMessageSchema = z
 
 export type MessageLayout = z.infer<typeof messageLayoutSchema>;
 
-export const IsoDateSchema = z
-    .union([z.string(), z.date()])
-    .transform((val) => (val instanceof Date ? val.toISOString() : val));
+export const IsoDateSchema = z.coerce.date();

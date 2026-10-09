@@ -43,7 +43,7 @@ export function GiveawayCreateModal({
         startTransition(async () => {
             try {
                 // Default end time to 24 hours from now
-                const defaultEndTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+                const defaultEndTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
                 const newConfig = await onSave({
                     channel_id: channelId,

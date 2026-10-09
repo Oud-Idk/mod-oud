@@ -45,7 +45,7 @@ export function EditedMessageLogViewer({
                                 <span className="text-brand font-medium">{channelName}</span>
                             </span>
                             <span className="text-muted-foreground">
-                                {new Date(log.updated_at).toLocaleString()}
+                                {log.updated_at.toLocaleString()}
                             </span>
                         </div>
 

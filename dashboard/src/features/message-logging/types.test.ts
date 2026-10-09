@@ -50,7 +50,7 @@ describe("defaultMessageLoggingConfig", () => {
 });
 
 describe("deletedMessageSchema", () => {
-    it("should coerce the numeric id and ISO date", () => {
+    it("should coerce the numeric id and keep deleted_at as a Date", () => {
         const parsed = deletedMessageSchema.parse({
             id: "42",
             message_id: "msg_1",
@@ -62,7 +62,7 @@ describe("deletedMessageSchema", () => {
         });
 
         expect(parsed.id).toBe(42);
-        expect(parsed.deleted_at).toBe("2026-01-01T00:00:00.000Z");
+        expect(parsed.deleted_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
         expect(parsed.deleted_by_id).toBeNull();
         expect(parsed.attachment_url).toBeNull();
     });
@@ -78,7 +78,7 @@ describe("deletedMessageSchema", () => {
         });
 
         expect(parsed.content).toBe("");
-        expect(parsed.deleted_at).toBe("2026-01-01T00:00:00.000Z");
+        expect(parsed.deleted_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
     });
 
     it("should REJECT a missing guild_id", () => {
@@ -95,7 +95,7 @@ describe("deletedMessageSchema", () => {
 });
 
 describe("editedMessageSchema", () => {
-    it("should coerce id and ISO the updated_at date", () => {
+    it("should coerce id and keep updated_at as a Date", () => {
         const parsed = editedMessageSchema.parse({
             id: "7",
             message_id: "msg_1",
@@ -108,7 +108,7 @@ describe("editedMessageSchema", () => {
         });
 
         expect(parsed.id).toBe(7);
-        expect(parsed.updated_at).toBe("2026-01-01T00:00:00.000Z");
+        expect(parsed.updated_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
     });
 
     it("should default nullish content fields", () => {

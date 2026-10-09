@@ -68,7 +68,7 @@ function reportedMessageFixture(): ReportedMessage {
         status: "UNDER_REVIEW",
         moderator_id: null,
         moderator_notes: null,
-        created_at: "2026-01-01T00:00:00.000Z",
+        created_at: new Date("2026-01-01T00:00:00.000Z"),
         resolved_at: null,
         message_deleted: false,
         user_warned: false,

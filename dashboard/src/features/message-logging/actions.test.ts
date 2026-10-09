@@ -98,7 +98,7 @@ describe("Message Logging Action Module", () => {
                     guild_id: "guild_123",
                     old_content: null,
                     new_content: null,
-                    updated_at: "2026-01-01T00:00:00.000Z",
+                    updated_at: new Date("2026-01-01T00:00:00.000Z"),
                     author_username: "Fucking Spicy",
                 },
             ];
@@ -136,7 +136,7 @@ describe("Message Logging Action Module", () => {
                     guild_id: "guild_123",
                     content: "hello",
                     attachment_url: null,
-                    deleted_at: "2026-01-01T00:00:00.000Z",
+                    deleted_at: new Date("2026-01-01T00:00:00.000Z"),
                     author_username: "I don't like Spicy",
                     deleted_by_username: "Spice",
                 },

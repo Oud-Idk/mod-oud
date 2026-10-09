@@ -81,7 +81,7 @@ function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                                         </button>
                                     )}
                                 </TableCell>
-                                <TableCell>{new Date(warn.created_at).toLocaleString()}</TableCell>
+                                <TableCell>{warn.created_at.toLocaleString()}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

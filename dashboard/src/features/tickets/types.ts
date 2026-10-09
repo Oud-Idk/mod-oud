@@ -9,9 +9,7 @@ export const FormatSchema = z.enum(["TEXT", "EMBED"]).default("TEXT");
 export const TicketStatusSchema = z.enum(["OPEN", "CLOSED"]);
 export const ViewTicketStatusSchema = z.enum(["ALL", "OPEN", "CLOSED"]);
 
-const IsoDateSchema = z
-    .union([z.string(), z.date()])
-    .transform((val) => (val instanceof Date ? val.toISOString() : val));
+const TimestampSchema = z.coerce.date();
 
 export const TicketConfigSchema = z.object({
     categoryId: z.string().nullish().default(null),
@@ -61,7 +59,7 @@ export const TicketMessageSchema = z.object({
     message_id: z.string(),
     author_id: z.string(),
     content: z.string().default(""),
-    created_at: IsoDateSchema,
+    created_at: TimestampSchema,
     is_ticket_manager: z.boolean().default(false),
 });
 
@@ -70,8 +68,8 @@ export const TicketSchema = z.object({
     channel_id: z.string(),
     opener_id: z.string(),
     status: TicketStatusSchema,
-    created_at: IsoDateSchema,
-    closed_at: IsoDateSchema.nullable(),
+    created_at: TimestampSchema,
+    closed_at: TimestampSchema.nullable(),
     message_count: z.coerce.number().int().nonnegative().default(0),
 });
 
@@ -81,9 +79,9 @@ export const TicketHistorySchema = z.object({
     channel_id: z.string(),
     opener_id: z.string(),
     status: TicketStatusSchema,
-    created_at: IsoDateSchema,
-    closed_at: IsoDateSchema.nullable(),
-    last_activity: IsoDateSchema,
+    created_at: TimestampSchema,
+    closed_at: TimestampSchema.nullable(),
+    last_activity: TimestampSchema,
     message_count: z.coerce.number().int().nonnegative().default(0),
     messages: z.array(TicketMessageSchema).default([]),
 });

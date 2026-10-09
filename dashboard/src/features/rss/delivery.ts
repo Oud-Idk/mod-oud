@@ -20,10 +20,9 @@ export function pollIntervalMinutes(intervalSecs?: number | null): number {
 }
 
 /// Renders a timestamp for the table, treating absent and unparseable alike.
-export function formatTimestamp(iso?: string | null): string {
-    if (iso === null || iso === undefined) return "never";
+export function formatTimestamp(date?: Date | null): string {
+    if (date === null || date === undefined) return "never";
 
-    const date = new Date(iso);
     return Number.isNaN(date.getTime()) ? "never" : date.toLocaleString();
 }
 
