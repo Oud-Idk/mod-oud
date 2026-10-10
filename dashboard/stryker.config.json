@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
-  "coverageAnalysis": "perTest",
+  "coverageAnalysis": "all",
   "mutate": [
     "src/features/**/types.ts",
     "src/features/**/queries.ts",
@@ -14,7 +14,7 @@
   "reporters": ["html", "clear-text", "progress"],
   "ignorers": ["console-all"],
   "plugins": [
-    "@stryker-mutator/*",
+    "@stryker-mutator/vitest-runner",
     "@stryker-ignorer/console-all"
   ]
 }
