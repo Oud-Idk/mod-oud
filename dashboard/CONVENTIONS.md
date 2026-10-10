@@ -417,6 +417,17 @@ my-dashboard/
 * **Mock at the edges:** Mock external network requests (`fetch` to Discord API, backend Rust bot endpoints) and infrastructure singletons (`lib/db.ts`).
 * **Do NOT mock Zod or domain helpers:** Test real Zod schema parsing, real transformations, and real business logic.
 
+### 5. Database Integration Tests (`pnpm test:db`)
+
+A mocked `queries.test.ts` asserts on SQL substrings and parameter positions. It cannot catch a column that does not exist, an `ON CONFLICT` target that is not a unique key, a join that drops rows, or a `bigint` arriving as a string. Those need a real Postgres.
+
+* **Two Vitest projects.** `pnpm test` runs the `unit` project (mocked, hermetic, no Docker). `pnpm test:db` runs the `db` project against a real Postgres. `pnpm test:all` runs both. A DB-backed test belongs in the `db` project only.
+* **Naming:** `queries.integration.test.ts`, colocated beside its mocked twin.
+* **Keep both layers.** The mocked file keeps the error-propagation and cache-invalidation-on-throw cases a real database cannot produce. The integration file owns SQL correctness. Delete the positional `params[12]` assertions that the integration file now covers.
+* **The harness lives in `src/test/`.** It is cross-feature infrastructure, the same tier as `lib/`, not a feature.
+* **The schema is not owned here.** `src/test/database.ts` applies the Rust bot's `../migrations` to a throwaway database. Never hand-write a dashboard schema: a second source of truth is precisely the drift these tests exist to catch.
+* **Only `db` goes real.** Redis stays mocked, so a db-only run needs no Redis server.
+* **Safety.** The harness refuses to create, drop, or truncate any database not named `mod_oud_test*`, and verifies the app's own pool points at the worker database before a test can reach it. Do not relax either guard, and do not point `TEST_DATABASE_URL` at a shared or development server.
 
 ## 🚫 Code Smells (What NOT to do)
 
@@ -432,3 +443,5 @@ my-dashboard/
 * **String timestamps**: `z.coerce.string()` on a `created_at` / `updated_at` / `*_at` field, or a `.transform((d) => d.toISOString())` bolted onto a date schema. Dates stay `Date`. See [Dates Stay Dates](#-dates-stay-dates).
 * **Redundant `new Date()`**: `new Date(row.created_at)` when the field is already typed `Date`. Compiles fine, allocates a second `Date`, and misleads the next reader.
 * **`string | Date`**: a union that hedges a field's type instead of committing to one. Pick `Date`; if you genuinely don't know, the schema is wrong.
+* **Static-importing `@/lib/db` in the test harness**: `lib/db.ts` builds its pool at module load, so the harness would connect before `src/test/setup.ts` repoints `DATABASE_URL` at the worker database. See [Database Integration Tests](#5-database-integration-tests-pnpm-testdb).
+* **Loading `.env.local` via `process.loadEnvFile` in `globalSetup`**: it runs in Vitest's main process and worker forks inherit its env, which would leak `INTERNAL_API_SECRET` and the rest into unrelated tests. Parse the file instead.
