@@ -240,10 +240,20 @@ async fn create_verify_channel(
         kind: PermissionOverwriteType::Role(verified_role_id),
     };
 
+    let current_user = http.get_current_user().await?;
+    let self_overwrite = PermissionOverwrite {
+        allow: Permissions::VIEW_CHANNEL
+            | Permissions::SEND_MESSAGES
+            | Permissions::EMBED_LINKS
+            | Permissions::READ_MESSAGE_HISTORY,
+        deny: Permissions::empty(),
+        kind: PermissionOverwriteType::Member(current_user.id),
+    };
+
     let channel_builder = CreateChannel::new("verify")
         .kind(ChannelType::Text)
         .topic("Please verify here to get access to the server!")
-        .permissions(vec![everyone_overwrite, verified_overwrite]);
+        .permissions(vec![everyone_overwrite, verified_overwrite, self_overwrite]);
 
     Ok(guild_id.create_channel(http, channel_builder).await?)
 }
