@@ -11,7 +11,7 @@
     "src/features/verification/service.ts"
   ],
   "vitest": {
-    "configFile": "vitest.config.ts"
+    "configFile": "vitest.stryker.config.ts"
   },
   "reporters": ["html", "clear-text", "progress"],
   "ignorers": ["console-all"],
