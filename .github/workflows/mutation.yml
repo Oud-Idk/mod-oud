@@ -1,0 +1,78 @@
+name: mutation
+
+# Mutation scoring runs on pull requests only. It lives outside checks.yml on
+# purpose: deploy.yml calls checks.yml as a reusable workflow and gates the build
+# on every job inside it, so putting this there would add a slow, flaky-prone run
+# to the production deploy path. The score is a trend signal, not a gate on
+# unrelated work, so the only thing it fails on is a collapse far below the
+# current 82%.
+#
+# Needs Postgres because the stryker vitest config runs both test projects, the
+# db one included.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Stops a superseded push from burning a runner while an older one still runs.
+  group: mutation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pnpm version pinned in dashboard/package.json's packageManager field
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: dashboard/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        env:
+          SHARP_IGNORE_GLOBAL_LIBVIPS: 1
+        run: pnpm install --frozen-lockfile
+
+      # The harness applies ../migrations to throwaway databases and refuses to
+      # touch anything not named mod_oud_test*, so this URL is all it can reach.
+      # Concurrency is passed as a flag rather than left to the cpu count, because
+      # every Stryker worker also holds a database connection.
+      - name: Mutation score
+        working-directory: dashboard
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+        run: pnpm run mutate --concurrency 4
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: dashboard/reports/mutation
+          retention-days: 14
