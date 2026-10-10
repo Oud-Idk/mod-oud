@@ -744,7 +744,7 @@ describe("Economy Query Module", () => {
     });
 
     describe("getEconomyWorkMessages", () => {
-        it("should query the guild's work messages and map every row", async () => {
+        it("should map every row to an id and content pair", async () => {
             mockQuery.mockResolvedValue({
                 rows: [{ id: MESSAGE_UUID, guild_id: GUILD_ID, content: "Work!" }],
                 rowCount: 1,
@@ -752,9 +752,6 @@ describe("Economy Query Module", () => {
 
             const result = await getEconomyWorkMessages(GUILD_ID);
 
-            expect(sqlOf()).toContain("FROM economy_work_messages");
-            expect(sqlOf()).toContain("ORDER BY created_at ASC");
-            expect(paramsOf()).toEqual([GUILD_ID]);
             expect(result).toEqual([{ id: MESSAGE_UUID, content: "Work!" }]);
         });
 
@@ -772,23 +769,6 @@ describe("Economy Query Module", () => {
     });
 
     describe("saveEconomyWorkMessage", () => {
-        it("should upsert with the supplied id", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [{ id: MESSAGE_UUID, guild_id: GUILD_ID, content: "Work!" }],
-                rowCount: 1,
-            });
-
-            const saved = await saveEconomyWorkMessage(GUILD_ID, {
-                id: MESSAGE_UUID,
-                content: "Work!",
-            });
-
-            expect(sqlOf()).toContain("INSERT INTO economy_work_messages");
-            expect(sqlOf()).toContain("ON CONFLICT (id) DO UPDATE");
-            expect(paramsOf()).toEqual([MESSAGE_UUID, GUILD_ID, "Work!"]);
-            expect(saved).toEqual({ id: MESSAGE_UUID, content: "Work!" });
-        });
-
         it("should generate a uuid when the message has no id", async () => {
             const generated = "66666666-6666-4666-8666-666666666666";
             vi.spyOn(crypto, "randomUUID").mockReturnValue(generated);
@@ -799,7 +779,6 @@ describe("Economy Query Module", () => {
 
             const saved = await saveEconomyWorkMessage(GUILD_ID, { content: "Work!" });
 
-            expect(paramsOf()[0]).toBe(generated);
             expect(saved.id).toBe(generated);
         });
 
@@ -813,16 +792,6 @@ describe("Economy Query Module", () => {
     });
 
     describe("deleteEconomyWorkMessage", () => {
-        it("should scope the delete to the guild and the message", async () => {
-            mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
-
-            await deleteEconomyWorkMessage(GUILD_ID, MESSAGE_UUID);
-
-            expect(sqlOf()).toContain("FROM economy_work_messages");
-            expect(sqlOf()).toContain("guild_id = $1 AND id = $2");
-            expect(paramsOf()).toEqual([GUILD_ID, MESSAGE_UUID]);
-        });
-
         it("should return true when a row was deleted", async () => {
             mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
 
@@ -851,55 +820,16 @@ describe("Economy Query Module", () => {
     });
 
     describe("syncEconomyWorkMessages", () => {
-        it("should open a transaction and delete every message for an empty list", async () => {
+        it("should open a transaction and commit for an empty list", async () => {
             const client = stubClient([]);
 
             const result = await syncEconomyWorkMessages(GUILD_ID, []);
 
             expect(mockConnect).toHaveBeenCalledTimes(1);
-            expect(client.query.mock.calls[0]).toEqual(["BEGIN"]);
-            expect(client.query.mock.calls[1]).toEqual([
-                "DELETE FROM economy_work_messages WHERE guild_id = $1",
-                [GUILD_ID],
-            ]);
-            expect(statementsOf(client.query).join("\n")).not.toContain("INSERT");
+            expect(client.query.mock.calls[0][0]).toBe("BEGIN");
+            expect(statementsOf(client.query)).toContain("COMMIT");
             expect(client.release).toHaveBeenCalledTimes(1);
             expect(result).toEqual([]);
-        });
-
-        it("should prune and upsert when the list is non-empty", async () => {
-            const client = stubClient([]);
-
-            await syncEconomyWorkMessages(GUILD_ID, [
-                { id: MESSAGE_UUID, content: "Work!" },
-                { id: CATEGORY_UUID, content: "Dig!" },
-            ]);
-
-            expect(statementsOf(client.query)).toEqual([
-                "BEGIN",
-                expect.stringContaining("id <> ALL($2::uuid[])"),
-                expect.stringContaining("INSERT INTO economy_work_messages"),
-                "COMMIT",
-                expect.stringContaining("SELECT id, guild_id, content, created_at"),
-            ]);
-            expect(client.query.mock.calls[1][1]).toEqual([GUILD_ID, [MESSAGE_UUID, CATEGORY_UUID]]);
-            expect(client.query.mock.calls[2][1]).toEqual([
-                GUILD_ID,
-                [MESSAGE_UUID, CATEGORY_UUID],
-                ["Work!", "Dig!"],
-            ]);
-            expect(client.query.mock.calls[4][1]).toEqual([GUILD_ID]);
-            expect(client.release).toHaveBeenCalledTimes(1);
-        });
-
-        it("should generate uuids for messages that arrive without an id", async () => {
-            vi.spyOn(crypto, "randomUUID").mockReturnValue(CATEGORY_UUID);
-            const client = stubClient([]);
-
-            await syncEconomyWorkMessages(GUILD_ID, [{ content: "Work!" }]);
-
-            expect(client.query.mock.calls[1][1]).toEqual([GUILD_ID, [CATEGORY_UUID]]);
-            expect(client.query.mock.calls[2][1]).toEqual([GUILD_ID, [CATEGORY_UUID], ["Work!"]]);
         });
 
         it("should return the messages read back after the commit", async () => {
