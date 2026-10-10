@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Client } from "pg";
@@ -6,15 +6,33 @@ import { Client } from "pg";
 // Migrations are owned by the Rust bot and applied by sqlx at startup, so the
 // dashboard has no schema of its own to apply. Reading the same files is what
 // makes an integration test catch a query that no longer matches the real schema.
-const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../../../migrations");
+//
+// Resolved by walking up rather than by a fixed relative path, because Stryker
+// runs the suite from .stryker-tmp/sandbox-*/src/test and copies only the
+// dashboard, which puts ../../../migrations somewhere that does not exist.
+const MIGRATIONS_DIR = resolveMigrationsDir();
 
-export const TEMPLATE_DB = "mod_oud_test_template";
-const WORKER_DB_PREFIX = "mod_oud_test_w";
-const SAFE_DB_NAME_PREFIX = "mod_oud_test";
+function resolveMigrationsDir(): string {
+    const override = process.env.MIGRATIONS_DIR;
+    if (override !== undefined && override !== "") return override;
 
-export function workerDatabaseName(workerId: string): string {
-    return `${WORKER_DB_PREFIX}${workerId}`;
+    let dir = import.meta.dirname;
+    for (let depth = 0; depth < 8; depth++) {
+        const candidate = path.join(dir, "migrations");
+        if (existsSync(candidate) && readdirSync(candidate).some((f) => f.endsWith(".sql"))) {
+            return candidate;
+        }
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+    }
+
+    throw new Error(
+        "Could not find a migrations directory above this file. Set MIGRATIONS_DIR to the Rust bot's migrations folder."
+    );
 }
+
+const SAFE_DB_NAME_PREFIX = "mod_oud_test";
 
 function quoteIdent(name: string): string {
     return `"${name.replaceAll('"', '""')}"`;
@@ -112,19 +130,68 @@ export async function dropDatabaseIfExists(database: string): Promise<void> {
     });
 }
 
-// Worker databases are cloned from the template, so anything left over from an
-// earlier run would still carry that run's schema and silently skip migrations.
-export async function dropStaleWorkerDatabases(): Promise<string[]> {
+// Stryker starts one test runner per worker and each runs globalSetup at the same
+// time. Sharing one template between them races: they fight over CREATE DATABASE,
+// and a runner that loses would clone from a template that is still migrating.
+// Every database is therefore named after the pid of the process that owns it, so
+// concurrent invocations never touch the same one.
+export function templateDatabaseName(runId: string): string {
+    return `mod_oud_test_t${runId}`;
+}
+
+export function workerDatabaseName(runId: string, workerId: string): string {
+    return `mod_oud_test_w${workerId}_${runId}`;
+}
+
+function runIdOf(database: string): string | undefined {
+    const match = /^mod_oud_test_(?:t|w\d+_)(.+)$/.exec(database);
+    return match?.[1];
+}
+
+function isProcessAlive(pid: string): boolean {
+    try {
+        process.kill(Number(pid), 0);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Databases whose owning process is gone come from a crashed or killed run.
+export async function dropAbandonedDatabases(): Promise<string[]> {
     return withMaintenanceClient(async (client) => {
         const { rows } = await client.query<{ datname: string }>(
             "SELECT datname FROM pg_database WHERE datname LIKE $1",
-            [`${WORKER_DB_PREFIX}%`]
+            [`${SAFE_DB_NAME_PREFIX}%`]
         );
+
+        const dropped: string[] = [];
         for (const row of rows) {
             assertSafeDatabaseName(row.datname);
+            const runId = runIdOf(row.datname);
+            if (runId !== undefined && isProcessAlive(runId)) continue;
             await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(row.datname)} WITH (FORCE)`);
+            dropped.push(row.datname);
         }
-        return rows.map((row) => row.datname);
+        return dropped;
+    });
+}
+
+export async function dropRunDatabases(runId: string): Promise<string[]> {
+    return withMaintenanceClient(async (client) => {
+        const { rows } = await client.query<{ datname: string }>(
+            "SELECT datname FROM pg_database WHERE datname LIKE $1",
+            [`${SAFE_DB_NAME_PREFIX}%`]
+        );
+
+        const dropped: string[] = [];
+        for (const row of rows) {
+            assertSafeDatabaseName(row.datname);
+            if (runIdOf(row.datname) !== runId) continue;
+            await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(row.datname)} WITH (FORCE)`);
+            dropped.push(row.datname);
+        }
+        return dropped;
     });
 }
 
@@ -140,6 +207,13 @@ export async function createDatabase(database: string, template?: string): Promi
 
 export async function createDatabaseFromTemplate(database: string, template: string): Promise<void> {
     await createDatabase(database, template);
+}
+
+declare module "vitest" {
+    interface ProvidedContext {
+        runId: string;
+        templateDatabase: string;
+    }
 }
 
 interface Queryable {

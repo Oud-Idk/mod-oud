@@ -1,28 +1,43 @@
 import { Client } from "pg";
 import {
-    TEMPLATE_DB,
     applyMigrations,
     createDatabase,
-    dropDatabaseIfExists,
-    dropStaleWorkerDatabases,
+    dropAbandonedDatabases,
+    dropRunDatabases,
+    templateDatabaseName,
     testDatabaseUrl,
 } from "./database";
 
-// Rebuilt from scratch every run. Several migrations create indexes and enum types
-// without IF NOT EXISTS, so re-applying them onto a populated database fails.
-export default async function globalSetup(): Promise<void> {
-    const dropped = await dropStaleWorkerDatabases();
-    await dropDatabaseIfExists(TEMPLATE_DB);
-    await createDatabase(TEMPLATE_DB);
+interface SetupContext {
+    provide: (key: "runId" | "templateDatabase", value: string) => void;
+}
 
-    const client = new Client({ connectionString: testDatabaseUrl(TEMPLATE_DB) });
+export default async function setup({ provide }: SetupContext): Promise<() => Promise<void>> {
+    // The pid keeps concurrent invocations, such as Stryker's per-worker test
+    // runners, from sharing a template database.
+    const runId = String(process.pid);
+    const template = templateDatabaseName(runId);
+
+    const abandoned = await dropAbandonedDatabases();
+    await createDatabase(template);
+
+    const client = new Client({ connectionString: testDatabaseUrl(template) });
     await client.connect();
+    let applied: number;
     try {
-        const count = await applyMigrations(client);
-        process.stdout.write(
-            `[db] applied ${String(count)} migrations to ${TEMPLATE_DB}, cleared ${String(dropped.length)} worker database(s)\n`
-        );
+        applied = await applyMigrations(client);
     } finally {
         await client.end();
     }
+
+    process.stdout.write(
+        `[db] applied ${String(applied)} migrations to ${template}, cleared ${String(abandoned.length)} abandoned database(s)\n`
+    );
+
+    provide("runId", runId);
+    provide("templateDatabase", template);
+
+    return async () => {
+        await dropRunDatabases(runId);
+    };
 }

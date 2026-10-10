@@ -428,6 +428,8 @@ A mocked `queries.test.ts` asserts on SQL substrings and parameter positions. It
 * **The schema is not owned here.** `src/test/database.ts` applies the Rust bot's `../migrations` to a throwaway database. Never hand-write a dashboard schema: a second source of truth is precisely the drift these tests exist to catch.
 * **Only `db` goes real.** Redis stays mocked, so a db-only run needs no Redis server.
 * **Safety.** The harness refuses to create, drop, or truncate any database not named `mod_oud_test*`, and verifies the app's own pool points at the worker database before a test can reach it. Do not relax either guard, and do not point `TEST_DATABASE_URL` at a shared or development server.
+* **One set of databases per Vitest invocation.** Every database is named after the pid that owns it (`mod_oud_test_t<pid>`, `mod_oud_test_w<worker>_<pid>`), because Stryker runs one test runner per worker and they reach `globalSetup` concurrently. Sharing a single template makes them race on `CREATE DATABASE`, and the loser would clone a half-migrated template. Startup reaps databases whose owning process is gone.
+* **Stryker runs both projects** (`vitest.stryker.config.ts`), so `pnpm mutate` needs a live Postgres. It measures the db suite too, which is why a `queries.ts` score reflects the integration tests rather than string assertions.
 
 ## 🚫 Code Smells (What NOT to do)
 

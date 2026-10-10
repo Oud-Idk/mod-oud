@@ -1,6 +1,5 @@
-import { beforeEach, vi } from "vitest";
+import { beforeEach, inject, vi } from "vitest";
 import {
-    TEMPLATE_DB,
     assertConnectedToTestDatabase,
     createDatabaseFromTemplate,
     resetDatabase,
@@ -23,13 +22,16 @@ vi.mock("@/lib/redis", () => ({
 // This runs at module scope, not in an exported function. Vitest guarantees the
 // setup module body finishes before the test file is imported, and `lib/db.ts`
 // builds its pool at import time, so anything deferred would be too late.
-const workerId = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? "0";
-const workerDatabase = workerDatabaseName(workerId);
+const runId = inject("runId");
+const template = inject("templateDatabase");
 
 // One database per worker rather than per test file: `lib/db.ts` memoizes its
 // pool on globalThis, so a file that switched databases would be served by the
 // first file's pool. Truncation in beforeEach still gives every test a clean slate.
-await createDatabaseFromTemplate(workerDatabase, TEMPLATE_DB);
+const workerId = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? "0";
+const workerDatabase = workerDatabaseName(runId, workerId);
+
+await createDatabaseFromTemplate(workerDatabase, template);
 
 process.env.DATABASE_URL = testDatabaseUrl(workerDatabase);
 

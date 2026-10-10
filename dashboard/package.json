@@ -10,7 +10,8 @@
     "lint": "oxlint --type-aware",
     "test": "vitest run --project unit",
     "test:db": "vitest run --project db",
-    "test:all": "vitest run"
+    "test:all": "vitest run",
+    "mutate": "stryker run"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.2.0",
