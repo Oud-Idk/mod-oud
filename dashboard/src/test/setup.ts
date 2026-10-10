@@ -15,6 +15,7 @@ vi.mock("@/lib/redis", () => ({
         get: vi.fn().mockResolvedValue(null),
         set: vi.fn().mockResolvedValue("OK"),
         del: vi.fn().mockResolvedValue(0),
+        publish: vi.fn().mockResolvedValue(0),
         getOrSetJSON: vi.fn().mockResolvedValue(null),
     },
 }));

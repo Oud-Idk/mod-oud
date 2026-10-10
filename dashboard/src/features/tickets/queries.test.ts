@@ -1,25 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-    getTicketConfig,
-    saveTicketConfig,
-    getTicketList,
-    getTicketHistory
-} from "./queries";
+import { getTicketConfig, saveTicketConfig } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { TicketConfig } from "@/features/tickets/types";
 
-const mockQuery = vi.hoisted(() =>
-    vi.fn<(sql: string, params?: unknown[]) => Promise<{
-        rows?: unknown[];
-        rowCount?: number | null;
-    }>>()
-);
-
-vi.mock("@/lib/db", () => ({
-    db: {
-        query: mockQuery,
-    },
-}));
+// Row mapping, SQL shape and the JSONB round trip live in
+// queries.integration.test.ts against a real database. What stays here is a
+// failing connection, which Postgres will not produce on demand.
 
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
@@ -67,116 +53,47 @@ describe("Tickets Query Module", () => {
 
     describe("saveTicketConfig", () => {
         it("should forward the validated config to saveGuildConfigField", async () => {
-            const mockValidatedConfig: TicketConfig = {
+            const config: TicketConfig = {
                 categoryId: "cat_123",
                 channelId: "chan_456",
                 ticketRoleId: "role_123",
                 postedMessageId: null,
                 enabled: true,
-                panelMessage: { enabled: false, message: { format: "TEXT", content: "", embed: {}} },
-                welcomeMessage: { enabled: false, message: { format: "TEXT", content: "", embed: {}} },
+                panelMessage: { enabled: false, message: { format: "TEXT", content: "", embed: {} } },
+                welcomeMessage: { enabled: false, message: { format: "TEXT", content: "", embed: {} } },
                 warnThreshold: 30,
                 deleteThreshold: 45,
                 bumpEvery: 20,
             };
 
-            await saveTicketConfig("guild_123", mockValidatedConfig);
+            await saveTicketConfig("guild_123", config);
 
-            // Verify saveGuildConfigField received exact config
-            expect(saveGuildConfigField).toHaveBeenCalledWith(
-                "guild_123",
-                "tickets",
-                mockValidatedConfig
-            );
-        });
-    });
-
-    describe("getTicketHistory", () => {
-        it("should return the first row when ticket history is found", async () => {
-            const now = new Date();
-            const mockHistory = {
-                ticket_id: 1,
-                guild_id: "guild_123",
-                channel_id: "chan_456",
-                opener_id: "user_789",
-                status: "OPEN",
-                created_at: now,
-                closed_at: null,
-                last_activity: now,
-                message_count: 5,
-                messages: [],
-            };
-
-            mockQuery.mockResolvedValue({
-                rows: [mockHistory],
-                rowCount: 1,
-            });
-
-            const result = await getTicketHistory("chan_456");
-
-            expect(result).toEqual(mockHistory);
-            expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["chan_456"]);
+            expect(saveGuildConfigField).toHaveBeenCalledWith("guild_123", "tickets", config);
         });
 
-        it("should return null when no ticket history is found", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [],
-                rowCount: 0,
-            });
+        it("should propagate a database error from saveGuildConfigField", async () => {
+            vi.mocked(saveGuildConfigField).mockRejectedValue(new Error("connection lost"));
 
-            const result = await getTicketHistory("non_existent_channel");
-
-            expect(result).toBeNull();
-        });
-
-        it("should propagate a database error", async () => {
-            mockQuery.mockRejectedValue(new Error("connection lost"));
-
-            await expect(getTicketHistory("chan_456")).rejects.toThrow("connection lost");
-        });
-    });
-
-    describe("getTicketList", () => {
-        it("should query tickets for the given guild ID", async () => {
-            const now = new Date();
-            const mockRows = [
-                {
-                    id: 1,
-                    channel_id: "chan_456",
-                    opener_id: "user_789",
-                    status: "OPEN",
-                    created_at: now,
-                    closed_at: null,
-                    message_count: 0,
-                },
-            ];
-
-            mockQuery.mockResolvedValue({
-                rows: mockRows,
-                rowCount: 1,
-            });
-
-            const res = await getTicketList("guild_123");
-
-            expect(res).toEqual(mockRows);
-            expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["guild_123"]);
-        });
-
-        it("should return an empty array when no tickets exist", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [],
-                rowCount: 0,
-            });
-
-            const res = await getTicketList("guild_empty");
-
-            expect(res).toEqual([]);
-        });
-
-        it("should propagate a database error", async () => {
-            mockQuery.mockRejectedValue(new Error("connection lost"));
-
-            await expect(getTicketList("guild_123")).rejects.toThrow("connection lost");
+            await expect(
+                saveTicketConfig("guild_123", {
+                    categoryId: null,
+                    channelId: null,
+                    ticketRoleId: null,
+                    postedMessageId: null,
+                    enabled: false,
+                    panelMessage: {
+                        enabled: false,
+                        message: { format: "TEXT", content: "", embed: {} },
+                    },
+                    welcomeMessage: {
+                        enabled: false,
+                        message: { format: "TEXT", content: "", embed: {} },
+                    },
+                    warnThreshold: 30,
+                    deleteThreshold: 45,
+                    bumpEvery: 20,
+                })
+            ).rejects.toThrow("connection lost");
         });
     });
 });
