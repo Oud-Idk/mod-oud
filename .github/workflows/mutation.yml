@@ -1,24 +1,34 @@
 name: mutation
 
-# Mutation scoring runs on pull requests only. It lives outside checks.yml on
-# purpose: deploy.yml calls checks.yml as a reusable workflow and gates the build
-# on every job inside it, so putting this there would add a slow, flaky-prone run
-# to the production deploy path. The score is a trend signal, not a gate on
-# unrelated work, so the only thing it fails on is a collapse far below the
-# current 82%.
+# Mutation scoring is a trend signal, not a deploy gate. It lives outside
+# checks.yml on purpose: deploy.yml gates the build on every job inside
+# checks.yml, so this workflow must never be added there. It runs
+# concurrently and never blocks the deploy path. It fails only on a collapse
+# far below the current 82%.
 #
 # Needs Postgres because the stryker vitest config runs both test projects, the
 # db one included.
 
 on:
   pull_request:
+    paths:
+      - 'dashboard/**'
+      - 'migrations/**'
+      - '.github/workflows/mutation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/**'
+      - 'migrations/**'
+      - '.github/workflows/mutation.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  # Stops a superseded push from burning a runner while an older one still runs.
-  group: mutation-${{ github.event.pull_request.number }}
+  # Stops a superseded run from burning a runner while an older one still runs.
+  group: mutation-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
