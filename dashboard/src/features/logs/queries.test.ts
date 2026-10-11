@@ -137,6 +137,7 @@ describe("Logs Query Module", () => {
         });
 
         it("should reject an invalid action without querying", async () => {
+            // @ts-expect-error KICK is not in "JOIN" | "LEAVE"
             await expect(getJoinLeaveLogs("guild_123", "KICK")).rejects.toThrow();
             expect(mockQuery).not.toHaveBeenCalled();
         });
