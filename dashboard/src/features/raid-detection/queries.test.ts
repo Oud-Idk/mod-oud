@@ -8,26 +8,16 @@ import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/gu
 import { RaidDetectionConfig } from "./types";
 
 const mockRedisDel = vi.hoisted(() => vi.fn());
-const mockRedisGet = vi.hoisted(() => vi.fn());
-const mockRedisExists = vi.hoisted(() => vi.fn());
-const mockRedisHmget = vi.hoisted(() => vi.fn());
-const mockRedisZremrangebyscore = vi.hoisted(() => vi.fn());
-const mockRedisZcard = vi.hoisted(() => vi.fn());
-const mockPipelineExec = vi.hoisted(() => vi.fn());
-const mockRedisPipeline = vi.hoisted(() => vi.fn(() => ({
-    zremrangebyscore: mockRedisZremrangebyscore,
-    zcard: mockRedisZcard,
-    exec: mockPipelineExec,
-})));
+const mockBackendFetch = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/redis", () => ({
     default: {
         del: mockRedisDel,
-        get: mockRedisGet,
-        exists: mockRedisExists,
-        hmget: mockRedisHmget,
-        pipeline: mockRedisPipeline,
     },
+}));
+
+vi.mock("@/lib/backend", () => ({
+    backendFetch: mockBackendFetch,
 }));
 
 vi.mock("@/features/_shared/guild", () => ({
@@ -35,13 +25,25 @@ vi.mock("@/features/_shared/guild", () => ({
     saveGuildConfigField: vi.fn(),
 }));
 
-const HISTORY_HOURS = 168;
+/** Mirrors the Rust `RaidStatsSnapshot` the bot returns from the stats endpoint. */
+function statsPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+        currentJoinsInWindow: 0,
+        windowSizeSeconds: 60,
+        calculatedThreshold: 5,
+        avgJoinsPerMin: 0,
+        avgJoinsPerDay: 2.57,
+        stdDevPerMin: 0.04,
+        isRaidActive: false,
+        statsAvailable: true,
+        ...overrides,
+    };
+}
 
-/** Builds an `hmget` reply aligned to the zero-filled history window the query asks for. */
-function historyReply(countsByHoursAgo: Record<number, number | undefined>): (string | null)[] {
-    return Array.from({ length: HISTORY_HOURS }, (_, index) => {
-        const count = countsByHoursAgo[index + 1];
-        return count === undefined ? null : String(count);
+function jsonResponse(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
     });
 }
 
@@ -49,7 +51,6 @@ describe("Raid Detection Query Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
         vi.spyOn(console, "error").mockImplementation(() => {return});
-        mockRedisHmget.mockResolvedValue(historyReply({}));
     });
 
     afterEach(() => {
@@ -129,125 +130,77 @@ describe("Raid Detection Query Module", () => {
     });
 
     describe("getRaidStatus", () => {
-        it("should report no stats when neither the cache nor any history exists", async () => {
-            mockPipelineExec.mockResolvedValue([[null, "OK"], [null, 7]]);
-            mockRedisGet.mockResolvedValue(null);
-            mockRedisExists.mockResolvedValue(0);
+        it("should return the stats the bot reports", async () => {
+            mockBackendFetch.mockResolvedValue(
+                jsonResponse(statsPayload({ currentJoinsInWindow: 3, calculatedThreshold: 12 }))
+            );
 
-            const result = await getRaidStatus("guild_123", 60, 5, 3);
+            const result = await getRaidStatus("guild_123");
 
-            expect(mockRedisZremrangebyscore).toHaveBeenCalled();
-            expect(mockRedisZcard).toHaveBeenCalled();
-            expect(result.currentJoinsInWindow).toBe(7);
-            expect(result.windowSizeSeconds).toBe(60);
+            expect(mockBackendFetch).toHaveBeenCalledWith(
+                "/api/guilds/guild_123/raid-detection/stats",
+                { method: "GET" }
+            );
+            expect(result.currentJoinsInWindow).toBe(3);
+            expect(result.calculatedThreshold).toBe(12);
+            expect(result.avgJoinsPerDay).toBe(2.57);
+            expect(result.statsAvailable).toBe(true);
+        });
+
+        it("should surface an uncalibrated guild as having no stats", async () => {
+            mockBackendFetch.mockResolvedValue(
+                jsonResponse(
+                    statsPayload({
+                        calculatedThreshold: 5,
+                        avgJoinsPerMin: 0,
+                        avgJoinsPerDay: 0,
+                        stdDevPerMin: 0,
+                        statsAvailable: false,
+                    })
+                )
+            );
+
+            const result = await getRaidStatus("guild_123");
+
+            expect(result.statsAvailable).toBe(false);
             expect(result.calculatedThreshold).toBe(5);
-            expect(result.avgJoinsPerMin).toBe(0);
             expect(result.avgJoinsPerDay).toBe(0);
-            expect(result.statsAvailable).toBe(false);
-            expect(result.isRaidActive).toBe(false);
         });
 
-        it("should read the full 168-hour history window", async () => {
-            mockPipelineExec.mockResolvedValue([[null, "OK"], [null, 0]]);
-            mockRedisGet.mockResolvedValue(null);
-            mockRedisExists.mockResolvedValue(0);
-
-            await getRaidStatus("guild_123", 60, 5, 3);
-
-            expect(mockRedisHmget).toHaveBeenCalledTimes(1);
-            const call: unknown[] = mockRedisHmget.mock.calls[0];
-            const [key, ...fields] = call;
-            expect(key).toBe("guild:guild_123:hourly_stats");
-            expect(fields).toHaveLength(168);
-            expect(fields[0]).toMatch(/^\d{10}$/);
-        });
-
-        it("should rebuild stats from history when the bot's stats cache has expired", async () => {
-            mockPipelineExec.mockResolvedValue([[null, "OK"], [null, 0]]);
-            mockRedisGet.mockResolvedValue(null);
-            mockRedisExists.mockResolvedValue(0);
-            // Seventeen hours with one join each, plus one hour with two.
-            const sparseHistory = Object.fromEntries(
-                Array.from({ length: 17 }, (_, index) => [index + 1, 1])
+        it("should surface an active raid", async () => {
+            mockBackendFetch.mockResolvedValue(
+                jsonResponse(statsPayload({ isRaidActive: true }))
             );
-            mockRedisHmget.mockResolvedValue(historyReply({ ...sparseHistory, 18: 2 }));
 
-            const result = await getRaidStatus("guild_123", 60, 5, 3);
-
-            expect(result.statsAvailable).toBe(true);
-            expect(result.calculatedThreshold).toBe(5);
-            expect(result.avgJoinsPerMin).toBe(0);
-            expect(result.avgJoinsPerDay).toBe(2.71);
-            expect(result.stdDevPerMin).toBe(0.04);
-        });
-
-        it("should report the same per-day rate whichever window size is configured", async () => {
-            mockPipelineExec.mockResolvedValue([[null, "OK"], [null, 0]]);
-            mockRedisGet.mockResolvedValue(null);
-            mockRedisExists.mockResolvedValue(0);
-            const sparseHistory = Object.fromEntries(
-                Array.from({ length: 17 }, (_, index) => [index + 1, 1])
-            );
-            mockRedisHmget.mockResolvedValue(historyReply({ ...sparseHistory, 18: 2 }));
-
-            const oneMinute = await getRaidStatus("guild_123", 60, 5, 3);
-            const fiveMinutes = await getRaidStatus("guild_123", 300, 5, 3);
-
-            // The daily rate is a property of the traffic, not of the detection window.
-            expect(oneMinute.avgJoinsPerDay).toBe(2.71);
-            expect(fiveMinutes.avgJoinsPerDay).toBe(oneMinute.avgJoinsPerDay);
-        });
-
-        it("should prefer the bot's cached stats when they are present", async () => {
-            mockPipelineExec.mockResolvedValue([[null, "OK"], [null, 15]]);
-            mockRedisGet.mockResolvedValue(
-                JSON.stringify({ threshold: 20, mean_window: 10, std_dev_window: 3 })
-            );
-            mockRedisExists.mockResolvedValue(1);
-
-            const result = await getRaidStatus("guild_123", 60, 5, 3);
-
-            expect(result.currentJoinsInWindow).toBe(15);
-            expect(result.calculatedThreshold).toBe(20);
-            expect(result.avgJoinsPerMin).toBe(10);
-            expect(result.avgJoinsPerDay).toBe(14400);
-            expect(result.stdDevPerMin).toBe(3);
-            expect(result.statsAvailable).toBe(true);
-            expect(result.isRaidActive).toBe(true);
-            expect(mockRedisHmget).not.toHaveBeenCalled();
-        });
-
-        it("should mark the raid active based on the redis exists flag", async () => {
-            mockPipelineExec.mockResolvedValue([[null, "OK"], [null, 0]]);
-            mockRedisGet.mockResolvedValue(null);
-            mockRedisExists.mockResolvedValue(1);
-
-            const result = await getRaidStatus("guild_123", 60, 5, 3);
+            const result = await getRaidStatus("guild_123");
 
             expect(result.isRaidActive).toBe(true);
-            expect(result.statsAvailable).toBe(false);
         });
 
-        it("should default currentJoinsInWindow to 0 when the pipeline result is not a number", async () => {
-            mockPipelineExec.mockResolvedValue([[null, "OK"], [null, "banana"]]);
-            mockRedisGet.mockResolvedValue(null);
-            mockRedisExists.mockResolvedValue(0);
+        it("should not echo a 5xx body back at the user", async () => {
+            mockBackendFetch.mockResolvedValue(jsonResponse({ error: "boom" }, 500));
 
-            const result = await getRaidStatus("guild_123", 60, 5, 3);
-
-            expect(result.currentJoinsInWindow).toBe(0);
+            await expect(getRaidStatus("guild_123")).rejects.toThrow(
+                "Could not read raid detection status."
+            );
         });
 
-        it("should REJECT a non-positive windowSizeSeconds", async () => {
-            await expect(getRaidStatus("guild_123", 0, 5, 3)).rejects.toThrow();
+        it("should pass a 4xx body through", async () => {
+            mockBackendFetch.mockResolvedValue(jsonResponse({ error: "nope" }, 400));
+
+            await expect(getRaidStatus("guild_123")).rejects.toThrow();
         });
 
-        it("should REJECT a non-positive minSafeLimit", async () => {
-            await expect(getRaidStatus("guild_123", 60, 0, 3)).rejects.toThrow();
+        it("should REJECT a payload the bot should not be sending", async () => {
+            mockBackendFetch.mockResolvedValue(
+                jsonResponse(statsPayload({ avgJoinsPerDay: "2.57" }))
+            );
+
+            await expect(getRaidStatus("guild_123")).rejects.toThrow();
         });
 
-        it("should REJECT a non-positive zScoreMultiplier", async () => {
-            await expect(getRaidStatus("guild_123", 60, 5, 0)).rejects.toThrow();
+        it("should REJECT an empty guild id", async () => {
+            await expect(getRaidStatus("")).rejects.toThrow();
         });
     });
 });

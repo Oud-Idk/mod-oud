@@ -17,12 +17,7 @@ export async function RaidDetectionFeature({ guildId }: RaidDetectionFeatureProp
         getTextChannelMap(guildId),
     ]);
 
-    const raidStatus = await getRaidStatus(
-        guildId,
-        raidDetectionConfig.windowSizeSeconds,
-        raidDetectionConfig.minSafeLimit,
-        raidDetectionConfig.zScoreMultiplier
-    );
+    const raidStatus = await getRaidStatus(guildId);
 
     const handleSave = saveRaidDetectionConfigAction.bind(null, guildId);
 

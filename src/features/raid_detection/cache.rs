@@ -220,6 +220,38 @@ pub async fn getdel_preraid_snapshot(
     Ok(redis.getdel(&redis_key).await?)
 }
 
+/// Counts joins inside the detection window without recording anything.
+///
+/// The trim is exclusive at the cutoff to match `record_join_event`, so both paths
+/// report the same count for a join sitting exactly on the boundary.
+#[allow(clippy::cast_precision_loss)]
+pub async fn count_joins_in_window(
+    redis: &Client,
+    guild_id: GuildId,
+    window_size_seconds: i64,
+    now_ts: i64,
+) -> Result<i64, Error> {
+    let joins_key = keys::recent_join_hash_key(guild_id);
+
+    let cutoff = ZRange {
+        kind: ZRangeKind::Exclusive,
+        range: ZRangeBound::Score((now_ts - window_size_seconds) as f64),
+    };
+
+    let floor = ZRange {
+        kind: ZRangeKind::Inclusive,
+        range: ZRangeBound::NegInfiniteScore,
+    };
+
+    let pipeline = redis.pipeline();
+    let _: () = pipeline.zremrangebyscore(&joins_key, floor, cutoff).await?;
+    let _: i64 = pipeline.zcard(&joins_key).await?;
+
+    let (_, count): (i64, i64) = pipeline.all().await?;
+
+    Ok(count)
+}
+
 // ── Hourly stats accumulator ─────────────────────────────────────────
 
 pub async fn increment_hourly_accumulator(

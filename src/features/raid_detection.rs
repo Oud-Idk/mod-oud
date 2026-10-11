@@ -11,9 +11,11 @@ mod raid_end;
 mod snapshot;
 mod triggers;
 mod types;
+mod web;
 
 pub use commands::raid;
 pub use events::handle_raid_detection;
 pub use jobs::start_raid_stats_flush_worker;
 pub use raid_end::reconcile_active_raids;
 pub use types::RaidDetectionConfig;
+pub use web::routes;

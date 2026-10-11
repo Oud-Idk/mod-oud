@@ -4,7 +4,6 @@ import {
     raidDetectionInputSchema,
     saveRaidDetectionConfigSchema,
     raidActionSchema,
-    cachedStatsSchema,
     raidStatusSnapshotSchema,
 } from "./types";
 
@@ -150,24 +149,6 @@ describe("saveRaidDetectionConfigSchema", () => {
         });
 
         expect(result.success).toBe(true);
-    });
-});
-
-describe("cachedStatsSchema", () => {
-    it("should parse valid cached stats", () => {
-        const parsed = cachedStatsSchema.parse({
-            threshold: 10,
-            mean_window: 5,
-            std_dev_window: 2,
-        });
-
-        expect(parsed.threshold).toBe(10);
-        expect(parsed.mean_window).toBe(5);
-        expect(parsed.std_dev_window).toBe(2);
-    });
-
-    it("should REJECT cached stats missing a field", () => {
-        expect(cachedStatsSchema.safeParse({ threshold: 10 }).success).toBe(false);
     });
 });
 

@@ -38,12 +38,6 @@ export const saveRaidDetectionConfigSchema = raidDetectionInputSchema.superRefin
 
 export const raidDetectionConfigSchema = raidDetectionInputSchema;
 
-export const cachedStatsSchema = z.object({
-    threshold: z.number(),
-    mean_window: z.number(),
-    std_dev_window: z.number(),
-});
-
 export const raidStatusSnapshotSchema = z.object({
     currentJoinsInWindow: z.number(),
     windowSizeSeconds: z.number(),
@@ -59,5 +53,4 @@ export type RaidActionKind = z.infer<typeof raidActionKindSchema>;
 export type RaidAction = z.infer<typeof raidActionSchema>;
 export type RaidDetectionInput = z.input<typeof raidDetectionInputSchema>;
 export type RaidDetectionConfig = z.infer<typeof raidDetectionConfigSchema>;
-export type CachedStats = z.infer<typeof cachedStatsSchema>;
 export type RaidStatusSnapshot = z.infer<typeof raidStatusSnapshotSchema>;

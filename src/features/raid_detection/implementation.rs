@@ -1,5 +1,5 @@
 use crate::core::config::state::Error;
-use crate::features::raid_detection::types::{RaidCheckResult, Stats};
+use crate::features::raid_detection::types::{RaidCheckResult, RaidStatsSnapshot, Stats};
 use crate::features::raid_detection::{cache, keys};
 use crate::shared::locking::acquire_lock;
 use chrono::{DateTime, Utc};
@@ -202,6 +202,74 @@ impl DynamicRaidDetector {
         debug!(%guild_id, ttl_seconds, "extended raid active TTL");
         Ok(())
     }
+
+    /// Current join traffic and threshold, for the dashboard.
+    ///
+    /// Derives everything from the same history `record_join` uses, but records nothing and
+    /// does not write the stats cache: a read must not extend that TTL, or a guild with the
+    /// dashboard open would keep alive a key that only join traffic should refresh.
+    #[allow(clippy::cast_precision_loss)]
+    pub async fn current_stats(
+        &self,
+        guild_id: GuildId,
+        now: DateTime<Utc>,
+    ) -> Result<RaidStatsSnapshot, Error> {
+        let current_joins_in_window = cache::count_joins_in_window(
+            &self.redis,
+            guild_id,
+            self.window_size_seconds,
+            now.timestamp(),
+        )
+        .await?;
+        let is_raid_active = cache::check_raid_active(&self.redis, guild_id)
+            .await
+            .unwrap_or(false);
+
+        let history = cache::get_history_from_cache(
+            &self.redis,
+            now,
+            &keys::hourly_stats_hash_key(guild_id),
+        )
+        .await?;
+
+        let stats_available = history.iter().any(|count| *count > 0.0);
+        let stats = calculate_threshold(
+            self.z_score_multiplier,
+            self.min_safe_limit,
+            self.window_size_seconds,
+            &history,
+        );
+
+        let window_minutes = self.window_size_seconds as f64 / 60.0;
+
+        debug!(
+            %guild_id,
+            current_joins_in_window,
+            threshold = stats.threshold,
+            stats_available,
+            is_raid_active,
+            "raid stats read for the dashboard"
+        );
+
+        Ok(RaidStatsSnapshot {
+            current_joins_in_window,
+            window_size_seconds: self.window_size_seconds,
+            calculated_threshold: stats.threshold,
+            avg_joins_per_min: per_minute(stats.mean_window, window_minutes),
+            avg_joins_per_day: (stats.mean_window / self.window_size_seconds as f64)
+                * SECONDS_PER_DAY,
+            std_dev_per_min: per_minute(stats.std_dev_window, window_minutes.sqrt()),
+            is_raid_active,
+            stats_available,
+        })
+    }
+}
+
+const SECONDS_PER_DAY: f64 = 86_400.0;
+
+/// Scales a window mean to a per-minute rate, rounded for display.
+fn per_minute(window_value: f64, window_minutes: f64) -> f64 {
+    ((window_value / window_minutes) * 100.0).round() / 100.0
 }
 
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
@@ -259,8 +327,8 @@ mod tests {
         let stats = calculate_threshold(3.0, 5, 60, &history);
 
         assert_eq!(stats.threshold, 5);
-        assert!((stats.mean_window - 0.00188492).abs() < 1e-8);
-        assert!((stats.std_dev_window - 0.04337460).abs() < 1e-8);
+        assert!((stats.mean_window - 0.001_884_92).abs() < 1e-8);
+        assert!((stats.std_dev_window - 0.043_374_60).abs() < 1e-8);
     }
 
     #[test]
