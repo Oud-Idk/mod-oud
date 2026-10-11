@@ -3,27 +3,66 @@ name: checks
 # Runs directly on pull requests, and is called by deploy.yml for pushes to main
 # so the image build stays gated on these passing. Defining them once avoids the
 # two copies drifting apart.
+#
+# No `paths:` filter on `on:`. A job skipped by a condition reports Success, but
+# a workflow skipped by a path filter stays Pending and blocks the merge, so the
+# filtering happens per job, via `changes`.
 
 on:
   workflow_call:
   pull_request:
 
 concurrency:
-  # Prefixed so it can never collide with a caller's group. A called workflow
-  # resolves `github.workflow` to the caller, so `github.workflow-ref` here is
-  # the same string deploy.yml already holds while it waits for this job. With
-  # the same group and cancel-in-progress false, this workflow queues behind its
-  # own caller and the run is torn down with every dependent skipped.
   group: checks-${{ github.event_name }}-${{ github.ref }}
-  # Only a direct pull_request run has superseded runs worth dropping. A push
-  # arrives via deploy.yml, which must not be cancelled underneath it.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
-  checks:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.deploy.outputs.rust || steps.filter.outputs.rust }}
+      dashboard: ${{ steps.deploy.outputs.dashboard || steps.filter.outputs.dashboard }}
+    steps:
+      # deploy.yml arrives here on a push, where the filter sees only the last
+      # commit and could skip a gate that is about to hold production.
+      - name: Treat the deploy path as touching everything
+        id: deploy
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "rust=true" >> "$GITHUB_OUTPUT"
+          echo "dashboard=true" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            rust:
+              - 'src/**'
+              - 'migrations/**'
+              - '.sqlx/**'
+              - 'scripts/check-logging.sh'
+              - 'scripts/log_calls.awk'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'rustfmt.toml'
+              - '.github/workflows/checks.yml'
+            dashboard:
+              - 'dashboard/**'
+              - '.github/workflows/checks.yml'
+
+  # Also runs the logging convention check, another static read of src/.
+  cargo-clippy:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -38,11 +77,31 @@ jobs:
       - name: Clippy (lib + tests)
         run: SQLX_OFFLINE=true cargo clippy --all-targets
 
+      - name: Logging convention
+        run: scripts/check-logging.sh
+
+  cargo-test:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
       - name: Rust tests
         run: SQLX_OFFLINE=true cargo test --lib
 
-      - name: Logging convention
-        run: scripts/check-logging.sh
+  dashboard-lint:
+    needs: changes
+    if: needs.changes.outputs.dashboard == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
 
       # Reads the pnpm version pinned in dashboard/package.json's packageManager field
       - uses: pnpm/action-setup@v6
@@ -65,13 +124,42 @@ jobs:
         working-directory: dashboard
         run: pnpm run lint
 
+  dashboard-test:
+    needs: changes
+    if: needs.changes.outputs.dashboard == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pnpm version pinned in dashboard/package.json's packageManager field
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: dashboard/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        env:
+          SHARP_IGNORE_GLOBAL_LIBVIPS: 1
+        run: pnpm install --frozen-lockfile
+
       - name: Dashboard tests
         working-directory: dashboard
         run: pnpm test
 
-  # Separate from `checks` because it needs a Postgres service and must never
-  # silently fall back to a developer's local database.
+  # Separate from `dashboard-test` because it needs a Postgres service and must
+  # never silently fall back to a developer's local database. It rides the
+  # dashboard filter, which carries migrations/** because the harness applies
+  # ../migrations to throwaway databases.
   dashboard-db-tests:
+    needs: changes
+    if: needs.changes.outputs.dashboard == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
