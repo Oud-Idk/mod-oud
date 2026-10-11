@@ -1,12 +1,9 @@
 import React, { JSX } from "react";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { ProfileDropdown } from "@/components/layout/ProfileDropdown";
-import { auth } from "@/lib/auth";
+import { HeaderSession } from "@/components/layout/HeaderSession";
 import { LogoTextLink } from "@/components/dashboard/LogoTextLink";
 
-export async function RootHeader(): Promise<JSX.Element> {
-    const session = await auth();
-
+export function RootHeader(): JSX.Element {
     return <header
         className="shrink-0 z-20 backdrop-blur-md border-b border-border-subtle h-16"
     >
@@ -15,7 +12,7 @@ export async function RootHeader(): Promise<JSX.Element> {
 
             <div className="flex gap-3 items-center">
                 <ThemeToggle/>
-                {session?.user && <ProfileDropdown session={session}/>}
+                <HeaderSession/>
             </div>
         </div>
     </header>
