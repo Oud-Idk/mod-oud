@@ -46,6 +46,18 @@ describe("RSS Action Module", () => {
         name: "Test User",
     };
 
+    // `rejects.toThrow` matches substrings, and a leaked ZodError message
+    // contains the first issue text, so only an exact check separates a proper
+    // `issues[0].message` rethrow from an unwrapped error.
+    async function rejectionMessage(promise: Promise<unknown>): Promise<string> {
+        try {
+            await promise;
+        } catch (error) {
+            return error instanceof Error ? error.message : String(error);
+        }
+        throw new Error("Expected the promise to reject, but it resolved.");
+    }
+
     describe("addFeedSubscriptionAction", () => {
         it("should verify access, call the bot, and revalidate the path", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
@@ -63,10 +75,13 @@ describe("RSS Action Module", () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
             await expect(
-                addFeedSubscriptionAction("guild_123", { ...validInput, url: "not-a-url" })
-            ).rejects.toThrow("Feed URL must start with http:// or https://");
+                rejectionMessage(
+                    addFeedSubscriptionAction("guild_123", { ...validInput, url: "not-a-url" })
+                )
+            ).resolves.toBe("Feed URL must start with http:// or https://");
 
             expect(addFeedSubscription).not.toHaveBeenCalled();
+            expect(revalidatePath).not.toHaveBeenCalled();
         });
 
         it("should summarize an already-subscribed channel", async () => {
@@ -95,6 +110,19 @@ describe("RSS Action Module", () => {
             expect(message).toBe('Subscribed to "Example Feed" — new posts are polled every 10 minutes.');
         });
 
+        it("should warn when the WebSub hub is unconfirmed", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(addFeedSubscription).mockResolvedValue({
+                ...websubResult,
+                delivery: "PUBSUBHUBBUB",
+                hubConfirmed: false,
+            });
+
+            const message = await addFeedSubscriptionAction("guild_123", validInput);
+
+            expect(message).toContain("polling fallback may be required");
+        });
+
         it("should throw the bot's error message verbatim", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(addFeedSubscription).mockRejectedValue(
@@ -104,6 +132,35 @@ describe("RSS Action Module", () => {
             await expect(
                 addFeedSubscriptionAction("guild_123", validInput)
             ).rejects.toThrow("That URL does not look like a valid RSS or Atom feed.");
+        });
+
+        it("should NOT revalidate when the bot call fails", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(addFeedSubscription).mockRejectedValue(new Error("bot down"));
+
+            await expect(addFeedSubscriptionAction("guild_123", validInput)).rejects.toThrow(
+                "bot down"
+            );
+            expect(revalidatePath).not.toHaveBeenCalled();
+        });
+
+        it("should throw the subscribe fallback on a non-Error rejection", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(addFeedSubscription).mockRejectedValue("kaboom");
+
+            await expect(addFeedSubscriptionAction("guild_123", validInput)).rejects.toThrow(
+                "Could not subscribe to that feed."
+            );
+        });
+
+        it("should NOT call the bot when access is denied", async () => {
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+
+            await expect(addFeedSubscriptionAction("guild_123", validInput)).rejects.toThrow(
+                "Forbidden"
+            );
+            expect(addFeedSubscription).not.toHaveBeenCalled();
+            expect(revalidatePath).not.toHaveBeenCalled();
         });
     });
 
@@ -144,10 +201,56 @@ describe("RSS Action Module", () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
             await expect(
-                removeFeedSubscriptionAction("guild_123", "not-a-uuid", "123456789012345678")
-            ).rejects.toThrow("Invalid feed ID");
+                rejectionMessage(
+                    removeFeedSubscriptionAction("guild_123", "not-a-uuid", "123456789012345678")
+                )
+            ).resolves.toBe("Invalid feed ID");
 
             expect(removeFeedSubscription).not.toHaveBeenCalled();
+            expect(revalidatePath).not.toHaveBeenCalled();
+        });
+
+        it("should REJECT an empty channel id before touching the database", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+
+            await expect(
+                rejectionMessage(
+                    removeFeedSubscriptionAction(
+                        "guild_123",
+                        "6f9619ff-8b86-4111-b42d-00cf4fc964ff",
+                        ""
+                    )
+                )
+            ).resolves.toBe("Invalid channel ID");
+
+            expect(removeFeedSubscription).not.toHaveBeenCalled();
+        });
+
+        it("should throw the remove fallback on a non-Error rejection", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(removeFeedSubscription).mockRejectedValue("kaboom");
+
+            await expect(
+                removeFeedSubscriptionAction(
+                    "guild_123",
+                    "6f9619ff-8b86-4111-b42d-00cf4fc964ff",
+                    "123456789012345678"
+                )
+            ).rejects.toThrow("Could not remove that subscription.");
+        });
+
+        it("should NOT delete when access is denied", async () => {
+            vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("Forbidden"));
+
+            await expect(
+                removeFeedSubscriptionAction(
+                    "guild_123",
+                    "6f9619ff-8b86-4111-b42d-00cf4fc964ff",
+                    "123456789012345678"
+                )
+            ).rejects.toThrow("Forbidden");
+            expect(removeFeedSubscription).not.toHaveBeenCalled();
+            expect(revalidatePath).not.toHaveBeenCalled();
         });
     });
 });

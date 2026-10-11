@@ -88,6 +88,18 @@ describe("Logs Query Module", () => {
             await expect(getAutomodLogs("")).rejects.toThrow();
             expect(mockQuery).not.toHaveBeenCalled();
         });
+
+        it("should query automod logs scoped to the guild in newest first order", async () => {
+            mockQuery.mockResolvedValue({ rows: [] });
+
+            await getAutomodLogs("guild_123");
+
+            const sql = mockQuery.mock.calls[0][0];
+            expect(sql).toContain("FROM automod_logs");
+            expect(sql).toContain("WHERE a.guild_id = $1");
+            expect(sql).toContain("ORDER BY a.created_at DESC, a.id DESC");
+            expect(sql).toContain("LIMIT $4");
+        });
     });
 
     describe("getJoinLeaveLogs", () => {
@@ -113,6 +125,20 @@ describe("Logs Query Module", () => {
             const [, params = []] = mockQuery.mock.calls[0];
             expect(params[1]).toBe("JOIN");
             expect(params[4]).toBe(10);
+        });
+
+        it("should pass a LEAVE filter through", async () => {
+            mockQuery.mockResolvedValue({ rows: [] });
+
+            await getJoinLeaveLogs("guild_123", "LEAVE");
+
+            const [, params = []] = mockQuery.mock.calls[0];
+            expect(params[1]).toBe("LEAVE");
+        });
+
+        it("should reject an invalid action without querying", async () => {
+            await expect(getJoinLeaveLogs("guild_123", "KICK")).rejects.toThrow();
+            expect(mockQuery).not.toHaveBeenCalled();
         });
 
         it("should return created_at as a native Date so it can be used as a cursor", async () => {
@@ -162,6 +188,18 @@ describe("Logs Query Module", () => {
             const [, params = []] = mockQuery.mock.calls[0];
             expect(params[2]).toEqual(cursor);
             expect(params[3]).toBe("10");
+        });
+
+        it("should query join leave logs scoped to the guild in newest first order", async () => {
+            mockQuery.mockResolvedValue({ rows: [] });
+
+            await getJoinLeaveLogs("guild_123");
+
+            const sql = mockQuery.mock.calls[0][0];
+            expect(sql).toContain("FROM join_leave_logs");
+            expect(sql).toContain("WHERE j.guild_id = $1");
+            expect(sql).toContain("ORDER BY j.created_at DESC, j.id DESC");
+            expect(sql).toContain("LIMIT $5");
         });
     });
 
@@ -243,6 +281,124 @@ describe("Logs Query Module", () => {
             const result = await getModerationLogs("guild_123");
 
             expect(result[0].duration).toBe("2h");
+        });
+
+        it("should map an empty interval to null", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        case_id: "4",
+                        guild_id: "guild_123",
+                        target_id: null,
+                        moderator_id: "user_1",
+                        action_type: "MUTE",
+                        reason: null,
+                        duration: {},
+                        created_at: new Date("2026-01-01T00:00:00.000Z"),
+                    },
+                ],
+            });
+
+            const result = await getModerationLogs("guild_123");
+
+            expect(result[0].duration).toBeNull();
+        });
+
+        it("should map an all zero interval to null", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        case_id: "5",
+                        guild_id: "guild_123",
+                        target_id: null,
+                        moderator_id: "user_1",
+                        action_type: "MUTE",
+                        reason: null,
+                        duration: { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 },
+                        created_at: new Date("2026-01-01T00:00:00.000Z"),
+                    },
+                ],
+            });
+
+            const result = await getModerationLogs("guild_123");
+
+            expect(result[0].duration).toBeNull();
+        });
+
+        it("should format each interval unit on its own", async () => {
+            const cases: { duration: Record<string, number>; expected: string }[] = [
+                { duration: { years: 1 }, expected: "1y" },
+                { duration: { months: 2 }, expected: "2mo" },
+                { duration: { days: 3 }, expected: "3d" },
+                { duration: { hours: 4 }, expected: "4h" },
+                { duration: { minutes: 5 }, expected: "5m" },
+                { duration: { seconds: 6 }, expected: "6s" },
+            ];
+
+            for (const { duration, expected } of cases) {
+                mockQuery.mockResolvedValue({
+                    rows: [
+                        {
+                            case_id: "6",
+                            guild_id: "guild_123",
+                            target_id: null,
+                            moderator_id: "user_1",
+                            action_type: "MUTE",
+                            reason: null,
+                            duration,
+                            created_at: new Date("2026-01-01T00:00:00.000Z"),
+                        },
+                    ],
+                });
+
+                const result = await getModerationLogs("guild_123");
+
+                expect(result[0].duration).toBe(expected);
+            }
+        });
+
+        it("should omit each zero unit while keeping the rest", async () => {
+            const cases: { duration: Record<string, number>; expected: string }[] = [
+                { duration: { years: 0, months: 1 }, expected: "1mo" },
+                { duration: { months: 0, days: 1 }, expected: "1d" },
+                { duration: { days: 0, hours: 1 }, expected: "1h" },
+                { duration: { hours: 0, minutes: 1 }, expected: "1m" },
+                { duration: { minutes: 0, seconds: 1 }, expected: "1s" },
+                { duration: { seconds: 0, years: 1 }, expected: "1y" },
+            ];
+
+            for (const { duration, expected } of cases) {
+                mockQuery.mockResolvedValue({
+                    rows: [
+                        {
+                            case_id: "7",
+                            guild_id: "guild_123",
+                            target_id: null,
+                            moderator_id: "user_1",
+                            action_type: "MUTE",
+                            reason: null,
+                            duration,
+                            created_at: new Date("2026-01-01T00:00:00.000Z"),
+                        },
+                    ],
+                });
+
+                const result = await getModerationLogs("guild_123");
+
+                expect(result[0].duration).toBe(expected);
+            }
+        });
+
+        it("should query moderation logs scoped to the guild in newest first order", async () => {
+            mockQuery.mockResolvedValue({ rows: [] });
+
+            await getModerationLogs("guild_123");
+
+            const sql = mockQuery.mock.calls[0][0];
+            expect(sql).toContain("FROM moderation_logs");
+            expect(sql).toContain("WHERE m.guild_id = $1");
+            expect(sql).toContain("ORDER BY m.created_at DESC, m.case_id DESC");
+            expect(sql).toContain("LIMIT $4");
         });
 
         it("should pass the case id as the cursor id", async () => {

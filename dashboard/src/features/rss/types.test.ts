@@ -67,6 +67,7 @@ describe("RSS Schemas", () => {
             if (!result.success) {
                 expect(result.error.issues[0].message).toBe("Please select a channel");
                 expect(result.error.issues[0].path).toEqual(["channelId"]);
+                expect(result.error.issues[0].code).toBe("custom");
             }
         });
 
@@ -98,6 +99,48 @@ describe("RSS Schemas", () => {
             });
 
             expect(result.channelId).toBe("123456789012345678");
+        });
+
+        it("should REJECT a non string URL with the invalid type message", () => {
+            const result = subscribeRssInputSchema.safeParse({
+                url: 42,
+                channelId: "123456789012345678",
+            });
+
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("Please enter a feed URL");
+            }
+        });
+
+        it("should REJECT an overlong URL", () => {
+            const result = subscribeRssInputSchema.safeParse({
+                url: `https://example.com/${"x".repeat(2048)}`,
+                channelId: "123456789012345678",
+            });
+
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("That feed URL is too long");
+            }
+        });
+
+        it("should accept a plain http URL", () => {
+            expect(
+                subscribeRssInputSchema.safeParse({
+                    url: "http://example.com/feed.xml",
+                    channelId: "123456789012345678",
+                }).success
+            ).toBe(true);
+        });
+
+        it("should REJECT a URL with content before the scheme", () => {
+            expect(
+                subscribeRssInputSchema.safeParse({
+                    url: "xxhttps://example.com/feed.xml",
+                    channelId: "123456789012345678",
+                }).success
+            ).toBe(false);
         });
     });
 
@@ -152,6 +195,27 @@ describe("RSS Schemas", () => {
             const result = rssFeedSubscriptionSchema.safeParse({ ...row, feedId: "not-a-uuid" });
 
             expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("Invalid feed ID");
+            }
+        });
+
+        it("should REJECT an empty feed URL", () => {
+            const result = rssFeedSubscriptionSchema.safeParse({ ...row, url: "" });
+
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("Feed URL is required");
+            }
+        });
+
+        it("should REJECT an empty channel id", () => {
+            const result = rssFeedSubscriptionSchema.safeParse({ ...row, channelId: "" });
+
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("Channel ID is required");
+            }
         });
     });
 });

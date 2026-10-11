@@ -38,6 +38,7 @@ describe("automodLogSchema", () => {
             created_at: "2026-01-01T00:00:00.000Z",
         });
 
+        expect(parsed.username).toBe("");
         expect(parsed.channel_id).toBeNull();
         expect(parsed.message_id).toBeNull();
         expect(parsed.trigger_content).toBeNull();
@@ -71,6 +72,18 @@ describe("joinLeaveLogSchema", () => {
         if (result.success) {
             expect(result.data.action).toBe("JOIN");
         }
+    });
+
+    it("should default a missing username to empty string", () => {
+        const parsed = joinLeaveLogSchema.parse({
+            id: "7",
+            user_id: "user_1",
+            guild_id: "guild_123",
+            action: "JOIN",
+            created_at: "2026-01-01T00:00:00.000Z",
+        });
+
+        expect(parsed.username).toBe("");
     });
 
     it("should REJECT an unknown action", () => {
@@ -116,6 +129,8 @@ describe("moderationLogSchema", () => {
         });
 
         expect(parsed.target_id).toBeNull();
+        expect(parsed.target_username).toBe("");
+        expect(parsed.moderator_username).toBe("");
         expect(parsed.reason).toBeNull();
         expect(parsed.duration).toBeNull();
     });

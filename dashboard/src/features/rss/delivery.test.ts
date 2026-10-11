@@ -80,4 +80,18 @@ describe("DELIVERY presentation table", () => {
             DELIVERY[FEED_DELIVERY.POLLING].badgeClassName
         );
     });
+
+    it("should style badges from the shared base", () => {
+        for (const variant of feedDeliverySchema.options) {
+            expect(DELIVERY[variant].badgeClassName).toContain("inline-flex");
+        }
+    });
+
+    it("should tint the WebSub badge with the brand color", () => {
+        expect(DELIVERY[FEED_DELIVERY.PUBSUBHUBBUB].badgeClassName).toContain("text-brand");
+    });
+
+    it("should tint the polling badge with the muted color", () => {
+        expect(DELIVERY[FEED_DELIVERY.POLLING].badgeClassName).toContain("text-muted-foreground");
+    });
 });
