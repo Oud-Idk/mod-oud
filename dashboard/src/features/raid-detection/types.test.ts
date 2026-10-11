@@ -178,6 +178,7 @@ describe("raidStatusSnapshotSchema", () => {
             windowSizeSeconds: 60,
             calculatedThreshold: 8,
             avgJoinsPerMin: 4.5,
+            avgJoinsPerDay: 40.5,
             stdDevPerMin: 1.2,
             isRaidActive: true,
             statsAvailable: true,
@@ -185,6 +186,7 @@ describe("raidStatusSnapshotSchema", () => {
 
         expect(parsed.isRaidActive).toBe(true);
         expect(parsed.calculatedThreshold).toBe(8);
+        expect(parsed.avgJoinsPerDay).toBe(40.5);
     });
 
     it("should REJECT a snapshot missing fields", () => {

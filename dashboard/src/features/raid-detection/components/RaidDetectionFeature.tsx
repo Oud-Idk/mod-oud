@@ -20,7 +20,8 @@ export async function RaidDetectionFeature({ guildId }: RaidDetectionFeatureProp
     const raidStatus = await getRaidStatus(
         guildId,
         raidDetectionConfig.windowSizeSeconds,
-        raidDetectionConfig.minSafeLimit
+        raidDetectionConfig.minSafeLimit,
+        raidDetectionConfig.zScoreMultiplier
     );
 
     const handleSave = saveRaidDetectionConfigAction.bind(null, guildId);

@@ -213,12 +213,12 @@ export function RaidDetectionBody({
 
                             {!raidStatus.statsAvailable && (
                                 <span className="text-xs text-warning font-medium">
-                                    ⚠️ Collecting 7-day traffic baseline...
+                                    ⚠️ No join history recorded yet, using the minimum safe limit.
                                 </span>
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                             <div className="p-3 bg-surface-muted border border-border rounded-lg space-y-1">
                                 <span className="text-xs font-medium text-muted-foreground block">
                                     Active Traffic
@@ -251,6 +251,15 @@ export function RaidDetectionBody({
                                 </span>
                                 <div className="text-lg font-bold font-mono text-foreground">
                                     {raidStatus.avgJoinsPerMin.toFixed(1)}
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-surface-muted border border-border rounded-lg space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground block">
+                                    Avg Joins / Day
+                                </span>
+                                <div className="text-lg font-bold font-mono text-foreground">
+                                    {raidStatus.avgJoinsPerDay.toFixed(1)}
                                 </div>
                             </div>
 

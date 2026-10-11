@@ -49,6 +49,7 @@ export const raidStatusSnapshotSchema = z.object({
     windowSizeSeconds: z.number(),
     calculatedThreshold: z.number(),
     avgJoinsPerMin: z.number(),
+    avgJoinsPerDay: z.number(),
     stdDevPerMin: z.number(),
     isRaidActive: z.boolean(),
     statsAvailable: z.boolean(),

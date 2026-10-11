@@ -243,3 +243,42 @@ fn calculate_threshold(
         std_dev_window,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::calculate_threshold;
+
+    /// The dashboard recomputes these numbers from the same history when its stats cache is
+    /// cold, so the same fixture is asserted on both sides.
+    #[test]
+    fn sparse_traffic_falls_back_to_the_minimum_safe_limit() {
+        let mut history = vec![0.0; 168];
+        history[..17].fill(1.0);
+        history[17] = 2.0;
+
+        let stats = calculate_threshold(3.0, 5, 60, &history);
+
+        assert_eq!(stats.threshold, 5);
+        assert!((stats.mean_window - 0.00188492).abs() < 1e-8);
+        assert!((stats.std_dev_window - 0.04337460).abs() < 1e-8);
+    }
+
+    #[test]
+    fn empty_history_yields_the_minimum_safe_limit() {
+        let stats = calculate_threshold(3.0, 5, 60, &vec![0.0; 168]);
+
+        assert_eq!(stats.threshold, 5);
+        assert!(stats.mean_window.abs() < f64::EPSILON);
+        assert!(stats.std_dev_window.abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn a_real_traffic_spike_raises_the_threshold_above_the_floor() {
+        let mut history = vec![1.0; 168];
+        history[0] = 500.0;
+
+        let stats = calculate_threshold(3.0, 5, 60, &history);
+
+        assert_eq!(stats.threshold, 15);
+    }
+}
