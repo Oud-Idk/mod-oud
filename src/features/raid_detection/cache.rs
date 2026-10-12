@@ -245,7 +245,7 @@ pub async fn count_joins_in_window(
 
     let pipeline = redis.pipeline();
     let _: () = pipeline.zremrangebyscore(&joins_key, floor, cutoff).await?;
-    let _: i64 = pipeline.zcard(&joins_key).await?;
+    let _: () = pipeline.zcard(&joins_key).await?;
 
     let (_, count): (i64, i64) = pipeline.all().await?;
 
