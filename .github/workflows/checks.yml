@@ -49,8 +49,10 @@ jobs:
               - 'src/**'
               - 'migrations/**'
               - '.sqlx/**'
+              - '.aislop/**'
               - 'scripts/check-logging.sh'
               - 'scripts/log_calls.awk'
+              - 'scripts/aislop-gate.py'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'rustfmt.toml'
@@ -94,6 +96,27 @@ jobs:
 
       - name: Rust tests
         run: SQLX_OFFLINE=true cargo test --lib
+
+  aislop-rust:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # Pinned so the gate cannot shift without a PR. `ci` alone exits 0 on
+      # warnings, so the script fails on any finding outside the baseline.
+      - name: Aislop strict gate
+        env:
+          AISLOP_NO_TELEMETRY: 1
+        run: |
+          npx -y aislop@0.18.1 ci --format json > /tmp/aislop.json
+          python3 scripts/aislop-gate.py /tmp/aislop.json
 
   dashboard-lint:
     needs: changes
