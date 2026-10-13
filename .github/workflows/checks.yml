@@ -212,9 +212,22 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Reads the pnpm version pinned in dashboard/package.json's packageManager field
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: dashboard/package.json
+
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        env:
+          SHARP_IGNORE_GLOBAL_LIBVIPS: 1
+        run: pnpm install --frozen-lockfile
 
       # Pinned so the gate cannot shift without a PR. `ci` exits 1 on the
       # baselined dependency error, so the script below is the real gate:
