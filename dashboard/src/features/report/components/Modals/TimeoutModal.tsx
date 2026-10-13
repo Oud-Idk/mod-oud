@@ -39,17 +39,19 @@ export function TimeoutModal({ isOpen, onClose, onSubmit, isSubmitting }: Timeou
         <Modal headerText="Timeout User" onClose={onClose}>
             <form onSubmit={handleSubmit} className="space-y-2">
                 <div className="space-y-1">
-                    <label>Reason</label>
+                    <label htmlFor="timeout-reason">Reason</label>
                     <LongTextInput
+                        id="timeout-reason"
                         onChange={r => { setReason(r.target.value); }}
                         placeholder="Provide a reason for the timeout"
                         value={reason}
                     />
                 </div>
                 <div className="space-y-1">
-                    <label>Duration</label>
+                    <label htmlFor="timeout-duration">Duration</label>
                     <div className="flex gap-2">
                         <NumberInput
+                            id="timeout-duration"
                             value={duration} onChange={v => { setDuration(v); }} min={1} className="h-10"
                         />
                         <Dropdown
