@@ -21,7 +21,6 @@ pub fn sync_configs(
     let config_cache = config_cache.clone();
     let bad_words_cache = bad_words_cache.clone();
 
-    // Runs on every pub/sub events
     subscriber.on_message(move |msg| {
         let config_cache = config_cache.clone();
         let bad_words_cache = bad_words_cache.clone();
@@ -89,7 +88,6 @@ pub fn sync_configs(
         }
     });
 
-    // Starts the worker
     let client_clone = subscriber.clone();
     task::spawn("config_sync_subscriber", async move {
         match client_clone.subscribe("config_updates").await {

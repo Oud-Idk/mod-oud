@@ -27,7 +27,6 @@ pub async fn set(
     let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
     let data = ctx.data();
 
-    // Fetch existing guild settings
     let mut settings = get_settings(
         &data.core.db,
         &data.core.redis,
@@ -36,7 +35,6 @@ pub async fn set(
     )
     .await?;
 
-    // Get or initialize HoneypotConfig
     let mut honeypot = settings.honeypot.unwrap_or_else(|| {
         Box::new(HoneypotConfig {
             enabled: Some(true),

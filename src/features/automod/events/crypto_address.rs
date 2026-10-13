@@ -447,15 +447,16 @@ mod tests {
     fn test_batch_valid_crypto_addresses() {
         let valid_addresses = [
             "0x386d7fa2e861aa8f505c19e00298d3a9a24abe3c", // ETH / BNB / literally everything else
-            "TGmUsMYB1oizxEoMbfPe2ZrZxfoHuadEUM",         // TRON
+            "TGmUsMYB1oizxEoMbfPe2ZrZxfoHuadEUM", // TRON
             "0xa6bb3e59f9826c3da28d700429acc5e5172ebf45c280c0f93b29bd40d96ca42a", // APT
             "CSAE3BmW3sju1Zu6ykfRZT97PEGU54VoyeY3r4ZDoGoP", // SOL
             "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", // SOL / USDC mint
             "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // SOL / USDC
             "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // SOL / USDT
+            // aislop-ignore-next-line ai-slop/hardcoded-id
             "TokenkegQfeZyiNwAJbNb6KPqaCW4s57gYw6atkDnzr", // SOL / SPL Token program
             "UQDoFvHnw4x9R-aBx0d3oZNT8zHW-5NEDlLEIMEENTx0sOJ6", // TON
-            "12VSGQQCRhw5Bah8qRkCBZFvWZsB15bDh7",         // Old BTC
+            "12VSGQQCRhw5Bah8qRkCBZFvWZsB15bDh7", // Old BTC
         ];
 
         for addr in valid_addresses {

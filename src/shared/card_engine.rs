@@ -73,8 +73,6 @@ pub fn fallback<'a>(val: &'a str, default: &'a str) -> &'a str {
     if trimmed.is_empty() { default } else { trimmed }
 }
 
-// --- Network & Rendering ---
-
 /// Fetches an image URL and turns it into an SVG-ready Base64 Data URI
 pub async fn fetch_avatar_data_uri(url: &str) -> Option<String> {
     if url.trim().is_empty() {

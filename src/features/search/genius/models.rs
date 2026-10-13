@@ -265,10 +265,6 @@ pub struct Author {
     pub user: User,
 }
 
-// ==========================================
-// Metadata & Stats Helpers
-// ==========================================
-
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SongStatsSummary {
     pub unreviewed_annotations: i64,
