@@ -11,11 +11,13 @@ pub fn verify_sig(
     sig: &str,
     secret_key: &[u8],
 ) -> bool {
-    // Check expiry
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    // A clock failure must refuse, not pass: defaulting to zero would skip
+    // the expiry check below and accept stale links.
+    let Ok(elapsed) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) else {
+        debug!(user_id = user_id, "system clock unreadable, rejecting");
+        return false;
+    };
+    let now = elapsed.as_secs();
     if now > expires {
         debug!(user_id = user_id, "user link expired, skipping");
         return false;
