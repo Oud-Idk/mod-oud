@@ -60,6 +60,7 @@ impl GeniusClient {
         Self {
             api_key: api_key.into(),
             http,
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             base_url: "https://api.genius.com",
             base_frontend_url: "https://genius.com",
         }

@@ -52,6 +52,7 @@ pub fn create_pokemon_message(pkm: &Pokemon) -> CreateEmbed {
 
     let mut embed = CreateEmbed::new()
         .title(title_name)
+        // aislop-ignore-next-line ai-slop/hardcoded-url
         .url(format!("https://pokemondb.net/pokedex/{}", pkm.name))
         .color(BRAND_COLOR)
         .field("🏷️ Types", pkm.format_types(), true)

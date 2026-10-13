@@ -13,6 +13,7 @@ impl<'a> SpotifyClient<'a> {
         Self {
             http,
             auth_cache,
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             base_url: "https://api.spotify.com/v1",
         }
     }

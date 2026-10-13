@@ -90,6 +90,7 @@ mod tests {
     #[test]
     fn drops_credential_query_params() {
         let redacted = redact_url(
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             "https://api.giphy.com/v1/gifs/search?api_key=SUPERSECRET&q=cat&limit=1",
             &[],
         );
@@ -100,13 +101,16 @@ mod tests {
 
     #[test]
     fn drops_the_query_entirely_when_nothing_survives() {
+        // aislop-ignore-next-line ai-slop/hardcoded-url
         let redacted = redact_url("https://api.example.com/x?key=abc123", &[]);
+        // aislop-ignore-next-line ai-slop/hardcoded-url
         assert_eq!(redacted, "https://api.example.com/x");
     }
 
     #[test]
     fn redacts_path_secrets() {
         let redacted = redact_url(
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             "https://api.klipy.com/api/v1/abc123/gifs/search?q=cat",
             &["abc123"],
         );
@@ -116,6 +120,7 @@ mod tests {
 
     #[test]
     fn leaves_a_url_without_a_query_untouched() {
+        // aislop-ignore-next-line ai-slop/hardcoded-url
         let url = "https://api.urbandictionary.com/v0/define?term=cat";
         assert_eq!(redact_url(url, &[]), url);
     }

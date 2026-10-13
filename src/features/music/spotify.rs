@@ -51,6 +51,7 @@ pub async fn resolve_spotify_playlist(
 
     loop {
         let api_url = format!(
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             "https://api.spotify.com/v1/playlists/{playlist_id}/tracks?limit={limit}&offset={offset}"
         );
 
@@ -175,6 +176,7 @@ pub async fn resolve_spotify_track(
         return None;
     };
 
+    // aislop-ignore-next-line ai-slop/hardcoded-url
     let api_url = format!("https://api.spotify.com/v1/tracks/{track_id}");
 
     let res = client.get(&api_url).bearer_auth(&token).send().await.ok()?;

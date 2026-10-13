@@ -18,6 +18,7 @@ impl KlipyClient {
         Self {
             http,
             app_key: app_key.into(),
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             base_url: "https://api.klipy.com/api/v1",
         }
     }

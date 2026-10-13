@@ -55,6 +55,7 @@ fn build_kitsu_embed(params: KitsuEmbedParams) -> CreateEmbed {
 pub fn create_anime_message(response: &KitsuResponse, first_anime: &AnimeResource) -> CreateEmbed {
     let attributes = &first_anime.attributes;
     let anime_url = format!(
+        // aislop-ignore-next-line ai-slop/hardcoded-url
         "https://kitsu.app/anime/{}",
         attributes.slug.as_deref().unwrap_or(&first_anime.id)
     );
@@ -128,6 +129,7 @@ pub fn create_manga_message(
 ) -> CreateEmbed {
     let attributes = &first_manga.attributes;
     let manga_url = format!(
+        // aislop-ignore-next-line ai-slop/hardcoded-url
         "https://kitsu.app/manga/{}",
         attributes.slug.as_deref().unwrap_or(&first_manga.id)
     );

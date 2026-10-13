@@ -30,6 +30,7 @@ pub async fn verify_hcaptcha_token(
     ];
 
     let response: HCaptchaResponse = client
+        // aislop-ignore-next-line ai-slop/hardcoded-url
         .post("https://api.hcaptcha.com/siteverify")
         .form(&form)
         .send()

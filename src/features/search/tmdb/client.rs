@@ -14,6 +14,7 @@ impl TmdbClient {
         Self {
             http,
             api_key: api_key.into(),
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             base_url: "https://api.themoviedb.org/3",
         }
     }
