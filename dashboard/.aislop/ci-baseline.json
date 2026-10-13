@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "rule": "security/vulnerable-dependency",
+      "engine": "security",
+      "file": "package.json",
+      "fingerprint": "message:2958ace07e1a2b7b",
+      "count": 1
+    },
+    {
+      "rule": "security/vulnerable-dependency",
+      "engine": "security",
+      "file": "package.json",
+      "fingerprint": "message:2ccc1fd37c7c589f",
+      "count": 1
+    },
+    {
+      "rule": "security/vulnerable-dependency",
+      "engine": "security",
+      "file": "package.json",
+      "fingerprint": "message:51d943aacf342745",
+      "count": 1
+    },
+    {
+      "rule": "security/vulnerable-dependency",
+      "engine": "security",
+      "file": "package.json",
+      "fingerprint": "message:7810f07695ddcbfd",
+      "count": 1
+    },
+    {
+      "rule": "security/vulnerable-dependency",
+      "engine": "security",
+      "file": "package.json",
+      "fingerprint": "message:fdee792609172f66",
+      "count": 1
+    },
+    {
+      "rule": "code-quality/duplicate-block",
+      "engine": "code-quality",
+      "file": "src/features/custom-commands/queries.ts",
+      "fingerprint": "f1df6a7129cca7f4",
+      "count": 1
+    },
+    {
+      "rule": "code-quality/duplicate-block",
+      "engine": "code-quality",
+      "file": "src/features/giveaways/queries.ts",
+      "fingerprint": "e28dec12f91196a7",
+      "count": 1
+    },
+    {
+      "rule": "code-quality/duplicate-block",
+      "engine": "code-quality",
+      "file": "src/features/reminders/queries.ts",
+      "fingerprint": "d948992efab2a04d",
+      "count": 1
+    },
+    {
+      "rule": "code-quality/duplicate-block",
+      "engine": "code-quality",
+      "file": "src/features/reminders/queries.ts",
+      "fingerprint": "dd2dec5a3ce1db5c",
+      "count": 1
+    },
+    {
+      "rule": "code-quality/duplicate-block",
+      "engine": "code-quality",
+      "file": "src/features/starboard/queries.ts",
+      "fingerprint": "374708ee4a67ac32",
+      "count": 1
+    },
+    {
+      "rule": "code-quality/duplicate-block",
+      "engine": "code-quality",
+      "file": "src/features/starboard/queries.ts",
+      "fingerprint": "9a7ee373807ea611",
+      "count": 1
+    },
+    {
+      "rule": "code-quality/duplicate-block",
+      "engine": "code-quality",
+      "file": "src/features/welcome/components/WelcomeBody.tsx",
+      "fingerprint": "85a7ec530271ddbc",
+      "count": 1
+    }
+  ]
+}

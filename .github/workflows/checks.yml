@@ -203,3 +203,26 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
         run: pnpm run test:db
+
+  aislop-dashboard:
+    needs: changes
+    if: needs.changes.outputs.dashboard == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # Pinned so the gate cannot shift without a PR. `ci` exits 1 on the
+      # baselined dependency error, so the script below is the real gate:
+      # it fails only on findings outside dashboard/.aislop/ci-baseline.json.
+      - name: Aislop strict gate
+        working-directory: dashboard
+        env:
+          AISLOP_NO_TELEMETRY: 1
+        run: |
+          npx -y aislop@0.18.1 ci --format json . > /tmp/aislop-dash.json || true
+          python3 ../scripts/aislop-gate-dashboard.py /tmp/aislop-dash.json
