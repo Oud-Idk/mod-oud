@@ -606,10 +606,10 @@ export function MusicControlPanel({
         >
             {/* Header / Status */}
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2" role="status" aria-live="polite">
+                <output className="flex items-center gap-2" aria-live="polite">
                     <h4 className="text-lg font-semibold">Live Control</h4>
                     <ConnectionStatusPill status={statusLabel}/>
-                </div>
+                </output>
                 <Button
                     variant="secondary"
                     size="sm"
@@ -647,13 +647,12 @@ export function MusicControlPanel({
                         <div className="flex items-center gap-2">
                             <p className="text-sm font-medium truncate">{nowPlaying.title}</p>
                             {isLiveStream && (
-                                <span
+                                <output
                                     className="shrink-0 text-xs font-semibold text-danger border border-danger/40 rounded px-1.5 py-0.5"
-                                    role="status"
                                     aria-live="polite"
                                 >
                                     ● LIVE
-                                </span>
+                                </output>
                             )}
                         </div>
                         {nowPlaying.requestedBy !== undefined && nowPlaying.requestedBy.length > 0 && (
@@ -840,10 +839,10 @@ export function MusicControlPanel({
 
             {/* Dynamic Alert Feedback */}
             {feedback !== null && (
-                <p role="status" aria-live="polite"
+                <output aria-live="polite"
                    className={`text-sm ${feedback.ok ? "text-success" : "text-danger"}`}>
                     {feedback.text}
-                </p>
+                </output>
             )}
         </section>
     );

@@ -180,8 +180,9 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                 )}
             />
 
-            {/* Slide-over Drawer */}
+            {/* Slide-over Drawer: native dialog would snap shut, losing the exit animation. */}
             <div
+                // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- custom slide-over, see above
                 role="dialog"
                 aria-modal="true"
                 aria-label={selectedTicket ? `Ticket #${selectedTicket.ticket_id.toString()} transcript` : "Ticket transcript"}
