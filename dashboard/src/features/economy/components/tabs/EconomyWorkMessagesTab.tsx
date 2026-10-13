@@ -205,7 +205,7 @@ export function EconomyWorkMessagesTab({
                                         }}
                                         rows={2}
                                         maxLength={1000}
-                                        autoFocus
+                                        ref={(el) => { el?.focus(); }}
                                     />
                                     <p className="text-xs text-muted-foreground">
                                         Preview: <span

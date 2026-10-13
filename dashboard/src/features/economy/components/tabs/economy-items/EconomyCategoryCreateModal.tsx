@@ -62,7 +62,7 @@ export function EconomyCategoryCreateModal({
                         value={name}
                         onChange={(e) => { setName(e.target.value); }}
                         placeholder="e.g. Weapons, Potions, Boosts"
-                        autoFocus
+                        ref={(el) => { el?.focus(); }}
                         maxLength={100}
                     />
                 </div>
