@@ -1,7 +1,7 @@
 import { JSX} from "react";
 import { ReportFeature } from "@/features/report";
 
-export interface PageProps {
+interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 

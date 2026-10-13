@@ -3,8 +3,8 @@ import { ReportedMessageCard } from "@/features/report/components/ReportMessageC
 import { ReportedMessage, SimpleReportAction } from "@/features/report/types";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 import { cn } from "@/lib/cn";
+import { type ConnectingStatus } from "@/lib/hooks/useSSEInfiniteScroll";
 
-export type ConnectingStatus = "CONNECTING" | "CONNECTED" | "DISCONNECTED";
 type ReportStatus = "ALL" | "OPEN" | "CLOSED";
 
 const STATUS_FILTERS: { value: ReportStatus; label: string; activeClass: string }[] = [

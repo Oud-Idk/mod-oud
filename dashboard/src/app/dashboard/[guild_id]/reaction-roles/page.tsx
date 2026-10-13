@@ -1,7 +1,7 @@
 import { ReactionRolesFeature } from "@/features/reaction-roles";
 import { JSX} from "react";
 
-export interface PageProps {
+interface PageProps {
     params: Promise<{ guild_id: string }>;
     searchParams: Promise<{ id?: string }>;
 }

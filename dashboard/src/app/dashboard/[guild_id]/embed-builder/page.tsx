@@ -1,7 +1,7 @@
 import { JSX} from "react";
 import { EmbedBuilderFeature } from "@/features/embed-builder";
 
-export interface PageProps {
+interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 

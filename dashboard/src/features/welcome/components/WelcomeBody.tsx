@@ -15,6 +15,8 @@ import type { GenericMessageConfig } from "@/features/_shared/message-creator/ty
 import type { DiscordEmbed } from "@/features/_shared/embed";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
 
+// Duplicated, not shared: two features have not earned a _shared type yet.
+// aislop-ignore-next-line ai-slop/duplicate-type-declaration
 export interface DiscordRole {
     id: string;
     name: string;

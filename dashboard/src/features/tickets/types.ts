@@ -1,11 +1,9 @@
 import { z } from "zod";
 import {
     DEFAULT_TOGGLABLE_MESSAGE_LAYOUT,
-    messageLayoutSchema,
     TogglableMessageSchema,
 } from "@/features/_shared/embed";
 
-export const FormatSchema = z.enum(["TEXT", "EMBED"]).default("TEXT");
 export const TicketStatusSchema = z.enum(["OPEN", "CLOSED"]);
 export const ViewTicketStatusSchema = z.enum(["ALL", "OPEN", "CLOSED"]);
 
@@ -86,11 +84,9 @@ export const TicketHistorySchema = z.object({
     messages: z.array(TicketMessageSchema).default([]),
 });
 
-export type Format = z.infer<typeof FormatSchema>;
 export type TicketStatus = z.infer<typeof TicketStatusSchema>;
 export type ViewTicketStatus = z.infer<typeof ViewTicketStatusSchema>;
 
-export type MessageLayout = z.infer<typeof messageLayoutSchema>;
 export type TicketConfig = z.infer<typeof TicketConfigSchema>;
 export type SaveTicketConfig = z.input<typeof SaveTicketConfigSchema>;
 
