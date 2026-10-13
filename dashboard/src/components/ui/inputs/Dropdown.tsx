@@ -3,8 +3,7 @@
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type React from "react";
-import type { ReactElement } from "react";
+import type { MouseEvent, ReactElement } from "react";
 
 export interface DropdownOption<T extends string> {
     value: T;
@@ -56,7 +55,7 @@ export function Dropdown<T extends string>(props: DropdownProps<T>): ReactElemen
     const hasSelection: boolean = selectedLabels.length > 0;
     const displayText: string = hasSelection ? selectedLabels.join(", ") : placeholder;
 
-    const handleClear = (e: React.MouseEvent<HTMLButtonElement>): void => {
+    const handleClear = (e: MouseEvent<HTMLButtonElement>): void => {
         e.stopPropagation();
         e.preventDefault();
         if (!props.multiple) {
