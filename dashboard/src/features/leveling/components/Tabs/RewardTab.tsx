@@ -240,6 +240,7 @@ export function RewardTab({
                                     onChange={(e) => {
                                         updateReward(index, "removePreviousRoles", e.target.checked);
                                     }}
+                                    aria-label="Strip lower-tier level roles"
                                     className="sr-only peer"
                                 />
                                 <div className="w-9 h-5 bg-surface-active rounded-full transition-all duration-150 peer-focus:outline-none peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-brand-foreground after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>

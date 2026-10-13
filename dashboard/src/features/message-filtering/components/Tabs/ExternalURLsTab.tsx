@@ -130,13 +130,14 @@ export function ExternalURLsTab({
                                 <div>
                                     <p>Please type your domain to allow (e.g. google.com)</p>
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium mt-2 mb-0">Allowed domains</label>
+                                        <label htmlFor="allowlist-domain-input" className="block text-sm font-medium mt-2 mb-0">Allowed domains</label>
                                         <MultiSelectViewer
                                             selectedList={filterConfig.allowedDomains}
                                             onDelete={(d) => { handleRemoveAllowedDomain(d); }}
                                             placeholder="No domains allowed"
                                         />
                                         <TextInput
+                                            id="allowlist-domain-input"
                                             onSubmit={handleAddAllowUrl}
                                             value={inputUrl}
                                             onChange={(e) => { setInputUrl(e.target.value); }}
@@ -149,13 +150,14 @@ export function ExternalURLsTab({
                                 <div>
                                     <p>Please type your domain to block (e.g. 888casino.com)</p>
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium mt-2 mb-0">Blocked domains</label>
+                                        <label htmlFor="denylist-domain-input" className="block text-sm font-medium mt-2 mb-0">Blocked domains</label>
                                         <MultiSelectViewer
                                             selectedList={filterConfig.blockedDomains}
                                             onDelete={(d) => { handleRemoveBlockedDomain(d); }}
                                             placeholder="No domains blocked"
                                         />
                                         <TextInput
+                                            id="denylist-domain-input"
                                             onSubmit={handleAddBlockedUrl}
                                             value={inputUrl}
                                             onChange={(e) => { setInputUrl(e.target.value); }}

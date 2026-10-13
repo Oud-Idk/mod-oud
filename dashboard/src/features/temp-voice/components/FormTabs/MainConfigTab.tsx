@@ -21,10 +21,11 @@ export const MainConfigTab = ({
     return (
         <div className="space-y-4 max-w-lg">
             <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-foreground">
+                <label htmlFor="hub-name" className="block text-xs font-semibold uppercase tracking-wider mb-2 text-foreground">
                     Hub Configuration Name
                 </label>
                 <TextInput
+                    id="hub-name"
                     value={config.name}
                     onChange={(e) => { handleChange({ name: e.target.value }); }}
                     placeholder="e.g. General Voice Hub"
@@ -32,13 +33,14 @@ export const MainConfigTab = ({
             </div>
 
             <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-foreground">
+                <label htmlFor="hub-trigger-channel" className="block text-xs font-semibold uppercase tracking-wider text-foreground">
                     Hub Trigger Channel
                 </label>
                 <p className="text-xs text-muted-foreground mb-2">
                     When users join this voice channel, the bot will clone it and create their room.
                 </p>
                 <Dropdown
+                    id="hub-trigger-channel"
                     value={config.hub_channel_id ?? ""}
                     onChange={(id) => { handleChange({ hub_channel_id: id }); }}
                     options={getAvailableChannelOptions(channels)}
@@ -47,11 +49,12 @@ export const MainConfigTab = ({
             </div>
 
             <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-foreground">
+                <label htmlFor="target-category" className="block text-xs font-semibold uppercase tracking-wider text-foreground">
                     Target Parent Category
                 </label>
                 <p className="text-xs text-muted-foreground mb-2">The category where new channels are created.</p>
                 <Dropdown
+                    id="target-category"
                     value={config.category_id ?? ""}
                     onChange={(id) => { handleChange({ category_id: id }); }}
                     options={getAvailableCategoryOptions(categories)}
@@ -60,10 +63,11 @@ export const MainConfigTab = ({
             </div>
 
             <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-foreground">
+                <label htmlFor="default-user-limit" className="block text-xs font-semibold uppercase tracking-wider mb-2 text-foreground">
                     Default User Limit (Optional)
                 </label>
                 <NumberInput
+                    id="default-user-limit"
                     value={config.user_limit ?? undefined}
                     onChange={(val) => { handleChange({ user_limit: val }); }}
                     placeholder="None"
@@ -71,13 +75,14 @@ export const MainConfigTab = ({
             </div>
 
             <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-foreground">
+                <label htmlFor="default-channel-name" className="block text-xs font-semibold uppercase tracking-wider text-foreground">
                     Default Channel Name
                 </label>
                 <p className="text-xs text-muted-foreground mb-2">
                     The default name for a newly created temporary channel.
                 </p>
                 <TextInput
+                    id="default-channel-name"
                     value={config.default_channel_name}
                     onChange={(e) => { handleChange({ default_channel_name: e.target.value }); }}
                 />
