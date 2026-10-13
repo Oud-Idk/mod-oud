@@ -19,9 +19,9 @@ export const ScrollableMarkdownViewer: React.FC<ScrollableMarkdownViewerProps> =
     const { containerRef, handleLinkClick } = useMarkdownScroller();
 
     return (
-        <div
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- keyboard link activation already bubbles click
+        <div onClick={handleLinkClick}
             ref={containerRef}
-            onClick={handleLinkClick}
             className={cn("overflow-auto", className)}
         >
             <MarkdownRenderer content={content} className={markdownClassName} />

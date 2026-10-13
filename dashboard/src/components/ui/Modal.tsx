@@ -42,9 +42,9 @@ export function Modal({
     };
 
     return (
-        <div
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- backdrop click duplicates Escape key and Close button
+        <div onClick={onBgClick}
             className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-xs"
-            onClick={onBgClick}
         >
             <div
                 className={cn(
