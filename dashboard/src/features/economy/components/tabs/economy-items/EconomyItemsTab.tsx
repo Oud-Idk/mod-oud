@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition, JSX } from "react";
+import { useState, useEffect, useTransition, JSX } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";

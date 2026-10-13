@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useState } from "react";
+import { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TextInput } from "@/components/ui/inputs/TextInput";
 import { NumberInput } from "@/components/ui/inputs/NumberInput";

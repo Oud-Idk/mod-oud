@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useCallback, useMemo, useState } from "react";
+import { JSX, useCallback, useMemo, useState } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { DiscordEmbed } from "@/features/_shared/embed";

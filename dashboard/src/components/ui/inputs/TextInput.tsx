@@ -1,4 +1,4 @@
-import React, { forwardRef, InputHTMLAttributes } from "react";
+import { forwardRef, InputHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 export interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {

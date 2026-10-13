@@ -1,4 +1,4 @@
-import React, { JSX } from "react";
+import { JSX } from "react";
 import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MediaOnlyBody } from "@/features/media-only/components/MediaOnlyBody";

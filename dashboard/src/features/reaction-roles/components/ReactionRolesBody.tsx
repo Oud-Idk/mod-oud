@@ -8,8 +8,7 @@ import { useConfigForm } from "@/components/dashboard/useConfigForm";
 
 import { ReactionRoleCreateModal } from "./ReactionRoleCreateModal";
 import { ReactionRoleConfig } from "./ReactionRoleConfig";
-import type { ReactionMessage, SaveReactionMessageInput } from "../types";
-import { saveReactionMessageInputSchema } from "../types";
+import { saveReactionMessageInputSchema, type ReactionMessage, type SaveReactionMessageInput } from "../types";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
 import { DEFAULT_MESSAGE_LAYOUT } from "@/features/_shared/embed";

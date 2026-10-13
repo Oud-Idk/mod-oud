@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useState } from "react";
+import { JSX, useState } from "react";
 import { TextInput } from "@/components/ui/inputs/TextInput";
 import { Modal } from "@/components/ui/Modal";
 import { InputLabel } from "@/components/layout/InputLabel";

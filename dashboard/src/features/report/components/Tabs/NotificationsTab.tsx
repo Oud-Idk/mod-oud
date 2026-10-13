@@ -1,4 +1,4 @@
-import React, { Dispatch, JSX, SetStateAction } from "react";
+import { Dispatch, JSX, SetStateAction } from "react";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { ReportConfig } from "@/features/report/types";
 import { MessageConfigEditor } from "@/features/_shared/message-creator/components/MessageConfigEditor";

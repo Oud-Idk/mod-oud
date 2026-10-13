@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useEffect, useState } from "react";
+import { JSX, useEffect, useState } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { Button } from "@/components/ui/inputs/Button";
 import { saveTempVoiceHubAction, setupTempVoiceAction } from "../actions";

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, JSX } from "react";
+import { useState, JSX } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
@@ -10,8 +10,7 @@ import { WelcomeImageStyleEditor } from "./WelcomeImageStyleEditor";
 import { WELCOME_CONFIG } from "../builderConfigs";
 
 import { AutoAssignRole } from "./AutoAssignRole";
-import type { WelcomeConfig } from "../types";
-import { saveWelcomeConfigSchema } from "../types";
+import { saveWelcomeConfigSchema, type WelcomeConfig } from "../types";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
 
 export interface DiscordRole {

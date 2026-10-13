@@ -449,7 +449,6 @@ export function MusicControlPanel({
         };
     }, [status, isPaused, isSeeking, nowPlaying, duration]);
 
-    // Controls Logic
     const handlePlay = useCallback((): void => {
         const trimmed = query.trim();
         if (trimmed.length === 0) {

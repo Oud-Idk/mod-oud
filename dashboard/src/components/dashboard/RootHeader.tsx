@@ -1,4 +1,4 @@
-import React, { JSX } from "react";
+import { JSX } from "react";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { HeaderSession } from "@/components/layout/HeaderSession";
 import { LogoTextLink } from "@/components/dashboard/LogoTextLink";

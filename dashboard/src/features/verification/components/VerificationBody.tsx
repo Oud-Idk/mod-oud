@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useMemo, useState } from "react";
+import { JSX, useMemo, useState } from "react";
 import Link from "next/link";
 import Turnstile from "react-turnstile";
 import HCaptcha from "@hcaptcha/react-hcaptcha";

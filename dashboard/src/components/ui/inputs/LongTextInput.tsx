@@ -1,4 +1,4 @@
-import React, { forwardRef, TextareaHTMLAttributes } from "react";
+import { forwardRef, TextareaHTMLAttributes } from "react";
 import { twMerge } from "tailwind-merge";
 
 export interface LongTextInputProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {

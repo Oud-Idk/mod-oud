@@ -1,4 +1,4 @@
-import React, { JSX } from "react";
+import { JSX } from "react";
 
 import { auth } from "@/lib/auth";
 import { User } from "lucide-react";

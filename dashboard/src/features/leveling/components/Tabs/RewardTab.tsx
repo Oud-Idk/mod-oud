@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, JSX } from "react";
+import { useState, useMemo, useEffect, JSX } from "react";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { LevelReward, saveLevelRewardInputSchema } from "@/features/leveling/types";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";

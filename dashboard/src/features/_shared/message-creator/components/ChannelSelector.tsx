@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useMemo } from "react";
+import { JSX, useMemo } from "react";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { DiscordChannel } from "@/features/_shared/channels.types";

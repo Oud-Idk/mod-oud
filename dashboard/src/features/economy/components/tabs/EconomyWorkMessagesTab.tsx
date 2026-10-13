@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useState, useTransition, useEffect } from "react";
+import { JSX, useState, useTransition, useEffect } from "react";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { Button } from "@/components/ui/inputs/Button";
 import { LongTextInput } from "@/components/ui/inputs/LongTextInput";

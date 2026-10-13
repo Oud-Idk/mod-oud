@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX } from "react";
+import { JSX } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { InputLabel } from "@/components/layout/InputLabel";

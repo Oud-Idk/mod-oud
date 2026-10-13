@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ForwardRefExoticComponent, JSX, SVGProps, useMemo, useState } from "react";
+import { ForwardRefExoticComponent, JSX, SVGProps, useMemo, useState } from "react";
 import { Bot, Hash, Loader2, Plus, ShieldAlert, Sparkles, Trash2, UserCheck, Users, Wand2 } from "lucide-react";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { Dropdown, DropdownOption } from "@/components/ui/inputs/Dropdown";

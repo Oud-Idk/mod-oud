@@ -1,4 +1,4 @@
-import React, { useState, useEffect, JSX } from "react";
+import { useState, useEffect, JSX } from "react";
 import { cn } from "@/lib/cn";
 
 export interface DurationInputProps {

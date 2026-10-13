@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useTransition, JSX } from "react";
+import { useState, useMemo, useTransition, JSX } from "react";
 import { toast } from "sonner";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
