@@ -47,9 +47,12 @@ async function queryEditedMessages(
     }
 }
 
+// Named initial/paginated API mirroring the deleted-message pair below.
+// aislop-ignore-next-line ai-slop/thin-wrapper
 export const getEditedMessagesHistory = (guildId: string): Promise<EditedMessage[]> =>
     queryEditedMessages(guildId);
 
+// aislop-ignore-next-line ai-slop/thin-wrapper
 export const fetchMoreEditedMessages = (guildId: string, beforeId: number): Promise<EditedMessage[]> =>
     queryEditedMessages(guildId, beforeId);
 
