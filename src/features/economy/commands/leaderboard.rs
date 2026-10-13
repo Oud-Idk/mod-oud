@@ -17,7 +17,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
 
     ctx.defer().await?;
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     let top = get_leaderboard(db, guild_id, 100, 0).await?;

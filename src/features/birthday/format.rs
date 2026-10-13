@@ -18,7 +18,9 @@ pub fn format_natural_list(items: &[String]) -> String {
         1 => items[0].clone(),
         2 => format!("{} and {}", items[0], items[1]),
         _ => {
-            let (last, rest) = items.split_last().unwrap();
+            let Some((last, rest)) = items.split_last() else {
+                return String::new();
+            };
             format!("{}, and {}", rest.join(", "), last)
         }
     }

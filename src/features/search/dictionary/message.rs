@@ -154,20 +154,13 @@ fn format_entry_senses(entry: &Entry, max_senses: usize) -> String {
 
 fn create_free_dict_footer(response: &DictionaryAPIResponse) -> CreateEmbedFooter {
     CreateEmbedFooter::new(truncate(
-        &response
-            .source
-            .as_ref()
-            .and_then(|s| s.license.as_ref())
-            .map_or_else(
-                || "Powered by Free Dictionary API".to_string(),
-                |license| {
-                    format!(
-                        "{} • {}",
-                        license.name,
-                        response.source.as_ref().unwrap().url
-                    )
-                },
-            ),
+        &match response.source.as_ref() {
+            Some(source) => match source.license.as_ref() {
+                Some(license) => format!("{} • {}", license.name, source.url),
+                None => "Powered by Free Dictionary API".to_string(),
+            },
+            None => "Powered by Free Dictionary API".to_string(),
+        },
         2048,
     ))
 }

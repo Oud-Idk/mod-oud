@@ -42,7 +42,7 @@ pub async fn gift(
 
     ctx.defer().await?;
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let from_user = ctx.author().id;
     let to_user = user.id;
     let db = &ctx.data().core.db;

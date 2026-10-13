@@ -146,5 +146,5 @@ impl PlaceholderResolver for DiscordCtx<'_> {
 /// May panic when `RegEx` entered is invalid.
 pub fn get_placeholder_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").unwrap())
+    RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").expect("placeholder regex is static and valid"))
 }

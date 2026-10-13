@@ -296,7 +296,13 @@ async fn grant_role_to_existing_members(http: Arc<Http>, guild_id: GuildId, role
                     break;
                 }
 
-                after = Some(members.last().unwrap().user.id);
+                after = Some(
+                    members
+                        .last()
+                        .expect("members non-empty after is_empty check")
+                        .user
+                        .id,
+                );
 
                 for member in members {
                     if member.user.bot {

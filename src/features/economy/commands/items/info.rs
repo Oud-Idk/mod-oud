@@ -22,7 +22,7 @@ pub async fn info(
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     let Some(item) = validation::resolve_item(db, guild_id, &item_input).await? else {

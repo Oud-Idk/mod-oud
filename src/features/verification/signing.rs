@@ -14,7 +14,7 @@ pub fn verify_sig(
     // Check expiry
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs();
     if now > expires {
         debug!(user_id = user_id, "user link expired, skipping");
@@ -24,7 +24,9 @@ pub fn verify_sig(
     let payload = format!("{user_id}:{guild_id}:{expires}");
 
     // Calculate signature
-    let mut mac: Hmac<Sha256> = Hmac::new_from_slice(secret_key).unwrap();
+    let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(secret_key) else {
+        return false;
+    };
     mac.update(payload.as_bytes());
     let expected_res = mac.finalize();
     let expected_sig = hex::encode(expected_res.into_bytes());

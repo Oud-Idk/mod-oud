@@ -69,7 +69,12 @@ pub async fn handle_send_giveaway_message(
         &gctx,
     )?;
 
-    let message_builder = custom_msg_opt.unwrap();
+    let Some(message_builder) = custom_msg_opt else {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        ));
+    };
     let message = channel_id
         .send_message(&state.serenity_http, message_builder)
         .await

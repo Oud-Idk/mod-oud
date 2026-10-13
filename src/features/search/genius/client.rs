@@ -27,8 +27,10 @@ pub struct GeniusClient {
     base_frontend_url: &'static str,
 }
 
-static LYRICS_SELECTOR: LazyLock<Selector> =
-    LazyLock::new(|| Selector::parse(r#"div[data-lyrics-container="true"]"#).unwrap());
+static LYRICS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse(r#"div[data-lyrics-container="true"]"#)
+        .expect("lyrics selector is static and valid")
+});
 
 async fn decode_genius_json<T: serde::de::DeserializeOwned>(
     response: reqwest::Response,

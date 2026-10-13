@@ -157,7 +157,9 @@ impl Deck {
         if self.cards.is_empty() {
             *self = Self::new_shuffled();
         }
-        self.cards.pop().unwrap()
+        self.cards
+            .pop()
+            .expect("fresh deck has 52 cards after reshuffle")
     }
 
     pub const fn is_empty(&self) -> bool {

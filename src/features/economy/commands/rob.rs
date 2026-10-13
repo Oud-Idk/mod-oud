@@ -98,7 +98,7 @@ async fn run_heist(
     cfg: &EconomyConfig,
 ) -> Result<HeistOutcome, Error> {
     let (db, redis) = (&ctx.data().core.db, &ctx.data().core.redis);
-    let (gid, robber_id, victim_id) = (ctx.guild_id().unwrap(), ctx.author().id, target.id);
+    let (gid, robber_id, victim_id) = (ctx.guild_id().expect("guild_only command invoked outside guild"), ctx.author().id, target.id);
     let (min, curr, name) = (cfg.rob.min_cash, &cfg.currency_name, target.display_name());
 
     let robber = ensure_balance(db, gid, robber_id, cfg.starting_balance).await?;
