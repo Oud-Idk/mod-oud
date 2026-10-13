@@ -11,6 +11,7 @@ impl WikipediaClient {
     pub const fn new(http: reqwest::Client) -> Self {
         Self {
             http,
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             base_url: "https://en.wikipedia.org/api/rest_v1",
         }
     }

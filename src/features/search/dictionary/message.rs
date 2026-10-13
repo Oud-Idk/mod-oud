@@ -153,23 +153,13 @@ fn format_entry_senses(entry: &Entry, max_senses: usize) -> String {
 }
 
 fn create_free_dict_footer(response: &DictionaryAPIResponse) -> CreateEmbedFooter {
-    CreateEmbedFooter::new(truncate(
-        &response
-            .source
-            .as_ref()
-            .and_then(|s| s.license.as_ref())
-            .map_or_else(
-                || "Powered by Free Dictionary API".to_string(),
-                |license| {
-                    format!(
-                        "{} • {}",
-                        license.name,
-                        response.source.as_ref().unwrap().url
-                    )
-                },
-            ),
-        2048,
-    ))
+    let footer_text = response
+        .source
+        .as_ref()
+        .and_then(|s| s.license.as_ref().map(|l| format!("{} • {}", l.name, s.url)))
+        .unwrap_or_else(|| "Powered by Free Dictionary API".to_string());
+
+    CreateEmbedFooter::new(truncate(&footer_text, 2048))
 }
 
 /// Creates a Discord embed from a single Free Dictionary API response.

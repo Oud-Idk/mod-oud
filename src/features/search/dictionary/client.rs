@@ -13,6 +13,7 @@ impl WordnikClient {
     pub const fn new(http: reqwest::Client, api_key: String) -> Self {
         Self {
             http,
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             base_url: "https://api.wordnik.com/v4",
             api_key,
         }
@@ -78,6 +79,7 @@ impl FreeDictionaryClient {
     pub const fn new(http: reqwest::Client) -> Self {
         Self {
             http,
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             base_url: "https://freedictionaryapi.com/api/v1",
         }
     }

@@ -53,9 +53,6 @@ pub struct LevelingScope {
     pub channels: Vec<ChannelId>,
 }
 
-// ==========================================
-// 3. Text & Voice Settings
-// ==========================================
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Range {

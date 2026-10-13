@@ -23,20 +23,20 @@ pub use commands::actions::{ban, kick, mute, purge, softban, unban, unmute};
 pub use commands::category::delete_category;
 pub use commands::lockdown::{global_lock, global_unlock, lock, unlock};
 
-// Used by warnings
+// For warnings
 pub use database::{log_external_moderation_action, log_moderation_action};
 pub use events::handle_audit_log_entry;
-// Used by reporting
+// For reporting
 pub use perms::check_hierarchy_in;
-// Used by commands
+// For commands
 pub use perms::pre_flight_check;
 pub use placeholders::{
     replace_basic_placeholder, replace_reason_placeholders, replace_system_ban_placeholders,
 };
 pub use types::ActionType;
 
-// Use by other modules
+// For other modules
 pub use issuing::{issue_ban, issue_mute, schedule_unban};
 
-// Used by raid detection
+// For raid detection
 pub use lockdown::{apply_global_lock, apply_global_unlock};

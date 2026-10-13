@@ -24,7 +24,6 @@ impl TmdbMediaType {
     }
 }
 
-// --- Search ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TmdbSearchResponse {
     pub page: u32,

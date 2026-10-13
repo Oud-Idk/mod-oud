@@ -37,7 +37,9 @@ pub async fn apply_level_rewards(
     }
 
     eligible_rewards.sort_by_key(|r| r.level_requirement);
-    let active_reward = *eligible_rewards.last().unwrap();
+    let active_reward = *eligible_rewards
+        .last()
+        .expect("eligible rewards non-empty after is_empty check");
 
     let (roles_to_add, roles_to_remove) = determine_role_changes(&eligible_rewards, active_reward);
 

@@ -125,7 +125,6 @@ pub async fn build_starboard_message(
         channel: Some(&guild_starboard_channel),
         source_channel: Some(&origin_channel),
         message: Some(&origin_message),
-        ..Default::default()
     };
 
     let sb_ctx = StarboardCtx {

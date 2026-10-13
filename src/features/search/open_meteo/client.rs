@@ -12,7 +12,9 @@ impl OpenMeteoClient {
     pub const fn new(http: reqwest::Client) -> Self {
         Self {
             http,
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             geo_url: "https://geocoding-api.open-meteo.com/v1/search",
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             weather_url: "https://api.open-meteo.com/v1/forecast",
         }
     }

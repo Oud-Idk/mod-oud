@@ -19,7 +19,7 @@ pub async fn inventory(
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let target = user.as_ref().unwrap_or_else(|| ctx.author());
     let db = &ctx.data().core.db;
 

@@ -22,7 +22,6 @@ pub async fn ensure_preraid_state_saved(
     data: &BotData,
     guild_id: GuildId,
 ) -> Result<(), Error> {
-    // Fetch current guild state from Discord HTTP/Cache
     let partial_guild = guild_id.to_partial_guild(&ctx.http).await?;
 
     let everyone_role_id = RoleId::new(guild_id.get());
@@ -86,7 +85,6 @@ pub async fn restore_preraid_state(
 ) -> Result<bool, Error> {
     let json_str = cache::getdel_preraid_snapshot(&data.core.redis, guild_id).await?;
     let Some(json_str) = json_str else {
-        // Another worker or manual intervention already claimed and processed this snapshot!
         debug!(%guild_id, "snapshot already claimed or non-existent; skipping duplicate restoration");
         return Ok(false);
     };
@@ -104,7 +102,6 @@ pub async fn restore_preraid_state(
         error!(error = ?e, %guild_id, "@everyone role permissions not restored");
     }
 
-    // Restore verification settings in the database
     let captcha_str = snapshot.original_verification_type.map(|c| format!("{c}"));
 
     database::restore_verification_settings(
@@ -115,10 +112,8 @@ pub async fn restore_preraid_state(
     )
     .await?;
 
-    // Remove from active raids set
     let _: () = cache::remove_guild_from_raid(guild_id, &data.core.redis).await?;
 
-    // Delete persisted state from Postgres
     if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
         error!(error = ?e, %guild_id, "active raid state row not deleted from database");
     }

@@ -54,7 +54,7 @@ pub async fn roulette(
 
     ctx.defer().await?;
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 

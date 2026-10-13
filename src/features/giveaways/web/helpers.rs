@@ -71,7 +71,6 @@ pub fn convert_create_to_edit_message(create_msg_opt: Option<CreateMessage>) -> 
     if let Some(create_msg) = create_msg_opt {
         // Serialize CreateMessage to JSON to inspect content & embeds
         if let Ok(val) = serde_json::to_value(&create_msg) {
-            // Extract and apply message content
             if let Some(content) = val.get("content").and_then(|v| v.as_str()) {
                 edit_builder = edit_builder.content(content);
             } else {
@@ -79,7 +78,6 @@ pub fn convert_create_to_edit_message(create_msg_opt: Option<CreateMessage>) -> 
                 edit_builder = edit_builder.content("");
             }
 
-            // Extract and apply embeds
             if let Some(embeds_json) = val.get("embeds").and_then(|v| v.as_array()) {
                 let mut create_embeds = Vec::new();
                 for embed_json in embeds_json {

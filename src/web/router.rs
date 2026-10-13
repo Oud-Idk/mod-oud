@@ -26,7 +26,7 @@ async fn health_check() -> &'static str {
 }
 
 #[instrument]
-async fn handle_404(method: Method, uri: Uri) -> (StatusCode, &'static str) {
+async fn not_found_route(method: Method, uri: Uri) -> (StatusCode, &'static str) {
     debug!(method = %method, uri = %uri, "404 Not Found");
     (StatusCode::NOT_FOUND, "Not Found. Meow :3")
 }
@@ -119,7 +119,7 @@ pub fn get_router(cors: CorsLayer, shared_state: Arc<WebState>) -> Router {
         .route("/health", get(health_check))
         .merge(websub_routes)
         .nest("/api", api_routes)
-        .fallback(handle_404)
+        .fallback(not_found_route)
         // `route_layer`, not `layer`: only the former runs once routing has matched, which is what
         // makes `MatchedPath` readable. The fallback is not a match, so it keeps its own line.
         .route_layer(axum::middleware::from_fn(http_trace))

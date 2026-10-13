@@ -11,11 +11,13 @@ pub fn verify_sig(
     sig: &str,
     secret_key: &[u8],
 ) -> bool {
-    // Check expiry
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    // A clock failure must refuse, not pass: defaulting to zero would skip
+    // the expiry check below and accept stale links.
+    let Ok(elapsed) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) else {
+        debug!(user_id = user_id, "system clock unreadable, rejecting");
+        return false;
+    };
+    let now = elapsed.as_secs();
     if now > expires {
         debug!(user_id = user_id, "user link expired, skipping");
         return false;
@@ -24,7 +26,9 @@ pub fn verify_sig(
     let payload = format!("{user_id}:{guild_id}:{expires}");
 
     // Calculate signature
-    let mut mac: Hmac<Sha256> = Hmac::new_from_slice(secret_key).unwrap();
+    let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(secret_key) else {
+        return false;
+    };
     mac.update(payload.as_bytes());
     let expected_res = mac.finalize();
     let expected_sig = hex::encode(expected_res.into_bytes());

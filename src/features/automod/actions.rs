@@ -293,7 +293,6 @@ async fn send_temp_warning(
                 }
             });
         }
-        // The Err used to be dropped here, leaving a warn with no cause at all.
         Err(err) => {
             warn!(error = %err, %channel_id, "temporary warning message not sent");
         }

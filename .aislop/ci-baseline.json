@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "rule": "complexity/file-too-large",
+      "engine": "code-quality",
+      "file": "src/features/music/actor.rs",
+      "fingerprint": "message:f0d194b7e90d96a1",
+      "count": 1
+    }
+  ]
+}

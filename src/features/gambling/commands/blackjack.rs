@@ -102,7 +102,7 @@ pub async fn blackjack(
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
     let mut game = BlackjackGame::new(bet, starting_cash);
@@ -222,7 +222,7 @@ async fn validate_and_start(
 
     ctx.defer().await?;
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
@@ -336,7 +336,7 @@ async fn settle_natural_blackjack(
     player_bj: bool,
     dealer_bj: bool,
 ) -> Result<Option<String>, Error> {
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
@@ -383,7 +383,7 @@ async fn try_charge_extra_bet(
     action: &'static str,
     hand_idx: usize,
 ) -> Result<bool, Error> {
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 

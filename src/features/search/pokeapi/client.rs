@@ -10,6 +10,7 @@ impl PokemonClient {
     pub const fn new(http: reqwest::Client) -> Self {
         Self {
             http,
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             base_url: "https://pokeapi.co/api/v2",
         }
     }

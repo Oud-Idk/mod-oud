@@ -33,7 +33,7 @@ pub async fn give(
     };
 
     ctx.defer().await?;
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     // Seed if brand new, then add cash
@@ -78,7 +78,7 @@ pub async fn take(
     };
 
     ctx.defer().await?;
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     // Try deducting directly first
@@ -140,7 +140,7 @@ pub async fn set(
     };
 
     ctx.defer().await?;
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     let balance = set_cash(db, guild_id, user.id, amount).await?;

@@ -127,10 +127,6 @@ impl Default for CoinflipConfig {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Top-level gambling config — stored as `GuildSettings.gambling`
-// ---------------------------------------------------------------------------
-
 /// Per-guild gambling configuration stored in `GuildSettings`.
 ///
 /// Tier 1: master enable, global bet limits, global cooldown, interactive

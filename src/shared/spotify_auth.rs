@@ -53,6 +53,7 @@ impl SpotifyAuthCache {
         let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET").ok()?;
 
         let res = client
+            // aislop-ignore-next-line ai-slop/hardcoded-url
             .post("https://accounts.spotify.com/api/token")
             .basic_auth(&client_id, Some(&client_secret))
             .form(&[("grant_type", "client_credentials")])

@@ -28,10 +28,10 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
 
     let start = rule
         .time_start
-        .unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+        .unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).expect("midnight is a valid NaiveTime"));
     let end = rule
         .time_end
-        .unwrap_or_else(|| NaiveTime::from_hms_opt(23, 59, 59).unwrap());
+        .unwrap_or_else(|| NaiveTime::from_hms_opt(23, 59, 59).expect("end of day is a valid NaiveTime"));
 
     for _ in 0..8 {
         let weekday_num = target_date.weekday().num_days_from_sunday();
@@ -82,13 +82,13 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
         // Move to the next day at midnight (00:00:00.000)
         target_date = (target_date + Duration::days(1))
             .with_hour(0)
-            .unwrap()
+            .expect("hour 0 is valid")
             .with_minute(0)
-            .unwrap()
+            .expect("minute 0 is valid")
             .with_second(0)
-            .unwrap()
+            .expect("second 0 is valid")
             .with_nanosecond(0)
-            .unwrap();
+            .expect("nanosecond 0 is valid");
     }
 
     now + Duration::days(1)
