@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, JSX } from "react";
+import { useState, useCallback, JSX } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/inputs/Button";
 
 import { ReminderCreateModal } from "./ReminderCreateModal";
 import { ReminderConfig } from "./ReminderConfig";
-import type { ReminderRow, SaveableReminderInput } from "../types";
-import { saveableReminderSchema } from "../types";
+import { saveableReminderSchema, type ReminderRow, type SaveableReminderInput } from "../types";
 import { toast } from "sonner";
 
 interface RemindersBodyProps {

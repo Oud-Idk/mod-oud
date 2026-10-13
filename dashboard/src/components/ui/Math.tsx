@@ -1,3 +1,4 @@
+import DOMPurify from 'isomorphic-dompurify';
 import katex from 'katex';
 import { JSX } from "react";
 
@@ -13,9 +14,13 @@ export default function Math({ tex, display = false }: MathProps): JSX.Element {
         fleqn: true,
     });
 
+    const cleanHtml = DOMPurify.sanitize(html);
+
     if (display) {
-        return <div dangerouslySetInnerHTML={{ __html: html }}/>;
+        // aislop-ignore-next-line security/dangerously-set-innerhtml
+        return <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />;
     }
 
-    return <span dangerouslySetInnerHTML={{ __html: html }}/>;
+    // aislop-ignore-next-line security/dangerously-set-innerhtml
+    return <span dangerouslySetInnerHTML={{ __html: cleanHtml }} />;
 }

@@ -1,4 +1,4 @@
-import React, { JSX } from "react";
+import { JSX } from "react";
 
 export default function GplV3Logo({
     className = "w-full h-auto text-black dark:text-white",

@@ -22,7 +22,6 @@ export const GuildStatsSchema = z.object({
 
 export type GuildStats = z.infer<typeof GuildStatsSchema>;
 
-// --- Discord Guild Details Schema ---
 export const DiscordGuildDetailsSchema = z.object({
     id: z.string(),
     name: z.string(),

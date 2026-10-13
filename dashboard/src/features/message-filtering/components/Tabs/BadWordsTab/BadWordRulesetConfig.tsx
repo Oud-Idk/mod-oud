@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useState, useEffect, useMemo } from "react";
+import React, { JSX, useState, useMemo } from "react";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
 import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
@@ -49,11 +49,12 @@ export function BadWordRulesetConfig({
     );
 
     const [bulkText, setBulkText] = useState(standardJoined);
+    const [prevJoined, setPrevJoined] = useState(standardJoined);
 
-    // Keep bulkText in sync with external changes
-    useEffect(() => {
+    if (prevJoined !== standardJoined) {
+        setPrevJoined(standardJoined);
         setBulkText(standardJoined);
-    }, [standardJoined]);
+    }
 
     const handleQuickAdd = (e: React.SyntheticEvent<HTMLFormElement>): void => {
         e.preventDefault();

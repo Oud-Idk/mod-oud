@@ -285,12 +285,13 @@ export function StarboardConfigEditor({
 
                         <div className="p-4 rounded-lg border border-border-subtle space-y-4">
                             <div>
-                                <label className="block text-sm font-semibold text-foreground">Role Restrictions</label>
+                                <label htmlFor="role-restriction-type" className="block text-sm font-semibold text-foreground">Role Restrictions</label>
                                 <p className="text-xs text-muted-foreground mt-0.5">
                                     Restrict starring capabilities to specific user roles.
                                 </p>
                             </div>
                             <Dropdown
+                                id="role-restriction-type"
                                 options={[
                                     { value: "NONE", label: "No Restrictions" },
                                     { value: "ALL_EXCEPT", label: "Ignore Selected Roles (Blacklist)" },
@@ -326,12 +327,13 @@ export function StarboardConfigEditor({
 
                         <div className="p-4 rounded-lg border border-border-subtle space-y-4">
                             <div>
-                                <label className="block text-sm font-semibold text-foreground">Channel Restrictions</label>
+                                <label htmlFor="channel-restriction-type" className="block text-sm font-semibold text-foreground">Channel Restrictions</label>
                                 <p className="text-xs text-muted-foreground mt-0.5">
                                     Prevent or allow starring activity inside designated text channels.
                                 </p>
                             </div>
                             <Dropdown
+                                id="channel-restriction-type"
                                 options={[
                                     { value: "NONE", label: "No Restrictions" },
                                     { value: "ALL_EXCEPT", label: "Ignore Selected Channels (Blacklist)" },

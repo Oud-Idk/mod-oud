@@ -1,11 +1,10 @@
-import { unified } from "unified";
+import { unified, type PluggableList } from "unified";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { visit } from "unist-util-visit";
 import { headingRank } from "hast-util-heading-rank";
 import { toString } from "hast-util-to-string";
 import type { Element, Root } from "hast";
-import type { PluggableList } from "unified";
 
 import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";

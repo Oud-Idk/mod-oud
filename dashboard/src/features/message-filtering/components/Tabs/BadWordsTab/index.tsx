@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, JSX } from "react";
+import { useState, useCallback, JSX } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { BadWordCreateModal } from "./BadWordCreateModal";

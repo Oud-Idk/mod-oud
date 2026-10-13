@@ -4,6 +4,7 @@ import { JSX, useEffect, useMemo, useState } from "react";
 import { ImageCardSettings, LevelingConfig } from "@/features/leveling/types";
 import { TextInput } from "@/components/ui/inputs/TextInput";
 import { InputLabel } from "@/components/layout/InputLabel";
+import DOMPurify from "dompurify";
 
 export interface ImageCardTabProps {
     config: LevelingConfig;
@@ -113,7 +114,12 @@ export function ImageCardTab({ config, handleChange }: ImageCardTabProps): JSX.E
         <div className="space-y-6">
             <div
                 className="w-full max-w-xl rounded-lg overflow-hidden border border-border bg-surface-muted [&>svg]:w-full [&>svg]:h-auto shadow-sm"
-                dangerouslySetInnerHTML={{ __html: manipulatedSvg }}
+                // aislop-ignore-next-line security/dangerously-set-innerhtml
+                dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(manipulatedSvg, {
+                        USE_PROFILES: { svg: true, svgFilters: true },
+                    }),
+                }}
             />
 
             {/* Customization Inputs Grid */}

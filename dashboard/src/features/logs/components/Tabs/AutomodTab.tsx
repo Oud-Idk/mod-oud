@@ -17,9 +17,17 @@ const HEADERS = ["User", "Rule Type", "Triggered By", "Original Content", "Actio
 
 export function AutomodTab({ guildId }: AutomodTabProps): JSX.Element {
     const [logs, setLogs] = useState<AutomodLog[]>([]);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(true);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);
     const [hasMore, setHasMore] = useState<boolean>(true);
+    const [prevGuildId, setPrevGuildId] = useState(guildId);
+
+    if (prevGuildId !== guildId) {
+        setPrevGuildId(guildId);
+        setLogs([]);
+        setHasMore(true);
+        setLoading(true);
+    }
 
     const observerTarget = useRef<HTMLDivElement | null>(null);
 
@@ -28,12 +36,11 @@ export function AutomodTab({ guildId }: AutomodTabProps): JSX.Element {
     const lastLogId = lastLog !== undefined ? lastLog.id : null;
 
     useEffect(() => {
-        setLoading(true);
-        setHasMore(true);
-        setLogs([]);
+        let cancelled = false;
 
         void getAutomodLogsAction(guildId, LIMIT, null, null)
             .then((data) => {
+                if (cancelled) return;
                 setLogs(data);
                 if (data.length < LIMIT) setHasMore(false);
             })
@@ -41,8 +48,12 @@ export function AutomodTab({ guildId }: AutomodTabProps): JSX.Element {
                 console.error("Error fetching initial automod logs:", err);
             })
             .finally(() => {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             });
+
+        return () => {
+            cancelled = true;
+        };
     }, [guildId]);
 
     const fetchMoreLogs = useCallback(async (): Promise<void> => {

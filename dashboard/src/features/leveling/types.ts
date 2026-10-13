@@ -133,7 +133,6 @@ export const userLevelSchema = z.object({
 
 export type NotificationTarget = z.infer<typeof notificationTargetSchema>;
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
-export type ScopeActionMode = z.infer<typeof scopeActionModeSchema>;
 export type LevelingScope = z.infer<typeof levelingScopeSchema>;
 export type TextSettings = z.infer<typeof textSettingsSchema>;
 export type VoiceSettings = z.infer<typeof voiceSettingsSchema>;

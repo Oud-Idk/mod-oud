@@ -1,4 +1,4 @@
-import React, { useState, useEffect, JSX } from "react";
+import { useState, JSX } from "react";
 import { cn } from "@/lib/cn";
 
 export interface DurationInputProps {
@@ -36,10 +36,12 @@ export const DurationInput = ({
     showSeconds = true,
 }: DurationInputProps): JSX.Element => {
     const [parts, setParts] = useState<TimeParts>(() => toTimeParts(value));
+    const [prevValue, setPrevValue] = useState(value);
 
-    useEffect(() => {
+    if (prevValue !== value) {
+        setPrevValue(value);
         setParts(toTimeParts(value));
-    }, [value]);
+    }
 
     const updateValue = (newHours: string, newMinutes: string, newSeconds: string): void => {
         const hoursStr = newHours.trim() === "" ? "0" : newHours;

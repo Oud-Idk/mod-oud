@@ -28,6 +28,43 @@ const DEFAULT_SCOPE: ScopeShape = {
     roles: [],
 };
 
+type ScopeMode = "EXEMPT" | "ENFORCED";
+
+// The two behavior options render identically; only the value and label differ.
+function ScopeRadio({ value, label }: { value: ScopeMode; label: string }): JSX.Element {
+    return (
+        <Radio
+            value={value}
+            className={({ checked }) =>
+                cn(
+                    "flex items-center gap-3 py-2 px-4 rounded border cursor-pointer transition-all text-sm font-medium focus-ring",
+                    checked
+                        ? "bg-surface-muted/50 border-brand text-foreground shadow-sm"
+                        : "bg-surface border-border hover:bg-surface-active/50 text-muted-foreground"
+                )
+            }
+        >
+            {({ checked }) => (
+                <>
+                    <span
+                        className={cn(
+                            "inline-flex items-center justify-center w-4 h-4 rounded-full border transition-colors shrink-0",
+                            checked
+                                ? "border-brand bg-brand text-brand-foreground"
+                                : "border-border bg-transparent"
+                        )}
+                    >
+                        {checked && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-foreground" />
+                        )}
+                    </span>
+                    <span>{label}</span>
+                </>
+            )}
+        </Radio>
+    );
+}
+
 export function ScopeSettings({
     scope: rawScope,
     channelMap = {},
@@ -64,65 +101,9 @@ export function ScopeSettings({
                     onChange={(v) => { handleModeChange(v); }}
                     className="space-y-3"
                 >
-                    <Radio
-                        value="EXEMPT"
-                        className={({ checked }) =>
-                            cn(
-                                "flex items-center gap-3 py-2 px-4 rounded border cursor-pointer transition-all text-sm font-medium focus-ring",
-                                checked
-                                    ? "bg-surface-muted/50 border-brand text-foreground shadow-sm"
-                                    : "bg-surface border-border hover:bg-surface-active/50 text-muted-foreground"
-                            )
-                        }
-                    >
-                        {({ checked }) => (
-                            <>
-                                <span
-                                    className={cn(
-                                        "inline-flex items-center justify-center w-4 h-4 rounded-full border transition-colors shrink-0",
-                                        checked
-                                            ? "border-brand bg-brand text-brand-foreground"
-                                            : "border-border bg-transparent"
-                                    )}
-                                >
-                                    {checked && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-brand-foreground" />
-                                    )}
-                                </span>
-                                <span>Run everywhere except selected (Exempt)</span>
-                            </>
-                        )}
-                    </Radio>
+                    <ScopeRadio value="EXEMPT" label="Run everywhere except selected (Exempt)" />
 
-                    <Radio
-                        value="ENFORCED"
-                        className={({ checked }) =>
-                            cn(
-                                "flex items-center gap-3 py-2 px-4 rounded border cursor-pointer transition-all text-sm font-medium focus-ring",
-                                checked
-                                    ? "bg-surface-muted/50 border-brand text-foreground shadow-sm"
-                                    : "bg-surface border-border hover:bg-surface-active/50 text-muted-foreground"
-                            )
-                        }
-                    >
-                        {({ checked }) => (
-                            <>
-                                <span
-                                    className={cn(
-                                        "inline-flex items-center justify-center w-4 h-4 rounded-full border transition-colors shrink-0",
-                                        checked
-                                            ? "border-brand bg-brand text-brand-foreground"
-                                            : "border-border bg-transparent"
-                                    )}
-                                >
-                                    {checked && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-brand-foreground" />
-                                    )}
-                                </span>
-                                <span>Run only on selected (Enforced)</span>
-                            </>
-                        )}
-                    </Radio>
+                    <ScopeRadio value="ENFORCED" label="Run only on selected (Enforced)" />
                 </RadioGroup>
             </div>
 

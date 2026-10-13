@@ -25,6 +25,7 @@ const REPORT_COLUMNS = `
 `;
 
 export async function getInitialReportsFromDb(guildId: string): Promise<ReportedMessage[]> {
+    // aislop-ignore-next-line security/sql-injection
     const result = await db.query(
         `SELECT ${REPORT_COLUMNS}
          WHERE r.guild_id = $1
@@ -36,6 +37,7 @@ export async function getInitialReportsFromDb(guildId: string): Promise<Reported
 }
 
 export async function getMoreReportsFromDb(guildId: string, beforeId: number): Promise<ReportedMessage[]> {
+    // aislop-ignore-next-line security/sql-injection
     const result = await db.query(
         `SELECT ${REPORT_COLUMNS}
          WHERE r.guild_id = $1

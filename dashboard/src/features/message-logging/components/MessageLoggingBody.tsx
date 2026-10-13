@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback, JSX } from "react";
+import { useMemo, useState, useCallback, JSX } from "react";
 import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { SavePopup } from "@/components/dashboard/SavePopup";

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ChangeEvent, JSX, useState } from "react";
+import { ChangeEvent, JSX, useState } from "react";
 import Footer from "@/components/layout/Footer";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/layout/Table";
 import { Button } from "@/components/ui/inputs/Button";

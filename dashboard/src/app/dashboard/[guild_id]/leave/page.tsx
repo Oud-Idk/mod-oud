@@ -1,7 +1,7 @@
 import { JSX} from "react";
 import { LeaveFeature } from "@/features/leave";
 
-export interface PageProps {
+interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 

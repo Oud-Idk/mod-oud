@@ -15,10 +15,8 @@ import {
 } from "@/features/leveling/types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 
-export async function getLevels(guildId: string): Promise<UserLevel[]> {
-    const validGuildId = z.string().min(1).parse(guildId);
-    const query = `
-        SELECT
+// Shared by getLevels and fetchMoreLevels; only the WHERE tail differs.
+const LEVELS_SELECT = `SELECT
             l.guild_id::text AS "guildId",
             l.user_id::text AS "userId",
             l.cumulative_xp AS "cumulativeXp",
@@ -26,7 +24,12 @@ export async function getLevels(guildId: string): Promise<UserLevel[]> {
             l.current_xp AS "currentXp",
             COALESCE(u.username, '') AS username
         FROM levels l
-                 LEFT JOIN discord_users u ON u.user_id = l.user_id
+                 LEFT JOIN discord_users u ON u.user_id = l.user_id`;
+
+export async function getLevels(guildId: string): Promise<UserLevel[]> {
+    const validGuildId = z.string().min(1).parse(guildId);
+    const query = `
+        ${LEVELS_SELECT}
         WHERE l.guild_id = $1
         ORDER BY l.cumulative_xp DESC
         LIMIT 40;
@@ -48,15 +51,7 @@ export async function fetchMoreLevels(
     const validLowestXp = z.number().parse(currentLowestXp);
 
     const query = `
-        SELECT
-            l.guild_id::text AS "guildId",
-            l.user_id::text AS "userId",
-            l.cumulative_xp AS "cumulativeXp",
-            l.current_level AS "currentLevel",
-            l.current_xp AS "currentXp",
-            COALESCE(u.username, '') AS username
-        FROM levels l
-                 LEFT JOIN discord_users u ON u.user_id = l.user_id
+        ${LEVELS_SELECT}
         WHERE l.guild_id = $1
           AND l.cumulative_xp < $2
         ORDER BY l.cumulative_xp DESC

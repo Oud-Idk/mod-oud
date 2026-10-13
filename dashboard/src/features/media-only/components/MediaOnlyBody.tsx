@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useState } from "react";
+import { JSX, useState } from "react";
 import { useConfigForm } from "@/components/dashboard/useConfigForm";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { cn } from "@/lib/cn";

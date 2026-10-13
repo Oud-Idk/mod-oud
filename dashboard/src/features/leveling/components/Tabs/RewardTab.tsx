@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, JSX } from "react";
+import { useState, useMemo, JSX } from "react";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { LevelReward, saveLevelRewardInputSchema } from "@/features/leveling/types";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
@@ -47,6 +47,13 @@ export function RewardTab({
     // Map database rewards (snake_case) to camelCase local state
     const [localRewards, setLocalRewards] = useState<RewardItemState[]>(rewards);
     const [deletedIds, setDeletedIds] = useState<number[]>([]);
+    const [prevRewards, setPrevRewards] = useState(rewards);
+
+    if (prevRewards !== rewards) {
+        setPrevRewards(rewards);
+        setLocalRewards(rewards);
+        setDeletedIds([]);
+    }
     const [isSaving, setIsSaving] = useState(false);
     const router = useRouter();
 
@@ -65,11 +72,6 @@ export function RewardTab({
             );
         });
     }, [localRewards, rewards, deletedIds]);
-
-    useEffect(() => {
-        setLocalRewards(rewards);
-        setDeletedIds([]);
-    }, [rewards]);
 
     const handleAddReward = (): void => {
         const nextLevel =
@@ -238,6 +240,7 @@ export function RewardTab({
                                     onChange={(e) => {
                                         updateReward(index, "removePreviousRoles", e.target.checked);
                                     }}
+                                    aria-label="Strip lower-tier level roles"
                                     className="sr-only peer"
                                 />
                                 <div className="w-9 h-5 bg-surface-active rounded-full transition-all duration-150 peer-focus:outline-none peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-brand-foreground after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>

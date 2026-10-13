@@ -1,4 +1,4 @@
-import React, { JSX } from "react";
+import { JSX } from "react";
 import Emphasis from "@/components/layout/Emphasis";
 import { BananaIcon } from "lucide-react";
 import Footer from "@/components/layout/Footer";

@@ -2,7 +2,7 @@
 
 import 'katex/dist/katex.min.css';
 
-import React, { ReactNode, useEffect, useState, type JSX } from "react";
+import React, { ReactNode, useSyncExternalStore, type JSX } from "react";
 import { Element } from 'hast';
 import { useTheme } from "next-themes";
 
@@ -34,13 +34,11 @@ interface PreProps extends React.HTMLAttributes<HTMLPreElement> {
  * known and React has already committed the server's markup.
  */
 function useMounted(): boolean {
-    const [mounted, setMounted] = useState(false);
-
-    useEffect((): void => {
-        setMounted(true);
-    }, []);
-
-    return mounted;
+    return useSyncExternalStore(
+        () => (): void => undefined,
+        () => true,
+        () => false
+    );
 }
 
 const CodeBlock = ({ children, style: preStyle, ...props }: PreProps): JSX.Element => {
@@ -155,13 +153,14 @@ const markdownComponents: Components & Record<string, React.ElementType> = {
             />
         );
     },
-    a(props) {
-        const { className, ...rest } = props;
+    a({ className, children, ...rest }) {
         return (
             <a
                 className={`${className ?? ""} text-brand hover:text-brand-hover underline underline-offset-4 decoration-brand/40 hover:decoration-brand font-medium transition-colors wrap-break-word break-all focus-ring rounded-xs`}
                 {...rest}
-            />
+            >
+                {children}
+            </a>
         );
     },
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX } from "react";
+import { JSX } from "react";
 import { Hash, ImageIcon, Link2, Trash2, Video } from "lucide-react";
 import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { TextInput } from "@/components/ui/inputs/TextInput";

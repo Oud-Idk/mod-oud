@@ -16,11 +16,35 @@ interface ModerationTabProps {
 const LIMIT = 20;
 const HEADERS = ["Case ID", "Action", "Target Username", "Moderator Username", "Reason", "Duration", "Timestamp"];
 
+function getActionBadgeColor(action: string): string {
+    switch (action.toLowerCase()) {
+        case "ban":
+        case "softban":
+            return "bg-danger-subtle text-danger border-danger-border";
+        case "kick":
+            return "bg-warning-subtle text-warning border-warning/15";
+        case "mute":
+            return "bg-warning-subtle text-warning border-warning/15";
+        case "unmute":
+            return "bg-success-subtle text-success border-success/15";
+        default:
+            return "bg-surface-active text-muted-foreground border-border";
+    }
+}
+
 export function ModerationTab({ guildId }: ModerationTabProps): JSX.Element {
     const [logs, setLogs] = useState<ModerationLog[]>([]);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(true);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);
     const [hasMore, setHasMore] = useState<boolean>(true);
+    const [prevGuildId, setPrevGuildId] = useState(guildId);
+
+    if (prevGuildId !== guildId) {
+        setPrevGuildId(guildId);
+        setLogs([]);
+        setHasMore(true);
+        setLoading(true);
+    }
 
     const observerTarget = useRef<HTMLDivElement | null>(null);
 
@@ -29,12 +53,11 @@ export function ModerationTab({ guildId }: ModerationTabProps): JSX.Element {
     const lastLogCaseId = lastLog !== undefined ? lastLog.case_id : null;
 
     useEffect(() => {
-        setLoading(true);
-        setHasMore(true);
-        setLogs([]);
+        let cancelled = false;
 
         void getModerationLogsAction(guildId, LIMIT, null, null)
             .then((data) => {
+                if (cancelled) return;
                 setLogs(data);
                 if (data.length < LIMIT) setHasMore(false);
             })
@@ -42,8 +65,12 @@ export function ModerationTab({ guildId }: ModerationTabProps): JSX.Element {
                 console.error("Error fetching initial moderation logs:", err);
             })
             .finally(() => {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             });
+
+        return () => {
+            cancelled = true;
+        };
     }, [guildId]);
 
     const fetchMoreLogs = useCallback(async (): Promise<void> => {
@@ -96,22 +123,6 @@ export function ModerationTab({ guildId }: ModerationTabProps): JSX.Element {
     if (logs.length === 0) {
         return <EmptyLogsState message="No moderation incidents have been filed on this server." />;
     }
-
-    const getActionBadgeColor = (action: string): string => {
-        switch (action.toLowerCase()) {
-            case "ban":
-            case "softban":
-                return "bg-danger-subtle text-danger border-danger-border";
-            case "kick":
-                return "bg-warning-subtle text-warning border-warning/15";
-            case "mute":
-                return "bg-warning-subtle text-warning border-warning/15";
-            case "unmute":
-                return "bg-success-subtle text-success border-success/15";
-            default:
-                return "bg-surface-active text-muted-foreground border-border";
-        }
-    };
 
     return (
         <div className="space-y-4">

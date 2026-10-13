@@ -17,7 +17,7 @@ const siteConfig = {
     tagline: "Blazingly Fast Discord Moderation.",
     description:
         "Automate moderation, play music, have fun, and keep your Discord community safe quickly.",
-    url: "https://discord.solartuff.co.id",
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://discord.solartuff.co.id",
     ogImage: "/og.png",
 };
 

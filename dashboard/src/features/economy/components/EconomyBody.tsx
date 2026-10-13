@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX } from "react";
+import { JSX } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Tabs, TabItem } from "@/components/layout/Tabs";
 import { EconomyConfig, EconomyItem, EconomyCategory, EconomyWorkMessage, EconomyLeaderboardEntry } from "@/features/economy/types";

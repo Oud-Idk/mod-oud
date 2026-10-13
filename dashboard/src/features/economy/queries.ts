@@ -78,10 +78,6 @@ function parseEmoji(emojiStr?: string): { unicode: string | null; id: string | n
     return { unicode: e, id: null };
 }
 
-// ---------------------------------------------------------------------------
-// Item Queries
-// ---------------------------------------------------------------------------
-
 export async function getEconomyItems(guildId: string): Promise<EconomyItem[]> {
     const { rows } = await db.query<EconomyItemRow>(
         `
@@ -233,10 +229,6 @@ export async function deleteEconomyCategory(guildId: string, categoryId: string)
     );
     return (result.rowCount ?? 0) > 0;
 }
-
-// ---------------------------------------------------------------------------
-// Work Messages Queries (relational, multiple per guild)
-// ---------------------------------------------------------------------------
 
 interface EconomyWorkMessageRow {
     id: string;

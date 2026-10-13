@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { type Dispatch, type RefObject, type SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { config } from "@/config";
 import { issueRealtimeTicketAction } from "@/features/realtime/actions";
@@ -89,8 +89,72 @@ export function buildNewSSELogEntry(
     };
 }
 
-export interface UseMessageLogViewerProps<T> {
-    initialHistory?: T[];
+function mergeSSELogEntry<T extends { id: number }>(
+    prev: T[],
+    parsed: SSELogPayload,
+    eventId: number,
+    guildId: string,
+): T[] {
+    const isLogItem = (item: unknown): item is T =>
+        typeof item === "object" && item !== null;
+
+    const exists = prev.some((log) => log.id === eventId);
+    if (exists) {
+        return prev.map((log): T => {
+            if (log.id !== eventId) return log;
+            const merged = {
+                ...log,
+                ...parsed,
+                ...normalizeSSEUsernames(parsed),
+                id: eventId,
+            };
+            if (isLogItem(merged)) {
+                return merged;
+            }
+            return log;
+        });
+    }
+
+    const newEntry = buildNewSSELogEntry(parsed, eventId, guildId);
+    if (isLogItem(newEntry)) {
+        return [newEntry, ...prev];
+    }
+    return prev;
+}
+
+// Validates and merges one SSE message event. Module-level so the connection
+// effect below stays flat.
+function handleSSEMessageEvent<T extends { id: number }>(
+    event: Event,
+    eventName: string,
+    guildId: string,
+    setLogs: Dispatch<SetStateAction<T[]>>,
+): void {
+    if (!(event instanceof MessageEvent)) return;
+    if (typeof event.data !== "string") return;
+
+    try {
+        const rawData: unknown = JSON.parse(event.data);
+        const parseResult = sseLogPayloadSchema.safeParse(rawData);
+        if (!parseResult.success) {
+            console.error(`Invalid SSE payload for ${eventName}:`, parseResult.error);
+            return;
+        }
+
+        const parsed = parseResult.data;
+
+        // Coerce id to number if T extends { id: number }, or fallback to timestamp
+        const rawId = parsed.id;
+        const numericId = typeof rawId === "string" ? Number(rawId) : rawId;
+        const eventId = (numericId !== undefined && !Number.isNaN(numericId)) ? numericId : Date.now();
+
+        setLogs((prev: T[]): T[] => mergeSSELogEntry(prev, parsed, eventId, guildId));
+    } catch (err: unknown) {
+        console.error(`Error parsing ${eventName} SSE event:`, err);
+    }
+}
+
+export interface UseMessageLogViewerProps<T> {    initialHistory?: T[];
     guildId: string;
     fetchMoreAction: (guild_id: string, before_id: number) => Promise<T[]>;
     eventName: string;
@@ -118,10 +182,6 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
     const observerTarget = useRef<HTMLDivElement | null>(null);
-
-    function isLogItem(item: unknown): item is T {
-        return typeof item === "object" && item !== null;
-    }
 
     const loadMoreLogs = useCallback(async (): Promise<void> => {
         if (isLoadingMore || !hasMore || logs.length === 0) return;
@@ -198,61 +258,9 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
                     if (isMounted) setStatus("CONNECTED");
                 };
 
-                const handleEvent = (event: Event): void => {
-                    if (!(event instanceof MessageEvent)) return;
-                    if (typeof event.data !== "string") return;
-
-                    try {
-                        const rawData: unknown = JSON.parse(event.data);
-                        const parseResult = sseLogPayloadSchema.safeParse(rawData);
-                        if (!parseResult.success) {
-                            console.error(`Invalid SSE payload for ${eventName}:`, parseResult.error);
-                            return;
-                        }
-
-                        const parsed = parseResult.data;
-
-                        // Coerce id to number if T extends { id: number }, or fallback to timestamp
-                        const rawId = parsed.id;
-                        const numericId = typeof rawId === "string" ? Number(rawId) : rawId;
-                        const eventId = (numericId !== undefined && !Number.isNaN(numericId)) ? numericId : Date.now();
-
-                        // History-shaped canonical names for merging into existing rows.
-                        const normalizedUsernames = normalizeSSEUsernames(parsed);
-
-                        setLogs((prev: T[]): T[] => {
-                            const exists = prev.some((log) => log.id === eventId);
-                            if (exists) {
-                                return prev.map((log): T => {
-                                    if (log.id === eventId) {
-                                        const merged = {
-                                            ...log,
-                                            ...parsed,
-                                            ...normalizedUsernames,
-                                            id: eventId,
-                                        };
-                                        if (isLogItem(merged)) {
-                                            return merged;
-                                        }
-                                    }
-                                    return log;
-                                });
-                            }
-
-                            const newEntry = buildNewSSELogEntry(parsed, eventId, guildId);
-
-                            if (isLogItem(newEntry)) {
-                                return [newEntry, ...prev];
-                            }
-
-                            return prev;
-                        });
-                    } catch (err: unknown) {
-                        console.error(`Error parsing ${eventName} SSE event:`, err);
-                    }
-                };
-
-                eventSource.addEventListener(eventName, handleEvent);
+                eventSource.addEventListener(eventName, (event: Event): void => {
+                    handleSSEMessageEvent<T>(event, eventName, guildId, setLogs);
+                });
 
                 eventSource.onerror = (err: Event): void => {
                     console.error(`SSE ${eventName} channel error:`, err);

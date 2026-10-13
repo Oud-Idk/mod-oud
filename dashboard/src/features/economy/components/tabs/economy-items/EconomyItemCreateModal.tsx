@@ -97,7 +97,7 @@ export function EconomyItemCreateModal({
                             value={name}
                             onChange={(e) => { setName(e.target.value); }}
                             placeholder="e.g. Fishing Rod"
-                            autoFocus
+                            ref={(el) => { el?.focus(); }}
                         />
                     </div>
                 </div>

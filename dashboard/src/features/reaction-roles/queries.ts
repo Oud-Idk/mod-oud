@@ -16,9 +16,9 @@ const sendReactionResponseSchema = z.object({
     message_id: z.string(),
 });
 
-export async function getReactionMessages(guildId: string): Promise<ReactionMessage[]> {
-    const query = `
-        SELECT rm.id,
+// Shared by getReactionMessages and getReactionMessageById; only the WHERE
+// tail differs.
+const REACTION_MESSAGE_SELECT = `SELECT rm.id,
                rm.name,
                rm.message_id,
                rm.channel_id,
@@ -43,7 +43,11 @@ export async function getReactionMessages(guildId: string): Promise<ReactionMess
                        )
                 FROM button_roles br
                 WHERE br.reaction_message_id = rm.id) AS buttons
-        FROM reaction_messages rm
+        FROM reaction_messages rm`;
+
+export async function getReactionMessages(guildId: string): Promise<ReactionMessage[]> {
+    const query = `
+        ${REACTION_MESSAGE_SELECT}
         WHERE rm.guild_id = $1;
     `;
 
@@ -56,32 +60,7 @@ export async function getReactionMessages(guildId: string): Promise<ReactionMess
 
 export async function getReactionMessageById(id: number): Promise<ReactionMessage | null> {
     const query = `
-        SELECT rm.id,
-               rm.name,
-               rm.message_id,
-               rm.channel_id,
-               rm.guild_id,
-               rm.mode,
-               rm.message,
-               (SELECT COALESCE(
-                               JSON_AGG(JSON_BUILD_OBJECT('emoji', rr.emoji, 'role_id', rr.role_id::TEXT)),
-                               '[]'
-                       )
-                FROM reaction_roles rr
-                WHERE rr.reaction_message_id = rm.id) AS reactions,
-               (SELECT COALESCE(
-                               JSON_AGG(JSON_BUILD_OBJECT(
-                                       'role_id', br.role_id::TEXT,
-                                       'custom_id', br.custom_id,
-                                       'label', br.label,
-                                       'style', br.style,
-                                       'emoji', br.emoji
-                                        )),
-                               '[]'
-                       )
-                FROM button_roles br
-                WHERE br.reaction_message_id = rm.id) AS buttons
-        FROM reaction_messages rm
+        ${REACTION_MESSAGE_SELECT}
         WHERE rm.id = $1;
     `;
 

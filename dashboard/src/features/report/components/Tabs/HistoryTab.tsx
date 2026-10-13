@@ -3,9 +3,27 @@ import { ReportedMessageCard } from "@/features/report/components/ReportMessageC
 import { ReportedMessage, SimpleReportAction } from "@/features/report/types";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 import { cn } from "@/lib/cn";
+import { type ConnectingStatus } from "@/lib/hooks/useSSEInfiniteScroll";
 
-export type ConnectingStatus = "CONNECTING" | "CONNECTED" | "DISCONNECTED";
 type ReportStatus = "ALL" | "OPEN" | "CLOSED";
+
+const STATUS_FILTERS: { value: ReportStatus; label: string; activeClass: string }[] = [
+    {
+        value: "ALL",
+        label: "All",
+        activeClass: "bg-surface-active text-foreground border-border shadow-xs font-semibold",
+    },
+    {
+        value: "OPEN",
+        label: "Opened",
+        activeClass: "bg-warning-subtle text-warning border-warning/30 font-semibold",
+    },
+    {
+        value: "CLOSED",
+        label: "Closed",
+        activeClass: "bg-success-subtle text-success border-success/30 font-semibold",
+    },
+];
 
 interface HistoryTabProps {
     status: ConnectingStatus;
@@ -54,42 +72,21 @@ export function HistoryTab({
 
                 <div
                     className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs self-start sm:self-auto border border-border-subtle">
-                    <button
-                        type="button"
-                        onClick={() => { setStatusFilter("ALL"); }}
-                        className={cn(
-                            "px-2.5 py-1 rounded-md font-medium transition cursor-pointer border",
-                            statusFilter === "ALL"
-                                ? "bg-surface-active text-foreground border-border shadow-xs font-semibold"
-                                : "text-muted-foreground hover:text-foreground border-transparent"
-                        )}
-                    >
-                        All
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setStatusFilter("OPEN"); }}
-                        className={cn(
-                            "px-2.5 py-1 rounded-md font-medium transition cursor-pointer border",
-                            statusFilter === "OPEN"
-                                ? "bg-warning-subtle text-warning border-warning/30 font-semibold"
-                                : "text-muted-foreground hover:text-foreground border-transparent"
-                        )}
-                    >
-                        Opened
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setStatusFilter("CLOSED"); }}
-                        className={cn(
-                            "px-2.5 py-1 rounded-md font-medium transition cursor-pointer border",
-                            statusFilter === "CLOSED"
-                                ? "bg-success-subtle text-success border-success/30 font-semibold"
-                                : "text-muted-foreground hover:text-foreground border-transparent"
-                        )}
-                    >
-                        Closed
-                    </button>
+                    {STATUS_FILTERS.map((filter) => (
+                        <button
+                            key={filter.value}
+                            type="button"
+                            onClick={() => { setStatusFilter(filter.value); }}
+                            className={cn(
+                                "px-2.5 py-1 rounded-md font-medium transition cursor-pointer border",
+                                statusFilter === filter.value
+                                    ? filter.activeClass
+                                    : "text-muted-foreground hover:text-foreground border-transparent"
+                            )}
+                        >
+                            {filter.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 

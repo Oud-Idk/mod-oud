@@ -42,8 +42,9 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
         <Modal onClose={onClose} headerText="Ban User">
             <form onSubmit={handleSubmit} className="space-y-2">
                 <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">Reason</label>
+                    <label htmlFor="ban-reason" className="text-sm font-medium text-foreground">Reason</label>
                     <LongTextInput
+                        id="ban-reason"
                         placeholder="Provide a reason for the ban..."
                         value={reason}
                         onChange={(r) => { setReason(r.target.value); }}
@@ -59,9 +60,10 @@ export function BanModal({ isOpen, onClose, onSubmit, isSubmitting }: BanModalPr
 
                 {isTemporary && (
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">Duration</label>
+                        <label htmlFor="ban-duration" className="text-sm font-medium text-foreground">Duration</label>
                         <div className="flex gap-2">
                             <NumberInput
+                                id="ban-duration"
                                 value={duration}
                                 onChange={n => { setDuration(n); }}
                                 min={1}

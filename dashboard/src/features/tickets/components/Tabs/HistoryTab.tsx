@@ -1,6 +1,6 @@
 "use client";
 
-import { JSX, useEffect, useState, useTransition } from "react";
+import { JSX, useEffect, useMemo, useState, useTransition } from "react";
 import { getTicketHistoryAction, getTicketsListAction } from "@/features/tickets/actions";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { Ticket, TicketHistory, ViewTicketStatus } from "@/features/tickets/types";
@@ -12,12 +12,19 @@ interface HistoryTabProps {
 
 export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
     const [tickets, setTickets] = useState<Ticket[]>([]);
-    const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<TicketHistory | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [loadingChannelId, setLoadingChannelId] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<ViewTicketStatus>("ALL");
     const [isPending, startTransition] = useTransition();
+
+    const filteredTickets = useMemo(() => {
+        let result = Array.isArray(tickets) ? tickets : [];
+        if (statusFilter !== "ALL") {
+            result = result.filter((t) => t.status === statusFilter);
+        }
+        return result;
+    }, [statusFilter, tickets]);
 
     useEffect(() => {
         startTransition(async () => {
@@ -31,15 +38,6 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
             }
         });
     }, [guildId]);
-
-    useEffect(() => {
-        let result = Array.isArray(tickets) ? tickets : [];
-
-        if (statusFilter !== "ALL") {
-            result = result.filter((t) => t.status === statusFilter);
-        }
-        setFilteredTickets(result);
-    }, [statusFilter, tickets]);
 
     const handleViewHistory = async (channelId: string): Promise<void> => {
         setLoadingChannelId(channelId);
@@ -182,8 +180,9 @@ export default function HistoryTab({ guildId }: HistoryTabProps): JSX.Element {
                 )}
             />
 
-            {/* Slide-over Drawer */}
+            {/* Slide-over Drawer: native dialog would snap shut, losing the exit animation. */}
             <div
+                // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- custom slide-over, see above
                 role="dialog"
                 aria-modal="true"
                 aria-label={selectedTicket ? `Ticket #${selectedTicket.ticket_id.toString()} transcript` : "Ticket transcript"}

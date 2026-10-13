@@ -2,7 +2,7 @@ import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { Radio, RadioGroup } from "@headlessui/react";
 import { MultiSelectViewer } from "@/components/ui/MultiSelectViewer";
 import { TextInput } from "@/components/ui/inputs/TextInput";
-import React, { JSX, useState } from "react";
+import { JSX, useState } from "react";
 import { isFQDN } from "validator";
 import { MessageFilteringConfig } from "@/features/message-filtering/types";
 
@@ -14,6 +14,29 @@ export interface ExternalURLsTabProps {
     handleChange: (data: MessageFilteringConfig) => void;
     channelMap?: Record<string, string>;
     roleMap?: Record<string, string>;
+}
+
+type ListMode = "ALLOWLIST" | "DENYLIST";
+
+// The two list-mode options render identically; only the value and label differ.
+function ModeRadio({ value, label }: { value: ListMode; label: string }): JSX.Element {
+    return (
+        <Radio
+            value={value}
+            className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
+        >
+            {({ checked }) => (
+                <>
+                    <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
+                        {checked ? <span
+                            className="w-2 h-2 rounded-full bg-white" aria-hidden
+                        /> : null}
+                    </span>
+                    <span>{label}</span>
+                </>
+            )}
+        </Radio>
+    );
 }
 
 export function ExternalURLsTab({
@@ -94,49 +117,22 @@ export function ExternalURLsTab({
                                 onChange={(v) => { updateFilter({ mode: v }); }}
                                 className="flex gap-4"
                             >
-                                <Radio
-                                    value="ALLOWLIST"
-                                    className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
-                                >
-                                    {({ checked }) => (
-                                        <>
-                                            <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
-                                                {checked ? <span
-                                                    className="w-2 h-2 rounded-full bg-white" aria-hidden
-                                                /> : null}
-                                            </span>
-                                            <span>Allowlist</span>
-                                        </>
-                                    )}
-                                </Radio>
+                                <ModeRadio value="ALLOWLIST" label="Allowlist" />
 
-                                <Radio
-                                    value="DENYLIST"
-                                    className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
-                                >
-                                    {({ checked }) => (
-                                        <>
-                                            <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
-                                                {checked ? <span
-                                                    className="w-2 h-2 rounded-full bg-white" aria-hidden
-                                                /> : null}
-                                            </span>
-                                            <span>Denylist</span>
-                                        </>
-                                    )}
-                                </Radio>
+                                <ModeRadio value="DENYLIST" label="Denylist" />
                             </RadioGroup>
                             {filterConfig.mode === "ALLOWLIST" && (
                                 <div>
                                     <p>Please type your domain to allow (e.g. google.com)</p>
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium mt-2 mb-0">Allowed domains</label>
+                                        <label htmlFor="allowlist-domain-input" className="block text-sm font-medium mt-2 mb-0">Allowed domains</label>
                                         <MultiSelectViewer
                                             selectedList={filterConfig.allowedDomains}
                                             onDelete={(d) => { handleRemoveAllowedDomain(d); }}
                                             placeholder="No domains allowed"
                                         />
                                         <TextInput
+                                            id="allowlist-domain-input"
                                             onSubmit={handleAddAllowUrl}
                                             value={inputUrl}
                                             onChange={(e) => { setInputUrl(e.target.value); }}
@@ -149,13 +145,14 @@ export function ExternalURLsTab({
                                 <div>
                                     <p>Please type your domain to block (e.g. 888casino.com)</p>
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium mt-2 mb-0">Blocked domains</label>
+                                        <label htmlFor="denylist-domain-input" className="block text-sm font-medium mt-2 mb-0">Blocked domains</label>
                                         <MultiSelectViewer
                                             selectedList={filterConfig.blockedDomains}
                                             onDelete={(d) => { handleRemoveBlockedDomain(d); }}
                                             placeholder="No domains blocked"
                                         />
                                         <TextInput
+                                            id="denylist-domain-input"
                                             onSubmit={handleAddBlockedUrl}
                                             value={inputUrl}
                                             onChange={(e) => { setInputUrl(e.target.value); }}

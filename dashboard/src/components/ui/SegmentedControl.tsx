@@ -1,4 +1,4 @@
-import { ReactNode, JSX } from "react";
+import { ReactNode, JSX, useId } from "react";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { cn } from "@/lib/cn";
 
@@ -27,6 +27,7 @@ export function SegmentedControl<T extends string | number | boolean>({
     error = false,
     className,
 }: SegmentedControlProps<T>): JSX.Element {
+    const groupName = useId();
     return (
         <div className={className}>
             {label !== undefined && <InputLabel className="block mb-1.5">{label}</InputLabel>}
@@ -43,16 +44,13 @@ export function SegmentedControl<T extends string | number | boolean>({
                     const isSelected = value === option.value;
                     const isDisabled = disabled || option.disabled;
                     return (
-                        <button
+                        <label
                             key={String(option.value)}
-                            type="button"
-                            role="radio"
-                            aria-checked={isSelected}
-                            disabled={isDisabled}
-                            onClick={() => { onChange(option.value); }}
                             className={cn(
                                 // Base Typography & Layout
-                                "px-3 py-1.5 rounded-md text-xs font-medium transition-all select-none shrink-0 focus-ring",
+                                "px-3 py-1.5 rounded-md text-xs font-medium transition-all select-none shrink-0",
+                                // Focus ring follows the sr-only input via focus-within
+                                "focus-within:outline-none focus-within:ring-2 focus-within:ring-focus-ring focus-within:border-brand",
 
                                 // Active Pill (Elevated surface + subtle shadow) vs Inactive Pill
                                 isSelected
@@ -63,8 +61,17 @@ export function SegmentedControl<T extends string | number | boolean>({
                                 isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
                             )}
                         >
+                            <input
+                                type="radio"
+                                name={groupName}
+                                value={String(option.value)}
+                                checked={isSelected}
+                                disabled={isDisabled}
+                                onChange={() => { onChange(option.value); }}
+                                className="sr-only"
+                            />
                             {option.label}
-                        </button>
+                        </label>
                     );
                 })}
             </div>

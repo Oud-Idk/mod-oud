@@ -10,8 +10,7 @@ import { cn } from "@/lib/cn";
 
 import { StarboardCreateModal } from "./StarboardCreateModal";
 import { StarboardConfigEditor } from "./StarboardConfigEditor";
-import type { StarboardConfig, StarboardConfigDraft, StarboardConfigInput } from "../types";
-import { starboardConfigInputSchema } from "../types";
+import { starboardConfigInputSchema, type StarboardConfig, type StarboardConfigDraft, type StarboardConfigInput } from "../types";
 
 interface StarboardBodyProps {
     guildId: string;

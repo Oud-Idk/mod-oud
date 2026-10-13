@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback, JSX } from "react";
+import { useMemo, useState, useCallback, JSX } from "react";
 import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { useSSEInfiniteScroll } from "@/lib/hooks/useSSEInfiniteScroll";
@@ -14,8 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import { HistoryTab } from "./Tabs/HistoryTab";
 import { NotificationsTab, type ReportTabValue } from "./Tabs/NotificationsTab";
 import { TabItem, Tabs } from "@/components/layout/Tabs";
-import type { ReportConfig, ReportedMessage } from "../types";
-import { reportConfigSchema } from "../types";
+import { reportConfigSchema, type ReportConfig, type ReportedMessage } from "../types";
 import type { ViewTicketStatus } from "@/features/tickets/types";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
 import { getAvailableChannelOptions } from "@/features/_shared/dropdown";

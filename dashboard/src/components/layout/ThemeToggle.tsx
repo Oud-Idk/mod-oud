@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/inputs/Button";
 
 export function ThemeToggle(): JSX.Element {
     const { setTheme, resolvedTheme } = useTheme();
-    const [mounted, setMounted] = React.useState(false);
-
     // Avoid hydration mismatch by waiting for client-side mount
-    React.useEffect(() => {
-        setMounted(true);
-    }, []);
+    const mounted = React.useSyncExternalStore(
+        () => (): void => undefined,
+        () => true,
+        () => false
+    );
 
     if (!mounted) {
         return <div className="w-10 h-10"/>;

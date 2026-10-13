@@ -21,14 +21,16 @@ export function EconomyLeaderboardTab({
     const [isLoading, setIsLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
     const [hasError, setHasError] = useState(false);
+    const [prevEntries, setPrevEntries] = useState(entries);
 
-    const observer = useRef<IntersectionObserver | null>(null);
-
-    useEffect(() => {
+    if (prevEntries !== entries) {
+        setPrevEntries(entries);
         setDisplayed(entries);
         setHasMore(entries.length > 0);
         setHasError(false);
-    }, [entries]);
+    }
+
+    const observer = useRef<IntersectionObserver | null>(null);
 
     const loadMore = useCallback(async (): Promise<void> => {
         if (isLoading || !hasMore || hasError || displayed.length === 0) return;

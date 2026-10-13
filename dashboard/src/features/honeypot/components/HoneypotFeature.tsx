@@ -1,4 +1,4 @@
-import React, { JSX } from "react";
+import { JSX } from "react";
 import { getRoleMap, getTextChannelMap } from "@/features/_shared/channels";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { HoneypotBody } from "@/features/honeypot/components/HoneypotBody";

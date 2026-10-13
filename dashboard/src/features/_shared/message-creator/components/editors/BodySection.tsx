@@ -52,6 +52,7 @@ export function BodySection({
                             className="w-6 h-6 rounded-full border border-border transition-transform hover:scale-110 focus-ring"
                             style={{ backgroundColor: c.hex }}
                             title={c.name}
+                            aria-label={c.name}
                         />
                     ))}
                     <span className="font-mono text-xs uppercase ml-2 text-muted-foreground">{embed.color}</span>

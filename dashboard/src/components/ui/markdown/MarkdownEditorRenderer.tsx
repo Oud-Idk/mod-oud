@@ -28,6 +28,13 @@ export function MarkdownEditorRenderer({
     const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
     const [editorValue, setEditorValue] = useState(value);
     const [debouncedValue, setDebouncedValue] = useState(value);
+    const [prevValue, setPrevValue] = useState(value);
+
+    if (prevValue !== value) {
+        setPrevValue(value);
+        setEditorValue(value);
+        setDebouncedValue(value);
+    }
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -39,11 +46,6 @@ export function MarkdownEditorRenderer({
             clearTimeout(handler);
         };
     }, [editorValue, onChange]);
-
-    useEffect(() => {
-        setEditorValue(value);
-        setDebouncedValue(value);
-    }, [value]);
 
     return (
         <div>

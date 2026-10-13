@@ -20,7 +20,6 @@ const SUDO: string[] = ['s', 'u', 'd', 'o'];
 const CARL: string[] = ['c', 'a', 'r', 'l'];
 const RUST: string[] = ['r', 'u', 's', 't'];
 
-
 const uwuifier = new Uwuifier({
     spaces: {
         faces: 0.3,
@@ -92,7 +91,6 @@ export function EasterEggs(): JSX.Element {
     });
 
     useKeySequence(IF_YOU_FOUND_THIS_OUT_IM_CALLING_A_PRIEST, () => {
-        console.log("If you didn't read the source code, I wouldn't believe you, furry.");
         setShowLeonSky(true);
     });
 

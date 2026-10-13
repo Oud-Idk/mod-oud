@@ -1,4 +1,4 @@
-import React, { JSX } from 'react';
+import { JSX } from "react";
 import * as Slider from '@radix-ui/react-slider';
 import Footer from "@/components/layout/Footer";
 

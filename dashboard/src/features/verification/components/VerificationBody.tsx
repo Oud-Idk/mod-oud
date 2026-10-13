@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useMemo, useState } from "react";
+import { JSX, useMemo, useState } from "react";
 import Link from "next/link";
 import Turnstile from "react-turnstile";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
@@ -21,6 +21,8 @@ import { MessageConfigEditor } from "@/features/_shared/message-creator/componen
 import { Button } from "@/components/ui/inputs/Button";
 import { toast } from "sonner";
 
+// Duplicated, not shared: two features have not earned a _shared type yet.
+// aislop-ignore-next-line ai-slop/duplicate-type-declaration
 export interface DiscordRole {
     id: string;
     name: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useMemo, useState } from "react";
+import { JSX, useMemo, useState } from "react";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
 import { sendEmbedAction } from "@/features/embed-builder/actions";
 import { InputLabel } from "@/components/layout/InputLabel";

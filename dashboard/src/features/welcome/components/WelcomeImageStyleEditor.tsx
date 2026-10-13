@@ -4,6 +4,7 @@ import { JSX, useEffect, useMemo, useState } from "react";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { TextInput } from "@/components/ui/inputs/TextInput";
 import type { WelcomeImageStyle } from "../types";
+import DOMPurify from "dompurify";
 
 interface WelcomeImageStyleEditorProps {
     style: WelcomeImageStyle;
@@ -99,7 +100,12 @@ export function WelcomeImageStyleEditor({ templatePath, style, disabled = false,
         <div className="space-y-4">
             <div
                 className="w-full max-w-xl rounded-lg overflow-hidden border border-border bg-surface-muted [&>svg]:w-full [&>svg]:h-auto shadow-sm"
-                dangerouslySetInnerHTML={{ __html: previewSvg }}
+                // aislop-ignore-next-line security/dangerously-set-innerhtml
+                dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(previewSvg, {
+                        USE_PROFILES: { svg: true, svgFilters: true },
+                    }),
+                }}
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">

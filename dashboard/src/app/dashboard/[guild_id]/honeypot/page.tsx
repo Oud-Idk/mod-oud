@@ -1,7 +1,7 @@
-import React, { JSX} from "react";
+import { JSX } from "react";
 import { HoneypotFeature } from "@/features/honeypot";
 
-export interface PageProps {
+interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 

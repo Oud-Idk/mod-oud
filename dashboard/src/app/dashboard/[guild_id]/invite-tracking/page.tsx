@@ -1,7 +1,7 @@
 import { JSX} from "react";
 import { InviteTrackingFeature } from "@/features/invite-tracking";
 
-export interface PageProps {
+interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 
