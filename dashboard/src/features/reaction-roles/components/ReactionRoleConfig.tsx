@@ -257,6 +257,7 @@ export function ReactionRoleConfig({
                                         onClick={() => { handleRemoveButton(index); }}
                                         className="p-1.5 text-danger hover:bg-danger-subtle rounded transition cursor-pointer"
                                         title="Remove Button"
+                                        aria-label="Remove Button"
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path
