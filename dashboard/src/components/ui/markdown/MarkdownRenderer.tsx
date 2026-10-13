@@ -153,13 +153,14 @@ const markdownComponents: Components & Record<string, React.ElementType> = {
             />
         );
     },
-    a(props) {
-        const { className, ...rest } = props;
+    a({ className, children, ...rest }) {
         return (
             <a
                 className={`${className ?? ""} text-brand hover:text-brand-hover underline underline-offset-4 decoration-brand/40 hover:decoration-brand font-medium transition-colors wrap-break-word break-all focus-ring rounded-xs`}
                 {...rest}
-            />
+            >
+                {children}
+            </a>
         );
     },
 };
