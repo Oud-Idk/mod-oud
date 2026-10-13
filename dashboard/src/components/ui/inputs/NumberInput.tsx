@@ -11,6 +11,7 @@ interface NumberInputProps {
     step?: number;
     clamp?: boolean; // Set to true to enforce min/max on blur (default: false)
     label?: string;
+    id?: string;
     className?: string;
     disabled?: boolean;
     required?: boolean;
@@ -26,6 +27,7 @@ export function NumberInput({
     step = 1,
     clamp = false,
     label,
+    id,
     className,
     disabled = false,
     required = false,
@@ -119,6 +121,7 @@ export function NumberInput({
 
                 {/* Number Input */}
                 <Input
+                    id={id}
                     type="number"
                     min={min}
                     max={max}

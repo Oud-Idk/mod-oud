@@ -17,6 +17,7 @@ interface BaseDropdownProps<T extends string> {
     disabled?: boolean;
     error?: boolean;
     className?: string;
+    id?: string;
 }
 
 interface SingleDropdownProps<T extends string> extends BaseDropdownProps<T> {
@@ -41,6 +42,7 @@ export function Dropdown<T extends string>(props: DropdownProps<T>): ReactElemen
         disabled,
         error,
         className,
+        id,
     } = props;
 
     const selectedLabels: string[] = props.multiple
@@ -65,6 +67,7 @@ export function Dropdown<T extends string>(props: DropdownProps<T>): ReactElemen
     const renderContent = (): ReactElement => (
         <div className="relative">
             <ListboxButton
+                id={id}
                 aria-invalid={error ? true : undefined}
                 className={cn(
                     "relative w-full cursor-pointer rounded-md border bg-surface py-2 pl-3 pr-10 text-left text-sm transition-all duration-150",
