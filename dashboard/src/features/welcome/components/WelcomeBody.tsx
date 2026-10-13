@@ -11,6 +11,8 @@ import { WELCOME_CONFIG } from "../builderConfigs";
 
 import { AutoAssignRole } from "./AutoAssignRole";
 import { saveWelcomeConfigSchema, type WelcomeConfig, type WelcomeImageStyle } from "../types";
+import type { GenericMessageConfig } from "@/features/_shared/message-creator/types";
+import type { DiscordEmbed } from "@/features/_shared/embed";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
 
 export interface DiscordRole {
@@ -41,6 +43,49 @@ interface WelcomeImageFieldsProps {
     disabled: boolean;
     onSendImageChange: (sendImage: boolean) => void;
     onImageStyleChange: (imageStyle: WelcomeImageStyle) => void;
+}
+
+// The public and private editors differ only in their state path (plus the
+// public channel mapping); both updaters funnel through these helpers.
+function applyMessageUpdate(
+    prev: WelcomeConfig,
+    target: "public" | "private",
+    updated: GenericMessageConfig,
+): WelcomeConfig {
+    const message = {
+        format: updated.format,
+        content: updated.content ?? "",
+        embed: updated.embed ?? {},
+    };
+    if (target === "public") {
+        return {
+            ...prev,
+            public: {
+                ...prev.public,
+                enabled: updated.enabled ?? false,
+                channelId:
+                    updated.channel_id !== undefined && updated.channel_id !== ""
+                        ? updated.channel_id
+                        : null,
+                message,
+            },
+        };
+    }
+    return {
+        ...prev,
+        private: { ...prev.private, enabled: updated.enabled ?? false, message },
+    };
+}
+
+function applyEmbedUpdate(
+    prev: WelcomeConfig,
+    target: "public" | "private",
+    embed: DiscordEmbed,
+): WelcomeConfig {
+    if (target === "public") {
+        return { ...prev, public: { ...prev.public, message: { ...prev.public.message, embed } } };
+    }
+    return { ...prev, private: { ...prev.private, message: { ...prev.private.message, embed } } };
 }
 
 // Shared by the public and private message editors; only the state paths differ.
@@ -110,31 +155,10 @@ export function WelcomeBody({
                             format: config.public.message.format,
                         }}
                         onChange={(updated) => {
-                            setConfig((prev) => ({
-                                ...prev,
-                                public: {
-                                    ...prev.public,
-                                    enabled: updated.enabled ?? false,
-                                    channelId:
-                                        updated.channel_id !== undefined && updated.channel_id !== ""
-                                            ? updated.channel_id
-                                            : null,
-                                    message: {
-                                        format: updated.format,
-                                        content: updated.content ?? "",
-                                        embed: updated.embed ?? {},
-                                    },
-                                },
-                            }));
+                            setConfig((prev) => applyMessageUpdate(prev, "public", updated));
                         }}
                         onEmbedChange={(embed) => {
-                            setConfig((prev) => ({
-                                ...prev,
-                                public: {
-                                    ...prev.public,
-                                    message: { ...prev.public.message, embed },
-                                },
-                            }));
+                            setConfig((prev) => applyEmbedUpdate(prev, "public", embed));
                         }}
                         channels={channels}
                         disabled={isPending}
@@ -177,27 +201,10 @@ export function WelcomeBody({
                             format: config.private.message.format,
                         }}
                         onChange={(updated) => {
-                            setConfig((prev) => ({
-                                ...prev,
-                                private: {
-                                    ...prev.private,
-                                    enabled: updated.enabled ?? false,
-                                    message: {
-                                        format: updated.format,
-                                        content: updated.content ?? "",
-                                        embed: updated.embed ?? {},
-                                    },
-                                },
-                            }));
+                            setConfig((prev) => applyMessageUpdate(prev, "private", updated));
                         }}
                         onEmbedChange={(embed) => {
-                            setConfig((prev) => ({
-                                ...prev,
-                                private: {
-                                    ...prev.private,
-                                    message: { ...prev.private.message, embed },
-                                },
-                            }));
+                            setConfig((prev) => applyEmbedUpdate(prev, "private", embed));
                         }}
                         disabled={isPending}
                         toggleLabel="Send Direct Message (DM) when New User Joins"
