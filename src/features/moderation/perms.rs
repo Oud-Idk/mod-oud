@@ -70,7 +70,7 @@ pub async fn check_hierarchy(ctx: Context<'_>, target_id: UserId) -> Result<(), 
     check_hierarchy_in(
         ctx.serenity_context(),
         guild_id,
-        ctx.framework().bot_id,
+        ctx.framework().bot_id(),
         ctx.author().id,
         target_id,
     )
