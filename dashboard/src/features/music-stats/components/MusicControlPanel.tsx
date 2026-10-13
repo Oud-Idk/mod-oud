@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
+import React, { JSX, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { z } from "zod";
 import { Button } from "@/components/ui/inputs/Button";
@@ -143,7 +143,11 @@ export function MusicControlPanel({
     userAuth,
     voiceChannelMap
 }: MusicControlPanelProps): JSX.Element | null {
-    const [mounted, setMounted] = useState(false);
+    const mounted = useSyncExternalStore(
+        () => (): void => undefined,
+        () => true,
+        () => false
+    );
     const [status, setStatus] = useState<ConnectionStatus>("connecting");
     const [query, setQuery] = useState<string>("");
     const [activeRequestsCount, setActiveRequestsCount] = useState<number>(0);
@@ -167,7 +171,6 @@ export function MusicControlPanel({
 
     useEffect(() => {
         isMountedRef.current = true;
-        setMounted(true);
         return () => {
             isMountedRef.current = false;
         };

@@ -19,14 +19,16 @@ export function LeaderboardTab({
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasMore, setHasMore] = useState<boolean>(true);
     const [hasError, setHasError] = useState<boolean>(false);
+    const [prevLevels, setPrevLevels] = useState(levels);
 
-    const observer = useRef<IntersectionObserver | null>(null);
-
-    useEffect(() => {
+    if (prevLevels !== levels) {
+        setPrevLevels(levels);
         setDisplayedLevels(levels);
         setHasMore(levels.length > 0);
         setHasError(false);
-    }, [levels]);
+    }
+
+    const observer = useRef<IntersectionObserver | null>(null);
 
     const loadMoreItems = useCallback(async (): Promise<void> => {
         if (isLoading || !hasMore || hasError || displayedLevels.length === 0) return;

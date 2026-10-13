@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, JSX } from "react";
+import { useState, useMemo, JSX } from "react";
 import { getAvailableRoleOptions } from "@/features/_shared/dropdown";
 import { LevelReward, saveLevelRewardInputSchema } from "@/features/leveling/types";
 import { Dropdown } from "@/components/ui/inputs/Dropdown";
@@ -47,6 +47,13 @@ export function RewardTab({
     // Map database rewards (snake_case) to camelCase local state
     const [localRewards, setLocalRewards] = useState<RewardItemState[]>(rewards);
     const [deletedIds, setDeletedIds] = useState<number[]>([]);
+    const [prevRewards, setPrevRewards] = useState(rewards);
+
+    if (prevRewards !== rewards) {
+        setPrevRewards(rewards);
+        setLocalRewards(rewards);
+        setDeletedIds([]);
+    }
     const [isSaving, setIsSaving] = useState(false);
     const router = useRouter();
 
@@ -65,11 +72,6 @@ export function RewardTab({
             );
         });
     }, [localRewards, rewards, deletedIds]);
-
-    useEffect(() => {
-        setLocalRewards(rewards);
-        setDeletedIds([]);
-    }, [rewards]);
 
     const handleAddReward = (): void => {
         const nextLevel =

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, JSX } from "react";
+import { useState, useTransition, JSX } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -35,12 +35,14 @@ export function CustomCommandsBody({
 }: CustomCommandsBodyProps): JSX.Element {
     const router = useRouter();
     const [config, setConfig] = useState<CustomCommand | null>(activeConfig);
+    const [prevActive, setPrevActive] = useState(activeConfig);
+
+    if (prevActive !== activeConfig) {
+        setPrevActive(activeConfig);
+        setConfig(activeConfig);
+    }
     const [isPending, startTransition] = useTransition();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-    useEffect(() => {
-        setConfig(activeConfig);
-    }, [activeConfig]);
 
     const isDirty = !isDeepEqual(config, activeConfig);
 

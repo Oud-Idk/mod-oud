@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, JSX } from "react";
+import { useState, useTransition, JSX } from "react";
 import { ConfigListLayout } from "@/components/dashboard/ConfigListLayout";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SavePopup } from "@/components/dashboard/SavePopup";
@@ -49,10 +49,12 @@ export function EconomyItemsTab({
     const [isPending, startTransition] = useTransition();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [localCategories, setLocalCategories] = useState<EconomyCategory[]>(categories);
+    const [prevCategories, setPrevCategories] = useState(categories);
 
-    useEffect(() => {
+    if (prevCategories !== categories) {
+        setPrevCategories(categories);
         setLocalCategories(categories);
-    }, [categories]);
+    }
 
     const handleSaveCategory = async (cat: EconomyCategory): Promise<EconomyCategory> => {
         const created = await onSaveCategory(cat);
@@ -65,31 +67,33 @@ export function EconomyItemsTab({
         return created;
     };
 
-    // Sync active config whenever the ?id= URL param changes or items update
-    // Preserve unsaved edits (dirty) for the same item when unrelated revalidation
-    // occurs (e.g. creating a category triggers revalidatePath -> new items array
-    // identity but same content -> would otherwise wipe the staged category pick).
-    useEffect(() => {
+    const [prevSelection, setPrevSelection] = useState({ selectedId, items, activeConfig });
+
+    if (
+        prevSelection.selectedId !== selectedId ||
+        prevSelection.items !== items ||
+        prevSelection.activeConfig !== activeConfig
+    ) {
+        setPrevSelection({ selectedId, items, activeConfig });
         if (selectedId !== null && selectedId !== "") {
             const found = items.find((i) => i.id === selectedId);
             if (found !== undefined) {
-                setConfig((prev) => {
-                    if (prev?.id === found.id && !isDeepEqual(prev, found)) {
-                        return prev;
-                    }
-                    return found;
-                });
-                return;
+                if (!(config?.id === found.id && !isDeepEqual(config, found))) {
+                    setConfig(found);
+                }
+            } else {
+                const baseline = activeConfig ?? null;
+                if (!(config?.id === baseline?.id && baseline !== null && config !== null && !isDeepEqual(config, baseline))) {
+                    setConfig(baseline);
+                }
+            }
+        } else {
+            const baseline = activeConfig ?? null;
+            if (!(config?.id === baseline?.id && baseline !== null && config !== null && !isDeepEqual(config, baseline))) {
+                setConfig(baseline);
             }
         }
-        setConfig((prev) => {
-            const baseline = activeConfig ?? null;
-            if (prev?.id === baseline?.id && baseline !== null && prev !== null && !isDeepEqual(prev, baseline)) {
-                return prev;
-            }
-            return baseline;
-        });
-    }, [selectedId, items, activeConfig]);
+    }
 
     // Find the saved baseline to calculate isDirty
     const currentSavedItem = items.find((i) => i.id === config?.id) ?? null;

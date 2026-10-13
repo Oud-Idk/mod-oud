@@ -17,9 +17,17 @@ const HEADERS = ["User", "Action", "Timestamp"];
 
 export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Element {
     const [logs, setLogs] = useState<JoinLeaveLog[]>([]);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(true);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);
     const [hasMore, setHasMore] = useState<boolean>(true);
+    const [prevGuildId, setPrevGuildId] = useState(guildId);
+
+    if (prevGuildId !== guildId) {
+        setPrevGuildId(guildId);
+        setLogs([]);
+        setHasMore(true);
+        setLoading(true);
+    }
 
     const observerTarget = useRef<HTMLDivElement | null>(null);
 
@@ -28,12 +36,11 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Elem
     const lastLogId = lastLog !== undefined ? lastLog.id : null;
 
     useEffect(() => {
-        setLoading(true);
-        setHasMore(true);
-        setLogs([]);
+        let cancelled = false;
 
         void getJoinLeaveLogsAction(guildId, null, LIMIT, null, null)
             .then((data) => {
+                if (cancelled) return;
                 setLogs(data);
                 if (data.length < LIMIT) setHasMore(false);
             })
@@ -41,8 +48,12 @@ export function MemberActivityTab({ guildId }: MemberActivityTabProps): JSX.Elem
                 console.error("Error fetching initial activity logs:", err);
             })
             .finally(() => {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             });
+
+        return () => {
+            cancelled = true;
+        };
     }, [guildId]);
 
     const fetchMoreLogs = useCallback(async (): Promise<void> => {

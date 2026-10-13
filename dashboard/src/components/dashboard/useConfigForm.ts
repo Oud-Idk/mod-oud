@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useCallback, useState, useTransition, useEffect } from "react";
+import { Dispatch, SetStateAction, useCallback, useState, useTransition } from "react";
 import { isDeepEqual } from "@/features/_shared/embed";
 import { toast } from "sonner";
 import { ZodType } from "zod";
@@ -27,10 +27,12 @@ export function useConfigForm<T>({
     const [config, setConfig] = useState<T>(initialConfig);
     const [isPending, startTransition] = useTransition();
     const [resetKey, setResetKey] = useState(0);
+    const [prevInitial, setPrevInitial] = useState(initialConfig);
 
-    useEffect(() => {
+    if (prevInitial !== initialConfig) {
+        setPrevInitial(initialConfig);
         setConfig(initialConfig);
-    }, [initialConfig]);
+    }
 
     const isDirty = !isDeepEqual(config, initialConfig);
 

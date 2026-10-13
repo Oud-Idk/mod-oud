@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useEffect, useState } from "react";
+import React, { JSX, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -10,11 +10,12 @@ import { LogoTextLink } from "@/components/dashboard/LogoTextLink";
 export function MobileNav({ children }: { children: React.ReactNode }): JSX.Element {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
+    const [prevPathname, setPrevPathname] = useState(pathname);
 
-    // Auto-close on navigation
-    useEffect(() => {
+    if (prevPathname !== pathname) {
+        setPrevPathname(pathname);
         setIsOpen(false);
-    }, [pathname]);
+    }
 
     return (
         <div className="md:hidden">

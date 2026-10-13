@@ -2,7 +2,7 @@
 
 import 'katex/dist/katex.min.css';
 
-import React, { ReactNode, useEffect, useState, type JSX } from "react";
+import React, { ReactNode, useSyncExternalStore, type JSX } from "react";
 import { Element } from 'hast';
 import { useTheme } from "next-themes";
 
@@ -34,13 +34,11 @@ interface PreProps extends React.HTMLAttributes<HTMLPreElement> {
  * known and React has already committed the server's markup.
  */
 function useMounted(): boolean {
-    const [mounted, setMounted] = useState(false);
-
-    useEffect((): void => {
-        setMounted(true);
-    }, []);
-
-    return mounted;
+    return useSyncExternalStore(
+        () => (): void => undefined,
+        () => true,
+        () => false
+    );
 }
 
 const CodeBlock = ({ children, style: preStyle, ...props }: PreProps): JSX.Element => {

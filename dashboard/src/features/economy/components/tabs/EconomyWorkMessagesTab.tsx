@@ -1,6 +1,6 @@
 "use client";
 
-import { JSX, useState, useTransition, useEffect } from "react";
+import { JSX, useState, useTransition } from "react";
 import { InputLabel } from "@/components/layout/InputLabel";
 import { Button } from "@/components/ui/inputs/Button";
 import { LongTextInput } from "@/components/ui/inputs/LongTextInput";
@@ -19,20 +19,20 @@ export function EconomyWorkMessagesTab({
     onSync,
 }: EconomyWorkMessagesTabProps): JSX.Element {
     const [localMessages, setLocalMessages] = useState<EconomyWorkMessage[]>(messages);
+    const [prevMessages, setPrevMessages] = useState(messages);
+
+    if (prevMessages !== messages) {
+        setPrevMessages(messages);
+        if (localMessages.length === 0 && messages.length > 0) {
+            setLocalMessages(messages);
+        } else if (isDeepEqual(localMessages, prevMessages)) {
+            setLocalMessages(messages);
+        }
+    }
     const [newContent, setNewContent] = useState("");
     const [isPending, startTransition] = useTransition();
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingContent, setEditingContent] = useState("");
-
-    useEffect(() => {
-        setLocalMessages((prev) => {
-            // Preserve dirty local edits across revalidation (like EconomyItemsTab)
-            // If we already have unsaved changes, keep them; only sync on initial load or when not dirty
-            if (prev.length === 0 && messages.length > 0) return messages;
-            if (!isDeepEqual(prev, messages)) return prev;
-            return messages;
-        });
-    }, [messages]);
 
     const isDirty = !isDeepEqual(localMessages, messages);
 
