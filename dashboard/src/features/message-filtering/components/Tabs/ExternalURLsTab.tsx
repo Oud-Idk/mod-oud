@@ -16,6 +16,29 @@ export interface ExternalURLsTabProps {
     roleMap?: Record<string, string>;
 }
 
+type ListMode = "ALLOWLIST" | "DENYLIST";
+
+// The two list-mode options render identically; only the value and label differ.
+function ModeRadio({ value, label }: { value: ListMode; label: string }): JSX.Element {
+    return (
+        <Radio
+            value={value}
+            className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
+        >
+            {({ checked }) => (
+                <>
+                    <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
+                        {checked ? <span
+                            className="w-2 h-2 rounded-full bg-white" aria-hidden
+                        /> : null}
+                    </span>
+                    <span>{label}</span>
+                </>
+            )}
+        </Radio>
+    );
+}
+
 export function ExternalURLsTab({
     config,
     handleChange,
@@ -94,37 +117,9 @@ export function ExternalURLsTab({
                                 onChange={(v) => { updateFilter({ mode: v }); }}
                                 className="flex gap-4"
                             >
-                                <Radio
-                                    value="ALLOWLIST"
-                                    className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
-                                >
-                                    {({ checked }) => (
-                                        <>
-                                            <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
-                                                {checked ? <span
-                                                    className="w-2 h-2 rounded-full bg-white" aria-hidden
-                                                /> : null}
-                                            </span>
-                                            <span>Allowlist</span>
-                                        </>
-                                    )}
-                                </Radio>
+                                <ModeRadio value="ALLOWLIST" label="Allowlist" />
 
-                                <Radio
-                                    value="DENYLIST"
-                                    className={({ checked }) => `ring-offset-1 rounded-md p-2 cursor-pointer flex items-center gap-2 text-sm ${checked ? "bg-neutral-300/10" : ""}`}
-                                >
-                                    {({ checked }) => (
-                                        <>
-                                            <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border border-neutral-500 ${checked ? "bg-primary-600" : "bg-transparent"}`}>
-                                                {checked ? <span
-                                                    className="w-2 h-2 rounded-full bg-white" aria-hidden
-                                                /> : null}
-                                            </span>
-                                            <span>Denylist</span>
-                                        </>
-                                    )}
-                                </Radio>
+                                <ModeRadio value="DENYLIST" label="Denylist" />
                             </RadioGroup>
                             {filterConfig.mode === "ALLOWLIST" && (
                                 <div>

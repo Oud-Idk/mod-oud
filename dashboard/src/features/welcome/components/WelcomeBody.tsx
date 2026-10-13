@@ -10,7 +10,7 @@ import { WelcomeImageStyleEditor } from "./WelcomeImageStyleEditor";
 import { WELCOME_CONFIG } from "../builderConfigs";
 
 import { AutoAssignRole } from "./AutoAssignRole";
-import { saveWelcomeConfigSchema, type WelcomeConfig } from "../types";
+import { saveWelcomeConfigSchema, type WelcomeConfig, type WelcomeImageStyle } from "../types";
 import type { DiscordChannel } from "@/features/_shared/channels.types";
 
 export interface DiscordRole {
@@ -34,6 +34,43 @@ const WELCOME_TABS: TabItem<TabValue>[] = [
     { value: "PRIVATE", label: "Private Message (DM)" },
     { value: "ROLES", label: "Welcome Roles" },
 ];
+
+interface WelcomeImageFieldsProps {
+    sendImage: boolean;
+    imageStyle: WelcomeImageStyle;
+    disabled: boolean;
+    onSendImageChange: (sendImage: boolean) => void;
+    onImageStyleChange: (imageStyle: WelcomeImageStyle) => void;
+}
+
+// Shared by the public and private message editors; only the state paths differ.
+function WelcomeImageFields({
+    sendImage,
+    imageStyle,
+    disabled,
+    onSendImageChange,
+    onImageStyleChange,
+}: WelcomeImageFieldsProps): JSX.Element {
+    return (
+        <div className="space-y-4">
+            <ToggleSwitch
+                checked={sendImage}
+                disabled={disabled}
+                onChange={onSendImageChange}
+                className="mt-2"
+                text="Send Welcome Image"
+            />
+            {sendImage && (
+                <WelcomeImageStyleEditor
+                    templatePath="/welcome-template.svg"
+                    style={imageStyle}
+                    disabled={disabled}
+                    onChange={onImageStyleChange}
+                />
+            )}
+        </div>
+    );
+}
 
 export function WelcomeBody({
     welcomeConfig,
@@ -109,33 +146,23 @@ export function WelcomeBody({
                         setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                         targetChannelIsEmpty={targetChannelIsEmpty}
                         customFields={
-                            <div className="space-y-4">
-                                <ToggleSwitch
-                                    checked={config.public.sendImage}
-                                    disabled={isPending}
-                                    onChange={(checked) => {
-                                        setConfig((prev) => ({
-                                            ...prev,
-                                            public: { ...prev.public, sendImage: checked },
-                                        }));
-                                    }}
-                                    className="mt-2"
-                                    text="Send Welcome Image"
-                                />
-                                {config.public.sendImage && (
-                                    <WelcomeImageStyleEditor
-                                        templatePath="/welcome-template.svg"
-                                        style={config.public.imageStyle}
-                                        disabled={isPending}
-                                        onChange={(imageStyle) => {
-                                            setConfig((prev) => ({
-                                                ...prev,
-                                                public: { ...prev.public, imageStyle },
-                                            }));
-                                        }}
-                                    />
-                                )}
-                            </div>
+                            <WelcomeImageFields
+                                sendImage={config.public.sendImage}
+                                imageStyle={config.public.imageStyle}
+                                disabled={isPending}
+                                onSendImageChange={(checked) => {
+                                    setConfig((prev) => ({
+                                        ...prev,
+                                        public: { ...prev.public, sendImage: checked },
+                                    }));
+                                }}
+                                onImageStyleChange={(imageStyle) => {
+                                    setConfig((prev) => ({
+                                        ...prev,
+                                        public: { ...prev.public, imageStyle },
+                                    }));
+                                }}
+                            />
                         }
                     />
                 )}
@@ -181,33 +208,23 @@ export function WelcomeBody({
                         setTargetChannelIsEmpty={setTargetChannelIsEmpty}
                         targetChannelIsEmpty={targetChannelIsEmpty}
                         customFields={
-                            <div className="space-y-4">
-                                <ToggleSwitch
-                                    checked={config.private.sendImage}
-                                    disabled={isPending}
-                                    onChange={(checked) => {
-                                        setConfig((prev) => ({
-                                            ...prev,
-                                            private: { ...prev.private, sendImage: checked },
-                                        }));
-                                    }}
-                                    className="mt-2"
-                                    text="Send Welcome Image"
-                                />
-                                {config.private.sendImage && (
-                                    <WelcomeImageStyleEditor
-                                        templatePath="/welcome-template.svg"
-                                        style={config.private.imageStyle}
-                                        disabled={isPending}
-                                        onChange={(imageStyle) => {
-                                            setConfig((prev) => ({
-                                                ...prev,
-                                                private: { ...prev.private, imageStyle },
-                                            }));
-                                        }}
-                                    />
-                                )}
-                            </div>
+                            <WelcomeImageFields
+                                sendImage={config.private.sendImage}
+                                imageStyle={config.private.imageStyle}
+                                disabled={isPending}
+                                onSendImageChange={(checked) => {
+                                    setConfig((prev) => ({
+                                        ...prev,
+                                        private: { ...prev.private, sendImage: checked },
+                                    }));
+                                }}
+                                onImageStyleChange={(imageStyle) => {
+                                    setConfig((prev) => ({
+                                        ...prev,
+                                        private: { ...prev.private, imageStyle },
+                                    }));
+                                }}
+                            />
                         }
                     />
                 )}
