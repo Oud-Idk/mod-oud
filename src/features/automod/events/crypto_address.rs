@@ -5,7 +5,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bitcoin::Network;
-use bitcoin::{Address as BtcAddress, TestnetVersion, bech32};
+use bitcoin::{Address as BtcAddress, bech32};
 use regex::Regex;
 use serenity::all::Message;
 use std::borrow::Cow;
@@ -85,8 +85,7 @@ fn is_valid_btc_address(candidate: &str) -> bool {
     address.is_valid_for_network(Network::Bitcoin)
         || address.is_valid_for_network(Network::Signet)
         || address.is_valid_for_network(Network::Regtest)
-        || address.is_valid_for_network(Network::Testnet(TestnetVersion::V3))
-        || address.is_valid_for_network(Network::Testnet(TestnetVersion::V4))
+        || address.is_valid_for_network(Network::Testnet)
 }
 
 /// Minimum Shannon entropy (bits per character) for a base58 candidate to be
