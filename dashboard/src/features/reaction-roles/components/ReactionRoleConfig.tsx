@@ -204,8 +204,9 @@ export function ReactionRoleConfig({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                    <label className="block text-sm font-semibold text-foreground">Channel</label>
+                    <label htmlFor="rr-channel" className="block text-sm font-semibold text-foreground">Channel</label>
                     <Dropdown
+                        id="rr-channel"
                         options={getAvailableChannelOptions(channelMap)}
                         value={config.channel_id ?? ""}
                         onChange={(val) => { onChange({ ...config, channel_id: val }); }}
@@ -215,8 +216,9 @@ export function ReactionRoleConfig({
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="block text-sm font-semibold text-foreground">Interaction Mode</label>
+                    <label htmlFor="rr-mode" className="block text-sm font-semibold text-foreground">Interaction Mode</label>
                     <Dropdown
+                        id="rr-mode"
                         options={[
                             { value: "REACTION", label: "Reaction Emojis" },
                             { value: "BUTTON", label: "Buttons" },
@@ -272,8 +274,9 @@ export function ReactionRoleConfig({
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-semibold text-foreground">Label</label>
+                                        <label htmlFor={`rrb-label-${button.custom_id}`} className="block text-xs font-semibold text-foreground">Label</label>
                                         <TextInput
+                                            id={`rrb-label-${button.custom_id}`}
                                             placeholder="Label text"
                                             value={button.label ?? ""}
                                             onChange={(e) => { handleUpdateButton(index, "label", e.target.value); }}
@@ -281,8 +284,9 @@ export function ReactionRoleConfig({
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-semibold text-foreground">Emoji (Optional)</label>
+                                        <label htmlFor={`rrb-emoji-${button.custom_id}`} className="block text-xs font-semibold text-foreground">Emoji (Optional)</label>
                                         <TextInput
+                                            id={`rrb-emoji-${button.custom_id}`}
                                             placeholder="😀"
                                             value={button.emoji ?? ""}
                                             onChange={(e) => { handleUpdateButton(index, "emoji", e.target.value); }}
@@ -290,8 +294,9 @@ export function ReactionRoleConfig({
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-semibold text-foreground">Style</label>
+                                        <label htmlFor={`rrb-style-${button.custom_id}`} className="block text-xs font-semibold text-foreground">Style</label>
                                         <Dropdown
+                                            id={`rrb-style-${button.custom_id}`}
                                             options={[
                                                 { value: "PRIMARY", label: "Primary (Blue)" },
                                                 { value: "SECONDARY", label: "Secondary (Gray)" },
@@ -304,8 +309,9 @@ export function ReactionRoleConfig({
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-semibold text-foreground">Role</label>
+                                        <label htmlFor={`rrb-role-${button.custom_id}`} className="block text-xs font-semibold text-foreground">Role</label>
                                         <Dropdown
+                                            id={`rrb-role-${button.custom_id}`}
                                             options={getAvailableRoleOptions(roleMap)}
                                             value={button.role_id ?? ""}
                                             onChange={(val) => { handleUpdateButton(index, "role_id", val); }}
