@@ -202,7 +202,7 @@ function QuantitiesEditor({
             <Button
                 type="button"
                 variant="secondary"
-                disabled={availableOptions.length === 0 || availableOptions.every((opt) => opt.value in quantities)}
+                disabled={availableOptions.every((opt) => opt.value in quantities)}
                 onClick={addEntry}
             >
                 + Add Item

@@ -272,7 +272,7 @@ export function MusicControlPanel({
 
                 pendingRequestsRef.current.set(requestId, { resolve, reject, timeoutId });
 
-                const message = { type: "music", requestId, action, ...(payload ?? {}) };
+                const message = { type: "music", requestId, action, ...payload };
                 try {
                     socket.send(JSON.stringify(message));
                 } catch (e: unknown) {
