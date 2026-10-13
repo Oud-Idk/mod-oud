@@ -35,6 +35,7 @@ use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use std::borrow::Cow;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 use tracing::log::LevelFilter;
@@ -433,10 +434,15 @@ async fn start_bot(
             },
             commands: commands_to_register,
             on_error: |error| Box::pin(on_error(error)),
-            event_handler: |ctx, event, framework, data| {
-                Box::pin(events::dispatch::dispatch_events(
-                    ctx, event, framework, data,
-                ))
+            event_handler: |framework, event| {
+                Box::pin(async move {
+                    let ctx = framework.serenity_context;
+                    let data = framework.user_data().await;
+
+                    events::dispatch::dispatch_events(
+                        ctx, event, framework, data,
+                    ).await
+                })
             },
             ..Default::default()
         })
@@ -490,12 +496,12 @@ async fn start_bot(
 /// load, so prefix commands keep working even on cache/DB errors.
 fn dynamic_prefix(
     ctx: poise::PartialContext<'_, BotData, Error>,
-) -> poise::BoxFuture<'_, Result<Option<String>, Error>> {
+) -> poise::BoxFuture<'_, Result<Option<Cow<'static, str>>, Error>> {
     Box::pin(async move {
         let Some(guild_id) = ctx.guild_id else {
-            return Ok(Some("!".to_string()));
+            return Ok(Some(Cow::from("!")));
         };
-        let data = ctx.data;
+      let data = ctx.framework.user_data().await;
         match config::settings::get_settings(
             &data.core.db,
             &data.core.redis,
@@ -504,9 +510,9 @@ fn dynamic_prefix(
         )
         .await
         {
-            Ok(settings) => Ok(Some(
-                mod_oud::features::custom_commands::resolve_prefix(&settings).to_string(),
-            )),
+            Ok(settings) => Ok(
+              Some(custom_commands::resolve_prefix(&settings).to_string().into())
+            ),
             Err(e) => {
                 warn!(
                     error = ?e,
@@ -514,7 +520,7 @@ fn dynamic_prefix(
                     fallback = "!",
                     "command prefix resolution failed"
                 );
-                Ok(Some("!".to_string()))
+                Ok(Some(Cow::from("!")))
             }
         }
     })
