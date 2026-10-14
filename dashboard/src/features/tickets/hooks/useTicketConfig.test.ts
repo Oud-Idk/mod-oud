@@ -136,7 +136,7 @@ describe("useTicketConfig", () => {
 
     it("posts the panel and tracks processing", async () => {
         const { onSave, onSendTicketMessage, onDeleteTicketMessage } = callbacks();
-        let resolveSend: () => void = () => undefined;
+        let resolveSend: (value: string | undefined) => void = () => undefined;
         vi.mocked(onSendTicketMessage).mockImplementation(
             () =>
                 new Promise<string | undefined>((resolve) => {
@@ -153,7 +153,7 @@ describe("useTicketConfig", () => {
         expect(result.current.isProcessingAction).toBe(true);
 
         act(() => {
-            resolveSend();
+            resolveSend(undefined);
         });
         await waitFor(() => {
             expect(onSendTicketMessage).toHaveBeenCalledWith("chan_1");
