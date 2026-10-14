@@ -23,6 +23,12 @@ vi.mock("@/lib/db", () => ({
 
 vi.stubGlobal("fetch", mockFetch);
 
+// Row mapping, SQL shape, tenant scoping and the seven-day window live in
+// queries.integration.test.ts against a real database. What stays here is the
+// behaviour a real database will not produce on demand: no rows from a scalar
+// select, null counts, a schema rejection, a failing query, and the Discord
+// HTTP calls.
+
 describe("Overview Query Module", () => {
     // Keep a snapshot of original env to prevent test pollution
     const originalEnv = process.env;
@@ -46,34 +52,12 @@ describe("Overview Query Module", () => {
         };
 
         it("should return default stats when the DB returns no rows", async () => {
+            // Scalar subselects always yield one row, so only a mock reaches this branch.
             mockQuery.mockResolvedValue({ rows: [] });
 
             const result = await getGuildStats("guild_123");
 
-            expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("moderation_logs"), [
-                "guild_123",
-            ]);
             expect(result).toEqual(defaults);
-        });
-
-        it("should parse and convert counts from the row", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [
-                    {
-                        weekly_moderation: "5",
-                        weekly_resolved: "3",
-                        open_tickets: "2",
-                    },
-                ],
-            });
-
-            const result = await getGuildStats("guild_123");
-
-            expect(result).toEqual({
-                weeklyModerationCount: 5,
-                weeklyResolvedTicketCount: 3,
-                openTicketsCount: 2,
-            });
         });
 
         it("should treat null counts as zero", async () => {
