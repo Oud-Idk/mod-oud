@@ -1,13 +1,22 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+// @vitest-environment jsdom
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import {
     applyNowPlayingUpdate,
+    useMusicConnection,
     type PlaybackStore,
 } from "./useMusicConnection";
-import type { NowPlayingData } from "./musicSocketProtocol";
+import { useMusicSocket } from "./useMusicSocket";
+import type { ConnectionStatus, NowPlayingData } from "./musicSocketProtocol";
+import type { MusicFeedback, MusicSendCommand } from "./useMusicSocket";
 
 vi.mock("@/features/realtime/actions", () => ({
     issueRealtimeTicketAction: vi.fn(),
+}));
+
+vi.mock("./useMusicSocket", () => ({
+    useMusicSocket: vi.fn(),
 }));
 
 interface StoreHarness {
@@ -59,6 +68,11 @@ function updaterResult(
 
 beforeEach(() => {
     vi.resetAllMocks();
+});
+
+afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
 });
 
 describe("applyNowPlayingUpdate", () => {
@@ -195,5 +209,152 @@ describe("applyNowPlayingUpdate", () => {
         expect(setDuration).toHaveBeenCalledWith(120);
         expect(setPosition).not.toHaveBeenCalled();
         expect(playheadAnchorRef.current).toBeNull();
+    });
+});
+
+describe("useMusicConnection clocks", () => {
+    function transport(status: ConnectionStatus, sendCommand?: MusicSendCommand): MusicSendCommand {
+        const send =
+            sendCommand ?? vi.fn<MusicSendCommand>().mockResolvedValue({ title: "T" });
+        vi.mocked(useMusicSocket).mockReturnValue({
+            status,
+            feedback: null,
+            setFeedback: vi.fn<Dispatch<SetStateAction<{ ok: boolean; text: string } | null>>>(),
+            activeRequestsCount: 0,
+            sendCommand: send,
+            showFeedback: vi.fn<MusicFeedback>(),
+        });
+        return send;
+    }
+
+    it("polls nowPlaying every five seconds while connected", async () => {
+        vi.useFakeTimers();
+        const sendCommand = transport("connected");
+        const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+        expect(sendCommand).not.toHaveBeenCalled();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(sendCommand).toHaveBeenCalledWith("nowPlaying");
+        expect(result.current.nowPlaying?.title).toBe("T");
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(sendCommand).toHaveBeenCalledTimes(2);
+    });
+
+    it("stays silent while disconnected", () => {
+        vi.useFakeTimers();
+        const sendCommand = transport("disconnected");
+        renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+        act(() => {
+            vi.advanceTimersByTime(30_000);
+        });
+
+        expect(sendCommand).not.toHaveBeenCalled();
+    });
+
+    it("advances the playhead from the anchor", async () => {
+        vi.useFakeTimers();
+        transport("connected", vi.fn<MusicSendCommand>().mockResolvedValue({
+            title: "T",
+            duration: 100,
+            position_sec: 10,
+        }));
+        const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(result.current.position).toBe(10);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(result.current.position).toBe(11);
+    });
+
+    it("holds the playhead while paused", async () => {
+        vi.useFakeTimers();
+        transport(
+            "connected",
+            vi.fn<MusicSendCommand>().mockResolvedValue({ title: "T", is_paused: true })
+        );
+        const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        const held = result.current.position;
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(result.current.position).toBe(held);
+    });
+
+    it("holds the playhead while seeking", async () => {
+        vi.useFakeTimers();
+        transport("connected");
+        const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        act(() => {
+            result.current.setIsSeeking(true);
+        });
+        const held = result.current.position;
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(2000);
+        });
+        expect(result.current.position).toBe(held);
+    });
+
+    it("holds the playhead for live streams", async () => {
+        vi.useFakeTimers();
+        transport(
+            "connected",
+            vi.fn<MusicSendCommand>().mockResolvedValue({ title: "T", is_live: true })
+        );
+        const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(result.current.nowPlaying?.isLive).toBe(true);
+        const held = result.current.position;
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(result.current.position).toBe(held);
+    });
+
+    it("clamps at the duration and resyncs", async () => {
+        vi.useFakeTimers();
+        const sendCommand = transport(
+            "connected",
+            vi.fn<MusicSendCommand>().mockResolvedValue({ title: "T", duration: 100, position_sec: 99 })
+        );
+        const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(result.current.position).toBe(99);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(2000);
+        });
+        expect(result.current.position).toBe(100);
+        expect(sendCommand).toHaveBeenCalledTimes(2);
+    });
+
+    it("marks the mount flag false on unmount", () => {
+        transport("connected");
+        const { result, unmount } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+        expect(result.current.isMountedRef.current).toBe(true);
+        unmount();
+        expect(result.current.isMountedRef.current).toBe(false);
     });
 });

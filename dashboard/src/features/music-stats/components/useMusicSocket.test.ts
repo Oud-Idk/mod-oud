@@ -1,16 +1,28 @@
+// @vitest-environment jsdom
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import {
     dispatchMusicCommand,
     routeIncomingFrame,
+    useMusicSocket,
     type MusicFeedback,
     type MusicSocketCtx,
 } from "./useMusicSocket";
 import type { ConnectionStatus, PendingRequest } from "./musicSocketProtocol";
+import { wsUrlWithTicket } from "./musicSocketProtocol";
 
 vi.mock("@/features/realtime/actions", () => ({
     issueRealtimeTicketAction: vi.fn(),
 }));
+
+vi.mock("./musicSocketProtocol", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("./musicSocketProtocol")>();
+    return {
+        ...actual,
+        wsUrlWithTicket: vi.fn<() => Promise<string>>(),
+    };
+});
 
 interface CtxHarness {
     ctx: MusicSocketCtx;
@@ -282,5 +294,86 @@ describe("routeIncomingFrame", () => {
         expect(resolve).toHaveBeenCalledWith("done");
         expect(setActiveRequestsCount).not.toHaveBeenCalled();
         expect(showFeedback).not.toHaveBeenCalled();
+    });
+});
+
+describe("useMusicSocket lifecycle", () => {
+    function stallTicket(): void {
+        vi.mocked(wsUrlWithTicket).mockReturnValue(new Promise<string>(() => undefined));
+    }
+
+    function renderSocket(): {
+        result: { current: ReturnType<typeof useMusicSocket> };
+        isMountedRef: { current: boolean };
+    } {
+        const isMountedRef = { current: true };
+        const onNowPlayingRef = { current: (_data: unknown) => undefined };
+        const rendered = renderHook(() =>
+            useMusicSocket({ guildId: "guild_123", isMountedRef, onNowPlayingRef })
+        );
+        return { result: rendered.result, isMountedRef };
+    }
+
+    it("starts connecting with no feedback", () => {
+        stallTicket();
+        const { result } = renderSocket();
+
+        expect(result.current.status).toBe("connecting");
+        expect(result.current.feedback).toBeNull();
+        expect(result.current.activeRequestsCount).toBe(0);
+    });
+
+    it("shows feedback and auto-dismisses it", () => {
+        vi.useFakeTimers();
+        stallTicket();
+        const { result } = renderSocket();
+
+        act(() => {
+            result.current.showFeedback(true, "hi");
+        });
+        expect(result.current.feedback).toEqual({ ok: true, text: "hi" });
+
+        act(() => {
+            vi.advanceTimersByTime(5000);
+        });
+        expect(result.current.feedback).toBeNull();
+    });
+
+    it("keeps feedback when auto-dismiss is disabled", () => {
+        vi.useFakeTimers();
+        stallTicket();
+        const { result } = renderSocket();
+
+        act(() => {
+            result.current.showFeedback(false, "hi", 0);
+        });
+        act(() => {
+            vi.advanceTimersByTime(60_000);
+        });
+
+        expect(result.current.feedback).toEqual({ ok: false, text: "hi" });
+    });
+
+    it("ignores feedback after unmount", () => {
+        stallTicket();
+        const { result, isMountedRef } = renderSocket();
+        isMountedRef.current = false;
+
+        act(() => {
+            result.current.showFeedback(true, "hi");
+        });
+
+        expect(result.current.feedback).toBeNull();
+    });
+
+    it("marks disconnected when the ticket request fails", async () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        vi.mocked(wsUrlWithTicket).mockRejectedValue(new Error("no ticket"));
+        const { result } = renderSocket();
+
+        await waitFor(() => {
+            expect(result.current.status).toBe("disconnected");
+        });
+        expect(consoleSpy).toHaveBeenCalled();
     });
 });
