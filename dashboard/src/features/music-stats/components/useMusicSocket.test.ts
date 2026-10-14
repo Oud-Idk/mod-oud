@@ -238,6 +238,7 @@ describe("routeIncomingFrame", () => {
         const onNowPlaying = vi.fn<(data: unknown) => void>();
 
         routeIncomingFrame({ type: "ack", ok: true }, ctx, onNowPlaying);
+        routeIncomingFrame({ type: "ack", requestId: "", ok: true }, ctx, onNowPlaying);
 
         expect(onNowPlaying).not.toHaveBeenCalled();
     });

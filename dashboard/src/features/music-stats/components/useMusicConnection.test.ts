@@ -161,6 +161,20 @@ describe("applyNowPlayingUpdate", () => {
         });
     });
 
+    it("defaults position and flags for a bare title", () => {
+        const { store, setNowPlaying, setPosition, setIsPaused } = mockStore();
+
+        applyNowPlayingUpdate({ title: "X" }, store);
+
+        expect(updaterResult(setNowPlaying, null)).toMatchObject({
+            positionSec: 0,
+            isPaused: false,
+            isLive: false,
+        });
+        expect(setPosition).toHaveBeenCalledWith(0);
+        expect(setIsPaused).toHaveBeenCalledWith(false);
+    });
+
     it("keeps the previous duration when the new one is not positive", () => {
         const { store, setNowPlaying, setDuration } = mockStore();
         const prev: NowPlayingData = { title: "Old", durationSec: 100 };

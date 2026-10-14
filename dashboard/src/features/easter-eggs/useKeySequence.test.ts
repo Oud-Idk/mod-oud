@@ -52,6 +52,7 @@ describe("getEventChord", () => {
         expect(
             getEventChord(keyEvent({ key: "K", code: "KeyK", ctrlKey: true, shiftKey: true }))
         ).toBe("ctrl+shift+k");
+        expect(getEventChord(keyEvent({ key: "a", code: "KeyA", altKey: true }))).toBe("alt+a");
     });
 
     it("reads digits from the code, not the shifted character", () => {
