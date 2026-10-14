@@ -86,7 +86,7 @@ describe("Media-Only Query Module", () => {
                 [false, false],
                 ["Discussion - {user}", "Discussion - {user}"],
                 [5, 5],
-                [[], []],
+                ["[]", "[]"],
             ]);
         });
 
