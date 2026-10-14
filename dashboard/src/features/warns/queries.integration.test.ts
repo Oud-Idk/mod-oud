@@ -6,7 +6,6 @@ import {
     saveWarnThresholds,
     searchWarns,
 } from "./queries";
-import type { SaveWarnThresholdInput } from "./types";
 
 const GUILD_A = "123456789012345678";
 const GUILD_B = "987654321098765432";
@@ -223,6 +222,22 @@ describe("warn thresholds against a real database", () => {
         expect((await getWarnThresholds(GUILD_A))[0].duration).toBe(300);
     });
 
+    it("rolls back the upsert when the prune delete fails", async () => {
+        await saveWarnThresholds(GUILD_A, [
+            { warnCount: 3, actionType: ["KICK"], rolesToAdd: [], rolesToRemove: [], duration: null },
+        ]);
+
+        // 1.5 rounds into the INT column on upsert, then breaks the INT[]
+        // cast in the prune delete, so only ROLLBACK keeps the old row alone.
+        await expect(
+            saveWarnThresholds(GUILD_A, [
+                { warnCount: 1.5, actionType: ["KICK"], rolesToAdd: [], rolesToRemove: [], duration: null },
+            ])
+        ).rejects.toThrow(/invalid input syntax/);
+
+        expect((await getWarnThresholds(GUILD_A)).map((t) => t.warn_count)).toEqual([3]);
+    });
+
     it("rolls back the whole transaction when a duplicate warn_count is submitted", async () => {
         await saveWarnThresholds(GUILD_A, [
             { warnCount: 3, actionType: ["KICK"], rolesToAdd: [], rolesToRemove: [], duration: null },
@@ -243,7 +258,8 @@ describe("warn thresholds against a real database", () => {
             saveWarnThresholds(GUILD_A, [
                 {
                     warnCount: 1,
-                    actionType: ["NOT_A_REAL_ACTION" as any],
+                    // @ts-expect-error NOT_A_REAL_ACTION is not a valid moderation action
+                    actionType: ["NOT_A_REAL_ACTION"],
                     rolesToAdd: [],
                     rolesToRemove: [],
                     duration: null,
