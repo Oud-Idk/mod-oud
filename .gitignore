@@ -21,3 +21,4 @@ Thumbs.db
 
 .stryker-tmp/
 reports/
+lcov.info

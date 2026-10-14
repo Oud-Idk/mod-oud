@@ -1,0 +1,102 @@
+name: coverage
+
+# Coverage uploads for both test surfaces. Runs on pull requests and pushes
+# to main. Deliberately not called by deploy.yml: coverage reports, it never
+# blocks a deploy.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: coverage-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Separate from `dashboard-test` in checks.yml because the coverage report
+  # spans both vitest projects. The db half runs against the same throwaway
+  # Postgres setup, so this job carries the same service.
+  dashboard-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+
+      # Reads the pnpm version pinned in dashboard/package.json's packageManager field
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: dashboard/package.json
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        env:
+          SHARP_IGNORE_GLOBAL_LIBVIPS: 1
+        run: pnpm install --frozen-lockfile
+
+      - name: Dashboard coverage
+        working-directory: dashboard
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+        run: pnpm exec vitest run --coverage --coverage.provider=v8 --coverage.reporter=lcovonly
+
+      - name: Upload dashboard coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: dashboard/coverage/lcov.info
+          flags: dashboard
+          fail_ci_if_error: true
+          verbose: true
+
+  backend-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      # Same surface as the cargo-test gate: lib tests only.
+      - name: Backend coverage
+        env:
+          SQLX_OFFLINE: true
+        run: cargo llvm-cov --lib --lcov --output-path lcov.info
+
+      - name: Upload backend coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          flags: backend
+          fail_ci_if_error: true
+          verbose: true
