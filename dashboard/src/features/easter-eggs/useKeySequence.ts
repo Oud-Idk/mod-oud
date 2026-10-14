@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
  * Normalizes a shortcut descriptor (e.g. "Ctrl+Shift+K" -> "ctrl+shift+k")
  * into a predictable canonical order: ctrl -> alt -> shift -> meta -> key
  */
-function normalizeChord(chord: string): string {
+export function normalizeChord(chord: string): string {
     const pieces: string[] = chord.toLowerCase().split('+').map((s) => s.trim());
     const key: string | undefined = pieces.pop();
     if (key === undefined) return '';
@@ -29,7 +29,18 @@ function normalizeChord(chord: string): string {
  * Converts a KeyboardEvent into our canonical chord string.
  * If the user just pressed a bare modifier (like tapping Shift alone), returns null.
  */
-function getEventChord(event: KeyboardEvent): string | null {
+// Narrow structural type: the function reads six fields, and this keeps it
+// unit-testable without a DOM.
+export interface KeyChordEvent {
+    key: string;
+    code: string;
+    ctrlKey: boolean;
+    altKey: boolean;
+    shiftKey: boolean;
+    metaKey: boolean;
+}
+
+export function getEventChord(event: KeyChordEvent): string | null {
     const keyLower: string = event.key.toLowerCase();
 
     if (['control', 'alt', 'shift', 'meta'].includes(keyLower)) {

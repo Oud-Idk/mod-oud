@@ -81,7 +81,7 @@ export function dispatchMusicCommand(
 }
 
 // Routes one raw frame: command ACKs settle here, server pushes forward.
-function routeIncomingFrame(
+export function routeIncomingFrame(
     raw: unknown,
     ctx: MusicSocketCtx,
     onNowPlaying: (data: unknown) => void,
