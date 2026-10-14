@@ -11,11 +11,11 @@ const CHANNEL_2 = "333333333333333332";
 const CHANNEL_3 = "333333333333333333";
 const CHANNEL_4 = "333333333333333334";
 
-function hoursAgo(hours: number): string {
-    return new Date(Date.now() - hours * 3_600_000).toISOString();
+function hoursAgo(hours: number): Date {
+    return new Date(Date.now() - hours * 3_600_000);
 }
 
-async function seedModerationLog(guildId: string, createdAt: string): Promise<void> {
+async function seedModerationLog(guildId: string, createdAt: Date): Promise<void> {
     await db.query(
         `INSERT INTO moderation_logs (guild_id, moderator_id, action_type, created_at)
          VALUES ($1::bigint, $2::bigint, 'WARN', $3::timestamptz)`,
@@ -27,7 +27,7 @@ async function seedTicket(
     guildId: string,
     channelId: string,
     status: "OPEN" | "CLOSED",
-    createdAt: string = new Date().toISOString()
+    createdAt: Date = new Date()
 ): Promise<void> {
     await db.query(
         `INSERT INTO tickets (guild_id, channel_id, opener_id, status, created_at)
