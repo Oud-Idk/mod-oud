@@ -92,19 +92,20 @@ describe("temp voice hubs against a real database", () => {
         expect((await getTempVoiceHubs(GUILD_A))[0].name).toBe("Chill");
     });
 
-    it("leaves guild_id alone on a cross-guild upsert", async () => {
-        // The SET list has no guild_id, so replaying an id elsewhere renames but never moves the row.
-        const first = await saveTempVoiceHub(GUILD_A, validInput({ name: "Gaming" }));
+    it("refuses to update another guild's hub", async () => {
+        // The conflict guard matches on guild too, so a foreign id
+        // updates nothing and RETURNING yields no row to parse.
+        const foreign = await saveTempVoiceHub(GUILD_A, validInput({ name: "Gaming" }));
 
-        await saveTempVoiceHub(GUILD_B, {
-            ...validInput({ id: first.id, name: "Hijacked" }),
-            guild_id: GUILD_B,
-        });
+        await expect(
+            saveTempVoiceHub(GUILD_B, {
+                ...validInput({ id: foreign.id, name: "Hijacked" }),
+                guild_id: GUILD_B,
+            })
+        ).rejects.toThrow();
 
         expect(await getTempVoiceHubs(GUILD_B)).toHaveLength(0);
-        const [kept] = await getTempVoiceHubs(GUILD_A);
-        expect(kept.id).toBe(first.id);
-        expect(kept.name).toBe("Hijacked");
+        expect((await getTempVoiceHubs(GUILD_A))[0].name).toBe("Gaming");
     });
 
     it("stores nulls for user_limit and interface_channel_id", async () => {

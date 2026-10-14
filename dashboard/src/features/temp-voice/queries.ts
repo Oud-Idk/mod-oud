@@ -40,6 +40,7 @@ export async function saveTempVoiceHub(
                 user_limit           = EXCLUDED.user_limit,
                 interface_channel_id = EXCLUDED.interface_channel_id,
                 default_channel_name = EXCLUDED.default_channel_name
+            WHERE temp_voice_hubs.guild_id = EXCLUDED.guild_id
         RETURNING *;
     `;
     const normalizedId =
