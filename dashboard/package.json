@@ -11,6 +11,7 @@
     "test": "vitest run --project unit",
     "test:db": "vitest run --project db",
     "test:all": "vitest run",
+    "typecheck": "tsc --noEmit",
     "mutate": "stryker run"
   },
   "dependencies": {
