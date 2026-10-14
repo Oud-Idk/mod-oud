@@ -38,6 +38,11 @@ vi.mock("@/features/_shared/guild", () => ({
     saveGuildConfigField: vi.fn(),
 }));
 
+// Row mapping, SQL shape, tenant scoping, upsert conflict targets and cache
+// keys live in queries.integration.test.ts against a real database. What
+// stays here is the behaviour a real database will not produce on demand: a
+// failing connection and a failing Redis.
+
 describe("Message Filtering Query Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
@@ -111,41 +116,6 @@ describe("Message Filtering Query Module", () => {
     });
 
     describe("getBadWordRulesets", () => {
-        it("should query the database and parse rows", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [
-                    {
-                        id: "uuid_1",
-                        guildId: "guild_123",
-                        name: "No swears",
-                        enabled: true,
-                        patterns: [],
-                        actions: [],
-                        timeoutDurationSeconds: null,
-                        scope: { mode: "EXEMPT", roles: [], channels: [] },
-                        createdAt: "2026-01-01T00:00:00.000Z",
-                        updatedAt: "2026-01-01T00:00:00.000Z",
-                    },
-                ],
-            });
-
-            const result = await getBadWordRulesets("guild_123");
-
-            expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("FROM bad_word_rulesets"), ["guild_123"]);
-            expect(result).toHaveLength(1);
-            expect(result[0].name).toBe("No swears");
-            expect(result[0].createdAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
-            expect(result[0].updatedAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
-        });
-
-        it("should return an empty array when no rows exist", async () => {
-            mockQuery.mockResolvedValue({ rows: [] });
-
-            const result = await getBadWordRulesets("guild_123");
-
-            expect(result).toEqual([]);
-        });
-
         it("should propagate a database error", async () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 
@@ -157,41 +127,6 @@ describe("Message Filtering Query Module", () => {
         function validRuleset(overrides: Record<string, unknown> = {}): SaveableBadWordRuleset {
             return saveBadWordRulesetInputSchema.parse({ name: "No swears", ...overrides });
         }
-
-        it("should INSERT a new ruleset and invalidate the cache", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [rulesetRowFixture()],
-            });
-
-            const saved = await saveBadWordRuleset("guild_123", validRuleset());
-
-            const [queryStr, params = []] = mockQuery.mock.calls[0];
-            expect(queryStr).toContain("INSERT INTO bad_word_rulesets");
-            expect(queryStr).toContain("ON CONFLICT (id)");
-            expect(params[1]).toBe("guild_123");
-            expect(params[2]).toBe("No swears");
-            expect(mockRedisDel).toHaveBeenCalledWith("config:guild:guild_123:bad_words");
-            expect(mockRedisPublish).toHaveBeenCalledWith("config_updates", "invalidate:guild_123:bad_words");
-            expect(saved.name).toBe("No swears");
-        });
-
-        it("should stringify the JSON array params", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [rulesetRowFixture()],
-            });
-
-            await saveBadWordRuleset(
-                "guild_123",
-                validRuleset({
-                    patterns: [{ value: "darn", strategy: "EXACT" }],
-                    actions: ["WARN"],
-                })
-            );
-
-            const [, params = []] = mockQuery.mock.calls[0];
-            expect(JSON.parse(String(params[4]))).toEqual([{ value: "darn", strategy: "EXACT" }]);
-            expect(JSON.parse(String(params[5]))).toEqual(["WARN"]);
-        });
 
         it("should still save when Redis invalidation throws", async () => {
             mockQuery.mockResolvedValue({ rows: [rulesetRowFixture()] });
@@ -212,23 +147,6 @@ describe("Message Filtering Query Module", () => {
     });
 
     describe("deleteBadWordRuleset", () => {
-        it("should delete by id and guildId and invalidate the caches", async () => {
-            mockQuery.mockResolvedValue({ rowCount: 1 });
-
-            await deleteBadWordRuleset("guild_123", "uuid_1");
-
-            expect(mockQuery).toHaveBeenCalledWith(
-                expect.stringContaining("WHERE id = $1"),
-                expect.arrayContaining(["uuid_1", "guild_123"])
-            );
-            expect(mockRedisDel).toHaveBeenCalledWith("config:guild:guild_123:bad_words");
-            expect(mockRedisDel).toHaveBeenCalledWith("config:guild:guild_123");
-            expect(mockRedisPublish).toHaveBeenCalledWith(
-                "config_updates",
-                "invalidate:guild_123:bad_words"
-            );
-        });
-
         it("should still delete when Redis invalidation throws", async () => {
             mockQuery.mockResolvedValue({ rowCount: 1 });
             mockRedisDel.mockRejectedValue(new Error("redis down"));

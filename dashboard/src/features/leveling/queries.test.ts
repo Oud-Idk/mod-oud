@@ -14,6 +14,11 @@ import {
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { levelingConfigSchema } from "./types";
 
+// Row mapping, SQL shape, tenant scoping and constraints live in
+// queries.integration.test.ts against a real database. What stays here is the
+// behaviour a real database will not produce on demand: a failing connection,
+// the fetchMoreLevels error swallow, and the early returns that skip the query.
+
 const mockQuery = vi.hoisted(() =>
     vi.fn<(sql: string, params?: unknown[]) => Promise<{
         rows?: unknown[];
@@ -32,18 +37,6 @@ vi.mock("@/features/_shared/guild", () => ({
     saveGuildConfigField: vi.fn(),
 }));
 
-function createMockLevelRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-    return {
-        guildId: "guild_123",
-        userId: "user_123",
-        cumulativeXp: 1500,
-        currentLevel: 10,
-        currentXp: 100,
-        username: "SpicyWolf",
-        ...overrides,
-    };
-}
-
 describe("Leveling Query Module", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -55,29 +48,6 @@ describe("Leveling Query Module", () => {
     });
 
     describe("getLevels", () => {
-        it("should query the database for the guild and parse rows", async () => {
-            mockQuery.mockResolvedValue({ rows: [createMockLevelRow()], rowCount: 1 });
-
-            const result = await getLevels("guild_123");
-
-            expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["guild_123"]);
-            expect(result).toHaveLength(1);
-            expect(result[0]).toMatchObject({
-                guildId: "guild_123",
-                userId: "user_123",
-                cumulativeXp: 1500,
-                currentLevel: 10,
-            });
-        });
-
-        it("should return an empty array when no rows exist", async () => {
-            mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
-
-            const result = await getLevels("guild_empty");
-
-            expect(result).toEqual([]);
-        });
-
         it("should propagate a database error", async () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 
@@ -86,22 +56,6 @@ describe("Leveling Query Module", () => {
     });
 
     describe("fetchMoreLevels", () => {
-        it("should query with guildId and the lowest XP cursor", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [createMockLevelRow({ cumulativeXp: 900 })],
-                rowCount: 1,
-            });
-
-            const result = await fetchMoreLevels("guild_123", 1500);
-
-            expect(mockQuery).toHaveBeenCalledWith(
-                expect.any(String),
-                ["guild_123", 1500]
-            );
-            expect(result).toHaveLength(1);
-            expect(result[0].cumulativeXp).toBe(900);
-        });
-
         it("should return an empty array on a database error instead of throwing", async () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 
@@ -144,66 +98,18 @@ describe("Leveling Query Module", () => {
     });
 
     describe("getXpMultipliers", () => {
-        it("should query and parse multiplier rows", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [
-                    {
-                        guildId: "guild_123",
-                        targetId: "role_1",
-                        targetType: "ROLE",
-                        multiplier: 2,
-                    },
-                ],
-                rowCount: 1,
-            });
+        it("should propagate a database error", async () => {
+            mockQuery.mockRejectedValue(new Error("connection lost"));
 
-            const result = await getXpMultipliers("guild_123");
-
-            expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("xp_multipliers"), [
-                "guild_123",
-            ]);
-            expect(result[0].multiplier).toBe(2);
-        });
-
-        it("should return an empty array when no rows exist", async () => {
-            mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
-
-            const result = await getXpMultipliers("guild_123");
-
-            expect(result).toEqual([]);
+            await expect(getXpMultipliers("guild_123")).rejects.toThrow("connection lost");
         });
     });
 
     describe("getLevelRewards", () => {
-        it("should query and parse reward rows", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [
-                    {
-                        id: 1,
-                        guildId: "guild_123",
-                        levelRequirement: 5,
-                        rolesToAdd: ["role_a"],
-                        removePreviousRoles: false,
-                    },
-                ],
-                rowCount: 1,
-            });
+        it("should propagate a database error", async () => {
+            mockQuery.mockRejectedValue(new Error("connection lost"));
 
-            const result = await getLevelRewards("guild_123");
-
-            expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("level_rewards"), [
-                "guild_123",
-            ]);
-            expect(result[0].levelRequirement).toBe(5);
-            expect(result[0].rolesToAdd).toEqual(["role_a"]);
-        });
-
-        it("should return an empty array when no rows exist", async () => {
-            mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
-
-            const result = await getLevelRewards("guild_123");
-
-            expect(result).toEqual([]);
+            await expect(getLevelRewards("guild_123")).rejects.toThrow("connection lost");
         });
     });
 
@@ -213,22 +119,6 @@ describe("Leveling Query Module", () => {
 
             expect(mockQuery).not.toHaveBeenCalled();
         });
-
-        it("should upsert rewards via JSON_TO_RECORDSET", async () => {
-            mockQuery.mockResolvedValue({ rowCount: 1 });
-
-            await saveLevelRewards("guild_123", [
-                { levelRequirement: 5, rolesToAdd: ["role_a"], removePreviousRoles: false },
-            ]);
-
-            const [queryStr, params = []] = mockQuery.mock.calls[0];
-            expect(queryStr).toContain("JSON_TO_RECORDSET($2::JSON)");
-            expect(queryStr).toContain("ON CONFLICT (guild_id, level_requirement)");
-            expect(params[0]).toBe("guild_123");
-            expect(JSON.parse(String(params[1]))).toEqual([
-                { level_requirement: 5, roles_to_add: ["role_a"], remove_previous_roles: false },
-            ]);
-        });
     });
 
     describe("deleteXpMultipliers", () => {
@@ -236,17 +126,6 @@ describe("Leveling Query Module", () => {
             await deleteXpMultipliers("guild_123", []);
 
             expect(mockQuery).not.toHaveBeenCalled();
-        });
-
-        it("should delete with tenant-scoped ANY clause", async () => {
-            mockQuery.mockResolvedValue({ rowCount: 1 });
-
-            await deleteXpMultipliers("guild_123", ["role_1", "chan_1"]);
-
-            expect(mockQuery).toHaveBeenCalledWith(
-                expect.stringContaining("WHERE guild_id = $1 AND target_id = ANY($2)"),
-                ["guild_123", ["role_1", "chan_1"]]
-            );
         });
     });
 
@@ -256,25 +135,6 @@ describe("Leveling Query Module", () => {
 
             expect(mockQuery).not.toHaveBeenCalled();
         });
-
-        it("should insert multipliers via UNNEST", async () => {
-            mockQuery.mockResolvedValue({ rowCount: 1 });
-
-            await saveXpMultipliers("guild_123", [
-                { targetId: "role_1", targetType: "ROLE", multiplier: 2 },
-                { targetId: "chan_1", targetType: "CHANNEL", multiplier: 1.5 },
-            ]);
-
-            const [queryStr, params = []] = mockQuery.mock.calls[0];
-            expect(queryStr).toContain("UNNEST($2::TEXT[], $3::TEXT[], $4::NUMERIC[])");
-            expect(queryStr).toContain("ON CONFLICT (guild_id, target_id)");
-            expect(params).toEqual([
-                "guild_123",
-                ["role_1", "chan_1"],
-                ["ROLE", "CHANNEL"],
-                [2, 1.5],
-            ]);
-        });
     });
 
     describe("deleteLevelRewards", () => {
@@ -282,17 +142,6 @@ describe("Leveling Query Module", () => {
             await deleteLevelRewards("guild_123", []);
 
             expect(mockQuery).not.toHaveBeenCalled();
-        });
-
-        it("should delete with tenant-scoped id ANY clause", async () => {
-            mockQuery.mockResolvedValue({ rowCount: 1 });
-
-            await deleteLevelRewards("guild_123", [3, 7]);
-
-            expect(mockQuery).toHaveBeenCalledWith(
-                expect.stringContaining("WHERE guild_id = $1 AND id = ANY($2::INTEGER[])"),
-                ["guild_123", [3, 7]]
-            );
         });
     });
 });

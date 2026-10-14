@@ -13,6 +13,11 @@ import {
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { reportConfigSchema } from "./types";
 
+// Row mapping, SQL shape, tenant scoping and constraints live in
+// queries.integration.test.ts against a real database. What stays here is the
+// behaviour a real database will not produce on demand: a failing connection,
+// and the backend HTTP calls.
+
 interface MockResponse {
     ok: boolean;
     text(): Promise<string>;
@@ -81,38 +86,18 @@ describe("Report Query Module", () => {
     });
 
     describe("getInitialReportsFromDb", () => {
-        it("should parse the returned rows", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [
-                    {
-                        id: "1",
-                        guild_id: "guild_123",
-                        channel_id: "chan_1",
-                        message_id: "msg_1",
-                        author_id: "user_1",
-                        reporter_id: "user_2",
-                        created_at: new Date(),
-                    },
-                ],
-            });
+        it("should propagate a database error", async () => {
+            mockQuery.mockRejectedValue(new Error("connection lost"));
 
-            const result = await getInitialReportsFromDb("guild_123");
-
-            expect(result[0].id).toBe(1);
-            expect(result[0].status).toBe("UNDER_REVIEW");
-            const params = mockQuery.mock.calls[0][1];
-            expect(params).toEqual(["guild_123"]);
+            await expect(getInitialReportsFromDb("guild_123")).rejects.toThrow("connection lost");
         });
     });
 
     describe("getMoreReportsFromDb", () => {
-        it("should pass the beforeId cursor", async () => {
-            mockQuery.mockResolvedValue({ rows: [] });
+        it("should propagate a database error", async () => {
+            mockQuery.mockRejectedValue(new Error("connection lost"));
 
-            await getMoreReportsFromDb("guild_123", 50);
-
-            const params = mockQuery.mock.calls[0][1];
-            expect(params).toEqual(["guild_123", 50]);
+            await expect(getMoreReportsFromDb("guild_123", 50)).rejects.toThrow("connection lost");
         });
     });
 

@@ -18,6 +18,11 @@ vi.mock("@/features/_shared/guild", () => ({
     saveGuildConfigField: vi.fn(),
 }));
 
+// Row mapping, SQL shape, tenant scoping and casts live in
+// queries.integration.test.ts against a real database. What stays here is the
+// behaviour a real database will not produce on demand: the error swallow,
+// the schema rejection, and the early returns that skip the query.
+
 describe("Invite Tracker Query Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
@@ -82,44 +87,6 @@ describe("Invite Tracker Query Module", () => {
     });
 
     describe("getInviteLeaderboard", () => {
-        it("should query the database and parse the returned rows", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [
-                    { inviterId: "user_1", username: "Alice", count: 10 },
-                    { inviterId: "user_2", username: "", count: 3 },
-                ],
-            });
-
-            const result = await getInviteLeaderboard("guild_123");
-
-            expect(mockQuery).toHaveBeenCalledWith(
-                expect.stringContaining("FROM inviter_counts"),
-                ["guild_123", 15, 0]
-            );
-            expect(result).toEqual([
-                { inviterId: "user_1", username: "Alice", count: 10 },
-                { inviterId: "user_2", username: "", count: 3 },
-            ]);
-        });
-
-        it("should default missing username to empty string", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [{ inviterId: "user_1", count: 10 }],
-            });
-
-            const result = await getInviteLeaderboard("guild_123");
-
-            expect(result).toEqual([{ inviterId: "user_1", username: "", count: 10 }]);
-        });
-
-        it("should pass the limit and offset to the query", async () => {
-            mockQuery.mockResolvedValue({ rows: [] });
-
-            await getInviteLeaderboard("guild_123", 5, 20);
-
-            expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ["guild_123", 5, 20]);
-        });
-
         it("should return an empty array and log when the DB query throws", async () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 

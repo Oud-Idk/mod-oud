@@ -58,6 +58,7 @@ export async function saveBadWordRuleset(
                                        timeout_duration_seconds = EXCLUDED.timeout_duration_seconds,
                                        scope                    = EXCLUDED.scope,
                                        updated_at               = CURRENT_TIMESTAMP
+        WHERE bad_word_rulesets.guild_id = EXCLUDED.guild_id
         RETURNING
             id,
             guild_id AS "guildId",
