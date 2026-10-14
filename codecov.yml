@@ -1,0 +1,8 @@
+# Two upload flags, one per test surface. Statuses aggregate both.
+flags:
+  dashboard:
+    paths:
+      - dashboard/
+  backend:
+    paths:
+      - src/
