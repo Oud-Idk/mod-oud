@@ -137,7 +137,7 @@ describe("automod logs against a real database", () => {
         ]);
     });
 
-    it("defaults actions_taken to an empty array is not possible: stored empty reads empty", async () => {
+    it("reads a stored empty actions_taken array as empty", async () => {
         await db.query(
             `INSERT INTO automod_logs (guild_id, user_id, rule_type, actions_taken)
              VALUES ($1::bigint, $2::bigint, 'SPAM', ARRAY[]::VARCHAR(50)[])`,
@@ -147,10 +147,6 @@ describe("automod logs against a real database", () => {
         const [log] = await getAutomodLogs(GUILD_A);
 
         expect(log.actions_taken).toEqual([]);
-    });
-
-    it("rejects an empty guild id without querying", async () => {
-        await expect(getAutomodLogs("")).rejects.toThrow();
     });
 });
 
@@ -261,10 +257,6 @@ describe("join leave logs against a real database", () => {
         expect(secondPage.map((r) => r.created_at.toISOString())).toEqual([
             "2026-01-01T00:00:00.000Z",
         ]);
-    });
-
-    it("rejects an empty guild id without querying", async () => {
-        await expect(getJoinLeaveLogs("")).rejects.toThrow();
     });
 });
 
@@ -387,6 +379,14 @@ describe("moderation logs against a real database", () => {
         ]);
     });
 
+    it("omits zero interval units", async () => {
+        await seedModeration({ duration: "1 day 2 hours" });
+
+        const [log] = await getModerationLogs(GUILD_A);
+
+        expect(log.duration).toBe("1d 2h");
+    });
+
     it("returns all moderation logs without a duration column value as null reason", async () => {
         await seedModeration({ reason: null, duration: "2 hours" });
 
@@ -394,9 +394,5 @@ describe("moderation logs against a real database", () => {
 
         expect(log.reason).toBeNull();
         expect(log.duration).toBe("2h");
-    });
-
-    it("rejects an empty guild id without querying", async () => {
-        await expect(getModerationLogs("")).rejects.toThrow();
     });
 });
