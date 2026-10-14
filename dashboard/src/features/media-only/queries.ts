@@ -59,7 +59,10 @@ export async function saveMediaOnlyChannels(
                 u.auto_thread,
                 u.thread_name_template,
                 u.delete_warning_after_secs::SMALLINT,
-                u.exempt_roles::BIGINT[]
+                COALESCE(
+                    (SELECT array_agg(x::BIGINT) FROM jsonb_array_elements_text(u.exempt_roles::JSONB) AS t(x)),
+                    ARRAY[]::BIGINT[]
+                ) AS exempt_roles
             FROM UNNEST(
                 $1::TEXT[],
                 $2::TEXT[],
@@ -73,7 +76,7 @@ export async function saveMediaOnlyChannels(
                 $10::BOOLEAN[],
                 $11::TEXT[],
                 $12::INT[],
-                $13::TEXT[][]
+                $13::TEXT[]
             ) AS u(
                 channel_id, guild_id, enabled,
                 allow_images, allow_videos, allow_audio, allow_gif, allow_links, allow_embedded_text,
@@ -106,7 +109,7 @@ export async function saveMediaOnlyChannels(
             channels.map((c) => c.autoThread),
             channels.map((c) => c.threadNameTemplate),
             channels.map((c) => c.deleteWarningAfterSecs),
-            channels.map((c) => c.exemptRoles),
+            channels.map((c) => JSON.stringify(c.exemptRoles)),
         ]);
     }
 
