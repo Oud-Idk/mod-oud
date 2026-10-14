@@ -16,6 +16,12 @@ vi.mock("@/lib/backend", () => ({
     backendFetch: vi.fn(),
 }));
 
+// Row mapping, SQL shape, tenant scoping, ordering and constraints live in
+// queries.integration.test.ts against a real database. What stays here is the
+// behaviour a real database will not produce on demand: input validation that
+// skips the query, a schema rejection, a null rowCount, and the backend HTTP
+// calls.
+
 const input = {
     url: "https://example.com/feed.xml",
     channelId: "123456789012345678",
@@ -29,21 +35,6 @@ const okBody = {
     hubConfirmed: false,
     intervalSecs: 600,
 };
-
-function subscriptionRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-    return {
-        feedId: "6f9619ff-8b86-4111-b42d-00cf4fc964ff",
-        url: "https://example.com/feed.xml",
-        channelId: "123456789012345678",
-        delivery: "POLLING",
-        hubUrl: null,
-        topic: null,
-        leaseExpiresAt: null,
-        intervalSecs: 600,
-        lastPolledAt: null,
-        ...overrides,
-    };
-}
 
 /// A real `Response` carrying an error status and body, so `.ok` and `.text()`
 /// behave exactly as they do against the bot.
@@ -67,34 +58,6 @@ describe("getFeedSubscriptions", () => {
         vi.restoreAllMocks();
     });
 
-    it("should return parsed subscriptions for the guild", async () => {
-        mockQuery.mockResolvedValue({ rows: [subscriptionRow()] });
-
-        const result = await getFeedSubscriptions("guild_123");
-
-        expect(result).toHaveLength(1);
-        expect(result[0].feedId).toBe("6f9619ff-8b86-4111-b42d-00cf4fc964ff");
-        expect(mockQuery.mock.calls[0][1]).toEqual(["guild_123"]);
-    });
-
-    it("should query the subscription join in newest first order", async () => {
-        mockQuery.mockResolvedValue({ rows: [] });
-
-        await getFeedSubscriptions("guild_123");
-
-        const sql = mockQuery.mock.calls[0][0];
-        expect(sql).toContain("FROM channel_subscriptions");
-        expect(sql).toContain("JOIN feeds");
-        expect(sql).toContain("WHERE cs.guild_id = $1");
-        expect(sql).toContain("ORDER BY cs.created_at DESC");
-    });
-
-    it("should return an empty array when the guild has no subscriptions", async () => {
-        mockQuery.mockResolvedValue({ rows: [] });
-
-        await expect(getFeedSubscriptions("guild_123")).resolves.toEqual([]);
-    });
-
     it("should reject an empty guild id without querying", async () => {
         await expect(getFeedSubscriptions("")).rejects.toThrow();
         expect(mockQuery).not.toHaveBeenCalled();
@@ -114,24 +77,6 @@ describe("removeFeedSubscription", () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
-    });
-
-    it("should delete the subscription row and return true", async () => {
-        mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
-
-        const removed = await removeFeedSubscription(
-            "guild_123",
-            "6f9619ff-8b86-4111-b42d-00cf4fc964ff",
-            "123456789012345678"
-        );
-
-        expect(removed).toBe(true);
-        expect(mockQuery.mock.calls[0][0]).toContain("DELETE FROM channel_subscriptions");
-        expect(mockQuery.mock.calls[0][1]).toEqual([
-            "6f9619ff-8b86-4111-b42d-00cf4fc964ff",
-            "123456789012345678",
-            "guild_123",
-        ]);
     });
 
     it("should return false when no row matched", async () => {
