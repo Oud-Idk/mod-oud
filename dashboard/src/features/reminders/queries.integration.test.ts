@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import redis from "@/lib/redis";
 import {
     deleteReminder,
     getRemindersByChannels,
@@ -18,6 +19,11 @@ function singleInput(overrides: Record<string, unknown> = {}): SaveableReminderI
         ...overrides,
     });
 }
+
+beforeEach(() => {
+    vi.mocked(redis.del).mockClear();
+    vi.mocked(redis.publish).mockClear();
+});
 
 describe("reminders against a real database", () => {
     it("returns an empty array when no channel ids are given", async () => {
@@ -129,6 +135,30 @@ describe("reminders against a real database", () => {
         await deleteReminder(saved.id, CHANNEL_A);
 
         expect(await getRemindersByChannels([CHANNEL_A])).toEqual([]);
+    });
+
+    it("invalidates the channel cache on save", async () => {
+        await saveReminder(singleInput());
+
+        expect(vi.mocked(redis.del)).toHaveBeenCalledWith(`reminders:channel:${CHANNEL_A}`);
+        expect(vi.mocked(redis.publish)).toHaveBeenCalledWith(
+            "reminder_updates",
+            `invalidate:${CHANNEL_A}`
+        );
+    });
+
+    it("invalidates the channel cache on delete", async () => {
+        const saved = await saveReminder(singleInput());
+        vi.mocked(redis.del).mockClear();
+        vi.mocked(redis.publish).mockClear();
+
+        await deleteReminder(saved.id, CHANNEL_A);
+
+        expect(vi.mocked(redis.del)).toHaveBeenCalledWith(`reminders:channel:${CHANNEL_A}`);
+        expect(vi.mocked(redis.publish)).toHaveBeenCalledWith(
+            "reminder_updates",
+            `invalidate:${CHANNEL_A}`
+        );
     });
 
     it("stores an EMBED message layout as JSONB", async () => {
