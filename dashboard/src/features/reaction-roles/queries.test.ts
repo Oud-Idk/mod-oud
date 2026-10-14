@@ -8,6 +8,7 @@ import {
     deleteDiscordMessageFromBackend,
     notifyBackendReactionMessageEdit,
 } from "./queries";
+import type { SaveReactionMessageInput } from "./types";
 
 // Row mapping, SQL shape, tenant scoping and constraints live in
 // queries.integration.test.ts against a real database. What stays here is the
@@ -121,7 +122,7 @@ describe("Reaction Roles Query Module", () => {
             client.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
             client.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-            const input = {
+            const input: SaveReactionMessageInput = {
                 id: 99,
                 name: "Verify",
                 guild_id: "guild_123",
@@ -129,7 +130,7 @@ describe("Reaction Roles Query Module", () => {
                 message: { format: "TEXT", content: "Pick", embed: {} },
                 mode: "BUTTON",
                 buttons: [{ custom_id: "btn_1", role_id: "role_1" }],
-            } as const;
+            };
 
             await expect(saveReactionMessage(input)).rejects.toThrow(
                 "Reaction message with ID 99 not found."
