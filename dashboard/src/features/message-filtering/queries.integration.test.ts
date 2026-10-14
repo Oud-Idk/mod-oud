@@ -115,16 +115,17 @@ describe("bad word rulesets against a real database", () => {
         expect(reloaded.updatedAt?.toISOString()).not.toBe("2020-01-01T00:00:00.000Z");
     });
 
-    it("leaves guild_id alone on a cross-guild upsert", async () => {
-        // The SET list has no guild_id, so replaying an id elsewhere only renames the row.
-        const first = await saveBadWordRuleset(GUILD_A, validRuleset({ name: "Before" }));
+    it("refuses to update another guild's ruleset", async () => {
+        // The conflict guard matches on guild too, so a foreign id
+        // updates nothing and RETURNING yields no row to parse.
+        const foreign = await saveBadWordRuleset(GUILD_A, validRuleset({ name: "Before" }));
 
-        await saveBadWordRuleset(GUILD_B, validRuleset({ id: first.id, name: "Hijacked" }));
+        await expect(
+            saveBadWordRuleset(GUILD_B, validRuleset({ id: foreign.id, name: "Hijacked" }))
+        ).rejects.toThrow();
 
         expect(await getBadWordRulesets(GUILD_B)).toHaveLength(0);
-        const [kept] = await getBadWordRulesets(GUILD_A);
-        expect(kept.id).toBe(first.id);
-        expect(kept.name).toBe("Hijacked");
+        expect((await getBadWordRulesets(GUILD_A))[0].name).toBe("Before");
     });
 
     it("invalidates the guild bad-words cache on save", async () => {
