@@ -1,23 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { db } from "@/lib/db";
 import {
     deleteReminder,
     getRemindersByChannels,
     saveReminder,
 } from "./queries";
-import type { SaveableReminderInput } from "./types";
+import { saveableReminderSchema, type SaveableReminderInput } from "./types";
 
 const CHANNEL_A = "111111111111111111";
 const CHANNEL_B = "222222222222222222";
 
-function singleInput(overrides: Partial<SaveableReminderInput> = {}): SaveableReminderInput {
-    return {
+function singleInput(overrides: Record<string, unknown> = {}): SaveableReminderInput {
+    return saveableReminderSchema.parse({
         channelId: CHANNEL_A,
         rType: "SINGLE",
         message: { format: "TEXT", content: "Stand up", embed: {} },
         nextTriggerAt: new Date("2026-06-01T12:00:00.000Z"),
         ...overrides,
-    } as SaveableReminderInput;
+    });
 }
 
 describe("reminders against a real database", () => {
@@ -98,7 +97,7 @@ describe("reminders against a real database", () => {
             message: { format: "TEXT", content: "Updated", embed: {} },
             nextTriggerAt: new Date("2026-07-01T00:00:00.000Z"),
             isActive: false,
-        } as SaveableReminderInput);
+        });
 
         expect(updated.id).toBe(saved.id);
         expect(updated.channelId).toBe(CHANNEL_B);
