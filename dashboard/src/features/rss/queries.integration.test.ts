@@ -109,13 +109,20 @@ describe("rss subscriptions against a real database", () => {
         expect(subs.map((s) => s.channelId)).toEqual([CHANNEL_2, CHANNEL_3, CHANNEL_1]);
     });
 
-    it("loses subscriptions when their feed row is deleted", async () => {
-        // The FK cascades, so no orphan subscription outlives its feed for the JOIN to drop.
+    it("removes subscriptions with their feed row via cascade", async () => {
+        // The FK cascades, so the subscription row is gone, not merely
+        // hidden by the inner JOIN. Orphan rows cannot exist to tell the
+        // JOIN type apart, which makes the cascade the invariant to pin.
         const feedId = await seedPollingFeed("https://example.com/feed.xml");
         await seedSubscription(GUILD_A, feedId, CHANNEL_1);
 
         await db.query("DELETE FROM feeds WHERE id = $1::uuid", [feedId]);
 
+        const { rowCount } = await db.query(
+            "SELECT 1 FROM channel_subscriptions WHERE feed_id = $1::uuid",
+            [feedId]
+        );
+        expect(rowCount).toBe(0);
         expect(await getFeedSubscriptions(GUILD_A)).toEqual([]);
     });
 
