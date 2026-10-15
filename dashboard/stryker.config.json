@@ -19,7 +19,19 @@
     "src/features/message-filtering/filterUpdater.ts",
     "src/lib/markdown-plugins.ts",
     "src/lib/realtime-url.ts",
-    "src/lib/ticket.ts"
+    "src/lib/ticket.ts",
+    "src/features/report/hooks.ts",
+    "src/features/report/hooks/useBanUser.ts",
+    "src/features/report/hooks/useDeleteReport.ts",
+    "src/features/report/hooks/useResolveReport.ts",
+    "src/features/report/hooks/useTimeoutUser.ts",
+    "src/features/report/hooks/useWarnUser.ts",
+    "src/features/easter-eggs/useKeySequence.ts",
+    "src/features/music-stats/components/useMusicSocket.ts",
+    "src/features/music-stats/components/useMusicConnection.ts",
+    "src/features/_shared/dropdown.ts",
+    "src/features/economy/components/tabs/economy-items/itemFormOptions.ts",
+    "src/features/_shared/embed.ts"
   ],
   "vitest": {
     "configFile": "vitest.stryker.config.ts"
