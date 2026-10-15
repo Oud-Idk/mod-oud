@@ -9,7 +9,6 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { notoEmoji } from "@/lib/fonts";
 import { toast } from "sonner";
-import { MarkdownRenderer } from "@/components/ui/markdown/MarkdownRenderer";
 import { BORROW_CHECK } from "@/features/easter-eggs/contents";
 
 const MEE6_SEQUENCE: string[] = ['m', 'e', 'e', '6'];
@@ -162,7 +161,7 @@ export function EasterEggs(): JSX.Element {
             )}
             {showRust && (
                 <Modal onClose={() => { setShowRust(false) }} headerText="Borrow Checker" className="max-w-300">
-                    <MarkdownRenderer className="text-danger" content={`\`\`\`\n${BORROW_CHECK}\`\`\``} />
+                    <pre className="text-danger whitespace-pre-wrap font-mono text-sm">{BORROW_CHECK}</pre>
                 </Modal>
             )}
         </>

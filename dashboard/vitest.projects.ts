@@ -15,6 +15,7 @@ export const unitProject = {
         name: "unit",
         alias,
         include: ["src/**/*.test.{ts,tsx}"],
+        server: { deps: { inline: ["@oud-idk/markdown"] } },
         exclude: [...sharedExclude, "**/*.integration.test.{ts,tsx}"],
     },
 };
