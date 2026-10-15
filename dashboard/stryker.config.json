@@ -9,17 +9,17 @@
     "src/features/reminders/calculations.ts",
     "src/features/rss/delivery.ts",
     "src/features/verification/service.ts",
-    "src/features/message-filtering/filterUpdater.ts",
     "src/features/music-stats/components/musicSocketProtocol.ts",
     "src/lib/hooks/useSSEInfiniteScroll.ts",
     "src/lib/markdown-toc.ts",
-    "src/lib/markdown-plugins.ts",
-    "src/lib/realtime-url.ts",
-    "src/lib/ticket.ts",
     "src/lib/linguist.ts",
     "src/components/dashboard/useConfigForm.ts",
     "src/components/ui/markdown/useMarkdownScroller.ts",
-    "src/features/tickets/hooks/useTicketConfig.ts"
+    "src/features/tickets/hooks/useTicketConfig.ts",
+    "src/features/message-filtering/filterUpdater.ts",
+    "src/lib/markdown-plugins.ts",
+    "src/lib/realtime-url.ts",
+    "src/lib/ticket.ts"
   ],
   "vitest": {
     "configFile": "vitest.stryker.config.ts"
