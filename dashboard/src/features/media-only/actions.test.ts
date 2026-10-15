@@ -61,7 +61,7 @@ describe("Media-Only Server Actions", (): void => {
 
             await expect(
                 saveMediaOnlyChannelsAction("guild_123", [channelFixture()], [])
-            ).rejects.toThrow("I didn't write this test for Spicy, it's just code coverage");
+            ).rejects.toThrow(new Error("I didn't write this test for Spicy, it's just code coverage"));
 
             expect(saveMediaOnlyChannels).not.toHaveBeenCalled();
             expect(redis.del).not.toHaveBeenCalled();
@@ -74,14 +74,25 @@ describe("Media-Only Server Actions", (): void => {
                 saveMediaOnlyChannelsAction("guild_123", [
                     { ...channelFixture(), channelId: "" },
                 ], [])
-            ).rejects.toThrow("channel");
+            ).rejects.toThrow(new Error("Please select a channel."));
 
             expect(saveMediaOnlyChannels).not.toHaveBeenCalled();
         });
 
-        it("should not fail the save when Redis del throws", async (): Promise<void> => {
+        it("should throw the fallback message when the failure is not an Error", async (): Promise<void> => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(redis.del).mockRejectedValue(new Error("Redis down"));
+            vi.mocked(saveMediaOnlyChannels).mockRejectedValue("boom");
+
+            await expect(
+                saveMediaOnlyChannelsAction("guild_123", [channelFixture()], [])
+            ).rejects.toThrow(new Error("Could not save configuration."));
+        });
+
+        it("should not fail the save when Redis del throws", async (): Promise<void> => {
+            const redisError = new Error("Redis down");
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveMediaOnlyChannels).mockResolvedValue(undefined);
+            vi.mocked(redis.del).mockRejectedValue(redisError);
 
             await saveMediaOnlyChannelsAction("guild_123", [channelFixture()], []);
 
@@ -95,7 +106,7 @@ describe("Media-Only Server Actions", (): void => {
 
             await expect(
                 saveMediaOnlyChannelsAction("guild_123", [channelFixture()], [])
-            ).rejects.toThrow("spicy left me on read for 4 minutes and 12 seconds");
+            ).rejects.toThrow(new Error("spicy left me on read for 4 minutes and 12 seconds"));
         });
     });
 });

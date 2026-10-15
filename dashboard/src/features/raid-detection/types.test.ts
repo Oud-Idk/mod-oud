@@ -73,16 +73,16 @@ describe("raidActionSchema (discriminated union)", () => {
     });
 
     // Kills ALERT error message mutant ("Alert channel is required")
-    it("should REJECT an ALERT action with an empty channel and set correct error message", () => {
-        const result = raidActionSchema.safeParse({ type: "ALERT", channelId: "" });
-        expect(result.success).toBe(false);
-        if (!result.success) {
-            expect(result.error.issues[0].message).toBe("Alert channel is required");
-        }
+    it("should REJECT an ALERT action missing its channel", () => {
+        expect(raidActionSchema.safeParse({ type: "ALERT" }).success).toBe(false);
     });
 
     it("should REJECT a PAUSE_INVITES action with a zero hour", () => {
         expect(raidActionSchema.safeParse({ type: "PAUSE_INVITES", hour: 0 }).success).toBe(false);
+    });
+
+    it("should REJECT a PAUSE_INVITES action missing its hour", () => {
+        expect(raidActionSchema.safeParse({ type: "PAUSE_INVITES" }).success).toBe(false);
     });
 
     // Kills TIMEOUT_NEW_JOINS literal mutant

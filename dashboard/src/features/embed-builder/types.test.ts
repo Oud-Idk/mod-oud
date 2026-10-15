@@ -56,21 +56,33 @@ describe("Embed Builder Schemas", () => {
                 expect(result.error.issues[0].message).toBe(
                     "Embed must have at least a title, description, or visible content!"
                 );
+                // Exact issue metadata, so a wrong code or path fails the suite.
+                expect(result.error.issues[0].code).toBe("custom");
+                expect(result.error.issues[0].path).toEqual(["embedState"]);
             }
         });
     });
 
     describe("SendEmbedResponseSchema", () => {
-        it("should PASS a successful response object", () => {
-            const successData = { success: true, messageId: "msg_999" };
-            const result = SendEmbedResponseSchema.safeParse(successData);
+        it("should preserve messageId when provided", () => {
+            const result = SendEmbedResponseSchema.safeParse({ messageId: "msg_999" });
             expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.messageId).toBe("msg_999");
+            }
         });
 
-        it("should PASS an error response object", () => {
-            const errorData = { success: false, error: "Something went wrong" };
-            const result = SendEmbedResponseSchema.safeParse(errorData);
+        it("should PASS when messageId is missing", () => {
+            const result = SendEmbedResponseSchema.safeParse({});
             expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.messageId).toBeUndefined();
+            }
+        });
+
+        it("should REJECT a non-string messageId", () => {
+            const result = SendEmbedResponseSchema.safeParse({ messageId: 123 });
+            expect(result.success).toBe(false);
         });
     });
 });

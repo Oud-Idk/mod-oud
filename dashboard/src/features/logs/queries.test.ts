@@ -85,5 +85,53 @@ describe("Logs Query Module", () => {
 
             await expect(getModerationLogs("guild_123")).rejects.toThrow("connection lost");
         });
+
+        // Postgres drops zero interval components, so pg never yields an
+        // explicit zero. Zero-unit coverage lives here instead of the db suite.
+        it("should treat zero-valued date units as absent", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        case_id: "1",
+                        guild_id: "guild_123",
+                        target_id: "user_1",
+                        target_username: "Target",
+                        moderator_id: "mod_1",
+                        moderator_username: "Mod",
+                        action_type: "BAN",
+                        reason: "Spam",
+                        duration: { years: 0, months: 0, days: 0, hours: 1 },
+                        created_at: new Date("2026-01-02T00:00:00.000Z"),
+                    },
+                ],
+            });
+
+            const [log] = await getModerationLogs("guild_123");
+
+            expect(log.duration).toBe("1h");
+        });
+
+        it("should treat zero-valued time units as absent", async () => {
+            mockQuery.mockResolvedValue({
+                rows: [
+                    {
+                        case_id: "1",
+                        guild_id: "guild_123",
+                        target_id: "user_1",
+                        target_username: "Target",
+                        moderator_id: "mod_1",
+                        moderator_username: "Mod",
+                        action_type: "BAN",
+                        reason: "Spam",
+                        duration: { days: 1, hours: 0, minutes: 0, seconds: 0 },
+                        created_at: new Date("2026-01-02T00:00:00.000Z"),
+                    },
+                ],
+            });
+
+            const [log] = await getModerationLogs("guild_123");
+
+            expect(log.duration).toBe("1d");
+        });
     });
 });

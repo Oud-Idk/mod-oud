@@ -387,6 +387,62 @@ describe("moderation logs against a real database", () => {
         expect(log.duration).toBe("1d 2h");
     });
 
+    it("omits a negative years unit", async () => {
+        await seedModeration({ duration: "-1 years 2 days" });
+
+        const [log] = await getModerationLogs(GUILD_A);
+
+        expect(log.duration).toBe("2d");
+    });
+
+    it("omits a negative months unit", async () => {
+        await seedModeration({ duration: "-2 months 3 days" });
+
+        const [log] = await getModerationLogs(GUILD_A);
+
+        expect(log.duration).toBe("3d");
+    });
+
+    it("omits a negative days unit", async () => {
+        await seedModeration({ duration: "1 year -2 days" });
+
+        const [log] = await getModerationLogs(GUILD_A);
+
+        expect(log.duration).toBe("1y");
+    });
+
+    it("omits a negative hours unit", async () => {
+        await seedModeration({ duration: "-2 hours 1 day" });
+
+        const [log] = await getModerationLogs(GUILD_A);
+
+        expect(log.duration).toBe("1d");
+    });
+
+    it("omits a negative minutes unit", async () => {
+        await seedModeration({ duration: "-5 minutes 1 day" });
+
+        const [log] = await getModerationLogs(GUILD_A);
+
+        expect(log.duration).toBe("1d");
+    });
+
+    it("omits a negative seconds unit", async () => {
+        await seedModeration({ duration: "1 day -6 seconds" });
+
+        const [log] = await getModerationLogs(GUILD_A);
+
+        expect(log.duration).toBe("1d");
+    });
+
+    it("returns null for a zero interval", async () => {
+        await seedModeration({ duration: "0" });
+
+        const [log] = await getModerationLogs(GUILD_A);
+
+        expect(log.duration).toBeNull();
+    });
+
     it("returns all moderation logs without a duration column value as null reason", async () => {
         await seedModeration({ reason: null, duration: "2 hours" });
 

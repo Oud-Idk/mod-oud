@@ -8,18 +8,47 @@
     "src/features/**/actions.ts",
     "src/features/reminders/calculations.ts",
     "src/features/rss/delivery.ts",
-    "src/features/verification/service.ts"
+    "src/features/verification/service.ts",
+    "src/features/music-stats/components/musicSocketProtocol.ts",
+    "src/lib/hooks/useSSEInfiniteScroll.ts",
+    "src/lib/markdown-toc.ts",
+    "src/lib/linguist.ts",
+    "src/components/dashboard/useConfigForm.ts",
+    "src/components/ui/markdown/useMarkdownScroller.ts",
+    "src/features/tickets/hooks/useTicketConfig.ts",
+    "src/features/message-filtering/filterUpdater.ts",
+    "src/lib/markdown-plugins.ts",
+    "src/lib/realtime-url.ts",
+    "src/lib/ticket.ts",
+    "src/features/report/hooks.ts",
+    "src/features/report/hooks/useBanUser.ts",
+    "src/features/report/hooks/useDeleteReport.ts",
+    "src/features/report/hooks/useResolveReport.ts",
+    "src/features/report/hooks/useTimeoutUser.ts",
+    "src/features/report/hooks/useWarnUser.ts",
+    "src/features/easter-eggs/useKeySequence.ts",
+    "src/features/music-stats/components/useMusicSocket.ts",
+    "src/features/music-stats/components/useMusicConnection.ts",
+    "src/features/_shared/dropdown.ts",
+    "src/features/economy/components/tabs/economy-items/itemFormOptions.ts",
+    "src/features/_shared/embed.ts"
   ],
   "vitest": {
     "configFile": "vitest.stryker.config.ts"
   },
-  "reporters": ["html", "clear-text", "progress"],
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ],
   "thresholds": {
     "high": 90,
     "low": 75,
     "break": 60
   },
-  "ignorers": ["console-all"],
+  "ignorers": [
+    "console-all"
+  ],
   "plugins": [
     "@stryker-mutator/vitest-runner",
     "@stryker-ignorer/console-all"

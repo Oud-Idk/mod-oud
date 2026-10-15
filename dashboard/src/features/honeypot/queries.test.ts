@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { getHoneypotConfig, saveHoneypotConfig, setupHoneypot } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
+import { backendFetch } from "@/lib/backend";
 import type { HoneypotConfig } from "./types";
-import { config } from "@/config";
 
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
@@ -14,26 +14,32 @@ vi.mock("@/features/_shared/channels", () => ({
     invalidateGuildChannelCache: vi.fn(),
 }));
 
-interface MockResponse {
-    ok: boolean;
-    json: () => Promise<unknown>;
-    text: () => Promise<string>;
+vi.mock("@/lib/backend", () => ({
+    backendFetch: vi.fn(),
+}));
+
+// JSONB round-trips and tenant scoping live in queries.integration.test.ts
+// against a real database. What stays here is the behaviour a real database
+// will not produce on demand: backend failure shapes and a dead channel cache.
+
+function jsonResponse(body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+    });
 }
-const mockFetch = vi.hoisted(() =>
-    vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
-);
+
+function errorResponse(body: string): Response {
+    return new Response(body, { status: 500 });
+}
 
 describe("Honeypot Query Module", () => {
-    const originalBackend = config.backendInternalUrl;
-
     beforeEach(() => {
         vi.resetAllMocks();
-        vi.spyOn(console, "error").mockImplementation(() => {return});
-        config.backendInternalUrl = "http://backend:8080";
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
     });
 
     afterEach(() => {
-        config.backendInternalUrl = originalBackend;
         vi.restoreAllMocks();
     });
 
@@ -68,7 +74,9 @@ describe("Honeypot Query Module", () => {
         it("should propagate a database error from getGuildConfigField", async () => {
             vi.mocked(getGuildConfigField).mockRejectedValue(new Error("Oud does NOT miss SpicyWolf"));
 
-            await expect(getHoneypotConfig("guild_123")).rejects.toThrow("Oud does NOT miss SpicyWolf");
+            await expect(getHoneypotConfig("guild_123")).rejects.toThrow(
+                new Error("Oud does NOT miss SpicyWolf")
+            );
         });
     });
 
@@ -86,25 +94,15 @@ describe("Honeypot Query Module", () => {
 
             await expect(
                 saveHoneypotConfig("guild_123", honeypotConfigFixture())
-            ).rejects.toThrow("spicy is being way too cute today and it's throwing off my stack trace");
+            ).rejects.toThrow(
+                new Error("spicy is being way too cute today and it's throwing off my stack trace")
+            );
         });
     });
 
     describe("setupHoneypot", () => {
-        beforeEach(() => {
-            vi.stubGlobal("fetch", mockFetch);
-        });
-
-        afterEach(() => {
-            vi.unstubAllGlobals();
-        });
-
         function mockBackendOk(channelId: string): void {
-            mockFetch.mockResolvedValue({
-                ok: true,
-                json: () => Promise.resolve({ channel_id: channelId }),
-                text: () => Promise.resolve(""),
-            });
+            vi.mocked(backendFetch).mockResolvedValue(jsonResponse({ channel_id: channelId }));
         }
 
         it("should POST to the backend, save the channel, and return it", async () => {
@@ -113,14 +111,11 @@ describe("Honeypot Query Module", () => {
 
             const result = await setupHoneypot("guild_123", "dont-talk");
 
-            expect(mockFetch).toHaveBeenCalledWith(
-                "http://backend:8080/api/guilds/guild_123/honeypot",
-                expect.objectContaining({ method: "POST" })
-            );
-            const [, init] = mockFetch.mock.calls[0];
-            const bodyText = typeof init?.body === "string" ? init.body : "{}";
-            expect(JSON.parse(bodyText)).toEqual({ channel_name: "dont-talk" });
-
+            expect(backendFetch).toHaveBeenCalledWith("/api/guilds/guild_123/honeypot", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ channel_name: "dont-talk" }),
+            });
             expect(invalidateGuildChannelCache).toHaveBeenCalledWith("guild_123");
             expect(saveGuildConfigField).toHaveBeenCalledWith(
                 "guild_123",
@@ -155,36 +150,49 @@ describe("Honeypot Query Module", () => {
         });
 
         it("should throw when the backend returns a non-OK response", async () => {
-            mockFetch.mockResolvedValue({
-                ok: false,
-                json: () => Promise.resolve({}),
-                text: () => Promise.resolve("thespicywolf ruins my productivity"),
-            });
+            vi.mocked(backendFetch).mockResolvedValue(
+                errorResponse("thespicywolf ruins my productivity")
+            );
 
             await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow(
-                "thespicywolf ruins my productivity"
+                new Error("thespicywolf ruins my productivity")
+            );
+            expect(saveGuildConfigField).not.toHaveBeenCalled();
+        });
+
+        // The handler trims the body before the empty check, so padding
+        // around a real message must not leak into what the user sees.
+        it("should trim padding around the backend error text", async () => {
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse("  backend exploded  "));
+
+            await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow(
+                new Error("backend exploded")
             );
             expect(saveGuildConfigField).not.toHaveBeenCalled();
         });
 
         it("should throw a generic error when the backend returns no error text", async () => {
-            mockFetch.mockResolvedValue({
-                ok: false,
-                json: () => Promise.resolve({}),
-                text: () => Promise.resolve(""),
-            });
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse(""));
 
             await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow(
-                "Rust backend request failed."
+                new Error("Rust backend request failed.")
             );
         });
 
+        // Whitespace alone trims to empty and takes the same fallback path.
+        it("should throw a generic error when the backend error body is whitespace only", async () => {
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse("   \n  "));
+
+            await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow(
+                new Error("Rust backend request failed.")
+            );
+            expect(saveGuildConfigField).not.toHaveBeenCalled();
+        });
+
         it("should REJECT an invalid backend response shape", async () => {
-            mockFetch.mockResolvedValue({
-                ok: true,
-                json: () => Promise.resolve({ wheeeeee: "spicy is paying attention to someone else in the server, aborting transaction" }),
-                text: () => Promise.resolve(""),
-            });
+            vi.mocked(backendFetch).mockResolvedValue(
+                jsonResponse({ wheeeeee: "spicy is paying attention to someone else in the server, aborting transaction" })
+            );
 
             await expect(setupHoneypot("guild_123", "dont-talk")).rejects.toThrow();
             expect(saveGuildConfigField).not.toHaveBeenCalled();
@@ -197,6 +205,11 @@ describe("Honeypot Query Module", () => {
 
             const result = await setupHoneypot("guild_123", "dont-talk");
 
+            expect(saveGuildConfigField).toHaveBeenCalledWith(
+                "guild_123",
+                "honeypot",
+                expect.objectContaining({ channelId: "chan_honeypot", enabled: true })
+            );
             expect(result.channelId).toBe("chan_honeypot");
         });
     });

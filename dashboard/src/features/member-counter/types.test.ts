@@ -93,9 +93,12 @@ describe("saveMemberCounterConfigSchema", () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.issues[0].message).toBe(
-                "Counter #1 requires a target voice channel!"
-            );
+            // Pin code, message and path so a misplaced issue fails the suite.
+            expect(result.error.issues[0]).toMatchObject({
+                code: "custom",
+                message: "Counter #1 requires a target voice channel!",
+                path: ["counters", 0, "channelId"],
+            });
         }
     });
 
@@ -109,8 +112,52 @@ describe("saveMemberCounterConfigSchema", () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.issues.some((i) => i.message.includes("requires a specific role"))).toBe(
-                true
+            expect(result.error.issues).toHaveLength(1);
+            expect(result.error.issues[0]).toMatchObject({
+                code: "custom",
+                message: "Counter #1 requires a specific role selected!",
+                path: ["counters", 0, "roleId"],
+            });
+        }
+    });
+
+    it("should PASS a non-role counter without a role", () => {
+        // The role check only applies to ROLE_COUNT; other types ignore roleId.
+        const result = saveMemberCounterConfigSchema.safeParse({
+            enabled: true,
+            counters: [
+                { id: "c1", channelId: "voice_1", counterType: "TOTAL_MEMBERS", roleId: null },
+            ],
+        });
+
+        expect(result.success).toBe(true);
+    });
+
+    it("should number issues by counter position", () => {
+        // The second counter breaks both rules, so both messages say #2.
+        const result = saveMemberCounterConfigSchema.safeParse({
+            enabled: true,
+            counters: [
+                { id: "c1", channelId: "voice_1", counterType: "TOTAL_MEMBERS" },
+                { id: "c2", channelId: null, counterType: "ROLE_COUNT", roleId: null },
+            ],
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues).toContainEqual(
+                expect.objectContaining({
+                    code: "custom",
+                    message: "Counter #2 requires a target voice channel!",
+                    path: ["counters", 1, "channelId"],
+                })
+            );
+            expect(result.error.issues).toContainEqual(
+                expect.objectContaining({
+                    code: "custom",
+                    message: "Counter #2 requires a specific role selected!",
+                    path: ["counters", 1, "roleId"],
+                })
             );
         }
     });

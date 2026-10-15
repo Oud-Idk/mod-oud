@@ -126,4 +126,66 @@ describe("reportConfigSchema", () => {
     it("should REJECT a non-boolean enabled value", () => {
         expect(reportConfigSchema.safeParse({ enabled: "yes" }).success).toBe(false);
     });
+
+    it("should default both DM messages to disabled", () => {
+        const parsed = reportConfigSchema.parse({});
+
+        expect(parsed.resolvedDm.enabled).toBe(false);
+        expect(parsed.dismissedDm.enabled).toBe(false);
+    });
+
+    it("should default both DM messages to empty text content", () => {
+        const parsed = reportConfigSchema.parse({});
+
+        expect(parsed.resolvedDm.message.format).toBe("TEXT");
+        expect(parsed.resolvedDm.message.content).toBe("");
+        expect(parsed.resolvedDm.message.embed).toEqual({});
+        expect(parsed.dismissedDm.message.format).toBe("TEXT");
+        expect(parsed.dismissedDm.message.content).toBe("");
+        expect(parsed.dismissedDm.message.embed).toEqual({});
+    });
+});
+
+describe("DEFAULT_REPORT_DM_MESSAGE", () => {
+    it("should be a disabled message", () => {
+        expect(DEFAULT_REPORT_DM_MESSAGE.enabled).toBe(false);
+    });
+
+    it("should carry an empty text layout", () => {
+        expect(DEFAULT_REPORT_DM_MESSAGE.message.format).toBe("TEXT");
+        expect(DEFAULT_REPORT_DM_MESSAGE.message.content).toBe("");
+        expect(DEFAULT_REPORT_DM_MESSAGE.message.embed).toEqual({});
+    });
+});
+
+describe("reportedMessageSchema username defaults", () => {
+    function minimalRow(): Record<string, unknown> {
+        return {
+            id: 1,
+            guild_id: "guild_123",
+            channel_id: "chan_1",
+            message_id: "msg_1",
+            author_id: "user_1",
+            reporter_id: "user_2",
+            created_at: new Date(),
+        };
+    }
+
+    it("should default both usernames to empty", () => {
+        const parsed = reportedMessageSchema.parse(minimalRow());
+
+        expect(parsed.author_username).toBe("");
+        expect(parsed.reporter_username).toBe("");
+    });
+
+    it("should keep provided usernames", () => {
+        const parsed = reportedMessageSchema.parse({
+            ...minimalRow(),
+            author_username: "AuthorName",
+            reporter_username: "ReporterName",
+        });
+
+        expect(parsed.author_username).toBe("AuthorName");
+        expect(parsed.reporter_username).toBe("ReporterName");
+    });
 });

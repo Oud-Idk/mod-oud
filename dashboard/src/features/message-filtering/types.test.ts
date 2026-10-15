@@ -6,6 +6,13 @@ import {
     saveBadWordRulesetInputSchema,
     badWordRulesetSchema,
     defaultMessageFilteringConfig,
+    strategyTypeSchema,
+    flagThresholdSchema,
+    ruleActionSchema,
+    scopeListModeSchema,
+    priorCopiesSchema,
+    crossChannelSpamRuleSchema,
+    externalLinksRuleSchema,
 } from "./types";
 
 describe("messageFilteringConfigSchema", () => {
@@ -143,5 +150,97 @@ describe("badWordRulesetSchema", () => {
     it("should REJECT a row missing an id", () => {
         const result = badWordRulesetSchema.safeParse({ name: "No swears" });
         expect(result.success).toBe(false);
+    });
+
+    it("should default patterns and actions to empty arrays", () => {
+        const parsed = badWordRulesetSchema.parse({ id: "uuid_1", name: "No swears" });
+        expect(parsed.patterns).toEqual([]);
+        expect(parsed.actions).toEqual([]);
+    });
+});
+
+describe("strategyTypeSchema", () => {
+    it("should PASS every documented strategy", () => {
+        expect(strategyTypeSchema.safeParse("EXACT").success).toBe(true);
+        expect(strategyTypeSchema.safeParse("SUBSTRING").success).toBe(true);
+        expect(strategyTypeSchema.safeParse("REGEX").success).toBe(true);
+    });
+
+    it("should REJECT an empty strategy", () => {
+        expect(strategyTypeSchema.safeParse("").success).toBe(false);
+    });
+});
+
+describe("flagThresholdSchema", () => {
+    it("should PASS every documented threshold", () => {
+        expect(flagThresholdSchema.safeParse("MILD").success).toBe(true);
+        expect(flagThresholdSchema.safeParse("MODERATE").success).toBe(true);
+        expect(flagThresholdSchema.safeParse("SEVERE").success).toBe(true);
+    });
+
+    it("should REJECT an empty threshold", () => {
+        expect(flagThresholdSchema.safeParse("").success).toBe(false);
+    });
+});
+
+describe("ruleActionSchema", () => {
+    it("should PASS every documented action", () => {
+        for (const action of ["DELETE", "WARN", "TIMEOUT", "REMIND_PUBLICLY", "REMIND_PRIVATELY"]) {
+            expect(ruleActionSchema.safeParse(action).success).toBe(true);
+        }
+    });
+
+    it("should REJECT an empty action", () => {
+        expect(ruleActionSchema.safeParse("").success).toBe(false);
+    });
+});
+
+describe("scopeListModeSchema", () => {
+    it("should PASS both list modes", () => {
+        expect(scopeListModeSchema.safeParse("ALLOWLIST").success).toBe(true);
+        expect(scopeListModeSchema.safeParse("DENYLIST").success).toBe(true);
+    });
+
+    it("should REJECT an empty list mode", () => {
+        expect(scopeListModeSchema.safeParse("").success).toBe(false);
+    });
+});
+
+describe("priorCopiesSchema", () => {
+    it("should PASS KEEP with the mode preserved", () => {
+        expect(priorCopiesSchema.parse({ mode: "KEEP" })).toEqual({ mode: "KEEP" });
+    });
+
+    it("should PASS DELETE with and without a limit", () => {
+        expect(priorCopiesSchema.parse({ mode: "DELETE" })).toEqual({ mode: "DELETE" });
+        expect(priorCopiesSchema.parse({ mode: "DELETE", limit: 5 })).toEqual({
+            mode: "DELETE",
+            limit: 5,
+        });
+    });
+
+    it("should REJECT a missing or unknown mode", () => {
+        expect(priorCopiesSchema.safeParse({}).success).toBe(false);
+        expect(priorCopiesSchema.safeParse({ mode: "" }).success).toBe(false);
+        expect(priorCopiesSchema.safeParse({ mode: "ARCHIVE" }).success).toBe(false);
+    });
+});
+
+describe("crossChannelSpamRuleSchema", () => {
+    it("should apply defaults when an empty object is parsed", () => {
+        const parsed = crossChannelSpamRuleSchema.parse({});
+        expect(parsed.minChannels).toBe(3);
+        expect(parsed.windowSeconds).toBe(600);
+        expect(parsed.similarityThreshold).toBe(0.85);
+        expect(parsed.minLength).toBe(15);
+        expect(parsed.priorCopies).toEqual({ mode: "KEEP" });
+    });
+});
+
+describe("externalLinksRuleSchema", () => {
+    it("should default domain lists to empty arrays", () => {
+        const parsed = externalLinksRuleSchema.parse({ mode: "ALLOWLIST" });
+        expect(parsed.allowedDomains).toEqual([]);
+        expect(parsed.blockedDomains).toEqual([]);
     });
 });

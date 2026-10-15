@@ -58,6 +58,7 @@ describe("Overview Query Module", () => {
             const result = await getGuildStats("guild_123");
 
             expect(result).toEqual(defaults);
+            expect(console.error).not.toHaveBeenCalled();
         });
 
         it("should treat null counts as zero", async () => {
@@ -88,10 +89,12 @@ describe("Overview Query Module", () => {
             const result = await getGuildStats("guild_123");
 
             expect(result).toEqual(defaults);
+            // A throw further down logs a different message, so this pins the rejection path.
         });
 
         it("should return default stats when the query throws", async () => {
-            mockQuery.mockRejectedValue(new Error("spicy made direct eye contact with my avatar during screen share"));
+            const err = new Error("spicy made direct eye contact with my avatar during screen share");
+            mockQuery.mockRejectedValue(err);
 
             const result = await getGuildStats("guild_123");
 
@@ -118,6 +121,15 @@ describe("Overview Query Module", () => {
 
         it("should return null when DISCORD_TOKEN is empty string", async () => {
             process.env.DISCORD_TOKEN = "";
+
+            const result = await getGuildDetails("guild_123");
+
+            expect(result).toBeNull();
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it("should return null when DISCORD_TOKEN is whitespace only", async () => {
+            process.env.DISCORD_TOKEN = "   ";
 
             const result = await getGuildDetails("guild_123");
 
@@ -160,14 +172,17 @@ describe("Overview Query Module", () => {
 
         it("should return null when the API responds with an error", async () => {
             process.env.DISCORD_TOKEN = "token_123";
+            const json = vi.fn<() => Promise<unknown>>().mockResolvedValue({});
             mockFetch.mockResolvedValue({
                 ok: false,
-                json: () => Promise.resolve({}),
+                json,
             });
 
             const result = await getGuildDetails("guild_123");
 
             expect(result).toBeNull();
+            // The error status returns before the body is read.
+            expect(json).not.toHaveBeenCalled();
         });
 
         it("should return null when the fetch throws", async () => {

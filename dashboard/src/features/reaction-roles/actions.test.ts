@@ -107,6 +107,27 @@ describe("Reaction Roles Action Module", () => {
             expect(notifyBackendReactionMessageEdit).not.toHaveBeenCalled();
         });
 
+        it("should skip cache invalidation and notify when the saved message_id is undefined", async () => {
+            const saved = messageFixture({ message_id: undefined });
+            vi.mocked(saveReactionMessage).mockResolvedValue(saved);
+
+            await saveReactionMessageAction("guild_123", validInput);
+
+            expect(mockScan).not.toHaveBeenCalled();
+            expect(notifyBackendReactionMessageEdit).not.toHaveBeenCalled();
+        });
+
+        it("should not call del when the cache scan finds no keys", async () => {
+            vi.mocked(saveReactionMessage).mockResolvedValue(messageFixture());
+            mockScan.mockResolvedValue(["0", []]);
+
+            await saveReactionMessageAction("guild_123", validInput);
+
+            expect(mockScan).toHaveBeenCalled();
+            expect(mockDel).not.toHaveBeenCalled();
+            expect(notifyBackendReactionMessageEdit).toHaveBeenCalledWith("guild_123", 1);
+        });
+
         it("should throw the first zod issue message for invalid input", async () => {
             const invalid: SaveReactionMessageInput = {
                 name: "Verify",
@@ -199,6 +220,17 @@ describe("Reaction Roles Action Module", () => {
             expect(result).toBe(false);
         });
 
+        it("should skip cache invalidation when the message no longer exists", async () => {
+            vi.mocked(getReactionMessageById).mockResolvedValue(null);
+            vi.mocked(deleteReactionMessage).mockResolvedValue(true);
+
+            const result = await deleteReactionMessageAction("guild_123", 1);
+
+            expect(deleteReactionMessage).toHaveBeenCalledWith(1);
+            expect(mockScan).not.toHaveBeenCalled();
+            expect(result).toBe(true);
+        });
+
         it("should throw the underlying error message", async () => {
             vi.mocked(getReactionMessageById).mockRejectedValue(new Error("I did NOT smile at my monitor when Spicy joined general chat"));
 
@@ -227,6 +259,32 @@ describe("Reaction Roles Action Module", () => {
             expect(mockDel).toHaveBeenCalledWith("key1");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reaction-roles");
             expect(result).toEqual({ message_id: "discord_msg_1" });
+        });
+
+        it("should skip cache invalidation when the backend returns a null message_id", async () => {
+            vi.mocked(sendReactionMessageToBackend).mockResolvedValue({
+                // @ts-expect-error null message_id is a runtime case the guard must handle
+                message_id: null,
+            });
+
+            const result = await sendReactionMessageAction("guild_123", 1);
+
+            expect(mockScan).not.toHaveBeenCalled();
+            expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reaction-roles");
+            expect(result).toEqual({ message_id: null });
+        });
+
+        it("should skip cache invalidation when the backend returns an undefined message_id", async () => {
+            vi.mocked(sendReactionMessageToBackend).mockResolvedValue({
+                // @ts-expect-error undefined message_id is a runtime case the guard must handle
+                message_id: undefined,
+            });
+
+            const result = await sendReactionMessageAction("guild_123", 1);
+
+            expect(mockScan).not.toHaveBeenCalled();
+            expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reaction-roles");
+            expect(result).toEqual({ message_id: undefined });
         });
 
         it("should throw the underlying error message", async () => {
@@ -264,6 +322,17 @@ describe("Reaction Roles Action Module", () => {
 
             const result = await deleteReactionDiscordMessageAction("guild_123", 1);
 
+            expect(mockScan).not.toHaveBeenCalled();
+            expect(result).toEqual({ success: true });
+        });
+
+        it("should skip cache invalidation when the message no longer exists", async () => {
+            vi.mocked(getReactionMessageById).mockResolvedValue(null);
+            vi.mocked(deleteDiscordMessageFromBackend).mockResolvedValue(undefined);
+
+            const result = await deleteReactionDiscordMessageAction("guild_123", 1);
+
+            expect(deleteDiscordMessageFromBackend).toHaveBeenCalledWith("guild_123", 1);
             expect(mockScan).not.toHaveBeenCalled();
             expect(result).toEqual({ success: true });
         });

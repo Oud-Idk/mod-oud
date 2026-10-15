@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import {
     getRaidDetectionConfig,
     saveRaidDetectionConfig,
@@ -45,6 +46,10 @@ function jsonResponse(body: unknown, status = 200): Response {
         status,
         headers: { "Content-Type": "application/json" },
     });
+}
+
+function textResponse(body: string, status: number): Response {
+    return new Response(body, { status });
 }
 
 describe("Raid Detection Query Module", () => {
@@ -97,7 +102,9 @@ describe("Raid Detection Query Module", () => {
         it("should propagate a database error from getGuildConfigField", async () => {
             vi.mocked(getGuildConfigField).mockRejectedValue(new Error("connection lost"));
 
-            await expect(getRaidDetectionConfig("guild_123")).rejects.toThrow("connection lost");
+            await expect(getRaidDetectionConfig("guild_123")).rejects.toThrow(
+                new Error("connection lost")
+            );
         });
     });
 
@@ -125,7 +132,7 @@ describe("Raid Detection Query Module", () => {
 
             await expect(
                 saveRaidDetectionConfig("guild_123", configFixture())
-            ).rejects.toThrow("connection lost");
+            ).rejects.toThrow(new Error("connection lost"));
         });
     });
 
@@ -181,14 +188,46 @@ describe("Raid Detection Query Module", () => {
             mockBackendFetch.mockResolvedValue(jsonResponse({ error: "boom" }, 500));
 
             await expect(getRaidStatus("guild_123")).rejects.toThrow(
-                "Could not read raid detection status."
+                new Error("Could not read raid detection status.")
+            );
+        });
+
+        it("should not echo a readable 5xx body either", async () => {
+            mockBackendFetch.mockResolvedValue(textResponse("connection reset by peer", 503));
+
+            await expect(getRaidStatus("guild_123")).rejects.toThrow(
+                new Error("Could not read raid detection status.")
             );
         });
 
         it("should pass a 4xx body through", async () => {
-            mockBackendFetch.mockResolvedValue(jsonResponse({ error: "nope" }, 400));
+            mockBackendFetch.mockResolvedValue(textResponse("Unknown guild", 404));
 
-            await expect(getRaidStatus("guild_123")).rejects.toThrow();
+            await expect(getRaidStatus("guild_123")).rejects.toThrow(new Error("Unknown guild"));
+        });
+
+        // An empty body carries no detail, so the fallback message applies.
+        it("should fall back when a 4xx body is empty", async () => {
+            mockBackendFetch.mockResolvedValue(textResponse("", 400));
+
+            await expect(getRaidStatus("guild_123")).rejects.toThrow(
+                new Error("Could not read raid detection status.")
+            );
+        });
+
+        // Bodies arrive over HTTP, so blank lines are normal, not detail.
+        it("should fall back when a 4xx body is only whitespace", async () => {
+            mockBackendFetch.mockResolvedValue(textResponse("  \n  ", 400));
+
+            await expect(getRaidStatus("guild_123")).rejects.toThrow(
+                new Error("Could not read raid detection status.")
+            );
+        });
+
+        it("should trim a 4xx body before passing it through", async () => {
+            mockBackendFetch.mockResolvedValue(textResponse("  slow down\n", 429));
+
+            await expect(getRaidStatus("guild_123")).rejects.toThrow(new Error("slow down"));
         });
 
         it("should REJECT a payload the bot should not be sending", async () => {
@@ -196,11 +235,11 @@ describe("Raid Detection Query Module", () => {
                 jsonResponse(statsPayload({ avgJoinsPerDay: "2.57" }))
             );
 
-            await expect(getRaidStatus("guild_123")).rejects.toThrow();
+            await expect(getRaidStatus("guild_123")).rejects.toThrow(z.ZodError);
         });
 
         it("should REJECT an empty guild id", async () => {
-            await expect(getRaidStatus("")).rejects.toThrow();
+            await expect(getRaidStatus("")).rejects.toThrow(z.ZodError);
         });
     });
 });

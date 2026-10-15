@@ -138,7 +138,7 @@ describe("Honeypot Server Actions", () => {
             vi.mocked(verifyGuildAccess).mockRejectedValue(new Error("spicy deafened in VC right when I was about to say something important"));
 
             await expect(setupHoneypotAction("guild_123", "dont-talk")).rejects.toThrow(
-                "spicy deafened in VC right when I was about to say something important"
+                new Error("spicy deafened in VC right when I was about to say something important")
             );
             expect(setupHoneypot).not.toHaveBeenCalled();
             expect(revalidatePath).not.toHaveBeenCalled();
@@ -149,7 +149,7 @@ describe("Honeypot Server Actions", () => {
             vi.mocked(setupHoneypot).mockRejectedValue(new Error("fuck you The SpicyWolf"));
 
             await expect(setupHoneypotAction("guild_123", "dont-talk")).rejects.toThrow(
-                "fuck you The SpicyWolf"
+                new Error("fuck you The SpicyWolf")
             );
         });
 
@@ -158,8 +158,22 @@ describe("Honeypot Server Actions", () => {
             vi.mocked(setupHoneypot).mockRejectedValue("string throw");
 
             await expect(setupHoneypotAction("guild_123", "dont-talk")).rejects.toThrow(
-                "Failed to set up honeypot channel."
+                new Error("Failed to set up honeypot channel.")
             );
+        });
+
+        // setupHoneypot parses the backend body with Zod, so a schema
+        // rejection must surface its message instead of the fallback.
+        it("should rethrow the first zod issue message when setup fails validation", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(setupHoneypot).mockRejectedValue(
+                new z.ZodError([{ code: "custom", message: "Honeypot setup validation failure", path: [] }])
+            );
+
+            await expect(setupHoneypotAction("guild_123", "dont-talk")).rejects.toThrow(
+                new Error("Honeypot setup validation failure")
+            );
+            expect(revalidatePath).not.toHaveBeenCalled();
         });
     });
 });

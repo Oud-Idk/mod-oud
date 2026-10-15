@@ -3,7 +3,6 @@ import { z } from "zod";
 const countField = z
     .union([z.string(), z.number(), z.null(), z.undefined()])
     .transform((val) => {
-        if (val === null || val === undefined) return 0;
         const parsed = Number(val);
         return Number.isNaN(parsed) ? 0 : parsed;
     });

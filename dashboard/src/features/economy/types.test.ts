@@ -180,6 +180,31 @@ describe("triggerFlagsSchema", () => {
     });
 });
 
+describe("DEFAULT_ITEM_MESSAGE", () => {
+    // Compare against a literal so a mutated default cannot hide behind itself.
+    it("should carry the exact layout a bare RESPOND action posts", () => {
+        expect(DEFAULT_ITEM_MESSAGE).toEqual({
+            enabled: true,
+            format: "TEXT",
+            content: "",
+            embed: {},
+        });
+    });
+
+    it("should default a bare RESPOND action to that same literal layout", () => {
+        expect(itemActionSchema.parse({ type: "RESPOND" })).toEqual({
+            type: "RESPOND",
+            triggerFlags: 1,
+            message: {
+                enabled: true,
+                format: "TEXT",
+                content: "",
+                embed: {},
+            },
+        });
+    });
+});
+
 describe("itemRequirementSchema", () => {
     it("should apply ROLE defaults", () => {
         expect(itemRequirementSchema.parse({ type: "ROLE" })).toEqual({

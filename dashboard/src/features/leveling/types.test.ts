@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
+    imageCardSettingsSchema,
     levelingConfigSchema,
+    notificationSettingsSchema,
     notificationTargetSchema,
     saveXpMultiplierInputSchema,
     saveLevelRewardInputSchema,
     userLevelSchema,
     xpMultiplierSchema,
+    xpTargetSchema,
     levelRewardSchema,
     DEFAULT_LEVEL_NOTIFY_MESSAGE,
 } from "./types";
@@ -92,8 +95,88 @@ describe("notificationTargetSchema", () => {
     it("should reject an unknown scope", () => {
         expect(notificationTargetSchema.safeParse({ scope: "EVERYWHERE" }).success).toBe(false);
     });
+
+    it("should reject an empty object", () => {
+        // An emptied variant would accept anything, so this pins the union shut.
+        expect(notificationTargetSchema.safeParse({}).success).toBe(false);
+    });
+
+    it("should reject SPECIFIED_CHANNEL without channelId", () => {
+        expect(
+            notificationTargetSchema.safeParse({ scope: "SPECIFIED_CHANNEL" }).success
+        ).toBe(false);
+    });
 });
 
+describe("DEFAULT_LEVEL_NOTIFY_MESSAGE", () => {
+    it("should be enabled by default", () => {
+        // The constant feeds the notify default, so a flip here changes prod behavior.
+        expect(DEFAULT_LEVEL_NOTIFY_MESSAGE.enabled).toBe(true);
+    });
+
+    it("should keep the default content and format", () => {
+        expect(DEFAULT_LEVEL_NOTIFY_MESSAGE.format).toBe("TEXT");
+        expect(DEFAULT_LEVEL_NOTIFY_MESSAGE.content).toBe(
+            "Congratulations {user}, you have leveled up to **level {level}**!"
+        );
+    });
+});
+
+describe("notificationSettingsSchema", () => {
+    it("should reject an invalid message layout", () => {
+        // An emptied message branch would ignore this, so it must fail.
+        const result = notificationSettingsSchema.safeParse({
+            scope: "NONE",
+            message: "bogus",
+        });
+
+        expect(result.success).toBe(false);
+    });
+
+    it("should reject empty TEXT content", () => {
+        const result = notificationSettingsSchema.safeParse({
+            scope: "NONE",
+            message: { format: "TEXT", content: "", embed: {} },
+        });
+
+        expect(result.success).toBe(false);
+    });
+});
+
+describe("imageCardSettingsSchema", () => {
+    it("should apply all default colors", () => {
+        const parsed = imageCardSettingsSchema.parse({});
+
+        expect(parsed.textColor).toBe("#FFFFFF");
+        expect(parsed.barForegroundColor).toBe("#5865f2");
+        expect(parsed.barBackgroundColor).toBe("#FFFFFF");
+        expect(parsed.accentColor).toBe("#5865f2");
+        expect(parsed.lineSeparatorColor).toBe("#FFFFFF");
+        expect(parsed.usernameColor).toBe("#FFFFFF");
+        expect(parsed.statisticsColor).toBe("#FFFFFF");
+        expect(parsed.backgroundColor).toBe("#000000");
+    });
+});
+
+describe("xpTargetSchema", () => {
+    it("should accept CHANNEL and ROLE targets", () => {
+        expect(
+            xpTargetSchema.safeParse({ targetType: "CHANNEL", targetId: "chan_1" }).success
+        ).toBe(true);
+        expect(xpTargetSchema.safeParse({ targetType: "ROLE", targetId: "role_1" }).success).toBe(
+            true
+        );
+    });
+
+    it("should reject an empty object", () => {
+        // An emptied variant would accept anything, so this pins the union shut.
+        expect(xpTargetSchema.safeParse({}).success).toBe(false);
+    });
+
+    it("should reject an unknown targetType", () => {
+        expect(xpTargetSchema.safeParse({ targetType: "USER", targetId: "x" }).success).toBe(false);
+    });
+});
 describe("saveXpMultiplierInputSchema", () => {
     it("should default multiplier to 1", () => {
         const parsed = saveXpMultiplierInputSchema.parse({
@@ -226,5 +309,9 @@ describe("xpMultiplierSchema and levelRewardSchema (DB rows)", () => {
         const result = levelRewardSchema.safeParse({ levelRequirement: 0 });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            // Pins the custom message on the DB row schema.
+            expect(result.error.issues[0].message).toBe("Level requirement must be at least 1");
+        }
     });
 });

@@ -66,6 +66,10 @@ describe("verification service", () => {
         mockSaveConfig.mockResolvedValue(undefined);
     });
 
+    async function expectExactError(promise: Promise<unknown>, message: string): Promise<void> {
+        await expect(promise).rejects.toThrow(new Error(message));
+    }
+
     describe("setupVerificationService", () => {
         it("should save enabled config with backend ids and return camelCase result", async () => {
             mockBackendFetch.mockResolvedValue(
@@ -78,6 +82,14 @@ describe("verification service", () => {
 
             const result = await setupVerificationService("guild_123", payload);
 
+            expect(mockBackendFetch).toHaveBeenCalledWith(
+                "/api/guilds/guild_123/verification",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                }
+            );
             expect(result).toEqual({
                 verificationMessageId: "msg_1",
                 verificationChannelId: "channel_1",
@@ -106,12 +118,60 @@ describe("verification service", () => {
             expect(mockSaveConfig).not.toHaveBeenCalled();
         });
 
-        it("should throw the backend error text when setup is rejected", async () => {
+        it("should throw the exact backend error text when setup is rejected", async () => {
             mockBackendFetch.mockResolvedValue(errorResponse("rate limited"));
 
-            await expect(setupVerificationService("guild_123", payload)).rejects.toThrow(
+            await expectExactError(
+                setupVerificationService("guild_123", payload),
                 "rate limited"
             );
+            expect(mockSaveConfig).not.toHaveBeenCalled();
+            expect(mockInvalidate).not.toHaveBeenCalled();
+        });
+
+        it("should throw the fallback message when setup fails with an empty body", async () => {
+            mockBackendFetch.mockResolvedValue(errorResponse(""));
+
+            await expectExactError(
+                setupVerificationService("guild_123", payload),
+                "The backend application rejected the verification setup request."
+            );
+            expect(mockSaveConfig).not.toHaveBeenCalled();
+            expect(mockInvalidate).not.toHaveBeenCalled();
+        });
+
+        it("should throw the fallback message when setup fails with whitespace only", async () => {
+            mockBackendFetch.mockResolvedValue(errorResponse("   \n  "));
+
+            await expectExactError(
+                setupVerificationService("guild_123", payload),
+                "The backend application rejected the verification setup request."
+            );
+            expect(mockSaveConfig).not.toHaveBeenCalled();
+        });
+
+        it("should still save config when the channel cache reset fails on setup", async () => {
+            mockBackendFetch.mockResolvedValue(
+                jsonResponse({
+                    verification_message_id: "msg_1",
+                    verification_channel_id: "channel_1",
+                    verification_role_id: "role_1",
+                })
+            );
+            mockInvalidate.mockRejectedValueOnce(new Error("redis down"));
+
+            const result = await setupVerificationService("guild_123", payload);
+
+            expect(mockInvalidate).toHaveBeenCalledWith("guild_123");
+            expect(mockSaveConfig).toHaveBeenCalledWith(
+                "guild_123",
+                expect.objectContaining({ enabled: true })
+            );
+            expect(result).toEqual({
+                verificationMessageId: "msg_1",
+                verificationChannelId: "channel_1",
+                verificationRoleId: "role_1",
+            });
         });
     });
 
@@ -126,8 +186,16 @@ describe("verification service", () => {
 
             expect(mockBackendFetch).toHaveBeenCalledWith(
                 "/api/guilds/guild_123/verification",
-                expect.objectContaining({ method: "DELETE" })
+                {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        verification_channel_id: "channel_1",
+                        verification_role_id: "role_1",
+                    }),
+                }
             );
+            expect(mockInvalidate).toHaveBeenCalledWith("guild_123");
             expect(mockSaveConfig).toHaveBeenCalledWith("guild_123", {
                 ...configFixture(),
                 enabled: false,
@@ -137,15 +205,60 @@ describe("verification service", () => {
             });
         });
 
-        it("should throw the backend error text when teardown is rejected", async () => {
+        it("should throw the exact backend error text when teardown is rejected", async () => {
             mockBackendFetch.mockResolvedValue(errorResponse("nothing to delete"));
 
-            await expect(
+            await expectExactError(
                 teardownVerificationService("guild_123", {
                     verification_channel_id: "channel_1",
                     verification_role_id: "role_1",
-                })
-            ).rejects.toThrow("nothing to delete");
+                }),
+                "nothing to delete"
+            );
+            expect(mockSaveConfig).not.toHaveBeenCalled();
+            expect(mockInvalidate).not.toHaveBeenCalled();
+        });
+
+        it("should throw the fallback message when teardown fails with an empty body", async () => {
+            mockBackendFetch.mockResolvedValue(errorResponse(""));
+
+            await expectExactError(
+                teardownVerificationService("guild_123", {
+                    verification_channel_id: "channel_1",
+                    verification_role_id: "role_1",
+                }),
+                "The backend application rejected the verification removal request."
+            );
+            expect(mockSaveConfig).not.toHaveBeenCalled();
+        });
+
+        it("should throw the fallback message when teardown fails with whitespace only", async () => {
+            mockBackendFetch.mockResolvedValue(errorResponse("  "));
+
+            await expectExactError(
+                teardownVerificationService("guild_123", {
+                    verification_channel_id: "channel_1",
+                    verification_role_id: "role_1",
+                }),
+                "The backend application rejected the verification removal request."
+            );
+            expect(mockSaveConfig).not.toHaveBeenCalled();
+        });
+
+        it("should still save config when the channel cache reset fails on teardown", async () => {
+            mockBackendFetch.mockResolvedValue(jsonResponse({}));
+            mockInvalidate.mockRejectedValueOnce(new Error("redis down"));
+
+            await teardownVerificationService("guild_123", {
+                verification_channel_id: "channel_1",
+                verification_role_id: "role_1",
+            });
+
+            expect(mockInvalidate).toHaveBeenCalledWith("guild_123");
+            expect(mockSaveConfig).toHaveBeenCalledWith(
+                "guild_123",
+                expect.objectContaining({ enabled: false })
+            );
         });
     });
 });

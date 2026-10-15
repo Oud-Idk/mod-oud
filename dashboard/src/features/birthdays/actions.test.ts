@@ -61,7 +61,7 @@ describe("Birthdays Server Actions", () => {
 
             await expect(
                 saveBirthdayConfigAction("guild_123", invalidConfig)
-            ).rejects.toThrow("Please select an announcement channel for birthdays!");
+            ).rejects.toThrow(new Error("Please select an announcement channel for birthdays!"));
 
             expect(saveBirthdayConfig).not.toHaveBeenCalled();
         });

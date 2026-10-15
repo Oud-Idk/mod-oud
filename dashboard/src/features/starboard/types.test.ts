@@ -48,7 +48,18 @@ describe("starboardConfigInputSchema", () => {
         }
     });
 
-    it("should REJECT when starboard_channel_id is an empty string", () => {
+    it("should REJECT an empty starboard_channel_id", () => {
+        const result = starboardConfigInputSchema.safeParse({ starboard_channel_id: "" });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe(
+                "Please select a destination channel for the starboard."
+            );
+        }
+    });
+
+    it("should REJECT a whitespace-only starboard_channel_id", () => {
         const result = starboardConfigInputSchema.safeParse({ starboard_channel_id: " " });
 
         expect(result.success).toBe(false);
@@ -82,6 +93,30 @@ describe("starboardConfigInputSchema", () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.error.issues[0].message).toBe("Threshold must be at least 1");
+        }
+    });
+
+    it("should REJECT a non-numeric reaction_threshold", () => {
+        const result = starboardConfigInputSchema.safeParse({
+            starboard_channel_id: "chan_1",
+            reaction_threshold: "five",
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("Threshold must be a number");
+        }
+    });
+
+    it("should REJECT a fractional reaction_threshold", () => {
+        const result = starboardConfigInputSchema.safeParse({
+            starboard_channel_id: "chan_1",
+            reaction_threshold: 2.5,
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("Threshold must be a whole number");
         }
     });
 
@@ -158,6 +193,33 @@ describe("starboardConfigInputSchema", () => {
                     }).success
                 ).toBe(true);
             }
+        });
+
+        it("should parse an empty min_message_age to null", () => {
+            expect(
+                starboardConfigInputSchema.parse({
+                    starboard_channel_id: "chan_1",
+                    min_message_age: "",
+                }).min_message_age
+            ).toBeNull();
+        });
+
+        it("should parse an empty max_message_age to null", () => {
+            expect(
+                starboardConfigInputSchema.parse({
+                    starboard_channel_id: "chan_1",
+                    max_message_age: "",
+                }).max_message_age
+            ).toBeNull();
+        });
+
+        it("should trim a padded max_message_age", () => {
+            expect(
+                starboardConfigInputSchema.parse({
+                    starboard_channel_id: "chan_1",
+                    max_message_age: " 1 hour ",
+                }).max_message_age
+            ).toBe("1 hour");
         });
 
         it("should reject an invalid min_message_age format", () => {

@@ -11,6 +11,7 @@ import {
     banUserCommand,
 } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
+import { backendFetch } from "@/lib/backend";
 import { reportConfigSchema } from "./types";
 
 // Row mapping, SQL shape, tenant scoping and constraints live in
@@ -18,17 +19,8 @@ import { reportConfigSchema } from "./types";
 // behaviour a real database will not produce on demand: a failing connection,
 // and the backend HTTP calls.
 
-interface MockResponse {
-    ok: boolean;
-    text(): Promise<string>;
-}
-
 const mockQuery = vi.hoisted(() =>
     vi.fn<(sql: string, params?: unknown[]) => Promise<{ rows?: unknown[] }>>()
-);
-
-const mockFetch = vi.hoisted(() =>
-    vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
 );
 
 vi.mock("@/lib/db", () => ({
@@ -42,7 +34,29 @@ vi.mock("@/features/_shared/guild", () => ({
     saveGuildConfigField: vi.fn(),
 }));
 
-vi.stubGlobal("fetch", mockFetch);
+vi.mock("@/lib/backend", () => ({
+    backendFetch: vi.fn(),
+}));
+
+function okResponse(): Response {
+    return new Response("", { status: 200 });
+}
+
+function errorResponse(body: string): Response {
+    return new Response(body, { status: 500 });
+}
+
+function lastBody(): string {
+    const calls = vi.mocked(backendFetch).mock.calls;
+    const init = calls[0][1];
+    const body = init?.body;
+    return typeof body === "string" ? body : "";
+}
+
+function lastHeaders(): unknown {
+    const calls = vi.mocked(backendFetch).mock.calls;
+    return calls[0][1]?.headers;
+}
 
 describe("Report Query Module", () => {
     beforeEach(() => {
@@ -89,7 +103,9 @@ describe("Report Query Module", () => {
         it("should propagate a database error", async () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 
-            await expect(getInitialReportsFromDb("guild_123")).rejects.toThrow("connection lost");
+            await expect(getInitialReportsFromDb("guild_123")).rejects.toThrow(
+                new Error("connection lost")
+            );
         });
     });
 
@@ -97,33 +113,42 @@ describe("Report Query Module", () => {
         it("should propagate a database error", async () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 
-            await expect(getMoreReportsFromDb("guild_123", 50)).rejects.toThrow("connection lost");
+            await expect(getMoreReportsFromDb("guild_123", 50)).rejects.toThrow(
+                new Error("connection lost")
+            );
         });
     });
 
     describe("report command helpers", () => {
         beforeEach(() => {
-            mockFetch.mockResolvedValue({
-                ok: true,
-                text: () => Promise.resolve(""),
-            });
+            vi.mocked(backendFetch).mockResolvedValue(okResponse());
         });
 
         it("should POST to the backend commands endpoint", async () => {
             await deleteReportedMessageCommand(1, "chan_1", "msg_1");
 
-            const url = mockFetch.mock.calls[0][0];
-            expect(url).toContain("/api/commands");
-            const init = mockFetch.mock.calls[0][1];
-            expect(init?.method).toBe("POST");
+            expect(backendFetch).toHaveBeenCalledWith(
+                "/api/commands",
+                expect.objectContaining({ method: "POST" })
+            );
+        });
+
+        it("should send a JSON content-type header", async () => {
+            await deleteReportedMessageCommand(1, "chan_1", "msg_1");
+
+            expect(lastHeaders()).toEqual({ "Content-Type": "application/json" });
+        });
+
+        it("should resolve true on success", async () => {
+            await expect(deleteReportedMessageCommand(1, "chan_1", "msg_1")).resolves.toBe(
+                true
+            );
         });
 
         it("should include the correct payload for a delete message command", async () => {
             await deleteReportedMessageCommand(1, "chan_1", "msg_1");
 
-            const init = mockFetch.mock.calls[0][1];
-            const bodyText = typeof init?.body === "string" ? init.body : "";
-            expect(JSON.parse(bodyText)).toEqual({
+            expect(JSON.parse(lastBody())).toEqual({
                 action: "DELETE_MESSAGE",
                 report_id: 1,
                 channel_id: "chan_1",
@@ -134,9 +159,7 @@ describe("Report Query Module", () => {
         it("should include the correct payload for resolving a report", async () => {
             await resolveReportStatusCommand(2, "ACTIONED", "Mod");
 
-            const init = mockFetch.mock.calls[0][1];
-            const bodyText = typeof init?.body === "string" ? init.body : "";
-            expect(JSON.parse(bodyText)).toEqual({
+            expect(JSON.parse(lastBody())).toEqual({
                 action: "RESOLVE_REPORT",
                 report_id: 2,
                 status: "ACTIONED",
@@ -147,9 +170,7 @@ describe("Report Query Module", () => {
         it("should include the correct payload for a timeout", async () => {
             await timeoutUserCommand(3, 60, "Mod", "Spam");
 
-            const init = mockFetch.mock.calls[0][1];
-            const bodyText = typeof init?.body === "string" ? init.body : "";
-            expect(JSON.parse(bodyText)).toEqual({
+            expect(JSON.parse(lastBody())).toEqual({
                 action: "TIMEOUT_USER",
                 report_id: 3,
                 duration_mins: 60,
@@ -161,17 +182,19 @@ describe("Report Query Module", () => {
         it("should omit the reason from a timeout when not provided", async () => {
             await timeoutUserCommand(3, 60, "Mod");
 
-            const init = mockFetch.mock.calls[0][1];
-            const bodyText = typeof init?.body === "string" ? init.body : "";
-            expect(bodyText).not.toContain("reason");
+            expect(lastBody()).not.toContain("reason");
+        });
+
+        it("should omit the reason from a timeout when empty", async () => {
+            await timeoutUserCommand(3, 60, "Mod", "");
+
+            expect(lastBody()).not.toContain("reason");
         });
 
         it("should include the correct payload for a warn", async () => {
             await warnUserCommand(4, "Mod", "Toxicity");
 
-            const init = mockFetch.mock.calls[0][1];
-            const bodyText = typeof init?.body === "string" ? init.body : "";
-            expect(JSON.parse(bodyText)).toEqual({
+            expect(JSON.parse(lastBody())).toEqual({
                 action: "WARN_USER",
                 report_id: 4,
                 reason: "Toxicity",
@@ -179,12 +202,22 @@ describe("Report Query Module", () => {
             });
         });
 
+        it("should omit the reason from a warn when not provided", async () => {
+            await warnUserCommand(4, "Mod");
+
+            expect(lastBody()).not.toContain("reason");
+        });
+
+        it("should omit the reason from a warn when empty", async () => {
+            await warnUserCommand(4, "Mod", "");
+
+            expect(lastBody()).not.toContain("reason");
+        });
+
         it("should include the correct payload for a ban", async () => {
             await banUserCommand(5, "Mod", 1440, "Raid");
 
-            const init = mockFetch.mock.calls[0][1];
-            const bodyText = typeof init?.body === "string" ? init.body : "";
-            expect(JSON.parse(bodyText)).toEqual({
+            expect(JSON.parse(lastBody())).toEqual({
                 action: "BAN_USER",
                 report_id: 5,
                 duration_mins: 1440,
@@ -193,25 +226,48 @@ describe("Report Query Module", () => {
             });
         });
 
-        it("should throw the backend error text on failure", async () => {
-            mockFetch.mockResolvedValue({
-                ok: false,
-                text: () => Promise.resolve("backend down"),
+        it("should omit the duration from a ban when not provided", async () => {
+            await banUserCommand(5, "Mod", undefined, "Raid");
+
+            expect(JSON.parse(lastBody())).toEqual({
+                action: "BAN_USER",
+                report_id: 5,
+                reason: "Raid",
+                name: "Mod",
             });
+        });
+
+        it("should omit the duration from a ban when zero", async () => {
+            await banUserCommand(5, "Mod", 0, "Raid");
+
+            expect(lastBody()).not.toContain("duration_mins");
+        });
+
+        it("should omit the reason from a ban when not provided", async () => {
+            await banUserCommand(5, "Mod", 1440);
+
+            expect(lastBody()).not.toContain("reason");
+        });
+
+        it("should omit the reason from a ban when empty", async () => {
+            await banUserCommand(5, "Mod", 1440, "");
+
+            expect(lastBody()).not.toContain("reason");
+        });
+
+        it("should throw the backend error text on failure", async () => {
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse("backend down"));
 
             await expect(deleteReportedMessageCommand(1, "chan_1", "msg_1")).rejects.toThrow(
-                "backend down"
+                new Error("backend down")
             );
         });
 
         it("should throw a generic message when the backend error body is empty", async () => {
-            mockFetch.mockResolvedValue({
-                ok: false,
-                text: () => Promise.resolve(""),
-            });
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse(""));
 
             await expect(banUserCommand(5, "Mod")).rejects.toThrow(
-                "Failed to process request with backend service."
+                new Error("Failed to process request with backend service.")
             );
         });
     });

@@ -30,6 +30,24 @@ describe("messageLoggingConfigSchema", () => {
         expect(parsed.events).toEqual({ messageDelete: true, messageEdit: true });
     });
 
+    it("should default missing event flags to false", () => {
+        const parsed = messageLoggingConfigSchema.parse({ events: {} });
+
+        expect(parsed.events).toEqual({ messageDelete: false, messageEdit: false });
+    });
+
+    it("should default a missing messageDelete flag to false", () => {
+        const parsed = messageLoggingConfigSchema.parse({ events: { messageEdit: true } });
+
+        expect(parsed.events).toEqual({ messageDelete: false, messageEdit: true });
+    });
+
+    it("should default a missing messageEdit flag to false", () => {
+        const parsed = messageLoggingConfigSchema.parse({ events: { messageDelete: true } });
+
+        expect(parsed.events).toEqual({ messageDelete: true, messageEdit: false });
+    });
+
     it("should REJECT a non-boolean event value", () => {
         const result = messageLoggingConfigSchema.safeParse({
             events: { messageDelete: "yes", messageEdit: false },
@@ -81,6 +99,20 @@ describe("deletedMessageSchema", () => {
         expect(parsed.deleted_at).toEqual(new Date("2026-01-01T00:00:00.000Z"));
     });
 
+    it("should default missing usernames to empty string", () => {
+        const parsed = deletedMessageSchema.parse({
+            id: 1,
+            message_id: "msg_1",
+            author_id: "user_1",
+            channel_id: "chan_1",
+            guild_id: "guild_1",
+            deleted_at: new Date("2026-01-01T00:00:00.000Z"),
+        });
+
+        expect(parsed.author_username).toBe("");
+        expect(parsed.deleted_by_username).toBe("");
+    });
+
     it("should REJECT a missing guild_id", () => {
         const result = deletedMessageSchema.safeParse({
             id: 1,
@@ -123,6 +155,19 @@ describe("editedMessageSchema", () => {
 
         expect(parsed.old_content).toBeNull();
         expect(parsed.new_content).toBeNull();
+    });
+
+    it("should default a missing author_username to empty string", () => {
+        const parsed = editedMessageSchema.parse({
+            id: 1,
+            message_id: "msg_1",
+            author_id: "user_1",
+            channel_id: "chan_1",
+            guild_id: "guild_1",
+            updated_at: new Date("2026-01-01T00:00:00.000Z"),
+        });
+
+        expect(parsed.author_username).toBe("");
     });
 
     it("should REJECT a missing author_id", () => {

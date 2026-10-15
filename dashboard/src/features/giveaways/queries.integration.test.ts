@@ -7,6 +7,7 @@ const GUILD_A = "123456789012345678";
 const GUILD_B = "987654321098765432";
 const HOST = "111111111111111111";
 const CHANNEL_A = "222222222222222222";
+const CHANNEL_B = "333333333333333333";
 const END_TIME = "2026-12-31T23:59:59.000Z";
 
 function validInput(overrides: Record<string, unknown> = {}): SaveGiveawayData {
@@ -98,6 +99,30 @@ describe("giveaways against a real database", () => {
         expect(second.prize).toBe("After");
         expect(second.winner_count).toBe(5);
         expect(await getGiveaways(GUILD_A)).toHaveLength(1);
+    });
+
+    it("stores the message layout enabled in the raw row", async () => {
+        await saveGiveaway(
+            validInput({
+                message: { format: "TEXT", content: "custom", embed: {} },
+            })
+        );
+
+        const raw = await db.query<{ message_layout: { enabled: boolean; content: string } }>(
+            `SELECT message_layout FROM giveaways WHERE guild_id = $1`,
+            [GUILD_A]
+        );
+
+        expect(raw.rows[0].message_layout.enabled).toBe(true);
+        expect(raw.rows[0].message_layout.content).toBe("custom");
+    });
+
+    it("persists a new channel_id on update", async () => {
+        const first = await saveGiveaway(validInput());
+        const second = await saveGiveaway(validInput({ id: first.id, channel_id: CHANNEL_B }));
+
+        expect(second.channel_id).toBe(CHANNEL_B);
+        expect((await getGiveaways(GUILD_A))[0].channel_id).toBe(CHANNEL_B);
     });
 
     it("refuses to update another guild's giveaway", async () => {

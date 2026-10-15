@@ -93,8 +93,25 @@ describe("Custom Commands Server Actions", (): void => {
 
             await saveCustomCommandAction("guild_123", validCommand);
 
+            expect(redis.del).toHaveBeenCalledTimes(1);
             expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123");
             expect(revalidatePath).toHaveBeenCalled();
+        });
+
+        it("should treat a whitespace-only command name as nameless when clearing cache", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+
+            // "   ".trim() is "", so only the anywhere list is cleared.
+            const commandWithBlankName = {
+                ...mockSavedCommand,
+                name: "   ",
+            };
+            vi.mocked(saveCustomCommand).mockResolvedValue(commandWithBlankName);
+
+            await saveCustomCommandAction("guild_123", validCommand);
+
+            expect(redis.del).toHaveBeenCalledTimes(1);
+            expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123");
         });
 
         it("should not fail the save when Redis del throws", async (): Promise<void> => {
@@ -243,11 +260,21 @@ describe("Custom Commands Server Actions", (): void => {
         it("should REJECT invalid prefix without saving", async (): Promise<void> => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
+            // Exact match, so a fallback that throws the raw Zod message fails.
             await expect(saveCustomPrefixAction("guild_123", { prefix: "abc" })).rejects.toThrow(
-                "Prefix must not contain letters or numbers."
+                new Error("Prefix must not contain letters or numbers.")
             );
 
             expect(saveCustomPrefix).not.toHaveBeenCalled();
+        });
+
+        it("should throw the fallback message when saving the prefix fails with a non-Error", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveCustomPrefix).mockRejectedValue("string throw");
+
+            await expect(saveCustomPrefixAction("guild_123", { prefix: "?" })).rejects.toThrow(
+                new Error("Could not save custom prefix.")
+            );
         });
 
         it("should propagate access errors", async (): Promise<void> => {
