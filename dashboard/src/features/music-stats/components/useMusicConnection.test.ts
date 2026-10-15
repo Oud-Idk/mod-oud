@@ -362,7 +362,6 @@ describe("useMusicConnection clocks", () => {
 describe("applyNowPlayingUpdate edge cases", () => {
     it("resets state for an empty title", () => {
         const { store, setNowPlaying, setPosition, setDuration } = mockStore();
-        const prev: NowPlayingData = { title: "Old", durationSec: 100 };
 
         applyNowPlayingUpdate({ title: "" }, store);
 

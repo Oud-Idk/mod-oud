@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { itemRequirementSchema } from "@/features/economy/types";
 
 import {
     TRIGGER_OPTIONS,
@@ -60,16 +61,16 @@ describe("parseActionType", () => {
 describe("getRequirementMatchType", () => {
     it("returns matchType for role and item requirements", () => {
         expect(
-            getRequirementMatchType({ type: "ROLE", matchType: "NONE" } as never)
+            getRequirementMatchType(itemRequirementSchema.parse({ type: "ROLE", matchType: "NONE", triggerFlags: 1, roleIds: [] }))
         ).toBe("NONE");
         expect(
-            getRequirementMatchType({ type: "ITEM", matchType: "AT_LEAST_ONE" } as never)
+            getRequirementMatchType(itemRequirementSchema.parse({ type: "ITEM", matchType: "AT_LEAST_ONE", triggerFlags: 1, quantities: {} }))
         ).toBe("AT_LEAST_ONE");
     });
 
     it("defaults to EVERY for other requirement types", () => {
         expect(
-            getRequirementMatchType({ type: "TOTAL_BALANCE", matchType: "NONE" } as never)
+            getRequirementMatchType(itemRequirementSchema.parse({ type: "TOTAL_BALANCE", triggerFlags: 1, balance: 0 }))
         ).toBe("EVERY");
     });
 });

@@ -3,14 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
     FormatSchema,
     DiscordEmbedSchema,
-    BaseMessageLayoutSchema,
     messageLayoutSchema,
     TogglableMessageSchema,
     IsoDateSchema,
     isDeepEqual,
     isEmbedEmpty,
-    DEFAULT_MESSAGE_LAYOUT,
-    DEFAULT_TOGGLABLE_MESSAGE_LAYOUT,
 } from "./embed";
 
 describe("FormatSchema", () => {
