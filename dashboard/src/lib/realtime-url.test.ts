@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildSseUrl, buildSseAbsoluteUrl } from "@/lib/realtime-url";
 
 vi.mock("@/features/realtime/actions", () => ({
-    issueRealtimeTicketAction: vi.fn(async () => ({
+    issueRealtimeTicketAction: vi.fn(() => Promise.resolve({
         userId: "user_1",
         expires: 1234,
         sig: "sig_1",
