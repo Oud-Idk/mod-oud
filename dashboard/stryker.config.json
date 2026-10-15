@@ -10,8 +10,6 @@
     "src/features/rss/delivery.ts",
     "src/features/verification/service.ts",
     "src/features/message-filtering/filterUpdater.ts",
-    "src/features/easter-eggs/useKeySequence.ts",
-    "src/features/economy/components/tabs/economy-items/itemFormOptions.ts",
     "src/features/music-stats/components/musicSocketProtocol.ts",
     "src/lib/hooks/useSSEInfiniteScroll.ts",
     "src/lib/markdown-toc.ts",
