@@ -242,3 +242,52 @@ describe("useTicketConfig", () => {
         });
     });
 });
+
+describe("additional ticket coverage", () => {
+    it("does not flag equal thresholds as invalid", () => {
+        const { onSave, onSendTicketMessage, onDeleteTicketMessage } = callbacks();
+        const { result } = renderHook(() =>
+            useTicketConfig(
+                { ...initialConfig, warnThreshold: 5, deleteThreshold: 5 },
+                onSave,
+                onSendTicketMessage,
+                onDeleteTicketMessage
+            )
+        );
+
+        expect(result.current.isWarnThresholdInvalid).toBe(false);
+    });
+
+    it("skips deleting when channelId is null even with messageId", async () => {
+        const { onSave, onSendTicketMessage, onDeleteTicketMessage } = callbacks();
+        const config = { ...initialConfig, channelId: null, postedMessageId: "posted_1" };
+        const { result } = renderHook(() =>
+            useTicketConfig(config, onSave, onSendTicketMessage, onDeleteTicketMessage)
+        );
+
+        await act(async () => {
+            await result.current.handleDeleteLiveMessage();
+        });
+
+        expect(onDeleteTicketMessage).not.toHaveBeenCalled();
+        expect(result.current.isProcessingAction).toBe(false);
+    });
+
+    it("preserves the extracted validation message", async () => {
+        const { onSave, onSendTicketMessage, onDeleteTicketMessage } = callbacks();
+        const invalid = { ...initialConfig, categoryId: null };
+        const { result } = renderHook(() =>
+            useTicketConfig(invalid, onSave, onSendTicketMessage, onDeleteTicketMessage)
+        );
+
+        act(() => {
+            result.current.handleSave();
+        });
+
+        await waitFor(() => {
+            expect(vi.mocked(toast.error)).toHaveBeenCalled();
+        });
+        const message = vi.mocked(toast.error).mock.calls[0]?.[0];
+        expect(typeof message).toBe("string");
+    });
+});
