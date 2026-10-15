@@ -99,6 +99,16 @@ describe("Leveling Server Actions", () => {
                 "Multiplier deletion validation failure"
             );
         });
+
+        it("should fall back to Invalid target IDs when zod issues are empty", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteXpMultipliers).mockRejectedValue(new z.ZodError([]));
+
+            // Empty issues leave no message to reuse, so the fallback covers it.
+            await expect(deleteMultipliersAction("guild_123", ["role_1"])).rejects.toThrow(
+                new Error("Invalid target IDs")
+            );
+        });
     });
 
     describe("saveMultipliersAction", () => {
@@ -159,6 +169,16 @@ describe("Leveling Server Actions", () => {
                 "Multiplier save validation failure"
             );
         });
+
+        it("should fall back to Invalid multiplier data when zod issues are empty", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveXpMultipliers).mockRejectedValue(new z.ZodError([]));
+
+            // Empty issues leave no message to reuse, so the fallback covers it.
+            await expect(saveMultipliersAction("guild_123", validTargets)).rejects.toThrow(
+                new Error("Invalid multiplier data")
+            );
+        });
     });
 
     describe("saveRewardsAction", () => {
@@ -209,6 +229,16 @@ describe("Leveling Server Actions", () => {
                 "Reward save validation failure"
             );
         });
+
+        it("should fall back to Invalid reward configuration when zod issues are empty", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveLevelRewards).mockRejectedValue(new z.ZodError([]));
+
+            // Empty issues leave no message to reuse, so the fallback covers it.
+            await expect(saveRewardsAction("guild_123", validRewards)).rejects.toThrow(
+                new Error("Invalid reward configuration")
+            );
+        });
     });
 
     describe("deleteRewardsAction", () => {
@@ -249,6 +279,16 @@ describe("Leveling Server Actions", () => {
 
             await expect(deleteRewardsAction("guild_123", [1])).rejects.toThrow(
                 "Reward deletion validation failure"
+            );
+        });
+
+        it("should fall back to Invalid reward IDs when zod issues are empty", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteLevelRewards).mockRejectedValue(new z.ZodError([]));
+
+            // Empty issues leave no message to reuse, so the fallback covers it.
+            await expect(deleteRewardsAction("guild_123", [1])).rejects.toThrow(
+                new Error("Invalid reward IDs")
             );
         });
     });
@@ -344,6 +384,16 @@ describe("Leveling Server Actions", () => {
 
             await expect(saveLevelingConfigAction("guild_123", validConfig)).rejects.toThrow(
                 "Leveling config validation failure"
+            );
+        });
+
+        it("should fall back to Invalid leveling settings when zod issues are empty", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveLevelingConfig).mockRejectedValue(new z.ZodError([]));
+
+            // Empty issues leave no message to reuse, so the fallback covers it.
+            await expect(saveLevelingConfigAction("guild_123", validConfig)).rejects.toThrow(
+                new Error("Invalid leveling settings")
             );
         });
     });
