@@ -6,12 +6,25 @@ import {
     upsertStarboardConfig,
 } from "./queries";
 import { starboardConfigInputSchema, type SaveableStarboardConfig } from "./types";
+import { ZodError } from "zod";
 
 const GUILD_A = "123456789012345678";
 const GUILD_B = "987654321098765432";
 
 function validInput(overrides: Record<string, unknown> = {}): SaveableStarboardConfig {
     return starboardConfigInputSchema.parse({ starboard_channel_id: "111111111111111111", ...overrides });
+}
+
+// ZodError.message is the issues array as JSON, so rebuild the exact issue.
+function postgresIntervalError(field: string): ZodError {
+    return new ZodError([
+        {
+            expected: "string",
+            code: "invalid_type",
+            path: [field],
+            message: "Invalid input: expected string, received PostgresInterval",
+        },
+    ]);
 }
 
 describe("starboard configs against a real database", () => {
@@ -132,6 +145,50 @@ describe("starboard configs against a real database", () => {
             await expect(
                 upsertStarboardConfig(GUILD_A, validInput({ max_message_age: "90 days" }))
             ).rejects.toThrow(/received PostgresInterval/);
+        });
+
+        // The id branch builds its own values array, so the interval round trip
+        // needs covering there too: storing null instead would parse cleanly and not throw.
+        it("writes min_message_age on an update, which then fails to parse like on insert", async () => {
+            const first = await upsertStarboardConfig(GUILD_A, validInput());
+
+            let thrown: unknown;
+            try {
+                await upsertStarboardConfig(GUILD_A, validInput({ id: first.id, min_message_age: "1 hour" }));
+            } catch (error) {
+                thrown = error;
+            }
+            expect(thrown).toBeInstanceOf(ZodError);
+            if (thrown instanceof ZodError) {
+                expect(thrown.message).toBe(postgresIntervalError("min_message_age").message);
+            }
+
+            const { rows } = await db.query<{ is_null: boolean }>(
+                "SELECT min_message_age IS NULL AS is_null FROM starboards WHERE id = $1::bigint",
+                [first.id]
+            );
+            expect(rows[0].is_null).toBe(false);
+        });
+
+        it("writes max_message_age on an update, which then fails to parse like on insert", async () => {
+            const first = await upsertStarboardConfig(GUILD_A, validInput());
+
+            let thrown: unknown;
+            try {
+                await upsertStarboardConfig(GUILD_A, validInput({ id: first.id, max_message_age: "90 days" }));
+            } catch (error) {
+                thrown = error;
+            }
+            expect(thrown).toBeInstanceOf(ZodError);
+            if (thrown instanceof ZodError) {
+                expect(thrown.message).toBe(postgresIntervalError("max_message_age").message);
+            }
+
+            const { rows } = await db.query<{ is_null: boolean }>(
+                "SELECT max_message_age IS NULL AS is_null FROM starboards WHERE id = $1::bigint",
+                [first.id]
+            );
+            expect(rows[0].is_null).toBe(false);
         });
 
         it("saves and reads back cleanly when both ages are null", async () => {
