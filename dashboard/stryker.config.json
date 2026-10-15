@@ -8,18 +8,28 @@
     "src/features/**/actions.ts",
     "src/features/reminders/calculations.ts",
     "src/features/rss/delivery.ts",
-    "src/features/verification/service.ts"
+    "src/features/verification/service.ts",
+    "src/features/message-filtering/filterUpdater.ts",
+    "src/features/easter-eggs/useKeySequence.ts",
+    "src/features/economy/components/tabs/economy-items/itemFormOptions.ts",
+    "src/features/music-stats/components/musicSocketProtocol.ts"
   ],
   "vitest": {
     "configFile": "vitest.stryker.config.ts"
   },
-  "reporters": ["html", "clear-text", "progress"],
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ],
   "thresholds": {
     "high": 90,
     "low": 75,
     "break": 60
   },
-  "ignorers": ["console-all"],
+  "ignorers": [
+    "console-all"
+  ],
   "plugins": [
     "@stryker-mutator/vitest-runner",
     "@stryker-ignorer/console-all"
