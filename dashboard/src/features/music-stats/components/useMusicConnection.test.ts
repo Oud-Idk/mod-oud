@@ -358,3 +358,42 @@ describe("useMusicConnection clocks", () => {
         expect(result.current.isMountedRef.current).toBe(false);
     });
 });
+
+describe("applyNowPlayingUpdate edge cases", () => {
+    it("resets state for an empty title", () => {
+        const { store, setNowPlaying, setPosition, setDuration } = mockStore();
+        const prev: NowPlayingData = { title: "Old", durationSec: 100 };
+
+        applyNowPlayingUpdate({ title: "" }, store);
+
+        expect(setNowPlaying).toHaveBeenCalledWith(null);
+        expect(setPosition).toHaveBeenCalledWith(0);
+        expect(setDuration).toHaveBeenCalledWith(0);
+    });
+
+    it("defaults requestedBy to Web", () => {
+        const { store, setNowPlaying } = mockStore();
+
+        applyNowPlayingUpdate({ title: "Song" }, store);
+
+        expect(updaterResult(setNowPlaying, null)?.requestedBy).toBe("Web");
+    });
+
+    it("maps camelCase payloads", () => {
+        const { store, setNowPlaying, setPosition } = mockStore();
+
+        applyNowPlayingUpdate(
+            { title: "Song", requestedBy: "Solo", positionSec: 7, isPaused: true, isLive: true },
+            store
+        );
+
+        const result = updaterResult(setNowPlaying, null);
+        expect(result).toMatchObject({
+            requestedBy: "Solo",
+            positionSec: 7,
+            isPaused: true,
+            isLive: true,
+        });
+        expect(setPosition).toHaveBeenCalledWith(7);
+    });
+});

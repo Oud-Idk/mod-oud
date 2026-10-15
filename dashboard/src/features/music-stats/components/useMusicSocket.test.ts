@@ -377,3 +377,66 @@ describe("useMusicSocket lifecycle", () => {
         expect(consoleSpy).toHaveBeenCalled();
     });
 });
+
+describe("additional dispatch and route coverage", () => {
+    it("rejects when the socket is not open", async () => {
+        const { ctx, setActiveRequestsCount, showFeedback } = mockCtx();
+        class ClosedSocket extends WebSocket {
+            constructor() {
+                super("ws://10.255.255.1/music-test");
+            }
+
+            override get readyState(): number {
+                return WebSocket.CLOSED;
+            }
+
+            override send = vi.fn<(data: string | ArrayBufferLike | Blob | ArrayBufferView) => void>();
+        }
+        ctx.socketRef.current = new ClosedSocket();
+
+        await expect(dispatchMusicCommand(ctx, "pause")).rejects.toThrow("Not connected to the bot.");
+
+        expect(showFeedback).toHaveBeenCalledWith(false, "Not connected to the bot.");
+        expect(setActiveRequestsCount).not.toHaveBeenCalled();
+    });
+
+    it("clears the timeout when transmission fails", async () => {
+        const { ctx } = mockCtx();
+        const socket = openSocket(ctx);
+        const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+        socket.send.mockImplementationOnce(() => {
+            throw new Error("boom");
+        });
+
+        await expect(dispatchMusicCommand(ctx, "pause")).rejects.toThrow("boom");
+
+        expect(clearTimeoutSpy).toHaveBeenCalled();
+    });
+
+    it("does not resolve a pending request keyed by an empty id", () => {
+        const { ctx } = mockCtx();
+        const { resolve, reject } = plantRequest(ctx, "");
+
+        routeIncomingFrame({ type: "ack", requestId: "", ok: true, data: "done" }, ctx, vi.fn());
+
+        expect(resolve).not.toHaveBeenCalled();
+        expect(reject).not.toHaveBeenCalled();
+        expect(ctx.pendingRef.current.has("")).toBe(true);
+    });
+
+    it("skips feedback for a failed ack after unmount", () => {
+        const { ctx, setActiveRequestsCount, showFeedback } = mockCtx();
+        ctx.isMountedRef.current = false;
+        const { reject } = plantRequest(ctx, "r1");
+
+        routeIncomingFrame(
+            { type: "ack", requestId: "r1", ok: false, error: "Nope" },
+            ctx,
+            vi.fn()
+        );
+
+        expect(reject).toHaveBeenCalledWith(new Error("Nope"));
+        expect(showFeedback).not.toHaveBeenCalled();
+        expect(setActiveRequestsCount).not.toHaveBeenCalled();
+    });
+});

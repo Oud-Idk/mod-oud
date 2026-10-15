@@ -33,6 +33,12 @@ describe("ackSchema", () => {
         expect(ackSchema.safeParse({ type: "event", ok: true }).success).toBe(false);
     });
 
+    it("rejects requester objects without a name", () => {
+        expect(
+            nowPlayingPayloadSchema.safeParse({ requested_by: { foo: 1 } }).success
+        ).toBe(false);
+    });
+
     it("rejects a missing or non-boolean ok", () => {
         expect(ackSchema.safeParse({ type: "ack" }).success).toBe(false);
         expect(ackSchema.safeParse({ type: "ack", ok: "yes" }).success).toBe(false);
