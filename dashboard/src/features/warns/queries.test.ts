@@ -75,9 +75,61 @@ describe("Warns Query Module", () => {
             mockConnect.mockResolvedValue(client);
             client.query.mockRejectedValue(new Error("constraint violation"));
 
-            await expect(saveWarnThresholds("guild_123", [])).rejects.toThrow("constraint violation");
+            await expect(saveWarnThresholds("guild_123", [])).rejects.toThrow(
+                new Error("constraint violation")
+            );
 
             expect(client.query).toHaveBeenCalledWith("ROLLBACK");
+            expect(client.release).toHaveBeenCalled();
+        });
+
+        it("should begin, commit and clear the guild cache on save", async () => {
+            const client = {
+                query: vi.fn<() => Promise<{ rows?: unknown[] }>>().mockResolvedValue({ rows: [] }),
+                release: vi.fn(),
+            };
+            mockConnect.mockResolvedValue(client);
+            mockDel.mockResolvedValue(1);
+
+            await saveWarnThresholds("guild_123", [
+                { warnCount: 3, actionType: ["KICK"], rolesToAdd: [], rolesToRemove: [], duration: null },
+            ]);
+
+            expect(client.query).toHaveBeenCalledWith("BEGIN");
+            expect(client.query).toHaveBeenCalledWith("COMMIT");
+            expect(mockDel).toHaveBeenCalledWith("warn_thresholds:guild_123");
+            expect(client.release).toHaveBeenCalled();
+        });
+
+        it("should clear the guild cache when saving an empty list", async () => {
+            const client = {
+                query: vi.fn<() => Promise<{ rows?: unknown[] }>>().mockResolvedValue({ rows: [] }),
+                release: vi.fn(),
+            };
+            mockConnect.mockResolvedValue(client);
+            mockDel.mockResolvedValue(1);
+
+            await saveWarnThresholds("guild_123", []);
+
+            expect(client.query).toHaveBeenCalledWith("BEGIN");
+            expect(client.query).toHaveBeenCalledWith("COMMIT");
+            expect(mockDel).toHaveBeenCalledWith("warn_thresholds:guild_123");
+            expect(client.release).toHaveBeenCalled();
+        });
+
+        it("should still save when the cache clear fails", async () => {
+            const client = {
+                query: vi.fn<() => Promise<{ rows?: unknown[] }>>().mockResolvedValue({ rows: [] }),
+                release: vi.fn(),
+            };
+            mockConnect.mockResolvedValue(client);
+            mockDel.mockRejectedValue(new Error("redis down"));
+
+            await saveWarnThresholds("guild_123", [
+                { warnCount: 3, actionType: ["KICK"], rolesToAdd: [], rolesToRemove: [], duration: null },
+            ]);
+
+            expect(client.query).toHaveBeenCalledWith("COMMIT");
             expect(client.release).toHaveBeenCalled();
         });
     });
@@ -88,6 +140,25 @@ describe("Warns Query Module", () => {
 
             expect(mockQuery).not.toHaveBeenCalled();
             expect(mockDel).not.toHaveBeenCalled();
+        });
+
+        it("should clear the guild cache on delete", async () => {
+            mockQuery.mockResolvedValue({ rows: [] });
+            mockDel.mockResolvedValue(1);
+
+            await deleteWarnThresholds("guild_123", [1]);
+
+            expect(mockQuery).toHaveBeenCalled();
+            expect(mockDel).toHaveBeenCalledWith("warn_thresholds:guild_123");
+        });
+
+        it("should still delete when the cache clear fails", async () => {
+            mockQuery.mockResolvedValue({ rows: [] });
+            mockDel.mockRejectedValue(new Error("redis down"));
+
+            await deleteWarnThresholds("guild_123", [1]);
+
+            expect(mockQuery).toHaveBeenCalled();
         });
     });
 });
