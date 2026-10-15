@@ -391,4 +391,53 @@ describe("calculateNextTriggerJS", () => {
 
         expect(result.toISOString()).toBe("2026-01-08T22:00:00.000Z");
     });
+
+    it("should not fire an interval at midday inside an overnight window", () => {
+        const now = new Date("2026-01-07T12:00:00.000Z");
+
+        const result = calculateNextTriggerJS(now, rule({
+            timeStart: "22:00",
+            timeEnd: "06:00",
+            intervalSeconds: 3600,
+        }));
+
+        expect(result.toISOString()).toBe("2026-01-07T22:00:00.000Z");
+    });
+
+    it("should not fire an interval exactly at the exclusive end of a same-day window", () => {
+        const now = new Date("2026-01-07T17:00:00.000Z");
+
+        const result = calculateNextTriggerJS(now, rule({
+            timeStart: "09:00",
+            timeEnd: "17:00",
+            intervalSeconds: 0,
+        }));
+
+        expect(result.toISOString()).toBe("2026-01-08T09:00:00.000Z");
+    });
+
+    it("should not fire an interval exactly at the exclusive end of an overnight window", () => {
+        const now = new Date("2026-01-07T06:00:00.000Z");
+
+        const result = calculateNextTriggerJS(now, rule({
+            timeStart: "22:00",
+            timeEnd: "06:00",
+            intervalSeconds: 0,
+        }));
+
+        expect(result.toISOString()).toBe("2026-01-07T22:00:00.000Z");
+    });
+
+    it("should not extend yesterday's overnight window at its exclusive end boundary", () => {
+        const now = new Date("2026-01-08T06:00:00.000Z"); // Thursday, yesterday = Wednesday
+
+        const result = calculateNextTriggerJS(now, rule({
+            daysOfWeek: [3],
+            timeStart: "22:00",
+            timeEnd: "06:00",
+            intervalSeconds: 0,
+        }));
+
+        expect(result.toISOString()).toBe("2026-01-14T22:00:00.000Z");
+    });
 });

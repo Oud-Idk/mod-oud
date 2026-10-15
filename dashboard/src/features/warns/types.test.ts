@@ -88,6 +88,9 @@ describe("warnThresholdSchema", () => {
         });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("Warn count must be at least 1");
+        }
     });
 
     it("should REJECT an empty action list", () => {
@@ -99,6 +102,9 @@ describe("warnThresholdSchema", () => {
         });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("At least one action is required");
+        }
     });
 });
 
@@ -123,6 +129,49 @@ describe("saveWarnThresholdItemSchema", () => {
         expect(saveWarnThresholdItemSchema.safeParse(validItem()).success).toBe(true);
     });
 
+    it("should REJECT a zero warn count with the minimum message", () => {
+        const result = saveWarnThresholdItemSchema.safeParse({
+            ...validItem(),
+            warnCount: 0,
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("Warn count must be at least 1");
+        }
+    });
+
+    it("should REJECT an empty action list with the minimum message", () => {
+        const result = saveWarnThresholdItemSchema.safeParse({
+            ...validItem(),
+            actionType: [],
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("At least one action is required");
+        }
+    });
+
+    it("should accept more than one action", () => {
+        const result = saveWarnThresholdItemSchema.safeParse({
+            ...validItem(),
+            actionType: ["KICK", "BAN"],
+        });
+
+        expect(result.success).toBe(true);
+    });
+
+    it("should default missing roles to empty arrays", () => {
+        const parsed = saveWarnThresholdItemSchema.parse({
+            warnCount: 2,
+            actionType: ["KICK"],
+        });
+
+        expect(parsed.rolesToAdd).toEqual([]);
+        expect(parsed.rolesToRemove).toEqual([]);
+    });
+
     it("should REJECT a TIMEOUT without a duration", () => {
         const result = saveWarnThresholdItemSchema.safeParse({
             ...validItem(),
@@ -132,6 +181,10 @@ describe("saveWarnThresholdItemSchema", () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].message).toBe(
+                "Timeout duration must be at least 1 minute for warn count 3."
+            );
             expect(result.error.issues.some((i) => i.path[0] === "duration")).toBe(true);
         }
     });
@@ -144,6 +197,12 @@ describe("saveWarnThresholdItemSchema", () => {
         });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].message).toBe(
+                "Timeout duration must be at least 1 minute for warn count 3."
+            );
+        }
     });
 
     it("should accept a TIMEOUT with a positive duration", () => {
@@ -164,6 +223,10 @@ describe("saveWarnThresholdItemSchema", () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].message).toBe(
+                "Please select at least one role to add for warn count 3."
+            );
             expect(result.error.issues.some((i) => i.path[0] === "rolesToAdd")).toBe(true);
         }
     });
@@ -186,8 +249,32 @@ describe("saveWarnThresholdItemSchema", () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].message).toBe(
+                "Please select at least one role to remove for warn count 3."
+            );
             expect(result.error.issues.some((i) => i.path[0] === "rolesToRemove")).toBe(true);
         }
+    });
+
+    it("should accept ROLE_REMOVE with roles to remove", () => {
+        const result = saveWarnThresholdItemSchema.safeParse({
+            ...validItem(),
+            actionType: ["ROLE_REMOVE"],
+            rolesToRemove: ["role_1"],
+        });
+
+        expect(result.success).toBe(true);
+    });
+
+    it("should REJECT ROLE_REMOVE with null roles to remove", () => {
+        const result = saveWarnThresholdItemSchema.safeParse({
+            ...validItem(),
+            actionType: ["ROLE_REMOVE"],
+            rolesToRemove: null,
+        });
+
+        expect(result.success).toBe(false);
     });
 });
 
