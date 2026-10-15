@@ -29,6 +29,17 @@ describe("leaderboardEntrySchema", () => {
 
         expect(parsed.inviterId).toBe("user_1");
         expect(parsed.count).toBe(42);
+        expect(parsed.username).toBe("");
+    });
+
+    it("should keep an explicit username", () => {
+        const parsed = leaderboardEntrySchema.parse({
+            inviterId: "user_1",
+            username: "someone",
+            count: 3,
+        });
+
+        expect(parsed.username).toBe("someone");
     });
 
     it("should accept a count of 0", () => {
