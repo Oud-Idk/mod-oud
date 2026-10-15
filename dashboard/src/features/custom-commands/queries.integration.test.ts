@@ -118,6 +118,17 @@ describe("custom commands against a real database", () => {
         expect(await getCustomCommands(GUILD_A)).toHaveLength(1);
     });
 
+    it("preserves a non-empty description on update", async () => {
+        const first = await saveCustomCommand(validCommand({ name: "before", description: "Keep me" }));
+        const second = await saveCustomCommand(
+            validCommand({ id: first.id, name: "after", description: "Keep me" })
+        );
+
+        // The update path binds description separately from insert, so pin it here.
+        expect(second.description).toBe("Keep me");
+        expect((await getCustomCommands(GUILD_A))[0].description).toBe("Keep me");
+    });
+
     it("refuses to update another guild's command", async () => {
         const foreign = await saveCustomCommand({
             ...validCommand({ name: "theirs" }),

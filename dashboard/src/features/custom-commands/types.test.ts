@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { SaveCustomCommandSchema, customPrefixSchema } from "./types";
+import {
+    SaveCustomCommandSchema,
+    commandActionSchema,
+    cooldownTypeSchema,
+    customCommandSchema,
+    customPrefixSchema,
+} from "./types";
 
 describe("Custom Commands Schemas", () => {
     it("should REJECT command names with spaces or special characters", () => {
@@ -27,6 +33,36 @@ describe("Custom Commands Schemas", () => {
             expect(result.error.issues[0].message).toBe(
                 "At least one action is required for a custom command!"
             );
+            // Exact issue metadata, so a wrong code or path fails the suite.
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].path).toEqual(["actions"]);
+        }
+    });
+
+    it("should REJECT a name with a leading illegal character even when the tail is valid", () => {
+        // The anchor requires the whole name to match, so a valid tail must not save it.
+        const result = SaveCustomCommandSchema.safeParse({
+            guild_id: "guild_123",
+            name: "has space",
+            enabled: false,
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe(
+                "Name can only contain letters, numbers, hyphens, and underscores"
+            );
+        }
+    });
+
+    it("should REJECT an empty command name with the required message", () => {
+        const result = SaveCustomCommandSchema.safeParse({
+            guild_id: "guild_123",
+            name: "",
+            enabled: false,
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("Command name is required");
         }
     });
 
@@ -79,6 +115,75 @@ describe("Custom Commands Schemas", () => {
             expect(result.data.ignored_roles).toEqual([]);
             expect(result.data.actions).toEqual([]);
         }
+    });
+
+    it("should default enabled to true and the remaining fields to their inert values", () => {
+        // Enabled defaults to true, so an action is required to pass strict validation.
+        const result = SaveCustomCommandSchema.safeParse({
+            guild_id: "guild_123",
+            name: "bare-defaults",
+            actions: [{ type: "add_role", data: { role_id: "role_1" } }],
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.enabled).toBe(true);
+            expect(result.data.description).toBe("");
+            expect(result.data.delete_trigger).toBe(false);
+            expect(result.data.allowed_channels).toEqual([]);
+            expect(result.data.ignored_channels).toEqual([]);
+        }
+    });
+
+    describe("cooldownTypeSchema", () => {
+        it("should PASS every documented cooldown type", () => {
+            expect(cooldownTypeSchema.safeParse("NONE").success).toBe(true);
+            expect(cooldownTypeSchema.safeParse("USER").success).toBe(true);
+            expect(cooldownTypeSchema.safeParse("SERVER").success).toBe(true);
+        });
+
+        it("should REJECT an empty cooldown type", () => {
+            expect(cooldownTypeSchema.safeParse("").success).toBe(false);
+        });
+    });
+
+    describe("customCommandSchema", () => {
+        it("should REJECT a row without an id", () => {
+            expect(customCommandSchema.safeParse({ guild_id: "guild_123", name: "no-id" }).success).toBe(
+                false
+            );
+        });
+
+        it("should PASS a row with an id", () => {
+            expect(
+                customCommandSchema.safeParse({ id: 7, guild_id: "guild_123", name: "has-id" }).success
+            ).toBe(true);
+        });
+    });
+
+    describe("commandActionSchema", () => {
+        it("should PASS one action of every documented type", () => {
+            const layout = { messages: [{ format: "TEXT", content: "hi" }] };
+            expect(
+                commandActionSchema.safeParse({
+                    type: "send_channel_message",
+                    data: { channel_id: "chan_1", message_layout: layout },
+                }).success
+            ).toBe(true);
+            expect(
+                commandActionSchema.safeParse({
+                    type: "respond_current_channel",
+                    data: { message_layout: layout },
+                }).success
+            ).toBe(true);
+            expect(
+                commandActionSchema.safeParse({ type: "add_role", data: { role_id: "role_1" } }).success
+            ).toBe(true);
+            expect(
+                commandActionSchema.safeParse({ type: "remove_role", data: { role_id: "role_1" } })
+                    .success
+            ).toBe(true);
+        });
     });
 
     it("should REJECT negative cooldown_seconds", () => {
@@ -227,6 +332,9 @@ describe("Custom Commands Schemas", () => {
             const result = SaveCustomCommandSchema.safeParse(invalid);
 
             expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("At least one message is required");
+            }
         });
 
         it("should PASS a valid respond_current_channel action with defaults", () => {
@@ -285,6 +393,9 @@ describe("Custom Commands Schemas", () => {
             const result = SaveCustomCommandSchema.safeParse(invalid);
 
             expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("Role is required");
+            }
         });
 
         it("should REJECT send_channel_message with empty channel_id", () => {
@@ -306,6 +417,9 @@ describe("Custom Commands Schemas", () => {
             const result = SaveCustomCommandSchema.safeParse(invalid);
 
             expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("Target channel is required");
+            }
         });
 
         it("should REJECT add_role with empty role_id", () => {
@@ -319,6 +433,9 @@ describe("Custom Commands Schemas", () => {
             const result = SaveCustomCommandSchema.safeParse(invalid);
 
             expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues[0].message).toBe("Role is required");
+            }
         });
 
         it("should REJECT an unknown action type", () => {
@@ -342,6 +459,15 @@ describe("Custom Commands Schemas", () => {
             }
         });
 
+        it("should trim surrounding whitespace before validating", () => {
+            // Without trim the padding trips the whitespace rule.
+            const result = customPrefixSchema.safeParse({ prefix: " ? " });
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.prefix).toBe("?");
+            }
+        });
+
         it("should default to ! when empty object is given", () => {
             const result = customPrefixSchema.safeParse({});
             expect(result.success).toBe(true);
@@ -358,6 +484,36 @@ describe("Custom Commands Schemas", () => {
             expect(customPrefixSchema.safeParse({ prefix: "1" }).success).toBe(false);
             for (const bad of ["<", ">", "@", "#", "`", "/"]) {
                 expect(customPrefixSchema.safeParse({ prefix: bad }).success).toBe(false);
+            }
+        });
+
+        it("should report the exact reason for each rejected prefix", () => {
+            const empty = customPrefixSchema.safeParse({ prefix: "" });
+            expect(empty.success).toBe(false);
+            if (!empty.success) {
+                expect(empty.error.issues[0].message).toBe("Prefix must not be empty.");
+            }
+
+            const long = customPrefixSchema.safeParse({ prefix: "!!!!" });
+            expect(long.success).toBe(false);
+            if (!long.success) {
+                expect(long.error.issues[0].message).toBe("Prefix must be at most 3 characters.");
+            }
+
+            // Internal space survives trim, so only the whitespace rule fires.
+            const spaced = customPrefixSchema.safeParse({ prefix: "! !" });
+            expect(spaced.success).toBe(false);
+            if (!spaced.success) {
+                const messages = spaced.error.issues.map((issue) => issue.message);
+                expect(messages).toContain("Prefix must not contain whitespace.");
+            }
+
+            const forbidden = customPrefixSchema.safeParse({ prefix: "<" });
+            expect(forbidden.success).toBe(false);
+            if (!forbidden.success) {
+                expect(forbidden.error.issues[0].message).toBe(
+                    "Prefix must not contain <, >, @, #, ` or /."
+                );
             }
         });
     });
