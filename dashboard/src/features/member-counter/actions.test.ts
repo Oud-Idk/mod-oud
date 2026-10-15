@@ -132,6 +132,20 @@ describe("Member Counter Server Actions", () => {
             await expect(setupMemberCounterChannelsAction("guild_123", counters)).rejects.toThrow("spicy exploded");
         });
 
+        it("should rethrow the first zod issue message on invalid counters", async () => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            const invalidCounters = [
+                { id: "c1", channelId: null, counterType: "BOGUS", roleId: null, nameTemplate: "Bots: {count}" },
+            ];
+
+            // @ts-expect-error - BOGUS is not a valid counter type; runtime Zod rejects it
+            await expect(setupMemberCounterChannelsAction("guild_123", invalidCounters)).rejects.toThrow(
+                new Error('Invalid option: expected one of "TOTAL_MEMBERS"|"HUMANS_ONLY"|"BOTS_ONLY"|"ONLINE_MEMBERS"|"ROLE_COUNT"')
+            );
+
+            expect(setupMemberCounterChannels).not.toHaveBeenCalled();
+        });
+
         it("should fall back to a generic error message on non-Error exceptions", async () => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
             vi.mocked(setupMemberCounterChannels).mockRejectedValue("string throw");

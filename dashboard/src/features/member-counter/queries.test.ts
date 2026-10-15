@@ -5,34 +5,41 @@ import {
     setupMemberCounterChannels,
 } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
-import { config } from "@/config";
+import { backendFetch } from "@/lib/backend";
 
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
     saveGuildConfigField: vi.fn(),
 }));
 
-interface MockResponse {
-    ok: boolean;
-    json: () => Promise<unknown>;
-    text: () => Promise<string>;
+vi.mock("@/lib/backend", () => ({
+    backendFetch: vi.fn(),
+}));
+
+// DB round-trips live behind getGuildConfigField/saveGuildConfigField, which
+// the shared guild module owns. What stays here is the backend HTTP contract:
+// method, headers, body, and error mapping.
+
+// Real Responses so .ok, .text() and .json() behave as against the bot.
+function jsonResponse(body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+    });
 }
-const mockFetchTyped = vi.hoisted(() =>
-    vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
-);
+
+function errorResponse(status: number, body: string): Response {
+    return new Response(body, { status });
+}
 
 describe("Member Counter Query Module", () => {
-    const originalUrl = config.backendInternalUrl;
-
     beforeEach(() => {
         vi.resetAllMocks();
         vi.spyOn(console, "error").mockImplementation(() => { return });
-        config.backendInternalUrl = "http://backend:8080";
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
-        config.backendInternalUrl = originalUrl;
     });
 
     describe("getMemberCounterConfig", () => {
@@ -99,14 +106,6 @@ describe("Member Counter Query Module", () => {
             { id: "c1", channelId: null, counterType: "BOTS_ONLY" as const, roleId: null, nameTemplate: "👥 {count}" },
         ];
 
-        beforeEach(() => {
-            vi.stubGlobal("fetch", mockFetchTyped);
-        });
-
-        afterEach(() => {
-            vi.unstubAllGlobals();
-        });
-
         it("should POST the counters to the backend and return the JSON", async () => {
             const backendResponse = {
                 counters: [
@@ -120,41 +119,60 @@ describe("Member Counter Query Module", () => {
                 ]
             };
 
-            mockFetchTyped.mockResolvedValue({
-                ok: true,
-                json: () => Promise.resolve(backendResponse),
-                text: () => Promise.resolve(""),
-            });
+            vi.mocked(backendFetch).mockResolvedValue(jsonResponse(backendResponse));
 
             await expect(setupMemberCounterChannels("guild_123", counters)).resolves.toEqual(
                 backendResponse
             );
-            expect(mockFetchTyped).toHaveBeenCalledWith(
-                "http://backend:8080/api/guilds/guild_123/member-counter/setup",
+            expect(backendFetch).toHaveBeenCalledWith(
+                "/api/guilds/guild_123/member-counter/setup",
                 expect.objectContaining({ method: "POST" })
             );
-            const [, init] = mockFetchTyped.mock.calls[0];
+            const [, init] = vi.mocked(backendFetch).mock.calls[0];
+            // backendFetch fills a missing Content-Type itself, so assert the
+            // call args to prove the header is sent explicitly.
+            expect(init?.headers).toEqual({ "Content-Type": "application/json" });
             const bodyText = typeof init?.body === "string" ? init.body : "{}";
             expect(JSON.parse(bodyText)).toEqual({ counters });
         });
 
         it("should throw the backend error message on a non-OK response", async () => {
-            mockFetchTyped.mockResolvedValue({
-                ok: false,
-                json: () => Promise.resolve({ }),
-                text: () => Promise.resolve("i hate thespicywolf"),
-            });
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse(400, "i hate thespicywolf"));
 
             await expect(setupMemberCounterChannels("guild_123", counters)).rejects.toThrow(
-                "i hate thespicywolf"
+                new Error("i hate thespicywolf")
+            );
+        });
+
+        it("should trim a padded backend error message", async () => {
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse(400, "  backend exploded  \n"));
+
+            await expect(setupMemberCounterChannels("guild_123", counters)).rejects.toThrow(
+                new Error("backend exploded")
+            );
+        });
+
+        it("should fall back to a generic message when the backend error body is empty", async () => {
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse(500, ""));
+
+            await expect(setupMemberCounterChannels("guild_123", counters)).rejects.toThrow(
+                new Error("Failed to create category and channels via bot backend.")
+            );
+        });
+
+        it("should fall back to a generic message when the backend error body is blank", async () => {
+            vi.mocked(backendFetch).mockResolvedValue(errorResponse(500, "   \n  "));
+
+            await expect(setupMemberCounterChannels("guild_123", counters)).rejects.toThrow(
+                new Error("Failed to create category and channels via bot backend.")
             );
         });
 
         it("should propagate a network error", async () => {
-            mockFetchTyped.mockRejectedValue(new Error("network down"));
+            vi.mocked(backendFetch).mockRejectedValue(new Error("network down"));
 
             await expect(setupMemberCounterChannels("guild_123", counters)).rejects.toThrow(
-                "network down"
+                new Error("network down")
             );
         });
     });
