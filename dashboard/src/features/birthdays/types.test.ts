@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BirthdayConfigSchema, SaveBirthdayConfigSchema } from "./types";
+import { BirthdayConfigSchema, DEFAULT_BIRTHDAY_MESSAGE, SaveBirthdayConfigSchema } from "./types";
 
 describe("Birthday Types & Schemas", () => {
     it("should parse defaults correctly for empty DB input", () => {
@@ -10,7 +10,11 @@ describe("Birthday Types & Schemas", () => {
         expect(parsed.birthdayRoleId).toBeNull();
         expect(parsed.announcementHour).toBe(9);
         expect(parsed.timezone).toBe("UTC");
+        expect(parsed.requireYear).toBe(false);
         expect(parsed.message.content).toContain("Happy birthday 🎉!");
+        expect(parsed.message.format).toBe("TEXT");
+        // Default message ships enabled so birthdays announce without extra setup.
+        expect(DEFAULT_BIRTHDAY_MESSAGE.enabled).toBe(true);
     });
 
     describe("announcementHour boundary checks", () => {
@@ -52,6 +56,9 @@ describe("Birthday Types & Schemas", () => {
             expect(result.error.issues[0].message).toBe(
                 "Please select an announcement channel for birthdays!"
             );
+            // Code and path drive field-level highlighting in the form.
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].path).toEqual(["channelId"]);
         }
     });
 
