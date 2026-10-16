@@ -205,7 +205,7 @@ describe("dispatchMusicCommand", () => {
 
     it("skips timeout reject logic if request was already settled before 10s", async () => {
         vi.useFakeTimers();
-        const { ctx, showFeedback, setActiveRequestsCount } = mockCtx();
+        const { ctx, showFeedback } = mockCtx();
         openSocket(ctx);
 
         const pending = dispatchMusicCommand(ctx, "pause");
@@ -537,8 +537,18 @@ describe("useMusicSocket lifecycle and transport", () => {
         expect(socket.send).toHaveBeenCalled();
 
         // Check sent action was "nowPlaying" and route ACK back to resolve promise!
-        const [sent] = socket.send.mock.calls[0];
-        const parsed = JSON.parse(sent as string);
+        const [sent] = socket.send.mock.calls[0] ?? [];
+        if (typeof sent !== "string") throw new Error("expected a text frame");
+        const parsed: unknown = JSON.parse(sent);
+        if (
+            typeof parsed !== "object" ||
+            parsed === null ||
+            !("action" in parsed) ||
+            !("requestId" in parsed) ||
+            typeof parsed.requestId !== "string"
+        ) {
+            throw new Error("expected valid frame");
+        }
         expect(parsed.action).toBe("nowPlaying");
 
         act(() => {
@@ -697,16 +707,14 @@ describe("useMusicSocket lifecycle and transport", () => {
         const { ctx, showFeedback } = mockCtx();
         const socket = openSocket(ctx);
 
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
-        // oxlint-disable-next-line typescript(only-throw-error)
         socket.send.mockImplementationOnce(() => {
+            // oxlint-disable-next-line typescript/only-throw-error
             throw "string error";
         });
         await expect(dispatchMusicCommand(ctx, "pause")).rejects.toThrow("string error");
 
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
-        // oxlint-disable-next-line typescript(only-throw-error)
         socket.send.mockImplementationOnce(() => {
+            // oxlint-disable-next-line typescript/only-throw-error
             throw { foo: "bar" };
         });
         await expect(dispatchMusicCommand(ctx, "pause")).rejects.toThrow(
