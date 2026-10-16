@@ -395,4 +395,201 @@ describe("applyNowPlayingUpdate edge cases", () => {
         });
         expect(setPosition).toHaveBeenCalledWith(7);
     });
+
+    describe("applyNowPlayingUpdate — missing branch coverage", () => {
+        it("preserves previous thumbnail and requestedBy when omitted in update", () => {
+            const { store, setNowPlaying } = mockStore();
+            const prev: NowPlayingData = {
+                title: "Old Song",
+                thumbnail: "https://img.test/prev.png",
+                requestedBy: "Alice",
+                durationSec: 200,
+            };
+
+            // Incoming update only has a title
+            applyNowPlayingUpdate({ title: "New Song" }, store);
+
+            const updated = updaterResult(setNowPlaying, prev);
+            expect(updated?.thumbnail).toBe("https://img.test/prev.png");
+            expect(updated?.requestedBy).toBe("Alice");
+        });
+
+        it("parses durationSec from metadata and root item", () => {
+            const metaStore = mockStore();
+            applyNowPlayingUpdate(
+                { title: "Song 1", metadata: { durationSec: "240" } },
+                metaStore.store
+            );
+            expect(metaStore.setDuration).toHaveBeenCalledWith(240);
+
+            const rootStore = mockStore();
+            applyNowPlayingUpdate({ title: "Song 2", durationSec: 150 }, rootStore.store);
+            expect(rootStore.setDuration).toHaveBeenCalledWith(150);
+        });
+    });
+
+
+    describe("useMusicConnection edge cases", () => {
+        function transport(
+            status: ConnectionStatus,
+            sendCommand?: MusicSendCommand
+        ): MusicSendCommand {
+            const send =
+                sendCommand ?? vi.fn<MusicSendCommand>().mockResolvedValue({ title: "T" });
+            vi.mocked(useMusicSocket).mockReturnValue({
+                status,
+                feedback: null,
+                setFeedback: vi.fn<Dispatch<SetStateAction<{ ok: boolean; text: string } | null>>>(),
+                activeRequestsCount: 0,
+                sendCommand: send,
+                showFeedback: vi.fn<MusicFeedback>(),
+            });
+            return send;
+        }
+
+        it("clears the heartbeat interval on unmount", async () => {
+            vi.useFakeTimers();
+            const sendCommand = transport("connected");
+            const { unmount } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(5000);
+            });
+            expect(sendCommand).toHaveBeenCalledTimes(1);
+
+            unmount();
+
+            // Advance further; if clearInterval was omitted, sendCommand would be called again
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(15000);
+            });
+            expect(sendCommand).toHaveBeenCalledTimes(1);
+        });
+
+        it("resyncs with the exact command 'nowPlaying' when reaching duration", async () => {
+            vi.useFakeTimers();
+            const sendCommand = transport(
+                "connected",
+                vi.fn<MusicSendCommand>().mockResolvedValue({ title: "T", duration: 10, position_sec: 9 })
+            );
+            const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(5000);
+            });
+            expect(result.current.position).toBe(9);
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(2000);
+            });
+            expect(result.current.position).toBe(10);
+            expect(sendCommand).toHaveBeenNthCalledWith(2, "nowPlaying");
+        });
+
+        it("strictly prevents playhead progression during live streams between heartbeats", async () => {
+            vi.useFakeTimers();
+            transport(
+                "connected",
+                vi.fn<MusicSendCommand>().mockResolvedValue({ title: "Live", is_live: true, position_sec: 0 })
+            );
+            const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+            // Initial sync
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(5000);
+            });
+            expect(result.current.nowPlaying?.isLive).toBe(true);
+            expect(result.current.position).toBe(0);
+
+            // Advance by 1500ms (before the 5s heartbeat fires and resets state)
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(1500);
+            });
+            // If line 125 was mutated to false, the interval would have ticked to 1
+            expect(result.current.position).toBe(0);
+        });
+
+        it("initializes isPaused to false by default", () => {
+            transport("disconnected");
+            const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+            expect(result.current.isPaused).toBe(false);
+        });
+
+        it("passes guildId, isMountedRef, and onNowPlayingRef to useMusicSocket", () => {
+            transport("connected");
+            renderHook(() => useMusicConnection({ guildId: "guild_xyz" }));
+
+            const calls = vi.mocked(useMusicSocket).mock.calls;
+            const lastCall = calls[calls.length - 1];
+            expect(lastCall).toBeDefined();
+
+            const [options] = lastCall;
+            expect(options.guildId).toBe("guild_xyz");
+            expect(options.isMountedRef.current).toBe(true);
+            expect(typeof options.onNowPlayingRef.current).toBe("function");
+        });
+
+        it("does not run playhead clock when status is connecting even if nowPlaying data exists", async () => {
+            vi.useFakeTimers();
+            transport("connecting");
+            const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+            act(() => {
+                result.current.setNowPlaying({
+                    title: "Track",
+                    durationSec: 100,
+                    positionSec: 10,
+                    isLive: false,
+                });
+                result.current.setDuration(100);
+                result.current.setPosition(10);
+                result.current.playheadAnchorRef.current = {
+                    basePos: 10,
+                    timestamp: performance.now(),
+                };
+            });
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(2000);
+            });
+
+            // Position must not have advanced because status is "connecting"
+            expect(result.current.position).toBe(10);
+        });
+
+        it("keeps updateNowPlayingStateRef synced when seeking status updates", () => {
+            transport("connected");
+            let capturedOnNowPlaying: ((data: unknown) => void) | undefined;
+            vi.mocked(useMusicSocket).mockImplementation(({ onNowPlayingRef }) => {
+                capturedOnNowPlaying = (data: unknown) => { onNowPlayingRef.current(data) };
+                return {
+                    status: "connected",
+                    feedback: null,
+                    setFeedback: vi.fn(),
+                    activeRequestsCount: 0,
+                    sendCommand: vi.fn().mockResolvedValue({ title: "T" }),
+                    showFeedback: vi.fn(),
+                };
+            });
+
+            const { result } = renderHook(() => useMusicConnection({ guildId: "guild_123" }));
+
+            // Toggle isSeeking to true (which changes updateNowPlayingState callback)
+            act(() => {
+                result.current.setIsSeeking(true);
+            });
+
+            // Trigger socket update with new position while seeking
+            act(() => {
+                capturedOnNowPlaying?.({
+                    title: "Song",
+                    duration: 100,
+                    position_sec: 50,
+                });
+            });
+
+            // Position should remain 0 because isSeeking is true in the updated ref
+            expect(result.current.position).toBe(0);
+        });
+    });
 });

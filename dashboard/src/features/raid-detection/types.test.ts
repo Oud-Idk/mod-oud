@@ -58,66 +58,90 @@ describe("raidDetectionInputSchema", () => {
 });
 
 describe("raidActionSchema (discriminated union)", () => {
-    it("should accept a LOCKDOWN_SERVER action with no extras", () => {
-        expect(raidActionSchema.safeParse({ type: "LOCKDOWN_SERVER" }).success).toBe(true);
+    it("should accept a LOCKDOWN_SERVER action and return exact parsed data", () => {
+        const result = raidActionSchema.safeParse({ type: "LOCKDOWN_SERVER" });
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data).toEqual({ type: "LOCKDOWN_SERVER" });
+        }
     });
 
-    // Kills BUMP_VERIFICATION literal mutant
-    it("should accept a BUMP_VERIFICATION action", () => {
-        expect(raidActionSchema.safeParse({ type: "BUMP_VERIFICATION" }).success).toBe(true);
+    it("should accept a BUMP_VERIFICATION action and return exact parsed data", () => {
+        const result = raidActionSchema.safeParse({ type: "BUMP_VERIFICATION" });
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data).toEqual({ type: "BUMP_VERIFICATION" });
+        }
     });
 
-    it("should accept an ALERT action with a channel", () => {
+    it("should accept an ALERT action with a channel and return exact parsed data", () => {
         const result = raidActionSchema.safeParse({ type: "ALERT", channelId: "chan_1" });
         expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data).toEqual({ type: "ALERT", channelId: "chan_1" });
+        }
     });
 
-    // Kills ALERT error message mutant ("Alert channel is required")
-    it("should REJECT an ALERT action missing its channel", () => {
-        expect(raidActionSchema.safeParse({ type: "ALERT" }).success).toBe(false);
+    it("should REJECT an ALERT action with empty channelId and return custom message", () => {
+        const result = raidActionSchema.safeParse({ type: "ALERT", channelId: "" });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].message).toBe("Alert channel is required");
+        }
     });
 
-    it("should REJECT a PAUSE_INVITES action with a zero hour", () => {
-        expect(raidActionSchema.safeParse({ type: "PAUSE_INVITES", hour: 0 }).success).toBe(false);
+    it("should accept a PAUSE_INVITES action and return exact parsed data", () => {
+        const result = raidActionSchema.safeParse({ type: "PAUSE_INVITES", hour: 2 });
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data).toEqual({ type: "PAUSE_INVITES", hour: 2 });
+        }
     });
 
-    it("should REJECT a PAUSE_INVITES action missing its hour", () => {
-        expect(raidActionSchema.safeParse({ type: "PAUSE_INVITES" }).success).toBe(false);
+    it("should accept a TIMEOUT_NEW_JOINS action and return exact parsed data", () => {
+        const result = raidActionSchema.safeParse({ type: "TIMEOUT_NEW_JOINS", mins: 10 });
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data).toEqual({ type: "TIMEOUT_NEW_JOINS", mins: 10 });
+        }
     });
 
-    // Kills TIMEOUT_NEW_JOINS literal mutant
-    it("should accept a TIMEOUT_NEW_JOINS action with valid mins", () => {
-        expect(raidActionSchema.safeParse({ type: "TIMEOUT_NEW_JOINS", mins: 10 }).success).toBe(
-            true
-        );
+    it("should accept an AUTO_BAN_NEW_ACCOUNTS action and return exact parsed data", () => {
+        const result = raidActionSchema.safeParse({ type: "AUTO_BAN_NEW_ACCOUNTS", maxAgeHours: 24 });
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data).toEqual({ type: "AUTO_BAN_NEW_ACCOUNTS", maxAgeHours: 24 });
+        }
     });
 
-    it("should REJECT a TIMEOUT_NEW_JOINS action with a zero mins", () => {
-        expect(raidActionSchema.safeParse({ type: "TIMEOUT_NEW_JOINS", mins: 0 }).success).toBe(
-            false
-        );
-    });
-
-    // Kills AUTO_BAN_NEW_ACCOUNTS literal mutant and .min(1) vs .max(1) mutant
-    it("should accept an AUTO_BAN_NEW_ACCOUNTS action with valid maxAgeHours (> 1)", () => {
-        expect(
-            raidActionSchema.safeParse({ type: "AUTO_BAN_NEW_ACCOUNTS", maxAgeHours: 24 }).success
-        ).toBe(true);
-    });
-
-    it("should REJECT an AUTO_BAN_NEW_ACCOUNTS action with zero maxAgeHours", () => {
-        expect(
-            raidActionSchema.safeParse({ type: "AUTO_BAN_NEW_ACCOUNTS", maxAgeHours: 0 }).success
-        ).toBe(false);
-    });
-
-    it("should REJECT an unknown action type", () => {
-        expect(raidActionSchema.safeParse({ type: "BAN_EVERYONE" }).success).toBe(false);
+    it("should REJECT an unknown action type and report invalid discriminator", () => {
+        const result = raidActionSchema.safeParse({ type: "BAN_EVERYONE" });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].code).toBe("invalid_union");
+        }
     });
 });
 
 describe("saveRaidDetectionConfigSchema", () => {
-    // Kills path: ["raidActions"] -> path: [] / [""] mutants
+    it("should REJECT when enabled with no raid actions and set path and code", () => {
+        const result = saveRaidDetectionConfigSchema.safeParse({
+            enabled: true,
+            raidActions: [],
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].message).toBe(
+                "At least one raid mitigation action must be selected when raid protection is enabled!"
+            );
+            expect(result.error.issues[0].path).toEqual(["raidActions"]);
+        }
+    });
+});
+
+describe("saveRaidDetectionConfigSchema", () => {
     it("should REJECT when enabled with no raid actions and set path to raidActions", () => {
         const result = saveRaidDetectionConfigSchema.safeParse({
             enabled: true,
