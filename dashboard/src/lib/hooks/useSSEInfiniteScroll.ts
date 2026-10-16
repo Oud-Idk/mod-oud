@@ -180,13 +180,16 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
     const [status, setStatus] = useState<ConnectingStatus>("CONNECTING");
     const [hasMore, setHasMore] = useState<boolean>(initialHistory.length >= 10);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const isLoadingMoreRef = useRef(false);
 
     const observerTarget = useRef<HTMLDivElement | null>(null);
 
     const loadMoreLogs = useCallback(async (): Promise<void> => {
-        if (isLoadingMore || !hasMore || logs.length === 0) return;
+        if (isLoadingMoreRef.current || !hasMore || logs.length === 0) return;
 
         const oldestLog = logs[logs.length - 1];
+
+        isLoadingMoreRef.current = true;
         setIsLoadingMore(true);
 
         try {
@@ -206,9 +209,10 @@ export function useSSEInfiniteScroll<T extends { id: number }>({
         } catch (err: unknown) {
             console.error(`Error loading more ${eventName} logs:`, err);
         } finally {
+            isLoadingMoreRef.current = false;
             setIsLoadingMore(false);
         }
-    }, [guildId, hasMore, isLoadingMore, logs, fetchMoreAction, eventName]);
+    }, [guildId, hasMore, logs, fetchMoreAction, eventName]);
 
     // Setup intersection observer for infinite scroll
     useEffect(() => {

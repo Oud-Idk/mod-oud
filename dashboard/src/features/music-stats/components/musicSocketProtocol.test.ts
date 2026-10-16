@@ -1,14 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { config } from "@/config";
+import { issueRealtimeTicketAction } from "@/features/realtime/actions";
 import {
     ackSchema,
     eventSchema,
     nowPlayingPayloadSchema,
     parseDuration,
-    parseRequester,
+    parseRequester, wsUrlWithTicket,
 } from "./musicSocketProtocol";
 
 vi.mock("@/features/realtime/actions", () => ({
     issueRealtimeTicketAction: vi.fn(),
+}));
+
+vi.mock("@/config", () => ({
+    config: {
+        publicBackendUrl: "https://backend.test",
+    },
 }));
 
 describe("ackSchema", () => {
@@ -140,5 +148,58 @@ describe("parseDuration", () => {
         expect(parseDuration({ duration: 7 })).toBe(7);
         expect(parseDuration({ secs: 1, seconds: 2, duration: 3 })).toBe(1);
         expect(parseDuration({ seconds: 2, duration: 3 })).toBe(2);
+    });
+});
+
+describe("wsUrlWithTicket", () => {
+    const mockTicket = {
+        userId: "user-42",
+        expires: 1700000000,
+        sig: "sig-hex-999",
+        guildId: "owo"
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(issueRealtimeTicketAction).mockResolvedValue(mockTicket);
+        config.publicBackendUrl = "https://backend.test";
+    });
+
+    it("requests ticket with purpose 'ws' and formats full WebSocket URL with query parameters", async () => {
+        const url = await wsUrlWithTicket("guild-123");
+
+        // Kills: issueRealtimeTicketAction(guildId, "")
+        expect(issueRealtimeTicketAction).toHaveBeenCalledWith("guild-123", "ws");
+
+        // Kills: StringLiteral template & replace with ""
+        expect(url.startsWith("wss://backend.test/api/ws/control?")).toBe(true);
+
+        const parsedUrl = new URL(url);
+        expect(parsedUrl.origin).toBe("wss://backend.test");
+        expect(parsedUrl.pathname).toBe("/api/ws/control");
+
+        // Kills: new URLSearchParams({})
+        expect(parsedUrl.searchParams.get("guild_id")).toBe("guild-123");
+        expect(parsedUrl.searchParams.get("user_id")).toBe("user-42");
+        expect(parsedUrl.searchParams.get("expires")).toBe("1700000000");
+        expect(parsedUrl.searchParams.get("sig")).toBe("sig-hex-999");
+    });
+
+    it("converts http to ws for unencrypted connections", async () => {
+        config.publicBackendUrl = "http://backend.local:3000";
+
+        const url = await wsUrlWithTicket("guild-456");
+
+        expect(url.startsWith("ws://backend.local:3000/api/ws/control")).toBe(true);
+    });
+
+    // Kills: Regex /^http/ -> /http/
+    it("strictly anchors to start of string when replacing http", async () => {
+        config.publicBackendUrl = "custom-http-proxy.internal:8080";
+
+        const url = await wsUrlWithTicket("guild-789");
+
+        expect(url).toContain("custom-http-proxy.internal:8080/api/ws/control");
+        expect(url).not.toContain("custom-ws-proxy");
     });
 });
