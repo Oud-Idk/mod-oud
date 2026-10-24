@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT guild_id FROM guild_configs\n         WHERE settings -> 'dynamic_slowmode' ->> 'enabled' = 'true'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guild_configs",
+            "name": "guild_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c931e1779c5ede9cb721a77e61eda2c4d4b280186d91b547a02f26f3583b12c4"
+}

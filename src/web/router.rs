@@ -1,7 +1,8 @@
 use crate::core::config::state::WebState;
 use crate::features::{
-    automod, general, giveaways, live_feed, member_counter, moderation, music, raid_detection,
-    reaction_roles, reporting, social_notifications, temp_voice, tickets, verification,
+    automod, dynamic_slowmode, general, giveaways, live_feed, member_counter, moderation, music,
+    raid_detection, reaction_roles, reporting, social_notifications, temp_voice, tickets,
+    verification,
 };
 use crate::web::middleware::require_internal_secret;
 use axum::Router;
@@ -97,6 +98,7 @@ pub fn get_router(cors: CorsLayer, shared_state: Arc<WebState>) -> Router {
         .merge(member_counter::routes())
         .merge(giveaways::routes())
         .merge(raid_detection::routes())
+        .merge(dynamic_slowmode::routes())
         .merge(social_notifications::dashboard_routes())
         .route_layer(axum::middleware::from_fn_with_state(
             Arc::clone(&shared_state),

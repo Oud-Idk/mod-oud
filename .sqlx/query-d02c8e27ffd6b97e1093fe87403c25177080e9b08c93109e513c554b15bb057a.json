@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO dynamic_slowmode_channels (\n            channel_id, guild_id, pre_automation_secs, last_written_secs, last_edit_at\n        )\n        VALUES ($1, $2, $3, $3, NOW() - ($4::bigint * INTERVAL '1 second'))\n        ON CONFLICT (channel_id) DO UPDATE SET\n            pre_automation_secs = EXCLUDED.pre_automation_secs,\n            last_written_secs = EXCLUDED.last_written_secs,\n            armed_at = NOW(),\n            last_edit_at = NOW() - ($4::bigint * INTERVAL '1 second'),\n            disarmed_at = NULL,\n            disarm_reason = NULL\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int2",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d02c8e27ffd6b97e1093fe87403c25177080e9b08c93109e513c554b15bb057a"
+}

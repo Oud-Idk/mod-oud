@@ -9,6 +9,8 @@ pub mod bad_words;
 pub mod birthday;
 /// Custom commands.
 pub mod custom_commands;
+/// Dynamic slowmode driven by channel traffic.
+pub mod dynamic_slowmode;
 /// Virtual economy (cash, bank, work).
 pub mod economy;
 /// Gambling mechanics for economy.

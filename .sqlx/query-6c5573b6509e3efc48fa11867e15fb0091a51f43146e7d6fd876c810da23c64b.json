@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO dynamic_slowmode_channels (\n            channel_id, guild_id, pre_automation_secs, last_written_secs, last_edit_at\n        )\n        VALUES ($1, $2, $3, $4, $5)\n        ON CONFLICT (channel_id) DO UPDATE SET\n            last_written_secs = EXCLUDED.last_written_secs,\n            last_edit_at = EXCLUDED.last_edit_at\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int2",
+        "Int2",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6c5573b6509e3efc48fa11867e15fb0091a51f43146e7d6fd876c810da23c64b"
+}

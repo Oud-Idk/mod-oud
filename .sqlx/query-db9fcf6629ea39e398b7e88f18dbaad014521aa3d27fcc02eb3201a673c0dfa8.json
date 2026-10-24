@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM dynamic_slowmode_channels\n         WHERE guild_id = $1 AND disarmed_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "dynamic_slowmode_channels",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "dynamic_slowmode_channels",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "pre_automation_secs",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "dynamic_slowmode_channels",
+            "name": "pre_automation_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_written_secs",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "dynamic_slowmode_channels",
+            "name": "last_written_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_edit_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "dynamic_slowmode_channels",
+            "name": "last_edit_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "armed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "dynamic_slowmode_channels",
+            "name": "armed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "disarmed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "dynamic_slowmode_channels",
+            "name": "disarmed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "disarm_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "dynamic_slowmode_channels",
+            "name": "disarm_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "db9fcf6629ea39e398b7e88f18dbaad014521aa3d27fcc02eb3201a673c0dfa8"
+}

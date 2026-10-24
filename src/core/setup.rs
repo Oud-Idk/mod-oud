@@ -3,6 +3,9 @@ use crate::core::config::state::{AppConfig, BotCaches, BotData, BotSecurity, Cor
 use crate::features::automod::{SafeBrowsingClient, SpamTracker};
 use crate::features::bad_words::CompiledRuleset;
 use crate::features::birthday::start_birthday_worker;
+use crate::features::dynamic_slowmode::{
+    SlowmodeWorkerParams, reconcile_armed_channels, start_slowmode_worker,
+};
 use crate::features::giveaways::start_giveaway_worker;
 use crate::features::leveling::start_level_flush_worker;
 use crate::features::member_counter::start_member_counter_job;
@@ -140,6 +143,12 @@ pub fn setup<'a>(
         });
         info!(workers, "Ready: workers started");
 
+        start_slowmode_worker(SlowmodeWorkerParams {
+            db: pool.clone(),
+            redis: redis_client.clone(),
+            guild_configs_cache: guild_configs_cache.clone(),
+            http: ctx.http.clone(),
+        });
         let spam_tracker = SpamTracker::new(redis_client.clone());
         let client = SafeBrowsingClient::new(google_cloud_api_key);
         let audit_log_cache = Cache::new(10000);
@@ -190,8 +199,24 @@ pub fn setup<'a>(
             error!(error = ?e, "startup raid reconciliation failed");
         }
 
+        reconcile_slowmode(ctx, &data).await;
+
         Ok(data)
     })
+}
+
+/// Reconciles dynamic slowmode against Discord's live channel state.
+async fn reconcile_slowmode(ctx: &Context, data: &BotData) {
+    let params = SlowmodeWorkerParams {
+        db: data.core.db.clone(),
+        redis: data.core.redis.clone(),
+        guild_configs_cache: data.core.guild_configs_cache.clone(),
+        http: ctx.http.clone(),
+    };
+
+    if let Err(e) = reconcile_armed_channels(&params).await {
+        error!(error = ?e, "startup slowmode reconciliation failed");
+    }
 }
 
 /// Hydrates the local active ticket channel cache from Redis set storage.
