@@ -31,8 +31,14 @@ pub struct ToxicClassifierJob {
 impl ToxicClassifier {
     /// Loads the ONNX model and tokenizer from disk and initializes the runtime.
     pub fn new<P: AsRef<Path>>(model_path: P, tokenizer_path: P) -> Result<Self, anyhow::Error> {
-        let tokenizer = Tokenizer::from_file(tokenizer_path)
+        let mut tokenizer = Tokenizer::from_file(tokenizer_path)
             .map_err(|e| anyhow::anyhow!("Failed to load tokenizer: {e}"))?;
+        tokenizer
+            .with_truncation(Some(tokenizers::TruncationParams {
+                max_length: 512,
+                ..Default::default()
+            }))
+            .map_err(|e| anyhow::anyhow!("Failed to set truncation: {e}"))?;
 
         let env = ort::init()
             .build()
