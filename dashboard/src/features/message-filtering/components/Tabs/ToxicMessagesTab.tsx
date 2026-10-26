@@ -4,6 +4,7 @@ import { createFilterUpdater } from "@/features/message-filtering/filterUpdater"
 import { FilterLayoutWrapper } from "@/features/message-filtering/components/FilterLayout";
 import { PercentSlider } from "@/components/ui/inputs/PercentSlider";
 import { ToggleSwitch } from "@/components/ui/inputs/ToggleSwitch";
+import Link from "next/link";
 
 interface ToxicMessagesTabProps {
     config: MessageFilteringConfig;
@@ -85,10 +86,12 @@ export function ToxicMessagesTab({
             channelMap={channelMap}
             toggleText="Enable Toxic Messages Classifier"
         >
-            <p className="text-sm text-muted-foreground">
-                Machine learning toxicity scores for each message. A category is enforced only
-                when its toggle is on and the score reaches the threshold. Enabling this feature
-                but doing no actions will default to logging only.
+            <p>
+                Machine learning toxicity scores for each message. Enabling this feature
+                but doing no actions will default to logging only. Model courtesy of&nbsp;
+                <Link className="text-blue-500 hover:underline"
+                      href="https://huggingface.co/onnx-community/unbiased-toxic-roberta-ONNX">
+                    onnx-community/unbiased-toxic-roberta-ONNX</Link>
             </p>
 
             <div className="space-y-5">
