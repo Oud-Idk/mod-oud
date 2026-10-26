@@ -31,8 +31,12 @@ describe("servers / getGuildLists", () => {
     const DISCORD_API_URL = "https://discord.com/api/users/@me/guilds";
 
     const mockUnstableCache = vi.mocked(unstable_cache);
-    const getBotGuildsInternal: BotGuildsFn = mockUnstableCache.mock.calls[0][0];
-    const getUserGuildsInternal: UserGuildsFn = mockUnstableCache.mock.calls[1][0];
+    // Captured at collect time: vitest clears mocks before every test, and these
+    // calls happen while `servers` is imported, which is earlier still.
+    const botGuildsCacheCall = mockUnstableCache.mock.calls[0];
+    const userGuildsCacheCall = mockUnstableCache.mock.calls[1];
+    const getBotGuildsInternal: BotGuildsFn = botGuildsCacheCall[0];
+    const getUserGuildsInternal: UserGuildsFn = userGuildsCacheCall[0];
 
     beforeEach(() => {
         process.env = { ...originalEnv, DISCORD_TOKEN: BOT_TOKEN };
@@ -48,19 +52,19 @@ describe("servers / getGuildLists", () => {
 
     describe("unstable_cache configuration", () => {
         it("registers bot guilds cache with 180s revalidation and tag", () => {
-            expect(unstable_cache).toHaveBeenCalledWith(
+            expect(botGuildsCacheCall).toEqual([
                 expect.any(Function),
                 ["discord_bot_guilds"],
-                { revalidate: 180, tags: ["bot-guilds"] }
-            );
+                { revalidate: 180, tags: ["bot-guilds"] },
+            ]);
         });
 
         it("registers user guilds cache with 120s revalidation", () => {
-            expect(unstable_cache).toHaveBeenCalledWith(
+            expect(userGuildsCacheCall).toEqual([
                 expect.any(Function),
                 ["discord_user_guilds"],
-                { revalidate: 120 }
-            );
+                { revalidate: 120 },
+            ]);
         });
     });
 
