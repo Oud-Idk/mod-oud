@@ -145,6 +145,15 @@ export async function getVoiceChannelMap(guildId: string): Promise<Record<string
     });
 }
 
+// Only kinds that carry slowmode: text, voice, stage. Forums and announcements do not.
+export async function getSlowmodeChannelMap(guildId: string): Promise<Record<string, string>> {
+    return getGuildResourceMap<DiscordChannel>(guildId, {
+        cacheSuffix: "slowmode-channels",
+        endpoint: "channels",
+        filter: (channel) => channel.type === 0 || channel.type === 2 || channel.type === 13
+    });
+}
+
 export async function getRoleMap(guildId: string): Promise<Record<string, string>> {
     return getGuildResourceMap<{ id: string; name: string }>(guildId, {
         cacheSuffix: "roles",
@@ -165,7 +174,8 @@ export async function invalidateGuildChannelCache(guildId: string): Promise<void
         const keysToDelete = [
             `guild:${guildId}:categories`,
             `guild:${guildId}:voice-channels`,
-            `guild:${guildId}:channels`
+            `guild:${guildId}:channels`,
+            `guild:${guildId}:slowmode-channels`
         ];
         await redis.del(keysToDelete);
     } catch (redisError: unknown) {
@@ -175,4 +185,5 @@ export async function invalidateGuildChannelCache(guildId: string): Promise<void
     revalidateTag(`guild-voice-channels-${guildId}`, 'max');
     revalidateTag(`guild-categories-${guildId}`, 'max');
     revalidateTag(`guild-channels-${guildId}`, 'max');
+    revalidateTag(`guild-slowmode-channels-${guildId}`, 'max');
 }

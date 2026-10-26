@@ -8,6 +8,7 @@ import {
     getVoiceChannelMap,
     getRoleMap,
     getCategoryMap,
+    getSlowmodeChannelMap,
     invalidateGuildChannelCache,
 } from "./channels";
 
@@ -357,11 +358,33 @@ describe("Resource map specific filters and endpoints", () => {
         );
         expect(result).toEqual({ r1: "Admin", r2: "Member" });
     });
+
+    it("uses correct endpoint and filters text, voice and stage channels in getSlowmodeChannelMap", async () => {
+        const mockChannels = [
+            { id: "c1", name: "general", type: 0 },
+            { id: "v1", name: "Lounge", type: 2 },
+            { id: "s1", name: "Stage", type: 13 },
+            { id: "cat1", name: "Text Channels", type: 4 },
+            { id: "a1", name: "announcements", type: 5 },
+            { id: "t1", name: "thread", type: 11 },
+            { id: "f1", name: "forum", type: 15 },
+        ];
+        globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse(mockChannels));
+
+        const result = await getSlowmodeChannelMap(GUILD_ID);
+
+        expect(redis.get).toHaveBeenCalledWith(`guild:${GUILD_ID}:slowmode-channels`);
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+            `https://discord.com/api/v10/guilds/${GUILD_ID}/channels`,
+            expect.anything()
+        );
+        expect(result).toEqual({ c1: "general", v1: "Lounge", s1: "Stage" });
+    });
 });
 
 describe("invalidateGuildChannelCache", () => {
-    it("deletes all 3 redis keys and revalidates all 3 next.js cache tags", async () => {
-        vi.mocked(redis.del).mockResolvedValue(3);
+    it("deletes all 4 redis keys and revalidates all 4 next.js cache tags", async () => {
+        vi.mocked(redis.del).mockResolvedValue(4);
 
         await invalidateGuildChannelCache(GUILD_ID);
 
@@ -369,11 +392,13 @@ describe("invalidateGuildChannelCache", () => {
             `guild:${GUILD_ID}:categories`,
             `guild:${GUILD_ID}:voice-channels`,
             `guild:${GUILD_ID}:channels`,
+            `guild:${GUILD_ID}:slowmode-channels`,
         ]);
 
         expect(revalidateTag).toHaveBeenCalledWith(`guild-voice-channels-${GUILD_ID}`, "max");
         expect(revalidateTag).toHaveBeenCalledWith(`guild-categories-${GUILD_ID}`, "max");
         expect(revalidateTag).toHaveBeenCalledWith(`guild-channels-${GUILD_ID}`, "max");
+        expect(revalidateTag).toHaveBeenCalledWith(`guild-slowmode-channels-${GUILD_ID}`, "max");
     });
 
     it("still revalidates cache tags even if Redis delete throws an error", async () => {
@@ -382,6 +407,6 @@ describe("invalidateGuildChannelCache", () => {
         await invalidateGuildChannelCache(GUILD_ID);
 
         expect(console.error).toHaveBeenCalled();
-        expect(revalidateTag).toHaveBeenCalledTimes(3);
+        expect(revalidateTag).toHaveBeenCalledTimes(4);
     });
 });

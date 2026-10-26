@@ -1,8 +1,8 @@
 use crate::core::config::state::{BotData, Error};
 use crate::events::interact::on_interact;
 use crate::features::{
-    automod, custom_commands, invite_tracking, join_leave, leveling, media_only, message_logging,
-    moderation, raid_detection, reaction_roles, starboard, temp_voice, tickets,
+    automod, custom_commands, dynamic_slowmode, invite_tracking, join_leave, leveling, media_only,
+    message_logging, moderation, raid_detection, reaction_roles, starboard, temp_voice, tickets,
 };
 use crate::shared::store_username_relation;
 use crate::shared::voice_state::sync_guild_voice_state;
@@ -269,6 +269,7 @@ async fn dispatch_inner(ctx: &serenity::Context, event: &FullEvent, data: &BotDa
         }
 
         FullEvent::GuildAuditLogEntryCreate { entry, guild_id } => {
+            dynamic_slowmode::handle_audit_log_entry(ctx, *guild_id, entry, data).await;
             moderation::handle_audit_log_entry(ctx, *guild_id, entry, data).await?;
         }
 
@@ -358,6 +359,7 @@ async fn on_message(
 ) -> Result<(), anyhow::Error> {
     Box::pin(async move {
         message_logging::spawn_cache_message_in_redis(data, new_message).await?;
+        dynamic_slowmode::record_message(data, new_message).await;
 
         if automod::handle_automod(ctx, new_message, data).await? {
             return Ok::<(), Error>(());

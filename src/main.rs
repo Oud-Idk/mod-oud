@@ -16,9 +16,9 @@ use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::music::MusicState;
 use mod_oud::features::music::WebCommandBus;
 use mod_oud::features::{
-    automod, birthday, custom_commands, economy, general, giveaways, invite_tracking, join_leave,
-    leveling, media_only, member_counter, moderation, music, raid_detection, reporting, search,
-    social_notifications, temp_voice, tickets, warning,
+    automod, birthday, custom_commands, dynamic_slowmode, economy, general, giveaways,
+    invite_tracking, join_leave, leveling, media_only, member_counter, moderation, music,
+    raid_detection, reporting, search, social_notifications, temp_voice, tickets, warning,
 };
 use mod_oud::shared::logger;
 use mod_oud::shared::spotify_auth::SpotifyAuthCache;
@@ -558,6 +558,7 @@ fn build_commands() -> Vec<poise::Command<BotData, Error>> {
         temp_voice::voice(),
         member_counter::counters(),
         media_only::media_only(),
+        dynamic_slowmode::slowmode(),
         music::music(),
         search::search(),
         economy::economy(),

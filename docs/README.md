@@ -9,4 +9,6 @@ these files hold the ones you read when you touch that part of the system.
 | [structure.md](structure.md) | Adding a file, a feature, or a module. Deciding where code goes. |
 | [database.md](database.md) | Writing or reviewing any `database.rs`, or touching a snowflake. |
 
+Feature designs live in `design/`, one file per feature, written before implementation.
+
 The frontend has its own: `../dashboard/CONVENTIONS.md`.
