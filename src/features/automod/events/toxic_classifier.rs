@@ -40,7 +40,7 @@ pub async fn filter_toxic_classifier<'a>(
     let scores = match tokio::time::timeout(CLASSIFICATION_REPLY_TIMEOUT, reply_rx).await {
         Ok(Ok(Ok(scores))) => scores,
         Ok(Ok(Err(e))) => {
-            error!(%e, content = %message.content, "classifying text");
+            error!(%e, "classifying text");
             return FilterVerdict::Pass;
         }
         Ok(Err(e)) => {
