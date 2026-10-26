@@ -116,6 +116,11 @@ async fn toxic_classifier_job(mut rx: mpsc::Receiver<ToxicClassifierJob>) {
     info!("toxic classifier worker started");
 
     while let Some(job) = rx.recv().await {
+        // Drop jobs the caller already gave up on, so a backlog cannot delay fresh ones.
+        if job.respond_to.is_closed() {
+            continue;
+        }
+
         let Some(c) = CLASSIFIER.get() else {
             error!(
                 fault = "classifier not loaded",
