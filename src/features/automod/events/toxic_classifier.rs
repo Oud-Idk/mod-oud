@@ -5,8 +5,12 @@ use crate::features::automod::ToxicClassifierJob;
 use crate::features::automod::types::{FilterVerdict, HasBaseRule, MessageFilteringConfig};
 use serenity::all::Message;
 use std::borrow::Cow;
+use std::time::Duration;
 use tokio::sync::oneshot;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
+
+/// How long a message waits for a classification result before being passed through.
+const CLASSIFICATION_REPLY_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub async fn filter_toxic_classifier<'a>(
     message: &'a Message,
@@ -25,26 +29,26 @@ pub async fn filter_toxic_classifier<'a>(
     let (reply_tx, reply_rx) = oneshot::channel();
     let text = clean_message_content(&message.content).into_owned();
 
-    if let Err(e) = data
-        .toxic_classifier_tx
-        .send(ToxicClassifierJob {
-            text,
-            respond_to: reply_tx,
-        })
-        .await
-    {
-        error!(%e, "send classification request");
+    if let Err(e) = data.toxic_classifier_tx.try_send(ToxicClassifierJob {
+        text,
+        respond_to: reply_tx,
+    }) {
+        warn!(%e, "toxic classifier queue unavailable, skipping classification");
         return FilterVerdict::Pass;
     }
 
-    let scores = match reply_rx.await {
-        Ok(Ok(scores)) => scores,
-        Ok(Err(e)) => {
+    let scores = match tokio::time::timeout(CLASSIFICATION_REPLY_TIMEOUT, reply_rx).await {
+        Ok(Ok(Ok(scores))) => scores,
+        Ok(Ok(Err(e))) => {
             error!(%e, content = %message.content, "classifying text");
             return FilterVerdict::Pass;
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             error!(%e, "receiving reply from worker");
+            return FilterVerdict::Pass;
+        }
+        Err(_) => {
+            warn!(content = %message.content, "toxic classifier timed out");
             return FilterVerdict::Pass;
         }
     };
