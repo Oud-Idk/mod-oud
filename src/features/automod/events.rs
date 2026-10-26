@@ -10,6 +10,7 @@ mod native_rules;
 mod offensive_messages;
 mod server_invites;
 mod spam;
+mod toxic_classifier;
 mod zalgo;
 
 use crate::core::config::settings::get_settings;
@@ -111,6 +112,12 @@ pub async fn check_for_filter(
                 .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
                 .or_else(|| zalgo::filter_zalgo(message, filtering))
                 .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
+
+            // The ML pass is the expensive one, so it runs last and only when
+            // the cheaper deterministic filters found nothing.
+            if verdict.is_pass() {
+                verdict = toxic_classifier::filter_toxic_classifier(message, filtering, data).await;
+            }
         } else {
             debug!("message filtering config not found; skipping built-in static filters");
         }

@@ -58,6 +58,10 @@ feed-rs = "3.0.0"
 quick-xml = "0.42.0"
 sha1 = "0.11.0"
 
+ort = { version = "2.0.0-rc.15" }
+tokenizers = { version = "0.23" }
+hf-hub = { version = "1.0" }
+
 [lints.rust]
 missing_docs = "deny"
 

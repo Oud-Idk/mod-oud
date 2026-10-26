@@ -1,6 +1,8 @@
 use crate::core::config::settings::GuildSettings;
 use crate::core::config::state::{AppConfig, BotCaches, BotData, BotSecurity, CoreServices, Error};
-use crate::features::automod::{SafeBrowsingClient, SpamTracker};
+use crate::features::automod::{
+    SafeBrowsingClient, SpamTracker, ToxicClassifierJob, setup_toxic_ml, start_toxic_classifier_job,
+};
 use crate::features::bad_words::CompiledRuleset;
 use crate::features::birthday::start_birthday_worker;
 use crate::features::dynamic_slowmode::{
@@ -78,6 +80,12 @@ pub struct SetupParams<'a> {
 
     /// Total number of shards across the deployment.
     pub total_shards: u32,
+
+    /// Channel sender for querying toxic classification
+    pub toxic_classifier_tx: mpsc::Sender<ToxicClassifierJob>,
+
+    /// Channel receiver for receiving toxic classification
+    pub toxic_classifier_rx: mpsc::Receiver<ToxicClassifierJob>,
 }
 
 /// Initializes core bot state, hydrates local caches, and starts background worker tasks upon gateway login.
@@ -116,6 +124,8 @@ pub fn setup<'a>(
             ready,
             shard_index,
             total_shards,
+            toxic_classifier_tx,
+            toxic_classifier_rx,
         } = params;
 
         info!(bot = %ready.user.name, bot_id = %ready.user.id, "gateway logged in");
@@ -140,6 +150,7 @@ pub fn setup<'a>(
             ticket_rx,
             username_rx,
             reqwest_client: &reqwest_client,
+            toxic_classifier_rx,
         });
         info!(workers, "Ready: workers started");
 
@@ -192,6 +203,7 @@ pub fn setup<'a>(
                 id: ShardId(shard_index),
                 total: total_shards,
             },
+            toxic_classifier_tx,
             music_state,
         };
 
@@ -200,6 +212,7 @@ pub fn setup<'a>(
         }
 
         reconcile_slowmode(ctx, &data).await;
+        setup_toxic_ml();
 
         Ok(data)
     })
@@ -269,6 +282,9 @@ pub struct JobParams<'a> {
 
     /// Shared HTTP client for external feed fetches and hub subscriptions.
     pub reqwest_client: &'a reqwest::Client,
+
+    /// Channel receiver for receiving toxic classification
+    pub toxic_classifier_rx: mpsc::Receiver<ToxicClassifierJob>,
 }
 
 /// Spawns background worker tasks for tickets, moderation, level flushing, reminders, and feature
@@ -288,6 +304,7 @@ pub fn start_jobs(params: JobParams) -> usize {
         username_rx,
         username_tx,
         reqwest_client,
+        toxic_classifier_rx,
     } = params;
 
     let app_config = AppConfig::from_env();
@@ -331,6 +348,7 @@ pub fn start_jobs(params: JobParams) -> usize {
             app_config.domain,
             app_config.internal_api_secret,
         ),
+        start_toxic_classifier_job(toxic_classifier_rx),
     ]
     .len()
 }

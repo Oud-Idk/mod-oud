@@ -5,6 +5,7 @@ use serenity::all::Action;
 use serenity::model::id::ChannelId;
 use serenity::model::id::RoleId;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
 
 /// The severity level associated with flagged profanity or offensive content.
@@ -365,6 +366,92 @@ pub struct OffensiveMessagesRule {
     pub flag_threshold: FlagSeverity,
 }
 
+/// The categories the toxicity classifier scores, in model output order.
+pub const TOXIC_CATEGORIES: [&str; 7] = [
+    "toxicity",
+    "severe_toxicity",
+    "obscene",
+    "identity_attack",
+    "insult",
+    "threat",
+    "sexual_explicit",
+];
+
+/// Per-category confidence thresholds for the toxicity classifier.
+///
+/// A category flags a message when its score is at or above its threshold. A
+/// category left unset is not enforced, which lets a guild enable the rule
+/// without adopting every category.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ToxicityThresholds {
+    /// Threshold for the general toxicity score.
+    pub toxicity: Option<f32>,
+    /// Threshold for severe toxicity.
+    pub severe_toxicity: Option<f32>,
+    /// Threshold for obscene content.
+    pub obscene: Option<f32>,
+    /// Threshold for identity-based attacks.
+    pub identity_attack: Option<f32>,
+    /// Threshold for insults.
+    pub insult: Option<f32>,
+    /// Threshold for threats.
+    pub threat: Option<f32>,
+    /// Threshold for sexually explicit content.
+    pub sexual_explicit: Option<f32>,
+}
+
+impl ToxicityThresholds {
+    /// The threshold configured for `category`, or `None` when it is not enforced.
+    #[must_use]
+    pub fn get(&self, category: &str) -> Option<f32> {
+        match category {
+            "toxicity" => self.toxicity,
+            "severe_toxicity" => self.severe_toxicity,
+            "obscene" => self.obscene,
+            "identity_attack" => self.identity_attack,
+            "insult" => self.insult,
+            "threat" => self.threat,
+            "sexual_explicit" => self.sexual_explicit,
+            _ => None,
+        }
+    }
+}
+
+/// Configuration for the ML toxicity classifier.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToxicMessagesClassifierRule {
+    /// The common base rule settings.
+    #[serde(flatten)]
+    pub base: BaseRule,
+    /// Per-category probability thresholds. See [`ToxicityThresholds`].
+    #[serde(default)]
+    pub thresholds: ToxicityThresholds,
+}
+
+impl ToxicMessagesClassifierRule {
+    /// The categories whose score reached their configured threshold.
+    ///
+    /// Order follows [`TOXIC_CATEGORIES`], so the output is stable for logging
+    /// and for the trigger content shown to moderators.
+    #[must_use]
+    pub fn breached_categories(&self, scores: &HashMap<String, f32>) -> Vec<&'static str> {
+        TOXIC_CATEGORIES
+            .iter()
+            .copied()
+            .filter(|category| {
+                let Some(threshold) = self.thresholds.get(category) else {
+                    return false;
+                };
+                scores
+                    .get(*category)
+                    .is_some_and(|score| *score >= threshold)
+            })
+            .collect()
+    }
+}
+
 /// Rule configuration for detecting unauthorized Discord server invite links.
 pub type ServerInvitesRule = BaseRule;
 
@@ -402,8 +489,10 @@ pub struct MessageFilteringConfig {
     pub anti_spam: Option<AntiSpamRule>,
     /// Cross-channel duplicate spam filter configuration.
     pub cross_channel_spam: Option<CrossChannelSpamRule>,
-    /// Offensive language and profanity filter configuration.
+    /// Deterministic offensive language and profanity filter configuration.
     pub offensive_messages: Option<OffensiveMessagesRule>,
+    /// ML toxicity classifier configuration.
+    pub toxic_message_classifier: Option<ToxicMessagesClassifierRule>,
     /// Cryptocurrency address filter configuration.
     pub crypto_address: Option<CryptoAddressRule>,
     /// Global scoping exemptions or enforcements applied across all rules.
@@ -453,7 +542,8 @@ impl_has_base!(
     AntiSpamRule,
     CrossChannelSpamRule,
     ExternalLinksRule,
-    OffensiveMessagesRule
+    OffensiveMessagesRule,
+    ToxicMessagesClassifierRule
 );
 
 /// Actions that are recorded in moderation audit logs.
@@ -522,4 +612,126 @@ pub struct HoneypotConfig {
 
     /// Duration in seconds for any temporary punitive action applied.
     pub duration: Option<u64>,
+}
+
+#[cfg(test)]
+mod toxic_threshold_tests {
+    use super::{
+        BaseRule, RuleScope, TOXIC_CATEGORIES, ToxicMessagesClassifierRule, ToxicityThresholds,
+    };
+    use std::collections::HashMap;
+
+    fn scores(entries: &[(&str, f32)]) -> HashMap<String, f32> {
+        entries
+            .iter()
+            .map(|(label, score)| ((*label).to_string(), *score))
+            .collect()
+    }
+
+    fn rule(thresholds: ToxicityThresholds) -> ToxicMessagesClassifierRule {
+        ToxicMessagesClassifierRule {
+            base: BaseRule {
+                enabled: true,
+                action: vec![],
+                timeout_duration_seconds: None,
+                scope: RuleScope::default(),
+            },
+            thresholds,
+        }
+    }
+
+    #[test]
+    fn only_configured_categories_can_breach() {
+        let rule = rule(ToxicityThresholds {
+            toxicity: Some(0.8),
+            ..Default::default()
+        });
+
+        let breached = rule.breached_categories(&scores(&[
+            ("toxicity", 0.9),
+            ("threat", 1.0),
+            ("insult", 1.0),
+        ]));
+
+        assert_eq!(breached, vec!["toxicity"]);
+    }
+
+    #[test]
+    fn score_at_the_threshold_breaches() {
+        let rule = rule(ToxicityThresholds {
+            obscene: Some(0.5),
+            ..Default::default()
+        });
+
+        assert_eq!(
+            rule.breached_categories(&scores(&[("obscene", 0.5)])),
+            vec!["obscene"]
+        );
+    }
+
+    #[test]
+    fn score_below_the_threshold_passes() {
+        let rule = rule(ToxicityThresholds {
+            obscene: Some(0.5),
+            ..Default::default()
+        });
+
+        assert_eq!(
+            rule.breached_categories(&scores(&[("obscene", 0.499)])),
+            Vec::<&str>::new()
+        );
+    }
+
+    #[test]
+    fn missing_score_does_not_breach() {
+        let rule = rule(ToxicityThresholds {
+            threat: Some(0.1),
+            ..Default::default()
+        });
+
+        assert_eq!(rule.breached_categories(&scores(&[])), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn breached_categories_follow_model_order() {
+        let rule = rule(ToxicityThresholds {
+            toxicity: Some(0.1),
+            severe_toxicity: Some(0.1),
+            obscene: Some(0.1),
+            identity_attack: Some(0.1),
+            insult: Some(0.1),
+            threat: Some(0.1),
+            sexual_explicit: Some(0.1),
+        });
+
+        let breached = rule.breached_categories(&scores(&[
+            ("sexual_explicit", 1.0),
+            ("threat", 1.0),
+            ("insult", 1.0),
+            ("identity_attack", 1.0),
+            ("obscene", 1.0),
+            ("severe_toxicity", 1.0),
+            ("toxicity", 1.0),
+        ]));
+
+        assert_eq!(breached, TOXIC_CATEGORIES);
+    }
+
+    #[test]
+    fn unknown_category_has_no_threshold() {
+        assert_eq!(ToxicityThresholds::default().get("not_a_category"), None);
+    }
+
+    #[test]
+    fn thresholds_deserialize_from_camel_case() {
+        let thresholds: ToxicityThresholds = serde_json::from_str(
+            r#"{"severeToxicity":0.4,"identityAttack":0.6,"sexualExplicit":0.7}"#,
+        )
+        .expect("camelCase thresholds should deserialize");
+
+        assert_eq!(thresholds.severe_toxicity, Some(0.4));
+        assert_eq!(thresholds.identity_attack, Some(0.6));
+        assert_eq!(thresholds.sexual_explicit, Some(0.7));
+        assert_eq!(thresholds.toxicity, None);
+    }
 }
