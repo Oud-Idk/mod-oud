@@ -141,7 +141,7 @@ pub fn setup_toxic_ml() {
         return;
     }
 
-    tokio::spawn(async move {
+    task::spawn("toxic_classifier_setup", async move {
         info!("downloading RoBERTa model...");
 
         let client = match HFClient::new() {
