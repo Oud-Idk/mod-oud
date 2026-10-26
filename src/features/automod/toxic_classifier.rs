@@ -116,16 +116,25 @@ async fn toxic_classifier_job(mut rx: mpsc::Receiver<ToxicClassifierJob>) {
     info!("toxic classifier worker started");
 
     while let Some(job) = rx.recv().await {
-        if let Some(c) = CLASSIFIER.get() {
-            let prediction = c.predict(job.text.as_str()).map_err(|e| e.to_string());
-            let _ = job.respond_to.send(prediction);
-        } else {
+        let Some(c) = CLASSIFIER.get() else {
             error!(
                 fault = "classifier not loaded",
                 "toxic classifier not yet set up"
             );
             let _ = job.respond_to.send(Err("Model not yet loaded".to_string()));
-        }
+            continue;
+        };
+
+        // RoBERTa inference is CPU-bound: off the async worker, or it stalls the executor.
+        let text = job.text;
+        let prediction = match tokio::task::spawn_blocking(move || c.predict(&text)).await {
+            Ok(result) => result.map_err(|e| e.to_string()),
+            Err(e) => {
+                error!(error = %e, "toxic classification task failed");
+                Err("classification task failed".to_string())
+            }
+        };
+        let _ = job.respond_to.send(prediction);
     }
 }
 
