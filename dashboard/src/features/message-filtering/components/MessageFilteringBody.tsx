@@ -4,6 +4,7 @@ import { TabItem, Tabs } from "@/components/layout/Tabs";
 import { JSX, useMemo, useState, useCallback } from "react";
 import { SavePopup } from "@/components/dashboard/SavePopup";
 import { OffensiveMessagesTab } from "@/features/message-filtering/components/Tabs/OffensiveMessagesTab";
+import { ToxicMessagesTab } from "@/features/message-filtering/components/Tabs/ToxicMessagesTab";
 import { ServerInvitesTab } from "@/features/message-filtering/components/Tabs/ServerInvitesTab";
 import { ExternalURLsTab, ExternalURLsTabProps } from "@/features/message-filtering/components/Tabs/ExternalURLsTab";
 import { ExcessiveCapsTab } from "@/features/message-filtering/components/Tabs/ExcessiveCapsTab";
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 type TabValue =
     | "BAD_WORDS"
     | "OFFENSIVE_MESSAGES"
+    | "TOXIC_MESSAGES"
     | "SERVER_INVITES"
     | "EXTERNAL_LINKS"
     | "EXCESSIVE_CAPS"
@@ -43,6 +45,7 @@ type TabValue =
 const FILTERING_TABS: TabItem<TabValue>[] = [
     { value: "BAD_WORDS", label: "Bad Words" },
     { value: "OFFENSIVE_MESSAGES", label: "Offensive Messages" },
+    { value: "TOXIC_MESSAGES", label: "Toxic Messages" },
     { value: "SERVER_INVITES", label: "External Server Invites" },
     { value: "EXTERNAL_LINKS", label: "External URLs" },
     { value: "EXCESSIVE_CAPS", label: "Excessive Caps" },
@@ -60,6 +63,7 @@ type TabSignature = ({ config, handleChange, channelMap, roleMap }: ExternalURLs
 
 const TAB_MAP: Record<Exclude<TabValue, "BAD_WORDS">, TabSignature> = {
     OFFENSIVE_MESSAGES: OffensiveMessagesTab,
+    TOXIC_MESSAGES: ToxicMessagesTab,
     SERVER_INVITES: ServerInvitesTab,
     EXTERNAL_LINKS: ExternalURLsTab,
     EXCESSIVE_CAPS: ExcessiveCapsTab,

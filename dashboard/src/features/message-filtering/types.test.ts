@@ -13,6 +13,8 @@ import {
     priorCopiesSchema,
     crossChannelSpamRuleSchema,
     externalLinksRuleSchema,
+    toxicMessagesClassifierSchema,
+    toxicityThresholdsSchema,
 } from "./types";
 
 describe("messageFilteringConfigSchema", () => {
@@ -29,6 +31,8 @@ describe("messageFilteringConfigSchema", () => {
         expect(parsed.antiSpam.messagesPerWindow).toBe(8);
         expect(parsed.antiSpam.windowSeconds).toBe(5);
         expect(parsed.offensiveMessages.flagThreshold).toBe("MODERATE");
+        expect(parsed.toxicMessageClassifier.enabled).toBe(false);
+        expect(parsed.toxicMessageClassifier.thresholds).toEqual({});
         expect(parsed.globalSettings.mode).toBe("EXEMPT");
         expect(defaultMessageFilteringConfig).toEqual(parsed);
     });
@@ -242,5 +246,34 @@ describe("externalLinksRuleSchema", () => {
         const parsed = externalLinksRuleSchema.parse({ mode: "ALLOWLIST" });
         expect(parsed.allowedDomains).toEqual([]);
         expect(parsed.blockedDomains).toEqual([]);
+    });
+});
+
+describe("toxicMessagesClassifierSchema", () => {
+    it("should default thresholds to an empty object", () => {
+        expect(toxicMessagesClassifierSchema.parse({}).thresholds).toEqual({});
+    });
+
+    it("should accept per-category thresholds in camelCase", () => {
+        const parsed = toxicityThresholdsSchema.parse({
+            toxicity: 0.9,
+            severeToxicity: 0.5,
+            identityAttack: 0.7,
+        });
+
+        expect(parsed.toxicity).toBe(0.9);
+        expect(parsed.severeToxicity).toBe(0.5);
+        expect(parsed.identityAttack).toBe(0.7);
+        expect(parsed.insult).toBeUndefined();
+    });
+
+    it("should accept null to mean a category is not enforced", () => {
+        const parsed = toxicityThresholdsSchema.parse({ threat: null });
+        expect(parsed.threat).toBeNull();
+    });
+
+    it("should REJECT thresholds outside the 0 to 1 range", () => {
+        expect(toxicityThresholdsSchema.safeParse({ toxicity: 1.5 }).success).toBe(false);
+        expect(toxicityThresholdsSchema.safeParse({ toxicity: -0.1 }).success).toBe(false);
     });
 });

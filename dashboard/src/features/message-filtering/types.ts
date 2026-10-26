@@ -82,6 +82,22 @@ export const offensiveMessagesSchema = baseRuleSchema.extend({
     flagThreshold: flagThresholdSchema,
 });
 
+// A category with no threshold is not enforced, so the keys stay nullish
+// rather than defaulting to a number.
+export const toxicityThresholdsSchema = z.object({
+    toxicity: z.number().min(0).max(1).nullish(),
+    severeToxicity: z.number().min(0).max(1).nullish(),
+    obscene: z.number().min(0).max(1).nullish(),
+    identityAttack: z.number().min(0).max(1).nullish(),
+    insult: z.number().min(0).max(1).nullish(),
+    threat: z.number().min(0).max(1).nullish(),
+    sexualExplicit: z.number().min(0).max(1).nullish(),
+});
+
+export const toxicMessagesClassifierSchema = baseRuleSchema.extend({
+    thresholds: toxicityThresholdsSchema.default(toxicityThresholdsSchema.parse({})),
+});
+
 export const serverInvitesRuleSchema = baseRuleSchema;
 export const zalgoRuleSchema = baseRuleSchema;
 export const cryptoAddressRuleSchema = baseRuleSchema;
@@ -98,6 +114,7 @@ export const messageFilteringConfigSchema = z.object({
     antiSpam: antiSpamRuleSchema.default(antiSpamRuleSchema.parse({})),
     crossChannelSpam: crossChannelSpamRuleSchema.default(crossChannelSpamRuleSchema.parse({})),
     offensiveMessages: offensiveMessagesSchema.default(offensiveMessagesSchema.parse({})),
+    toxicMessageClassifier: toxicMessagesClassifierSchema.default(toxicMessagesClassifierSchema.parse({})),
     cryptoAddress: cryptoAddressRuleSchema.default(cryptoAddressRuleSchema.parse({})),
     globalSettings: scopeSchema.default(scopeSchema.parse({})),
 });
@@ -143,6 +160,9 @@ export type CrossChannelSpamRule = z.infer<typeof crossChannelSpamRuleSchema>;
 export type PriorCopies = z.infer<typeof priorCopiesSchema>;
 export type ExternalLinksRule = z.infer<typeof externalLinksRuleSchema>;
 export type OffensiveMessages = z.infer<typeof offensiveMessagesSchema>;
+export type ToxicityThresholds = z.infer<typeof toxicityThresholdsSchema>;
+export type ToxicityCategoryKey = keyof ToxicityThresholds;
+export type ToxicMessagesClassifier = z.infer<typeof toxicMessagesClassifierSchema>;
 export type ServerInvitesRule = z.infer<typeof serverInvitesRuleSchema>;
 export type ZalgoRule = z.infer<typeof zalgoRuleSchema>;
 export type CryptoAddress = z.infer<typeof cryptoAddressRuleSchema>;
