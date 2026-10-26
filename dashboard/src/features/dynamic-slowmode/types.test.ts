@@ -67,6 +67,14 @@ describe("saveDynamicSlowmodeConfigSchema", () => {
         });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            // Code and path attribute the issue to the channels field.
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].path).toEqual(["channels"]);
+            expect(result.error.issues[0].message).toBe(
+                "Add at least one channel before enabling dynamic slowmode."
+            );
+        }
     });
 
     it("should allow a disabled config with no channels", () => {
@@ -80,6 +88,13 @@ describe("saveDynamicSlowmodeConfigSchema", () => {
         });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues[0].code).toBe("custom");
+            expect(result.error.issues[0].path).toEqual(["ceilingSecs"]);
+            expect(result.error.issues[0].message).toBe(
+                "The ceiling must be one of the ladder values."
+            );
+        }
     });
 
     it("should accept every ladder rung above zero as a ceiling", () => {

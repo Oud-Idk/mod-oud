@@ -60,21 +60,48 @@ describe("Dynamic Slowmode Server Actions", () => {
         expect(saveDynamicSlowmodeConfig).not.toHaveBeenCalled();
     });
 
-    it("should refuse to enable with no channels", async () => {
+    // Exact messages, not substrings: a ZodError is itself an Error, so the fallback
+    // throw still carries the text of every issue.
+    it("should surface the first issue when enabling with no channels", async () => {
         vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
         await expect(
             saveDynamicSlowmodeConfigAction("guild_123", { ...CONFIG, channels: [] })
-        ).rejects.toThrow("Add at least one channel before enabling dynamic slowmode.");
+        ).rejects.toThrow(
+            new Error("Add at least one channel before enabling dynamic slowmode.")
+        );
         expect(saveDynamicSlowmodeConfig).not.toHaveBeenCalled();
     });
 
-    it("should refuse a ceiling that is not a ladder rung", async () => {
+    it("should surface the first issue when the ceiling is not a ladder rung", async () => {
         vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
 
         await expect(
             saveDynamicSlowmodeConfigAction("guild_123", { ...CONFIG, ceilingSecs: 45 })
-        ).rejects.toThrow("The ceiling must be one of the ladder values.");
+        ).rejects.toThrow(new Error("The ceiling must be one of the ladder values."));
+        expect(saveDynamicSlowmodeConfig).not.toHaveBeenCalled();
+    });
+
+    it("should report the channels issue first when several fields are invalid", async () => {
+        vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+
+        await expect(
+            saveDynamicSlowmodeConfigAction("guild_123", {
+                ...CONFIG,
+                channels: [],
+                ceilingSecs: 45,
+            })
+        ).rejects.toThrow(
+            new Error("Add at least one channel before enabling dynamic slowmode.")
+        );
+    });
+
+    it("should fall back to a generic message when the failure is not an Error", async () => {
+        vi.mocked(verifyGuildAccess).mockRejectedValue("access check exploded");
+
+        await expect(saveDynamicSlowmodeConfigAction("guild_123", CONFIG)).rejects.toThrow(
+            new Error("Could not save configuration.")
+        );
         expect(saveDynamicSlowmodeConfig).not.toHaveBeenCalled();
     });
 
