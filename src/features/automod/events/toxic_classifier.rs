@@ -33,22 +33,22 @@ pub async fn filter_toxic_classifier<'a>(
         text,
         respond_to: reply_tx,
     }) {
-        warn!(%e, "toxic classifier queue unavailable, skipping classification");
+        warn!(error = %e, "toxic classifier queue unavailable, skipping classification");
         return FilterVerdict::Pass;
     }
 
     let scores = match tokio::time::timeout(CLASSIFICATION_REPLY_TIMEOUT, reply_rx).await {
         Ok(Ok(Ok(scores))) => scores,
         Ok(Ok(Err(e))) => {
-            error!(%e, "classifying text");
+            error!(error = %e, "toxic classification failed");
             return FilterVerdict::Pass;
         }
         Ok(Err(e)) => {
-            error!(%e, "receiving reply from worker");
+            error!(error = %e, "toxic classifier reply dropped");
             return FilterVerdict::Pass;
         }
         Err(_) => {
-            warn!(content = %message.content, "toxic classifier timed out");
+            warn!("toxic classifier timed out");
             return FilterVerdict::Pass;
         }
     };

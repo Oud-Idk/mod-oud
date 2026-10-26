@@ -120,7 +120,10 @@ async fn toxic_classifier_job(mut rx: mpsc::Receiver<ToxicClassifierJob>) {
             let prediction = c.predict(job.text.as_str()).map_err(|e| e.to_string());
             let _ = job.respond_to.send(prediction);
         } else {
-            error!("toxic classifier not yet set up");
+            error!(
+                fault = "classifier not loaded",
+                "toxic classifier not yet set up"
+            );
             let _ = job.respond_to.send(Err("Model not yet loaded".to_string()));
         }
     }
@@ -144,7 +147,7 @@ pub fn setup_toxic_ml() {
         let client = match HFClient::new() {
             Ok(c) => c,
             Err(e) => {
-                error!(%e, "failed to create HF client");
+                error!(error = %e, "hf client creation failed");
                 return;
             }
         };
@@ -164,7 +167,7 @@ pub fn setup_toxic_ml() {
         let (model_path, tokenizer_path) = match (model_res, tokenizer_res) {
             (Ok(m), Ok(t)) => (m, t),
             (Err(e), _) | (_, Err(e)) => {
-                error!(%e, "download failed");
+                error!(error = %e, "model download failed");
                 return;
             }
         };
@@ -176,7 +179,7 @@ pub fn setup_toxic_ml() {
         {
             Ok(result) => result,
             Err(e) => {
-                error!(%e, "model load task failed");
+                error!(error = %e, "model load task failed");
                 return;
             }
         };
@@ -184,12 +187,15 @@ pub fn setup_toxic_ml() {
         match classifier {
             Ok(c) => {
                 if CLASSIFIER.set(c).is_err() {
-                    error!("classifier was already set (impossible)");
+                    error!(
+                        fault = "classifier already set",
+                        "toxic classifier initialized twice"
+                    );
                 } else {
                     info!("model loaded into memory safely");
                 }
             }
-            Err(e) => error!(%e, "failed to init ONNX"),
+            Err(e) => error!(error = %e, "ONNX model init failed"),
         }
     });
 }
