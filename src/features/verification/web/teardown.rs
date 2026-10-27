@@ -10,6 +10,14 @@ use serenity::all::{ChannelId, EditRole, GuildId, Permissions, RoleId};
 use std::sync::Arc;
 use tracing::{debug, warn};
 
+/// Outcome of proving the verification channel belongs to the authorized guild.
+enum ChannelCheck {
+    Owned,
+    Foreign,
+    /// The lookup itself failed, which is retryable and must not be reported as a refusal.
+    LookupFailed,
+}
+
 #[serde_as]
 #[derive(Deserialize, Clone, Debug)]
 pub struct TeardownVerificationRequest {
@@ -33,31 +41,40 @@ pub async fn handle_verification_teardown(
 
     // Both targets arrive in the body. The channel check is mandatory: deleting a channel is
     // destructive and there is no way to undo it.
-    let channel_owned = match channel_in_guild(http, channel_id, guild_id).await {
-        Ok(owned) => owned,
+    let channel_check = match channel_in_guild(http, channel_id, guild_id).await {
+        Ok(true) => ChannelCheck::Owned,
+        Ok(false) => ChannelCheck::Foreign,
         Err(e) if error::is_not_found_error(&e) => {
             debug!(%guild_id, %channel_id, "verification channel already gone during teardown");
-            true
+            ChannelCheck::Owned
         }
         Err(e) => {
             warn!(error = ?e, %guild_id, %channel_id, "verification channel lookup failed during teardown");
-            false
+            ChannelCheck::LookupFailed
         }
     };
 
-    if channel_owned
-        && let Err(e) = channel_id.delete(http).await
-        && !is_not_found_error(&e)
-    {
-        warn!(error = ?e, %channel_id, "verification channel not deleted during teardown");
-        execution_errors.push("Failed to delete verification channel".to_string());
-    } else if !channel_owned {
-        warn!(
-            %guild_id,
-            %channel_id,
-            "verification channel not deleted; it does not belong to this guild"
-        );
-        execution_errors.push("Verification channel does not belong to this server".to_string());
+    match channel_check {
+        ChannelCheck::Owned => {
+            if let Err(e) = channel_id.delete(http).await
+                && !is_not_found_error(&e)
+            {
+                warn!(error = ?e, %channel_id, "verification channel not deleted during teardown");
+                execution_errors.push("Failed to delete verification channel".to_string());
+            }
+        }
+        ChannelCheck::Foreign => {
+            warn!(
+                %guild_id,
+                %channel_id,
+                "verification channel not deleted; it does not belong to this guild"
+            );
+            execution_errors
+                .push("Verification channel does not belong to this server".to_string());
+        }
+        ChannelCheck::LookupFailed => {
+            execution_errors.push("Failed to look up the verification channel".to_string());
+        }
     }
 
     if let Err(e) = guild_id.delete_role(http, role_id).await
