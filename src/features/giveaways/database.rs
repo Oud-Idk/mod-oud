@@ -83,20 +83,60 @@ pub async fn clear_giveaway_message_id(
     Ok(())
 }
 
-/// Used by the background task scheduler to fetch all active giveaways that have reached their end time
-pub async fn fetch_expired_giveaways(pool: &PgPool) -> Result<Vec<Giveaway>, sqlx::Error> {
+/// Used by the background task scheduler to fetch all active giveaways that have reached their end time.
+///
+/// The layout is read as raw JSON and decoded per row by the caller. Decoding here would let one
+/// malformed record fail the whole sweep, so every guild's giveaways would stop ending.
+pub async fn fetch_expired_giveaways(
+    pool: &PgPool,
+) -> Result<Vec<RawExpiredGiveaway>, sqlx::Error> {
     sqlx::query_as!(
-        Giveaway,
+        RawExpiredGiveaway,
         r#"
         SELECT id, guild_id, host_id, channel_id, message_id, prize, winner_count,
                end_time, is_finished,
-               message_layout AS "message!: Json<MessageLayout>"
+               message_layout AS "message_layout: Json<serde_json::Value>"
         FROM giveaways
         WHERE end_time <= NOW() AND is_finished = FALSE AND message_id IS NOT NULL
         "#
     )
     .fetch_all(pool)
     .await
+}
+
+/// A giveaway whose message layout has not been decoded yet.
+#[derive(Debug, sqlx::FromRow)]
+pub struct RawExpiredGiveaway {
+    pub id: i64,
+    pub guild_id: i64,
+    pub host_id: i64,
+    pub channel_id: Option<i64>,
+    pub message_id: Option<i64>,
+    pub prize: String,
+    pub winner_count: i32,
+    pub end_time: DateTime<Utc>,
+    pub is_finished: bool,
+    pub message_layout: Json<serde_json::Value>,
+}
+
+impl RawExpiredGiveaway {
+    /// Decodes the stored layout, returning `None` when the row cannot be rendered.
+    #[must_use]
+    pub fn giveaway(&self) -> Option<Giveaway> {
+        let message = serde_json::from_value(self.message_layout.0.clone()).ok()?;
+        Some(Giveaway {
+            id: self.id,
+            guild_id: self.guild_id,
+            host_id: self.host_id,
+            channel_id: self.channel_id,
+            message_id: self.message_id,
+            prize: self.prize.clone(),
+            winner_count: self.winner_count,
+            end_time: self.end_time,
+            is_finished: self.is_finished,
+            message: Json(message),
+        })
+    }
 }
 
 /// Marks a giveaway as finished in the DB after picking winners

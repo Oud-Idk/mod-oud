@@ -3,7 +3,6 @@ import { getTicketConfig, saveTicketConfig } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { TicketConfig } from "@/features/tickets/types";
 
-const GUILD_A = "123456789012345678";
 
 // Row mapping, SQL shape and the JSONB round trip live in
 // queries.integration.test.ts against a real database. What stays here is a
