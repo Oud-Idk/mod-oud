@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { verifyGuildAccess } from "@/features/_shared/guild";
+import { getGuildChannels } from "@/features/_shared/channels";
 import { deleteReminder, saveReminder } from "./queries";
 import { saveableReminderSchema, type ReminderRow, type SaveableReminderInput } from "./types";
 
@@ -14,6 +15,19 @@ export async function saveReminderAction(
         await verifyGuildAccess(guildId);
 
         const validatedInput = saveableReminderSchema.parse(rawReminder);
+
+        // The worker sends to this channel with the bot's credentials, so it has to belong to the
+        // guild that was authorized. Without this a manager could post into another guild.
+        const guildChannelIds = new Set(
+            (await getGuildChannels(guildId)).map((channel) => channel.id)
+        );
+        if (guildChannelIds.size === 0) {
+            throw new Error("Could not read this server's channels. Try again.");
+        }
+        if (validatedInput.channelId === null || !guildChannelIds.has(validatedInput.channelId)) {
+            throw new Error("That channel does not belong to this server.");
+        }
+
         const savedRow = await saveReminder(guildId, validatedInput);
 
         revalidatePath(`/dashboard/${guildId}/reminders`);

@@ -92,11 +92,18 @@ pub async fn restore_preraid_state(
         return Ok(false);
     };
 
-    let snapshot: PreRaidState = serde_json::from_str(&json_str).inspect_err(|e| {
-        // A snapshot that cannot be parsed never will be, so it must not block every future
-        // raid end for this guild.
-        error!(error = ?e, %guild_id, "pre-raid snapshot unreadable; dropping it");
-    })?;
+    let snapshot: PreRaidState = match serde_json::from_str(&json_str) {
+        Ok(snapshot) => snapshot,
+        Err(e) => {
+            // This snapshot will never parse, so it must not block every later raid end for the
+            // guild. Drop it and let the caller reconcile in its own way.
+            error!(error = ?e, %guild_id, "pre-raid snapshot unreadable; discarding it");
+            if let Err(e) = cache::delete_preraid_snapshot(&data.core.redis, guild_id).await {
+                warn!(error = ?e, %guild_id, "unreadable pre-raid snapshot not discarded");
+            }
+            return Ok(false);
+        }
+    };
 
     let everyone_role_id = RoleId::new(guild_id.get());
     let original_perms = Permissions::from_bits_truncate(snapshot.original_everyone_permissions);

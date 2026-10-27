@@ -3,11 +3,16 @@ import { z } from "zod";
 import { saveReminderAction, deleteReminderAction } from "./actions";
 import { deleteReminder, saveReminder } from "./queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
+import { getGuildChannels } from "@/features/_shared/channels";
 import { revalidatePath } from "next/cache";
 import type { ReminderRow, SaveableReminderInput } from "./types";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
+}));
+
+vi.mock("@/features/_shared/channels", () => ({
+    getGuildChannels: vi.fn<() => Promise<{ id: string; name: string; type: number }[]>>(),
 }));
 
 vi.mock("./queries", () => ({
@@ -49,6 +54,10 @@ const mockUser: Awaited<ReturnType<typeof verifyGuildAccess>> = {
 describe("Reminders Action Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
+        // The guild owns the channel the fixtures use.
+        vi.mocked(getGuildChannels).mockResolvedValue([
+            { id: "123456789", name: "general", type: 0 },
+        ]);
         vi.spyOn(console, "error").mockImplementation(() => undefined);
     });
 
@@ -57,6 +66,25 @@ describe("Reminders Action Module", () => {
     });
 
     describe("saveReminderAction", () => {
+        it("should REJECT a channel that belongs to another guild", async () => {
+            // The worker sends with the bot's credentials, so a foreign channel would post there.
+            await expect(
+                saveReminderAction("guild_123", { ...validInput, channelId: "987654321" })
+            ).rejects.toThrow("That channel does not belong to this server.");
+
+            expect(saveReminder).not.toHaveBeenCalled();
+        });
+
+        it("should refuse to save when the channel lookup returns nothing", async () => {
+            vi.mocked(getGuildChannels).mockResolvedValue([]);
+
+            await expect(saveReminderAction("guild_123", validInput)).rejects.toThrow(
+                "Could not read this server's channels. Try again."
+            );
+
+            expect(saveReminder).not.toHaveBeenCalled();
+        });
+
         it("should verify access, save the reminder, and revalidate the path", async () => {
             const saved = reminderRowFixture();
             vi.mocked(saveReminder).mockResolvedValue(saved);

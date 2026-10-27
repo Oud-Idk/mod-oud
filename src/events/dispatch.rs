@@ -222,7 +222,12 @@ async fn dispatch_inner(ctx: &serenity::Context, event: &FullEvent, data: &BotDa
             )
             .await?;
 
-            if let Some(edited) = new.as_ref() {
+            // Discord also sends MESSAGE_UPDATE when it unfurls a link, which is not an author edit.
+            // Running the content checks for those would double-count the message towards spam
+            // limits, so only real edits are re-evaluated.
+            if let Some(edited) = new.as_ref()
+                && edited.edited_timestamp.is_some()
+            {
                 on_message_edit(ctx, data, edited).await?;
             }
         }

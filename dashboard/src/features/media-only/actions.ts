@@ -24,7 +24,9 @@ export async function saveMediaOnlyChannelsAction(
         const channels = rawChannels.map((c) => mediaOnlyChannelSchema.parse(c));
 
         // The bot enforces these rules by channel ID alone, so a foreign ID would let this
-        // guild's manager delete messages in a channel they cannot manage.
+        // guild's manager delete messages in a channel they cannot manage. Only the channels that
+        // remain need checking: a removal cannot act on anything, and a channel deleted on Discord
+        // is gone from the list, so requiring it would make its config impossible to clean up.
         const guildChannelIds = new Set(
             (await getGuildChannels(guildId)).map((channel) => channel.id)
         );
@@ -32,10 +34,7 @@ export async function saveMediaOnlyChannelsAction(
             // The lookup returns an empty list on failure, so an empty set proves nothing.
             throw new Error("Could not read this server's channels. Try again.");
         }
-        for (const channelId of [
-            ...channels.map((c) => c.channelId),
-            ...removedChannelIds,
-        ]) {
+        for (const channelId of channels.map((c) => c.channelId)) {
             if (!guildChannelIds.has(channelId)) {
                 throw new Error("Those channels do not belong to this server.");
             }

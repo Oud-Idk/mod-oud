@@ -39,6 +39,10 @@ pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
             info!(%guild_id, "raid no longer active");
             attempts += 1;
 
+            if attempts > 1 {
+                info!(%guild_id, attempt = attempts, "retrying raid end cleanup");
+            }
+
             match handle_raid_end(&ctx, &data, guild_id).await {
                 Ok(()) => break,
                 Err(e) => {

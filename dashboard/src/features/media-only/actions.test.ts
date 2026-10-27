@@ -101,14 +101,19 @@ describe("Media-Only Server Actions", (): void => {
             expect(redis.del).not.toHaveBeenCalled();
         });
 
-        it("should REJECT a removed channel that belongs to another guild", async (): Promise<void> => {
+        it("should allow removing a channel that no longer exists on Discord", async (): Promise<void> => {
+            // A deleted channel is absent from the guild list; refusing its removal would make the
+            // stale config impossible to clean up.
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(saveMediaOnlyChannels).mockResolvedValue(undefined);
 
-            await expect(
-                saveMediaOnlyChannelsAction("guild_123", [], ["chan_foreign"])
-            ).rejects.toThrow(new Error("Those channels do not belong to this server."));
+            await saveMediaOnlyChannelsAction("guild_123", [], ["chan_deleted_on_discord"]);
 
-            expect(saveMediaOnlyChannels).not.toHaveBeenCalled();
+            expect(saveMediaOnlyChannels).toHaveBeenCalledWith(
+                "guild_123",
+                [],
+                ["chan_deleted_on_discord"]
+            );
         });
 
         it("should refuse to save when the channel lookup returns nothing", async (): Promise<void> => {
