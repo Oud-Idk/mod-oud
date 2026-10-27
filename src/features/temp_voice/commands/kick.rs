@@ -12,12 +12,12 @@ pub async fn kick(
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let Some((_, guild_id, _)) = preflight_slash_check(&ctx).await? else {
+    let Some((channel_id, guild_id, _)) = preflight_slash_check(&ctx).await? else {
         return Ok(());
     };
 
     let response_message =
-        service::kick_user_by_id(&ctx.serenity_context().http, guild_id, target.id).await?;
+        service::kick_user_by_id(ctx.serenity_context(), guild_id, channel_id, target.id).await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

@@ -36,10 +36,7 @@ impl ReminderRecord {
     #[must_use]
     pub fn serenity_channel_id(&self) -> Option<ChannelId> {
         let id = u64::try_from(self.channel_id).ok()?;
-        match NonZeroU64::new(id) {
-            Some(id) => Some(ChannelId::new(id.get())),
-            None => None,
-        }
+        NonZeroU64::new(id).map(|id| ChannelId::new(id.get()))
     }
 
     /// Parses the optional timezone string into a strongly-typed `chrono_tz::Tz`.
@@ -92,6 +89,6 @@ mod tests {
     #[test]
     fn valid_channel_id_is_converted() {
         let channel_id = record_with_channel(42).serenity_channel_id();
-        assert_eq!(channel_id.map(|id| id.get()), Some(42));
+        assert_eq!(channel_id.map(ChannelId::get), Some(42));
     }
 }
