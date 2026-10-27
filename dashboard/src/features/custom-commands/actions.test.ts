@@ -67,7 +67,7 @@ describe("Custom Commands Server Actions", (): void => {
             await saveCustomCommandAction("guild_123", validCommand);
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
-            expect(saveCustomCommand).toHaveBeenCalledWith(validCommand);
+            expect(saveCustomCommand).toHaveBeenCalledWith("guild_123", validCommand);
             expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123", "cmd:guild_123:testcmd");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/custom-commands");
         });

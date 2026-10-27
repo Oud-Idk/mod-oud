@@ -9,7 +9,7 @@ import {
 const GUILD_A = "123456789012345678";
 const GUILD_B = "987654321098765432";
 
-type SaveCommandInput = Parameters<typeof saveCustomCommand>[0];
+type SaveCommandInput = Parameters<typeof saveCustomCommand>[1];
 
 function validCommand(overrides: Partial<SaveCommandInput> = {}): SaveCommandInput {
     return {
@@ -37,6 +37,7 @@ describe("custom commands against a real database", () => {
 
     it("maps a row with its roles, channels and actions", async () => {
         await saveCustomCommand(
+            GUILD_A,
             validCommand({
                 name: "ping",
                 trigger_anywhere: true,
@@ -68,7 +69,7 @@ describe("custom commands against a real database", () => {
     });
 
     it("stores a missing description as null", async () => {
-        const saved = await saveCustomCommand(validCommand({ description: undefined }));
+        const saved = await saveCustomCommand(GUILD_A, validCommand({ description: undefined }));
 
         const { rows } = await db.query<{ description: string | null }>(
             "SELECT description FROM custom_commands WHERE id = $1",
@@ -81,17 +82,28 @@ describe("custom commands against a real database", () => {
         expect((await getCustomCommands(GUILD_A))[0].description).toBe("");
     });
 
-    it("scopes commands to the guild", async () => {
-        await saveCustomCommand(validCommand({ name: "own" }));
-        await saveCustomCommand({ ...validCommand({ name: "theirs" }), guild_id: GUILD_B });
+    it("scopes commands to the guild the caller was authorized for", async () => {
+        await saveCustomCommand(GUILD_A, validCommand({ name: "own" }));
+        await saveCustomCommand(GUILD_B, validCommand({ name: "theirs" }));
 
         expect(await getCustomCommands(GUILD_A)).toHaveLength(1);
         expect(await getCustomCommands(GUILD_B)).toHaveLength(1);
     });
 
+    it("ignores a guild_id in the payload", async () => {
+        // The tenant comes from the authorized argument, never from the submitted record.
+        const saved = await saveCustomCommand(
+            GUILD_A,
+            { ...validCommand({ name: "smuggled" }), guild_id: GUILD_B }
+        );
+
+        expect(saved.guild_id).toBe(GUILD_A);
+        expect(await getCustomCommands(GUILD_B)).toHaveLength(0);
+    });
+
     it("orders by id descending", async () => {
-        await saveCustomCommand(validCommand({ name: "first" }));
-        await saveCustomCommand(validCommand({ name: "second" }));
+        await saveCustomCommand(GUILD_A, validCommand({ name: "first" }));
+        await saveCustomCommand(GUILD_A, validCommand({ name: "second" }));
 
         const rows = await getCustomCommands(GUILD_A);
 
@@ -100,15 +112,16 @@ describe("custom commands against a real database", () => {
     });
 
     it("assigns a bigserial id on insert", async () => {
-        const saved = await saveCustomCommand(validCommand());
+        const saved = await saveCustomCommand(GUILD_A, validCommand());
 
         expect(typeof saved.id).toBe("number");
         expect(saved.id).toBeGreaterThan(0);
     });
 
     it("updates in place when the id is present", async () => {
-        const first = await saveCustomCommand(validCommand({ name: "before" }));
+        const first = await saveCustomCommand(GUILD_A, validCommand({ name: "before" }));
         const second = await saveCustomCommand(
+            GUILD_A,
             validCommand({ id: first.id, name: "after", cooldown_seconds: 60 })
         );
 
@@ -119,8 +132,9 @@ describe("custom commands against a real database", () => {
     });
 
     it("preserves a non-empty description on update", async () => {
-        const first = await saveCustomCommand(validCommand({ name: "before", description: "Keep me" }));
+        const first = await saveCustomCommand(GUILD_A, validCommand({ name: "before", description: "Keep me" }));
         const second = await saveCustomCommand(
+            GUILD_A,
             validCommand({ id: first.id, name: "after", description: "Keep me" })
         );
 
@@ -130,46 +144,43 @@ describe("custom commands against a real database", () => {
     });
 
     it("refuses to update another guild's command", async () => {
-        const foreign = await saveCustomCommand({
+        const foreign = await saveCustomCommand(GUILD_A, {
             ...validCommand({ name: "theirs" }),
             guild_id: GUILD_B,
         });
 
         // The UPDATE matches no row, so RETURNING * yields nothing to parse.
         await expect(
-            saveCustomCommand(validCommand({ id: foreign.id, name: "hijacked" }))
+            saveCustomCommand(GUILD_A, validCommand({ id: foreign.id, name: "hijacked" }))
         ).rejects.toThrow();
         expect((await getCustomCommands(GUILD_B))[0].name).toBe("theirs");
     });
 
     it("rejects a duplicate name within the guild", async () => {
-        await saveCustomCommand(validCommand({ name: "rules" }));
+        await saveCustomCommand(GUILD_A, validCommand({ name: "rules" }));
 
-        await expect(saveCustomCommand(validCommand({ name: "rules" }))).rejects.toThrow(
+        await expect(saveCustomCommand(GUILD_A, validCommand({ name: "rules" }))).rejects.toThrow(
             /unique_command_per_guild/
         );
     });
 
     it("allows the same name in a different guild", async () => {
-        await saveCustomCommand(validCommand({ name: "rules" }));
-        await saveCustomCommand({ ...validCommand({ name: "rules" }), guild_id: GUILD_B });
+        await saveCustomCommand(GUILD_A, validCommand({ name: "rules" }));
+        await saveCustomCommand(GUILD_B, validCommand({ name: "rules" }));
 
         expect(await getCustomCommands(GUILD_A)).toHaveLength(1);
         expect(await getCustomCommands(GUILD_B)).toHaveLength(1);
     });
 
     it("deletes the guild's command and reports success", async () => {
-        const saved = await saveCustomCommand(validCommand());
+        const saved = await saveCustomCommand(GUILD_A, validCommand());
 
         expect(await deleteCustomCommand(saved.id, GUILD_A)).toBe(true);
         expect(await getCustomCommands(GUILD_A)).toHaveLength(0);
     });
 
     it("refuses to delete another guild's command", async () => {
-        const foreign = await saveCustomCommand({
-            ...validCommand({ name: "theirs" }),
-            guild_id: GUILD_B,
-        });
+        const foreign = await saveCustomCommand(GUILD_B, validCommand({ name: "theirs" }));
 
         expect(await deleteCustomCommand(foreign.id, GUILD_A)).toBe(false);
         expect(await getCustomCommands(GUILD_B)).toHaveLength(1);

@@ -30,7 +30,10 @@ export async function getGiveaways(guildId: string): Promise<Giveaway[]> {
     return z.array(giveawaySchema).parse(res.rows);
 }
 
-export async function saveGiveaway(data: SaveGiveawayData): Promise<Giveaway> {
+export async function saveGiveaway(
+    guildId: string,
+    data: SaveGiveawayData
+): Promise<Giveaway> {
     const validData = SaveGiveawaySchema.parse(data);
 
     const messageLayout = JSON.stringify(
@@ -64,7 +67,7 @@ export async function saveGiveaway(data: SaveGiveawayData): Promise<Giveaway> {
 
         const res = await db.query(query, [
             validData.channel_id ?? null,
-            validData.guild_id,
+            guildId,
             validData.prize,
             validData.winner_count,
             validData.end_time,
@@ -100,7 +103,7 @@ export async function saveGiveaway(data: SaveGiveawayData): Promise<Giveaway> {
 
         const res = await db.query(query, [
             validData.channel_id ?? null,
-            validData.guild_id,
+            guildId,
             validData.prize,
             validData.winner_count,
             validData.end_time,

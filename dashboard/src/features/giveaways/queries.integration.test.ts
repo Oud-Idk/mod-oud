@@ -29,6 +29,7 @@ describe("giveaways against a real database", () => {
 
     it("maps a row with its timestamps and message layout", async () => {
         await saveGiveaway(
+            GUILD_A,
             validInput({
                 message: { format: "TEXT", content: "custom", embed: {} },
             })
@@ -63,9 +64,9 @@ describe("giveaways against a real database", () => {
     });
 
     it("scopes giveaways to the guild in newest first order", async () => {
-        await saveGiveaway(validInput({ prize: "First" }));
-        await saveGiveaway(validInput({ prize: "Second" }));
-        await saveGiveaway({ ...validInput({ prize: "Theirs" }), guild_id: GUILD_B });
+        await saveGiveaway(GUILD_A, validInput({ prize: "First" }));
+        await saveGiveaway(GUILD_A, validInput({ prize: "Second" }));
+        await saveGiveaway(GUILD_B, validInput({ prize: "Theirs" }));
 
         const rows = await getGiveaways(GUILD_A);
 
@@ -73,8 +74,19 @@ describe("giveaways against a real database", () => {
         expect(rows[0].id).toBeGreaterThan(rows[1].id);
     });
 
+    it("ignores a guild_id in the payload", async () => {
+        // The tenant comes from the authorized argument, never from the submitted record.
+        const saved = await saveGiveaway(
+            GUILD_A,
+            { ...validInput({ prize: "Smuggled" }), guild_id: GUILD_B }
+        );
+
+        expect(saved.guild_id).toBe(GUILD_A);
+        expect(await getGiveaways(GUILD_B)).toHaveLength(0);
+    });
+
     it("assigns a bigserial id on insert", async () => {
-        const saved = await saveGiveaway(validInput());
+        const saved = await saveGiveaway(GUILD_A, validInput());
 
         expect(typeof saved.id).toBe("number");
         expect(saved.id).toBeGreaterThan(0);
@@ -83,15 +95,16 @@ describe("giveaways against a real database", () => {
     });
 
     it("defaults winner_count to one", async () => {
-        const saved = await saveGiveaway(validInput({ winner_count: undefined }));
+        const saved = await saveGiveaway(GUILD_A, validInput({ winner_count: undefined }));
 
         expect(saved.winner_count).toBe(1);
         expect((await getGiveaways(GUILD_A))[0].winner_count).toBe(1);
     });
 
     it("updates in place when the id is present", async () => {
-        const first = await saveGiveaway(validInput({ prize: "Before" }));
+        const first = await saveGiveaway(GUILD_A, validInput({ prize: "Before" }));
         const second = await saveGiveaway(
+            GUILD_A,
             validInput({ id: first.id, prize: "After", winner_count: 5 })
         );
 
@@ -103,6 +116,7 @@ describe("giveaways against a real database", () => {
 
     it("stores the message layout enabled in the raw row", async () => {
         await saveGiveaway(
+            GUILD_A,
             validInput({
                 message: { format: "TEXT", content: "custom", embed: {} },
             })
@@ -118,35 +132,35 @@ describe("giveaways against a real database", () => {
     });
 
     it("persists a new channel_id on update", async () => {
-        const first = await saveGiveaway(validInput());
-        const second = await saveGiveaway(validInput({ id: first.id, channel_id: CHANNEL_B }));
+        const first = await saveGiveaway(GUILD_A, validInput());
+        const second = await saveGiveaway(GUILD_A, validInput({ id: first.id, channel_id: CHANNEL_B }));
 
         expect(second.channel_id).toBe(CHANNEL_B);
         expect((await getGiveaways(GUILD_A))[0].channel_id).toBe(CHANNEL_B);
     });
 
     it("refuses to update another guild's giveaway", async () => {
-        const foreign = await saveGiveaway({
+        const foreign = await saveGiveaway(GUILD_A, {
             ...validInput({ prize: "Theirs" }),
             guild_id: GUILD_B,
         });
 
         // The UPDATE matches no row, so RETURNING * yields nothing to parse.
         await expect(
-            saveGiveaway(validInput({ id: foreign.id, prize: "Hijacked" }))
+            saveGiveaway(GUILD_A, validInput({ id: foreign.id, prize: "Hijacked" }))
         ).rejects.toThrow();
         expect((await getGiveaways(GUILD_B))[0].prize).toBe("Theirs");
     });
 
     it("deletes the guild's giveaway and reports success", async () => {
-        const saved = await saveGiveaway(validInput());
+        const saved = await saveGiveaway(GUILD_A, validInput());
 
         expect(await deleteGiveaway(saved.id, GUILD_A)).toBe(true);
         expect(await getGiveaways(GUILD_A)).toHaveLength(0);
     });
 
     it("refuses to delete another guild's giveaway", async () => {
-        const foreign = await saveGiveaway({
+        const foreign = await saveGiveaway(GUILD_A, {
             ...validInput({ prize: "Theirs" }),
             guild_id: GUILD_B,
         });
