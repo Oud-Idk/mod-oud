@@ -2,7 +2,7 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::tickets::{audit, cache, database};
 use serenity::all::{
     ChannelId, ComponentInteraction, Context, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateMessage,
+    CreateInteractionResponseMessage, CreateMessage, EditInteractionResponse,
 };
 use std::time::Duration;
 use tracing::{debug, instrument, warn};
@@ -27,6 +27,23 @@ pub async fn on_close_ticket(
         .await?;
 
     let channel_id = component.channel_id;
+
+    // The custom id is global, so any component that reuses this one would land here. Only a
+    // channel the bot opened as a ticket may be purged and deleted.
+    if !cache::is_ticket_active(data, channel_id) {
+        warn!(
+            %channel_id,
+            user_id = %component.user.id,
+            "ticket close refused; the channel is not an active ticket"
+        );
+        component
+            .edit_response(
+                &ctx.http,
+                EditInteractionResponse::new().content("This channel is not an active ticket."),
+            )
+            .await?;
+        return Ok(());
+    }
 
     // Purge records from database and redis
     cleanup_ticket_records(data, channel_id).await?;
