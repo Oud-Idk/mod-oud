@@ -11,6 +11,7 @@ use mod_oud::core::error::on_error;
 use mod_oud::core::setup::SetupParams;
 use mod_oud::core::setup::{ShardManagerContainer, setup};
 use mod_oud::events;
+use mod_oud::features::automod::ToxicClassifierJob;
 use mod_oud::features::bad_words::CompiledRuleset;
 use mod_oud::features::live_feed::LogEvent;
 use mod_oud::features::music::MusicState;
@@ -103,6 +104,8 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
         redis_client.clone(),
     );
 
+    let (toxic_classifier_tx, toxic_classifier_rx) = mpsc::channel::<ToxicClassifierJob>(5000);
+
     // Forwards Redis now-playing events into the local broadcast channel so
     // dashboard WebSockets receive updates regardless of where the actor runs.
     music::start_music_event_bridge(subscriber_client.clone(), music_state.events_tx.clone());
@@ -141,6 +144,8 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
             username_rx,
             reqwest_client,
             music_state,
+            toxic_classifier_tx,
+            toxic_classifier_rx,
         })
         .await?;
 
@@ -230,6 +235,8 @@ struct BotDeps {
     username_rx: mpsc::Receiver<UserUpdate>,
     reqwest_client: reqwest::Client,
     music_state: MusicState,
+    toxic_classifier_tx: mpsc::Sender<ToxicClassifierJob>,
+    toxic_classifier_rx: mpsc::Receiver<ToxicClassifierJob>,
 }
 
 /// Installs the rustls crypto provider before any TLS client is built.
@@ -462,6 +469,8 @@ async fn start_bot(
                 reqwest_client: deps.reqwest_client.clone(),
                 music_state: deps.music_state,
                 ready,
+                toxic_classifier_tx: deps.toxic_classifier_tx.clone(),
+                toxic_classifier_rx: deps.toxic_classifier_rx,
             })
         })
         .build();

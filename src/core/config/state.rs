@@ -1,5 +1,5 @@
 use crate::core::config::settings::GuildSettings;
-use crate::features::automod::{SafeBrowsingClient, SpamTracker};
+use crate::features::automod::{SafeBrowsingClient, SpamTracker, ToxicClassifierJob};
 use crate::features::bad_words::CompiledRuleset;
 use crate::features::live_feed::LogEvent;
 use crate::features::message_logging::CachedAuditLogs;
@@ -184,4 +184,7 @@ pub struct BotData {
 
     /// Shared state manager for music player playback.
     pub music_state: MusicState,
+
+    /// Shared toxic classifier ML inference
+    pub toxic_classifier_tx: tokio::sync::mpsc::Sender<ToxicClassifierJob>,
 }

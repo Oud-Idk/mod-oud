@@ -10,8 +10,9 @@ use tracing_subscriber::EnvFilter;
 ///
 /// `EnvFilter::from_default_env()` hardcodes `ERROR` as its fallback directive, and the Docker
 /// image never sets `RUST_LOG`, so without this the deployed bot emits almost nothing and every
-/// `info!` is silently dropped.
-pub const DEFAULT_LOG_FILTER: &str = "info,sqlx=warn,serenity=warn,poise=info";
+/// `info!` is silently dropped. `ort` is pinned to `warn` because its graph optimizer narrates
+/// every fused layer at `info` while the model loads.
+pub const DEFAULT_LOG_FILTER: &str = "info,sqlx=warn,serenity=warn,poise=info,ort=warn";
 
 /// Installs the global tracing subscriber and returns the filter that took effect.
 ///

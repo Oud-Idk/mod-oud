@@ -10,6 +10,7 @@ mod native_rules;
 mod offensive_messages;
 mod server_invites;
 mod spam;
+mod toxic_classifier;
 mod zalgo;
 
 use crate::core::config::settings::get_settings;
@@ -111,6 +112,18 @@ pub async fn check_for_filter(
                 .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
                 .or_else(|| zalgo::filter_zalgo(message, filtering))
                 .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
+
+            // The ML pass is the expensive one, so it runs last. It also runs
+            // when a Safe Browsing check is still pending, which it may replace.
+            if verdict.is_pass()
+                || matches!(verdict, FilterVerdict::RequiresSafeBrowsingCheck { .. })
+            {
+                let toxic =
+                    toxic_classifier::filter_toxic_classifier(message, filtering, data).await;
+                if !toxic.is_pass() {
+                    verdict = toxic;
+                }
+            }
         } else {
             debug!("message filtering config not found; skipping built-in static filters");
         }

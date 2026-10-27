@@ -97,6 +97,7 @@ describe("Message Filtering Query Module", () => {
                 antiSpam: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] }, messagesPerWindow: 8, windowSeconds: 5 },
                 crossChannelSpam: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] }, minChannels: 3, windowSeconds: 600, similarityThreshold: 0.85, minLength: 15, priorCopies: { mode: "KEEP" } },
                 offensiveMessages: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] }, flagThreshold: "MODERATE" },
+                toxicMessageClassifier: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] }, thresholds: {} },
                 cryptoAddress: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] } },
                 globalSettings: { mode: "EXEMPT", roles: [], channels: [] },
             };
@@ -177,6 +178,7 @@ function messageFilteringConfigFixture(): MessageFilteringConfig {
         antiSpam: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] }, messagesPerWindow: 8, windowSeconds: 5 },
         crossChannelSpam: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] }, minChannels: 3, windowSeconds: 600, similarityThreshold: 0.85, minLength: 15, priorCopies: { mode: "KEEP" } },
         offensiveMessages: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] }, flagThreshold: "MODERATE" },
+        toxicMessageClassifier: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] }, thresholds: {} },
         cryptoAddress: { enabled: false, action: [], timeoutDurationSeconds: null, scope: { mode: "EXEMPT", roles: [], channels: [] } },
         globalSettings: { mode: "EXEMPT", roles: [], channels: [] },
     };
