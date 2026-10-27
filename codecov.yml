@@ -6,3 +6,12 @@ flags:
   backend:
     paths:
       - src/
+
+coverage:
+  status:
+    project:
+      default:
+        informational: true   # Overall repo coverage won't fail CI
+    patch:
+      default:
+        informational: true   # Your PR diff coverage won't fail CI (the one bothering you!)
