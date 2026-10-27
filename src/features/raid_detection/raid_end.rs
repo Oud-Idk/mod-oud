@@ -115,8 +115,31 @@ pub async fn handle_raid_end(
             "pre-raid state was unreadable; lifting the lockdown directly rather than leaving \
              the guild locked"
         );
-        if let Err(e) = apply_global_unlock(ctx, data, guild_id).await {
-            warn!(error = ?e, %guild_id, "unlock after an unreadable snapshot failed");
+        // Propagate a failure here: nothing was restored, so the guild may still be locked and
+        // the monitor's bounded retry and escalation must remain in play. A skipped sweep
+        // (another holds the lock) unlocked nothing, so it counts as a failure too.
+        match apply_global_unlock(ctx, data, guild_id).await {
+            Ok(Some(report)) if report.failed_channel_ids.is_empty() => {}
+            Ok(Some(report)) => {
+                warn!(
+                    %guild_id,
+                    failed = ?report.failed_channel_ids,
+                    "unlock after an unreadable snapshot left channels locked"
+                );
+                return Err(Error::from(anyhow::anyhow!(
+                    "unlock incomplete after an unreadable snapshot"
+                )));
+            }
+            Ok(None) => {
+                warn!(%guild_id, "unlock after an unreadable snapshot skipped; sweep lock busy");
+                return Err(Error::from(anyhow::anyhow!(
+                    "unlock skipped after an unreadable snapshot"
+                )));
+            }
+            Err(e) => {
+                warn!(error = ?e, %guild_id, "unlock after an unreadable snapshot failed");
+                return Err(e);
+            }
         }
     }
 
