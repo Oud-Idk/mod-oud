@@ -19,21 +19,29 @@ import {
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
 /**
- * Safely invalidates all cached emoji mappings associated with a specific Discord message ID.
+ * Safely invalidates all cached emoji and button mappings associated with a specific Discord message ID.
  */
-async function invalidateMessageCache(messageId: string | null | undefined): Promise<void> {
+async function invalidateMessageCache(
+    messageId: string | null | undefined,
+    guildId: string
+): Promise<void> {
     if (messageId === null || messageId === undefined) return;
 
     try {
-        const pattern = `reaction_role:${messageId}:*`;
-        let cursor = "0";
         const keysToDelete: string[] = [];
 
-        do {
-            const reply = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
-            cursor = reply[0];
-            keysToDelete.push(...reply[1]);
-        } while (cursor !== "0");
+        for (const pattern of [
+            `reaction_role:${guildId}:${messageId}:*`,
+            `button_role:${guildId}:${messageId}:*`,
+        ]) {
+            let cursor = "0";
+
+            do {
+                const reply = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+                cursor = reply[0];
+                keysToDelete.push(...reply[1]);
+            } while (cursor !== "0");
+        }
 
         if (keysToDelete.length > 0) {
             await redis.del(...keysToDelete);
@@ -54,7 +62,7 @@ export async function saveReactionMessageAction(
         const ret = await saveReactionMessage(validatedInput);
 
         if (ret.message_id !== null && ret.message_id !== undefined) {
-            await invalidateMessageCache(ret.message_id);
+            await invalidateMessageCache(ret.message_id, guildId);
             await notifyBackendReactionMessageEdit(guildId, ret.id);
         }
 
@@ -80,7 +88,7 @@ export async function deleteReactionMessageAction(
         const ret = await deleteReactionMessage(id);
 
         if (msg?.message_id !== null && msg?.message_id !== undefined) {
-            await invalidateMessageCache(msg.message_id);
+            await invalidateMessageCache(msg.message_id, guildId);
         }
 
         revalidatePath(`/dashboard/${guildId}/reaction-roles`);
@@ -100,7 +108,7 @@ export async function sendReactionMessageAction(
 
         const data = await sendReactionMessageToBackend(guildId, id);
 
-        await invalidateMessageCache(data.message_id);
+        await invalidateMessageCache(data.message_id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/reaction-roles`);
         return data;
@@ -121,7 +129,7 @@ export async function deleteReactionDiscordMessageAction(
         await deleteDiscordMessageFromBackend(guildId, id);
 
         if (msg?.message_id !== null && msg?.message_id !== undefined) {
-            await invalidateMessageCache(msg.message_id);
+            await invalidateMessageCache(msg.message_id, guildId);
         }
 
         revalidatePath(`/dashboard/${guildId}/reaction-roles`);

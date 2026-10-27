@@ -27,7 +27,9 @@ pub async fn handle_reaction_role_add(
     }
 
     let emoji_str = reaction.emoji.to_string();
-    if let Some(role_id) = get_reaction_role(data, reaction.message_id, &emoji_str).await? {
+    if let Some(role_id) =
+        get_reaction_role(data, guild_id, reaction.message_id, &emoji_str).await?
+    {
         if let Err(err) = ctx
             .http
             .add_member_role(guild_id, user_id, role_id, Some("Reaction Role Add"))
@@ -67,7 +69,9 @@ pub async fn handle_reaction_role_remove(
     }
 
     let emoji_str = reaction.emoji.to_string();
-    if let Some(role_id) = get_reaction_role(data, reaction.message_id, &emoji_str).await? {
+    if let Some(role_id) =
+        get_reaction_role(data, guild_id, reaction.message_id, &emoji_str).await?
+    {
         if let Err(err) = ctx
             .http
             .remove_member_role(guild_id, user_id, role_id, Some("Reaction Role Remove"))
@@ -103,8 +107,12 @@ pub async fn handle_button_interaction(
         return Ok(());
     };
 
+    // The mapping is resolved against the message the button was rendered on, so a
+    // `custom_id` shared with another panel cannot pull that panel's role.
+    let message_id = component.message.id;
+
     // Lookup role ID from Redis / DB
-    let Some(role_id) = get_button_role(data, custom_id).await? else {
+    let Some(role_id) = get_button_role(data, guild_id, message_id, custom_id).await? else {
         return Ok(());
     };
 

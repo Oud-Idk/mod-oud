@@ -1,8 +1,23 @@
 use fred::clients::Client;
 use fred::interfaces::KeysInterface;
 use fred::types::Expiration;
-use serenity::all::RoleId;
+use serenity::all::{MessageId, RoleId};
 use tracing::{debug, error, warn};
+
+/// How long a resolved role mapping stays cached. Short, because a mapping change has to
+/// reach the bot: configuration edits and deletions only clear what the dashboard knows about.
+const ROLE_TTL_SECONDS: i64 = 300;
+
+/// Cache key for a reaction-role mapping (message plus emoji).
+pub fn reaction_role_key(guild_id: u64, message_id: MessageId, emoji: &str) -> String {
+    format!("reaction_role:{guild_id}:{message_id}:{emoji}")
+}
+
+/// Cache key for a button-role mapping. Scoped by guild and message: a `custom_id` is only
+/// unique within one configuration, so it cannot identify a role on its own.
+pub fn button_role_key(guild_id: u64, message_id: MessageId, custom_id: &str) -> String {
+    format!("button_role:{guild_id}:{message_id}:{custom_id}")
+}
 
 /// Reads the cached role for a key.
 /// Returns `Some(Some(role))` on a positive hit, `Some(None)` for a cached
@@ -38,8 +53,9 @@ pub async fn get_cached_role(redis: &Client, cache_key: &str) -> Option<Option<R
 
 /// Caches a resolved role under the given key.
 pub async fn cache_role(redis: &Client, cache_key: &str, role_id: RoleId) {
+    let expiration = Expiration::EX(ROLE_TTL_SECONDS);
     if let Err(e) = redis
-        .set::<(), _, _>(cache_key, role_id.get(), None, None, false)
+        .set::<(), _, _>(cache_key, role_id.get(), Some(expiration), None, false)
         .await
     {
         warn!(cache_key, %role_id, error = %e, "role cache write to redis failed");
@@ -48,11 +64,42 @@ pub async fn cache_role(redis: &Client, cache_key: &str, role_id: RoleId) {
 
 /// Caches a negative result (no role) under the given key.
 pub async fn cache_role_none(redis: &Client, cache_key: &str) {
-    let expiration = Expiration::EX(300);
+    let expiration = Expiration::EX(ROLE_TTL_SECONDS);
     if let Err(e) = redis
         .set::<(), _, _>(cache_key, "none", Some(expiration), None, false)
         .await
     {
         warn!(cache_key, error = %e, "negative cache write to redis failed");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{button_role_key, reaction_role_key};
+    use serenity::all::MessageId;
+
+    #[test]
+    fn button_key_separates_the_same_custom_id_across_messages() {
+        let other_message = button_role_key(1, MessageId::new(222), "btn_shared");
+        assert_ne!(
+            button_role_key(1, MessageId::new(111), "btn_shared"),
+            other_message
+        );
+    }
+
+    #[test]
+    fn button_key_separates_the_same_message_across_guilds() {
+        assert_ne!(
+            button_role_key(1, MessageId::new(111), "btn_shared"),
+            button_role_key(2, MessageId::new(111), "btn_shared")
+        );
+    }
+
+    #[test]
+    fn reaction_key_separates_the_same_message_across_guilds() {
+        assert_ne!(
+            reaction_role_key(1, MessageId::new(111), "🎉"),
+            reaction_role_key(2, MessageId::new(111), "🎉")
+        );
     }
 }
