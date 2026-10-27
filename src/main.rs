@@ -151,25 +151,29 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
 
         // Without this a deploy kills the process mid-connection and the log ends mid-sentence,
         // so a restart is indistinguishable from a crash.
-        tokio::select! {
+        let gateway_finished = tokio::select! {
             result = &mut gateway => {
                 match result {
                     Ok(Ok(())) => {}
                     Ok(Err(e)) => error!(error = ?e, "gateway stopped on its own"),
                     Err(e) => error!(error = ?e, "gateway task ended abnormally"),
                 }
+                true
             }
             signal = shutdown_signal() => {
                 info!(signal, "shutdown signal received");
+                false
             }
-        }
+        };
 
         info!("Draining");
         shard_manager.shutdown_all().await;
-        // Bounded, so a shard that will not close cannot hang the deploy.
-        if tokio::time::timeout(DRAIN_TIMEOUT, &mut gateway)
-            .await
-            .is_err()
+        // A gateway that returned on its own was consumed by the select, so polling
+        // it again panics. Bounded, so a stuck shard cannot hang the deploy.
+        if !gateway_finished
+            && tokio::time::timeout(DRAIN_TIMEOUT, &mut gateway)
+                .await
+                .is_err()
         {
             warn!("drain timed out, exiting with the gateway still connected");
         }
