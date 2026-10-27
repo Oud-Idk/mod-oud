@@ -184,7 +184,10 @@ pub async fn view(
 }
 
 /// Pardons a warning (deactivates it).
-#[poise::command(slash_command)]
+///
+/// The parent's `default_member_permissions` is registration metadata and is not re-checked
+/// here, so each state-changing subcommand declares what it actually needs.
+#[poise::command(slash_command, required_permissions = "MODERATE_MEMBERS")]
 pub async fn pardon(
     ctx: Context<'_>,
     #[description = "The warning ID"] id: i64,
@@ -194,7 +197,7 @@ pub async fn pardon(
 }
 
 /// Reactivates a pardoned warning.
-#[poise::command(slash_command)]
+#[poise::command(slash_command, required_permissions = "MODERATE_MEMBERS")]
 pub async fn unpardon(
     ctx: Context<'_>,
     #[description = "The warning ID"] id: i64,
@@ -204,7 +207,15 @@ pub async fn unpardon(
 }
 
 /// Permanently deletes a warning record from the database.
-#[poise::command(slash_command, default_member_permissions = "ADMINISTRATOR")]
+///
+/// `required_permissions` is the enforced one. `default_member_permissions` only sets what
+/// Discord pre-selects at registration and is not re-checked at dispatch, so on its own it let a
+/// moderator admitted by the parent command delete records.
+#[poise::command(
+    slash_command,
+    required_permissions = "ADMINISTRATOR",
+    default_member_permissions = "ADMINISTRATOR"
+)]
 pub async fn delete(
     ctx: Context<'_>,
     #[description = "The warning ID"] id: i64,

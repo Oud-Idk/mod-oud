@@ -16,7 +16,7 @@ export async function RemindersFeature({
 }: RemindersFeatureProps): Promise<JSX.Element> {
     const channelMap = await getTextChannelMap(guildId);
     const channelIds = Object.keys(channelMap);
-    const reminders = await getRemindersByChannels(channelIds);
+    const reminders = await getRemindersByChannels(guildId, channelIds);
 
     const activeReminder = reminders.find((r) => r.id === activeReminderId) ?? null;
 

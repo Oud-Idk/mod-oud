@@ -8,3 +8,14 @@ pub const fn is_unknown_message_error(err: &serenity::Error) -> bool {
     }
     false
 }
+
+/// Returns `true` if the given serenity error is a "not found" (404) response, e.g.
+/// when a channel has already been deleted.
+pub const fn is_not_found_error(err: &serenity::Error) -> bool {
+    if let serenity::Error::Http(http_err) = err
+        && let serenity::all::HttpError::UnsuccessfulRequest(error_response) = http_err
+    {
+        return error_response.error.code == 10_003;
+    }
+    false
+}

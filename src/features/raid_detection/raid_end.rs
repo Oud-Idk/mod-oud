@@ -3,7 +3,7 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_unlock;
 use crate::features::raid_detection::audit;
 use crate::features::raid_detection::database;
-use crate::features::raid_detection::snapshot::restore_preraid_state;
+use crate::features::raid_detection::snapshot::{RestoreOutcome, restore_preraid_state};
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
 use crate::features::raid_detection::{RaidDetectionConfig, cache};
 use crate::shared::task;
@@ -14,6 +14,13 @@ use tracing::{error, info, warn};
 
 pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
     task::spawn("raid_end_monitor", async move {
+        // Bounded, because a restore that fails permanently would otherwise retry forever.
+        // After the cap the guild is still reconciled: the lockdown is lifted directly, which
+        // gives up the exact original permissions but never leaves members locked out.
+        const MAX_RESTORE_ATTEMPTS: u32 = 5;
+
+        let mut attempts: u32 = 0;
+
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
@@ -25,12 +32,64 @@ pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
                 }
             };
 
-            if !is_active {
-                info!(%guild_id, "raid no longer active");
-                if let Err(e) = handle_raid_end(&ctx, &data, guild_id).await {
-                    error!(%guild_id, error = ?e, "raid end cleanup failed");
+            if is_active {
+                continue;
+            }
+
+            info!(%guild_id, "raid no longer active");
+            attempts += 1;
+
+            if attempts > 1 {
+                info!(%guild_id, attempt = attempts, "retrying raid end cleanup");
+            }
+
+            match handle_raid_end(&ctx, &data, guild_id).await {
+                Ok(()) => break,
+                Err(e) => {
+                    error!(
+                        %guild_id,
+                        attempt = attempts,
+                        max = MAX_RESTORE_ATTEMPTS,
+                        error = ?e,
+                        "raid end cleanup failed"
+                    );
+
+                    if attempts >= MAX_RESTORE_ATTEMPTS {
+                        warn!(
+                            %guild_id,
+                            "pre-raid state could not be restored; lifting the lockdown directly \
+                             so members are not left locked out"
+                        );
+                        match apply_global_unlock(&ctx, &data, guild_id).await {
+                            Ok(None) => {
+                                // Another sweep held the lock, so nothing was unlocked. Say so
+                                // rather than letting it look repaired.
+                                error!(
+                                    %guild_id,
+                                    reason = "another sweep holds the lock",
+                                    "fallback unlock skipped; a manual unlock may be needed"
+                                );
+                            }
+                            Ok(Some(report)) if !report.failed_channel_ids.is_empty() => {
+                                error!(
+                                    %guild_id,
+                                    failed = ?report.failed_channel_ids,
+                                    reason = "some channels could not be unlocked",
+                                    "fallback unlock left channels locked; a manual unlock may be needed"
+                                );
+                            }
+                            Ok(Some(_)) => {}
+                            Err(e) => {
+                                error!(
+                                    error = ?e,
+                                    %guild_id,
+                                    "fallback unlock failed; a manual unlock is needed"
+                                );
+                            }
+                        }
+                        break;
+                    }
                 }
-                break; // Exit loop once raid end cleanup completes
             }
         }
     });
@@ -41,13 +100,48 @@ pub async fn handle_raid_end(
     data: &BotData,
     guild_id: GuildId,
 ) -> Result<(), Error> {
-    let restored = restore_preraid_state(ctx, data, guild_id)
-        .await
-        .inspect_err(|e| error!(%guild_id, error = ?e, "pre-raid state restore failed"))
-        .unwrap_or(false);
+    // Propagate rather than swallow: a failed restore is the case where the guild may still be
+    // locked, and the caller needs to know so it can retry and eventually escalate.
+    let outcome = restore_preraid_state(ctx, data, guild_id).await?;
 
-    if !restored {
+    // Nothing to restore only when there was no snapshot at all. An unreadable snapshot may
+    // still leave the guild locked, so it falls through to the reconciliation below.
+    if outcome == RestoreOutcome::Absent {
         return Ok(());
+    }
+
+    if outcome == RestoreOutcome::Unreadable {
+        warn!(
+            %guild_id,
+            "pre-raid state was unreadable; lifting the lockdown directly rather than leaving \
+             the guild locked"
+        );
+        // Propagate a failure here: nothing was restored, so the guild may still be locked and
+        // the monitor's bounded retry and escalation must remain in play. A skipped sweep
+        // (another holds the lock) unlocked nothing, so it counts as a failure too.
+        match apply_global_unlock(ctx, data, guild_id).await {
+            Ok(Some(report)) if report.failed_channel_ids.is_empty() => {}
+            Ok(Some(report)) => {
+                warn!(
+                    %guild_id,
+                    failed = ?report.failed_channel_ids,
+                    "unlock after an unreadable snapshot left channels locked"
+                );
+                return Err(Error::from(anyhow::anyhow!(
+                    "unlock incomplete after an unreadable snapshot"
+                )));
+            }
+            Ok(None) => {
+                warn!(%guild_id, "unlock after an unreadable snapshot skipped; sweep lock busy");
+                return Err(Error::from(anyhow::anyhow!(
+                    "unlock skipped after an unreadable snapshot"
+                )));
+            }
+            Err(e) => {
+                warn!(error = ?e, %guild_id, "unlock after an unreadable snapshot failed");
+                return Err(e);
+            }
+        }
     }
 
     // Delete persisted active raid state from Postgres
@@ -62,19 +156,30 @@ pub async fn handle_raid_end(
         error!(error = ?e, %guild_id, "raid resolve event log write failed");
     }
 
-    let Some(raid_config) = get_settings(
+    let raid_config = match get_settings(
         &data.core.db,
         &data.core.redis,
         &data.core.guild_configs_cache,
         guild_id,
     )
-    .await?
-    .raid_detection
-    else {
+    .await
+    {
+        Ok(settings) => settings.raid_detection,
+        Err(e) => {
+            // The guild is already unlocked, so a config read failure must not trigger a retry.
+            warn!(error = ?e, %guild_id, "raid config unavailable during raid end; actions not reverted");
+            return Ok(());
+        }
+    };
+
+    let Some(raid_config) = raid_config else {
         return Ok(());
     };
 
-    revert_actions(ctx, data, guild_id, &raid_config).await?;
+    if let Err(e) = revert_actions(ctx, data, guild_id, &raid_config).await {
+        // Same reasoning: the unlock has landed, so this is logged rather than retried.
+        warn!(error = ?e, %guild_id, "raid actions not fully reverted");
+    }
 
     Ok(())
 }

@@ -2,6 +2,7 @@ use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::core::config::state::WebState;
 use crate::features::giveaways::web::helpers::{build_giveaway_msg, parse_config_id};
 use crate::features::giveaways::{self, database};
+use crate::shared::guild_resource::ensure_channel_in_guild;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -38,6 +39,8 @@ pub async fn handle_send_giveaway_message(
     };
 
     let channel_id = ChannelId::new(channel_id_u64);
+    ensure_channel_in_guild(&state.serenity_http, channel_id, GuildId::new(guild_id)).await?;
+
     let host_user = UserId::from(record.host_id.cast_unsigned())
         .to_user(&state.serenity_http)
         .await

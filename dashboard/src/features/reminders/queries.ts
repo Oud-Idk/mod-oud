@@ -14,9 +14,14 @@ async function invalidateChannelReminderCache(channelId: string | null | undefin
     }
 }
 
-export async function getRemindersByChannels(channelIds: string[]): Promise<ReminderRow[]> {
+export async function getRemindersByChannels(
+    guildId: string,
+    channelIds: string[]
+): Promise<ReminderRow[]> {
     if (channelIds.length === 0) return [];
 
+    // Reminders now record their guild, so the scope is enforced in the query rather than assumed
+    // from the channel ids the caller passed.
     const query = `
         SELECT id::TEXT,
                channel_id       AS "channelId",
@@ -30,14 +35,16 @@ export async function getRemindersByChannels(channelIds: string[]): Promise<Remi
                is_active        AS "isActive"
         FROM reminders
         WHERE channel_id = ANY ($1::BIGINT[])
+          AND guild_id = $2
         ORDER BY next_trigger_at ASC
     `;
 
-    const res = await db.query(query, [channelIds]);
+    const res = await db.query(query, [channelIds, guildId]);
     return res.rows.map((row: unknown) => reminderRowSchema.parse(row));
 }
 
 export async function saveReminder(
+    guildId: string,
     rawReminder: SaveableReminderInput
 ): Promise<ReminderRow> {
     const reminder = saveableReminderSchema.parse(rawReminder);
@@ -67,8 +74,9 @@ export async function saveReminder(
                 time_start       = $7,
                 time_end         = $8,
                 interval_seconds = $9,
-                is_active        = $10
-            WHERE id = $1
+                is_active        = $10,
+                guild_id         = $11
+            WHERE id = $1 AND guild_id = $11
             RETURNING
                 id::TEXT,
                 channel_id AS "channelId",
@@ -92,14 +100,15 @@ export async function saveReminder(
             reminder.timeEnd,
             reminder.intervalSeconds,
             reminder.isActive,
+            guildId,
         ];
     } else {
         query = `
             INSERT INTO reminders (
                 channel_id, message, r_type, next_trigger_at,
-                days_of_week, time_start, time_end, interval_seconds, is_active
+                days_of_week, time_start, time_end, interval_seconds, is_active, guild_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING
                 id::TEXT,
                 channel_id AS "channelId",
@@ -122,6 +131,7 @@ export async function saveReminder(
             reminder.timeEnd,
             reminder.intervalSeconds,
             reminder.isActive,
+            guildId,
         ];
     }
 
@@ -132,8 +142,12 @@ export async function saveReminder(
     return reminderRowSchema.parse(row);
 }
 
-export async function deleteReminder(id: string, channelId: string | null): Promise<void> {
-    const query = `DELETE FROM reminders WHERE id = $1`;
-    await db.query(query, [id]);
+export async function deleteReminder(
+    guildId: string,
+    id: string,
+    channelId: string | null
+): Promise<void> {
+    const query = `DELETE FROM reminders WHERE id = $1 AND guild_id = $2`;
+    await db.query(query, [id, guildId]);
     await invalidateChannelReminderCache(channelId);
 }

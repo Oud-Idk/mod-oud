@@ -18,8 +18,10 @@ import { verifyGuildAccess } from "@/features/_shared/guild";
 import { revalidatePath } from "next/cache";
 import type { ReactionMessage, SaveReactionMessageInput } from "./types";
 
-const mockScan = vi.hoisted(() => vi.fn<() => Promise<[string, string[]]>>());
-const mockDel = vi.hoisted(() => vi.fn<() => Promise<number>>());
+const mockScan = vi.hoisted(() =>
+    vi.fn<(cursor: string, cmd: string, pattern: string, ...rest: string[]) => Promise<[string, string[]]>>()
+);
+const mockDel = vi.hoisted(() => vi.fn<(...keys: string[]) => Promise<number>>());
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
@@ -84,14 +86,20 @@ describe("Reaction Roles Action Module", () => {
         it("should verify access, save, invalidate cache, notify backend, and revalidate", async () => {
             const saved = messageFixture();
             vi.mocked(saveReactionMessage).mockResolvedValue(saved);
-            mockScan.mockResolvedValue(["0", ["key1", "key2"]]);
+            mockScan.mockImplementation((_cursor: string, _cmd: string, pattern: string) => {
+                const keys: string[] = pattern.includes("button_role")
+                    ? ["btnkey1"]
+                    : ["key1", "key2"];
+                return Promise.resolve(["0", keys]);
+            });
 
             const result = await saveReactionMessageAction("guild_123", validInput);
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
             expect(saveReactionMessage).toHaveBeenCalled();
-            expect(mockScan).toHaveBeenCalledWith("0", "MATCH", "reaction_role:discord_msg_1:*", "COUNT", 100);
-            expect(mockDel).toHaveBeenCalledWith("key1", "key2");
+            expect(mockScan).toHaveBeenCalledWith("0", "MATCH", "reaction_role:guild_123:discord_msg_1:*", "COUNT", 100);
+            expect(mockScan).toHaveBeenCalledWith("0", "MATCH", "button_role:guild_123:discord_msg_1:*", "COUNT", 100);
+            expect(mockDel).toHaveBeenCalledWith("key1", "key2", "btnkey1");
             expect(notifyBackendReactionMessageEdit).toHaveBeenCalledWith("guild_123", 1);
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reaction-roles");
             expect(result).toEqual(saved);
@@ -172,11 +180,14 @@ describe("Reaction Roles Action Module", () => {
 
         it("should scan multiple pages of cache keys before deleting", async () => {
             vi.mocked(saveReactionMessage).mockResolvedValue(messageFixture());
-            mockScan.mockResolvedValueOnce(["1", ["key1"]]).mockResolvedValueOnce(["0", ["key2"]]);
+            // First pattern returns two pages, second returns none.
+            mockScan
+                .mockResolvedValueOnce(["1", ["key1"]])
+                .mockResolvedValueOnce(["0", ["key2"]])
+                .mockResolvedValue(["0", []]);
 
             await saveReactionMessageAction("guild_123", validInput);
 
-            expect(mockScan).toHaveBeenCalledTimes(2);
             expect(mockDel).toHaveBeenCalledWith("key1", "key2");
         });
 
@@ -204,8 +215,8 @@ describe("Reaction Roles Action Module", () => {
 
             const result = await deleteReactionMessageAction("guild_123", 1);
 
-            expect(deleteReactionMessage).toHaveBeenCalledWith(1);
-            expect(mockDel).toHaveBeenCalledWith("key1");
+            expect(deleteReactionMessage).toHaveBeenCalledWith("guild_123", 1);
+            expect(mockDel).toHaveBeenCalledWith("key1", "key1");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reaction-roles");
             expect(result).toBe(true);
         });
@@ -226,7 +237,7 @@ describe("Reaction Roles Action Module", () => {
 
             const result = await deleteReactionMessageAction("guild_123", 1);
 
-            expect(deleteReactionMessage).toHaveBeenCalledWith(1);
+            expect(deleteReactionMessage).toHaveBeenCalledWith("guild_123", 1);
             expect(mockScan).not.toHaveBeenCalled();
             expect(result).toBe(true);
         });
@@ -256,7 +267,7 @@ describe("Reaction Roles Action Module", () => {
             const result = await sendReactionMessageAction("guild_123", 1);
 
             expect(sendReactionMessageToBackend).toHaveBeenCalledWith("guild_123", 1);
-            expect(mockDel).toHaveBeenCalledWith("key1");
+            expect(mockDel).toHaveBeenCalledWith("key1", "key1");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reaction-roles");
             expect(result).toEqual({ message_id: "discord_msg_1" });
         });
@@ -311,7 +322,7 @@ describe("Reaction Roles Action Module", () => {
             const result = await deleteReactionDiscordMessageAction("guild_123", 1);
 
             expect(deleteDiscordMessageFromBackend).toHaveBeenCalledWith("guild_123", 1);
-            expect(mockDel).toHaveBeenCalledWith("key1");
+            expect(mockDel).toHaveBeenCalledWith("key1", "key1");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reaction-roles");
             expect(result).toEqual({ success: true });
         });

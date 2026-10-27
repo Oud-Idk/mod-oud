@@ -221,6 +221,15 @@ async fn dispatch_inner(ctx: &serenity::Context, event: &FullEvent, data: &BotDa
                 data,
             )
             .await?;
+
+            // Discord also sends MESSAGE_UPDATE when it unfurls a link, which is not an author edit.
+            // Running the content checks for those would double-count the message towards spam
+            // limits, so only real edits are re-evaluated.
+            if let Some(edited) = new.as_ref()
+                && edited.edited_timestamp.is_some()
+            {
+                on_message_edit(ctx, data, edited).await?;
+            }
         }
 
         FullEvent::Message { new_message } => {
@@ -369,6 +378,28 @@ async fn on_message(
         leveling::handle_text_leveling(ctx, new_message, data).await?;
         custom_commands::handle_custom_cmd(ctx, new_message, data).await?;
         media_only::handle_media_channel_message(ctx, new_message, data).await?;
+        Ok(())
+    })
+    .await?;
+    Ok(())
+}
+
+/// Re-applies content policy to an edited message.
+///
+/// An edit can turn an accepted message into one the guild blocks, so the moderation stages run
+/// again. Creation-only effects (leveling, command triggers, ticket and media bookkeeping) are
+/// deliberately not repeated: the member did not send a new message.
+async fn on_message_edit(
+    ctx: &serenity::prelude::Context,
+    data: &BotData,
+    edited: &serenity::Message,
+) -> Result<(), anyhow::Error> {
+    Box::pin(async move {
+        if automod::handle_automod(ctx, edited, data).await? {
+            return Ok::<(), Error>(());
+        }
+
+        media_only::handle_media_channel_message(ctx, edited, data).await?;
         Ok(())
     })
     .await?;

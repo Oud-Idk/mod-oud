@@ -1,20 +1,33 @@
 // app/dashboard/[guild_id]/layout.tsx
 import React, { JSX } from "react";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar/Sidebar";
 import { MobileNav } from "@/components/layout/sidebar/MobileNav";
 import 'katex/dist/katex.min.css';
 import { auth } from "@/lib/auth";
+import { currentUserManagesGuild } from "@/features/_shared/guild";
+
+interface LayoutProps {
+    children: React.ReactNode;
+    params: Promise<{ guild_id: string }>;
+}
 
 export default async function DashboardLayout({
     children,
-}: {
-    children: React.ReactNode;
-}): Promise<JSX.Element> {
+    params,
+}: LayoutProps): Promise<JSX.Element> {
     const session = await auth();
 
     if (!session) {
         redirect("/");
+    }
+
+    // Every page beneath this layout reads its guild's configuration, so the check belongs
+    // here rather than in each page. Answering not-found rather than forbidden keeps the
+    // existence of another guild's settings unconfirmed.
+    const { guild_id } = await params;
+    if (!(await currentUserManagesGuild(guild_id))) {
+        notFound();
     }
 
     return (

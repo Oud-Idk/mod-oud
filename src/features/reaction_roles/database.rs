@@ -35,12 +35,16 @@ impl From<RawReactionMessage> for ReactionMessage {
 }
 
 /// Retrieves the Role ID associated with a message and emoji, utilizing Redis caching.
+///
+/// The lookup is scoped to `guild_id`: a message ID that resolves to another guild's panel
+/// must not hand out a role in this one.
 pub async fn get_reaction_role(
     data: &BotData,
+    guild_id: GuildId,
     message_id: MessageId,
     emoji: &str,
 ) -> Result<Option<RoleId>, Error> {
-    let cache_key = format!("reaction_role:{message_id}:{emoji}");
+    let cache_key = cache::reaction_role_key(guild_id.get(), message_id, emoji);
 
     if let Some(cached) = cache::get_cached_role(&data.core.redis, &cache_key).await {
         return Ok(cached);
@@ -51,10 +55,11 @@ pub async fn get_reaction_role(
         SELECT rr.role_id
         FROM reaction_roles rr
         JOIN reaction_messages rm ON rr.reaction_message_id = rm.id
-        WHERE rm.message_id = $1 AND rr.emoji = $2
+        WHERE rm.message_id = $1 AND rr.emoji = $2 AND rm.guild_id = $3
         "#,
         message_id.get().cast_signed(),
-        emoji
+        emoji,
+        guild_id.get().cast_signed(),
     )
     .fetch_optional(&data.core.db)
     .await?;
@@ -181,8 +186,18 @@ pub async fn add_message_to_db(
     .await
 }
 
-pub async fn get_button_role(data: &BotData, custom_id: &str) -> Result<Option<RoleId>, Error> {
-    let cache_key = format!("button_role:{custom_id}");
+/// Resolves the role behind a button click.
+///
+/// Scoped by message: `custom_id` is only unique within one configuration (see the
+/// `UNIQUE (reaction_message_id, custom_id)` constraint), so a bare `custom_id` lookup could
+/// answer with another panel's mapping.
+pub async fn get_button_role(
+    data: &BotData,
+    guild_id: GuildId,
+    message_id: MessageId,
+    custom_id: &str,
+) -> Result<Option<RoleId>, Error> {
+    let cache_key = cache::button_role_key(guild_id.get(), message_id, custom_id);
 
     if let Some(cached) = cache::get_cached_role(&data.core.redis, &cache_key).await {
         return Ok(cached);
@@ -190,11 +205,16 @@ pub async fn get_button_role(data: &BotData, custom_id: &str) -> Result<Option<R
 
     let row = sqlx::query!(
         r#"
-        SELECT role_id
-        FROM button_roles
-        WHERE custom_id = $1
+        SELECT br.role_id
+        FROM button_roles br
+        JOIN reaction_messages rm ON br.reaction_message_id = rm.id
+        WHERE br.custom_id = $1
+          AND rm.message_id = $2
+          AND rm.guild_id = $3
         "#,
-        custom_id
+        custom_id,
+        message_id.get().cast_signed(),
+        guild_id.get().cast_signed(),
     )
     .fetch_optional(&data.core.db)
     .await?;

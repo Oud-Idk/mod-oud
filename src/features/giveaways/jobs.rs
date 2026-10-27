@@ -100,7 +100,22 @@ async fn process_expired_giveaways(
 
     debug!(expired = expired_giveaways.len(), "expired giveaways found");
 
-    for giveaway in expired_giveaways {
+    for raw in expired_giveaways {
+        let giveaway_id = raw.id;
+
+        // A record the layout type cannot decode is finished anyway, so it stops being retried
+        // instead of stalling every other guild's giveaways on each sweep.
+        let Some(giveaway) = raw.giveaway() else {
+            warn!(
+                giveaway_id,
+                "giveaway layout could not be decoded; marking it finished without announcing"
+            );
+            if let Err(e) = mark_giveaway_finished(pool, giveaway_id).await {
+                error!(giveaway_id, error = ?e, "giveaway finished flag not set in db");
+            }
+            continue;
+        };
+
         if let Err(e) = mark_giveaway_finished(pool, giveaway.id).await {
             error!(giveaway_id = %giveaway.id, error = ?e, "giveaway finished flag not set in db");
             continue;

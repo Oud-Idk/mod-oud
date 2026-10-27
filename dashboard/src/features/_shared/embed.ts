@@ -25,7 +25,9 @@ export const EmbedFieldSchema = z.object({
 export const DiscordEmbedSchema = z.object({
     title: z.string().optional(),
     description: z.string().optional(),
-    color: z.number().int().optional(),
+    // The bot reads this as a u32, so a negative or oversized value would fail to decode and
+    // take the whole layout with it.
+    color: z.number().int().min(0).max(0xffffff).optional(),
     thumbnail: EmbedThumbnailSchema.optional(),
     author: EmbedAuthorSchema.optional(),
     footer: EmbedFooterSchema.optional(),

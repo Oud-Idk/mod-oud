@@ -3,6 +3,7 @@ use crate::features::reaction_roles;
 use crate::features::reaction_roles::database::fetch_reaction_message;
 use crate::features::reaction_roles::web::helpers::parse_config_id;
 use crate::shared::error::is_unknown_message_error;
+use crate::shared::guild_resource::ensure_channel_in_guild;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serenity::model::id::GuildId;
@@ -21,6 +22,10 @@ pub async fn handle_delete_reaction_role_message(
         return Ok(StatusCode::NO_CONTENT);
     };
     let channel_id = record.channel_id;
+
+    // The channel is stored, not proven. An authorized configuration can still name another
+    // guild's channel, so check before deleting with the bot's credentials.
+    ensure_channel_in_guild(&state.serenity_http, channel_id, guild_id).await?;
 
     match channel_id
         .delete_message(&state.serenity_http, message_id)

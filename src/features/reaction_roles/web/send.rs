@@ -5,6 +5,7 @@ use crate::features::reaction_roles::types::InteractionMode;
 use crate::features::reaction_roles::web::helpers::{
     build_custom_msg, fetch_and_build_buttons, parse_config_id,
 };
+use crate::shared::guild_resource::ensure_channel_in_guild;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -34,6 +35,10 @@ pub async fn handle_send_reaction_role_message(
     let config_id = parse_config_id(&config_id_str)?;
     let config_row = fetch_reaction_message(&state.core.db, config_id, guild_id).await?;
     let channel_id = config_row.channel_id;
+
+    // The channel comes from guild-owned configuration, but nothing proved it belongs to that
+    // guild. Without this the bot would post panel content into another guild.
+    ensure_channel_in_guild(&state.serenity_http, channel_id, guild_id).await?;
 
     let custom_msg_opt = build_custom_msg(
         config_row.message.format,

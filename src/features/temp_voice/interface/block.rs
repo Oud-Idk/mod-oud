@@ -54,7 +54,7 @@ pub async fn handle_block_temp_vc_submit(
     };
 
     let response_message = service::block_users_from_vc(
-        &ctx.http,
+        ctx,
         guild_id,
         channel_id,
         target_user_ids,

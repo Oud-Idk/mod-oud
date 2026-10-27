@@ -1,10 +1,12 @@
 use crate::core::config::state::BotData;
 use crate::features::automod::actions::{RuleActionPayload, execute_rule_actions};
+use crate::features::automod::rules::should_skip_scope;
 use crate::features::automod::types::{AntiSpamRule, MessageFilteringConfig};
 use anyhow::Result;
 use serenity::all::{Context, Message};
 use serenity::model::id::{GuildId, UserId};
 use std::time::Duration;
+use tracing::debug;
 
 async fn handle_spam(
     ctx: &Context,
@@ -47,6 +49,17 @@ pub async fn handle_spam_prevention(
     let Some(anti_spam) = &filtering.anti_spam else {
         return Ok(false);
     };
+
+    // The rule keeps its thresholds when disabled, so the flag decides whether it runs at all.
+    if !anti_spam.base.enabled {
+        debug!(%guild_id, "anti-spam disabled for this guild");
+        return Ok(false);
+    }
+
+    // And respect the rule's own scope, so a channel or role exemption is honoured.
+    if should_skip_scope(message, &anti_spam.base.scope) {
+        return Ok(false);
+    }
 
     let spam_limit = anti_spam.messages_per_window;
     let spam_window = Duration::from_secs(anti_spam.window_seconds);

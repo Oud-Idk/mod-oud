@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, guild_id, host_id, channel_id, message_id, prize, winner_count,\n               end_time, is_finished,\n               message_layout AS \"message!: Json<MessageLayout>\"\n        FROM giveaways\n        WHERE end_time <= NOW() AND is_finished = FALSE AND message_id IS NOT NULL\n        ",
+  "query": "\n        SELECT id, guild_id, host_id, channel_id, message_id, prize, winner_count,\n               end_time, is_finished,\n               message_layout AS \"message_layout: Json<serde_json::Value>\"\n        FROM giveaways\n        WHERE end_time <= NOW() AND is_finished = FALSE AND message_id IS NOT NULL\n        ",
   "describe": {
     "columns": [
       {
@@ -104,7 +104,7 @@
       },
       {
         "ordinal": 9,
-        "name": "message!: Json<MessageLayout>",
+        "name": "message_layout: Json<serde_json::Value>",
         "type_info": "Jsonb",
         "origin": {
           "Table": {
@@ -130,5 +130,5 @@
       false
     ]
   },
-  "hash": "24b6f523ab61588280732e7894dc12e1a6831210a0c25ff6d33019b947c85fe6"
+  "hash": "2cd2b96ed90926ede3d3fee11dba9a83fccc237c9108637ac0c7873792d62c3e"
 }

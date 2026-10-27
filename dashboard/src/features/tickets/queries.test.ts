@@ -3,6 +3,7 @@ import { getTicketConfig, saveTicketConfig } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
 import { TicketConfig } from "@/features/tickets/types";
 
+
 // Row mapping, SQL shape and the JSONB round trip live in
 // queries.integration.test.ts against a real database. What stays here is a
 // failing connection, which Postgres will not produce on demand.

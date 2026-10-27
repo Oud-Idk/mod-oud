@@ -71,13 +71,14 @@ export async function getReactionMessageById(id: number): Promise<ReactionMessag
     return reactionMessageSchema.parse(row);
 }
 
-export async function deleteReactionMessage(id: number): Promise<boolean> {
-    const query = `DELETE FROM reaction_messages WHERE id = $1`;
-    const res = await db.query(query, [id]);
+export async function deleteReactionMessage(guildId: string, id: number): Promise<boolean> {
+    const query = `DELETE FROM reaction_messages WHERE id = $1 AND guild_id = $2`;
+    const res = await db.query(query, [id, guildId]);
     return (res.rowCount ?? 0) === 1;
 }
 
 export async function saveReactionMessage(
+    guildId: string,
     rawData: SaveReactionMessageInput
 ): Promise<ReactionMessage> {
     const data = saveReactionMessageInputSchema.parse(rawData);
@@ -90,7 +91,7 @@ export async function saveReactionMessage(
         const mainParams: unknown[] = [
             data.message_id ?? null,
             data.channel_id ?? null,
-            data.guild_id,
+            guildId,
             data.mode,
             data.name,
             data.message,
@@ -103,7 +104,7 @@ export async function saveReactionMessage(
                 UPDATE reaction_messages
                 SET message_id = $1, channel_id = $2, guild_id = $3,
                     mode = $4, name = $5, message = $6
-                WHERE id = $7 RETURNING id;
+                WHERE id = $7 AND guild_id = $3 RETURNING id;
             `;
             const res = await client.query<IdRow>(updateQuery, [...mainParams, data.id]);
 

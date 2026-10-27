@@ -4,6 +4,7 @@ use crate::features::custom_commands::cache;
 use crate::features::custom_commands::payload::{pick_payload, send_payload};
 use crate::features::custom_commands::placeholders;
 use crate::features::custom_commands::types::{CommandAction, CooldownType, CustomCommand};
+use crate::shared::guild_resource;
 use crate::shared::permissions::HasRoles;
 use fred::clients::Client;
 use serenity::all::{ChannelId, Context, GuildChannel, GuildId, Message, RoleId};
@@ -144,6 +145,32 @@ async fn execute_payload(
             };
             let payload = pick_payload(&message_layout.messages, message_layout.randomize);
             let cid = ChannelId::new(raw_channel_id);
+
+            // The destination is command configuration, not proof of ownership. Refusing here
+            // keeps a manager of one guild from posting through the bot in another.
+            match guild_resource::channel_in_guild(&ctx.http, cid, guild_id).await {
+                Ok(true) => {}
+                Ok(false) => {
+                    warn!(
+                        %command_id,
+                        %guild_id,
+                        channel_id = %cid,
+                        "custom command send skipped; the channel belongs to another guild"
+                    );
+                    return Ok(());
+                }
+                Err(e) => {
+                    warn!(
+                        error = ?e,
+                        %command_id,
+                        %guild_id,
+                        channel_id = %cid,
+                        "custom command destination lookup failed"
+                    );
+                    return Ok(());
+                }
+            }
+
             send_payload(&ctx.http, cid, payload, |t| {
                 placeholders::replace_general_placeholders(t, msg, gctx, channel)
             })

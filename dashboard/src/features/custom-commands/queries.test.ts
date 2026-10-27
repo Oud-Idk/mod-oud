@@ -26,7 +26,7 @@ vi.mock("@/features/_shared/guild", () => ({
 }));
 
 
-type SaveCommandInput = Parameters<typeof saveCustomCommand>[0];
+type SaveCommandInput = Parameters<typeof saveCustomCommand>[1];
 
 function createMockCommand(overrides: Partial<SaveCommandInput> = {}): SaveCommandInput {
     return {
@@ -70,7 +70,7 @@ describe("Custom Commands Query Module", () => {
             });
             mockQuery.mockRejectedValue(new Error("connection lost"));
 
-            await expect(saveCustomCommand(newCommand)).rejects.toThrow("connection lost");
+            await expect(saveCustomCommand("guild_123", newCommand)).rejects.toThrow("connection lost");
         });
     });
 

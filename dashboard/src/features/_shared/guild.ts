@@ -32,14 +32,36 @@ export async function verifyGuildAccess(guildId: string): Promise<User> {
         throw new Error("Unauthorized: Missing access token.");
     }
 
-    const { mutualGuilds } = await getGuildLists(accessToken);
-
-    const hasAccess = mutualGuilds.some((guild) => guild.id === guildId);
-    if (!hasAccess) {
+    if (!(await userManagesGuild(accessToken, guildId))) {
         throw new Error("Forbidden: You do not have permission to manage this server or the bot is not present.");
     }
 
     return session.user;
+}
+
+/**
+ * The non-throwing form of {@link verifyGuildAccess}, for route boundaries.
+ *
+ * Pages and layouts cannot handle a thrown error, and a thrown error reads as a 500 rather than a
+ * refusal, so they ask for a boolean and render a not-found instead.
+ *
+ * `getGuildLists` is wrapped in `React.cache`, so a layout and the page beneath it fetch only once,
+ * and it reports a lookup failure as an empty list, which lands here as "no access".
+ */
+export async function currentUserManagesGuild(guildId: string): Promise<boolean> {
+    const session = await auth();
+    const accessToken = session?.accessToken;
+
+    if (!session?.user || accessToken === undefined) {
+        return false;
+    }
+
+    return userManagesGuild(accessToken, guildId);
+}
+
+async function userManagesGuild(accessToken: string, guildId: string): Promise<boolean> {
+    const { mutualGuilds } = await getGuildLists(accessToken);
+    return mutualGuilds.some((guild) => guild.id === guildId);
 }
 
 /**

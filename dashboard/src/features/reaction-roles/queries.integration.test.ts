@@ -58,6 +58,7 @@ async function childCounts(id: number): Promise<{ reactions: number; buttons: nu
 describe("reaction messages against a real database", () => {
     it("saves a REACTION message and reads back role ids as strings", async () => {
         const saved = await saveReactionMessage(
+            GUILD_A,
             reactionInput({
                 reactions: [
                     { emoji: "🎉", role_id: ROLE_1 },
@@ -79,7 +80,7 @@ describe("reaction messages against a real database", () => {
     });
 
     it("saves a BUTTON message and reads back the style enum", async () => {
-        const saved = await saveReactionMessage(buttonInput());
+        const saved = await saveReactionMessage(GUILD_A, buttonInput());
 
         const reloaded = await getReactionMessageById(saved.id);
         expect(reloaded?.buttons).toEqual([
@@ -89,8 +90,8 @@ describe("reaction messages against a real database", () => {
     });
 
     it("scopes the list to the guild", async () => {
-        await saveReactionMessage(reactionInput());
-        await saveReactionMessage(reactionInput({ guild_id: GUILD_B, channel_id: CHANNEL_A }));
+        await saveReactionMessage(GUILD_A, reactionInput());
+        await saveReactionMessage(GUILD_B, reactionInput({ channel_id: CHANNEL_A }));
 
         const rows = await getReactionMessages(GUILD_A);
 
@@ -122,8 +123,9 @@ describe("reaction messages against a real database", () => {
     });
 
     it("updates in place when the id already exists", async () => {
-        const first = await saveReactionMessage(reactionInput({ name: "Before" }));
+        const first = await saveReactionMessage(GUILD_A, reactionInput({ name: "Before" }));
         const second = await saveReactionMessage(
+            GUILD_A,
             reactionInput({ id: first.id, name: "After", channel_id: CHANNEL_A })
         );
 
@@ -133,6 +135,7 @@ describe("reaction messages against a real database", () => {
 
     it("replaces the child set on re-save instead of accumulating", async () => {
         const first = await saveReactionMessage(
+            GUILD_A,
             reactionInput({
                 reactions: [
                     { emoji: "🎉", role_id: ROLE_1 },
@@ -142,6 +145,7 @@ describe("reaction messages against a real database", () => {
         );
 
         await saveReactionMessage(
+            GUILD_A,
             reactionInput({ id: first.id, reactions: [{ emoji: "🎉", role_id: ROLE_3 }] })
         );
 
@@ -152,8 +156,8 @@ describe("reaction messages against a real database", () => {
     });
 
     it("clears reactions when switching to BUTTON mode", async () => {
-        const first = await saveReactionMessage(reactionInput());
-        await saveReactionMessage(buttonInput({ id: first.id }));
+        const first = await saveReactionMessage(GUILD_A, reactionInput());
+        await saveReactionMessage(GUILD_A, buttonInput({ id: first.id }));
 
         const reloaded = await getReactionMessageById(first.id);
         expect(reloaded?.mode).toBe("BUTTON");
@@ -167,6 +171,7 @@ describe("reaction messages against a real database", () => {
     it("rejects duplicate emoji within one save", async () => {
         await expect(
             saveReactionMessage(
+            GUILD_A,
                 reactionInput({
                     reactions: [
                         { emoji: "🎉", role_id: ROLE_1 },
@@ -182,6 +187,7 @@ describe("reaction messages against a real database", () => {
     it("rejects duplicate custom_id within one save", async () => {
         await expect(
             saveReactionMessage(
+            GUILD_A,
                 buttonInput({
                     buttons: [
                         { role_id: ROLE_1, custom_id: "btn_1", label: "First", style: "PRIMARY" },
@@ -195,7 +201,7 @@ describe("reaction messages against a real database", () => {
     });
 
     it("upserts a reaction role on (reaction_message_id, emoji)", async () => {
-        const saved = await saveReactionMessage(reactionInput());
+        const saved = await saveReactionMessage(GUILD_A, reactionInput());
 
         await db.query(
             `INSERT INTO reaction_roles (reaction_message_id, emoji, role_id)
@@ -211,7 +217,7 @@ describe("reaction messages against a real database", () => {
     });
 
     it("upserts a button role on (reaction_message_id, custom_id)", async () => {
-        const saved = await saveReactionMessage(buttonInput());
+        const saved = await saveReactionMessage(GUILD_A, buttonInput());
 
         await db.query(
             `INSERT INTO button_roles (reaction_message_id, role_id, custom_id, label, style, emoji)
@@ -234,35 +240,35 @@ describe("reaction messages against a real database", () => {
     // inserted earlier in the same transaction.
     it("rolls back the parent insert when a child role id is not a bigint", async () => {
         await expect(
-            saveReactionMessage(reactionInput({ reactions: [{ emoji: "🎉", role_id: "abc" }] }))
+            saveReactionMessage(GUILD_A, reactionInput({ reactions: [{ emoji: "🎉", role_id: "abc" }] }))
         ).rejects.toThrow();
 
         expect(await getReactionMessages(GUILD_A)).toEqual([]);
     });
 
     it("rejects a message_id already used by another row", async () => {
-        await saveReactionMessage(reactionInput({ message_id: "666666666666666666" }));
+        await saveReactionMessage(GUILD_A, reactionInput({ message_id: "666666666666666666" }));
 
         await expect(
-            saveReactionMessage(reactionInput({ message_id: "666666666666666666" }))
+            saveReactionMessage(GUILD_A, reactionInput({ message_id: "666666666666666666" }))
         ).rejects.toThrow(/duplicate key/);
     });
 
     it("throws when updating an id that does not exist", async () => {
-        await expect(saveReactionMessage(reactionInput({ id: 999999 }))).rejects.toThrow(
+        await expect(saveReactionMessage(GUILD_A, reactionInput({ id: 999999 }))).rejects.toThrow(
             /Reaction message with ID 999999 not found/
         );
     });
 
     it("deletes the message and cascades onto its children", async () => {
-        const saved = await saveReactionMessage(reactionInput());
+        const saved = await saveReactionMessage(GUILD_A, reactionInput());
 
-        expect(await deleteReactionMessage(saved.id)).toBe(true);
+        expect(await deleteReactionMessage(GUILD_A, saved.id)).toBe(true);
         expect(await getReactionMessageById(saved.id)).toBeNull();
         expect(await childCounts(saved.id)).toEqual({ reactions: 0, buttons: 0 });
     });
 
     it("returns false when deleting an id that does not exist", async () => {
-        expect(await deleteReactionMessage(999999)).toBe(false);
+        expect(await deleteReactionMessage(GUILD_A, 999999)).toBe(false);
     });
 });

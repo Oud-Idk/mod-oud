@@ -1,8 +1,31 @@
 use crate::core::config::state::Error;
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
-use serenity::all::{CreateEmbed, CreateMessage};
+use serenity::all::{CreateAllowedMentions, CreateEmbed, CreateMessage};
 use tracing::warn;
+
+/// Mentions that are safe to emit for content the bot re-types on someone else's behalf.
+///
+/// Discord parses `@everyone`, `@here` and role pings with the *sending* account's permissions, so
+/// text a member authored can ping things that member could not. Custom command output and
+/// starboard reposts both carry such text, so they start from this and add only deliberate targets.
+pub fn safe_allowed_mentions() -> CreateAllowedMentions {
+    CreateAllowedMentions::new()
+        .everyone(false)
+        .all_roles(false)
+        .all_users(false)
+}
+
+/// Strips every implicit ping from a built message, for content the bot re-types verbatim from a
+/// member: custom command output, starboard reposts.
+///
+/// Applied at the send site rather than inside [`build_custom_message`], because most callers build
+/// messages the bot composes itself (ticket panels, verification prompts) where a configured ping is
+/// intentional.
+pub fn without_implicit_mentions(mut message: CreateMessage) -> CreateMessage {
+    message = message.allowed_mentions(safe_allowed_mentions());
+    message
+}
 
 /// The output format of a configurable message: a Discord embed or plain text.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, sqlx::Type, PartialEq, Eq, Copy)]
@@ -291,5 +314,42 @@ where
                 format!("Failed to compile embed: {e}"),
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{safe_allowed_mentions, without_implicit_mentions};
+    use serenity::all::CreateMessage;
+
+    /// Serialises the builder so the wire shape can be asserted.
+    fn as_json(message: &CreateMessage) -> serde_json::Value {
+        serde_json::to_value(message).expect("create message serialises")
+    }
+
+    #[test]
+    fn safe_mentions_deny_every_implicit_ping() {
+        let allowed = serde_json::to_value(safe_allowed_mentions()).expect("serialises");
+
+        assert_eq!(allowed["parse"], serde_json::json!([]));
+        assert_eq!(allowed["users"], serde_json::json!([]));
+        assert_eq!(allowed["roles"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn reposted_content_cannot_ping_everyone() {
+        let message = without_implicit_mentions(CreateMessage::new().content("@everyone hi @here"));
+        let json = as_json(&message);
+
+        assert_eq!(json["allowed_mentions"]["parse"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn helper_leaves_the_content_untouched() {
+        // The point is to stop the ping, not to censor the text.
+        let message = without_implicit_mentions(CreateMessage::new().content("@everyone hello"));
+        let json = as_json(&message);
+
+        assert_eq!(json["content"], "@everyone hello");
     }
 }

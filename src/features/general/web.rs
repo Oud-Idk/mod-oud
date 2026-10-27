@@ -1,6 +1,7 @@
 use crate::core::config::state::WebState;
 use crate::shared;
 use crate::shared::embed::{DEFAULT_EMBED, DiscordEmbed, Format, MessageGetter};
+use crate::shared::guild_resource::ensure_channel_in_guild;
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -58,6 +59,8 @@ pub async fn handle_send_custom_embed(
     debug!(%guild_id, "custom message send requested");
 
     let target_channel = serenity::ChannelId::new(payload.channel_id);
+
+    ensure_channel_in_guild(&state.serenity_http, target_channel, guild_id).await?;
 
     let message_builder = shared::embed::create_embed_for_web(&payload, ToString::to_string)?;
 

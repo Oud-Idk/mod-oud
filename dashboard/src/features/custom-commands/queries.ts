@@ -43,7 +43,10 @@ export async function getCustomCommands(guildId: string): Promise<CustomCommand[
     return res.rows.map((row) => customCommandSchema.parse(row));
 }
 
-export async function saveCustomCommand(data: SaveCustomCommandData): Promise<CustomCommand> {
+export async function saveCustomCommand(
+    guildId: string,
+    data: SaveCustomCommandData
+): Promise<CustomCommand> {
     const actionsJson = JSON.stringify(data.actions);
 
     let query: string;
@@ -82,7 +85,7 @@ export async function saveCustomCommand(data: SaveCustomCommandData): Promise<Cu
             data.ignored_channels,
             actionsJson,
             data.id,
-            data.guild_id,
+            guildId,
         ];
     } else {
         query = `
@@ -95,7 +98,7 @@ export async function saveCustomCommand(data: SaveCustomCommandData): Promise<Cu
             RETURNING *;
         `;
         params = [
-            data.guild_id,
+            guildId,
             data.name,
             data.description ?? null,
             data.enabled,

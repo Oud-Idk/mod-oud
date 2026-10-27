@@ -60,13 +60,13 @@ async function seedTicketMessage(options: {
 
 describe("ticket history against a real database", () => {
     it("returns null for a channel with no ticket", async () => {
-        expect(await getTicketHistory(CHANNEL_1)).toBeNull();
+        expect(await getTicketHistory(GUILD_A, CHANNEL_1)).toBeNull();
     });
 
     it("returns an empty message list for a ticket with no messages", async () => {
         await seedTicket({ guildId: GUILD_A, channelId: CHANNEL_1 });
 
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(history?.messages).toEqual([]);
     });
@@ -81,7 +81,7 @@ describe("ticket history against a real database", () => {
             createdAt: "2026-03-04T05:06:07Z",
         });
 
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(history?.messages[0].created_at).toBeInstanceOf(Date);
         expect(history?.messages[0].created_at.toISOString()).toBe("2026-03-04T05:06:07.000Z");
@@ -108,7 +108,7 @@ describe("ticket history against a real database", () => {
             createdAt: "2026-01-02T00:00:00Z",
         });
 
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(history?.messages.map((m) => m.content)).toEqual(["first", "second", "third"]);
     });
@@ -118,7 +118,7 @@ describe("ticket history against a real database", () => {
 
         // pg hands back int8 as a string, so TicketHistorySchema's z.coerce.number()
         // is what turns it into the number the type promises.
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(typeof history?.ticket_id).toBe("number");
         expect(history?.ticket_id).toBeGreaterThan(0);
@@ -131,7 +131,7 @@ describe("ticket history against a real database", () => {
             openerId: "777777777777777777",
         });
 
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(history?.guild_id).toBe(GUILD_A);
         expect(history?.channel_id).toBe(CHANNEL_1);
@@ -147,7 +147,7 @@ describe("ticket history against a real database", () => {
             closedAt: "2026-01-05T00:00:00Z",
         });
 
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(history?.status).toBe("CLOSED");
         expect(history?.closed_at).toBeInstanceOf(Date);
@@ -157,7 +157,7 @@ describe("ticket history against a real database", () => {
     it("leaves closed_at null for an open ticket", async () => {
         await seedTicket({ guildId: GUILD_A, channelId: CHANNEL_1, status: "OPEN" });
 
-        expect((await getTicketHistory(CHANNEL_1))?.closed_at).toBeNull();
+        expect((await getTicketHistory(GUILD_A, CHANNEL_1))?.closed_at).toBeNull();
     });
 
     it("marks a staff message as ticket manager", async () => {
@@ -168,7 +168,7 @@ describe("ticket history against a real database", () => {
             isTicketManager: true,
         });
 
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(history?.messages[0].is_ticket_manager).toBe(true);
     });
@@ -187,7 +187,7 @@ describe("ticket history against a real database", () => {
             content: "theirs",
         });
 
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(history?.messages.map((m) => m.content)).toEqual(["mine"]);
     });
@@ -196,7 +196,7 @@ describe("ticket history against a real database", () => {
         await seedTicket({ guildId: GUILD_A, channelId: CHANNEL_1, messageCount: 7 });
         await seedTicketMessage({ channelId: CHANNEL_1, messageId: "900000000000000007" });
 
-        const history = await getTicketHistory(CHANNEL_1);
+        const history = await getTicketHistory(GUILD_A, CHANNEL_1);
 
         expect(history?.message_count).toBe(7);
         expect(history?.messages).toHaveLength(1);

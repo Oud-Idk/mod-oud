@@ -10,6 +10,8 @@ import {
 } from "./queries";
 import type { SaveReactionMessageInput } from "./types";
 
+const GUILD_A = "123456789012345678";
+
 // Row mapping, SQL shape, tenant scoping and constraints live in
 // queries.integration.test.ts against a real database. What stays here is the
 // behaviour a real database will not produce on demand: a failing connection, a
@@ -75,13 +77,13 @@ describe("Reaction Roles Query Module", () => {
         it("should return false when rowCount is null", async () => {
             mockQuery.mockResolvedValue({ rows: [], rowCount: null });
 
-            expect(await deleteReactionMessage(3)).toBe(false);
+            expect(await deleteReactionMessage(GUILD_A, 3)).toBe(false);
         });
 
         it("should propagate a database error", async () => {
             mockQuery.mockRejectedValue(new Error("connection lost"));
 
-            await expect(deleteReactionMessage(3)).rejects.toThrow("connection lost");
+            await expect(deleteReactionMessage(GUILD_A, 3)).rejects.toThrow("connection lost");
         });
     });
 
@@ -98,7 +100,7 @@ describe("Reaction Roles Query Module", () => {
             client.query.mockRejectedValueOnce(new Error("db failure"));
 
             await expect(
-                saveReactionMessage({
+                saveReactionMessage(GUILD_A, {
                     name: "Verify",
                     guild_id: "guild_123",
                     channel_id: "chan_1",
@@ -132,7 +134,7 @@ describe("Reaction Roles Query Module", () => {
                 buttons: [{ custom_id: "btn_1", role_id: "role_1" }],
             };
 
-            await expect(saveReactionMessage(input)).rejects.toThrow(
+            await expect(saveReactionMessage(GUILD_A, input)).rejects.toThrow(
                 "Reaction message with ID 99 not found."
             );
             expect(client.release).toHaveBeenCalled();
@@ -140,7 +142,7 @@ describe("Reaction Roles Query Module", () => {
 
         it("should validate input schema before connecting to database", async () => {
             await expect(
-                saveReactionMessage({
+                saveReactionMessage(GUILD_A, {
                     name: "",
                     guild_id: "guild_123",
                     channel_id: "chan_1",

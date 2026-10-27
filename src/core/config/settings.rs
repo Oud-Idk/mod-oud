@@ -147,6 +147,10 @@ impl GuildSettings {
     }
 }
 
+/// Decodes each feature's settings on its own, so one unreadable field cannot discard the rest.
+///
+/// A whole-document decode used to fail as a unit and fall back to `GuildSettings::default()`,
+/// which silently turned off every other feature's moderation for the guild.
 fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> GuildSettings {
     match serde_path_to_error::deserialize(raw_json) {
         Ok(s) => {
@@ -158,13 +162,80 @@ fn parse_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> Guil
                 error = %err.inner(),
                 field_path = %err.path(),
                 %guild_id,
-                raw_json = %raw_json,
-                fallback = "default settings",
-                "settings deserialize from the database row failed"
+                fallback = "per-feature recovery",
+                "settings deserialize from the database row failed; keeping the readable features"
             );
-            GuildSettings::default()
+            recover_guild_settings(raw_json, guild_id)
         }
     }
+}
+
+/// Keeps every feature whose settings still decode, and defaults only the ones that do not.
+fn recover_guild_settings(raw_json: &serde_json::Value, guild_id: GuildId) -> GuildSettings {
+    let Some(object) = raw_json.as_object() else {
+        warn!(%guild_id, "guild settings row is not an object; using defaults");
+        return GuildSettings::default();
+    };
+
+    let mut settings = GuildSettings::default();
+    let mut kept = 0_usize;
+
+    for (key, value) in object {
+        // Decode this one field on its own, so a neighbour's bad value is irrelevant.
+        let single = serde_json::json!({ key: value });
+        match serde_path_to_error::deserialize::<_, GuildSettings>(&single) {
+            Ok(decoded) => {
+                merge_feature(&mut settings, decoded);
+                kept += 1;
+            }
+            Err(err) => {
+                warn!(
+                    error = %err.inner(),
+                    field_path = %err.path(),
+                    %guild_id,
+                    field = key.as_str(),
+                    "one feature's settings could not be read; defaulting only that feature"
+                );
+            }
+        }
+    }
+
+    debug!(%guild_id, kept, "guild settings recovered per feature");
+    settings
+}
+
+/// Copies the single feature a one-field decode produced into `into`.
+fn merge_feature(into: &mut GuildSettings, decoded: GuildSettings) {
+    macro_rules! take {
+        ($($field:ident),* $(,)?) => {
+            $(
+                if decoded.$field.is_some() {
+                    into.$field = decoded.$field;
+                }
+            )*
+        };
+    }
+
+    take!(
+        welcome,
+        verification,
+        leave,
+        message_logging,
+        message_filtering,
+        report,
+        moderation_dms,
+        leveling,
+        tickets,
+        invite_tracker,
+        honeypot,
+        member_counter,
+        birthday,
+        raid_detection,
+        economy,
+        gambling,
+        custom_commands,
+        dynamic_slowmode,
+    );
 }
 
 /// A simple wrapper to put `get_settings_inner` to the heap. Required as the future is massive.
@@ -270,4 +341,61 @@ pub async fn save_settings(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GuildSettings, parse_guild_settings};
+    use serde_json::json;
+    use serenity::all::GuildId;
+
+    fn guild() -> GuildId {
+        GuildId::new(123_456_789_012_345_678)
+    }
+
+    #[test]
+    fn a_good_document_decodes_directly() {
+        let raw = json!({ "invite_tracker": { "enabled": true } });
+
+        assert!(parse_guild_settings(&raw, guild()).invite_tracker.is_some());
+    }
+
+    #[test]
+    fn one_bad_field_does_not_discard_the_others() {
+        // `invite_tracker` is readable; `message_filtering` is not. Losing the readable one
+        // would silently disable a feature the operator had configured.
+        let raw = json!({
+            "invite_tracker": { "enabled": true },
+            "message_filtering": "not-an-object"
+        });
+
+        let parsed = parse_guild_settings(&raw, guild());
+
+        assert!(
+            parsed.invite_tracker.is_some(),
+            "a readable feature must survive another feature's bad field"
+        );
+        assert!(
+            parsed.message_filtering.is_none(),
+            "the unreadable feature falls back to unset"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_document_still_yields_settings() {
+        let raw = json!({ "message_filtering": 42, "welcome": 7 });
+
+        // Must not panic, and must return something usable.
+        let parsed: GuildSettings = parse_guild_settings(&raw, guild());
+
+        assert!(parsed.message_filtering.is_none());
+        assert!(parsed.welcome.is_none());
+    }
+
+    #[test]
+    fn a_non_object_row_uses_defaults() {
+        let parsed = parse_guild_settings(&json!("nonsense"), guild());
+
+        assert!(parsed.invite_tracker.is_none());
+    }
 }

@@ -5,7 +5,7 @@ use crate::features::verification::CaptchaType;
 use serde::{Deserialize, Serialize};
 use serenity::all::Context;
 use serenity::all::{EditRole, GuildId, Permissions, RoleId};
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreRaidState {
@@ -76,49 +76,94 @@ pub async fn ensure_preraid_state_saved(
     Ok(())
 }
 
-/// Restores original guild state saved in Redis prior to the raid and removes the snapshot.
+/// What a pre-raid restore attempt found.
+///
+/// `Unreadable` is not the same as `Absent`: an unreadable snapshot means the guild may still be
+/// locked, so the caller must reconcile rather than treat the raid end as done.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RestoreOutcome {
+    /// Permissions were restored from the snapshot.
+    Restored,
+    /// There was nothing to restore.
+    Absent,
+    /// A snapshot existed but could not be used; it has been discarded.
+    Unreadable,
+}
+
+/// Restores original guild state saved in Redis prior to the raid.
+///
+/// The snapshot is read without being consumed, and only deleted once the `@everyone` permissions
+/// have actually been restored. Deleting it first meant a failed restore left the guild locked with
+/// nothing left to retry from, and the only way out was manual permission repair.
 #[instrument(skip(ctx, data), fields(guild_id = %guild_id))]
 pub async fn restore_preraid_state(
     ctx: &Context,
     data: &BotData,
     guild_id: GuildId,
-) -> Result<bool, Error> {
-    let json_str = cache::getdel_preraid_snapshot(&data.core.redis, guild_id).await?;
-    let Some(json_str) = json_str else {
-        debug!(%guild_id, "snapshot already claimed or non-existent; skipping duplicate restoration");
-        return Ok(false);
+) -> Result<RestoreOutcome, Error> {
+    let Some(json_str) = cache::peek_preraid_snapshot(&data.core.redis, guild_id).await? else {
+        debug!(%guild_id, "no pre-raid snapshot; nothing to restore");
+        return Ok(RestoreOutcome::Absent);
     };
 
-    let snapshot: PreRaidState = serde_json::from_str(&json_str)?;
+    let snapshot: PreRaidState = match serde_json::from_str(&json_str) {
+        Ok(snapshot) => snapshot,
+        Err(e) => {
+            // This snapshot will never parse. Discard it so it cannot block later attempts, and
+            // report it distinctly: the guild may still be locked.
+            error!(error = ?e, %guild_id, "pre-raid snapshot unreadable; discarding it");
+            if let Err(e) = cache::delete_preraid_snapshot(&data.core.redis, guild_id).await {
+                warn!(error = ?e, %guild_id, "unreadable pre-raid snapshot not discarded");
+            }
+            return Ok(RestoreOutcome::Unreadable);
+        }
+    };
 
     let everyone_role_id = RoleId::new(guild_id.get());
     let original_perms = Permissions::from_bits_truncate(snapshot.original_everyone_permissions);
     let role_builder = EditRole::new().permissions(original_perms);
 
-    if let Err(e) = guild_id
+    // This is the step that decides whether the guild is still locked. If it fails, keep the
+    // snapshot so the next tick can try again instead of discarding the only copy.
+    guild_id
         .edit_role(&ctx.http, everyone_role_id, role_builder)
         .await
-    {
-        error!(error = ?e, %guild_id, "@everyone role permissions not restored");
-    }
+        .inspect_err(|e| {
+            error!(
+                error = ?e,
+                %guild_id,
+                "everyone permissions not restored; keeping the snapshot for a retry"
+            );
+        })?;
 
+    // The guild is unlocked from here, so the remaining steps must not fail the whole restore.
     let captcha_str = snapshot.original_verification_type.map(|c| format!("{c}"));
 
-    database::restore_verification_settings(
+    if let Err(e) = database::restore_verification_settings(
         &data.core.db,
         guild_id,
         snapshot.original_oauth_required,
         captcha_str.as_deref(),
     )
-    .await?;
+    .await
+    {
+        error!(error = ?e, %guild_id, "verification settings not restored");
+    }
 
-    let _: () = cache::remove_guild_from_raid(guild_id, &data.core.redis).await?;
+    if let Err(e) = cache::remove_guild_from_raid(guild_id, &data.core.redis).await {
+        warn!(error = ?e, %guild_id, "guild not removed from the raid tracking set");
+    }
 
     if let Err(e) = database::delete_active_raid_state(&data.core.db, guild_id).await {
         error!(error = ?e, %guild_id, "active raid state row not deleted from database");
     }
 
-    info!(%guild_id, "claimed and restored pre-raid state");
+    if let Err(e) = cache::delete_preraid_snapshot(&data.core.redis, guild_id).await {
+        // Harmless: the next restore re-applies the same permissions and then tries again.
+        warn!(error = ?e, %guild_id, "pre-raid snapshot not deleted after a successful restore");
+    }
 
-    Ok(true)
+    info!(%guild_id, "restored pre-raid state");
+
+    Ok(RestoreOutcome::Restored)
 }

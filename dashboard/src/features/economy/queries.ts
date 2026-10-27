@@ -136,6 +136,8 @@ export async function saveEconomyItem(guildId: string, item: EconomyItem): Promi
                                            stock_remaining = EXCLUDED.stock_remaining,
                                            requirements    = EXCLUDED.requirements,
                                            actions         = EXCLUDED.actions
+            -- A caller-supplied id must not rewrite another guild's item.
+            WHERE economy_items.guild_id = EXCLUDED.guild_id
             RETURNING *
         `,
         [
@@ -212,6 +214,7 @@ export async function saveEconomyCategory(
             INSERT INTO economy_categories (id, guild_id, name)
             VALUES ($1, $2, $3)
             ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+            WHERE economy_categories.guild_id = EXCLUDED.guild_id
             RETURNING *
         `,
         [categoryId, guildId, category.name]
@@ -306,6 +309,7 @@ export async function syncEconomyWorkMessages(
                 SELECT t.id, $1::bigint, t.content
                 FROM UNNEST($2::uuid[], $3::text[]) AS t(id, content)
                 ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content
+                WHERE economy_work_messages.guild_id = EXCLUDED.guild_id
                 `,
                 [guildId, ids, contents]
             );

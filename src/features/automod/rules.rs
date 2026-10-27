@@ -32,7 +32,9 @@ pub fn should_skip_scope(message: &Message, scope: &RuleScope) -> bool {
             }
         }
         ScopeMode::Enforced => {
-            if !scope.channels.contains(&channel_id) {
+            // An empty channel list means "everywhere", not "nowhere": the configured role
+            // selection alone is a supported way to scope an enforced rule.
+            if !scope.channels.is_empty() && !scope.channels.contains(&channel_id) {
                 debug!("rule check skipped: the target channel is not enforced");
                 return true;
             }

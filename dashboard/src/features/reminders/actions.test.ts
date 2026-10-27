@@ -3,11 +3,16 @@ import { z } from "zod";
 import { saveReminderAction, deleteReminderAction } from "./actions";
 import { deleteReminder, saveReminder } from "./queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
+import { getGuildChannels } from "@/features/_shared/channels";
 import { revalidatePath } from "next/cache";
 import type { ReminderRow, SaveableReminderInput } from "./types";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
+}));
+
+vi.mock("@/features/_shared/channels", () => ({
+    getGuildChannels: vi.fn<() => Promise<{ id: string; name: string; type: number }[]>>(),
 }));
 
 vi.mock("./queries", () => ({
@@ -20,7 +25,7 @@ vi.mock("next/cache", () => ({
 }));
 
 const validInput: SaveableReminderInput = {
-    channelId: "chan_1",
+    channelId: "123456789",
     rType: "SINGLE",
     message: { format: "TEXT", content: "Stand up", embed: {} },
     nextTriggerAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -29,7 +34,7 @@ const validInput: SaveableReminderInput = {
 function reminderRowFixture(): ReminderRow {
     return {
         id: "5",
-        channelId: "chan_1",
+        channelId: "123456789",
         rType: "SINGLE",
         message: { format: "TEXT", content: "Stand up", embed: {} },
         nextTriggerAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -49,6 +54,10 @@ const mockUser: Awaited<ReturnType<typeof verifyGuildAccess>> = {
 describe("Reminders Action Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
+        // The guild owns the channel the fixtures use.
+        vi.mocked(getGuildChannels).mockResolvedValue([
+            { id: "123456789", name: "general", type: 0 },
+        ]);
         vi.spyOn(console, "error").mockImplementation(() => undefined);
     });
 
@@ -57,6 +66,25 @@ describe("Reminders Action Module", () => {
     });
 
     describe("saveReminderAction", () => {
+        it("should REJECT a channel that belongs to another guild", async () => {
+            // The worker sends with the bot's credentials, so a foreign channel would post there.
+            await expect(
+                saveReminderAction("guild_123", { ...validInput, channelId: "987654321" })
+            ).rejects.toThrow("That channel does not belong to this server.");
+
+            expect(saveReminder).not.toHaveBeenCalled();
+        });
+
+        it("should refuse to save when the channel lookup returns nothing", async () => {
+            vi.mocked(getGuildChannels).mockResolvedValue([]);
+
+            await expect(saveReminderAction("guild_123", validInput)).rejects.toThrow(
+                "Could not read this server's channels. Try again."
+            );
+
+            expect(saveReminder).not.toHaveBeenCalled();
+        });
+
         it("should verify access, save the reminder, and revalidate the path", async () => {
             const saved = reminderRowFixture();
             vi.mocked(saveReminder).mockResolvedValue(saved);
@@ -71,7 +99,7 @@ describe("Reminders Action Module", () => {
 
         it("should throw the first zod issue message for invalid input", async () => {
             const invalid: SaveableReminderInput = {
-                channelId: "chan_1",
+                channelId: "123456789",
                 rType: "SINGLE",
                 message: { format: "TEXT", content: "", embed: {} },
             };
@@ -111,23 +139,23 @@ describe("Reminders Action Module", () => {
 
     describe("deleteReminderAction", () => {
         it("should verify access, delete the reminder, and revalidate the path", async () => {
-            await deleteReminderAction("guild_123", "5", "chan_1");
+            await deleteReminderAction("guild_123", "5", "123456789");
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
-            expect(deleteReminder).toHaveBeenCalledWith("5", "chan_1");
+            expect(deleteReminder).toHaveBeenCalledWith("guild_123", "5", "123456789");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reminders");
         });
 
         it("should throw the underlying error message", async () => {
             vi.mocked(deleteReminder).mockRejectedValue(new Error("db down"));
 
-            await expect(deleteReminderAction("guild_123", "5", "chan_1")).rejects.toThrow("db down");
+            await expect(deleteReminderAction("guild_123", "5", "123456789")).rejects.toThrow("db down");
         });
 
         it("should throw a generic message for non-error rejections", async () => {
             vi.mocked(deleteReminder).mockRejectedValue("boom");
 
-            await expect(deleteReminderAction("guild_123", "5", "chan_1")).rejects.toThrow(
+            await expect(deleteReminderAction("guild_123", "5", "123456789")).rejects.toThrow(
                 "Could not delete reminder."
             );
         });

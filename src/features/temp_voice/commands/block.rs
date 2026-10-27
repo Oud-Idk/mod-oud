@@ -17,7 +17,7 @@ pub async fn block(
     };
 
     let response_message = service::block_users_from_vc(
-        &ctx.serenity_context().http,
+        ctx.serenity_context(),
         guild_id,
         channel_id,
         vec![target.id],

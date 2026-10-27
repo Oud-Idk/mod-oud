@@ -33,7 +33,13 @@ where
         build_custom_message(payload.format, &payload.content, &payload.embed, replace_fn)?;
 
     if let Some(builder) = message_builder {
-        let msg = channel_id.send_message(http, builder).await?;
+        // The text is the configured command output, which may carry member-supplied placeholders.
+        let msg = channel_id
+            .send_message(
+                http,
+                crate::shared::embed::without_implicit_mentions(builder),
+            )
+            .await?;
         Ok(Some(msg))
     } else {
         Ok(None)

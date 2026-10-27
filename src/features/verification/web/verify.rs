@@ -79,11 +79,14 @@ pub async fn handle_verify(
     let settings = fetch_guild_settings(&state, payload.guild_id).await?;
     let verification_cfg = settings
         .verification_settings()
+        .filter(|v| v.enabled == Some(true))
         .filter(|v| v.captcha_type.as_ref() == Some(&payload.captcha_type))
         .ok_or_else(|| {
+            // Disabling verification keeps the configured role, so without this a previously
+            // issued link would still hand the role out.
             debug!(
                 guild_id = %payload.guild_id,
-                "rejected verification: captcha type mismatch or verification not configured for guild"
+                "rejected verification: verification is disabled or the captcha type mismatches"
             );
             (
                 StatusCode::BAD_REQUEST,

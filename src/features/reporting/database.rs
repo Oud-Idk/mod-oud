@@ -50,8 +50,24 @@ impl From<RawReportedMessage> for ReportedMessagePayload {
 #[derive(sqlx::FromRow)]
 struct RawTargetReport {
     guild_id: i64,
+    channel_id: i64,
+    message_id: i64,
     author_id: i64,
     author_name: Option<String>,
+}
+
+/// The guild, message target, and author of a report, as stored.
+pub struct TargetReport {
+    /// Guild that owns the report.
+    pub guild_id: GuildId,
+    /// Channel the reported message lives in.
+    pub channel_id: ChannelId,
+    /// The reported message.
+    pub message_id: MessageId,
+    /// Author of the reported message.
+    pub author_id: UserId,
+    /// Cached display name of the author, if known.
+    pub author_name: String,
 }
 
 pub struct Id {
@@ -120,11 +136,11 @@ pub async fn get_reported_message_by_id(
 pub async fn fetch_target_report(
     pool: &PgPool,
     report_id: i64,
-) -> Result<(GuildId, UserId, String), ActionError> {
+) -> Result<TargetReport, ActionError> {
     let report = sqlx::query_as!(
         RawTargetReport,
         r#"
-        SELECT r.guild_id, r.author_id, u.username AS author_name
+        SELECT r.guild_id, r.channel_id, r.message_id, r.author_id, u.username AS author_name
         FROM reported_messages r
         LEFT JOIN discord_users u ON u.user_id = r.author_id
         WHERE r.id = $1
@@ -137,10 +153,13 @@ pub async fn fetch_target_report(
     .map_err(|_| ActionError::Internal)?
     .ok_or(ActionError::NotFound)?;
 
-    let guild_id = GuildId::new(report.guild_id.cast_unsigned());
-    let user_id = UserId::new(report.author_id.cast_unsigned());
-
-    Ok((guild_id, user_id, report.author_name.unwrap_or_default()))
+    Ok(TargetReport {
+        guild_id: GuildId::new(report.guild_id.cast_unsigned()),
+        channel_id: ChannelId::new(report.channel_id.cast_unsigned()),
+        message_id: MessageId::new(report.message_id.cast_unsigned()),
+        author_id: UserId::new(report.author_id.cast_unsigned()),
+        author_name: report.author_name.unwrap_or_default(),
+    })
 }
 
 pub async fn fetch_reporter_id(pool: &PgPool, report_id: i64) -> Result<UserId, ActionError> {

@@ -53,7 +53,7 @@ describe("reminderBaseSchema", () => {
     it("should keep provided values", () => {
         const date = new Date("2026-01-01T00:00:00.000Z");
         const parsed = reminderBaseSchema.parse({
-            channelId: "chan_1",
+            channelId: "123456789",
             rType: "RECURRING",
             nextTriggerAt: date,
             daysOfWeek: [1, 3],
@@ -63,7 +63,7 @@ describe("reminderBaseSchema", () => {
             isActive: false,
         });
 
-        expect(parsed.channelId).toBe("chan_1");
+        expect(parsed.channelId).toBe("123456789");
         expect(parsed.daysOfWeek).toEqual([1, 3]);
         expect(parsed.intervalSeconds).toBe(3600);
         expect(parsed.isActive).toBe(false);
@@ -73,7 +73,7 @@ describe("reminderBaseSchema", () => {
 describe("saveableReminderSchema", () => {
     function validBase(): {channelId: string, rType: "SINGLE", message: {format: "TEXT", content: string, embed: object}} {
         return {
-            channelId: "chan_1",
+            channelId: "123456789",
             rType: "SINGLE" as const,
             message: { format: "TEXT" as const, content: "Reminder text", embed: {} },
         };
@@ -105,6 +105,26 @@ describe("saveableReminderSchema", () => {
         });
         expect(resultSpace.success).toBe(false);
     });
+
+    // A zero or non-numeric channel ID reaches the bot, where ChannelId::new panics.
+    it.each(["0", "-1", "chan_1", "abc", "1.5"])(
+        "should REJECT the non-snowflake channel id %s",
+        (channelId) => {
+            const result = saveableReminderSchema.safeParse({
+                ...validBase(),
+                channelId,
+            });
+
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues).toContainEqual({
+                    code: 'custom',
+                    message: "That channel is not a valid Discord channel.",
+                    path: ["channelId"],
+                });
+            }
+        }
+    );
 
     // Kills TEXT format message content, .trim(), path ["message", "content"], and message mutants
     it("should REJECT an empty or whitespace TEXT message with exact issue", () => {
@@ -207,7 +227,7 @@ describe("reminderRowSchema", () => {
     // Kills reminderRowSchema extend mutant
     it("should REJECT a row missing an id and target path ['id']", () => {
         const result = reminderRowSchema.safeParse({
-            channelId: "chan_1",
+            channelId: "123456789",
             message: { format: "TEXT", content: "Reminder text", embed: {} },
         });
 

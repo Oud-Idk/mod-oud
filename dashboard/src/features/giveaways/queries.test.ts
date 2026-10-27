@@ -51,7 +51,7 @@ describe("Giveaways Query Module", () => {
         it("should reject an invalid payload before hitting the database", async () => {
             const data = createValidInput({ channel_id: null });
 
-            await expect(saveGiveaway(data)).rejects.toThrow(
+            await expect(saveGiveaway("guild_123", data)).rejects.toThrow(
                 "Please select a target Discord channel for the giveaway!"
             );
             expect(mockQuery).not.toHaveBeenCalled();
@@ -60,7 +60,7 @@ describe("Giveaways Query Module", () => {
         it("should propagate a database error", async () => {
             mockQuery.mockRejectedValue(new Error("Spicy's single brain cell is currently busy buffer overflowing"));
 
-            await expect(saveGiveaway(createValidInput())).rejects.toThrow("Spicy's single brain cell is currently busy buffer overflowing");
+            await expect(saveGiveaway("guild_123", createValidInput())).rejects.toThrow("Spicy's single brain cell is currently busy buffer overflowing");
         });
     });
 

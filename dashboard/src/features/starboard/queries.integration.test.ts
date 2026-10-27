@@ -198,19 +198,21 @@ describe("starboard configs against a real database", () => {
             expect(saved.max_message_age).toBeNull();
         });
 
-        // ON CONFLICT (id) DO UPDATE does not reassign guild_id, so passing another
-        // guild's id writes that guild's values onto the existing row instead of
-        // failing. The row keeps its original owner.
-        it("lets one guild overwrite another guild's config by passing its id", async () => {
+        // ON CONFLICT (id) DO UPDATE with no guild predicate used to let a guild overwrite
+        // another guild's row by passing its id. The predicate now makes that match nothing, so
+        // the foreign row is left alone and the caller gets no row back.
+        it("refuses to overwrite another guild's config by passing its id", async () => {
             const foreign = await upsertStarboardConfig(GUILD_B, validInput({ reaction_threshold: 3 }));
 
-            await upsertStarboardConfig(
-                GUILD_A,
-                validInput({ id: foreign.id, reaction_threshold: 99 })
-            );
+            await expect(
+                upsertStarboardConfig(
+                    GUILD_A,
+                    validInput({ id: foreign.id, reaction_threshold: 99 })
+                )
+            ).rejects.toThrow();
 
             const [b] = await getStarboardConfigs(GUILD_B);
-            expect(b.reaction_threshold).toBe(99);
+            expect(b.reaction_threshold).toBe(3);
             expect(b.guild_id).toBe(GUILD_B);
         });
     });

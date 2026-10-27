@@ -52,16 +52,40 @@ pub async fn rename_temp_vc(
     }
 }
 
-/// Service: Disconnect a specific `UserId` from a voice channel
+/// Service: Disconnect a specific `UserId` from a voice channel.
+///
+/// The disconnect is guild-scoped, so it only runs after confirming the target is in the channel
+/// the caller owns. Without that check a room owner could drop anyone from any voice channel in
+/// the guild.
 pub async fn kick_user_by_id(
-    http: &Http,
+    ctx: &Context,
     guild_id: GuildId,
+    channel_id: ChannelId,
     target_user_id: UserId,
 ) -> Result<String, Error> {
+    let Some(target_channel) = target_voice_channel(ctx, guild_id, target_user_id) else {
+        return Ok(format!(
+            "I couldn't see which voice channel <@{target_user_id}> is in, so they were not kicked."
+        ));
+    };
+
+    if target_channel != channel_id {
+        tracing::warn!(
+            %guild_id,
+            %channel_id,
+            %target_user_id,
+            %target_channel,
+            "kick refused; the target is in another voice channel"
+        );
+        return Ok(format!(
+            "<@{target_user_id}> isn't in your channel, so they were not kicked."
+        ));
+    }
+
     let edit_builder = EditMember::new().disconnect_member();
 
     match guild_id
-        .edit_member(http, target_user_id, edit_builder)
+        .edit_member(&ctx.http, target_user_id, edit_builder)
         .await
     {
         Ok(_) => Ok(format!(
@@ -72,6 +96,22 @@ pub async fn kick_user_by_id(
             Ok("Could not kick the user. Do I have the 'Move Members' permission?".to_string())
         }
     }
+}
+
+/// Returns the voice channel a member currently occupies, from the gateway's voice states.
+///
+/// `None` means the member is not in voice, which is not the same as "in the authorized channel".
+fn target_voice_channel(
+    ctx: &Context,
+    guild_id: GuildId,
+    target_user_id: UserId,
+) -> Option<ChannelId> {
+    guild_id.to_guild_cached(&ctx.cache).and_then(|guild| {
+        guild
+            .voice_states
+            .get(&target_user_id)
+            .and_then(|state| state.channel_id)
+    })
 }
 
 /// Service: Search for a user in the voice channel by string query (name/ID) and kick them
@@ -139,7 +179,7 @@ pub async fn kick_user_by_query(
     };
 
     // Kick the resolved user
-    kick_user_by_id(&ctx.http, guild_id, target_id).await
+    kick_user_by_id(ctx, guild_id, channel_id, target_id).await
 }
 
 /// Service: Set the user limit for a temporary voice channel
@@ -253,17 +293,65 @@ pub async fn initiate_temp_vc_transfer(
     Ok("Transfer offer sent! Waiting for them to accept...".to_string())
 }
 
-/// Service: Lock a temporary voice channel by denying CONNECT to @everyone
+/// Reads the current permission overwrites for a channel, or `None` when the channel is gone.
+///
+/// # Errors
+/// Returns the serenity error when the channel lookup fails for a reason other than a 404.
+async fn current_overwrites(
+    http: &Http,
+    channel_id: ChannelId,
+) -> Result<Option<Vec<PermissionOverwrite>>, Error> {
+    match channel_id.to_channel(http).await {
+        Ok(channel) => {
+            Ok(serenity::all::Channel::guild(channel).map(|channel| channel.permission_overwrites))
+        }
+        Err(serenity::Error::Http(http_err))
+            if http_err.status_code() == Some(serenity::all::StatusCode::NOT_FOUND) =>
+        {
+            Ok(None)
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Service: Lock a temporary voice channel by denying CONNECT to @everyone.
+///
+/// Only the CONNECT bits are touched. Replacing the overwrite outright would also drop the
+/// `VIEW_CHANNEL` denial that keeps a private room private.
 pub async fn lock_temp_vc(
     http: &Http,
     guild_id: GuildId,
     channel_id: ChannelId,
 ) -> Result<String, Error> {
-    let overwrite = PermissionOverwrite {
-        allow: Permissions::empty(),
-        deny: Permissions::CONNECT,
-        kind: PermissionOverwriteType::Role(RoleId::new(guild_id.get())),
+    let target = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
+
+    let mut overwrite = match current_overwrites(http, channel_id).await {
+        Ok(Some(overwrites)) => overwrites
+            .into_iter()
+            .find(|o| o.kind == target)
+            .unwrap_or_else(|| PermissionOverwrite {
+                allow: Permissions::empty(),
+                deny: Permissions::empty(),
+                kind: target,
+            }),
+        Ok(None) => {
+            tracing::warn!(%channel_id, "voice channel gone; lock skipped");
+            return Ok("This channel no longer exists.".to_string());
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = ?e,
+                %channel_id,
+                "overwrite lookup failed; locking would drop existing restrictions"
+            );
+            return Ok(
+                "Could not read this channel's permissions, so it was not locked.".to_string(),
+            );
+        }
     };
+
+    overwrite.allow.remove(Permissions::CONNECT);
+    overwrite.deny.insert(Permissions::CONNECT);
 
     channel_id.create_permission(http, overwrite).await?;
 
@@ -275,7 +363,9 @@ pub async fn lock_temp_vc(
     )
 }
 
-/// Service: Unlock a temporary voice channel by removing the @everyone permission overwrite
+/// Service: Unlock a temporary voice channel by clearing the @everyone CONNECT denial.
+///
+/// The overwrite is kept and only CONNECT is restored, so a private room stays private.
 pub async fn unlock_temp_vc(
     http: &Http,
     guild_id: GuildId,
@@ -283,15 +373,21 @@ pub async fn unlock_temp_vc(
 ) -> Result<String, Error> {
     let target = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
 
-    if let Err(e) = channel_id.delete_permission(http, target).await {
-        match e {
-            serenity::Error::Http(ref http_err) => {
-                if http_err.status_code() != Some(serenity::all::StatusCode::NOT_FOUND) {
-                    return Err(e.into());
-                }
-            }
-            _ => return Err(e.into()),
+    let existing = match current_overwrites(http, channel_id).await {
+        Ok(Some(overwrites)) => overwrites.into_iter().find(|o| o.kind == target),
+        Ok(None) => None,
+        Err(e) => {
+            tracing::warn!(error = ?e, %channel_id, "overwrite lookup failed; unlock skipped");
+            return Ok(
+                "Could not read this channel's permissions, so it was not unlocked.".to_string(),
+            );
         }
+    };
+
+    if let Some(mut overwrite) = existing {
+        overwrite.deny.remove(Permissions::CONNECT);
+        overwrite.allow.remove(Permissions::CONNECT);
+        channel_id.create_permission(http, overwrite).await?;
     }
 
     tracing::debug!(%guild_id, %channel_id, "voice channel unlocked");
@@ -372,7 +468,7 @@ pub async fn untrust_users_in_vc(
 
 /// Service: Block users from a temporary voice channel by denying `VIEW_CHANNEL` and CONNECT
 pub async fn block_users_from_vc(
-    http: &Http,
+    ctx: &Context,
     guild_id: GuildId,
     channel_id: ChannelId,
     target_user_ids: Vec<UserId>,
@@ -388,6 +484,7 @@ pub async fn block_users_from_vc(
     }
 
     let mut blocked_mentions = Vec::new();
+    let mut not_disconnected = Vec::new();
 
     for target_user_id in filtered_ids {
         let overwrite = PermissionOverwrite {
@@ -396,11 +493,28 @@ pub async fn block_users_from_vc(
             kind: PermissionOverwriteType::Member(target_user_id),
         };
 
-        channel_id.create_permission(http, overwrite).await?;
+        channel_id.create_permission(&ctx.http, overwrite).await?;
 
         tracing::debug!(%guild_id, %channel_id, %target_user_id, "user blocked in the channel");
 
-        if let Err(e) = guild_id.disconnect_member(http, target_user_id).await {
+        // The disconnect is guild-scoped, so it may only touch someone standing in this room.
+        // Blocking itself still applies to everyone, whether or not they are here.
+        let target_channel = target_voice_channel(ctx, guild_id, target_user_id);
+
+        if target_channel != Some(channel_id) {
+            tracing::debug!(
+                %guild_id,
+                %channel_id,
+                %target_user_id,
+                ?target_channel,
+                "blocked user not disconnected; they are not in this channel"
+            );
+            not_disconnected.push(format!("<@{target_user_id}>"));
+            blocked_mentions.push(format!("<@{target_user_id}>"));
+            continue;
+        }
+
+        if let Err(e) = guild_id.disconnect_member(&ctx.http, target_user_id).await {
             tracing::warn!(
                 %guild_id,
                 %channel_id,
@@ -413,8 +527,16 @@ pub async fn block_users_from_vc(
     }
 
     Ok(format!(
-        "The following users have been **blocked** and kicked from this channel: {}",
-        blocked_mentions.join(", ")
+        "The following users have been **blocked**: {}{}",
+        blocked_mentions.join(", "),
+        if not_disconnected.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " (not kicked, they are not in this channel: {})",
+                not_disconnected.join(", ")
+            )
+        }
     ))
 }
 

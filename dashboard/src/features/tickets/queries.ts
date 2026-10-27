@@ -10,6 +10,7 @@ import {
 } from "./types";
 
 export async function getTicketHistory(
+    guildId: string,
     channelId: string
 ): Promise<TicketHistory | null> {
     const query = `
@@ -38,10 +39,11 @@ export async function getTicketHistory(
         FROM tickets t
                  LEFT JOIN ticket_messages tm ON t.channel_id = tm.ticket_channel_id
         WHERE t.channel_id = $1
+          AND t.guild_id = $2
         GROUP BY t.id;
     `;
 
-    const res = await db.query(query, [channelId]);
+    const res = await db.query(query, [channelId, guildId]);
     if (res.rows.length === 0) return null;
 
     return TicketHistorySchema.parse(res.rows[0]);

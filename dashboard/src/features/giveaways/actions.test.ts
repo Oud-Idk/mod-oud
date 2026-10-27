@@ -76,7 +76,7 @@ describe("Giveaways Server Actions", () => {
             const result = await saveGiveawayAction("guild_123", validSaveInput);
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
-            expect(saveGiveaway).toHaveBeenCalledWith(validatedSaveInput);
+            expect(saveGiveaway).toHaveBeenCalledWith("guild_123", validatedSaveInput);
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining("/api/guilds/guild_123/giveaways/1/edit"),
                 expect.objectContaining({ method: "POST" })

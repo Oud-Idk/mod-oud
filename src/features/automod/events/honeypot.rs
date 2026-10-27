@@ -10,7 +10,7 @@ use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 use serenity::all::{Context, CreateEmbed, CreateEmbedFooter, CreateMessage, Message};
 use std::time::Duration;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 #[instrument(skip(ctx, data, message), fields(author_id = %message.author.id))]
 pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -> Result<bool> {
@@ -32,6 +32,13 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
     let Some(honeypot) = config.honeypot.as_ref() else {
         return Ok(false);
     };
+
+    // Disabling the honeypot keeps its channel and settings, so the flag has to be honoured
+    // here or moderation keeps running after an operator turned it off.
+    if honeypot.enabled != Some(true) {
+        debug!(%guild_id, "honeypot disabled for this guild");
+        return Ok(false);
+    }
 
     // Short circuit if this channel is not the honeypot channel
     let is_honeypot_channel = honeypot.channel_id == Some(message.channel_id);

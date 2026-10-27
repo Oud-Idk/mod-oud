@@ -26,7 +26,7 @@ export async function saveCustomCommandAction(guildId: string, config: SaveCusto
 
         SaveCustomCommandSchema.parse(config);
 
-        const ret = await saveCustomCommand(config);
+        const ret = await saveCustomCommand(guildId, config);
 
         await invalidateCommandCache(guildId, ret.name);
 

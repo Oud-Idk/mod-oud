@@ -18,7 +18,7 @@ export async function saveGiveawayAction(guildId: string, config: SaveGiveawayDa
     try {
         await verifyGuildAccess(guildId);
         const validated = SaveGiveawaySchema.parse(config);
-        const ret = await saveGiveaway(validated);
+        const ret = await saveGiveaway(guildId, validated);
 
         if (ret.message_id !== null) {
             try {
