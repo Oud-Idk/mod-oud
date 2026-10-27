@@ -30,7 +30,7 @@ export async function getTicketsListAction(guildId: string): Promise<Ticket[]> {
 export async function getTicketHistoryAction(guildId: string, channelId: string): Promise<TicketHistory | null> {
     try {
         await verifyGuildAccess(guildId);
-        return await getTicketHistory(channelId);
+        return await getTicketHistory(guildId, channelId);
     } catch (error) {
         console.error("Failed to fetch ticket history:", error);
         throw new Error("Could not retrieve ticket history.");

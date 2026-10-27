@@ -215,7 +215,7 @@ describe("Reaction Roles Action Module", () => {
 
             const result = await deleteReactionMessageAction("guild_123", 1);
 
-            expect(deleteReactionMessage).toHaveBeenCalledWith(1);
+            expect(deleteReactionMessage).toHaveBeenCalledWith("guild_123", 1);
             expect(mockDel).toHaveBeenCalledWith("key1", "key1");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reaction-roles");
             expect(result).toBe(true);
@@ -237,7 +237,7 @@ describe("Reaction Roles Action Module", () => {
 
             const result = await deleteReactionMessageAction("guild_123", 1);
 
-            expect(deleteReactionMessage).toHaveBeenCalledWith(1);
+            expect(deleteReactionMessage).toHaveBeenCalledWith("guild_123", 1);
             expect(mockScan).not.toHaveBeenCalled();
             expect(result).toBe(true);
         });

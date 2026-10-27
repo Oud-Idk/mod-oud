@@ -60,6 +60,9 @@ export async function upsertStarboardConfig(
                 plaintext_template       = EXCLUDED.plaintext_template,
                 keep_deleted_messages    = EXCLUDED.keep_deleted_messages,
                 updated_at               = CURRENT_TIMESTAMP
+            -- The id is a caller-supplied bigint, so a conflict with another guild's row must
+            -- match nothing rather than rewrite it.
+            WHERE starboards.guild_id = EXCLUDED.guild_id
             RETURNING *;
         `;
 

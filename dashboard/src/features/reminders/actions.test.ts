@@ -114,7 +114,7 @@ describe("Reminders Action Module", () => {
             await deleteReminderAction("guild_123", "5", "123456789");
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
-            expect(deleteReminder).toHaveBeenCalledWith("5", "123456789");
+            expect(deleteReminder).toHaveBeenCalledWith("guild_123", "5", "123456789");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reminders");
         });
 

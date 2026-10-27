@@ -14,7 +14,7 @@ export async function saveReminderAction(
         await verifyGuildAccess(guildId);
 
         const validatedInput = saveableReminderSchema.parse(rawReminder);
-        const savedRow = await saveReminder(validatedInput);
+        const savedRow = await saveReminder(guildId, validatedInput);
 
         revalidatePath(`/dashboard/${guildId}/reminders`);
         return savedRow;
@@ -35,7 +35,7 @@ export async function deleteReminderAction(
     try {
         await verifyGuildAccess(guildId);
 
-        await deleteReminder(id, channelId);
+        await deleteReminder(guildId, id, channelId);
         revalidatePath(`/dashboard/${guildId}/reminders`);
     } catch (error) {
         console.error(`Failed to delete reminder ${id} for guild ${guildId}:`, error);

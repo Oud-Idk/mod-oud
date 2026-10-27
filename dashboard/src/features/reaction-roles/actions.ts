@@ -59,7 +59,7 @@ export async function saveReactionMessageAction(
         await verifyGuildAccess(guildId);
 
         const validatedInput = saveReactionMessageInputSchema.parse(configInput);
-        const ret = await saveReactionMessage(validatedInput);
+        const ret = await saveReactionMessage(guildId, validatedInput);
 
         if (ret.message_id !== null && ret.message_id !== undefined) {
             await invalidateMessageCache(ret.message_id, guildId);
@@ -85,7 +85,7 @@ export async function deleteReactionMessageAction(
         await verifyGuildAccess(guildId);
 
         const msg = await getReactionMessageById(id);
-        const ret = await deleteReactionMessage(id);
+        const ret = await deleteReactionMessage(guildId, id);
 
         if (msg?.message_id !== null && msg?.message_id !== undefined) {
             await invalidateMessageCache(msg.message_id, guildId);

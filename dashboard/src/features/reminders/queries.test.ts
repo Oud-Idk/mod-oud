@@ -32,6 +32,8 @@ vi.mock("@/lib/redis", () => ({
 // on demand: input validation that skips the query and the null-channel
 // cache skip.
 
+const GUILD_A = "123456789012345678";
+
 describe("Reminders Query Module", () => {
     beforeEach(() => {
         vi.resetAllMocks();
@@ -44,7 +46,7 @@ describe("Reminders Query Module", () => {
 
     describe("getRemindersByChannels", () => {
         it("should return an empty array for no channels", async () => {
-            const result = await getRemindersByChannels([]);
+            const result = await getRemindersByChannels(GUILD_A, []);
 
             expect(result).toEqual([]);
             expect(mockQuery).not.toHaveBeenCalled();
@@ -65,7 +67,7 @@ describe("Reminders Query Module", () => {
             mockQuery.mockResolvedValue({ rows: [] });
 
             await expect(
-                saveReminder({ ...validInput(), channelId: null })
+                saveReminder(GUILD_A, { ...validInput(), channelId: null })
             ).rejects.toThrow();
 
             expect(mockDel).not.toHaveBeenCalled();
@@ -73,7 +75,7 @@ describe("Reminders Query Module", () => {
 
         it("should throw a validation error for invalid input", async () => {
             await expect(
-                saveReminder({
+                saveReminder(GUILD_A, {
                     channelId: "chan_1",
                     rType: "SINGLE",
                     message: { format: "TEXT", content: "", embed: {} },
@@ -87,7 +89,7 @@ describe("Reminders Query Module", () => {
         it("should skip cache invalidation for a null channel", async () => {
             mockQuery.mockResolvedValue({ rows: [] });
 
-            await deleteReminder("5", null);
+            await deleteReminder(GUILD_A, "5", null);
 
             expect(mockDel).not.toHaveBeenCalled();
             expect(mockPublish).not.toHaveBeenCalled();
