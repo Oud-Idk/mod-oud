@@ -1,12 +1,13 @@
 use crate::core::config::state::WebState;
 use crate::shared::embed;
 use crate::shared::embed::DiscordEmbed;
+use crate::shared::guild_resource::ensure_channel_in_guild;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
-use serenity::all::CreateButton;
+use serenity::all::{CreateButton, GuildId};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -38,6 +39,14 @@ pub async fn handle_send_temp_voice_interface(
     );
 
     let target_channel = serenity::all::ChannelId::new(payload.channel_id);
+
+    // The guild path and the channel body are independent, so the channel has to be proven
+    // against the guild before the bot posts there.
+    let guild_id = GuildId::new(guild_id_str.parse().map_err(|e| {
+        debug!(error = ?e, guild_id_str, "rejected request with unparseable guild ID");
+        (StatusCode::BAD_REQUEST, "Invalid guild ID".to_string())
+    })?);
+    ensure_channel_in_guild(&state.serenity_http, target_channel, guild_id).await?;
 
     let rename_btn = CreateButton::new("temp_voice_rename")
         .style(serenity::all::ButtonStyle::Secondary)

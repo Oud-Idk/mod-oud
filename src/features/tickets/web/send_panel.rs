@@ -1,6 +1,7 @@
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::WebState;
 use crate::features::tickets::panel::build_ticket_message_payload;
+use crate::shared::guild_resource::ensure_channel_in_guild;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -30,6 +31,9 @@ pub async fn handle_send_ticket_message(
     Path(guild_id): Path<GuildId>, // Directly extracts into GuildId
     Json(payload): Json<SendTicketMessagePayload>,
 ) -> Result<(StatusCode, Json<SendTicketMessageResponse>), (StatusCode, String)> {
+    // The panel goes to a body-supplied channel, so prove it belongs to the route guild first.
+    ensure_channel_in_guild(&state.serenity_http, payload.channel_id, guild_id).await?;
+
     let settings = get_settings(
         &state.core.db,
         &state.core.redis,

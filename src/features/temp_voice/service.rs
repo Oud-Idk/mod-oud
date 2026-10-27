@@ -253,17 +253,65 @@ pub async fn initiate_temp_vc_transfer(
     Ok("Transfer offer sent! Waiting for them to accept...".to_string())
 }
 
-/// Service: Lock a temporary voice channel by denying CONNECT to @everyone
+/// Reads the current permission overwrites for a channel, or `None` when the channel is gone.
+///
+/// # Errors
+/// Returns the serenity error when the channel lookup fails for a reason other than a 404.
+async fn current_overwrites(
+    http: &Http,
+    channel_id: ChannelId,
+) -> Result<Option<Vec<PermissionOverwrite>>, Error> {
+    match channel_id.to_channel(http).await {
+        Ok(channel) => {
+            Ok(serenity::all::Channel::guild(channel).map(|channel| channel.permission_overwrites))
+        }
+        Err(serenity::Error::Http(http_err))
+            if http_err.status_code() == Some(serenity::all::StatusCode::NOT_FOUND) =>
+        {
+            Ok(None)
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Service: Lock a temporary voice channel by denying CONNECT to @everyone.
+///
+/// Only the CONNECT bits are touched. Replacing the overwrite outright would also drop the
+/// `VIEW_CHANNEL` denial that keeps a private room private.
 pub async fn lock_temp_vc(
     http: &Http,
     guild_id: GuildId,
     channel_id: ChannelId,
 ) -> Result<String, Error> {
-    let overwrite = PermissionOverwrite {
-        allow: Permissions::empty(),
-        deny: Permissions::CONNECT,
-        kind: PermissionOverwriteType::Role(RoleId::new(guild_id.get())),
+    let target = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
+
+    let mut overwrite = match current_overwrites(http, channel_id).await {
+        Ok(Some(overwrites)) => overwrites
+            .into_iter()
+            .find(|o| o.kind == target)
+            .unwrap_or_else(|| PermissionOverwrite {
+                allow: Permissions::empty(),
+                deny: Permissions::empty(),
+                kind: target,
+            }),
+        Ok(None) => {
+            tracing::warn!(%channel_id, "voice channel gone; lock skipped");
+            return Ok("This channel no longer exists.".to_string());
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = ?e,
+                %channel_id,
+                "overwrite lookup failed; locking would drop existing restrictions"
+            );
+            return Ok(
+                "Could not read this channel's permissions, so it was not locked.".to_string(),
+            );
+        }
     };
+
+    overwrite.allow.remove(Permissions::CONNECT);
+    overwrite.deny.insert(Permissions::CONNECT);
 
     channel_id.create_permission(http, overwrite).await?;
 
@@ -275,7 +323,9 @@ pub async fn lock_temp_vc(
     )
 }
 
-/// Service: Unlock a temporary voice channel by removing the @everyone permission overwrite
+/// Service: Unlock a temporary voice channel by clearing the @everyone CONNECT denial.
+///
+/// The overwrite is kept and only CONNECT is restored, so a private room stays private.
 pub async fn unlock_temp_vc(
     http: &Http,
     guild_id: GuildId,
@@ -283,15 +333,21 @@ pub async fn unlock_temp_vc(
 ) -> Result<String, Error> {
     let target = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
 
-    if let Err(e) = channel_id.delete_permission(http, target).await {
-        match e {
-            serenity::Error::Http(ref http_err) => {
-                if http_err.status_code() != Some(serenity::all::StatusCode::NOT_FOUND) {
-                    return Err(e.into());
-                }
-            }
-            _ => return Err(e.into()),
+    let existing = match current_overwrites(http, channel_id).await {
+        Ok(Some(overwrites)) => overwrites.into_iter().find(|o| o.kind == target),
+        Ok(None) => None,
+        Err(e) => {
+            tracing::warn!(error = ?e, %channel_id, "overwrite lookup failed; unlock skipped");
+            return Ok(
+                "Could not read this channel's permissions, so it was not unlocked.".to_string(),
+            );
         }
+    };
+
+    if let Some(mut overwrite) = existing {
+        overwrite.deny.remove(Permissions::CONNECT);
+        overwrite.allow.remove(Permissions::CONNECT);
+        channel_id.create_permission(http, overwrite).await?;
     }
 
     tracing::debug!(%guild_id, %channel_id, "voice channel unlocked");

@@ -8,6 +8,8 @@ pub mod command_context;
 pub mod embed;
 /// Shared error helpers.
 pub mod error;
+/// Ownership checks for caller-supplied Discord channel and message IDs.
+pub mod guild_resource;
 /// Credential-safe rendering for the third-party HTTP calls.
 pub mod http;
 /// Distributed Redis locking.

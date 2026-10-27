@@ -1,4 +1,6 @@
 use crate::core::config::state::WebState;
+use crate::shared::error;
+use crate::shared::guild_resource::channel_in_guild;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -6,7 +8,7 @@ use serde::Deserialize;
 use serde_with::{DisplayFromStr, serde_as};
 use serenity::all::{ChannelId, EditRole, GuildId, Permissions, RoleId};
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{debug, warn};
 
 #[serde_as]
 #[derive(Deserialize, Clone, Debug)]
@@ -29,11 +31,33 @@ pub async fn handle_verification_teardown(
 
     let mut execution_errors = Vec::new();
 
-    if let Err(e) = channel_id.delete(http).await
+    // Both targets arrive in the body. The channel check is mandatory: deleting a channel is
+    // destructive and there is no way to undo it.
+    let channel_owned = match channel_in_guild(http, channel_id, guild_id).await {
+        Ok(owned) => owned,
+        Err(e) if error::is_not_found_error(&e) => {
+            debug!(%guild_id, %channel_id, "verification channel already gone during teardown");
+            true
+        }
+        Err(e) => {
+            warn!(error = ?e, %guild_id, %channel_id, "verification channel lookup failed during teardown");
+            false
+        }
+    };
+
+    if channel_owned
+        && let Err(e) = channel_id.delete(http).await
         && !is_not_found_error(&e)
     {
         warn!(error = ?e, %channel_id, "verification channel not deleted during teardown");
         execution_errors.push("Failed to delete verification channel".to_string());
+    } else if !channel_owned {
+        warn!(
+            %guild_id,
+            %channel_id,
+            "verification channel not deleted; it does not belong to this guild"
+        );
+        execution_errors.push("Verification channel does not belong to this server".to_string());
     }
 
     if let Err(e) = guild_id.delete_role(http, role_id).await

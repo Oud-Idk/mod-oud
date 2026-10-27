@@ -71,20 +71,19 @@ pub async fn handle_dashboard_command(
     State(state): State<Arc<WebState>>,
     Json(cmd): Json<DashboardCommand>,
 ) -> Result<StatusCode, WebError> {
-    let (guild_id, user_id, target_username) =
-        reporting::database::fetch_target_report(&state.core.db, cmd.report_id)
-            .await
-            .inspect_err(|err| {
-                // A miss is the dashboard's id being wrong; only our own failure is 5xx.
-                if matches!(err, ActionError::NotFound) {
-                    debug!(
-                        report_id = cmd.report_id,
-                        "rejected lookup for an unknown report id"
-                    );
-                } else {
-                    warn!(report_id = cmd.report_id, error = %err, "target report lookup failed");
-                }
-            })?;
+    let report = reporting::database::fetch_target_report(&state.core.db, cmd.report_id)
+        .await
+        .inspect_err(|err| {
+            // A miss is the dashboard's id being wrong; only our own failure is 5xx.
+            if matches!(err, ActionError::NotFound) {
+                debug!(
+                    report_id = cmd.report_id,
+                    "rejected lookup for an unknown report id"
+                );
+            } else {
+                warn!(report_id = cmd.report_id, error = %err, "target report lookup failed");
+            }
+        })?;
 
     let redis_conn = state.core.redis.clone();
     let moderator_name = cmd.name.as_deref().unwrap_or(UNKNOWN_MODERATOR);
@@ -95,11 +94,11 @@ pub async fn handle_dashboard_command(
 
     let request = ActionRequest {
         report_id: cmd.report_id,
-        guild_id,
-        target_id: user_id,
+        guild_id: report.guild_id,
+        target_id: report.author_id,
         moderator_id: cmd.moderator_id,
         moderator_name,
-        target_name: &target_username,
+        target_name: &report.author_name,
         reason: cmd.reason.as_deref(),
         duration_mins: cmd.duration_mins,
     };
@@ -112,11 +111,27 @@ pub async fn handle_dashboard_command(
             channel_id,
             message_id,
         } => {
+            // The target comes from the stored report, never from the command: a stale or
+            // crafted dashboard request must not be able to aim the delete at another message.
+            if *channel_id != report.channel_id || *message_id != report.message_id {
+                warn!(
+                    report_id = cmd.report_id,
+                    %channel_id,
+                    %message_id,
+                    stored_channel_id = %report.channel_id,
+                    stored_message_id = %report.message_id,
+                    "rejected report delete; the target does not match the stored report"
+                );
+                return Err(WebError::BadRequest(
+                    "The delete target does not match the report.".to_string(),
+                ));
+            }
+
             delete_message(
                 &deps,
                 &request,
-                *channel_id,
-                *message_id,
+                report.channel_id,
+                report.message_id,
                 "Deleted via Moderation Dashboard",
             )
             .await?;

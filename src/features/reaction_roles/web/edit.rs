@@ -5,6 +5,7 @@ use crate::features::reaction_roles::web;
 use crate::features::reaction_roles::web::helpers::{
     build_custom_msg, convert_create_to_edit_message, fetch_and_build_buttons, parse_config_id,
 };
+use crate::shared::guild_resource::ensure_channel_in_guild;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -41,6 +42,9 @@ pub async fn handle_edit_reaction_role_message(
             "Cannot edit a message that hasn't been sent yet!".to_string(),
         )
     })?;
+
+    // The channel is stored configuration, not proof of ownership.
+    ensure_channel_in_guild(&state.serenity_http, channel_id, guild_id).await?;
 
     let custom_msg_opt = build_custom_msg(
         config_row.message.format,

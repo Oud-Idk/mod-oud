@@ -4,10 +4,15 @@ import { verifyGuildAccess } from "@/features/_shared/guild";
 import { saveMediaOnlyChannels } from "./queries";
 import redis from "@/lib/redis";
 import { revalidatePath } from "next/cache";
+import { getGuildChannels } from "@/features/_shared/channels";
 import type { MediaOnlyChannel } from "./types";
 
 vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
+}));
+
+vi.mock("@/features/_shared/channels", () => ({
+    getGuildChannels: vi.fn<() => Promise<{ id: string }[]>>(),
 }));
 
 vi.mock("@/features/media-only/queries", () => ({
@@ -28,6 +33,11 @@ describe("Media-Only Server Actions", (): void => {
     beforeEach((): void => {
         vi.clearAllMocks();
         vi.spyOn(console, "error").mockImplementation((): void => {return});
+        // Default: the guild owns the channels the fixtures use.
+        vi.mocked(getGuildChannels).mockResolvedValue([
+            { id: "chan_1" },
+            { id: "chan_removed" },
+        ]);
     });
 
     afterEach((): void => {
@@ -75,6 +85,40 @@ describe("Media-Only Server Actions", (): void => {
                     { ...channelFixture(), channelId: "" },
                 ], [])
             ).rejects.toThrow(new Error("Please select a channel."));
+
+            expect(saveMediaOnlyChannels).not.toHaveBeenCalled();
+        });
+
+        it("should REJECT a channel that belongs to another guild", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(getGuildChannels).mockResolvedValue([{ id: "chan_other" }]);
+
+            await expect(
+                saveMediaOnlyChannelsAction("guild_123", [channelFixture({ channelId: "chan_foreign" })], [])
+            ).rejects.toThrow(new Error("Those channels do not belong to this server."));
+
+            expect(saveMediaOnlyChannels).not.toHaveBeenCalled();
+            expect(redis.del).not.toHaveBeenCalled();
+        });
+
+        it("should REJECT a removed channel that belongs to another guild", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+
+            await expect(
+                saveMediaOnlyChannelsAction("guild_123", [], ["chan_foreign"])
+            ).rejects.toThrow(new Error("Those channels do not belong to this server."));
+
+            expect(saveMediaOnlyChannels).not.toHaveBeenCalled();
+        });
+
+        it("should refuse to save when the channel lookup returns nothing", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            // getGuildChannels returns an empty list on failure, so this must not pass silently.
+            vi.mocked(getGuildChannels).mockResolvedValue([]);
+
+            await expect(
+                saveMediaOnlyChannelsAction("guild_123", [channelFixture()], [])
+            ).rejects.toThrow(new Error("Could not read this server's channels. Try again."));
 
             expect(saveMediaOnlyChannels).not.toHaveBeenCalled();
         });
