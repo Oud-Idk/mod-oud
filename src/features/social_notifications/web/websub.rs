@@ -120,6 +120,9 @@ pub async fn websub_notify(
 /// future.
 const MAX_LEASE_SECONDS: i64 = 60 * 60 * 24 * 30;
 
+/// Lower bound, so a zero or negative lease cannot be written either.
+const MIN_LEASE_SECONDS: i64 = 60;
+
 pub async fn websub_verify(
     Path(feed_id): Path<Uuid>,
     State(state): State<Arc<WebState>>,
@@ -146,7 +149,9 @@ pub async fn websub_verify(
     // cached copy of hub state that the renewal worker refreshes on its own, so bound what a
     // stranger can write rather than trusting the claimed duration.
     let hub_lease_seconds = match params.mode.as_str() {
-        "subscribe" => params.lease_seconds.map(|secs| secs.min(MAX_LEASE_SECONDS)),
+        "subscribe" => params
+            .lease_seconds
+            .map(|secs| secs.clamp(MIN_LEASE_SECONDS, MAX_LEASE_SECONDS)),
         _ => None,
     };
 

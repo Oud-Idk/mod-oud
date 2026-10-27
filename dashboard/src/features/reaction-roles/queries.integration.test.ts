@@ -91,7 +91,7 @@ describe("reaction messages against a real database", () => {
 
     it("scopes the list to the guild", async () => {
         await saveReactionMessage(GUILD_A, reactionInput());
-        await saveReactionMessage(GUILD_A, reactionInput({ guild_id: GUILD_B, channel_id: CHANNEL_A }));
+        await saveReactionMessage(GUILD_B, reactionInput({ channel_id: CHANNEL_A }));
 
         const rows = await getReactionMessages(GUILD_A);
 

@@ -144,10 +144,7 @@ describe("custom commands against a real database", () => {
     });
 
     it("refuses to update another guild's command", async () => {
-        const foreign = await saveCustomCommand(GUILD_A, {
-            ...validCommand({ name: "theirs" }),
-            guild_id: GUILD_B,
-        });
+        const foreign = await saveCustomCommand(GUILD_B, validCommand({ name: "theirs" }));
 
         // The UPDATE matches no row, so RETURNING * yields nothing to parse.
         await expect(

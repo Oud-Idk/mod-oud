@@ -76,6 +76,20 @@ pub async fn ensure_preraid_state_saved(
     Ok(())
 }
 
+/// What a pre-raid restore attempt found.
+///
+/// `Unreadable` is not the same as `Absent`: an unreadable snapshot means the guild may still be
+/// locked, so the caller must reconcile rather than treat the raid end as done.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RestoreOutcome {
+    /// Permissions were restored from the snapshot.
+    Restored,
+    /// There was nothing to restore.
+    Absent,
+    /// A snapshot existed but could not be used; it has been discarded.
+    Unreadable,
+}
+
 /// Restores original guild state saved in Redis prior to the raid.
 ///
 /// The snapshot is read without being consumed, and only deleted once the `@everyone` permissions
@@ -86,22 +100,22 @@ pub async fn restore_preraid_state(
     ctx: &Context,
     data: &BotData,
     guild_id: GuildId,
-) -> Result<bool, Error> {
+) -> Result<RestoreOutcome, Error> {
     let Some(json_str) = cache::peek_preraid_snapshot(&data.core.redis, guild_id).await? else {
         debug!(%guild_id, "no pre-raid snapshot; nothing to restore");
-        return Ok(false);
+        return Ok(RestoreOutcome::Absent);
     };
 
     let snapshot: PreRaidState = match serde_json::from_str(&json_str) {
         Ok(snapshot) => snapshot,
         Err(e) => {
-            // This snapshot will never parse, so it must not block every later raid end for the
-            // guild. Drop it and let the caller reconcile in its own way.
+            // This snapshot will never parse. Discard it so it cannot block later attempts, and
+            // report it distinctly: the guild may still be locked.
             error!(error = ?e, %guild_id, "pre-raid snapshot unreadable; discarding it");
             if let Err(e) = cache::delete_preraid_snapshot(&data.core.redis, guild_id).await {
                 warn!(error = ?e, %guild_id, "unreadable pre-raid snapshot not discarded");
             }
-            return Ok(false);
+            return Ok(RestoreOutcome::Unreadable);
         }
     };
 
@@ -151,5 +165,5 @@ pub async fn restore_preraid_state(
 
     info!(%guild_id, "restored pre-raid state");
 
-    Ok(true)
+    Ok(RestoreOutcome::Restored)
 }

@@ -140,10 +140,7 @@ describe("giveaways against a real database", () => {
     });
 
     it("refuses to update another guild's giveaway", async () => {
-        const foreign = await saveGiveaway(GUILD_A, {
-            ...validInput({ prize: "Theirs" }),
-            guild_id: GUILD_B,
-        });
+        const foreign = await saveGiveaway(GUILD_B, validInput({ prize: "Theirs" }));
 
         // The UPDATE matches no row, so RETURNING * yields nothing to parse.
         await expect(
@@ -160,10 +157,7 @@ describe("giveaways against a real database", () => {
     });
 
     it("refuses to delete another guild's giveaway", async () => {
-        const foreign = await saveGiveaway(GUILD_A, {
-            ...validInput({ prize: "Theirs" }),
-            guild_id: GUILD_B,
-        });
+        const foreign = await saveGiveaway(GUILD_B, validInput({ prize: "Theirs" }));
 
         expect(await deleteGiveaway(foreign.id, GUILD_A)).toBe(false);
         expect(await getGiveaways(GUILD_B)).toHaveLength(1);

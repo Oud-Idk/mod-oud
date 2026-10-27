@@ -3,7 +3,7 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::moderation::apply_global_unlock;
 use crate::features::raid_detection::audit;
 use crate::features::raid_detection::database;
-use crate::features::raid_detection::snapshot::restore_preraid_state;
+use crate::features::raid_detection::snapshot::{RestoreOutcome, restore_preraid_state};
 use crate::features::raid_detection::types::{RaidAction, RaidEventType};
 use crate::features::raid_detection::{RaidDetectionConfig, cache};
 use crate::shared::task;
@@ -101,11 +101,23 @@ pub async fn handle_raid_end(
 ) -> Result<(), Error> {
     // Propagate rather than swallow: a failed restore is the case where the guild may still be
     // locked, and the caller needs to know so it can retry and eventually escalate.
-    let restored = restore_preraid_state(ctx, data, guild_id).await?;
+    let outcome = restore_preraid_state(ctx, data, guild_id).await?;
 
-    if !restored {
-        // Nothing to restore, so there is nothing left to reconcile.
+    // Nothing to restore only when there was no snapshot at all. An unreadable snapshot may
+    // still leave the guild locked, so it falls through to the reconciliation below.
+    if outcome == RestoreOutcome::Absent {
         return Ok(());
+    }
+
+    if outcome == RestoreOutcome::Unreadable {
+        warn!(
+            %guild_id,
+            "pre-raid state was unreadable; lifting the lockdown directly rather than leaving \
+             the guild locked"
+        );
+        if let Err(e) = apply_global_unlock(ctx, data, guild_id).await {
+            warn!(error = ?e, %guild_id, "unlock after an unreadable snapshot failed");
+        }
     }
 
     // Delete persisted active raid state from Postgres
