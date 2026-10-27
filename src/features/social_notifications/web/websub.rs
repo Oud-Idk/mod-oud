@@ -116,6 +116,10 @@ pub async fn websub_notify(
     Ok(StatusCode::OK)
 }
 
+/// Upper bound on a hub-declared lease, so a public callback cannot park a feed far in the
+/// future.
+const MAX_LEASE_SECONDS: i64 = 60 * 60 * 24 * 30;
+
 pub async fn websub_verify(
     Path(feed_id): Path<Uuid>,
     State(state): State<Arc<WebState>>,
@@ -138,6 +142,14 @@ pub async fn websub_verify(
         return Err((StatusCode::BAD_REQUEST, "Invalid hub.mode"));
     }
 
+    // This route is public, so anyone who knows a feed id can reach it. The lease is only a
+    // cached copy of hub state that the renewal worker refreshes on its own, so bound what a
+    // stranger can write rather than trusting the claimed duration.
+    let hub_lease_seconds = match params.mode.as_str() {
+        "subscribe" => params.lease_seconds.map(|secs| secs.min(MAX_LEASE_SECONDS)),
+        _ => None,
+    };
+
     // The challenge must be present
     let Some(challenge) = params.challenge else {
         debug!(feed_id = %feed_id, "rejected WebSub verification: missing hub.challenge");
@@ -156,7 +168,7 @@ pub async fn websub_verify(
         return Err((StatusCode::NOT_FOUND, "Feed not found"));
     }
 
-    if let Some(secs) = params.lease_seconds {
+    if let Some(secs) = hub_lease_seconds {
         let expires_at = Utc::now() + Duration::seconds(secs);
 
         let _ = database::update_lease(&state.core.db, feed_id, expires_at)
