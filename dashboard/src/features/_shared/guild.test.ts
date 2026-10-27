@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { User } from "next-auth";
 import {
     verifyGuildAccess,
+    currentUserManagesGuild,
     getGuildConfigField,
     saveGuildConfigField,
     replaceGuildConfigField,
@@ -104,6 +105,69 @@ describe("Guild Config - Unit Tests", () => {
             const user = await verifyGuildAccess(GUILD_ID);
             expect(user).toEqual(mockUser);
             expect(mockGetGuildLists).toHaveBeenCalledWith("token_abc");
+        });
+    });
+
+    describe("currentUserManagesGuild", () => {
+        it("is false without a session", async () => {
+            mockAuth.mockResolvedValueOnce(null);
+
+            await expect(currentUserManagesGuild(GUILD_ID)).resolves.toBe(false);
+            expect(mockGetGuildLists).not.toHaveBeenCalled();
+        });
+
+        it("is false without an access token", async () => {
+            mockAuth.mockResolvedValueOnce({
+                user: { id: "1", name: "User" },
+                accessToken: undefined,
+            });
+
+            await expect(currentUserManagesGuild(GUILD_ID)).resolves.toBe(false);
+        });
+
+        it("is false for a guild the caller does not manage", async () => {
+            mockAuth.mockResolvedValueOnce({
+                user: { id: "1", name: "User" },
+                accessToken: "token_abc",
+            });
+            mockGetGuildLists.mockResolvedValueOnce({
+                mutualGuilds: [
+                    { id: "999999999999999999", name: "Other Server", icon: null, permissions: "8" },
+                ],
+                inviteableGuilds: [],
+            });
+
+            await expect(currentUserManagesGuild(GUILD_ID)).resolves.toBe(false);
+        });
+
+        it("is true for a guild the caller manages", async () => {
+            mockAuth.mockResolvedValueOnce({
+                user: { id: "1", name: "User" },
+                accessToken: "token_abc",
+            });
+            mockGetGuildLists.mockResolvedValueOnce({
+                mutualGuilds: [
+                    { id: GUILD_ID, name: "Target Guild", icon: null, permissions: "8" },
+                ],
+                inviteableGuilds: [],
+            });
+
+            await expect(currentUserManagesGuild(GUILD_ID)).resolves.toBe(true);
+        });
+
+        it("is false when the guild list lookup yields nothing", async () => {
+            // `getGuildLists` swallows its own failures and returns empty lists, so a lookup
+            // problem must read as "no access" rather than reaching the page.
+            mockAuth.mockResolvedValueOnce({
+                user: { id: "1", name: "User" },
+                accessToken: "token_abc",
+            });
+            mockGetGuildLists.mockResolvedValueOnce({
+                mutualGuilds: [],
+                inviteableGuilds: [],
+            });
+
+            await expect(currentUserManagesGuild(GUILD_ID)).resolves.toBe(false);
         });
     });
 
