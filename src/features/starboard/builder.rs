@@ -80,6 +80,11 @@ pub async fn resolve_member(
     ctx.http.get_member(guild_id, user_id).await.ok()
 }
 
+/// Whether `user_id` is among the reactions for `emoji`.
+///
+/// Pages through the reaction list. A single page of 100 is not the whole list, and treating a
+/// miss on that page as "did not react" would let a self-star past `prevent_self_star` on any
+/// popular message.
 pub async fn has_user_reacted(
     ctx: &Context,
     channel_id: ChannelId,
@@ -87,10 +92,27 @@ pub async fn has_user_reacted(
     emoji: &ReactionType,
     user_id: UserId,
 ) -> Result<bool, anyhow::Error> {
-    let users = channel_id
-        .reaction_users(&ctx.http, message_id, emoji.clone(), Some(100), None)
-        .await?;
-    Ok(users.iter().any(|u| u.id == user_id))
+    let mut after: Option<UserId> = None;
+
+    loop {
+        let users = channel_id
+            .reaction_users(&ctx.http, message_id, emoji.clone(), Some(100), after)
+            .await?;
+
+        if users.iter().any(|u| u.id == user_id) {
+            return Ok(true);
+        }
+
+        // A short page is the last page.
+        let Some(last) = users.last().map(|u| u.id) else {
+            return Ok(false);
+        };
+        if users.len() < 100 {
+            return Ok(false);
+        }
+
+        after = Some(last);
+    }
 }
 
 #[instrument(skip(ctx, starboard, reaction), fields(starboard_id = starboard.id))]
