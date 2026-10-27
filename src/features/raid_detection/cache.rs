@@ -212,12 +212,20 @@ pub async fn save_preraid_snapshot(
     Ok(res.is_some())
 }
 
-pub async fn getdel_preraid_snapshot(
+/// Reads the snapshot without consuming it, so a failed restore can be retried.
+pub async fn peek_preraid_snapshot(
     redis: &Client,
     guild_id: GuildId,
 ) -> Result<Option<String>, Error> {
     let redis_key = keys::raid_snapshot_key(guild_id);
-    Ok(redis.getdel(&redis_key).await?)
+    Ok(redis.get::<Option<String>, _>(&redis_key).await?)
+}
+
+/// Removes the snapshot once it has been applied.
+pub async fn delete_preraid_snapshot(redis: &Client, guild_id: GuildId) -> Result<(), Error> {
+    let redis_key = keys::raid_snapshot_key(guild_id);
+    let _: () = redis.del(&redis_key).await?;
+    Ok(())
 }
 
 /// Counts joins inside the detection window without recording anything.
