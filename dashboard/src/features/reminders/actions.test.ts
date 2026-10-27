@@ -20,7 +20,7 @@ vi.mock("next/cache", () => ({
 }));
 
 const validInput: SaveableReminderInput = {
-    channelId: "chan_1",
+    channelId: "123456789",
     rType: "SINGLE",
     message: { format: "TEXT", content: "Stand up", embed: {} },
     nextTriggerAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -29,7 +29,7 @@ const validInput: SaveableReminderInput = {
 function reminderRowFixture(): ReminderRow {
     return {
         id: "5",
-        channelId: "chan_1",
+        channelId: "123456789",
         rType: "SINGLE",
         message: { format: "TEXT", content: "Stand up", embed: {} },
         nextTriggerAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -71,7 +71,7 @@ describe("Reminders Action Module", () => {
 
         it("should throw the first zod issue message for invalid input", async () => {
             const invalid: SaveableReminderInput = {
-                channelId: "chan_1",
+                channelId: "123456789",
                 rType: "SINGLE",
                 message: { format: "TEXT", content: "", embed: {} },
             };
@@ -111,23 +111,23 @@ describe("Reminders Action Module", () => {
 
     describe("deleteReminderAction", () => {
         it("should verify access, delete the reminder, and revalidate the path", async () => {
-            await deleteReminderAction("guild_123", "5", "chan_1");
+            await deleteReminderAction("guild_123", "5", "123456789");
 
             expect(verifyGuildAccess).toHaveBeenCalledWith("guild_123");
-            expect(deleteReminder).toHaveBeenCalledWith("5", "chan_1");
+            expect(deleteReminder).toHaveBeenCalledWith("5", "123456789");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/reminders");
         });
 
         it("should throw the underlying error message", async () => {
             vi.mocked(deleteReminder).mockRejectedValue(new Error("db down"));
 
-            await expect(deleteReminderAction("guild_123", "5", "chan_1")).rejects.toThrow("db down");
+            await expect(deleteReminderAction("guild_123", "5", "123456789")).rejects.toThrow("db down");
         });
 
         it("should throw a generic message for non-error rejections", async () => {
             vi.mocked(deleteReminder).mockRejectedValue("boom");
 
-            await expect(deleteReminderAction("guild_123", "5", "chan_1")).rejects.toThrow(
+            await expect(deleteReminderAction("guild_123", "5", "123456789")).rejects.toThrow(
                 "Could not delete reminder."
             );
         });

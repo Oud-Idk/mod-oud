@@ -35,8 +35,8 @@ describe("Media-Only Server Actions", (): void => {
         vi.spyOn(console, "error").mockImplementation((): void => {return});
         // Default: the guild owns the channels the fixtures use.
         vi.mocked(getGuildChannels).mockResolvedValue([
-            { id: "chan_1" },
-            { id: "chan_removed" },
+            { id: "chan_1", name: "general", type: 0 },
+            { id: "chan_removed", name: "old", type: 0 },
         ]);
     });
 
@@ -91,7 +91,7 @@ describe("Media-Only Server Actions", (): void => {
 
         it("should REJECT a channel that belongs to another guild", async (): Promise<void> => {
             vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
-            vi.mocked(getGuildChannels).mockResolvedValue([{ id: "chan_other" }]);
+            vi.mocked(getGuildChannels).mockResolvedValue([{ id: "chan_other", name: "other", type: 0 }]);
 
             await expect(
                 saveMediaOnlyChannelsAction("guild_123", [channelFixture({ channelId: "chan_foreign" })], [])

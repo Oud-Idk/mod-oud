@@ -1,5 +1,5 @@
 use crate::features::reminder::database::{
-    deactivate_reminder, fetch_due_reminders, update_reminder_next_trigger,
+    deactivate_reminder, defer_failed_reminder, fetch_due_reminders, update_reminder_next_trigger,
 };
 use crate::features::reminder::timings::{RecurrenceRule, calculate_next_trigger};
 use crate::features::reminder::types::{ReminderRecord, ReminderType};
@@ -77,58 +77,43 @@ async fn process_expired_reminders(
     let reminders_count = expired_reminders.len();
     debug!(reminders_count, "found expired reminders to process");
 
-    let reminder_futures = expired_reminders.into_iter().map(|record| {
-        let http_ref = http;
-        let db_ref = db_pool;
-        let reminder_id = record.id;
-        let channel_id = record.serenity_channel_id();
+    let reminder_futures = expired_reminders.into_iter().map(|raw| {
+        let db_owned = db_pool.clone();
+        let reminder_id = raw.id;
 
-        async move {
-            let content_opt = match create_basic_embed(&record.message, ToString::to_string) {
-                Ok(c) => c,
-                Err(e) => {
-                    warn!(
-                        %channel_id,
-                        reminder_id,
-                        error = ?e,
-                        "reminder embed generation failed"
-                    );
-                    // Invalid template/embed -> advance state so it doesn't choke forever
-                    if let Err(e) = handle_post_execution(db_ref, &record).await {
-                        error!(error = ?e, reminder_id, "reminder state update failed");
-                    }
-                    return Err(reminder_id);
-                }
-            };
-
-            if let Some(content) = content_opt {
-                match channel_id.send_message(http_ref, content).await {
-                    Ok(_) => {
-                        debug!(reminder_id, "sent reminder");
-                        if let Err(e) = handle_post_execution(db_ref, &record).await {
-                            error!(error = ?e, reminder_id, "reminder state update failed");
-                        }
-                        Ok(reminder_id)
-                    }
-                    Err(e) => {
-                        warn!(error = ?e, reminder_id, "reminder not sent to discord");
-                        // We do NOT update DB here so it can retry on the next tick!
-                        Err(reminder_id)
+        // A row that cannot be decoded or converted is quarantined here rather than failing the
+        // batch. `ChannelId::new` panics on zero, and a panic would end the task for every guild.
+        let quarantine_reason = match raw.message_layout() {
+            None => Some("reminder layout could not be decoded"),
+            Some(layout) => {
+                let record = raw.into_record(layout);
+                match record.serenity_channel_id() {
+                    None => Some("reminder channel id is not a valid channel"),
+                    Some(channel_id) => {
+                        return deliver_reminder(
+                            http,
+                            db_owned,
+                            reminder_id,
+                            record,
+                            channel_id,
+                            now,
+                        );
                     }
                 }
-            } else {
-                debug!(
-                    reminder_id,
-                    "reminder message is empty; the state is still advanced"
-                );
-
-                if let Err(e) = handle_post_execution(db_ref, &record).await {
-                    error!(error = ?e, reminder_id, "reminder state update failed");
-                }
-
-                Ok(reminder_id)
             }
-        }
+        };
+
+        let reason = quarantine_reason.unwrap_or("reminder row is unusable");
+        Box::pin(async move {
+            warn!(
+                reminder_id,
+                reason, "unusable reminder row; deactivating it"
+            );
+            if let Err(e) = deactivate_reminder(&db_owned, reminder_id).await {
+                error!(error = ?e, reminder_id, "reminder could not be deactivated");
+            }
+            Err(reminder_id)
+        })
     });
 
     let results: Vec<Result<i64, i64>> = futures_util::stream::iter(reminder_futures)
@@ -141,11 +126,74 @@ async fn process_expired_reminders(
     if successful_count < reminders_count {
         warn!(
             failed_count = reminders_count - successful_count,
-            "some reminders not sent; they retry on the next tick"
+            "some reminders not sent; they retry after a backoff"
         );
     }
 
     Ok(())
+}
+
+/// Sends one reminder and advances or defers its state.
+///
+/// Boxed and owned so both branches of the worker's per-row match produce the same future type.
+fn deliver_reminder(
+    http: &serenity::Http,
+    db: sqlx::PgPool,
+    reminder_id: i64,
+    record: ReminderRecord,
+    channel_id: serenity::ChannelId,
+    now: DateTime<Utc>,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<i64, i64>> + Send + '_>> {
+    Box::pin(async move {
+        let content_opt = match create_basic_embed(&record.message, ToString::to_string) {
+            Ok(c) => c,
+            Err(e) => {
+                warn!(
+                    %channel_id,
+                    reminder_id,
+                    error = ?e,
+                    "reminder embed generation failed"
+                );
+                // Invalid template/embed -> advance state so it doesn't choke forever
+                if let Err(e) = handle_post_execution(&db, &record).await {
+                    error!(error = ?e, reminder_id, "reminder state update failed");
+                }
+                return Err(reminder_id);
+            }
+        };
+
+        if let Some(content) = content_opt {
+            match channel_id.send_message(http, content).await {
+                Ok(_) => {
+                    debug!(reminder_id, "sent reminder");
+                    if let Err(e) = handle_post_execution(&db, &record).await {
+                        error!(error = ?e, reminder_id, "reminder state update failed");
+                    }
+                    Ok(reminder_id)
+                }
+                Err(e) => {
+                    warn!(error = ?e, reminder_id, "reminder not sent to discord");
+                    // Defer instead of leaving the trigger time alone: a permanent failure would
+                    // otherwise sit at the head of every batch, forever.
+                    if let Err(err) = defer_failed_reminder(&db, reminder_id, now).await {
+                        error!(error = ?err, reminder_id, "failed reminder could not be deferred");
+                    }
+                    Err(reminder_id)
+                }
+            }
+        } else {
+            debug!(
+                reminder_id,
+                "reminder message is empty; the state is still advanced"
+            );
+
+            if let Err(e) = handle_post_execution(&db, &record).await {
+                error!(error = ?e, reminder_id, "reminder state update failed");
+            }
+
+            Ok(reminder_id)
+        }
+    })
 }
 
 /// Decides whether to update the next run time or disable the reminder.

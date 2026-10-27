@@ -30,6 +30,13 @@ export const saveableReminderSchema = reminderBaseSchema.superRefine((data, ctx)
             message: "Please select a target channel.",
             path: ["channelId"],
         });
+    } else if (!/^[1-9]\d*$/.test(data.channelId.trim())) {
+        // The bot converts this to a ChannelId, which panics on zero. Reject before storing.
+        ctx.addIssue({
+            code: 'custom',
+            message: "That channel is not a valid Discord channel.",
+            path: ["channelId"],
+        });
     }
 
     if (data.message.format === "TEXT" && data.message.content.trim() === "") {
