@@ -66,14 +66,15 @@ pub fn spawn_raid_end_monitor(ctx: Context, data: BotData, guild_id: GuildId) {
                                 // rather than letting it look repaired.
                                 error!(
                                     %guild_id,
-                                    "fallback unlock skipped, another sweep holds the lock; \
-                                     a manual unlock may be needed"
+                                    reason = "another sweep holds the lock",
+                                    "fallback unlock skipped; a manual unlock may be needed"
                                 );
                             }
                             Ok(Some(report)) if !report.failed_channel_ids.is_empty() => {
                                 error!(
                                     %guild_id,
                                     failed = ?report.failed_channel_ids,
+                                    reason = "some channels could not be unlocked",
                                     "fallback unlock left channels locked; a manual unlock may be needed"
                                 );
                             }

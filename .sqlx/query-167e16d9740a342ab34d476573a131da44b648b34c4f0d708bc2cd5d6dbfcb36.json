@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT r.guild_id, r.author_id, u.username AS author_name\n        FROM reported_messages r\n        LEFT JOIN discord_users u ON u.user_id = r.author_id\n        WHERE r.id = $1\n        ",
+  "query": "\n        SELECT r.guild_id, r.channel_id, r.message_id, r.author_id, u.username AS author_name\n        FROM reported_messages r\n        LEFT JOIN discord_users u ON u.user_id = r.author_id\n        WHERE r.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -16,6 +16,28 @@
       },
       {
         "ordinal": 1,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "reported_messages",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "reported_messages",
+            "name": "message_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
         "name": "author_id",
         "type_info": "Int8",
         "origin": {
@@ -26,7 +48,7 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 4,
         "name": "author_name",
         "type_info": "Varchar",
         "origin": {
@@ -45,8 +67,10 @@
     "nullable": [
       false,
       false,
+      false,
+      false,
       true
     ]
   },
-  "hash": "f956efb05c77a4ef2f7de281c4b1e363691b889b6d46bad48e588a8d32c3593c"
+  "hash": "167e16d9740a342ab34d476573a131da44b648b34c4f0d708bc2cd5d6dbfcb36"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id,\n            channel_id,\n            message AS \"message: Json<MessageLayout>\",\n            r_type AS \"r_type: ReminderType\",\n            days_of_week,\n            time_start,\n            time_end,\n            interval_seconds,\n            timezone\n        FROM reminders\n        WHERE next_trigger_at <= $1 AND is_active = true\n        ORDER BY next_trigger_at ASC\n        LIMIT $2\n        ",
+  "query": "\n        SELECT\n            id,\n            channel_id,\n            message AS \"message: Json<serde_json::Value>\",\n            r_type AS \"r_type: ReminderType\",\n            days_of_week,\n            time_start,\n            time_end,\n            interval_seconds,\n            timezone\n        FROM reminders\n        WHERE next_trigger_at <= $1 AND is_active = true\n        ORDER BY next_trigger_at ASC\n        LIMIT $2\n        ",
   "describe": {
     "columns": [
       {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "message: Json<MessageLayout>",
+        "name": "message: Json<serde_json::Value>",
         "type_info": "Jsonb",
         "origin": {
           "Table": {
@@ -131,5 +131,5 @@
       true
     ]
   },
-  "hash": "2b6cbc0073f81d231d0971c0ed291a7cda53b10d8dcae77cf935d9a3358c95ea"
+  "hash": "a8849504c6cc0bd391277d9205962cd25df7f01c13ef26c710329469716be62c"
 }
