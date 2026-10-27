@@ -92,8 +92,58 @@ pub struct AppConfig {
     pub domain: String,
 }
 
+/// Reads a secret from the environment, treating an empty value as absent.
+fn secret_from_env(key: &str) -> Option<String> {
+    std::env::var(key)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::secret_from_env;
+    use std::sync::Mutex;
+
+    // `set_var` is process-global, so these tests must not overlap.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn empty_secret_reads_as_absent() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let key = "MOD_OUD_TEST_EMPTY_SECRET";
+        unsafe { std::env::set_var(key, "") };
+        assert_eq!(secret_from_env(key), None);
+    }
+
+    #[test]
+    fn whitespace_secret_reads_as_absent() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let key = "MOD_OUD_TEST_BLANK_SECRET";
+        unsafe { std::env::set_var(key, "   ") };
+        assert_eq!(secret_from_env(key), None);
+    }
+
+    #[test]
+    fn real_secret_is_returned_trimmed() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let key = "MOD_OUD_TEST_REAL_SECRET";
+        unsafe { std::env::set_var(key, "  s3cret  ") };
+        assert_eq!(secret_from_env(key), Some("s3cret".to_string()));
+    }
+
+    #[test]
+    fn unset_secret_is_none() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        assert_eq!(secret_from_env("MOD_OUD_TEST_DEFINITELY_UNSET_SECRET"), None);
+    }
+}
+
 impl AppConfig {
     /// Loads configuration parameters from process environment variables.
+    ///
+    /// An empty secret is loaded as absent. An empty string is a valid HMAC key and would make
+    /// every signature publicly reproducible, so it must read the same as an unset variable.
     ///
     /// # Panics
     ///
@@ -101,10 +151,10 @@ impl AppConfig {
     #[must_use]
     pub fn from_env() -> Self {
         Self {
-            shared_secret: std::env::var("VERIFICATION_SECRET").ok(),
-            internal_api_secret: std::env::var("INTERNAL_API_SECRET").ok(),
-            cf_secret_key: std::env::var("TURNSTILE_SECRET").ok(),
-            hc_secret_key: std::env::var("HCAPTCHA_SECRET").ok(),
+            shared_secret: secret_from_env("VERIFICATION_SECRET"),
+            internal_api_secret: secret_from_env("INTERNAL_API_SECRET"),
+            cf_secret_key: secret_from_env("TURNSTILE_SECRET"),
+            hc_secret_key: secret_from_env("HCAPTCHA_SECRET"),
             hc_site_key: std::env::var("HCAPTCHA_SITE_KEY").ok(),
             giphy_api_key: std::env::var("GIPHY_API_KEY").ok(),
             klipy_api_key: std::env::var("KLIPY_API_KEY").ok(),

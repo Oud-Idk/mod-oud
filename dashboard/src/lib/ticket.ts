@@ -17,7 +17,9 @@ export interface Ticket {
 }
 
 function getSecret(): string {
-    const secret = process.env.INTERNAL_API_SECRET ?? "";
+    // An empty value is a usable HMAC key whose signatures anyone can reproduce, so treat it as
+    // unset rather than signing with it.
+    const secret = (process.env.INTERNAL_API_SECRET ?? "").trim();
     if (secret.length === 0) {
         throw new Error("INTERNAL_API_SECRET not set");
     }

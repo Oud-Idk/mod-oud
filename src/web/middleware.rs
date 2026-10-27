@@ -81,7 +81,8 @@ pub async fn require_internal_secret(
         });
 
     match provided {
-        Some(token) if token == expected => Ok(next.run(request).await),
+        // An empty header must never match, even if the configured secret is somehow empty.
+        Some(token) if !token.is_empty() && token == expected => Ok(next.run(request).await),
         Some(_) => {
             // One of the few 4xx worth a line: a deploy or a dashboard is holding the wrong
             // secret, and nothing else in the log would say so.
