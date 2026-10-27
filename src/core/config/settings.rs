@@ -350,7 +350,7 @@ mod tests {
     use serenity::all::GuildId;
 
     fn guild() -> GuildId {
-        GuildId::new(123456789012345678)
+        GuildId::new(123_456_789_012_345_678)
     }
 
     #[test]

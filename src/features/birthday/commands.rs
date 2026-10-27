@@ -65,7 +65,12 @@ async fn set(
 }
 
 /// Test the birthday announcement message using dashboard settings (Mods only)
-#[poise::command(slash_command, default_member_permissions = "MANAGE_GUILD", guild_only)]
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_GUILD",
+    default_member_permissions = "MANAGE_GUILD",
+    guild_only
+)]
 async fn test(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
     let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
@@ -198,7 +203,12 @@ async fn remove(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Force set a birthday for a user (Mods only)
-#[poise::command(slash_command, default_member_permissions = "MANAGE_GUILD", guild_only)]
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_GUILD",
+    default_member_permissions = "MANAGE_GUILD",
+    guild_only
+)]
 async fn force_set(
     ctx: Context<'_>,
     #[description = "User to set birthday for"] user: serenity::User,
@@ -233,7 +243,12 @@ async fn force_set(
 }
 
 /// Force remove a birthday for a user (Mods only)
-#[poise::command(slash_command, default_member_permissions = "MANAGE_GUILD", guild_only)]
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_GUILD",
+    default_member_permissions = "MANAGE_GUILD",
+    guild_only
+)]
 async fn force_remove(
     ctx: Context<'_>,
     #[description = "User to remove birthday for"] user: serenity::User,
