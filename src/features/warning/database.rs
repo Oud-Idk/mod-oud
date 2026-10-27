@@ -207,7 +207,10 @@ pub async fn insert_warn(
         )
         SELECT
             inserted.id,
-            (SELECT count(*) FROM warns WHERE guild_id = $1 AND user_id = $2) + 1 AS "count!"
+            -- Pardoned warnings are inactive; counting them let a threshold fire early or be
+            -- skipped once the historical total had already passed it.
+            (SELECT count(*) FROM warns
+              WHERE guild_id = $1 AND user_id = $2 AND is_active = TRUE) + 1 AS "count!"
         FROM inserted
         "#,
         guild_id.get().cast_signed(),
