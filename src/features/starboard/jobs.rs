@@ -4,6 +4,7 @@ use crate::features::starboard::cache::get_starboard_count;
 use crate::features::starboard::database;
 use crate::features::starboard::database::StarboardPayload;
 use crate::features::starboard::types::Starboard;
+use crate::shared::embed::safe_allowed_mentions;
 use crate::shared::locking::acquire_lock;
 use crate::shared::task;
 use anyhow::Result;
@@ -228,7 +229,9 @@ async fn create_or_update_post(
     if let Some(post_id) = starboard_msg_id {
         let builder = EditMessage::new()
             .content(message_data.text)
-            .embed(message_data.embed);
+            .embed(message_data.embed)
+            // The content is the source message, so its pings must not ride on the bot's perms.
+            .allowed_mentions(safe_allowed_mentions());
 
         starboard_channel
             .edit_message(&ctx.http, post_id, builder)
@@ -239,7 +242,8 @@ async fn create_or_update_post(
     } else {
         let builder = CreateMessage::new()
             .content(message_data.text)
-            .embed(message_data.embed);
+            .embed(message_data.embed)
+            .allowed_mentions(safe_allowed_mentions());
 
         let sent_msg = starboard_channel.send_message(&ctx.http, builder).await?;
 

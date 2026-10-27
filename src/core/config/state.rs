@@ -135,7 +135,10 @@ mod tests {
     #[test]
     fn unset_secret_is_none() {
         let _guard = ENV_LOCK.lock().unwrap();
-        assert_eq!(secret_from_env("MOD_OUD_TEST_DEFINITELY_UNSET_SECRET"), None);
+        assert_eq!(
+            secret_from_env("MOD_OUD_TEST_DEFINITELY_UNSET_SECRET"),
+            None
+        );
     }
 }
 
