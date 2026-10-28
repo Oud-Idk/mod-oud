@@ -86,6 +86,7 @@ interface MessageFilteringBodyProps {
     channelMap?: Record<string, string>;
     roleMap?: Record<string, string>;
     onSave: (messageFilteringConfig: MessageFilteringConfig) => Promise<void>;
+    heavyFeaturesEnabled: boolean;
 }
 
 export function MessageFilteringBody({
@@ -97,9 +98,20 @@ export function MessageFilteringBody({
     channelMap,
     roleMap,
     onSave,
+    heavyFeaturesEnabled,
 }: MessageFilteringBodyProps): JSX.Element {
-    const [activeTab, setActiveTab] = useState<TabValue>("BAD_WORDS");
+    const [selectedTab, setSelectedTab] = useState<TabValue>("BAD_WORDS");
     const normalizedConfig = useMemo(() => messageFilteringConfig, [messageFilteringConfig]);
+
+    const visibleTabs = useMemo(
+        () => (heavyFeaturesEnabled
+            ? FILTERING_TABS
+            : FILTERING_TABS.filter((tab) => tab.value !== "TOXIC_MESSAGES")),
+        [heavyFeaturesEnabled],
+    );
+
+    // The selected tab can be hidden by the flag, so derive the one actually shown.
+    const activeTab = visibleTabs.some((tab) => tab.value === selectedTab) ? selectedTab : "BAD_WORDS";
 
     const {
         config,
@@ -130,7 +142,7 @@ export function MessageFilteringBody({
 
     return (
         <div>
-            <Tabs tabs={FILTERING_TABS} activeTab={activeTab} onChange={setActiveTab}/>
+            <Tabs tabs={visibleTabs} activeTab={activeTab} onChange={setSelectedTab}/>
 
             <div className="tab-content">
                 {activeTab === "BAD_WORDS" ? (

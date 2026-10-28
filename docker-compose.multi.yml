@@ -4,6 +4,7 @@
 #   - shard ownership decides which bot answers dashboard music commands
 #   - distributed locks / claims coordinate jobs across bot-shard-0 and bot-shard-1
 #   - the web instance reaches music actors purely over Redis
+#   - ML inference runs in its own container and is shared by both shards
 #
 # Usage:
 #   docker compose -f docker-compose.multi.yml up --build
@@ -16,6 +17,9 @@
 #   - Only bot-shard-0 runs migrations.
 #   - If bot-shard-1 hits Discord's identify rate limit on first boot
 #     (~5s between identifies across processes), restart it once.
+#   - ml-inference runs as uid 10001, so an ml-model-cache volume created before
+#     that switch is root-owned and must be dropped once:
+#     docker volume rm mod-oud_ml-model-cache
 
 services:
   db:
@@ -49,6 +53,18 @@ services:
       timeout: 3s
       retries: 10
 
+  ml-inference:
+    profiles: [ "heavy" ]
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    restart: unless-stopped
+    volumes:
+      # Owned by the image's non-root service user; a new volume inherits it.
+      - ml-model-cache:/home/ml/.cache/huggingface
+    environment:
+      ML_INFERENCE_LISTEN_ADDR: 0.0.0.0:50051
+
   bot-shard-0:
     build: .
     restart: unless-stopped
@@ -57,6 +73,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ml-inference:
+        condition: service_started
+        required: false
     env_file: .env
     environment:
       SHARD_INDEX: 0
@@ -66,6 +85,7 @@ services:
       RUN_MIGRATIONS: "true"
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      ML_INFERENCE_ADDR: http://ml-inference:50051
 
   bot-shard-1:
     build: .
@@ -75,6 +95,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ml-inference:
+        condition: service_started
+        required: false
     env_file: .env
     environment:
       SHARD_INDEX: 1
@@ -83,6 +106,7 @@ services:
       RUN_WEB: "false"
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      ML_INFERENCE_ADDR: http://ml-inference:50051
 
   web:
     build: .
@@ -131,3 +155,4 @@ services:
 volumes:
   postgres_data:
   redis-data:
+  ml-model-cache:

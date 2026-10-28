@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    routing::post,
+    routing::{get, post},
 };
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
@@ -92,10 +92,17 @@ pub async fn handle_send_custom_embed(
     ))
 }
 
-/// Registers the general web route for sending custom embeds.
+/// Reports whether this deployment has the ML toxicity classifier enabled.
+pub async fn handle_heavy_features(State(state): State<Arc<WebState>>) -> Json<bool> {
+    Json(state.core.config.heavy_features)
+}
+
+/// Registers the general web routes.
 pub fn routes() -> Router<Arc<WebState>> {
-    Router::new().route(
-        "/guilds/{guild_id}/embeds/send",
-        post(handle_send_custom_embed),
-    )
+    Router::new()
+        .route("/heavy-features", get(handle_heavy_features))
+        .route(
+            "/guilds/{guild_id}/embeds/send",
+            post(handle_send_custom_embed),
+        )
 }

@@ -6,7 +6,7 @@ import {
 } from "@/features/message-filtering/actions";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MessageFilteringBody } from "@/features/message-filtering/components/MessageFilteringBody";
-import { getBadWordRulesets, getMessageFilteringConfig } from "@/features/message-filtering/queries";
+import { getBadWordRulesets, getHeavyFeaturesEnabled, getMessageFilteringConfig } from "@/features/message-filtering/queries";
 import { JSX } from "react";
 
 interface MessageFilteringFeatureProps {
@@ -20,11 +20,13 @@ export async function MessageFilteringFeature({ guildId, rulesetId }: MessageFil
         badWordRulesets,
         channelMap,
         roleMap,
+        heavyFeaturesEnabled,
     ] = await Promise.all([
         getMessageFilteringConfig(guildId),
         getBadWordRulesets(guildId),
         getTextChannelMap(guildId),
         getRoleMap(guildId),
+        getHeavyFeaturesEnabled(),
     ]);
 
     const activeRuleset = badWordRulesets.find((r) => r.id === rulesetId) ?? null;
@@ -45,6 +47,7 @@ export async function MessageFilteringFeature({ guildId, rulesetId }: MessageFil
                 channelMap={channelMap}
                 roleMap={roleMap}
                 onSave={onSave}
+                heavyFeaturesEnabled={heavyFeaturesEnabled}
             />
         </div>
     );

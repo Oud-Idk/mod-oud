@@ -10,6 +10,24 @@ import {
     saveBadWordRulesetInputSchema,
 } from "@/features/message-filtering/types";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
+import { backendFetch } from "@/lib/backend";
+
+/**
+ * Reads deployment flags from the bot so the UI hides controls it cannot serve.
+ * A failed lookup hides optional features rather than showing broken controls.
+ */
+export async function getHeavyFeaturesEnabled(): Promise<boolean> {
+    try {
+        const response = await backendFetch("/api/heavy-features");
+        if (!response.ok) {
+            return false;
+        }
+        const enabled = z.boolean().safeParse(await response.json());
+        return enabled.success && enabled.data;
+    } catch {
+        return false;
+    }
+}
 
 export async function getMessageFilteringConfig(guildId: string): Promise<MessageFilteringConfig> {
     const validGuildId = z.string().min(1).parse(guildId);

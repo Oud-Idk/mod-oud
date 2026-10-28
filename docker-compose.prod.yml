@@ -1,5 +1,8 @@
 # Production stack for a VPS fronted by a Cloudflare Tunnel (cloudflared).
 # No inbound ports are opened on the VPS; db/redis have no published ports at all.
+#
+# The `*-IMAGE` fallbacks below are for local builds. Deploys pass the commit's
+# `sha-<commit>` tag instead, so a restart or rollback replays one revision.
 
 x-default-logging: &default-logging
   driver: json-file
@@ -37,6 +40,22 @@ services:
       timeout: 3s
       retries: 10
 
+  ml-inference:
+    profiles: [ "heavy" ]
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    image: ${ML_IMAGE:-ghcr.io/oud-idk/mod-oud-ml:latest}
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      # Model weights survive restarts; HF Hub downloads them once per volume.
+      # The path belongs to the image's service user, and a new volume takes
+      # that ownership on creation.
+      - ml-model-cache:/home/ml/.cache/huggingface
+    environment:
+      ML_INFERENCE_LISTEN_ADDR: 0.0.0.0:50051
+
   bot-shard-0:
     build: .
     image: ${BACKEND_IMAGE:-ghcr.io/oud-idk/mod-oud-backend:latest}
@@ -47,6 +66,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ml-inference:
+        condition: service_started
+        required: false
     env_file: .env
     environment:
       SHARD_INDEX: 0
@@ -56,6 +78,7 @@ services:
       RUN_MIGRATIONS: "true"
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      ML_INFERENCE_ADDR: http://ml-inference:50051
       CORS_ORIGINS: ${CORS_ORIGINS:-}
 
   bot-shard-1:
@@ -68,6 +91,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ml-inference:
+        condition: service_started
+        required: false
     env_file: .env
     environment:
       SHARD_INDEX: 1
@@ -76,6 +102,7 @@ services:
       RUN_WEB: "false"
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      ML_INFERENCE_ADDR: http://ml-inference:50051
       CORS_ORIGINS: ${CORS_ORIGINS:-}
 
   web:
@@ -140,3 +167,4 @@ services:
 volumes:
   postgres_data:
   redis-data:
+  ml-model-cache:

@@ -47,6 +47,7 @@ jobs:
           filters: |
             rust:
               - 'src/**'
+              - 'crates/**'
               - 'migrations/**'
               - '.sqlx/**'
               - '.aislop/**'
@@ -61,7 +62,7 @@ jobs:
               - 'dashboard/**'
               - '.github/workflows/checks.yml'
 
-  # Also runs the logging convention check, another static read of src/.
+  # Also runs the logging convention check, another static read of src/ and crates/.
   cargo-clippy:
     needs: changes
     if: needs.changes.outputs.rust == 'true'
@@ -76,8 +77,8 @@ jobs:
 
       # Not gating: pedantic and nursery are `warn` in Cargo.toml, so this exits
       # 0 with warnings. Add `-- -D warnings` once the count is at zero.
-      - name: Clippy (lib + tests)
-        run: SQLX_OFFLINE=true cargo clippy --all-targets
+      - name: Clippy (workspace, all targets)
+        run: SQLX_OFFLINE=true cargo clippy --workspace --all-targets
 
       - name: Logging convention
         run: scripts/check-logging.sh
@@ -95,7 +96,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Rust tests
-        run: SQLX_OFFLINE=true cargo test --lib
+        run: SQLX_OFFLINE=true cargo test --workspace --lib
 
   aislop-rust:
     needs: changes

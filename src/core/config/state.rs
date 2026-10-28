@@ -1,5 +1,5 @@
 use crate::core::config::settings::GuildSettings;
-use crate::features::automod::{SafeBrowsingClient, SpamTracker, ToxicClassifierJob};
+use crate::features::automod::{SafeBrowsingClient, SpamTracker, ToxicClassifier};
 use crate::features::bad_words::CompiledRuleset;
 use crate::features::live_feed::LogEvent;
 use crate::features::message_logging::CachedAuditLogs;
@@ -86,10 +86,21 @@ pub struct AppConfig {
     /// Optional Wordnik API key
     pub wordnik_api_key: Option<String>,
 
+    /// Whether optional heavy features, such as ML inference, are enabled.
+    pub heavy_features: bool,
+
+    /// gRPC endpoint of the ML inference service. Defaults to a local sidecar.
+    pub ml_inference_addr: String,
+
     /// Dashboard origin used to build absolute links (e.g. verification URLs),
     /// including the scheme: `http://localhost:3000` locally,
     /// `https://dashboard.example.com` in production.
     pub domain: String,
+}
+
+/// Reads a boolean flag, treating only `true` (any case) as on.
+fn env_flag(key: &str) -> bool {
+    std::env::var(key).is_ok_and(|value| value.eq_ignore_ascii_case("true"))
 }
 
 /// Reads a secret from the environment, treating an empty value as absent.
@@ -161,6 +172,9 @@ impl AppConfig {
             hc_site_key: std::env::var("HCAPTCHA_SITE_KEY").ok(),
             giphy_api_key: std::env::var("GIPHY_API_KEY").ok(),
             klipy_api_key: std::env::var("KLIPY_API_KEY").ok(),
+            heavy_features: env_flag("ENABLE_HEAVY_FEAT"),
+            ml_inference_addr: std::env::var("ML_INFERENCE_ADDR")
+                .unwrap_or_else(|_| "http://127.0.0.1:50051".to_string()),
             domain: std::env::var("DOMAIN")
                 .unwrap_or_else(|_| "http://localhost:3000".to_string())
                 .trim_end_matches('/')
@@ -238,6 +252,6 @@ pub struct BotData {
     /// Shared state manager for music player playback.
     pub music_state: MusicState,
 
-    /// Shared toxic classifier ML inference
-    pub toxic_classifier_tx: tokio::sync::mpsc::Sender<ToxicClassifierJob>,
+    /// Client for the ML toxicity classifier service, absent when heavy features are off.
+    pub toxic_classifier: Option<ToxicClassifier>,
 }

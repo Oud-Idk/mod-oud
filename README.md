@@ -8,8 +8,12 @@ A self-hostable Discord moderation bot with an accompanying web dashboard. The b
 
 ## Architecture
 
-- One Rust binary that can run the gateway bot, the web server, or both, controlled by `RUN_BOT` /
-  `RUN_WEB` env flags.
+- Two Rust binaries in one Cargo workspace: the bot/web server (`mod-oud`) and the ML inference
+  service (`ml-inference`). The bot runs the gateway, the web server, or both, controlled by
+  `RUN_BOT` / `RUN_WEB` env flags.
+- The toxicity classifier lives in `crates/ml-inference` and serves inference over gRPC
+  (`crates/ml-proto` holds the contract). The bot calls it when `ENABLE_HEAVY_FEAT=true`, and
+  passes messages through while the service is down or still loading.
 - Horizontally shardable (`SHARD_INDEX` / `TOTAL_SHARDS`): each shard runs as its own container
   sharing Postgres and Redis state.
 - Background/cron jobs use distributed Redis locks so multiple instances never double-execute.
@@ -57,7 +61,14 @@ Each feature lives in its own vertical slice under `src/features/`. see
    `.sqlx/`, so no live DB is needed to compile):
 
    ```bash
-   cargo run
+   cargo run -p mod-oud
+   ```
+
+   The toxicity classifier runs as a separate gRPC service. Start it alongside the bot when
+   `ENABLE_HEAVY_FEAT=true`:
+
+   ```bash
+   cargo run -p ml-inference
    ```
 
 4. In another terminal, run the dashboard:
@@ -81,7 +92,8 @@ Each feature lives in its own vertical slice under `src/features/`. see
 
 | Command                          | What it does                              |
 |----------------------------------|-------------------------------------------|
-| `cargo build --release`          | Build the bot                             |
+| `cargo build --release -p mod-oud` | Build the bot                               |
+| `cargo build --release -p ml-inference` | Build the ML inference service        |
 | `cargo clippy`                   | Lint (pedantic/nursery lints are enabled) |
 | `cargo fmt`                      | Format (config in `rustfmt.toml`)         |
 | `pnpm run lint` (in `dashboard/`) | Lint the dashboard                        |
@@ -90,8 +102,8 @@ Each feature lives in its own vertical slice under `src/features/`. see
 ## Production
 
 The full stack lives in `docker-compose.prod.yml`: two bot shards, a web/API-only container, the
-dashboard, Postgres, Redis, and a cloudflared tunnel. One-time setup steps are documented in
-comments at the top of that file; then deploy with:
+dashboard, the ML inference service, Postgres, Redis, and a cloudflared tunnel. One-time setup steps
+are documented in comments at the top of that file; then deploy with:
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
@@ -109,6 +121,7 @@ See [.env.example](./.env.example) for the full list. Highlights:
 | `DISCORD_TOKEN`                          | Bot token                                               |
 | `RUN_BOT` / `RUN_WEB` / `RUN_MIGRATIONS` | Toggle which parts of the binary run                    |
 | `SHARD_INDEX` / `TOTAL_SHARDS`           | Gateway sharding                                        |
+| `ENABLE_HEAVY_FEAT` / `ML_INFERENCE_ADDR` | Toxicity classifier toggle and gRPC endpoint           |
 | `DOMAIN` / `NEXT_PUBLIC_BACKEND_URL`     | Public URLs for links and API calls                     |
 | Third-party keys                         | Spotify, Google Cloud, Genius, GIPHY, Klipy, TMDB, RAWG |
 | Captcha secrets                          | Turnstile / HCaptcha for the verification feature       |

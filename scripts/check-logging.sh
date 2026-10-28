@@ -5,11 +5,14 @@
 # Log-macro invocations are extracted whole, balancing parens and skipping string
 # literals, so a call spread over ten lines is judged as one call.
 #
-# Usage: scripts/check-logging.sh [src-dir]     (default: src)
+# Usage: scripts/check-logging.sh [src-dir...]     (default: src crates)
 
 set -uo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-target="${1:-$root/src}"
+targets=("$@")
+if [[ ${#targets[@]} -eq 0 ]]; then
+  targets=("$root/src" "$root/crates")
+fi
 fail=0
 
 red() { printf '\033[31m%s\033[0m\n' "$*"; }
@@ -18,14 +21,14 @@ note() { printf '\033[2m%s\033[0m\n' "$*"; }
 # --- extract -----------------------------------------------------------------
 # Emits:  file:line <TAB> level!(body)
 extract_calls() {
-  find "$target" -name '*.rs' -print0 | sort -z | xargs -0 awk -f "$root/scripts/log_calls.awk"
+  find "$@" -name '*.rs' -print0 | sort -z | xargs -0 awk -f "$root/scripts/log_calls.awk"
 }
 
 # --- rule 1: error! must name a cause ----------------------------------------
 # A cause is `error` (a value), `reason` (known cause, not an error value) or
 # `fault` (an invariant already broken, so there is no Err to report). Never
 # invent an io::Error to satisfy this check.
-missing_cause="$(extract_calls |
+missing_cause="$(extract_calls "${targets[@]}" |
   awk -F'\t' '$2 ~ /^error!/ && $2 !~ /(^|[ (])(error|reason|fault)[[:space:]]*=/ { print $1 }')"
 
 if [[ -n "$missing_cause" ]]; then
@@ -44,7 +47,7 @@ fi
 # The leading class is load-bearing. Without it `xformat!` matches, and with a bare
 # `[a-z_]+!` the exemption matches `trace!` and `info!` themselves, which drops
 # every single-literal log call and hides the violation this rule exists to catch.
-interpolated="$(extract_calls |
+interpolated="$(extract_calls "${targets[@]}" |
   awk -F'\t' '
     {
       body = $2
@@ -68,7 +71,7 @@ fi
 # `#[instrument(err)]` puts the paren there, and omitting it misses the commonest form of all.
 # The class after it accepts `= true` too, since that is the same argument spelled out.
 # Known limit: `skip(err)` naming a variable called err would match. Nothing in the tree does.
-instrument_err="$(rg -U -n --no-heading '#\[(tracing::)?instrument\([^]]*?[,[:space:]]?err[[:space:]]*(=[^],)]*)?[,)]' -g '*.rs' "$target" |
+instrument_err="$(rg -U -n --no-heading '#\[(tracing::)?instrument\([^]]*?[,[:space:]]?err[[:space:]]*(=[^],)]*)?[,)]' -g '*.rs' "${targets[@]}" |
   awk '/#\[(tracing::)?instrument\(/ { sub(/#\[(tracing::)?instrument\(.*/, "#[instrument("); print }' || true)"
 if [[ -n "$instrument_err" ]]; then
   while IFS= read -r line; do
@@ -90,7 +93,7 @@ fi
 # growth, not floods. The rule that would catch a flood is a warn! naming something you can query.
 budget_over() {
   local level="$1" limit="$2"
-  extract_calls |
+  extract_calls "${targets[@]}" |
     awk -F'\t' -v re="^${level}!" -v b="$limit" '
       $2 ~ re {
         split($1, p, ":")
@@ -120,7 +123,7 @@ done
 # The awk extractor only matches `level!(`, so without this rule the mistake is invisible.
 # `pub async fn info(` and friends are not calls, so a definition is not a hit.
 not_macro="$(rg -n --no-heading -P '(?<![\w:!.])(trace|debug|info|warn|error)\(' \
-  -g '*.rs' "$target" |
+  -g '*.rs' "${targets[@]}" |
   rg -v -P '^\S+:\d+:\s*(pub |pub\(crate\) |pub\(super\) )?(async )?fn \w' |
   rg -v -P '\b(warn|error|info|debug|trace)_(span|event|level)\b' || true)"
 if [[ -n "$not_macro" ]]; then

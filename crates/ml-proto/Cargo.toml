@@ -1,0 +1,16 @@
+[package]
+name = "ml-proto"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+prost = "0.14.4"
+tonic = { version = "0.14.8", default-features = false, features = ["codegen"] }
+tonic-prost = "0.14.8"
+
+[build-dependencies]
+protoc-bin-vendored = "3.3.0"
+tonic-prost-build = { version = "0.14.8", default-features = false }
+
+[lints]
+workspace = true
