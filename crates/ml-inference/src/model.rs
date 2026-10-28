@@ -10,7 +10,7 @@ use tokenizers::Tokenizer;
 use tract_onnx::prelude::*;
 
 /// Handle to the model shared between the loader task and the gRPC service.
-pub type SharedClassifier = Arc<OnceLock<Arc<ToxicClassifier>>>;
+pub type SharedClassifier = Arc<OnceLock<ToxicClassifier>>;
 
 /// A wrapper around the ONNX model and tokenizer for toxicity analysis.
 #[derive(Debug)]

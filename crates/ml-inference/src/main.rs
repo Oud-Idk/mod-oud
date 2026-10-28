@@ -59,7 +59,7 @@ async fn load_model(classifier: SharedClassifier) {
         tokio::time::sleep(LOAD_RETRY_DELAY).await;
     };
 
-    if classifier.set(Arc::new(loaded)).is_err() {
+    if classifier.set(loaded).is_err() {
         error!(
             fault = "classifier already set",
             "toxicity model initialized twice"

@@ -32,9 +32,11 @@ impl ToxicityClassifierService for ToxicityService {
         &self,
         request: Request<ClassifyRequest>,
     ) -> Result<Response<ClassifyResponse>, Status> {
-        let Some(classifier) = self.classifier.get().map(Arc::clone) else {
+        if self.classifier.get().is_none() {
             return Err(Status::unavailable("model not loaded"));
-        };
+        }
+
+        let classifier = self.classifier.clone();
 
         let text = request.into_inner().text;
         let permit = self
@@ -47,7 +49,8 @@ impl ToxicityClassifierService for ToxicityService {
         // RoBERTa inference is CPU-bound, so it runs on the blocking pool with a permit held.
         let scores = tokio::task::spawn_blocking(move || {
             let _permit = permit;
-            classifier.predict(&text)
+            let c = classifier.get().expect("classifier mustn't be none, checked above");
+            c.predict(&text)
         })
         .await
         .map_err(|e| Status::internal(format!("inference task failed: {e}")))?
