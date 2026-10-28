@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use ml_proto::TOXIC_CATEGORIES;
 use tokenizers::Tokenizer;
 use tract_onnx::prelude::*;
@@ -29,26 +29,28 @@ impl ToxicClassifier {
     /// Returns an error when the tokenizer or model cannot be loaded.
     pub fn load<P: AsRef<Path>>(model_path: P, tokenizer_path: P) -> Result<Self> {
         let mut tokenizer = Tokenizer::from_file(tokenizer_path)
-            .map_err(|e| anyhow!("failed to load tokenizer: {e}"))?;
+            .map_err(|e| anyhow!(e))
+            .context("failed to load tokenizer")?;
         tokenizer
             .with_truncation(Some(tokenizers::TruncationParams {
                 max_length: 512,
                 ..Default::default()
             }))
-            .map_err(|e| anyhow!("failed to set truncation: {e}"))?;
+            .map_err(|e| anyhow!(e))
+            .context("failed to set truncation")?;
 
-        let model = tract_onnx::onnx()
+        let model = onnx()
             .model_for_path(model_path)
-            .map_err(|e| anyhow!("failed to load model: {e}"))?
+            .context("failed to load model")?
             .into_optimized()
-            .map_err(|e| anyhow!("failed to optimize model: {e}"))?;
+            .context("failed to optimize model")?;
 
         let slot = |name: &str| {
             model
                 .inputs
                 .iter()
                 .position(|outlet| model.node(outlet.node).name == name)
-                .ok_or_else(|| anyhow!("model has no input named {name}"))
+                .with_context(|| format!("model has no input named {name}"))
         };
         let input_ids_slot = slot("input_ids")?;
         let attention_mask_slot = slot("attention_mask")?;
@@ -56,7 +58,7 @@ impl ToxicClassifier {
 
         let model = model
             .into_runnable()
-            .map_err(|e| anyhow!("failed to build runnable model: {e}"))?;
+            .context("failed to build runnable model")?;
 
         Ok(Self {
             tokenizer,
@@ -75,7 +77,8 @@ impl ToxicClassifier {
         let encoding = self
             .tokenizer
             .encode(text, true)
-            .map_err(|e| anyhow!("failed to encode token: {e}"))?;
+            .map_err(|e| anyhow!(e))
+            .context("failed to encode token")?;
 
         let input_ids: Vec<i64> = encoding.get_ids().iter().map(|&id| i64::from(id)).collect();
         let attention_mask: Vec<i64> = encoding
@@ -87,10 +90,10 @@ impl ToxicClassifier {
 
         let shape = (1, len);
         let input_ids = tract_ndarray::Array2::from_shape_vec(shape, input_ids)
-            .map_err(|e| anyhow!("failed to build input tensor: {e}"))?
+            .context("failed to build input tensor")?
             .into_tvalue();
         let attention_mask = tract_ndarray::Array2::from_shape_vec(shape, attention_mask)
-            .map_err(|e| anyhow!("failed to build mask tensor: {e}"))?
+            .context("failed to build mask tensor")?
             .into_tvalue();
 
         // The plan consumes inputs positionally, so place each tensor in the slot
@@ -100,19 +103,16 @@ impl ToxicClassifier {
         slots[self.attention_mask_slot] = Some(attention_mask);
         let inputs: TVec<TValue> = slots
             .into_iter()
-            .map(|slot| slot.ok_or_else(|| anyhow!("model input not set")))
+            .map(|slot| slot.context("model input not set"))
             .collect::<Result<_, _>>()?;
 
         let outputs = self
             .model
             .run(inputs)
-            .map_err(|e| anyhow!("inference failed: {e}"))?;
+            .context("inference failed")?;
         let logits = outputs[0]
             .to_plain_array_view::<f32>()
-            .map_err(|e| anyhow!("failed to read model output: {e}"))?
-            .iter()
-            .copied()
-            .collect::<Vec<f32>>();
+            .context("failed to read model output")?;
 
         let mut scores = HashMap::with_capacity(TOXIC_CATEGORIES.len());
         for (label, &logit) in TOXIC_CATEGORIES.iter().zip(&logits) {
