@@ -7,8 +7,9 @@ RUN cargo install cargo-chef --locked
 
 FROM chef AS planner
 COPY . .
-# `--bin` prunes the bot and its deps, so this image only cooks the model runtime.
-RUN cargo chef prepare --bin ml-inference --recipe-path recipe.json
+# No `--bin` pruning: it drops Cargo.toml, because the root manifest belongs to
+# mod-oud rather than this package's closure, and cook needs it as the workspace root.
+RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 
