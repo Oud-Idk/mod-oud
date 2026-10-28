@@ -51,23 +51,23 @@ async fn main() -> anyhow::Result<()> {
 
 /// Downloads the model and retries until it loads, since a missing model leaves the service useless.
 async fn load_model(classifier: SharedClassifier) {
-    loop {
+    let loaded = loop {
         match load_once().await {
-            Ok(loaded) => {
-                if classifier.set(Arc::new(loaded)).is_err() {
-                    error!(
-                        fault = "classifier already set",
-                        "toxicity model initialized twice"
-                    );
-                } else {
-                    info!("toxicity model loaded");
-                }
-                return;
-            }
+            Ok(model) => break model,
             Err(e) => warn!(error = %e, "toxicity model load failed; retrying"),
         }
         tokio::time::sleep(LOAD_RETRY_DELAY).await;
+    };
+
+    if classifier.set(Arc::new(loaded)).is_err() {
+        error!(
+            fault = "classifier already set",
+            "toxicity model initialized twice"
+        );
+        return;
     }
+
+    info!("toxicity model loaded");
 }
 
 async fn load_once() -> anyhow::Result<ToxicClassifier> {
