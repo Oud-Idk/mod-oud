@@ -50,7 +50,9 @@ services:
     logging: *default-logging
     volumes:
       # Model weights survive restarts; HF Hub downloads them once per volume.
-      - ml-model-cache:/root/.cache/huggingface
+      # The path belongs to the image's service user, and a new volume takes
+      # that ownership on creation.
+      - ml-model-cache:/home/ml/.cache/huggingface
     environment:
       ML_INFERENCE_LISTEN_ADDR: 0.0.0.0:50051
 

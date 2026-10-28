@@ -17,6 +17,9 @@
 #   - Only bot-shard-0 runs migrations.
 #   - If bot-shard-1 hits Discord's identify rate limit on first boot
 #     (~5s between identifies across processes), restart it once.
+#   - ml-inference runs as uid 10001, so an ml-model-cache volume created before
+#     that switch is root-owned and must be dropped once:
+#     docker volume rm mod-oud_ml-model-cache
 
 services:
   db:
@@ -57,7 +60,8 @@ services:
       dockerfile: Dockerfile.ml
     restart: unless-stopped
     volumes:
-      - ml-model-cache:/root/.cache/huggingface
+      # Owned by the image's non-root service user; a new volume inherits it.
+      - ml-model-cache:/home/ml/.cache/huggingface
     environment:
       ML_INFERENCE_LISTEN_ADDR: 0.0.0.0:50051
 

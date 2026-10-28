@@ -27,12 +27,22 @@ RUN cargo build --release -p ml-inference \
     && cp target/release/ml-inference /usr/local/bin/ml-inference
 
 FROM debian:trixie-slim AS runtime
-WORKDIR /usr/local/bin
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/bin/ml-inference .
+COPY --from=builder --chmod=0755 /usr/local/bin/ml-inference /usr/local/bin/ml-inference
 
-CMD ["./ml-inference"]
+# hf-hub caches weights under $HF_HOME, so keep that inside the service user's
+# home. A named volume mounted here inherits this ownership when first created.
+ENV HF_HOME=/home/ml/.cache/huggingface
+
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin ml \
+    && mkdir -p "$HF_HOME" \
+    && chown -R ml:ml /home/ml
+
+USER ml
+WORKDIR /home/ml
+
+CMD ["/usr/local/bin/ml-inference"]

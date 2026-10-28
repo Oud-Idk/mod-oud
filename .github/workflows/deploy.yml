@@ -166,6 +166,14 @@ jobs:
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
           git pull --ff-only origin main
           docker compose -f docker-compose.prod.yml pull
+
+          # The cache volume was created while the image ran as root; hand it to
+          # the service uid once. Volumes created from now on inherit it.
+          cache_volume=$(docker volume ls -q --filter label=com.docker.compose.volume=ml-model-cache | head -n 1)
+          if [ -n "$cache_volume" ]; then
+            docker run --rm --user root -v "$cache_volume:/cache" --entrypoint chown "$ML_IMAGE" -R 10001:10001 /cache
+          fi
+
           docker compose -f docker-compose.prod.yml up -d --remove-orphans
           docker image prune -f
 
