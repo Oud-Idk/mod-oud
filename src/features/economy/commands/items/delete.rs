@@ -18,7 +18,9 @@ pub async fn delete(
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     let Some(item) = validation::resolve_item(db, guild_id, &item_input).await? else {

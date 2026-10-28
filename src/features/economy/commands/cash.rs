@@ -33,7 +33,9 @@ pub async fn balance(
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
     let target = user.as_ref().unwrap_or_else(|| ctx.author());
     let db = &ctx.data().core.db;
 
@@ -74,7 +76,9 @@ pub async fn work(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
     let user_id = ctx.author().id;
     let redis = &ctx.data().core.redis;
     let db = &ctx.data().core.db;
@@ -172,7 +176,9 @@ pub async fn deposit(
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
@@ -216,7 +222,9 @@ pub async fn withdraw(
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
     let user_id = ctx.author().id;
     let db = &ctx.data().core.db;
 
@@ -281,7 +289,9 @@ pub async fn transfer(
 
     ctx.defer().await?;
 
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     // Seed sender account if they don't have one yet

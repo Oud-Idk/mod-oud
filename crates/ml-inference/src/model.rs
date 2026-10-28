@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use ml_proto::TOXIC_CATEGORIES;
 use tokenizers::Tokenizer;
 use tract_onnx::prelude::*;
@@ -106,10 +106,7 @@ impl ToxicClassifier {
             .map(|slot| slot.context("model input not set"))
             .collect::<Result<_, _>>()?;
 
-        let outputs = self
-            .model
-            .run(inputs)
-            .context("inference failed")?;
+        let outputs = self.model.run(inputs).context("inference failed")?;
         let logits = outputs[0]
             .to_plain_array_view::<f32>()
             .context("failed to read model output")?;

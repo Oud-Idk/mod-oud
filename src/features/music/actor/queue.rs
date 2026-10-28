@@ -34,10 +34,7 @@ impl GuildActor {
         count
     }
 
-    pub(super) async fn handle_queue_jump(
-        &mut self,
-        position: usize,
-    ) -> Result<StartedTrackInfo> {
+    pub(super) async fn handle_queue_jump(&mut self, position: usize) -> Result<StartedTrackInfo> {
         if position == 0 {
             bail!("Position must be 1 or greater.");
         }

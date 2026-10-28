@@ -20,7 +20,9 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     let items = list_items(db, guild_id).await?;

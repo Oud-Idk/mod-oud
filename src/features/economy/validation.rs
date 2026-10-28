@@ -51,7 +51,9 @@ where
     F: Fn(&ItemRequirement) -> bool + Send + Sync,
 {
     let user_id = ctx.author().id;
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
 
     // An unreadable gate must refuse, not pass. Returning an empty list here would let a
     // role-locked or balance-locked item through for free.

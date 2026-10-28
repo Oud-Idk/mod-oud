@@ -1,5 +1,5 @@
-use super::resolve::build_query_url;
 use super::GuildActor;
+use super::resolve::build_query_url;
 use crate::features::music::player::{OldTrackDisposition, is_live_stream, prepare_and_play};
 use crate::features::music::stats::record_track_end;
 use core::time::Duration;

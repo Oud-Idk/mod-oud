@@ -26,12 +26,12 @@ pub fn calculate_next_trigger(now: DateTime<Utc>, rule: &RecurrenceRule) -> Date
     let days = &rule.days_of_week;
     let mut target_date = local_now;
 
-    let start = rule
-        .time_start
-        .unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).expect("midnight is a valid NaiveTime"));
-    let end = rule
-        .time_end
-        .unwrap_or_else(|| NaiveTime::from_hms_opt(23, 59, 59).expect("end of day is a valid NaiveTime"));
+    let start = rule.time_start.unwrap_or_else(|| {
+        NaiveTime::from_hms_opt(0, 0, 0).expect("midnight is a valid NaiveTime")
+    });
+    let end = rule.time_end.unwrap_or_else(|| {
+        NaiveTime::from_hms_opt(23, 59, 59).expect("end of day is a valid NaiveTime")
+    });
 
     for _ in 0..8 {
         let weekday_num = target_date.weekday().num_days_from_sunday();

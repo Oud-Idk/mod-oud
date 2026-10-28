@@ -46,11 +46,9 @@ pub async fn handle_set_limit_vc_submit(
         return Ok(());
     };
 
-    let limit_raw = crate::features::temp_voice::interface::get_input_value(
-        interaction,
-        "new_limit",
-    )
-    .unwrap_or_default();
+    let limit_raw =
+        crate::features::temp_voice::interface::get_input_value(interaction, "new_limit")
+            .unwrap_or_default();
     let response_message = service::set_temp_vc_limit(ctx, channel_id, &limit_raw).await?;
 
     interaction

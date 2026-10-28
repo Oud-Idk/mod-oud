@@ -49,7 +49,9 @@ impl ToxicityClassifierService for ToxicityService {
         // RoBERTa inference is CPU-bound, so it runs on the blocking pool with a permit held.
         let scores = tokio::task::spawn_blocking(move || {
             let _permit = permit;
-            let c = classifier.get().expect("classifier mustn't be none, checked above");
+            let c = classifier
+                .get()
+                .expect("classifier mustn't be none, checked above");
             c.predict(&text)
         })
         .await

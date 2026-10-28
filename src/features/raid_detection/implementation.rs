@@ -225,12 +225,9 @@ impl DynamicRaidDetector {
             .await
             .unwrap_or(false);
 
-        let history = cache::get_history_from_cache(
-            &self.redis,
-            now,
-            &keys::hourly_stats_hash_key(guild_id),
-        )
-        .await?;
+        let history =
+            cache::get_history_from_cache(&self.redis, now, &keys::hourly_stats_hash_key(guild_id))
+                .await?;
 
         let stats_available = history.iter().any(|count| *count > 0.0);
         let stats = calculate_threshold(

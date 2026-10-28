@@ -79,7 +79,10 @@ fn check_ruleset<'a>(
                             .next_back()
                             .is_some_and(char::is_alphanumeric);
                     let right_ok = end == lower.len()
-                        || !lower[end..].chars().next().is_some_and(char::is_alphanumeric);
+                        || !lower[end..]
+                            .chars()
+                            .next()
+                            .is_some_and(char::is_alphanumeric);
 
                     if left_ok && right_ok {
                         return Some(block_verdict(ruleset, &pattern_info.original));

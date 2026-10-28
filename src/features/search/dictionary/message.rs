@@ -156,7 +156,11 @@ fn create_free_dict_footer(response: &DictionaryAPIResponse) -> CreateEmbedFoote
     let footer_text = response
         .source
         .as_ref()
-        .and_then(|s| s.license.as_ref().map(|l| format!("{} • {}", l.name, s.url)))
+        .and_then(|s| {
+            s.license
+                .as_ref()
+                .map(|l| format!("{} • {}", l.name, s.url))
+        })
         .unwrap_or_else(|| "Powered by Free Dictionary API".to_string());
 
     CreateEmbedFooter::new(truncate(&footer_text, 2048))

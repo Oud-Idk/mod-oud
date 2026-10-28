@@ -31,11 +31,11 @@ use serenity::prelude::GatewayIntents;
 use songbird::SerenityInit;
 use sqlx::ConnectOptions;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+use std::borrow::Cow;
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use std::borrow::Cow;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 use tracing::log::LevelFilter;
@@ -443,9 +443,7 @@ async fn start_bot(
                     let ctx = framework.serenity_context;
                     let data = framework.user_data().await;
 
-                    events::dispatch::dispatch_events(
-                        ctx, event, framework, data,
-                    ).await
+                    events::dispatch::dispatch_events(ctx, event, framework, data).await
                 })
             },
             ..Default::default()
@@ -505,7 +503,7 @@ fn dynamic_prefix(
         let Some(guild_id) = ctx.guild_id else {
             return Ok(Some(Cow::from("!")));
         };
-      let data = ctx.framework.user_data().await;
+        let data = ctx.framework.user_data().await;
         match config::settings::get_settings(
             &data.core.db,
             &data.core.redis,
@@ -514,9 +512,11 @@ fn dynamic_prefix(
         )
         .await
         {
-            Ok(settings) => Ok(
-              Some(custom_commands::resolve_prefix(&settings).to_string().into())
-            ),
+            Ok(settings) => Ok(Some(
+                custom_commands::resolve_prefix(&settings)
+                    .to_string()
+                    .into(),
+            )),
             Err(e) => {
                 warn!(
                     error = ?e,

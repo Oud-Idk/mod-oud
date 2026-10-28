@@ -38,7 +38,9 @@ pub async fn create(
         return Ok(());
     };
 
-    let guild_id = ctx.guild_id().expect("guild_only command invoked outside guild");
+    let guild_id = ctx
+        .guild_id()
+        .expect("guild_only command invoked outside guild");
     let db = &ctx.data().core.db;
 
     let (emoji_unicode, emoji_id) = validation::parse_emoji(emoji.as_deref());

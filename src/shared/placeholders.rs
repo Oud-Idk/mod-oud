@@ -119,7 +119,10 @@ impl PlaceholderResolver for DiscordCtx<'_> {
                 "message.text" => msg.content.clone(),
                 "message.timestamp" => msg.timestamp.format("%B %d, %Y at %R").to_string(),
                 "message.link" => msg.link(),
-                "message.first_attachment" => msg.attachments.first().map_or_else(String::new, |a| a.url.clone()),
+                "message.first_attachment" => msg
+                    .attachments
+                    .first()
+                    .map_or_else(String::new, |a| a.url.clone()),
                 _ => return None,
             });
         }
@@ -146,5 +149,7 @@ impl PlaceholderResolver for DiscordCtx<'_> {
 /// May panic when `RegEx` entered is invalid.
 pub fn get_placeholder_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"\{(?P<key>[^}]+)}").expect("placeholder regex is static and valid"))
+    RE.get_or_init(|| {
+        Regex::new(r"\{(?P<key>[^}]+)}").expect("placeholder regex is static and valid")
+    })
 }

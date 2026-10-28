@@ -104,10 +104,9 @@ async fn fetch_shard_latency(ctx: &Context<'_>) -> Result<Option<Duration>, Erro
 }
 
 fn get_member_count_text(count: Option<u64>) -> String {
-    count.map_or_else(
-        String::new,
-        |c| format!("Currently, this guild has {c} members"),
-    )
+    count.map_or_else(String::new, |c| {
+        format!("Currently, this guild has {c} members")
+    })
 }
 
 async fn check_db_status(pool: &sqlx::PgPool) -> String {

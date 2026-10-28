@@ -1,15 +1,11 @@
 use crate::core::config::state::BotData;
 use crate::features::starboard::builder::count_emoji_and_cache;
-use crate::features::starboard::cache::{
-    apply_starboard_op_if_exists, get_starboards,
-};
+use crate::features::starboard::cache::{apply_starboard_op_if_exists, get_starboards};
 use crate::features::starboard::jobs::debounced_starboard_sync;
 use crate::features::starboard::types::StarboardOp;
 use crate::features::starboard::{builder, database, perms};
 use anyhow::Result;
-use serenity::all::{
-    Context, MessageId, Reaction,
-};
+use serenity::all::{Context, MessageId, Reaction};
 use sqlx::PgPool;
 use tracing::{debug, info, instrument, warn};
 
