@@ -68,6 +68,7 @@ services:
         condition: service_healthy
       ml-inference:
         condition: service_started
+        required: false
     env_file: .env
     environment:
       SHARD_INDEX: 0
@@ -92,6 +93,7 @@ services:
         condition: service_healthy
       ml-inference:
         condition: service_started
+        required: false
     env_file: .env
     environment:
       SHARD_INDEX: 1
