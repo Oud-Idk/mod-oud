@@ -105,7 +105,7 @@ async fn fetch_shard_latency(ctx: &Context<'_>) -> Result<Option<Duration>, Erro
 
 fn get_member_count_text(count: Option<u64>) -> String {
     count.map_or_else(
-        || "".to_string(),
+        String::new,
         |c| format!("Currently, this guild has {c} members"),
     )
 }
@@ -175,7 +175,7 @@ fn get_target_process_memory(sys: &System, name: &str) -> String {
         .processes()
         .values()
         .filter(|p| p.name().to_string_lossy().contains(name))
-        .map(|p| p.memory())
+        .map(sysinfo::Process::memory)
         .sum();
 
     if total_bytes > 0 {
