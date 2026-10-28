@@ -2,12 +2,15 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use anyhow::{Result, anyhow};
 use ml_proto::TOXIC_CATEGORIES;
 use tokenizers::Tokenizer;
 use tract_onnx::prelude::*;
+
+/// Handle to the model shared between the loader task and the gRPC service.
+pub type SharedClassifier = Arc<OnceLock<Arc<ToxicClassifier>>>;
 
 /// A wrapper around the ONNX model and tokenizer for toxicity analysis.
 #[derive(Debug)]

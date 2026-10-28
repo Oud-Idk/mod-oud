@@ -13,14 +13,14 @@ use ml_proto::toxicity::toxicity_classifier_server::ToxicityClassifierServer;
 use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
+use crate::model::{SharedClassifier, ToxicClassifier};
+
 /// Address the service binds when `ML_INFERENCE_LISTEN_ADDR` is unset.
 const DEFAULT_LISTEN_ADDR: &str = "0.0.0.0:50051";
 const MODEL_ORGANIZATION: &str = "onnx-community";
 const MODEL_NAME: &str = "unbiased-toxic-roberta-ONNX";
 /// A failed download is usually a transient network fault, so the load retries.
 const LOAD_RETRY_DELAY: Duration = Duration::from_secs(60);
-
-type SharedClassifier = Arc<OnceLock<Arc<model::ToxicClassifier>>>;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -70,7 +70,7 @@ async fn load_model(classifier: SharedClassifier) {
     }
 }
 
-async fn load_once() -> anyhow::Result<model::ToxicClassifier> {
+async fn load_once() -> anyhow::Result<ToxicClassifier> {
     info!(
         organization = MODEL_ORGANIZATION,
         model = MODEL_NAME,
@@ -93,7 +93,7 @@ async fn load_once() -> anyhow::Result<model::ToxicClassifier> {
         .await
         .context("tokenizer download failed")?;
 
-    tokio::task::spawn_blocking(move || model::ToxicClassifier::load(&model_path, &tokenizer_path))
+    tokio::task::spawn_blocking(move || ToxicClassifier::load(&model_path, &tokenizer_path))
         .await
         .context("model load task failed")?
 }

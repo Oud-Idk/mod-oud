@@ -89,6 +89,9 @@ pub struct AppConfig {
     /// Whether optional heavy features, such as ML inference, are enabled.
     pub heavy_features: bool,
 
+    /// gRPC endpoint of the ML inference service. Defaults to a local sidecar.
+    pub ml_inference_addr: String,
+
     /// Dashboard origin used to build absolute links (e.g. verification URLs),
     /// including the scheme: `http://localhost:3000` locally,
     /// `https://dashboard.example.com` in production.
@@ -170,6 +173,8 @@ impl AppConfig {
             giphy_api_key: std::env::var("GIPHY_API_KEY").ok(),
             klipy_api_key: std::env::var("KLIPY_API_KEY").ok(),
             heavy_features: env_flag("ENABLE_HEAVY_FEAT"),
+            ml_inference_addr: std::env::var("ML_INFERENCE_ADDR")
+                .unwrap_or_else(|_| "http://127.0.0.1:50051".to_string()),
             domain: std::env::var("DOMAIN")
                 .unwrap_or_else(|_| "http://localhost:3000".to_string())
                 .trim_end_matches('/')

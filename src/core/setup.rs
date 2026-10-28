@@ -169,7 +169,7 @@ pub fn setup<'a>(
         }
 
         let app_config = AppConfig::from_env();
-        let toxic_classifier = ToxicClassifier::from_env(app_config.heavy_features);
+        let toxic_classifier = ToxicClassifier::from_config(&app_config);
         if let Some(classifier) = &toxic_classifier {
             classifier.spawn_readiness_probe();
         }

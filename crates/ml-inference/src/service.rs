@@ -1,24 +1,24 @@
 //! gRPC surface over the toxicity model.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use ml_proto::toxicity::toxicity_classifier_server::ToxicityClassifier as ToxicityClassifierService;
 use ml_proto::toxicity::{ClassifyRequest, ClassifyResponse, ReadyRequest, ReadyResponse};
 use tokio::sync::Semaphore;
 use tonic::{Request, Response, Status};
 
-use crate::model::ToxicClassifier;
+use crate::model::SharedClassifier;
 
 /// Serves inference requests against a model that loads in the background.
 pub struct ToxicityService {
-    classifier: Arc<OnceLock<Arc<ToxicClassifier>>>,
+    classifier: SharedClassifier,
     inference_slots: Arc<Semaphore>,
 }
 
 impl ToxicityService {
     /// Builds the service. `max_concurrent` caps how many inferences run at once.
     #[must_use]
-    pub fn new(classifier: Arc<OnceLock<Arc<ToxicClassifier>>>, max_concurrent: usize) -> Self {
+    pub fn new(classifier: SharedClassifier, max_concurrent: usize) -> Self {
         Self {
             classifier,
             inference_slots: Arc::new(Semaphore::new(max_concurrent)),

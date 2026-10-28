@@ -35,14 +35,6 @@ pub struct SendCustomEmbedResponse {
     pub message_id: u64,
 }
 
-/// Deployment capabilities the dashboard uses to hide controls this instance cannot serve.
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Capabilities {
-    /// Whether the ML toxicity classifier is enabled.
-    pub heavy_features: bool,
-}
-
 // Fixed trait implementation to match EmbedGetters signatures exactly
 impl MessageGetter for SendCustomEmbedPayload {
     fn content(&self) -> &str {
@@ -100,17 +92,15 @@ pub async fn handle_send_custom_embed(
     ))
 }
 
-/// Reports the optional features this deployment has turned on.
-pub async fn handle_capabilities(State(state): State<Arc<WebState>>) -> Json<Capabilities> {
-    Json(Capabilities {
-        heavy_features: state.core.config.heavy_features,
-    })
+/// Reports whether this deployment has the ML toxicity classifier enabled.
+pub async fn handle_heavy_features(State(state): State<Arc<WebState>>) -> Json<bool> {
+    Json(state.core.config.heavy_features)
 }
 
 /// Registers the general web routes.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
-        .route("/capabilities", get(handle_capabilities))
+        .route("/heavy-features", get(handle_heavy_features))
         .route(
             "/guilds/{guild_id}/embeds/send",
             post(handle_send_custom_embed),

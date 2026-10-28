@@ -223,11 +223,11 @@ describe("getHeavyFeaturesEnabled", () => {
 
     it("returns true when the bot reports heavy features", async () => {
         vi.mocked(backendFetch).mockResolvedValue(
-            new Response(JSON.stringify({ heavyFeatures: true }), { status: 200 })
+            new Response(JSON.stringify(true), { status: 200 })
         );
 
         await expect(getHeavyFeaturesEnabled()).resolves.toBe(true);
-        expect(backendFetch).toHaveBeenCalledWith("/api/capabilities");
+        expect(backendFetch).toHaveBeenCalledWith("/api/heavy-features");
     });
 
     it("hides heavy features when the bot request fails", async () => {
@@ -236,7 +236,7 @@ describe("getHeavyFeaturesEnabled", () => {
         await expect(getHeavyFeaturesEnabled()).resolves.toBe(false);
     });
 
-    it("treats a missing flag as off", async () => {
+    it("treats a non-boolean response as off", async () => {
         vi.mocked(backendFetch).mockResolvedValue(new Response("{}", { status: 200 }));
 
         await expect(getHeavyFeaturesEnabled()).resolves.toBe(false);

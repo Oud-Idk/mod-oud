@@ -10,10 +10,9 @@ use ml_proto::toxicity::{ClassifyRequest, ReadyRequest};
 use tonic::transport::{Channel, Endpoint};
 use tracing::{debug, error, info};
 
+use crate::core::config::state::AppConfig;
 use crate::shared::task;
 
-/// Where the service lives when `ML_INFERENCE_ADDR` is unset.
-const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:50051";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 const READY_POLL_INTERVAL: Duration = Duration::from_secs(15);
 
@@ -25,25 +24,24 @@ pub struct ToxicClassifier {
 }
 
 impl ToxicClassifier {
-    /// Builds a client when heavy features are enabled, pointing at `ML_INFERENCE_ADDR`.
+    /// Builds a client from deployment config, or `None` when heavy features are off.
     #[must_use]
-    pub fn from_env(heavy_features: bool) -> Option<Self> {
-        if !heavy_features {
+    pub fn from_config(config: &AppConfig) -> Option<Self> {
+        if !config.heavy_features {
             info!("heavy features disabled, toxicity classifier off");
             return None;
         }
 
-        let endpoint =
-            std::env::var("ML_INFERENCE_ADDR").unwrap_or_else(|_| DEFAULT_ENDPOINT.to_owned());
+        let endpoint = &config.ml_inference_addr;
         let channel = match Endpoint::from_shared(endpoint.clone()) {
             Ok(endpoint) => endpoint.connect_timeout(CONNECT_TIMEOUT).connect_lazy(),
             Err(e) => {
-                error!(error = %e, endpoint, "invalid ML inference address");
+                error!(error = %e, endpoint = %endpoint, "invalid ML inference address");
                 return None;
             }
         };
 
-        info!(endpoint, "toxicity classifier client configured");
+        info!(%endpoint, "toxicity classifier client configured");
         Some(Self {
             client: ToxicityClassifierClient::new(channel),
             ready: Arc::new(AtomicBool::new(false)),

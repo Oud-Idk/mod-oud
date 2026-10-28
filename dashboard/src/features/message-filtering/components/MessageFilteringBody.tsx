@@ -100,7 +100,7 @@ export function MessageFilteringBody({
     onSave,
     heavyFeaturesEnabled,
 }: MessageFilteringBodyProps): JSX.Element {
-    const [activeTab, setActiveTab] = useState<TabValue>("BAD_WORDS");
+    const [selectedTab, setSelectedTab] = useState<TabValue>("BAD_WORDS");
     const normalizedConfig = useMemo(() => messageFilteringConfig, [messageFilteringConfig]);
 
     const visibleTabs = useMemo(
@@ -110,8 +110,8 @@ export function MessageFilteringBody({
         [heavyFeaturesEnabled],
     );
 
-    // A hidden tab must not stay active if the flag flips between renders.
-    const visibleTab = activeTab === "TOXIC_MESSAGES" && !heavyFeaturesEnabled ? "BAD_WORDS" : activeTab;
+    // The selected tab can be hidden by the flag, so derive the one actually shown.
+    const activeTab = visibleTabs.some((tab) => tab.value === selectedTab) ? selectedTab : "BAD_WORDS";
 
     const {
         config,
@@ -138,14 +138,14 @@ export function MessageFilteringBody({
         handleSave();
     };
 
-    const ActiveTabComponent = visibleTab !== "BAD_WORDS" ? TAB_MAP[visibleTab] : null;
+    const ActiveTabComponent = activeTab !== "BAD_WORDS" ? TAB_MAP[activeTab] : null;
 
     return (
         <div>
-            <Tabs tabs={visibleTabs} activeTab={visibleTab} onChange={setActiveTab}/>
+            <Tabs tabs={visibleTabs} activeTab={activeTab} onChange={setSelectedTab}/>
 
             <div className="tab-content">
-                {visibleTab === "BAD_WORDS" ? (
+                {activeTab === "BAD_WORDS" ? (
                     <BadWordTab
                         rulesets={badWordRulesets}
                         activeRuleset={activeRuleset}
@@ -166,7 +166,7 @@ export function MessageFilteringBody({
                 )}
             </div>
 
-            {isDirty && visibleTab !== "BAD_WORDS" && (
+            {isDirty && activeTab !== "BAD_WORDS" && (
                 <SavePopup
                     handleCancel={handleCancel}
                     handleSave={onValidatedSave}
