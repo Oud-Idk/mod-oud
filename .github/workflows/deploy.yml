@@ -164,7 +164,12 @@ jobs:
           export DASHBOARD_IMAGE="$image_prefix-dashboard:sha-${{ github.sha }}"
 
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
-          git pull --ff-only origin main
+
+          # Check out this commit rather than moving main: a queued deploy would
+          # otherwise pair newer compose files with the older revision's images.
+          git fetch --prune origin main
+          git checkout --force --detach "${{ github.sha }}"
+
           docker compose -f docker-compose.prod.yml pull
 
           # The cache volume was created while the image ran as root; hand it to
