@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package mod_oud.ml.toxicity.v1;
+
+// Scores text against the toxicity model.
+service ToxicityClassifier {
+  // Returns one probability per category listed in ToxicityCategories.
+  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
+
+  // Reports whether the model is loaded and able to serve inference.
+  rpc Ready(ReadyRequest) returns (ReadyResponse);
+}
+
+message ClassifyRequest {
+  string text = 1;
+}
+
+message ClassifyResponse {
+  // Category label to probability, in the range 0.0 to 1.0.
+  map<string, float> scores = 1;
+}
+
+message ReadyRequest {}
+
+message ReadyResponse {
+  bool ready = 1;
+}

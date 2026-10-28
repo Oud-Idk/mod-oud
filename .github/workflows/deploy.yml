@@ -68,6 +68,40 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,scope=backend,mode=max
 
+  build-ml:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker Meta (ML inference)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-ml
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.ml
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=ml
+          cache-to: type=gha,scope=ml,mode=max
+
   build-dashboard:
     needs: checks
     runs-on: ubuntu-latest
@@ -106,7 +140,7 @@ jobs:
           cache-to: type=gha,scope=dashboard,mode=max
 
   deploy:
-    needs: [ build-backend, build-dashboard ]
+    needs: [ build-backend, build-ml, build-dashboard ]
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: self-hosted
     timeout-minutes: 20

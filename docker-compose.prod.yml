@@ -37,6 +37,19 @@ services:
       timeout: 3s
       retries: 10
 
+  ml-inference:
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    image: ${ML_IMAGE:-ghcr.io/oud-idk/mod-oud-ml:latest}
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      # Model weights survive restarts; HF Hub downloads them once per volume.
+      - ml-model-cache:/root/.cache/huggingface
+    environment:
+      ML_INFERENCE_LISTEN_ADDR: 0.0.0.0:50051
+
   bot-shard-0:
     build: .
     image: ${BACKEND_IMAGE:-ghcr.io/oud-idk/mod-oud-backend:latest}
@@ -47,6 +60,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ml-inference:
+        condition: service_started
     env_file: .env
     environment:
       SHARD_INDEX: 0
@@ -56,6 +71,7 @@ services:
       RUN_MIGRATIONS: "true"
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      ML_INFERENCE_ADDR: http://ml-inference:50051
       CORS_ORIGINS: ${CORS_ORIGINS:-}
 
   bot-shard-1:
@@ -68,6 +84,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ml-inference:
+        condition: service_started
     env_file: .env
     environment:
       SHARD_INDEX: 1
@@ -76,6 +94,7 @@ services:
       RUN_WEB: "false"
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-discordbot}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      ML_INFERENCE_ADDR: http://ml-inference:50051
       CORS_ORIGINS: ${CORS_ORIGINS:-}
 
   web:
@@ -140,3 +159,4 @@ services:
 volumes:
   postgres_data:
   redis-data:
+  ml-model-cache:

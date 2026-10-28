@@ -367,15 +367,7 @@ pub struct OffensiveMessagesRule {
 }
 
 /// The categories the toxicity classifier scores, in model output order.
-pub const TOXIC_CATEGORIES: [&str; 7] = [
-    "toxicity",
-    "severe_toxicity",
-    "obscene",
-    "identity_attack",
-    "insult",
-    "threat",
-    "sexual_explicit",
-];
+pub use ml_proto::TOXIC_CATEGORIES;
 
 /// Per-category confidence thresholds for the toxicity classifier.
 ///
