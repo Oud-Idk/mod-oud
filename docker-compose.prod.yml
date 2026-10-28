@@ -38,6 +38,7 @@ services:
       retries: 10
 
   ml-inference:
+    profiles: [ "heavy" ]
     build:
       context: .
       dockerfile: Dockerfile.ml
