@@ -17,12 +17,16 @@ import { backendFetch } from "@/lib/backend";
  * A failed lookup hides optional features rather than showing broken controls.
  */
 export async function getHeavyFeaturesEnabled(): Promise<boolean> {
-    const response = await backendFetch("/api/heavy-features");
-    if (!response.ok) {
+    try {
+        const response = await backendFetch("/api/heavy-features");
+        if (!response.ok) {
+            return false;
+        }
+        const enabled = z.boolean().safeParse(await response.json());
+        return enabled.success && enabled.data;
+    } catch {
         return false;
     }
-    const enabled = z.boolean().safeParse(await response.json());
-    return enabled.success && enabled.data;
 }
 
 export async function getMessageFilteringConfig(guildId: string): Promise<MessageFilteringConfig> {
