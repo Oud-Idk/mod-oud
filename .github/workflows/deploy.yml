@@ -174,7 +174,9 @@ jobs:
 
           # The cache volume was created while the image ran as root; hand it to
           # the service uid once. Volumes created from now on inherit it.
-          cache_volume=$(docker volume ls -q --filter label=com.docker.compose.volume=ml-model-cache | head -n 1)
+          cache_volume=$(docker volume ls -q \
+            --filter label=com.docker.compose.project=mod-oud \
+            --filter label=com.docker.compose.volume=ml-model-cache | head -n 1)
           if [ -n "$cache_volume" ]; then
             docker run --rm --user root -v "$cache_volume:/cache" --entrypoint chown "$ML_IMAGE" -R 10001:10001 /cache
           fi
