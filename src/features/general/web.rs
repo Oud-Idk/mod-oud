@@ -35,6 +35,14 @@ pub struct SendCustomEmbedResponse {
     pub message_id: u64,
 }
 
+/// Deployment capabilities the dashboard uses to hide controls this instance cannot serve.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Capabilities {
+    /// Whether the ML toxicity classifier is enabled.
+    pub heavy_features: bool,
+}
+
 // Fixed trait implementation to match EmbedGetters signatures exactly
 impl MessageGetter for SendCustomEmbedPayload {
     fn content(&self) -> &str {
@@ -90,14 +98,6 @@ pub async fn handle_send_custom_embed(
             message_id: message.id.get(),
         }),
     ))
-}
-
-/// Deployment capabilities the dashboard uses to hide controls this instance cannot serve.
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Capabilities {
-    /// Whether the ML toxicity classifier is enabled.
-    pub heavy_features: bool,
 }
 
 /// Reports the optional features this deployment has turned on.

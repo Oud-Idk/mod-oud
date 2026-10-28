@@ -43,6 +43,10 @@ src/
     ├── middleware.rs     # Internal-secret auth for backend routes
     ├── server.rs         # Startup, CORS, listener, and shared states
     └── ticket.rs         # Signed ticket verification for real-time endpoints
+
+crates/                     # Separate binaries and their shared contracts
+├── ml-inference/           # gRPC server that loads and runs the toxicity model
+└── ml-proto/               # .proto contract and generated client/server stubs
 ```
 
 ---

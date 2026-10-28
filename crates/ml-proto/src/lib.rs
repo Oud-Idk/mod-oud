@@ -15,7 +15,7 @@ pub const TOXIC_CATEGORIES: [&str; 7] = [
 ];
 
 /// Generated messages and gRPC stubs for `mod_oud.ml.toxicity.v1`.
-#[allow(missing_docs)]
+#[allow(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
 pub mod toxicity {
     tonic::include_proto!("mod_oud.ml.toxicity.v1");
 }

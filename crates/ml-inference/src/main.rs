@@ -10,7 +10,7 @@ use std::time::Duration;
 use anyhow::Context;
 use hf_hub::HFClient;
 use ml_proto::toxicity::toxicity_classifier_server::ToxicityClassifierServer;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
 /// Address the service binds when `ML_INFERENCE_LISTEN_ADDR` is unset.
@@ -64,7 +64,7 @@ async fn load_model(classifier: SharedClassifier) {
                 }
                 return;
             }
-            Err(e) => error!(error = %e, "toxicity model load failed; retrying"),
+            Err(e) => warn!(error = %e, "toxicity model load failed; retrying"),
         }
         tokio::time::sleep(LOAD_RETRY_DELAY).await;
     }
@@ -119,6 +119,6 @@ async fn shutdown_signal() {
     }
 
     if let Err(e) = tokio::signal::ctrl_c().await {
-        error!(error = %e, "failed to listen for shutdown signal");
+        error!(error = %e, "shutdown signal listener failed");
     }
 }

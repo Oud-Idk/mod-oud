@@ -1,3 +1,4 @@
+use ml_proto::TOXIC_CATEGORIES;
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
@@ -365,9 +366,6 @@ pub struct OffensiveMessagesRule {
     /// The minimum severity threshold required to trigger an action.
     pub flag_threshold: FlagSeverity,
 }
-
-/// The categories the toxicity classifier scores, in model output order.
-pub use ml_proto::TOXIC_CATEGORIES;
 
 /// Per-category confidence thresholds for the toxicity classifier.
 ///

@@ -1,4 +1,4 @@
-//! The toxicity classifier: a RoBERTa tokenizer plus its ONNX graph.
+//! The toxicity classifier: a `RoBERTa` tokenizer plus its ONNX graph.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -21,6 +21,9 @@ pub struct ToxicClassifier {
 
 impl ToxicClassifier {
     /// Loads the ONNX model and tokenizer from disk and initializes the runtime.
+    ///
+    /// # Errors
+    /// Returns an error when the tokenizer or model cannot be loaded.
     pub fn load<P: AsRef<Path>>(model_path: P, tokenizer_path: P) -> Result<Self> {
         let mut tokenizer = Tokenizer::from_file(tokenizer_path)
             .map_err(|e| anyhow!("failed to load tokenizer: {e}"))?;
@@ -62,6 +65,9 @@ impl ToxicClassifier {
     }
 
     /// Evaluates the input string and returns a map of toxicity labels to probability scores.
+    ///
+    /// # Errors
+    /// Returns an error when tokenization or inference fails.
     pub fn predict(&self, text: &str) -> Result<HashMap<String, f32>> {
         let encoding = self
             .tokenizer

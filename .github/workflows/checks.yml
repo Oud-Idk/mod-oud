@@ -62,7 +62,7 @@ jobs:
               - 'dashboard/**'
               - '.github/workflows/checks.yml'
 
-  # Also runs the logging convention check, another static read of src/.
+  # Also runs the logging convention check, another static read of src/ and crates/.
   cargo-clippy:
     needs: changes
     if: needs.changes.outputs.rust == 'true'
