@@ -5,8 +5,10 @@ import {
     getBadWordRulesets,
     saveBadWordRuleset,
     deleteBadWordRuleset,
+    getHeavyFeaturesEnabled,
 } from "./queries";
 import { getGuildConfigField, saveGuildConfigField } from "@/features/_shared/guild";
+import { backendFetch } from "@/lib/backend";
 import {
     MessageFilteringConfig,
     saveBadWordRulesetInputSchema,
@@ -36,6 +38,10 @@ vi.mock("@/lib/redis", () => ({
 vi.mock("@/features/_shared/guild", () => ({
     getGuildConfigField: vi.fn(),
     saveGuildConfigField: vi.fn(),
+}));
+
+vi.mock("@/lib/backend", () => ({
+    backendFetch: vi.fn(),
 }));
 
 // Row mapping, SQL shape, tenant scoping, upsert conflict targets and cache
@@ -209,3 +215,30 @@ function rulesetRowFixture(): {
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     };
 }
+
+describe("getHeavyFeaturesEnabled", () => {
+    beforeEach(() => {
+        vi.mocked(backendFetch).mockReset();
+    });
+
+    it("returns true when the bot reports heavy features", async () => {
+        vi.mocked(backendFetch).mockResolvedValue(
+            new Response(JSON.stringify({ heavyFeatures: true }), { status: 200 })
+        );
+
+        await expect(getHeavyFeaturesEnabled()).resolves.toBe(true);
+        expect(backendFetch).toHaveBeenCalledWith("/api/capabilities");
+    });
+
+    it("hides heavy features when the bot request fails", async () => {
+        vi.mocked(backendFetch).mockResolvedValue(new Response("nope", { status: 500 }));
+
+        await expect(getHeavyFeaturesEnabled()).resolves.toBe(false);
+    });
+
+    it("treats a missing flag as off", async () => {
+        vi.mocked(backendFetch).mockResolvedValue(new Response("{}", { status: 200 }));
+
+        await expect(getHeavyFeaturesEnabled()).resolves.toBe(false);
+    });
+});

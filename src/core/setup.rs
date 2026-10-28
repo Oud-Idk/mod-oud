@@ -168,7 +168,8 @@ pub fn setup<'a>(
             );
         }
 
-        let toxic_classifier = ToxicClassifier::from_env();
+        let app_config = AppConfig::from_env();
+        let toxic_classifier = ToxicClassifier::from_env(app_config.heavy_features);
         if let Some(classifier) = &toxic_classifier {
             classifier.spawn_readiness_probe();
         }
@@ -180,7 +181,7 @@ pub fn setup<'a>(
                 reqwest_client,
                 guild_configs_cache,
                 username_tx,
-                config: AppConfig::from_env(),
+                config: app_config,
                 spotify_auth: music_state.spotify_auth.clone(),
             },
             security: BotSecurity {

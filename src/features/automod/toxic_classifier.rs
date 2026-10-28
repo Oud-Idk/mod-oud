@@ -25,10 +25,10 @@ pub struct ToxicClassifier {
 }
 
 impl ToxicClassifier {
-    /// Builds a client when `ENABLE_HEAVY_FEAT` is on, pointing at `ML_INFERENCE_ADDR`.
+    /// Builds a client when heavy features are enabled, pointing at `ML_INFERENCE_ADDR`.
     #[must_use]
-    pub fn from_env() -> Option<Self> {
-        if !heavy_features_enabled() {
+    pub fn from_env(heavy_features: bool) -> Option<Self> {
+        if !heavy_features {
             info!("heavy features disabled, toxicity classifier off");
             return None;
         }
@@ -101,11 +101,4 @@ impl ToxicClassifier {
             }
         });
     }
-}
-
-fn heavy_features_enabled() -> bool {
-    std::env::var("ENABLE_HEAVY_FEAT")
-        .unwrap_or_else(|_| "false".to_owned())
-        .to_lowercase()
-        == "true"
 }

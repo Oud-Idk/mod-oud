@@ -86,6 +86,7 @@ interface MessageFilteringBodyProps {
     channelMap?: Record<string, string>;
     roleMap?: Record<string, string>;
     onSave: (messageFilteringConfig: MessageFilteringConfig) => Promise<void>;
+    heavyFeaturesEnabled: boolean;
 }
 
 export function MessageFilteringBody({
@@ -97,9 +98,20 @@ export function MessageFilteringBody({
     channelMap,
     roleMap,
     onSave,
+    heavyFeaturesEnabled,
 }: MessageFilteringBodyProps): JSX.Element {
     const [activeTab, setActiveTab] = useState<TabValue>("BAD_WORDS");
     const normalizedConfig = useMemo(() => messageFilteringConfig, [messageFilteringConfig]);
+
+    const visibleTabs = useMemo(
+        () => (heavyFeaturesEnabled
+            ? FILTERING_TABS
+            : FILTERING_TABS.filter((tab) => tab.value !== "TOXIC_MESSAGES")),
+        [heavyFeaturesEnabled],
+    );
+
+    // A hidden tab must not stay active if the flag flips between renders.
+    const visibleTab = activeTab === "TOXIC_MESSAGES" && !heavyFeaturesEnabled ? "BAD_WORDS" : activeTab;
 
     const {
         config,
@@ -126,14 +138,14 @@ export function MessageFilteringBody({
         handleSave();
     };
 
-    const ActiveTabComponent = activeTab !== "BAD_WORDS" ? TAB_MAP[activeTab] : null;
+    const ActiveTabComponent = visibleTab !== "BAD_WORDS" ? TAB_MAP[visibleTab] : null;
 
     return (
         <div>
-            <Tabs tabs={FILTERING_TABS} activeTab={activeTab} onChange={setActiveTab}/>
+            <Tabs tabs={visibleTabs} activeTab={visibleTab} onChange={setActiveTab}/>
 
             <div className="tab-content">
-                {activeTab === "BAD_WORDS" ? (
+                {visibleTab === "BAD_WORDS" ? (
                     <BadWordTab
                         rulesets={badWordRulesets}
                         activeRuleset={activeRuleset}
@@ -154,7 +166,7 @@ export function MessageFilteringBody({
                 )}
             </div>
 
-            {isDirty && activeTab !== "BAD_WORDS" && (
+            {isDirty && visibleTab !== "BAD_WORDS" && (
                 <SavePopup
                     handleCancel={handleCancel}
                     handleSave={onValidatedSave}

@@ -86,10 +86,18 @@ pub struct AppConfig {
     /// Optional Wordnik API key
     pub wordnik_api_key: Option<String>,
 
+    /// Whether optional heavy features, such as ML inference, are enabled.
+    pub heavy_features: bool,
+
     /// Dashboard origin used to build absolute links (e.g. verification URLs),
     /// including the scheme: `http://localhost:3000` locally,
     /// `https://dashboard.example.com` in production.
     pub domain: String,
+}
+
+/// Reads a boolean flag, treating only `true` (any case) as on.
+fn env_flag(key: &str) -> bool {
+    std::env::var(key).is_ok_and(|value| value.eq_ignore_ascii_case("true"))
 }
 
 /// Reads a secret from the environment, treating an empty value as absent.
@@ -161,6 +169,7 @@ impl AppConfig {
             hc_site_key: std::env::var("HCAPTCHA_SITE_KEY").ok(),
             giphy_api_key: std::env::var("GIPHY_API_KEY").ok(),
             klipy_api_key: std::env::var("KLIPY_API_KEY").ok(),
+            heavy_features: env_flag("ENABLE_HEAVY_FEAT"),
             domain: std::env::var("DOMAIN")
                 .unwrap_or_else(|_| "http://localhost:3000".to_string())
                 .trim_end_matches('/')

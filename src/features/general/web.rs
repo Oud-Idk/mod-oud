@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    routing::post,
+    routing::{get, post},
 };
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
@@ -92,10 +92,27 @@ pub async fn handle_send_custom_embed(
     ))
 }
 
-/// Registers the general web route for sending custom embeds.
+/// Deployment capabilities the dashboard uses to hide controls this instance cannot serve.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Capabilities {
+    /// Whether the ML toxicity classifier is enabled.
+    pub heavy_features: bool,
+}
+
+/// Reports the optional features this deployment has turned on.
+pub async fn handle_capabilities(State(state): State<Arc<WebState>>) -> Json<Capabilities> {
+    Json(Capabilities {
+        heavy_features: state.core.config.heavy_features,
+    })
+}
+
+/// Registers the general web routes.
 pub fn routes() -> Router<Arc<WebState>> {
-    Router::new().route(
-        "/guilds/{guild_id}/embeds/send",
-        post(handle_send_custom_embed),
-    )
+    Router::new()
+        .route("/capabilities", get(handle_capabilities))
+        .route(
+            "/guilds/{guild_id}/embeds/send",
+            post(handle_send_custom_embed),
+        )
 }
