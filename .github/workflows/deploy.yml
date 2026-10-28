@@ -4,8 +4,8 @@ name: deploy
 # clippy or a failing test still blocks the image build and the deploy.
 #
 # The build and deploy jobs live here rather than in checks.yml so that a pull
-# request cannot reach the registry. They push a `:latest` tag, which
-# docker-compose.prod.yml pulls.
+# request cannot reach the registry. They push `:latest` plus a `:sha-<commit>`
+# tag; the deploy pulls the SHA tag so the whole stack stays on one revision.
 
 on:
   push:
@@ -154,6 +154,14 @@ jobs:
         run: |
           set -e
           cd /opt/mod-oud
+
+          # Pin every image to this commit's SHA tag: `latest` can move under a
+          # restart or rollback, which would mix ML and bot revisions. GHCR
+          # rejects uppercase paths, so lower the owner/repo here.
+          image_prefix="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          export ML_IMAGE="$image_prefix-ml:sha-${{ github.sha }}"
+          export BACKEND_IMAGE="$image_prefix-backend:sha-${{ github.sha }}"
+          export DASHBOARD_IMAGE="$image_prefix-dashboard:sha-${{ github.sha }}"
 
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
           git pull --ff-only origin main

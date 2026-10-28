@@ -1,5 +1,8 @@
 # Production stack for a VPS fronted by a Cloudflare Tunnel (cloudflared).
 # No inbound ports are opened on the VPS; db/redis have no published ports at all.
+#
+# The `*-IMAGE` fallbacks below are for local builds. Deploys pass the commit's
+# `sha-<commit>` tag instead, so a restart or rollback replays one revision.
 
 x-default-logging: &default-logging
   driver: json-file
